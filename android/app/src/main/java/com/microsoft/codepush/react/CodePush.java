@@ -91,6 +91,8 @@ public class CodePush implements ReactPackage {
     public CodePush(String deploymentKey, Context context, boolean isDebugMode, String serverUrl) {
         this(deploymentKey, context, isDebugMode);
         mServerUrl = serverUrl;
+        Console.log("deploymentKey initialized :: "+ deploymentKey);
+        Console.log("mServerUrl initialized :: "+ mServerUrl);
     }
 
     public CodePush(String deploymentKey, Context context, boolean isDebugMode, int publicKeyResourceDescriptor) {
@@ -170,10 +172,17 @@ public class CodePush implements ReactPackage {
     }
 
     public void clearDebugCacheIfNeeded(ReactInstanceManager instanceManager) {
-        if (mIsDebugMode && mSettingsManager.isPendingUpdate(null) && !isLiveReloadEnabled(instanceManager)) {
+        CodePushUtils.log("instanceManager in clear debug cache ::"+ instanceManager);
+        boolean isPendingUpdate = mSettingsManager.isPendingUpdate(null);
+        boolean isLiveReloadEnabled = isLiveReloadEnabled(instanceManager);
+        CodePushUtils.log("isPendingUpdate in clear debug cache ::"+ isPendingUpdate);
+        CodePushUtils.log("isLiveReloadEnabled in clear debug cache ::"+ isLiveReloadEnabled);
+        if (mIsDebugMode && isPendingUpdate && !isLiveReloadEnabled) {
             // This needs to be kept in sync with https://github.com/facebook/react-native/blob/master/ReactAndroid/src/main/java/com/facebook/react/devsupport/DevSupportManager.java#L78
+            CodePushUtils.log("mIsDebugMode ::"+ mIsDebugMode);
             File cachedDevBundle = new File(mContext.getFilesDir(), "ReactNativeDevBundle.js");
             if (cachedDevBundle.exists()) {
+                CodePushUtils.log("cachedDevBundle exists ::");
                 cachedDevBundle.delete();
             }
         }
@@ -247,6 +256,7 @@ public class CodePush implements ReactPackage {
     }
 
     public String getJSBundleFileInternal(String assetsBundleFileName) {
+        CodePushUtils.log("getJSBundleFileInternal ::");
         this.mAssetsBundleFileName = assetsBundleFileName;
         String binaryJsBundleUrl = CodePushConstants.ASSETS_BUNDLE_PREFIX + assetsBundleFileName;
         CodePushUtils.log("Binary JS Bundle URL "+ binaryJsBundleUrl + " and assetBundleFileName " + assetsBundleFileName);
@@ -259,13 +269,15 @@ public class CodePush implements ReactPackage {
             clearUpdates();
         }
         CodePushUtils.log("packageFilePath "+ packageFilePath);
+
         if (packageFilePath == null) {
             // There has not been any downloaded updates.
+            CodePushUtils.log("log Bundle Url because no downloaded update "+ packageFilePath);
             CodePushUtils.logBundleUrl(binaryJsBundleUrl);
             sIsRunningBinaryVersion = true;
             return binaryJsBundleUrl;
         }
-        CodePushUtils.log("log Bundle Url because no downloaded update "+ packageFilePath);
+
         JSONObject packageMetadata = this.mUpdateManager.getCurrentPackage();
         if (isPackageBundleLatest(packageMetadata)) {
             CodePushUtils.log("log Bundle Url because package is latest "+ packageFilePath);
@@ -295,24 +307,32 @@ public class CodePush implements ReactPackage {
         mDidUpdate = false;
 
         JSONObject pendingUpdate = mSettingsManager.getPendingUpdate();
+        CodePushUtils.log("In initializeUpdateAfterRestart(), pendingUpdate is :: "+ pendingUpdate);
         if (pendingUpdate != null) {
             JSONObject packageMetadata = null;
 
             try {
                 packageMetadata = this.mUpdateManager.getCurrentPackage();
+                CodePushUtils.log("In initializeUpdateAfterRestart(), current package update ::"+ packageMetadata);
             } catch (CodePushMalformedDataException e) {
                 // We need to recover the app in case 'codepush.json' is corrupted
                 CodePushUtils.log(e);
+                CodePushUtils.log("In initializeUpdateAfterRestart(), Since codepush.json is corrupted clearing updates");
                 clearUpdates();
                 return;
             }
-            if (packageMetadata == null || !isPackageBundleLatest(packageMetadata) && hasBinaryVersionChanged(packageMetadata)) {
+            boolean isPackageBundleLatestWithPackageInfo = isPackageBundleLatest(packageMetadata);
+            boolean didBinaryVersionChanged = hasBinaryVersionChanged(packageMetadata);
+            CodePushUtils.log("isPackageBundleLatestWithPackageInfo :: "+ isPackageBundleLatestWithPackageInfo);
+            CodePushUtils.log("didBinaryVersionChanged :: "+ didBinaryVersionChanged);
+            if (packageMetadata == null || !isPackageBundleLatestWithPackageInfo && didBinaryVersionChanged) {
                 CodePushUtils.log("Skipping initializeUpdateAfterRestart(), binary version is newer");
                 return;
             }
 
             try {
                 boolean updateIsLoading = pendingUpdate.getBoolean(CodePushConstants.PENDING_UPDATE_IS_LOADING_KEY);
+                CodePushUtils.log("updateIsLoading in block :: " + updateIsLoading);
                 if (updateIsLoading) {
                     // Pending update was initialized, but notifyApplicationReady was not called.
                     // Therefore, deduce that it is a broken update and rollback.
@@ -380,6 +400,7 @@ public class CodePush implements ReactPackage {
 
     private void rollbackPackage() {
         JSONObject failedPackage = mUpdateManager.getCurrentPackage();
+        CodepushUtils.log("failedPackage in Rollback package ::", failedPackage);
         mSettingsManager.saveFailedUpdate(failedPackage);
         mUpdateManager.rollbackPackage();
         mSettingsManager.removePendingUpdate();

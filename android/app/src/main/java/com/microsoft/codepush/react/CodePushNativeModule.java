@@ -62,13 +62,14 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
 
         // Initialize module state while we have a reference to the current context.
         mBinaryContentsHash = CodePushUpdateUtils.getHashForBinaryContents(reactContext, mCodePush.isDebugMode());
-
+        CodePushUtils.log("mBinaryContentsHash here in native module constructor is "+ mBinaryContentsHash);
         SharedPreferences preferences = codePush.getContext().getSharedPreferences(CodePushConstants.CODE_PUSH_PREFERENCES, 0);
         mClientUniqueId = preferences.getString(CodePushConstants.CLIENT_UNIQUE_ID_KEY, null);
         if (mClientUniqueId == null) {
             mClientUniqueId = UUID.randomUUID().toString();
             preferences.edit().putString(CodePushConstants.CLIENT_UNIQUE_ID_KEY, mClientUniqueId).apply();
         }
+        CodePushUtils.log("mClientUniqueId here in native module constructor is "+ mClientUniqueId);
     }
 
     @Override
@@ -94,11 +95,14 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
 
     private void loadBundleLegacy() {
         final Activity currentActivity = getCurrentActivity();
+        CodePushUtils.log("creating loadBundleLegacy ::");
         if (currentActivity == null) {
             // The currentActivity can be null if it is backgrounded / destroyed, so we simply
             // no-op to prevent any null pointer exceptions.
+            CodePushUtils.log("no-op to prevent any null pointer exceptions because currentActivity in background or destroyed ::");
             return;
         }
+        CodePushUtils.log("Invalidating Current Instance ::");
         mCodePush.invalidateCurrentInstance();
 
         currentActivity.runOnUiThread(new Runnable() {
@@ -115,12 +119,16 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         try {
             JSBundleLoader latestJSBundleLoader;
             if (latestJSBundleFile.toLowerCase().startsWith("assets://")) {
+                CodePushUtils.log("Creating Asset Loader ::");
                 latestJSBundleLoader = JSBundleLoader.createAssetLoader(getReactApplicationContext(), latestJSBundleFile, false);
             } else {
+                CodePushUtils.log("Creating File Loader ::");
                 latestJSBundleLoader = JSBundleLoader.createFileLoader(latestJSBundleFile);
             }
             CodePushUtils.log("Bundle is loaded");
+            CodePushUtils.log("latestJSBundleLoader :: " + latestJSBundleLoader);
             Field bundleLoaderField = instanceManager.getClass().getDeclaredField("mBundleLoader");
+            CodePushUtils.log("bundleLoaderField :: " + bundleLoaderField);
             bundleLoaderField.setAccessible(true);
             bundleLoaderField.set(instanceManager, latestJSBundleLoader);
             CodePushUtils.log("Bundle is set");
@@ -143,13 +151,13 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
             // #1) Get the ReactInstanceManager instance, which is what includes the
             //     logic to reload the current React context.
             final ReactInstanceManager instanceManager = resolveInstanceManager();
+            CodePushUtils.log("instance manager resolved in load Bundle :: "+ instanceManager);
             if (instanceManager == null) {
                 return;
             }
 
             String latestJSBundleFile = mCodePush.getJSBundleFileInternal(mCodePush.getAssetsBundleFileName());
             CodePushUtils.log("latest JS Bundle File "+ latestJSBundleFile);
-
             // #2) Update the locally stored JS bundle file path
             setJSBundle(instanceManager, latestJSBundleFile);
 
@@ -164,6 +172,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                         //resetReactRootViews(instanceManager);
 
                         instanceManager.recreateReactContextInBackground();
+                        CodePushUtils.log("Initiliase Update and Restart called after creating react context in background ");
                         mCodePush.initializeUpdateAfterRestart();
                         CodePushUtils.log("Initiliase Update and Restart ");
                     } catch (Exception e) {
@@ -200,6 +209,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         // Remove LifecycleEventListener to prevent infinite restart loop
         if (mLifecycleEventListener != null) {
             getReactApplicationContext().removeLifecycleEventListener(mLifecycleEventListener);
+            CodePushUtils.log("clearing LifecycleEventListener ::");
             mLifecycleEventListener = null;
         }
     }
@@ -218,6 +228,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
 
         ReactApplication reactApplication = (ReactApplication) currentActivity.getApplication();
         instanceManager = reactApplication.getReactNativeHost().getReactInstanceManager();
+        CodePushUtils.log("instance manager resolved ::" + instanceManager);
 
         return instanceManager;
     }
@@ -297,6 +308,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
             protected Void doInBackground(Void... params) {
                 try {
                     JSONObject mutableUpdatePackage = CodePushUtils.convertReadableToJsonObject(updatePackage);
+                    CodePushUtils.log("mutableUpdatePackage in downloadUpdate :: "+ mutableUpdatePackage);
                     CodePushUtils.setJSONValueForKey(mutableUpdatePackage, CodePushConstants.BINARY_MODIFIED_TIME_KEY, "" + mCodePush.getBinaryResourcesModifiedTime());
                     mUpdateManager.downloadPackage(mutableUpdatePackage, mCodePush.getAssetsBundleFileName(), new DownloadProgressCallback() {
                         private boolean hasScheduledNextFrame = false;
@@ -529,7 +541,7 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                         // it comes back into the foreground.
                         installMode == CodePushInstallMode.IMMEDIATE.getValue() ||
                         installMode == CodePushInstallMode.ON_NEXT_SUSPEND.getValue()) {
-
+                        CodePushUtils.log("installMode :: "+ installMode);
                         // Store the minimum duration on the native module as an instance
                         // variable instead of relying on a closure below, so that any
                         // subsequent resume-based installs could override it.

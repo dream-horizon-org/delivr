@@ -17,6 +17,8 @@ public class SettingsManager {
 
     public JSONArray getFailedUpdates() {
         String failedUpdatesString = mSettings.getString(CodePushConstants.FAILED_UPDATES_KEY, null);
+        CodePushUtils.log("getFailedUpdates " + failedUpdatesString +
+                " stored in getFailedUpdates");
         if (failedUpdatesString == null) {
             return new JSONArray();
         }
@@ -27,12 +29,15 @@ public class SettingsManager {
             // Unrecognized data format, clear and replace with expected format.
             JSONArray emptyArray = new JSONArray();
             mSettings.edit().putString(CodePushConstants.FAILED_UPDATES_KEY, emptyArray.toString()).commit();
+            CodePushUtils.log("exception in getFailedUpdates " + emptyArray +
+                    " stored in getFailedUpdates");
             return emptyArray;
         }
     }
 
     public JSONObject getPendingUpdate() {
         String pendingUpdateString = mSettings.getString(CodePushConstants.PENDING_UPDATE_KEY, null);
+        CodePushUtils.log("pendingUpdateString in getPendingUpdate " + pendingUpdateString);
         if (pendingUpdateString == null) {
             return null;
         }
@@ -160,6 +165,9 @@ public class SettingsManager {
 
     public void savePendingUpdate(String packageHash, boolean isLoading) {
         JSONObject pendingUpdate = new JSONObject();
+        CodePushUtils.log("saving Pending Update ::");
+        CodePushUtils.log("packageHash::" + packageHash);
+        CodePushUtils.log("isLoading::" + isLoading);
         try {
             pendingUpdate.put(CodePushConstants.PENDING_UPDATE_HASH_KEY, packageHash);
             pendingUpdate.put(CodePushConstants.PENDING_UPDATE_IS_LOADING_KEY, isLoading);

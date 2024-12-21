@@ -195,6 +195,7 @@ public class CodePushUtils {
 
     public static JSONObject getJsonObjectFromFile(String filePath) throws IOException {
         String content = FileUtils.readFileToString(filePath);
+        CodePushUtils.log("content in getJsonObjectFromFile ::" + content);
         try {
             return new JSONObject(content);
         } catch (JSONException jsonException) {

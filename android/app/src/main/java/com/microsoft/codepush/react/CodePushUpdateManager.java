@@ -51,6 +51,7 @@ public class CodePushUpdateManager {
 
     public JSONObject getCurrentPackageInfo() {
         String statusFilePath = getStatusFilePath();
+        CodePushUtils.log("statusFilePath in getCurrentPackageInfo :: " + statusFilePath);
         if (!FileUtils.fileAtPathExists(statusFilePath)) {
             return new JSONObject();
         }
@@ -74,7 +75,9 @@ public class CodePushUpdateManager {
 
     public String getCurrentPackageFolderPath() {
         JSONObject info = getCurrentPackageInfo();
+        CodePushUtils.log("info in getCurrentPackageFolderPath :: "+ info );
         String packageHash = info.optString(CodePushConstants.CURRENT_PACKAGE_KEY, null);
+        CodePushUtils.log("packageHash in getCurrentPackageFolderPath :: "+ packageHash );
         if (packageHash == null) {
             return null;
         }
@@ -107,6 +110,7 @@ public class CodePushUpdateManager {
 
     public String getCurrentPackageHash() {
         JSONObject info = getCurrentPackageInfo();
+        CodePushUtils.log("info in getCurrentPackageHash :: "+ info);
         return info.optString(CodePushConstants.CURRENT_PACKAGE_KEY, null);
     }
 
@@ -120,6 +124,7 @@ public class CodePushUpdateManager {
         if (packageHash == null) {
             return null;
         }
+        CodePushUtils.log("packageHash in getCurrentPackage ::" + packageHash);
 
         return getPackage(packageHash);
     }
@@ -136,6 +141,7 @@ public class CodePushUpdateManager {
     public JSONObject getPackage(String packageHash) {
         String folderPath = getPackageFolderPath(packageHash);
         String packageFilePath = CodePushUtils.appendPathComponent(folderPath, CodePushConstants.PACKAGE_FILE_NAME);
+        CodePushUtils.log("folderPath :: "+ folderPath + " packageFilePath :: "+ packageFilePath+ " in getPackage");
         try {
             return CodePushUtils.getJsonObjectFromFile(packageFilePath);
         } catch (IOException e) {
@@ -149,13 +155,20 @@ public class CodePushUpdateManager {
         String newUpdateHash = updatePackage.optString(CodePushConstants.PACKAGE_HASH_KEY, null);
         String newUpdateFolderPath = getPackageFolderPath(newUpdateHash);
         String newUpdateMetadataPath = CodePushUtils.appendPathComponent(newUpdateFolderPath, CodePushConstants.PACKAGE_FILE_NAME);
+        CodePushUtils.log("DownloadingPackage initiated");
+        CodePushUtils.log("newUpdateHash :: " + newUpdateHash);
+        CodePushUtils.log("newUpdateFolderPath :: " + newUpdateFolderPath);
+        CodePushUtils.log("newUpdateMetadataPath :: " + newUpdateMetadataPath);
         if (FileUtils.fileAtPathExists(newUpdateFolderPath)) {
             // This removes any stale data in newPackageFolderPath that could have been left
             // uncleared due to a crash or error during the download or install process.
             FileUtils.deleteDirectoryAtPath(newUpdateFolderPath);
+            CodePushUtils.log("fileAtPath Exists, deleting directory");
         }
 
         String downloadUrlString = updatePackage.optString(CodePushConstants.DOWNLOAD_URL_KEY, null);
+        //This must be logged to evaluate infra
+        CodePushUtils.log("downloadUrlString :: " + downloadUrlString);
         HttpURLConnection connection = null;
         BufferedInputStream bin = null;
         FileOutputStream fos = null;
@@ -173,6 +186,7 @@ public class CodePushUpdateManager {
                 try {
                     ((HttpsURLConnection)connection).setSSLSocketFactory(new TLSSocketFactory());
                 } catch (Exception e) {
+                    CodePushUtils.log("HTTP exists due to Build version:: " + downloadUrlString);
                     throw new CodePushUnknownException("Error set SSLSocketFactory. ", e);
                 }
             }
@@ -190,6 +204,7 @@ public class CodePushUpdateManager {
             bout = new BufferedOutputStream(fos, CodePushConstants.DOWNLOAD_BUFFER_SIZE);
             byte[] data = new byte[CodePushConstants.DOWNLOAD_BUFFER_SIZE];
             byte[] header = new byte[4];
+            CodePushUtils.log("downloadFolder path :: "+ getCodePushPath());
 
             int numBytesRead = 0;
             while ((numBytesRead = bin.read(data, 0, CodePushConstants.DOWNLOAD_BUFFER_SIZE)) >= 0) {
@@ -228,15 +243,19 @@ public class CodePushUpdateManager {
         }
 
         if (isZip) {
+            CodePushUtils.log("Unzipping ");
             // Unzip the downloaded file and then delete the zip
             String unzippedFolderPath = getUnzippedFolderPath();
+            CodePushUtils.log("unzippedFolderPath  :: "+ unzippedFolderPath);
             FileUtils.unzipFile(downloadFile, unzippedFolderPath);
             FileUtils.deleteFileOrFolderSilently(downloadFile);
 
             // Merge contents with current update based on the manifest
             String diffManifestFilePath = CodePushUtils.appendPathComponent(unzippedFolderPath,
                     CodePushConstants.DIFF_MANIFEST_FILE_NAME);
+            CodePushUtils.log("diffManifestFilePath  :: " + diffManifestFilePath);
             boolean isDiffUpdate = FileUtils.fileAtPathExists(diffManifestFilePath);
+            CodePushUtils.log("isDiffUpdate  :: " + isDiffUpdate);
             if (isDiffUpdate) {
                 String currentPackageFolderPath = getCurrentPackageFolderPath();
                 CodePushUpdateUtils.copyNecessaryFilesFromCurrentPackage(diffManifestFilePath, currentPackageFolderPath, newUpdateFolderPath);
@@ -244,13 +263,13 @@ public class CodePushUpdateManager {
                 diffManifestFile.delete();
             }
 
+
             FileUtils.copyDirectoryContents(unzippedFolderPath, newUpdateFolderPath);
             FileUtils.deleteFileAtPathSilently(unzippedFolderPath);
-
             // For zip updates, we need to find the relative path to the jsBundle and save it in the
             // metadata so that we can find and run it easily the next time.
             String relativeBundlePath = CodePushUpdateUtils.findJSBundleInUpdateContents(newUpdateFolderPath, expectedBundleFileName);
-
+            CodePushUtils.log("relativeBundlePath  :: " + relativeBundlePath);
             if (relativeBundlePath == null) {
                 throw new CodePushInvalidUpdateException("Update is invalid - A JS bundle file named \"" + expectedBundleFileName + "\" could not be found within the downloaded contents. Please check that you are releasing your CodePush updates using the exact same JS bundle file name that was shipped with your app's binary.");
             } else {
@@ -308,10 +327,14 @@ public class CodePushUpdateManager {
     }
 
     public void installPackage(JSONObject updatePackage, boolean removePendingUpdate) {
+        CodePushUtils.log("Installing Package ::");
+        CodePushUtils.log("updatePackage  :: " + updatePackage + " removePendingUpdate :: "+ removePendingUpdate);
         String packageHash = updatePackage.optString(CodePushConstants.PACKAGE_HASH_KEY, null);
+        CodePushUtils.log("packageHash  :: " + packageHash);
         JSONObject info = getCurrentPackageInfo();
-
+        CodePushUtils.log("info  :: " + info);
         String currentPackageHash = info.optString(CodePushConstants.CURRENT_PACKAGE_KEY, null);
+        CodePushUtils.log("currentPackageHash  :: " + currentPackageHash);
         if (packageHash != null && packageHash.equals(currentPackageHash)) {
             // The current package is already the one being installed, so we should no-op.
             return;
@@ -324,6 +347,7 @@ public class CodePushUpdateManager {
             }
         } else {
             String previousPackageHash = getPreviousPackageHash();
+            CodePushUtils.log("previousPackageHash  :: " + previousPackageHash);
             if (previousPackageHash != null && !previousPackageHash.equals(packageHash)) {
                 FileUtils.deleteDirectoryAtPath(getPackageFolderPath(previousPackageHash));
             }
@@ -336,6 +360,7 @@ public class CodePushUpdateManager {
     }
 
     public void rollbackPackage() {
+        CodePushUtils.log("rolling back Package :: ");
         JSONObject info = getCurrentPackageInfo();
         String currentPackageFolderPath = getCurrentPackageFolderPath();
         FileUtils.deleteDirectoryAtPath(currentPackageFolderPath);

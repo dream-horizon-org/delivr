@@ -16,42 +16,48 @@ public class FileUtils {
     private static final int WRITE_BUFFER_SIZE = 1024 * 8;
 
     public static void copyDirectoryContents(String sourceDirectoryPath, String destinationDirectoryPath) throws IOException {
-        File sourceDir = new File(sourceDirectoryPath);
-        File destDir = new File(destinationDirectoryPath);
-        if (!destDir.exists()) {
-            destDir.mkdir();
-        }
+        try {
+            File sourceDir = new File(sourceDirectoryPath);
+            File destDir = new File(destinationDirectoryPath);
+            if (!destDir.exists()) {
+                destDir.mkdir();
+            }
 
-        for (File sourceFile : sourceDir.listFiles()) {
-            if (sourceFile.isDirectory()) {
-                copyDirectoryContents(
-                        CodePushUtils.appendPathComponent(sourceDirectoryPath, sourceFile.getName()),
-                        CodePushUtils.appendPathComponent(destinationDirectoryPath, sourceFile.getName()));
-            } else {
-                File destFile = new File(destDir, sourceFile.getName());
-                FileInputStream fromFileStream = null;
-                BufferedInputStream fromBufferedStream = null;
-                FileOutputStream destStream = null;
-                byte[] buffer = new byte[WRITE_BUFFER_SIZE];
-                try {
-                    fromFileStream = new FileInputStream(sourceFile);
-                    fromBufferedStream = new BufferedInputStream(fromFileStream);
-                    destStream = new FileOutputStream(destFile);
-                    int bytesRead;
-                    while ((bytesRead = fromBufferedStream.read(buffer)) > 0) {
-                        destStream.write(buffer, 0, bytesRead);
-                    }
-                } finally {
+            for (File sourceFile : sourceDir.listFiles()) {
+                if (sourceFile.isDirectory()) {
+                    copyDirectoryContents(
+                            CodePushUtils.appendPathComponent(sourceDirectoryPath, sourceFile.getName()),
+                            CodePushUtils.appendPathComponent(destinationDirectoryPath, sourceFile.getName()));
+                } else {
+                    File destFile = new File(destDir, sourceFile.getName());
+                    FileInputStream fromFileStream = null;
+                    BufferedInputStream fromBufferedStream = null;
+                    FileOutputStream destStream = null;
+                    byte[] buffer = new byte[WRITE_BUFFER_SIZE];
                     try {
-                        if (fromFileStream != null) fromFileStream.close();
-                        if (fromBufferedStream != null) fromBufferedStream.close();
-                        if (destStream != null) destStream.close();
-                    } catch (IOException e) {
-                        throw new CodePushUnknownException("Error closing IO resources.", e);
+                        fromFileStream = new FileInputStream(sourceFile);
+                        fromBufferedStream = new BufferedInputStream(fromFileStream);
+                        destStream = new FileOutputStream(destFile);
+                        int bytesRead;
+                        while ((bytesRead = fromBufferedStream.read(buffer)) > 0) {
+                            destStream.write(buffer, 0, bytesRead);
+                        }
+                    } finally {
+                        try {
+                            if (fromFileStream != null) fromFileStream.close();
+                            if (fromBufferedStream != null) fromBufferedStream.close();
+                            if (destStream != null) destStream.close();
+                        } catch (IOException e) {
+                            throw new CodePushUnknownException("Error closing IO resources.", e);
+                        }
                     }
                 }
             }
+        } catch (Exception e){
+            e.printStackTrace();
+            CodePushUtils.log("sourceDirectoryPath or destinationDirectoryPath might be null " + e.toString());
         }
+
     }
 
     public static void deleteDirectoryAtPath(String directoryPath) {
