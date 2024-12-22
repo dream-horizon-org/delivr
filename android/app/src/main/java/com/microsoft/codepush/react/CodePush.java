@@ -400,7 +400,7 @@ public class CodePush implements ReactPackage {
 
     private void rollbackPackage() {
         JSONObject failedPackage = mUpdateManager.getCurrentPackage();
-        CodePushUtilsushUtils.log("failedPackage in Rollback package ::", failedPackage);
+        CodePushUtils.log("failedPackage in Rollback package ::", failedPackage);
         mSettingsManager.saveFailedUpdate(failedPackage);
         mUpdateManager.rollbackPackage();
         mSettingsManager.removePendingUpdate();
