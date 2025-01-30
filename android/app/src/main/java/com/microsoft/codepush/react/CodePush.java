@@ -369,6 +369,10 @@ public class CodePush implements ReactPackage {
     }
 
     private boolean isPackageBundleLatest(JSONObject packageMetadata) {
+        if (packageMetadata == null) {
+            CodePushUtils.log("packageMetadata is null in isPackageBundleLatest.");
+            return false; // Consider the package not the latest if metadata is null.
+        }
         try {
             Long binaryModifiedDateDuringPackageInstall = null;
             String binaryModifiedDateDuringPackageInstallString = packageMetadata.optString(CodePushConstants.BINARY_MODIFIED_TIME_KEY, null);
@@ -386,6 +390,9 @@ public class CodePush implements ReactPackage {
     }
 
     private boolean hasBinaryVersionChanged(JSONObject packageMetadata) {
+        if (packageMetadata == null) {
+            return false; // Consider the package not the latest if metadata is null.
+        }
         String packageAppVersion = packageMetadata.optString("appVersion", null);
         return !sAppVersion.equals(packageAppVersion);
     }
