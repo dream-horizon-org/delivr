@@ -78,7 +78,7 @@ We try our best to maintain backwards compatibility of our plugin with previous 
 | v0.65-v0.70             | v7.0+ *(RN updated iPhone-target-version)*            |
 | v0.71                   | v8.0+ *(RN moved to react-native-gradle-plugin)*      |
 
-*NOTE: `@d11/dota` versions lower than **[v5.7.0](https://github.com/microsoft/react-native-code-push/releases/tag/v5.7.0)** will stop working in the near future. You can find more information in our [documentation](https://github.com/microsoft/code-push/blob/master/migration-notice.md).*
+*NOTE: `react-native-code-push` versions lower than **[v5.7.0](https://github.com/microsoft/react-native-code-push/releases/tag/v5.7.0)** will stop working in the near future. You can find more information in our [documentation](https://github.com/microsoft/code-push/blob/master/migration-notice.md).*
 
 We work hard to respond to new RN releases, but they do occasionally break us. We will update this chart with each RN release, so that users can check to see what our "official" support is.
 
