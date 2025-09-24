@@ -12,6 +12,10 @@ const config = {
   resolver: {
     unstable_enableSymlinks: true,
     unstable_enablePackageExports: true,
+    nodeModulesPaths: [
+      path.resolve(__dirname, 'node_modules'),
+      path.resolve(__dirname, '..', 'node_modules'),
+    ],
   },
 };
 

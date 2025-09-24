@@ -76,5 +76,9 @@
       "postlink": "node node_modules/@d11/dota/scripts/postlink/run",
       "postunlink": "node node_modules/@d11/dota/scripts/postunlink/run"
     }
-  }
+  },
+  "workspaces": [
+    "MyCodePushApp"
+  ],
+  "packageManager": "yarn@3.6.4"
 }
