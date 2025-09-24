@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MyCodePushApp</string>
+    <string moduleConfig="true" name="CodePushServerUrl">server-url</string>
+    <string moduleConfig="true" name="CodePushDeploymentKey">deployment-key</string>
+</resources>
