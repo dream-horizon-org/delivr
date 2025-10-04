@@ -10,7 +10,7 @@ var {
 } = React;
 var Button = require('react-native-button');
 
-var CodePush = require('react-native-code-push');
+var CodePush = require('@d11/dota');
 
 var UpdateButton = React.createClass({
   getInitialState: function() {

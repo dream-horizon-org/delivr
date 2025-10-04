@@ -9,7 +9,7 @@ var {
   View,
 } = React;
 
-var CodePush = require('react-native-code-push');
+var CodePush = require('@d11/dota');
 
 var UpdateOnStart = React.createClass({
   componentDidMount: function() {

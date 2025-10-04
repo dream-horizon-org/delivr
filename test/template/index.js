@@ -13,7 +13,7 @@ import {
     View
 } from 'react-native';
 
-import CodePush from "react-native-code-push";
+import CodePush from "@d11/dota";
 
 var testScenario = require("./CODE_PUSH_INDEX_JS_PATH");
 

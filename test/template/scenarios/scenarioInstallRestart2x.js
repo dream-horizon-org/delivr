@@ -1,5 +1,5 @@
 var CodePushWrapper = require("../codePushWrapper.js");
-import CodePush from "react-native-code-push";
+import CodePush from "@d11/dota";
 
 module.exports = {
     startTest: function (testApp) {

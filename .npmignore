@@ -101,3 +101,16 @@ packages/
 
 .watchmanconfig
 
+.azurepipelines/
+.config/
+windows/
+windows-legacy/
+docs/
+test/
+code-push-plugin-testing-framework/
+.gitignore
+.npmignore
+.prettierrc
+.prettierignore
+.prettierignore
+*.tgz

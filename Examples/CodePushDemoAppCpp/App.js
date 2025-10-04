@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import CodePush from "react-native-code-push";
+import CodePush from "@d11/dota";
 
 class App extends Component<{}> {
   constructor() {

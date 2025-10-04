@@ -11,13 +11,13 @@ Requirements:
 Usage: node create-app.js <appName> <reactNativeVersion> <reactNativeCodePushVersion>
     1. node create-app.js 
     2. node create-app.js myapp
-    3. node create-app.js myapp react-native@0.62 react-native-code-push@6.1.0 
+    3. node create-app.js myapp react-native@0.62 @d11/dota@0.0.1
     4. node create-app.js myapp react-native@latest Microsoft/react-native-code-push
 
 Parameters:
     1. <appName> - CodePushDemoAppTest
     2. <reactNativeVersion> - react-native@latest
-    3. <reactNativeCodePushVersion> - react-native-code-push@latest
+    3. <reactNativeCodePushVersion> - @d11/dota@latest
 */
 
 const fs = require('fs');
@@ -47,7 +47,7 @@ const appNameIOS = `${appName}-ios`;
 let owner = null;
 const reactNativeVersion = args[1] || `react-native@${execCommand('npm view react-native version')}`.trim();
 const reactNativeVersionIsLowerThanV049 = isReactNativeVersionLowerThan(49);
-const reactNativeCodePushVersion = args[2] || `react-native-code-push@${execCommand('npm view react-native-code-push version')}`.trim();
+const reactNativeCodePushVersion = args[2] || `@d11/dota@${execCommand('npm view @d11/dota version')}`.trim();
 
 if (!isReactNativeVersionLowerThan(60) && process.platform === "darwin") {
     try {
@@ -135,7 +135,7 @@ function installCodePush(reactNativeCodePushVersion) {
 function linkCodePush(androidStagingDeploymentKey, iosStagingDeploymentKey) {
     console.log(`Linking React Native Module for CodePush...`);
     if (isReactNativeVersionLowerThan(60)) {
-        nexpect.spawn(`react-native link react-native-code-push`)
+        nexpect.spawn(`react-native link @d11/dota`)
             .wait("What is your CodePush deployment key for Android (hit <ENTER> to ignore)")
             .sendline(androidStagingDeploymentKey)
             .wait("What is your CodePush deployment key for iOS (hit <ENTER> to ignore)")
@@ -261,14 +261,14 @@ function androidSetup() {
 
     let buildGradleContents = fs.readFileSync(buildGradlePath, "utf8");
     const reactGradleLink = buildGradleContents.match(/\napply from: ["'].*?react\.gradle["']/)[0];
-    const codePushGradleLink = `\napply from: "../../node_modules/react-native-code-push/android/codepush.gradle"`;
+    const codePushGradleLink = `\napply from: "../../node_modules/@d11/dota/android/codepush.gradle"`;
     buildGradleContents = buildGradleContents.replace(reactGradleLink,
         `${reactGradleLink}${codePushGradleLink}`);
     fs.writeFileSync(buildGradlePath, buildGradleContents);
 
     let settingsGradleContents = fs.readFileSync(settingsGradlePath, "utf8");
     const settingsGradleInclude = "include \':app\'";
-    const codePushProjectImport= `':react-native-code-push'\nproject(':react-native-code-push').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-code-push/android/app')`;
+    const codePushProjectImport= `':@d11_dota'\nproject(':@d11_dota').projectDir = new File(rootProject.projectDir, '../node_modules/@d11/dota/android/app')`;
     settingsGradleContents = settingsGradleContents.replace(settingsGradleInclude,
         `${settingsGradleInclude}, ${codePushProjectImport}`);
     fs.writeFileSync(settingsGradlePath, settingsGradleContents);

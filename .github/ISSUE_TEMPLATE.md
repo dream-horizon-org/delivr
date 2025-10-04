@@ -21,7 +21,7 @@ What actually happens?
 
 ### Environment
 
-* react-native-code-push version:
+* @d11/dota version:
 * react-native version:
 * iOS/Android/Windows version:
 * Does this reproduce on a debug build or release build?

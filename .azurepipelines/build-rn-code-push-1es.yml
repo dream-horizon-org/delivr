@@ -46,8 +46,8 @@ extends:
 
         - script: |
             npm pack
-            npm install -g react-native-code-push*.tgz
-          displayName: 'Package react-native-code-push'
+            npm install -g @d11/dota*.tgz
+          displayName: 'Package @d11/dota'
           workingDirectory: $(Build.SourcesDirectory)
 
         - task: DeleteFiles@1
