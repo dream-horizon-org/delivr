@@ -130,6 +130,8 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
                 CodePushUtils.log("Creating File Loader ::");
                 latestJSBundleLoader = JSBundleLoader.createFileLoader(latestJSBundleFile);
             }
+            CodePushUtils.log("Bundle is loaded");
+            CodePushUtils.log("latestJSBundleLoader :: " + latestJSBundleLoader);
             ReactHost reactHost = resolveReactHost();
             if (reactHost == null) {
                 // Bridge, Old Architecture and RN < 0.74 (we support Bridgeless >= 0.74)
@@ -139,13 +141,6 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
 
             // Bridgeless (RN >= 0.74)
             setJSBundleLoaderBridgeless(reactHost, latestJSBundleLoader);
-            CodePushUtils.log("Bundle is loaded");
-            CodePushUtils.log("latestJSBundleLoader :: " + latestJSBundleLoader);
-            Field bundleLoaderField = instanceManager.getClass().getDeclaredField("mBundleLoader");
-            CodePushUtils.log("bundleLoaderField :: " + bundleLoaderField);
-            bundleLoaderField.setAccessible(true);
-            bundleLoaderField.set(instanceManager, latestJSBundleLoader);
-            CodePushUtils.log("Bundle is set");
         } catch (Exception e) {
             CodePushUtils.log("Unable to set JSBundle - CodePush may not support this version of React Native");
             throw new IllegalAccessException("Could not setJSBundle");
@@ -154,8 +149,10 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
 
     private void setJSBundleLoaderBridge(ReactInstanceManager instanceManager, JSBundleLoader latestJSBundleLoader) throws NoSuchFieldException, IllegalAccessException {
         Field bundleLoaderField = instanceManager.getClass().getDeclaredField("mBundleLoader");
+        CodePushUtils.log("bundleLoaderField :: " + bundleLoaderField);
         bundleLoaderField.setAccessible(true);
         bundleLoaderField.set(instanceManager, latestJSBundleLoader);
+        CodePushUtils.log("Bundle is set");
     }
 
     @kotlin.OptIn(markerClass = UnstableReactNativeAPI.class)
@@ -165,8 +162,10 @@ public class CodePushNativeModule extends ReactContextBaseJavaModule {
         ReactHostDelegate reactHostDelegate = (ReactHostDelegate) mReactHostDelegateField.get(reactHost);
         assert reactHostDelegate != null;
         Field jsBundleLoaderField = reactHostDelegate.getClass().getDeclaredField("jsBundleLoader");
+        CodePushUtils.log("jsBundleLoaderField :: " + jsBundleLoaderField);
         jsBundleLoaderField.setAccessible(true);
         jsBundleLoaderField.set(reactHostDelegate, latestJSBundleLoader);
+        CodePushUtils.log("Bundle is set");
     }
 
     private void loadBundle() {
