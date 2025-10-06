@@ -50,12 +50,12 @@ program
       process.env.PLATFORM = options.platform;
       process.env.SOURCE_MAP_PATH = options.sourcemapPath;
       process.env.MAKE_SOURCEMAP = options.makeSourcemap ? '1' : '';
+      process.env.ENTRY_FILE = options.entryFile;
 
       // Build the bundle command using the existing script
       const bundleCommand = [
         './node_modules/@d11/dota/scripts/bundle/bundle.sh',
-        `--dev ${options.dev}`,
-        process.argv.slice(4).join(' ') // Pass through any additional arguments
+        `--dev ${options.dev}`
       ].filter(Boolean).join(' ');
 
       try {
