@@ -144,41 +144,35 @@ If you would like to display an update confirmation dialog (an "active install")
 
 ## Creating the JavaScript bundle (Hermes)
 
-You can use your existing bundling pipeline. Alternatively, use the scripts provided in this repo to generate optimized Hermes bundles.
+You can use your existing bundling pipeline. Alternatively, use the CLI tool provided in this package to generate optimized Hermes bundles.
 
-#### Using the provided scripts (recommended)
-
-Follow these steps to create bundles using the scripts in `scripts/`:
-
-1. Copy the bundle scripts into your app
+#### Using the CLI tool (Recommended)
 
 ```bash
-# From your React Native app root
-mkdir -p scripts
-```
-Copy the "bundle" folder from this repo into your app's scripts directory
+# For Android
+yarn dota bundle --platform android
 
-2. Add npm scripts to your app's package.json
-
-```json
-{
-  "scripts": {
-    "bundle:codepush:android": "sh scripts/bundle/bundle.codepush.sh android",
-    "bundle:codepush:ios": "sh scripts/bundle/bundle.codepush.sh ios"
-  }
-}
+# For iOS
+yarn dota bundle --platform ios
 ```
 
-3. Generate the bundle
+#### Available Options
 
-Run the command for the platform you are preparing a release for:
+The CLI supports the following options:
 
 ```bash
-# Android
-yarn bundle:codepush:android
+Options:
+  --platform <platform>      Specify platform: android or ios (required)
+  --bundle-path <path>      Directory to place the bundle in (default: ".codepush")
+  --assets-path <path>      Directory to place assets in (default: ".codepush")
+  --sourcemap-path <path>   Directory to place sourcemaps in (default: ".codepush")
+  --make-sourcemap         Generate sourcemap (default: false)
+  --entry-file <file>      Entry file (default: "index.ts")
+  --dev <boolean>          Development mode (default: "false")
+  -h, --help              Display help for command
 
-# iOS
-yarn bundle:codepush:ios
+# Example with options
+yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
 ```
 
 Important:
@@ -187,10 +181,20 @@ Important:
   - Rename or move the `.codepush/` folder after the first run (e.g., to `.codepush-android`) before running the second command, or
   - Customize the scripts to use platform-specific output paths (e.g., `.codepush/android` and `.codepush/ios`).
 
-What you get:
-- `.codepush/index.android.bundle` (Android JS bundle) and assets
-- `.codepush/main.jsbundle` (iOS JS bundle) and assets
-- Sourcemaps in `.codepush/` when enabled
+#### Output Files
+
+By default, the CLI will generate:
+- For Android:
+  - `.codepush/index.android.bundle` - The optimized Hermes bundle
+  - `.codepush/` - Directory containing any assets
+  - `.codepush/index.android.bundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+
+- For iOS:
+  - `.codepush/main.jsbundle` - The optimized Hermes bundle
+  - `.codepush/` - Directory containing any assets
+  - `.codepush/main.jsbundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+
+All paths can be customized using the CLI options.
 
 ## Releasing Updates
 
