@@ -19,7 +19,7 @@ program
   .option('--bundle-path <path>', 'Directory to place the bundle in', '.codepush')
   .option('--assets-path <path>', 'Directory to place assets in', '.codepush')
   .option('--sourcemap-path <path>', 'Directory to place sourcemaps in', '.codepush')
-  .option('--make-sourcemap', 'Generate sourcemap', false)
+  .option('--make-sourcemap <boolean>', 'Generate sourcemap: true or false', 'true')
     .option('--entry-file <file>', 'Entry file', 'index.ts')
     .option('--dev <boolean>', 'Development mode', 'false')
     .allowUnknownOption() // Allow additional options to be passed to react-native bundle
@@ -34,22 +34,17 @@ program
       [options.bundlePath, options.assetsPath, options.sourcemapPath].forEach(dir => {
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
+        } else {
+          fs.rmSync(dir, { recursive: true });
         }
       });
-
-      // Determine bundle file name based on platform
-      const jsBundleFile = options.platform === 'ios' 
-        ? path.join(options.bundlePath, 'main.jsbundle')
-        : path.join(options.bundlePath, `index.${options.platform}.bundle`);
-
-      const jsSourcemapFile = path.join(options.sourcemapPath, `packager.${options.platform}.json`);
 
       // Set environment variables required by bundle.sh
       process.env.BUNDLE_PATH = options.bundlePath;
       process.env.ASSETS_PATH = options.assetsPath;
       process.env.PLATFORM = options.platform;
       process.env.SOURCE_MAP_PATH = options.sourcemapPath;
-      process.env.MAKE_SOURCEMAP = options.makeSourcemap ? '1' : '';
+      process.env.MAKE_SOURCEMAP = options.makeSourcemap === 'true' ? '1' : '';
       process.env.ENTRY_FILE = options.entryFile;
 
       // Build the bundle command using the existing script

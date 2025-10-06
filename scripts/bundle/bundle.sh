@@ -40,9 +40,14 @@ fi
 if [ ${PLATFORM} = "android" ]; then
   JS_BUNDLE_FILE="${BUNDLE_PATH}/index.${PLATFORM}.bundle"
 fi
-JS_SOURCEMAP_FILE="${SOURCE_MAP_PATH}/packager.${PLATFORM}.json"
 
-yarn react-native bundle --entry-file ${ENTRY_FILE} --platform ${PLATFORM} --dev false --bundle-output ${JS_BUNDLE_FILE} ${JS_SOURCEMAP_FLAGS} --assets-dest ${ASSETS_PATH} "${@:1}";
+JS_SOURCEMAP_FILE="${SOURCE_MAP_PATH}/packager.${PLATFORM}.json"
+JS_SOURCEMAP_FLAGS=""
+if ! [[ -z "${MAKE_SOURCEMAP}" ]]; then
+  JS_SOURCEMAP_FLAGS="--sourcemap-output ${JS_SOURCEMAP_FILE}"
+fi
+
+yarn react-native bundle --entry-file ${ENTRY_FILE} --platform ${PLATFORM} --dev false --bundle-output ${JS_BUNDLE_FILE} ${JS_SOURCEMAP_FLAGS} --assets-dest ${ASSETS_PATH} --minify false "${@:1}";
 echo "Wrote JS output to: ${JS_BUNDLE_FILE}"
 
 if ! [[ -z "${MAKE_SOURCEMAP}" ]]; then
