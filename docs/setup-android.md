@@ -98,9 +98,9 @@ In order to integrate CodePush into your Android project, please perform the fol
 
    ```xml
     <resources>
-        <string name="app_name">AppName</string>
+        ...
         <string moduleConfig="true" name="CodePushDeploymentKey">DeploymentKey</string>
-        <string moduleConfig="true" name="CodePushServerUrl">Server-Url</string>
+        <string moduleConfig="true" name="CodePushServerUrl">https://dota-sdk.delivr.live/</string>
     </resources>
     ```
 
@@ -119,4 +119,4 @@ module.exports = {
   },
 };
 ```
-7. For react-native changes refer to [Plugin Usage](../README.md#plugin-usage)
+7. For react-native changes refer to [Usage](../README.md#usage)

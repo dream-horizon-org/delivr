@@ -1,17 +1,19 @@
 # React Native Module for CodePush
 <!-- React Native Catalog -->
 
-> ⚠️ This SDK currently supports only the React Native Old Architecture. The New Architecture (Fabric/TurboModules) is not supported yet.
+> ⚠️ This SDK currently supports only the React Native Old Architecture. We are working on providing support for New Architecture (Fabric/TurboModules).
 
+* [Problem Statement](#problem-statement)
+* [What is Dota?](#what-is-dota)
 * [How does it work?](#how-does-it-work)
-* [Supported Components](#supported-components)
 * [Getting Started](#getting-started)
     * [iOS Setup](docs/setup-ios.md)
     * [Android Setup](docs/setup-android.md)
-* [Plugin Usage](#plugin-usage)
-    * [Store Guideline Compliance](#store-guideline-compliance)
+* [Usage](#usage)
 * [Creating the JavaScript bundle](#creating-the-javascript-bundle-hermes)
 * [Releasing Updates](#releasing-updates)
+* [Store Guideline Compliance](#store-guideline-compliance)
+* [Supported Components](#supported-components)
 * [Multi-Deployment Testing](#multi-deployment-testing)
     * [Android](docs/multi-deployment-testing-android.md)
     * [iOS](docs/multi-deployment-testing-ios.md)
@@ -26,16 +28,221 @@
 
 <!-- React Native Catalog -->
 
+## Problem Statement
+
+Releasing updates for mobile apps is slow and cumbersome. Even small fixes or UI tweaks require pushing a new binary to the App Store or Play Store, followed by lengthy review cycles and user updates.
+
+* 7-day review cycles on app stores slows your release velocity
+
+* Manual release overhead makes hotfixes painful
+
+* Bug-induced releases damages user experience and retention
+
+* Lost developer velocity due to repeated native builds
+
+## What is DOTA?
+
+DOTA is Dream11’s Over-The-Air (OTA) solution for React Native apps, built on top of CodePush.
+It allows you to deliver JavaScript and asset updates instantly — without re-submitting to app stores.
+
+DOTA brings:
+
+* Instant updates: Push JS changes in minutes
+
+* Automatic rollbacks: Stay safe from bad releases
+
+* Staged rollouts: Gradual and controlled deployment
+
+* Enterprise scale: Battle-tested at Dream11
+
 ## How does it work?
 
 A React Native app is composed of JavaScript files and any accompanying [images](https://reactnative.dev/docs/image), which are bundled together by the [metro bundler](https://github.com/facebook/metro) and distributed as part of a platform-specific binary (i.e. an `.ipa` or `.apk` file). Once the app is released, updating either the JavaScript code (e.g. making bug fixes, adding new features) or image assets, requires you to recompile and redistribute the entire binary, which of course, includes any review time associated with the store(s) you are publishing to.
 
-The CodePush plugin helps get product improvements in front of your end users instantly, by keeping your JavaScript and images synchronized with updates you release to the CodePush server. This way, your app gets the benefits of an offline mobile experience, as well as the "web-like" agility of side-loading updates as soon as they are available. It's a win-win!
+The CodePush helps get product improvements in front of your end users instantly, by keeping your JavaScript and images synchronized with updates you release to the CodePush server. This way, your app gets the benefits of an offline mobile experience, as well as the "web-like" agility of side-loading updates as soon as they are available. It's a win-win!
 
 In order to ensure that your end users always have a functioning version of your app, the CodePush plugin maintains a copy of the previous update, so that in the event that you accidentally push an update which includes a crash, it can automatically roll back. This way, you can rest assured that your newfound release agility won't result in users becoming blocked before you have a chance to roll back on the server. It's a win-win-win!
 
 *Note: Any product changes which touch native code (e.g. modifying your `AppDelegate.m`/`MainActivity.java` file, adding a new plugin) cannot be distributed via CodePush, and therefore, must be updated via the appropriate store(s).*
 
+## Getting Started
+
+You can start CodePush-ifying your React Native app by running the following command from within your app's root directory:
+
+```shell
+yarn add @d11/dota
+```
+
+As with all other React Native plugins, the integration experience is different for iOS and Android, so perform the following setup steps depending on which platform(s) you are targeting. Note, if you are targeting both platforms it is recommended to create separate CodePush applications for each platform through DOTA dashboard.
+
+Then continue with installing the native module
+  * [iOS Setup](docs/setup-ios.md)
+  * [Android Setup](docs/setup-android.md)
+
+## Usage
+
+The only thing left is to add the necessary code to your app to control the following policies:
+
+1. When (and how often) to check for an update? (for example app start, in response to clicking a button in a settings page, periodically at some fixed interval)
+
+2. When an update is available, how to present it to the end user?
+
+The simplest way to do this is to "CodePush-ify" your app's root component.
+
+* Wrap your root component with the `codePush`:
+
+  ```javascript
+  import codePush from "@d11/dota";
+
+  function MyApp () {
+    ...
+  }
+
+  export default codePush(MyApp);
+  ```
+
+By default, CodePush will check for updates on every app start. If an update is available, it will be silently downloaded, and installed the next time the app is restarted (either explicitly by the end user or by the OS), which ensures the least invasive experience for your end users. If an available update is mandatory, then it will be installed immediately, ensuring that the end user gets it as soon as possible.
+
+If you would like your app to discover updates more quickly, you can also choose to sync up with the CodePush server every time the app resumes from the background.
+
+
+  ```javascript
+  import codePush, { CodePushOptions } from '@d11/dota';
+
+  let codePushOptions: CodePushOptions = { checkFrequency: codePush.CheckFrequency.ON_APP_RESUME };
+
+  function MyApp {
+    ...
+  }
+
+  export default codePush(codePushOptions)(MyApp);
+  ```
+
+Alternatively, if you want fine-grained control over when the check happens (like a button press or timer interval), you can call [`CodePush.sync()`](docs/api-js.md#codepushsync) at any time with your desired `SyncOptions`, and optionally turn off CodePush's automatic checking by specifying a manual `checkFrequency`:
+
+```javascript
+import codePush, { CodePushOptions } from '@d11/dota';
+
+let codePushOptions: CodePushOptions = { checkFrequency: codePush.CheckFrequency.MANUAL };
+
+function MyApp {
+  const onButtonPress = () => {
+    codePush.sync({
+      updateDialog: true,
+      installMode: codePush.InstallMode.IMMEDIATE,
+    });
+  };
+
+  return (
+    <View>
+      <TouchableOpacity onPress={onButtonPress}>
+        <Text>Check for updates</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+export default codePush(codePushOptions)(MyApp);
+```
+
+If you would like to display an update confirmation dialog (an "active install"), configure when an available update is installed (like force an immediate restart) or customize the update experience in any other way, refer to the [`codePush()`](docs/api-js.md#codepush) API reference for information on how to tweak this default behavior.
+
+## Creating the JavaScript bundle (Hermes)
+
+You can use your existing bundling pipeline. Alternatively, use the CLI tool provided in this package to generate optimized Hermes bundles.
+
+#### Using the CLI tool (Recommended)
+
+```bash
+# For Android
+yarn dota bundle --platform android
+
+# For iOS
+yarn dota bundle --platform ios
+```
+
+#### Available Options
+
+The CLI supports the following options:
+
+```bash
+Options:
+  --platform <platform>      Specify platform: android or ios (required)
+  --bundle-path <path>      Directory to place the bundle in (default: ".codepush")
+  --assets-path <path>      Directory to place assets in (default: ".codepush")
+  --sourcemap-path <path>   Directory to place sourcemaps in (default: ".codepush")
+  --make-sourcemap         Generate sourcemap (default: false)
+  --entry-file <file>      Entry file (default: "index.ts")
+  --dev <boolean>          Development mode (default: "false")
+  -h, --help              Display help for command
+
+# Example with options
+yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
+```
+
+#### Output Files
+
+By default, the CLI will generate:
+- For Android:
+  - `.codepush/index.android.bundle` - The optimized Hermes bundle
+  - `.codepush/` - Directory containing any assets
+  - `.codepush/index.android.bundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+
+- For iOS:
+  - `.codepush/main.jsbundle` - The optimized Hermes bundle
+  - `.codepush/` - Directory containing any assets
+  - `.codepush/main.jsbundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+
+All paths can be customized using the CLI options.
+
+## Releasing Updates
+
+Once your app is configured and distributed to your users, and you have made some JS or asset changes, it's time to release them.
+
+Release via the DOTA dashboard:
+1. Navigate to the DOTA dashboard and select your organization from the sidebar.
+![DOTA DASHBOARD](assets/dashboard.png)
+2. Select the target app (for example, "Android Production").
+![App](assets/app.png)
+3. Open the Releases tab.
+![Release](assets/release.png)
+4. Upload your JS bundle (see [Creating the JavaScript bundle](#creating-the-javascript-bundle-hermes)).
+5. Set the target app version for this release.
+6. Choose a rollout percentage.
+7. Click Launch Release to publish the CodePush update.
+
+Manage releases:
+- To increase/decrease rollout or halt a release, go to the Deployments tab and select the deployment you want to manage.
+![Manage Release](assets/manage-release-1.png)
+![Manage Release](assets/manage-release-2.png)
+If you run into any issues, check out the [troubleshooting](#debugging--troubleshooting) details below.
+
+*NOTE: CodePush updates should be tested in modes other than Debug mode. In Debug mode, React Native app always downloads JS bundle generated by packager, so JS bundle downloaded by CodePush does not apply.*
+
+### Store Guideline Compliance
+
+Android Google Play and iOS App Store have corresponding guidelines that have rules you should be aware of before integrating the CodePush solution within your application.
+
+#### Google play
+
+Third paragraph of [Device and Network Abuse](https://support.google.com/googleplay/android-developer/answer/9888379?hl=en) topic describe that updating source code by any method other than Google Play's update mechanism is restricted. But this restriction does not apply to updating javascript bundles.
+> This restriction does not apply to code that runs in a virtual machine and has limited access to Android APIs (such as JavaScript in a webview or browser).
+
+That fully allow CodePush as it updates just JS bundles and can't update native code part.
+
+#### App Store
+
+Paragraph **3.3.2**, since back in 2015's [Apple Developer Program License Agreement](https://developer.apple.com/programs/ios/information/) fully allowed performing over-the-air updates of JavaScript and assets -  and in its latest version (20170605) [downloadable here](https://developer.apple.com/terms/) this ruling is even broader:
+
+> Interpreted code may be downloaded to an Application but only so long as such code: (a) does not change the primary purpose of the Application by providing features or functionality that are inconsistent with the intended and advertised purpose of the Application as submitted to the App Store, (b) does not create a store or storefront for other code or applications, and (c) does not bypass signing, sandbox, or other security features of the OS.
+
+CodePush allows you to follow these rules in full compliance so long as the update you push does not significantly deviate your product from its original App Store approved intent.
+
+To further remain in compliance with Apple's guidelines we suggest that App Store-distributed apps don't enable the `updateDialog` option when calling `sync`, since in the [App Store Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) it is written that:
+
+> Apps must not force users to rate the app, review the app, download other apps, or other similar actions in order to access functionality, content, or use of the app.
+
+This is not necessarily the case for `updateDialog`, since it won't force the user to download the new version, but at least you should be aware of that ruling if you decide to show it.
 
 ## Supported Components
 
@@ -64,235 +271,6 @@ As new core components are released, which support referencing assets, we'll upd
 ```javascript
 <Video source={require("./foo.mp4")} />
 ```
-
-## Getting Started
-
-You can start CodePush-ifying your React Native app by running the following command from within your app's root directory:
-
-```shell
-npm install --save @d11/dota
-```
-
-As with all other React Native plugins, the integration experience is different for iOS and Android, so perform the following setup steps depending on which platform(s) you are targeting. Note, if you are targeting both platforms it is recommended to create separate CodePush applications for each platform through DOTA dashboard.
-
-Then continue with installing the native module
-  * [iOS Setup](docs/setup-ios.md)
-  * [Android Setup](docs/setup-android.md)
-
-## Plugin Usage
-
-With the CodePush plugin downloaded and linked, and your app asking CodePush where to get the right JS bundle from, the only thing left is to add the necessary code to your app to control the following policies:
-
-1. When (and how often) to check for an update? (for example app start, in response to clicking a button in a settings page, periodically at some fixed interval)
-
-2. When an update is available, how to present it to the end user?
-
-The simplest way to do this is to "CodePush-ify" your app's root component. To do so, you can choose one of the following two options:
-
-* **Option 1: Wrap your root component with the `codePush` higher-order component:**
-
-  * For class component
-
-    ```javascript
-    import codePush from "@d11/dota";
-
-    class MyApp extends Component {
-    }
-
-    MyApp = codePush(MyApp);
-    ```
-
-  * For functional component
-
-    ```javascript
-    import codePush from "@d11/dota";
-
-    let MyApp: () => React$Node = () => {
-    }
-
-    MyApp = codePush(MyApp);
-    ```
-
-* **Option 2: Use the [ES7 decorator](https://github.com/wycats/javascript-decorators) syntax:**
-
-    *NOTE: Decorators are not yet supported in Babel 6.x pending proposal update.* You may need to enable it by installing and using [babel-preset-react-native-stage-0](https://github.com/skevy/babel-preset-react-native-stage-0#babel-preset-react-native-stage-0).
-
-  * For class component
-
-    ```javascript
-    import codePush from "@d11/dota";
-
-    @codePush
-    class MyApp extends Component {
-    }
-    ```
-
-  * For functional component
-
-    ```javascript
-    import codePush from "@d11/dota";
-
-    const MyApp: () => React$Node = () => {
-    }
-
-    export default codePush(MyApp);
-    ```
-
-By default, CodePush will check for updates on every app start. If an update is available, it will be silently downloaded, and installed the next time the app is restarted (either explicitly by the end user or by the OS), which ensures the least invasive experience for your end users. If an available update is mandatory, then it will be installed immediately, ensuring that the end user gets it as soon as possible.
-
-If you would like your app to discover updates more quickly, you can also choose to sync up with the CodePush server every time the app resumes from the background.
-
-* For class component
-
-    ```javascript
-    let codePushOptions = { checkFrequency: codePush.CheckFrequency.ON_APP_RESUME };
-
-    class MyApp extends Component {
-    }
-
-    MyApp = codePush(codePushOptions)(MyApp);
-    ```
-
-* For functional component
-
-    ```javascript
-    let codePushOptions = { checkFrequency: codePush.CheckFrequency.ON_APP_RESUME };
-
-    let MyApp: () => React$Node = () => {
-    }
-
-    MyApp = codePush(codePushOptions)(MyApp);
-    ```
-
-Alternatively, if you want fine-grained control over when the check happens (like a button press or timer interval), you can call [`CodePush.sync()`](docs/api-js.md#codepushsync) at any time with your desired `SyncOptions`, and optionally turn off CodePush's automatic checking by specifying a manual `checkFrequency`:
-
-```javascript
-let codePushOptions = { checkFrequency: codePush.CheckFrequency.MANUAL };
-
-class MyApp extends Component {
-    onButtonPress() {
-        codePush.sync({
-            updateDialog: true,
-            installMode: codePush.InstallMode.IMMEDIATE
-        });
-    }
-
-    render() {
-        return (
-            <View>
-                <TouchableOpacity onPress={this.onButtonPress}>
-                    <Text>Check for updates</Text>
-                </TouchableOpacity>
-            </View>
-        )
-    }
-}
-
-MyApp = codePush(codePushOptions)(MyApp);
-```
-
-If you would like to display an update confirmation dialog (an "active install"), configure when an available update is installed (like force an immediate restart) or customize the update experience in any other way, refer to the [`codePush()`](docs/api-js.md#codepush) API reference for information on how to tweak this default behavior.
-
-### Store Guideline Compliance
-
-Android Google Play and iOS App Store have corresponding guidelines that have rules you should be aware of before integrating the CodePush solution within your application.
-
-#### Google play
-
-Third paragraph of [Device and Network Abuse](https://support.google.com/googleplay/android-developer/answer/9888379?hl=en) topic describe that updating source code by any method other than Google Play's update mechanism is restricted. But this restriction does not apply to updating javascript bundles.
-> This restriction does not apply to code that runs in a virtual machine and has limited access to Android APIs (such as JavaScript in a webview or browser).
-
-That fully allow CodePush as it updates just JS bundles and can't update native code part.
-
-#### App Store
-
-Paragraph **3.3.2**, since back in 2015's [Apple Developer Program License Agreement](https://developer.apple.com/programs/ios/information/) fully allowed performing over-the-air updates of JavaScript and assets -  and in its latest version (20170605) [downloadable here](https://developer.apple.com/terms/) this ruling is even broader:
-
-> Interpreted code may be downloaded to an Application but only so long as such code: (a) does not change the primary purpose of the Application by providing features or functionality that are inconsistent with the intended and advertised purpose of the Application as submitted to the App Store, (b) does not create a store or storefront for other code or applications, and (c) does not bypass signing, sandbox, or other security features of the OS.
-
-CodePush allows you to follow these rules in full compliance so long as the update you push does not significantly deviate your product from its original App Store approved intent.
-
-To further remain in compliance with Apple's guidelines we suggest that App Store-distributed apps don't enable the `updateDialog` option when calling `sync`, since in the [App Store Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) it is written that:
-
-> Apps must not force users to rate the app, review the app, download other apps, or other similar actions in order to access functionality, content, or use of the app.
-
-This is not necessarily the case for `updateDialog`, since it won't force the user to download the new version, but at least you should be aware of that ruling if you decide to show it.
-
-## Creating the JavaScript bundle (Hermes)
-
-You can use your existing bundling pipeline. Alternatively, use the scripts provided in this repo to generate optimized Hermes bundles.
-
-#### Using the provided scripts (recommended)
-
-Follow these steps to create bundles using the scripts in `scripts/`:
-
-1. Copy the bundle scripts into your app
-
-```bash
-# From your React Native app root
-mkdir -p scripts
-```
-Copy the "bundle" folder from this repo into your app's scripts directory
-
-2. Add npm scripts to your app's package.json
-
-```json
-{
-  "scripts": {
-    "bundle:codepush:android": "sh scripts/bundle/bundle.codepush.sh android",
-    "bundle:codepush:ios": "sh scripts/bundle/bundle.codepush.sh ios"
-  }
-}
-```
-
-3. Generate the bundle
-
-Run the command for the platform you are preparing a release for:
-
-```bash
-# Android
-yarn bundle:codepush:android
-
-# iOS
-yarn bundle:codepush:ios
-```
-
-Important:
-- Each run starts by cleaning the `.codepush/` directory. If you run Android and then iOS consecutively, the second run will remove the first run’s outputs.
-- If you need both Android and iOS bundles at the same time, either:
-  - Rename or move the `.codepush/` folder after the first run (e.g., to `.codepush-android`) before running the second command, or
-  - Customize the scripts to use platform-specific output paths (e.g., `.codepush/android` and `.codepush/ios`).
-
-What you get:
-- `.codepush/index.android.bundle` (Android JS bundle) and assets
-- `.codepush/main.jsbundle` (iOS JS bundle) and assets
-- Sourcemaps in `.codepush/` when enabled
-
-## Releasing Updates
-
-Once your app is configured and distributed to your users, and you have made some JS or asset changes, it's time to release them.
-
-The CodePush client supports differential updates, so even though you are releasing your JS bundle and assets on every update, your end users will only download the files they need. The service handles this automatically so you can focus on building features.
-
-Release via the DOTA dashboard:
-1. Navigate to the DOTA dashboard and select your organization from the sidebar.
-![DOTA DASHBOARD](assets/dashboard.png)
-2. Select the target app (for example, "Android Production").
-![App](assets/app.png)
-3. Open the Releases tab.
-![Release](assets/release.png)
-4. Upload your JS bundle (see [Creating the JavaScript bundle](#creating-the-javascript-bundle-hermes)).
-5. Set the target app version for this release.
-6. Choose a rollout percentage.
-7. Click Launch Release to publish the CodePush update.
-
-Manage releases:
-- To increase/decrease rollout or halt a release, go to the Deployments tab and select the deployment you want to manage.
-![Manage Release](assets/manage-release-1.png)
-![Manage Release](assets/manage-release-2.png)
-If you run into any issues, check out the [troubleshooting](#debugging--troubleshooting) details below.
-
-*NOTE: CodePush updates should be tested in modes other than Debug mode. In Debug mode, React Native app always downloads JS bundle generated by packager, so JS bundle downloaded by CodePush does not apply.*
 
 ### Multi-Deployment Testing
 
@@ -357,7 +335,7 @@ The `sync` method includes a lot of diagnostic logging out-of-the-box, so if you
 
 The simplest way to view these logs is to add the flag `--debug` for each command. This will output a log stream that is filtered to just CodePush messages. This makes it easy to identify issues, without needing to use a platform-specific tool, or wade through a potentially high volume of logs.
 
-<img width="540" alt="screen shot 2016-06-21 at 10 15 42 am" src="https://cloud.githubusercontent.com/assets/116461/16246973/838e2e98-37bc-11e6-9649-685f39e325a0.png">
+<img width="540" alt="screen shot 2016-06-21 at 10 15 42 am" src="https://cloud.githubusercontent.com/assets/116461/16246973/838e2e98-37bc-11e6-9649-685f39e325a0.png" />
 
 Additionally, you can also use any of the platform-specific tools to view the CodePush logs, if you are more comfortable with them. Simple start up the Chrome DevTools Console, the Xcode Console (iOS), the [OS X Console](https://en.wikipedia.org/wiki/Console_%28OS_X%29#.7E.2FLibrary.2FLogs) (iOS) and/or ADB logcat (Android), and look for messages which are prefixed with `[CodePush]`.
 

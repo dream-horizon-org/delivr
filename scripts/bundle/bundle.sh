@@ -25,7 +25,7 @@ set -e
 #####################################################################
 # Validate inputs
 
-if [[ -z "${BUNDLE_PATH}" || -z "${ASSETS_PATH}" || -z ${PLATFORM} ]]; then
+if [[ -z ${BUNDLE_PATH} || -z ${ASSETS_PATH} || -z ${PLATFORM} ]]; then
   echo "Missing inputs. Please refer to the script for documentation."
   exit 1
 fi
@@ -33,16 +33,16 @@ fi
 #####################################################################
 # Generate JS bundle
 
-if ${PLATFORM} == "ios"; then
+if [ ${PLATFORM} = "ios" ]; then
   JS_BUNDLE_FILE="${BUNDLE_PATH}/main.jsbundle"
 fi
 
-if ${PLATFORM} == "android"; then
+if [ ${PLATFORM} = "android" ]; then
   JS_BUNDLE_FILE="${BUNDLE_PATH}/index.${PLATFORM}.bundle"
 fi
 JS_SOURCEMAP_FILE="${SOURCE_MAP_PATH}/packager.${PLATFORM}.json"
 
-yarn react-native bundle --entry-file index.ts --platform ${PLATFORM} --dev false --bundle-output ${JS_BUNDLE_FILE} ${JS_SOURCEMAP_FLAGS} --assets-dest ${ASSETS_PATH} "${@:1}";
+yarn react-native bundle --entry-file ${ENTRY_FILE} --platform ${PLATFORM} --dev false --bundle-output ${JS_BUNDLE_FILE} ${JS_SOURCEMAP_FLAGS} --assets-dest ${ASSETS_PATH} "${@:1}";
 echo "Wrote JS output to: ${JS_BUNDLE_FILE}"
 
 if ! [[ -z "${MAKE_SOURCEMAP}" ]]; then
@@ -55,7 +55,7 @@ fi
 HBC_TEMP_FILE="${JS_BUNDLE_FILE}.hbc"
 HBC_SOURCEMAP_FILE="${JS_BUNDLE_FILE}.hbc.map" # NOTE: This is by convention always true
 
-./packages/scripts/bundle/bundle-to-binary.sh ${JS_BUNDLE_FILE} ${HBC_TEMP_FILE}
+./node_modules/@d11/dota/scripts/bundle/bundle-to-binary.sh ${JS_BUNDLE_FILE} ${HBC_TEMP_FILE}
 
 echo "Replacing JS bundle with HBC"
 mv ${HBC_TEMP_FILE} ${JS_BUNDLE_FILE}
@@ -66,7 +66,7 @@ mv ${HBC_TEMP_FILE} ${JS_BUNDLE_FILE}
 if ! [[ -z "${MAKE_SOURCEMAP}" ]]; then
   COMPOSED_SOURCEMAP_FILE="${JS_BUNDLE_FILE}.json"
 
-  ./packages/scripts/bundle/compose-sourcemaps.sh ${JS_SOURCEMAP_FILE} ${HBC_SOURCEMAP_FILE} ${COMPOSED_SOURCEMAP_FILE}
+  ./node_modules/@d11/dota/scripts/bundle/compose-sourcemaps.sh ${JS_SOURCEMAP_FILE} ${HBC_SOURCEMAP_FILE} ${COMPOSED_SOURCEMAP_FILE}
   echo "Wrote compose output ${COMPOSED_SOURCEMAP_FILE}"
   # These ones are no longer required
   rm ${JS_SOURCEMAP_FILE} ${HBC_SOURCEMAP_FILE}

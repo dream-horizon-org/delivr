@@ -113,7 +113,7 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    In `Info.plist` file, add following lines, replacing server-url with your server and deployment-key with your key.
    ```
    <key>CodePushServerURL</key>
-   <string>server-url</string>
+   <string>https://dota-sdk.delivr.live/</string>
    <key>CodePushDeploymentKey</key>
    <string>deployment-key</string>
     ```
@@ -122,7 +122,6 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
 
    *Note: If you need to dynamically use a different deployment, you can also override your deployment key in JS code using [Code-Push options](./api-js.md#CodePushOptions)*
 
-6. For react-native changes refer to [Plugin Usage](../README.md#plugin-usage)
+6. For react-native changes refer to [Usage](../README.md#usage)
 </details>
-
 
