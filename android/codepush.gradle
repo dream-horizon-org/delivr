@@ -152,11 +152,43 @@ gradle.projectsEvaluated {
             generateBundledResourcesHash.dependsOn("recordFilesBeforeBundleCommand${targetName}")
         }
 
+        def copyCodePushBundle = tasks.create(name: "copyCodePushBundle${targetName}", type: Copy) {
+
+            println "Configuring copyCodePushBundle task for ${targetName}"
+
+            println "jsBundleDir: ${jsBundleDir}"
+            println "resourcesDir: ${resourcesDir}"
+            println "CprojectDir: ${projectDir}"
+            
+            from jsBundleDir
+            from resourcesDir
+            
+            // Set the destination directory
+            into "$projectDir/../../.dota/android"
+
+            // Ensure the copy task runs after the bundle and assets are created
+            dependsOn "createBundle${targetName}JsAndAssets"
+
+            doLast {
+                println "Completed copyCodePushBundle task for ${targetName}"
+            }
+        }
+
+
         generateBundledResourcesHash.dependsOn("createBundle${targetName}JsAndAssets")
 
         runBefore("processArmeabi-v7a${targetName}Resources", generateBundledResourcesHash)
         runBefore("processX86${targetName}Resources", generateBundledResourcesHash)
         runBefore("processUniversal${targetName}Resources", generateBundledResourcesHash)
         runBefore("process${targetName}Resources", generateBundledResourcesHash)
+
+                // Ensure the copy task runs after the bundle and assets are created
+        copyCodePushBundle.dependsOn("createBundle${targetName}JsAndAssets")
+
+        // Run the copy task before any tasks that need the copied files
+        runBefore("processArmeabi-v7a${targetName}Resources", copyCodePushBundle)
+        runBefore("processX86${targetName}Resources", copyCodePushBundle)
+        runBefore("processUniversal${targetName}Resources", copyCodePushBundle)
+        runBefore("process${targetName}Resources", copyCodePushBundle)
     }
 }

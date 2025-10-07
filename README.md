@@ -149,9 +149,48 @@ If you would like to display an update confirmation dialog (an "active install")
 
 ## Creating the JavaScript bundle (Hermes)
 
-You can use your existing bundling pipeline. Alternatively, use the CLI tool provided in this package to generate optimized Hermes bundles.
+There are two ways to generate the JavaScript bundle for CodePush:
 
-#### Using the CLI tool (Recommended)
+### 1. Automated Bundle Generation (Recommended)
+
+This method automatically copies the bundle that is generated during your app's build process.
+
+#### For Android:
+
+Add this line to your `android/app/build.gradle`:
+
+```gradle
+apply from: "../../node_modules/@d11/dota/android/codepush.gradle"
+```
+
+#### For iOS:
+
+1. Add this line at the top of your `Podfile`:
+```ruby
+require_relative '../node_modules/@d11/dota/ios/scripts/dota_pod_helpers.rb'
+```
+Note: Make sure that it correctly points to node_modules path.
+
+2. In the `post_install` block of your `Podfile`, add:
+```ruby
+post_install do |installer| 
+  
+  # Add the Dota post install script
+  # Replace with your app's target name
+  dota_post_install(installer, <target>, File.expand_path(__dir__))
+end
+```
+
+3. Run pod install:
+```bash
+cd ios && pod install
+```
+
+This will add a new build phase named "[Dota] Copy CodePush Bundle" that automatically handles bundle generation and copying. The bundles and assets will be generated in `.dota/<platform>` directory at your project root.
+
+### 2. Manual Bundle Generation (Using CLI Tool)
+
+Use this method if you need more control over the bundle generation process or need to generate bundles outside of the build process.
 
 ```bash
 # For Android
@@ -168,9 +207,9 @@ The CLI supports the following options:
 ```bash
 Options:
   --platform <platform>      Specify platform: android or ios (required)
-  --bundle-path <path>      Directory to place the bundle in (default: ".codepush")
-  --assets-path <path>      Directory to place assets in (default: ".codepush")
-  --sourcemap-path <path>   Directory to place sourcemaps in (default: ".codepush")
+  --bundle-path <path>      Directory to place the bundle in (default: ".dota")
+  --assets-path <path>      Directory to place assets in (default: ".dota")
+  --sourcemap-path <path>   Directory to place sourcemaps in (default: ".dota")
   --make-sourcemap         Generate sourcemap (default: false)
   --entry-file <file>      Entry file (default: "index.ts")
   --dev <boolean>          Development mode (default: "false")
@@ -184,16 +223,14 @@ yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
 
 By default, the CLI will generate:
 - For Android:
-  - `.codepush/index.android.bundle` - The optimized Hermes bundle
-  - `.codepush/` - Directory containing any assets
-  - `.codepush/index.android.bundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+  - `.dota/index.android.bundle` - The optimized Hermes bundle
+  - `.dota/` - Directory containing any assets
+  - `.dota/index.android.bundle.json` - Sourcemap file (if --make-sourcemap is enabled)
 
 - For iOS:
-  - `.codepush/main.jsbundle` - The optimized Hermes bundle
-  - `.codepush/` - Directory containing any assets
-  - `.codepush/main.jsbundle.json` - Sourcemap file (if --make-sourcemap is enabled)
-
-All paths can be customized using the CLI options.
+  - `.dota/main.jsbundle` - The optimized Hermes bundle
+  - `.dota/` - Directory containing any assets
+  - `.dota/main.jsbundle.json` - Sourcemap file (if --make-sourcemap is enabled)
 
 ## Releasing Updates
 
