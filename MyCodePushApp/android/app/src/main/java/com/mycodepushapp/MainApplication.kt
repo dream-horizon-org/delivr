@@ -23,12 +23,13 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
-              add(CodePush(
-                resources.getString(R.string.CodePushDeploymentKey),
-                applicationContext,
-                BuildConfig.DEBUG,
-                resources.getString(R.string.CodePushServerUrl)
-              ))
+                          add(
+                CodePush.getInstance(
+                  resources.getString(R.string.CodePushDeploymentKey),
+                  applicationContext,
+                  BuildConfig.DEBUG
+                )
+              )
             }
 
         override fun getJSMainModuleName(): String = "index"

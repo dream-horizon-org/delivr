@@ -50,15 +50,18 @@ public class CodePush implements ReactPackage {
     private static ReactInstanceHolder mReactInstanceHolder;
     private static CodePush mCurrentInstance;
 
-    public CodePush(String deploymentKey, Context context) {
-        this(deploymentKey, context, false);
-    }
-
     public static String getServiceUrl() {
         return mServerUrl;
     }
 
-    public CodePush(String deploymentKey, Context context, boolean isDebugMode) {
+    public static synchronized CodePush getInstance(String deploymentKey, Context context, boolean isDebugMode) {
+        if(mCurrentInstance == null) {
+            mCurrentInstance = new CodePush(deploymentKey, context, isDebugMode);
+        }
+        return mCurrentInstance;
+    }
+
+    private CodePush(String deploymentKey, Context context, boolean isDebugMode) {
         mContext = context.getApplicationContext();
 
         mUpdateManager = new CodePushUpdateManager(context.getFilesDir().getAbsolutePath());
@@ -86,29 +89,6 @@ public class CodePush implements ReactPackage {
 
         clearDebugCacheIfNeeded(null);
         initializeUpdateAfterRestart();
-    }
-
-    public CodePush(String deploymentKey, Context context, boolean isDebugMode, String serverUrl) {
-        this(deploymentKey, context, isDebugMode);
-        mServerUrl = serverUrl;
-        CodePushUtils.log("deploymentKey initialized :: "+ deploymentKey);
-        CodePushUtils.log("mServerUrl initialized :: "+ mServerUrl);
-    }
-
-    public CodePush(String deploymentKey, Context context, boolean isDebugMode, int publicKeyResourceDescriptor) {
-        this(deploymentKey, context, isDebugMode);
-
-        mPublicKey = getPublicKeyByResourceDescriptor(publicKeyResourceDescriptor);
-    }
-
-    public CodePush(String deploymentKey, Context context, boolean isDebugMode, String serverUrl, Integer publicKeyResourceDescriptor) {
-        this(deploymentKey, context, isDebugMode);
-
-        if (publicKeyResourceDescriptor != null) {
-            mPublicKey = getPublicKeyByResourceDescriptor(publicKeyResourceDescriptor);
-        }
-
-        mServerUrl = serverUrl;
     }
 
     private String getPublicKeyByResourceDescriptor(int publicKeyResourceDescriptor){
