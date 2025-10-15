@@ -1031,6 +1031,7 @@ const release = (command) => {
         isDisabled: command.disabled,
         isMandatory: command.mandatory,
         rollout: command.rollout,
+        isBundlePatchingEnabled: command.isPatch ?? false,
     };
     return exports.sdk
         .isAuthenticated(true)

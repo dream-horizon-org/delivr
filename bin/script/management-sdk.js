@@ -298,6 +298,7 @@ class AccountManager {
             });
             getPackageFilePromise.then((packageFile) => {
                 const file = fs.createReadStream(packageFile.path);
+                console.log('\nUploading Zip File of size ::', fs.statSync(packageFile.path).size);
                 request
                     .attach("package", file)
                     .field("packageInfo", JSON.stringify(updateMetadata))

@@ -590,11 +590,18 @@ yargs
         description: "Percentage of users this release should be available to",
         type: "string",
     })
+        .option("isPatch", {
+        alias: "p",
+        demand: false,
+        default: false,
+        description: "Specify whether the update is a patch or full bundle. Default is false.",
+        type: "boolean"
+    })
         .option("compression", {
         alias: "c",
         default: "brotli",
         demand: false,
-        description: "Compression mode to be used to compress the folder. Can be either 'brotli' or 'deflate'. Default is 'brotli'. Brotli is recommended for better compression ratio and performance.",
+        description: "Compression algorithm: 'brotli' (default, recommended) or 'deflate'",
         type: "string",
     })
         .check((argv, aliases) => {
@@ -791,22 +798,22 @@ yargs
         .check((argv, aliases) => isValidCommand); // Report unrecognized, non-hyphenated command category.
     addCommonConfiguration(yargs);
 })
-    .command("create-patch", "Create a binary patch between two bundle files", (yargs) => {
+    .command("create-patch", "Create a patch file between two files", (yargs) => {
     isValidCommandCategory = true;
     isValidCommand = true;
     yargs
-        .usage(USAGE_PREFIX + " create-patch path/to/old.bundle path/to/new.bundle directory/to/save/bundle.patch")
+        .usage(USAGE_PREFIX + " create-patch path/to/oldfile path/to/newfile directory/to/save/bundle.patch")
         .demand(/*count*/ 3, /*max*/ 3) // Require exactly three non-option arguments
-        .example("create-patch path/to/old.bundle path/to/new.bundle directory/to/save/bundle.patch", "Create a patch from old.bundle to new.bundle and save it as bundle.patch");
+        .example("create-patch .old/index.android.bundle .new/index.android.bundle ./patch-dir", "Create a bundle.patch file using .old/index.android.bundle and .new/index.android.bundle and save it as ./patch-dir/bundle.patch");
     addCommonConfiguration(yargs);
 })
-    .command("apply-patch", "Apply a binary patch to a bundle file", (yargs) => {
+    .command("apply-patch", "Apply a patch to a file", (yargs) => {
     isValidCommandCategory = true;
     isValidCommand = true;
     yargs
-        .usage(USAGE_PREFIX + " apply-patch path/to/old.bundle path/to/bundle.patch path/to/new.bundle")
+        .usage(USAGE_PREFIX + " apply-patch path/to/oldfile path/to/bundle.patch path/to/newfile")
         .demand(/*count*/ 3, /*max*/ 3) // Require exactly three non-option arguments
-        .example("apply-patch path/to/old.bundle path/to/bundle.patch path/to/new.bundle", "Apply bundle.patch to old.bundle and save the result as new.bundle");
+        .example("apply-patch .old/index.android.bundle ./patch-dir/bundle.patch .new/index.android.bundle", "Apply bundle.patch to .old/index.android.bundle and save the result as .new/index.android.bundle");
     addCommonConfiguration(yargs);
 })
     .command("whoami", "Display the account info for the current login session", (yargs) => {
@@ -1093,6 +1100,7 @@ function createCommand() {
                     releaseCommand.noDuplicateReleaseError = argv["noDuplicateReleaseError"];
                     releaseCommand.rollout = getRolloutValue(argv["rollout"]);
                     releaseCommand.compression = argv["compression"];
+                    releaseCommand.isPatch = argv["isPatch"];
                 }
                 break;
             case "release-react":
