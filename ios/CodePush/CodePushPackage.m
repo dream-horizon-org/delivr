@@ -4,6 +4,13 @@
 #else
 #import "SSZipArchive.h"
 #endif
+#import <React/RCTEventEmitter.h>
+#import "BrotliDecompressor.h"
+
+typedef NS_ENUM(NSInteger, CodePushCompressionMode) {
+    CodePushCompressionModeDefault,
+    CodePushCompressionModeBrotli
+};
 
 @implementation CodePushPackage
 
@@ -16,8 +23,13 @@ static NSString *const StatusFile = @"codepush.json";
 static NSString *const UpdateBundleFileName = @"app.jsbundle";
 static NSString *const UpdateMetadataFileName = @"app.json";
 static NSString *const UnzippedFolderName = @"unzipped";
+static NSString *const DecompressedFolderName = @"decompressed";
 
 #pragma mark - Public methods
+
+- (NSArray<NSString *> *)supportedEvents {
+  return @[@"CodePushDownloadStatus"];
+}
 
 + (void)clearUpdates
 {
@@ -43,6 +55,11 @@ static NSString *const UnzippedFolderName = @"unzipped";
     }
 }
 
++ (void)dispatchDownloadStatusEvent:(NSString *)eventName context:(RCTEventEmitter *)context {
+    [context sendEventWithName:@"CodePushDownloadStatus"
+                        body:@{@"name": eventName}];
+}
+
 + (void)downloadPackage:(NSDictionary *)updatePackage
  expectedBundleFileName:(NSString *)expectedBundleFileName
               publicKey:(NSString *)publicKey
@@ -50,10 +67,17 @@ static NSString *const UnzippedFolderName = @"unzipped";
        progressCallback:(void (^)(long long, long long))progressCallback
            doneCallback:(void (^)())doneCallback
            failCallback:(void (^)(NSError *err))failCallback
+           eventEmitter:(RCTEventEmitter *)eventEmitter
 {
     NSString *newUpdateHash = updatePackage[@"packageHash"];
     NSString *newUpdateFolderPath = [self getPackageFolderPath:newUpdateHash];
     NSString *newUpdateMetadataPath = [newUpdateFolderPath stringByAppendingPathComponent:UpdateMetadataFileName];
+    
+    BOOL isBundlePatchingEnabled = NO;
+    id isBundlePatchingEnabledValue = updatePackage[@"isBundlePatchingEnabled"];
+    if (isBundlePatchingEnabledValue != nil && [isBundlePatchingEnabledValue isKindOfClass:[NSNumber class]]) {
+        isBundlePatchingEnabled = [isBundlePatchingEnabledValue boolValue];
+    }
     NSError *error;
     
     if ([[NSFileManager defaultManager] fileExistsAtPath:newUpdateFolderPath]) {
@@ -85,6 +109,7 @@ static NSString *const UnzippedFolderName = @"unzipped";
                                                 operationQueue:operationQueue
                                                 progressCallback:progressCallback
                                                 doneCallback:^(BOOL isZip) {
+                                                    [CodePushPackage dispatchDownloadStatusEvent:@"DOWNLOAD_REQUEST_SUCCESS" context:eventEmitter];
                                                     NSError *error = nil;
                                                     NSString * unzippedFolderPath = [CodePushPackage getUnzippedFolderPath];
                                                     NSMutableDictionary * mutableUpdatePackage = [updatePackage mutableCopy];
@@ -103,6 +128,37 @@ static NSString *const UnzippedFolderName = @"unzipped";
                                                         NSError *nonFailingError = nil;
                                                         [SSZipArchive unzipFileAtPath:downloadFilePath
                                                                         toDestination:unzippedFolderPath];
+                                                        [CodePushPackage dispatchDownloadStatusEvent:@"UNZIPPED_SUCCESS" context:eventEmitter];
+                                                        
+                                                        // Check if any files are Brotli compressed
+                                                        NSArray *files = [[NSFileManager defaultManager] subpathsAtPath:unzippedFolderPath];
+                                                        CodePushCompressionMode compressionMode = CodePushCompressionModeDefault;
+                                                        for (NSString *file in files) {
+                                                            if ([file hasSuffix:@".br"]) {
+                                                                compressionMode = CodePushCompressionModeBrotli;
+                                                                break;
+                                                            }
+                                                        }
+                                                        
+                                                        if (compressionMode == CodePushCompressionModeBrotli) {
+                                                            NSString *decompressedFolderPath = [CodePushPackage getDecompressedFolderPath];
+                                                            NSError *decompressError = nil;
+                                                            
+                                                            CPLog(@"Decompressing brotli compressed files at path: %@", decompressedFolderPath);
+                                                            if (![BrotliDecompressor decompressFiles:unzippedFolderPath toPath:decompressedFolderPath error:&decompressError]) {
+                                                                CPLog(@"Error decompressing files: %@", decompressError);
+                                                                failCallback(decompressError);
+                                                                return;
+                                                            }
+                                                            
+                                                            CPLog(@"Successfully decompressed files at path: %@", decompressedFolderPath);
+                                                            [CodePushPackage dispatchDownloadStatusEvent:@"DECOMPRESSED_SUCCESS" context:eventEmitter];
+                                                            
+                                                            // Remove the original unzipped folder and rename decompressed folder
+                                                            [[NSFileManager defaultManager] removeItemAtPath:unzippedFolderPath error:nil];
+                                                            [[NSFileManager defaultManager] moveItemAtPath:decompressedFolderPath toPath:unzippedFolderPath error:nil];
+                                                        }
+                                                        
                                                         [[NSFileManager defaultManager] removeItemAtPath:downloadFilePath
                                                                                                    error:&nonFailingError];
                                                         if (nonFailingError) {
@@ -206,7 +262,18 @@ static NSString *const UnzippedFolderName = @"unzipped";
                                                             CPLog(@"Error deleting downloaded file: %@", nonFailingError);
                                                             nonFailingError = nil;
                                                         }
-                                                        
+
+                                                        if (isBundlePatchingEnabled) {
+                                                            NSError *patchError = nil;
+                                                            CPLog(@"Apply Patch Called with newUpdateFolderPath: %@", newUpdateFolderPath);
+                                                            [CodePushUpdateUtils applyPatch:newUpdateFolderPath expectedFileName: expectedBundleFileName error:&patchError];
+                                                            [CodePushPackage dispatchDownloadStatusEvent:@"PATCH_APPLIED_SUCCESS" context:eventEmitter];
+                                                            if (patchError) {
+                                                                failCallback(patchError);
+                                                                return;
+                                                            }
+                                                        }
+                                                            
                                                         NSString *relativeBundlePath = [CodePushUpdateUtils findMainBundleInFolder:newUpdateFolderPath
                                                                                                                   expectedFileName:expectedBundleFileName
                                                                                                                              error:&error];
@@ -309,16 +376,42 @@ static NSString *const UnzippedFolderName = @"unzipped";
                                                             }
                                                         }
                                                     } else {
-                                                        [[NSFileManager defaultManager] createDirectoryAtPath:newUpdateFolderPath
-                                                                                  withIntermediateDirectories:YES
-                                                                                                   attributes:nil
-                                                                                                        error:&error];
-                                                        [[NSFileManager defaultManager] moveItemAtPath:downloadFilePath
-                                                                                                toPath:bundleFilePath
-                                                                                                 error:&error];
-                                                        if (error) {
-                                                            failCallback(error);
-                                                            return;
+                                                        if (isBundlePatchingEnabled) {
+                                                            
+                                                            [[NSFileManager defaultManager] createDirectoryAtPath:newUpdateFolderPath
+                                                                                      withIntermediateDirectories:YES
+                                                                                                       attributes:nil
+                                                                                                            error:&error];
+                                                            NSString *patchFilePath = [newUpdateFolderPath stringByAppendingPathComponent:@"bundle.patch"];
+                                                            [[NSFileManager defaultManager] moveItemAtPath:downloadFilePath
+                                                                                                    toPath:patchFilePath
+                                                                                                     error:&error];
+                                                            if (error) {
+                                                                failCallback(error);
+                                                                return;
+                                                            }
+                                                            
+                                                            NSError *patchError = nil;
+                                                            CPLog(@"Apply Patch Called with newUpdateFolderPath: %@", newUpdateFolderPath);
+                                                            [CodePushUpdateUtils applyPatch:newUpdateFolderPath expectedFileName:UpdateBundleFileName error:&patchError];
+                                                            if (patchError) {
+                                                                failCallback(patchError);
+                                                                return;
+                                                            }
+                                                            
+                                                            
+                                                        } else {
+                                                            [[NSFileManager defaultManager] createDirectoryAtPath:newUpdateFolderPath
+                                                                                      withIntermediateDirectories:YES
+                                                                                                       attributes:nil
+                                                                                                            error:&error];
+                                                            [[NSFileManager defaultManager] moveItemAtPath:downloadFilePath
+                                                                                                    toPath:bundleFilePath
+                                                                                                     error:&error];
+                                                            if (error) {
+                                                                failCallback(error);
+                                                                return;
+                                                            }
                                                         }
                                                     }
                                                     
@@ -499,6 +592,11 @@ static NSString *const UnzippedFolderName = @"unzipped";
 + (NSString *)getUnzippedFolderPath
 {
     return [[self getCodePushPath] stringByAppendingPathComponent:UnzippedFolderName];
+}
+
++ (NSString *)getDecompressedFolderPath
+{
+    return [[self getCodePushPath] stringByAppendingPathComponent:DecompressedFolderName];
 }
 
 + (BOOL)installPackage:(NSDictionary *)updatePackage

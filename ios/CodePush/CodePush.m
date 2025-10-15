@@ -767,7 +767,8 @@ RCT_EXPORT_METHOD(downloadUpdate:(NSDictionary*)updatePackage
             _didUpdateProgress = NO;
             self.paused = YES;
             reject([NSString stringWithFormat: @"%lu", (long)err.code], err.localizedDescription, err);
-        }];
+        }
+        eventEmitter:self];
 }
 
 - (void)restartAppInternal:(BOOL)onlyIfUpdateIsPending

@@ -53,24 +53,24 @@ export const withCodePush = (config: Partial<CodePushConfig> = {}) => {
         case codePush.SyncStatus.AWAITING_USER_ACTION:
           console.log('Codepush Event: Awaiting user action');
           break;
-        // case codePush.SyncStatus.PATCH_APPLIED_SUCCESS:
-        //   console.log('Codepush Event: Patch applied success');
-        //   break;
-        // case codePush.SyncStatus.DOWNLOAD_REQUEST_SUCCESS:
-        //   console.log('Codepush Event: Download request success');
-        //   break;
-        // case codePush.SyncStatus.UNZIPPED_SUCCESS:
-        //   console.log('Codepush Event: Unzipped success');
-        //   break;
-        // case codePush.SyncStatus.UPDATE_AVAILABLE:
-        //   console.log('Codepush Event: Update available');
-        //   break;
-        // case codePush.SyncStatus.UPDATE_IGNORED_ROLLBACK:
-        //   console.log('Codepush Event: Update available ignored rollback');
-        //   break;
-        // case codePush.SyncStatus.DECOMPRESSED_SUCCESS:
-        //   console.log('Codepush Event: Decompressed success');
-        //   break;
+        case codePush.SyncStatus.PATCH_APPLIED_SUCCESS:
+          console.log('Codepush Event: Patch applied success');
+          break;
+        case codePush.SyncStatus.DOWNLOAD_REQUEST_SUCCESS:
+          console.log('Codepush Event: Download request success');
+          break;
+        case codePush.SyncStatus.UNZIPPED_SUCCESS:
+          console.log('Codepush Event: Unzipped success');
+          break;
+        case codePush.SyncStatus.UPDATE_AVAILABLE:
+          console.log('Codepush Event: Update available');
+          break;
+        case codePush.SyncStatus.UPDATE_IGNORED_ROLLBACK:
+          console.log('Codepush Event: Update available ignored rollback');
+          break;
+        case codePush.SyncStatus.DECOMPRESSED_SUCCESS:
+          console.log('Codepush Event: Decompressed success');
+          break;
         default:
           console.log('Codepush Event: Unknown status', status);
           break;

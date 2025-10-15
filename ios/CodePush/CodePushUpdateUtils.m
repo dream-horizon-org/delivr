@@ -1,6 +1,7 @@
 #import "CodePush.h"
 #include <CommonCrypto/CommonDigest.h>
 #import "JWT.h"
+#import "BsPatchLoader.h"
 
 @implementation CodePushUpdateUtils
 
@@ -8,6 +9,9 @@ NSString * const AssetsFolderName = @"assets";
 NSString * const BinaryHashKey = @"CodePushBinaryHash";
 NSString * const ManifestFolderPrefix = @"CodePush";
 NSString * const BundleJWTFile = @".codepushrelease";
+NSString * const PatchBundleFileName = @"bundle.patch";
+NSString * const BinaryBundleDir = @"binaryBundle";
+NSString * const BinaryBundleFileName = @"main.jsbundle";
 
 /*
  Ignore list for hashing
@@ -371,6 +375,171 @@ NSString * const IgnoreCodePushMetadata = @".codepushrelease";
     NSString *contentHash = envelopedPayload[@"contentHash"];
     
     return [contentHash isEqualToString:newUpdateHash];
+}
+
++ (void)applyPatch:(NSString *)newUpdateFolderPath expectedFileName:(NSString *)expectedFileName error:(NSError **)error {
+    NSString *patchFileRelativePath = [self checkPatchFileExistence:newUpdateFolderPath error:error];
+    if (!patchFileRelativePath) {
+        return;
+    }
+
+    NSError *copyError = nil;
+    NSString *fullDestinationPath = [CodePushUpdateUtils copyOriginalBundle:&copyError];
+    if (copyError) {
+        CPLog(@"Error copying original bundle: %@", [copyError localizedDescription]);
+        if (error) {
+            *error = copyError;
+        }
+        return;
+    }
+
+    if (![self applyPatchToBundle:newUpdateFolderPath
+            patchFileRelativePath:patchFileRelativePath
+                sourceBundlePath:fullDestinationPath
+                 expectedFileName:expectedFileName
+                            error:error]) {
+        return;
+    }
+}
+
++ (BOOL)applyPatchToBundle:(NSString *)newUpdateFolderPath
+        patchFileRelativePath:(NSString *)patchFileRelativePath
+                    sourceBundlePath:(NSString *)sourceBundlePath
+          expectedFileName: (NSString *)expectedFileName
+                        error:(NSError **)error {
+    NSString *patchBundleAbsolutePath = [newUpdateFolderPath stringByAppendingPathComponent:patchFileRelativePath];;
+    
+    NSString *patchBundleDirectory = [patchBundleAbsolutePath stringByDeletingLastPathComponent];
+    NSString *modifiedBundlePath = [patchBundleDirectory stringByAppendingPathComponent:expectedFileName];
+    
+    // Check if sourceBundlePath exists
+    if (![[NSFileManager defaultManager] fileExistsAtPath:sourceBundlePath]) {
+        NSString *errorMessage = @"Source bundle file does not exist.";
+        CPLog(@"%@", errorMessage);
+        if (error) {
+            *error = [NSError errorWithDomain:@"CodePush" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+        }
+        return NO;
+    }
+
+    // Check if patchBundleAbsolutePath exists
+    if (![[NSFileManager defaultManager] fileExistsAtPath:patchBundleAbsolutePath]) {
+        NSString *errorMessage = @"Patch file does not exist.";
+        CPLog(@"%@", errorMessage);
+        if (error) {
+            *error = [NSError errorWithDomain:@"CodePush" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+        }
+        return NO;
+    }
+
+    // Check if modifiedBundlePath exists and delete if it does
+    if ([[NSFileManager defaultManager] fileExistsAtPath:modifiedBundlePath]) {
+        CPLog(@"Modified bundle file exists, deleting it.");
+        NSError *deleteError = nil;
+        if (![[NSFileManager defaultManager] removeItemAtPath:modifiedBundlePath error:&deleteError]) {
+            NSString *errorMessage = @"Failed to delete existing modified bundle file.";
+            CPLog(@"%@", errorMessage);
+            if (error) {
+                *error = [NSError errorWithDomain:@"CodePush" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+            }
+            return NO;
+        }
+    }
+    
+    int result = [BsPatchLoader applyPatchWithOldFile:sourceBundlePath newFile:modifiedBundlePath patchFile:patchBundleAbsolutePath];
+    if (result != 0) {
+        NSString *errorMessage = @"Patch Process: Patching failed.";
+        CPLog(@"%@", errorMessage);
+        if (error) {
+            *error = [NSError errorWithDomain:@"CodePush" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+        }
+        return NO;
+    }
+
+    // Clean up: Remove the source bundle directory
+    NSString *sourceBundleDir = [sourceBundlePath stringByDeletingLastPathComponent];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:sourceBundleDir]) {
+        NSError *cleanupError = nil;
+        CPLog(@"Removing source bundle directory: %@", sourceBundleDir);
+        if (![[NSFileManager defaultManager] removeItemAtPath:sourceBundleDir error:&cleanupError]) {
+            CPLog(@"Warning: Failed to remove source bundle directory: %@", cleanupError);
+        }
+    }
+
+    // Clean up: Remove the patch file
+    if ([[NSFileManager defaultManager] fileExistsAtPath:patchBundleAbsolutePath]) {
+        NSError *cleanupError = nil;
+        CPLog(@"Removing patch file: %@", patchBundleAbsolutePath);
+        if (![[NSFileManager defaultManager] removeItemAtPath:patchBundleAbsolutePath error:&cleanupError]) {
+            CPLog(@"Warning: Failed to remove patch file: %@", cleanupError);
+        }
+    }
+
+    CPLog(@"Patch Process: Patching successful and cleanup completed.");
+    return YES;
+}
+
++ (NSString *)copyOriginalBundle:(NSError **)error {
+    NSString *destinationDir = [[CodePushPackage getCodePushPath] stringByAppendingPathComponent:BinaryBundleDir];
+    
+    CPLog(@"Copying binary bundle from assets to %@", destinationDir);
+    if (![[NSFileManager defaultManager] fileExistsAtPath:destinationDir]) {
+        [[NSFileManager defaultManager] createDirectoryAtPath:destinationDir withIntermediateDirectories:YES attributes:nil error:error];
+        if (error && *error) {
+            CPLog(@"Failed to create directory at %@", destinationDir);
+            return nil;
+        }
+    }
+
+    NSString *fullDestinationPath = [destinationDir stringByAppendingPathComponent:BinaryBundleFileName];
+
+    // Delete existing bundle if it exists
+    if ([[NSFileManager defaultManager] fileExistsAtPath:fullDestinationPath]) {
+        [[NSFileManager defaultManager] removeItemAtPath:fullDestinationPath error:error];
+        if (error && *error) {
+            CPLog(@"Failed to delete existing bundle at %@", fullDestinationPath);
+            return nil;
+        }
+    }
+
+    NSString *sourceBundlePath = [[NSBundle mainBundle] pathForResource:@"main" ofType:@"jsbundle"];
+    
+    if (!sourceBundlePath) {
+        NSString *errorMessage = @"Source bundle not found in app resources.";
+        CPLog(@"%@", errorMessage);
+        if (error) {
+            *error = [NSError errorWithDomain:@"CodePush" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+        }
+        return nil;
+    }
+    
+    if (![[NSFileManager defaultManager] copyItemAtPath:sourceBundlePath toPath:fullDestinationPath error:error]) {
+        CPLog(@"Failed to copy source bundle to %@", fullDestinationPath);
+        return nil;
+    } else {
+        CPLog(@"Successfully copied source bundle to %@", fullDestinationPath);
+    }
+
+    return fullDestinationPath;
+}
+
+// New function to find patch file path
++ (NSString *)checkPatchFileExistence:(NSString *)folderPath
+                                   error:(NSError **)error {
+    NSString *patchFilePath = [CodePushUpdateUtils findMainBundleInFolder:folderPath
+                                                         expectedFileName:PatchBundleFileName
+                                                                    error:error];
+    if (!patchFilePath) {
+        NSString *errorMessage = [NSString stringWithFormat:@"Patch Process: Update is invalid - Patch bundle file named \"%@\" could not be found within the downloaded contents.", PatchBundleFileName];
+        CPLog(@"%@", errorMessage);
+        if (error) {
+            *error = [NSError errorWithDomain:@"CodePush" code:0 userInfo:@{NSLocalizedDescriptionKey: errorMessage}];
+        }
+        return nil;
+    }
+    
+    CPLog(@"Patch Process: Patch bundle file found at %@", patchFilePath);
+    return patchFilePath;
 }
 
 @end

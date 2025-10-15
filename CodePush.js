@@ -447,7 +447,7 @@ async function syncInternal(options = {}, syncStatusChangeCallbackFunction, down
       syncStatusChangeCallback(CodePush.SyncStatus.DOWNLOADING_PACKAGE);
 
       function downloadStatusCallback(event) {
-        switch (event.name) {
+        switch (event?.name ?? "") {
           case "PATCH_APPLIED_SUCCESS":
             syncStatusChangeCallback(CodePush.SyncStatus.PATCH_APPLIED_SUCCESS);
             break;

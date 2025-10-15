@@ -144,7 +144,8 @@ failCallback:(void (^)(NSError *err))failCallback;
          operationQueue:(dispatch_queue_t)operationQueue
        progressCallback:(void (^)(long long, long long))progressCallback
            doneCallback:(void (^)())doneCallback
-           failCallback:(void (^)(NSError *err))failCallback;
+           failCallback:(void (^)(NSError *err))failCallback
+           eventEmitter:(RCTEventEmitter *)eventEmitter;
 
 + (NSDictionary *)getCurrentPackage:(NSError **)error;
 + (NSDictionary *)getPreviousPackage:(NSError **)error;
@@ -166,6 +167,7 @@ failCallback:(void (^)(NSError *err))failCallback;
 // The below methods are only used during tests.
 + (void)clearUpdates;
 + (void)downloadAndReplaceCurrentBundle:(NSString *)remoteBundleUrl;
++ (NSString *)getCodePushPath;
 
 @end
 
@@ -189,6 +191,7 @@ failCallback:(void (^)(NSError *err))failCallback;
 + (NSString *)findMainBundleInFolder:(NSString *)folderPath
                     expectedFileName:(NSString *)expectedFileName
                                error:(NSError **)error;
++ (void)applyPatch:(NSString *)newUpdateFolderPath expectedFileName:(NSString *)expectedFileName error:(NSError **)error;
 
 + (NSString *)assetsFolderName;
 + (NSString *)getHashForBinaryContents:(NSURL *)binaryBundleUrl
