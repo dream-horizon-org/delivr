@@ -7,18 +7,25 @@ import log from "./logging";
 module.exports = (NativeCodePush) => {
   const remote = (reportStatusDownload) => {
     return {
-      async download(downloadProgressCallback) {
+      async download(downloadProgressCallback, downloadStatusCallback) {
         if (!this.downloadUrl) {
           throw new Error("Cannot download an update without a download url");
         }
 
         let downloadProgressSubscription;
+        const codePushEventEmitter = new NativeEventEmitter(NativeCodePush);
         if (downloadProgressCallback) {
-          const codePushEventEmitter = new NativeEventEmitter(NativeCodePush);
           // Use event subscription to obtain download progress.
           downloadProgressSubscription = codePushEventEmitter.addListener(
             "CodePushDownloadProgress",
             downloadProgressCallback
+          );
+        }
+        let downloadStatusSubscription;
+        if (downloadStatusCallback) { // Use event subscription to obtain download status.
+        downloadStatusSubscription = codePushEventEmitter.addListener(
+          "CodePushDownloadStatus",
+            downloadStatusCallback
           );
         }
 
@@ -40,6 +47,7 @@ module.exports = (NativeCodePush) => {
           return { ...downloadedPackage, ...local };
         } finally {
           downloadProgressSubscription && downloadProgressSubscription.remove();
+          downloadStatusSubscription && downloadStatusSubscription.remove();
         }
       },
 

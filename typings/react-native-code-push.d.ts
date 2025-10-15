@@ -390,7 +390,37 @@ declare namespace CodePush {
         /**
          * An available update was downloaded and is about to be installed.
          */
-        INSTALLING_UPDATE
+        INSTALLING_UPDATE,
+
+        /**
+         * An update was available but was ignored due to previous rollback.
+         */
+        UPDATE_IGNORED_ROLLBACK,
+
+        /**
+         * An update is available and is about to be downloaded.
+         */
+        UPDATE_AVAILABLE,
+
+        /**
+         * An available update was downloaded and is a patch bundle which now applied successfully.
+         */
+        PATCH_APPLIED_SUCCESS,
+
+        /**
+         * An update was available and is downloaded successfully.
+         */
+        DOWNLOAD_REQUEST_SUCCESS,
+
+        /**
+         * An update was downloaded and is unzipped successfully.
+         */
+        UNZIPPED_SUCCESS,
+        
+        /**
+         * An available update was downloaded and is decompressed successfully.
+        */
+        DECOMPRESSED_SUCCESS
     }
 
     /**
