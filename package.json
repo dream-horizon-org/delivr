@@ -1,5 +1,5 @@
 {
-  "name": "@dream-sports-labs/delivr-cli",
+  "name": "delivr-cli",
   "version": "0.0.1",
   "description": "Management CLI for Delivr - deploy mobile app updates over-the-air",
   "main": "./script/cli.js",
