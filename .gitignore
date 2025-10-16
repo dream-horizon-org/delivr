@@ -55,4 +55,4 @@ __queuestorage__
 
 # VS Code settings
 .vscode/
-
+bin/

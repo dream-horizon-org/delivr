@@ -5,7 +5,7 @@
   "main": "./script/cli.js",
   "scripts": {
     "start": "node ./bin/script/cli.js",
-    "build": "tsc && cp -r ./script/patch-scripts ./bin/script",
+    "build": "tsc && cp -r ./script/patch-scripts ./bin/script && cd bsdiff && make clean && make && cd ..",
     "build:watch": "tsc --watch",
     "prettier": "prettier --write \"./**/*.ts\"",
     "lint": "npx eslint ./script/**/*.ts",
@@ -26,6 +26,7 @@
   },
   "files": [
     "bin/**/*",
+    "bsdiff/**/*",
     "README.md",
     "LICENSE.txt"
   ],
