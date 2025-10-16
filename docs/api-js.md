@@ -580,6 +580,12 @@ This enum is provided to the `syncStatusChangedCallback` function that can be pa
 * __codePush.SyncStatus.AWAITING_USER_ACTION__ *(6)* - An update is available, and a confirmation dialog was shown to the end user. (This is only applicable when the `updateDialog` is used)
 * __codePush.SyncStatus.DOWNLOADING_PACKAGE__ *(7)* - An available update is being downloaded from the CodePush server.
 * __codePush.SyncStatus.INSTALLING_UPDATE__ *(8)* - An available update was downloaded and is about to be installed.
+* __codePush.SyncStatus.UPDATE_IGNORED_ROLLBACK__ *(9)* - An update was available but was ignored due to previous rollback
+* __codePush.SyncStatus.UPDATE_AVAILABLE__ *(10)* - An update is available and is about to be downloaded
+* __codePush.SyncStatus.PATCH_APPLIED_SUCCESS__ *(11)* - An available update was downloaded and is a patch bundle which now applied successfully.
+* __codePush.SyncStatus.DOWNLOAD_REQUEST_SUCCESS__ *(12)* - An update was available and is downloaded successfully.
+* __codePush.SyncStatus.UNZIPPED_SUCCESS__ *(13)* - An update was downloaded and is unzipped successfully.
+* __codePush.SyncStatus.DECOMPRESSED_SUCCESS__ *(14)* - An available update was downloaded and is decompressed successfully.
 
 ##### UpdateState
 
