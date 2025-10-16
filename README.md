@@ -311,7 +311,7 @@ code-push-standalone release <appName> <updateContents> <targetBinaryVersion>
 [--noDuplicateReleaseError]
 [--rollout <rolloutPercentage>]
 [--isPatch <true|false>]        # specify if update is a patch or full bundle. default is false
-[--compression <compression>] # 'brotli' (default, better compression) or 'deflate' (faster)
+[--compression <'deflate' | 'brotli'>] # 'deflate' (default) or 'brotli' (better compression)
 ```
 
 > **Note about update type**: The `--isPatch` flag is to ensure you're explicitly specifying whether you're uploading a patch file or a full bundle. Use `--isPatch true` for patch updates (smaller size) or `--isPatch false` for full bundle updates.

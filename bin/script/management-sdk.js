@@ -281,7 +281,7 @@ class AccountManager {
     getDeploymentHistory(appName, deploymentName) {
         return this.get(urlEncode([`/apps/${appName}/deployments/${deploymentName}/history`])).then((res) => res.body.history);
     }
-    release(appName, deploymentName, filePath, targetBinaryVersion, updateMetadata, uploadProgressCallback, compression = 'brotli') {
+    release(appName, deploymentName, filePath, targetBinaryVersion, updateMetadata, uploadProgressCallback, compression = 'deflate') {
         return Promise((resolve, reject) => {
             updateMetadata.appVersion = targetBinaryVersion;
             const request = superagent.post(this._serverUrl + urlEncode([`/apps/${appName}/deployments/${deploymentName}/release`]));

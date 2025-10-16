@@ -1284,7 +1284,7 @@ export const release = (command: cli.IReleaseCommand): Promise<void> => {
   return sdk
     .isAuthenticated(true)
     .then((isAuth: boolean): Promise<void> => {
-      return sdk.release(command.appName, command.deploymentName, filePath, command.appStoreVersion, updateMetadata, uploadProgress, command.compression ?? 'brotli');
+      return sdk.release(command.appName, command.deploymentName, filePath, command.appStoreVersion, updateMetadata, uploadProgress, command.compression ?? 'deflate');
     })
     .then((): void => {
       log(

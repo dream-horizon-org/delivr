@@ -1036,7 +1036,7 @@ const release = (command) => {
     return exports.sdk
         .isAuthenticated(true)
         .then((isAuth) => {
-        return exports.sdk.release(command.appName, command.deploymentName, filePath, command.appStoreVersion, updateMetadata, uploadProgress, command.compression ?? 'brotli');
+        return exports.sdk.release(command.appName, command.deploymentName, filePath, command.appStoreVersion, updateMetadata, uploadProgress, command.compression ?? 'deflate');
     })
         .then(() => {
         (0, exports.log)('Successfully released an update containing the "' +

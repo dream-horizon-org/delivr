@@ -383,7 +383,7 @@ class AccountManager {
     targetBinaryVersion: string,
     updateMetadata: ReleasePackageInfo,
     uploadProgressCallback?: (progress: number) => void,
-    compression: string = 'brotli'
+    compression: string = 'deflate'
   ): Promise<void> {
     return Promise<void>((resolve, reject) => {
       updateMetadata.appVersion = targetBinaryVersion;
