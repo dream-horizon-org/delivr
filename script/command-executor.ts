@@ -49,6 +49,7 @@ import {
   isBinaryOrZip,
   fileExists
 } from "./utils/file-utils";
+import { DelivrConfigConstants } from "./utils/config.constants";
 
 const configFilePath: string = path.join(process.env.LOCALAPPDATA || process.env.HOME, ".code-push.config");
 const emailValidator = require("email-validator");
@@ -1651,7 +1652,7 @@ function getSdk(accessKey: string, headers: Headers, customServerUrl: string): A
 
 function createPatch(command: cli.ICreatePatchCommand): Promise<void> {
   return Q.Promise<void>((resolve, reject) => {
-    const scriptPath = path.join(__dirname, "patch-scripts", "create-patch.sh");
+    const scriptPath = path.join(__dirname, DelivrConfigConstants.SCRIPT_DIRECTORY, DelivrConfigConstants.CREATE_PATCH_SCRIPT);
     
     // Normalize the patch directory path
     let patchDir = command.patchFile;
@@ -1698,7 +1699,7 @@ function createPatch(command: cli.ICreatePatchCommand): Promise<void> {
 
 function applyPatch(command: cli.IApplyPatchCommand): Promise<void> {
   return Q.Promise<void>((resolve, reject) => {
-    const scriptPath = path.join(__dirname, "patch-scripts", "apply-patch.sh");
+    const scriptPath = path.join(__dirname, DelivrConfigConstants.SCRIPT_DIRECTORY, DelivrConfigConstants.APPLY_PATCH_SCRIPT);
     const args = [command.oldBundle, command.patchFile, command.outputBundle, false];
     
     log(`Applying patch to ${command.oldBundle}`);

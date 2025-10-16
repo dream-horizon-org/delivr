@@ -31,6 +31,7 @@ import {
   Session,
 } from "./types";
 import { Organisation, ReleasePackageInfo } from "./types/rest-definitions";
+import { CompressionType } from "./utils/config.constants";
 
 const packageJson = require("../../package.json");
 
@@ -383,7 +384,7 @@ class AccountManager {
     targetBinaryVersion: string,
     updateMetadata: ReleasePackageInfo,
     uploadProgressCallback?: (progress: number) => void,
-    compression: string = 'deflate'
+    compression: string = CompressionType.DEFLATE
   ): Promise<void> {
     return Promise<void>((resolve, reject) => {
       updateMetadata.appVersion = targetBinaryVersion;
@@ -511,7 +512,7 @@ class AccountManager {
           });
 
           try {
-            if (compression === 'brotli') {
+            if (compression === CompressionType.BROTLI) {
               console.log(`\nCompressing ${files.length} files...`);
               // For Brotli, compress each file individually
               for (let i = 0; i < files.length; ++i) {
