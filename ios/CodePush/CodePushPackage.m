@@ -78,7 +78,7 @@ static NSString *const DecompressedFolderName = @"decompressed";
     if (isBundlePatchingEnabledValue != nil && [isBundlePatchingEnabledValue isKindOfClass:[NSNumber class]]) {
         isBundlePatchingEnabled = [isBundlePatchingEnabledValue boolValue];
     }
-    CPLog(@"isBundlePatchingEnabled: %@", isBundlePatchingEnabled);
+    CPLog(@"isBundlePatchingEnabled: %d", isBundlePatchingEnabled);
     NSError *error;
     
     if ([[NSFileManager defaultManager] fileExistsAtPath:newUpdateFolderPath]) {

@@ -131,7 +131,7 @@ class AcquisitionManager {
                 packageHash: updateInfo.package_hash,
                 packageSize: updateInfo.package_size,
                 downloadUrl: updateInfo.download_url,
-                isBundlePatchingEnabled: updateInfo.isBundlePatchingEnabled
+                isBundlePatchingEnabled: updateInfo.is_bundle_patching_enabled
             };
 
             callback(null, remotePackage);
