@@ -237,6 +237,10 @@ public class CodePushUpdateManager {
                 }
             }
 
+            String packageName = context.getPackageName();
+            connection.setRequestProperty(CodePushConstants.PACKAGE_NAME_HEADER_KEY, packageName);
+            CodePushUtils.log("Setting " + CodePushConstants.PACKAGE_NAME_HEADER_KEY + " header: " + packageName);
+
             connection.setRequestProperty("Accept-Encoding", "identity");
             bin = new BufferedInputStream(connection.getInputStream());
 
