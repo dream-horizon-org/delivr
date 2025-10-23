@@ -13,6 +13,7 @@
       android:usesCleartextTraffic="true"
       android:debuggable="true"
       android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:ignore="HardcodedDebugMode">
       <activity
         android:name=".MainActivity"

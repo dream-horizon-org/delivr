@@ -22,9 +22,14 @@ failCallback:(void (^)(NSError *err))failCallback {
 
 - (void)download:(NSString *)url {
     self.downloadUrl = url;
-    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url]
-                                             cachePolicy:NSURLRequestUseProtocolCachePolicy
-                                         timeoutInterval:60.0];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]
+                                                    cachePolicy:NSURLRequestUseProtocolCachePolicy
+                                                timeoutInterval:60.0];
+    
+    NSString *packageName = [[NSBundle mainBundle] bundleIdentifier];
+    if (packageName) {
+        [request setValue:packageName forHTTPHeaderField:@"X-CodePush-Package-Name"];
+    }
     NSURLConnection *connection = [[NSURLConnection alloc] initWithRequest:request
                                                                   delegate:self
                                                           startImmediately:NO];

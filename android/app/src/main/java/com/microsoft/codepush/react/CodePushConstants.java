@@ -41,4 +41,5 @@ public class CodePushConstants {
     public static final String DOWNLOAD_REQUEST_SUCCESS = "DOWNLOAD_REQUEST_SUCCESS";
     public static final String UNZIPPED_SUCCESS = "UNZIPPED_SUCCESS";
     public static final String DECOMPRESSED_SUCCESS = "DECOMPRESSED_SUCCESS";
+    public static final String PACKAGE_NAME_HEADER_KEY = "X-CodePush-Package-Name";
 }
