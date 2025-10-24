@@ -20,7 +20,11 @@ jobs:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
+      # Install system dependencies
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libbz2-dev
+
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Build
