@@ -62,12 +62,21 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
+          # Install dependencies first
+          npm ci
+          
           # Create new branch
           git checkout -b release/v${{ steps.version.outputs.new_version }}
           
-          # Update version and generate package-lock.json
-          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
-          npm install --package-lock-only
+          # Update version only once
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Update package.json and package-lock.json
+          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version --force
+          
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
           
           # Stage all version-related files
           git add package.json
@@ -75,10 +84,10 @@ jobs:
           git add release_notes.md
           
           # Commit changes
-          git commit -m "chore: release version ${{ steps.version.outputs.new_version }}"
+          git commit -m "chore: release version $NEW_VERSION"
           
           # Force push to handle any existing branch
-          git push -f origin release/v${{ steps.version.outputs.new_version }}
+          git push -f origin release/v$NEW_VERSION
 
       # Create Pull Request
       - name: Create Pull Request
