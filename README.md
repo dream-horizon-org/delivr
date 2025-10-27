@@ -171,15 +171,6 @@ using it, the best thing to try first is examining the output logs of your app. 
 app is configured correctly (like can the plugin find your deployment key?), if the app is able to reach the 
 server, if an available update is being discovered, if the update is being successfully downloaded/installed, etc.
 
-```javascript
-codePush.sync(
-  { updateDialog: true, installMode: codePush.InstallMode.IMMEDIATE },
-  (status) => console.log('[DOTA] status =', status),
-  ({ receivedBytes, totalBytes }) => console.log('[DOTA] progress', receivedBytes, '/', totalBytes),
-  (update) => console.log('[DOTA] binary mismatch for appVersion', update?.appVersion)
-);
-```
-
 Key statuses to watch:
 - CHECKING_FOR_UPDATE → Confirms server reachability/config.
 - UPDATE_AVAILABLE → Ensure deployment key and target app version are correct.
