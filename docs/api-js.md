@@ -34,7 +34,7 @@ When you require `@d11/dota`, the module object provides the following top-level
     
     function MyApp {
     ...
-  }
+    }
     
     export default codePush(MyApp);
     ```
