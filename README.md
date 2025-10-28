@@ -236,10 +236,16 @@ Options:
   --make-sourcemap         Generate sourcemap (default: false)
   --entry-file <file>      Entry file (default: "index.ts")
   --dev <boolean>          Development mode (default: "false")
+  --base-bundle-path <path> Path to base bundle for Hermes bytecode optimization
   -h, --help              Display help for command
 
 # Example with options
 yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
+
+# Example with base bytecode optimization
+yarn dota bundle --platform android --base-bundle-path .dota/android/index.android.bundle
+
+Note: The base bundle path is used for Hermes bytecode optimization. If provided, the bundle will be compiled with the base bundle as reference, which can significantly reduce the size of patch bundles. For more details on creating optimized patches, see the [delivr-cli patch bundle documentation](https://github.com/ds-horizon/delivr-cli#patch-bundle-release).
 ```
 
 #### Output Files

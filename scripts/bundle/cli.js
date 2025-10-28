@@ -22,6 +22,7 @@ program
   .option('--make-sourcemap <boolean>', 'Generate sourcemap: true or false', 'false')
     .option('--entry-file <file>', 'Entry file', 'index.ts')
     .option('--dev <boolean>', 'Development mode', 'false')
+    .option('--base-bundle-path <path>', 'Path to base bundle', '')
     .allowUnknownOption() // Allow additional options to be passed to react-native bundle
     .action((options) => {
       // Validate platform
@@ -47,7 +48,7 @@ program
       process.env.SOURCE_MAP_PATH = options.sourcemapPath;
       process.env.MAKE_SOURCEMAP = options.makeSourcemap === 'true' ? '1' : '';
       process.env.ENTRY_FILE = options.entryFile;
-
+      process.env.BASE_BUNDLE_PATH = options.baseBundlePath || '';
       // Build the bundle command using the existing script
       const bundleCommand = [
         './node_modules/@d11/dota/scripts/bundle/bundle.sh',

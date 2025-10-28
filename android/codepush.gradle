@@ -58,6 +58,27 @@ android.buildTypes.each { buildType ->
     buildType.resValue 'string', "CODE_PUSH_APK_BUILD_TIME", String.format("\"%d\"", System.currentTimeMillis())
 }
 
+// Configure Hermes flags for base bytecode optimization
+def baseBundlePath = project.hasProperty('dotaBaseBundlePath') ? project.dotaBaseBundlePath : 
+                    System.getenv('DOTA_BASE_BUNDLE_PATH') ?: null
+
+def isValidBundle = baseBundlePath != null && file(baseBundlePath).exists()
+if (isValidBundle) {
+    println "[DOTA] Provided base bundle path: ${baseBundlePath}"
+    
+    if (project.hasProperty('hermesEnabled') && project.hermesEnabled.toBoolean()) {
+        def currentFlags = config.hermesFlags ? new ArrayList(config.hermesFlags.get()) : new ArrayList([])
+        if (!currentFlags.any { it.contains("--base-bytecode") }) {
+            currentFlags.add("--base-bytecode")
+            currentFlags.add(baseBundlePath)
+            config.hermesFlags.set(currentFlags)
+            println "[DOTA] Added base bytecode flags to Hermes configuration"
+        } else {
+            println "[DOTA] Hermes bytecode optimization already enabled"
+        }
+    }
+}
+
 gradle.projectsEvaluated {
     def debuggableVariants = config.debuggableVariants ? config.debuggableVariants.get() : ['debug']
 
@@ -65,34 +86,6 @@ gradle.projectsEvaluated {
         // No code push for debuggable variants
         if (debuggableVariants.contains(variant.name)) {
             return;
-        }
-
-        def baseBundlePath = project.hasProperty('dotaBaseBundlePath') ? project.dotaBaseBundlePath : 
-                                 System.getenv('DOTA_BASE_BUNDLE_PATH') ?: null
-
-        def isValidBundle = baseBundlePath && file(baseBundlePath).exists()
-        if (isValidBundle) {
-            println "[DOTA] Using base bundle from: ${baseBundlePath}"
-        }
-
-        // Configure hermes flags before bundle task
-        def bundleTask = tasks.findByName("createBundle${variant.name.capitalize()}JsAndAssets")
-        if (bundleTask) {
-            bundleTask.doFirst { task ->
-                if (isValidBundle && project.hasProperty('hermesEnabled') && project.hermesEnabled.toBoolean()) {
-                    
-                    def currentFlags = config.hermesFlags ? new ArrayList(config.hermesFlags.get()) : new ArrayList(["-O", "-output-source-map"])
-                    
-                    if (!currentFlags.any { it.contains("--base-bytecode") }) {
-                        currentFlags.add("--base-bytecode")
-                        currentFlags.add(baseBundlePath)
-                        config.hermesFlags.set(currentFlags)
-                        println "[DOTA] Enabled Hermes bytecode optimization"
-                    } else {
-                        println "[DOTA] Hermes bytecode optimization already enabled"
-                    }
-                }
-            }
         }
 
         def nodeModulesPath;
