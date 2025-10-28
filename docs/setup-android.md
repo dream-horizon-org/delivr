@@ -1,6 +1,6 @@
 ## Android Setup
 
-In order to integrate CodePush into your Android project, please perform the following steps:
+In order to integrate DOTA into your Android project, please perform the following steps:
 
 1. In your `android/settings.gradle` file, make the following additions at the end of the file:
 
@@ -28,7 +28,7 @@ In order to integrate CodePush into your Android project, please perform the fol
     ...
     ```
 
-4. Update the `MainApplication` file to use CodePush via the following changes:
+4. Update the `MainApplication` file to use DOTA via the following changes:
 
     For React Native 0.73 and above: update the `MainApplication.kt`
 
@@ -42,7 +42,7 @@ In order to integrate CodePush into your Android project, please perform the fol
     override val reactNativeHost: ReactNativeHost =
         object : DefaultReactNativeHost(this) {
             ...
-            // 2. Add Codepush package for manual linking
+            // 2. Add DOTA package for manual linking
               add(
                 CodePush.getInstance(
                   resources.getString(R.string.CodePushDeploymentKey),
@@ -51,7 +51,7 @@ In order to integrate CodePush into your Android project, please perform the fol
                 )
               )
             // 3. Override the getJSBundleFile method in order to let
-            // the CodePush runtime determine where to get the JS
+            // the DOTA runtime determine where to get the JS
             // bundle location from on each app start
             override fun getJSBundleFile(): String {
                 return CodePush.getJSBundleFile() 
@@ -71,14 +71,14 @@ In order to integrate CodePush into your Android project, please perform the fol
 
         private final ReactNativeHost mReactNativeHost = new ReactNativeHost(this) {
             ...
-            // 2. Add Codepush package for manual linking
+            // 2. Add DOTA package for manual linking
             packages.add(CodePush.getInstance(
                 getResources().getString(R.string.CodePushDeploymentKey),
                 getApplicationContext(),
                 BuildConfig.DEBUG,
             ));
             // 3. Override the getJSBundleFile method in order to let
-            // the CodePush runtime determine where to get the JS
+            // the DOTA runtime determine where to get the JS
             // bundle location from on each app start
             @Override
             protected String getJSBundleFile() {
@@ -90,9 +90,9 @@ In order to integrate CodePush into your Android project, please perform the fol
 
 5. Add the Deployment key and server url to `strings.xml`:
 
-   To let the CodePush runtime know which deployment it should query for updates, open your app's `strings.xml` file and add a new string named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
+   To let the DOTA runtime know which deployment it should query for updates, open your app's `strings.xml` file and add a new string named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
 
-   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your CodePush app, refer to the [multi-deployment testing](../README.md#multi-deployment-testing) docs below before actually moving your app's usage of CodePush into production.
+   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your DOTA app, refer to the [multi-deployment testing](./multi-deployment-testing.md) docs below before actually moving your app's usage of DOTA into production.
 
    Your `strings.xml` should looks like this:
 

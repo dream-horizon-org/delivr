@@ -1,13 +1,13 @@
 ## iOS Setup
 
-Once you've acquired the CodePush plugin, you need to integrate it into the Xcode project of your React Native app and configure it correctly. To do this, take the following steps:
+Once you've acquired the DOTA plugin, you need to integrate it into the Xcode project of your React Native app and configure it correctly. To do this, take the following steps:
 
 <details>
 <summary>Objective-C</summary>
 
 1. Run `cd ios && pod install && cd ..` to install all the necessary CocoaPods dependencies.
 ​
-2. Open up the `AppDelegate.m` file, and add an import statement for the CodePush headers:
+2. Open up the `AppDelegate.m` file, and add an import statement for the DOTA headers:
 
    ```objective-c
    #import <CodePush/CodePush.h>
@@ -24,11 +24,11 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    ```objective-c
    return [CodePush bundleURL];
    ```
-    This change configures your app to always load the most recent version of your app's JS bundle. On the first launch, this will correspond to the file that was compiled with the app. However, after an update has been pushed via CodePush, this will return the location of the most recently installed update.
+    This change configures your app to always load the most recent version of your app's JS bundle. On the first launch, this will correspond to the file that was compiled with the app. However, after an update has been pushed via DOTA, this will return the location of the most recently installed update.
 
    *NOTE: The `bundleURL` method assumes your app's JS bundle is named `main.jsbundle`. If you have configured your app to use a different file name, simply call the `bundleURLForResource:` method (which assumes you're using the `.jsbundle` extension) or `bundleURLForResource:withExtension:` method instead, in order to overwrite that default behavior*
 
-   Typically, you're only going to want to use CodePush to resolve your JS bundle location within release builds, and therefore, we recommend using the `DEBUG` pre-processor macro to dynamically switch between using the packager server and CodePush, depending on whether you are debugging or not. This will make it much simpler to ensure you get the right behavior you want in production, while still being able to use the Chrome Dev Tools, live reload, etc. at debug-time.
+   Typically, you're only going to want to use DOTA to resolve your JS bundle location within release builds, and therefore, we recommend using the `DEBUG` pre-processor macro to dynamically switch between using the packager server and DOTA, depending on whether you are debugging or not. This will make it much simpler to ensure you get the right behavior you want in production, while still being able to use the Chrome Dev Tools, live reload, etc. at debug-time.
 
    Your `sourceURLForBridge` method should look like this:
 
@@ -43,9 +43,9 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    }
    ```
 
-5. Add the Deployment key and Codepush server url to `Info.plist`:
+5. Add the Deployment key and DOTA server url to `Info.plist`:
 
-   To let the CodePush runtime know which deployment it should query for updates against, open your app's `Info.plist` file and add a new entry named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
+   To let the DOTA runtime know which deployment it should query for updates against, open your app's `Info.plist` file and add a new entry named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
 
    In `Info.plist` file, add following lines, replacing server-url with your server and deployment-key with your key.
    ```
@@ -55,11 +55,11 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    <string>deployment-key</string>
     ```
 
-   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your CodePush app, refer to the [multi-deployment testing](../README.md#multi-deployment-testing) docs below before actually moving your app's usage of CodePush into production.
+   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your DOTA app, refer to the [multi-deployment testing](./multi-deployment-testing.md) docs below before actually moving your app's usage of DOTA into production.
 
    *Note: If you need to dynamically use a different deployment, you can also override your deployment key in JS code using [Code-Push options](./api-js.md#CodePushOptions)*
 
-6. For react-native changes refer to [Plugin Usage](../README.md#plugin-usage)
+6. For react-native changes refer to [Usage](../README.md#usage)
 </details>
 
 <details>
@@ -84,11 +84,11 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    ```swift
    return CodePush.bundleURL()
    ```
-    This change configures your app to always load the most recent version of your app's JS bundle. On the first launch, this will correspond to the file that was compiled with the app. However, after an update has been pushed via CodePush, this will return the location of the most recently installed update.
+    This change configures your app to always load the most recent version of your app's JS bundle. On the first launch, this will correspond to the file that was compiled with the app. However, after an update has been pushed via DOTA, this will return the location of the most recently installed update.
 
    *NOTE: The `bundleURL` method assumes your app's JS bundle is named `main.jsbundle`. If you have configured your app to use a different file name, simply call the `bundleURLForResource:` method (which assumes you're using the `.jsbundle` extension) or `bundleURLForResource:withExtension:` method instead, in order to overwrite that default behavior*
 
-   Typically, you're only going to want to use CodePush to resolve your JS bundle location within release builds, and therefore, we recommend using the `DEBUG` pre-processor macro to dynamically switch between using the packager server and CodePush, depending on whether you are debugging or not. This will make it much simpler to ensure you get the right behavior you want in production, while still being able to use the Chrome Dev Tools, live reload, etc. at debug-time.
+   Typically, you're only going to want to use DOTA to resolve your JS bundle location within release builds, and therefore, we recommend using the `DEBUG` pre-processor macro to dynamically switch between using the packager server and DOTA, depending on whether you are debugging or not. This will make it much simpler to ensure you get the right behavior you want in production, while still being able to use the Chrome Dev Tools, live reload, etc. at debug-time.
 
    Your `bundleURL` method should look like this:
 
@@ -106,9 +106,9 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    }
    ```
 
-5. Add the Deployment key and Codepush server url to `Info.plist`:
+5. Add the Deployment key and DOTA server url to `Info.plist`:
 
-   To let the CodePush runtime know which deployment it should query for updates against, open your app's `Info.plist` file and add a new entry named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
+   To let the DOTA runtime know which deployment it should query for updates against, open your app's `Info.plist` file and add a new entry named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
 
    In `Info.plist` file, add following lines, replacing server-url with your server and deployment-key with your key.
    ```
@@ -118,7 +118,7 @@ Once you've acquired the CodePush plugin, you need to integrate it into the Xcod
    <string>deployment-key</string>
     ```
 
-   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your CodePush app, refer to the [multi-deployment testing](../README.md#multi-deployment-testing) docs below before actually moving your app's usage of CodePush into production.
+   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your DOTA app, refer to the [multi-deployment testing](./multi-deployment-testing.md) docs below before actually moving your app's usage of DOTA into production.
 
    *Note: If you need to dynamically use a different deployment, you can also override your deployment key in JS code using [Code-Push options](./api-js.md#CodePushOptions)*
 

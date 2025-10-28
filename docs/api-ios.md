@@ -8,15 +8,15 @@ Contains static methods for retreiving the `NSURL` that represents the most rece
 
 The `CodePush` class' methods can be thought of as composite resolvers which always load the appropriate bundle, in order to accommodate the following scenarios:
 
-1. When an end-user installs your app from the store (like `1.0.0`), they will get the JS bundle that is contained within the binary. This is the behavior you would get without using CodePush, but we make sure it doesn't break :)
+1. When an end-user installs your app from the store (like `1.0.0`), they will get the JS bundle that is contained within the binary. This is the behavior you would get without using DOTA, but we make sure it doesn't break :)
 
-2. As soon as you begin releasing CodePush updates, your end-users will get the JS bundle that represents the latest release for the configured deployment. This is the behavior that allows you to iterate beyond what you shipped to the store.
+2. As soon as you begin releasing OTA updates, your end-users will get the JS bundle that represents the latest release for the configured deployment. This is the behavior that allows you to iterate beyond what you shipped to the store.
 
-3. As soon as you release an update to the app store (like `1.1.0`), and your end-users update it, they will once again get the JS bundle that is contained within the binary. This behavior ensures that CodePush updates that targetted a previous binary version aren't used (since we don't know if they would work), and your end-users always have a working version of your app.
+3. As soon as you release an update to the app store (like `1.1.0`), and your end-users update it, they will once again get the JS bundle that is contained within the binary. This behavior ensures that OTA updates that targetted a previous binary version aren't used (since we don't know if they would work), and your end-users always have a working version of your app.
 
-4. Repeat #2 and #3 as the CodePush releases and app store releases continue on into infinity (and beyond?)
+4. Repeat #2 and #3 as the OTA releases and app store releases continue on into infinity (and beyond?)
 
-Because of this behavior, you can safely deploy updates to both the app store(s) and CodePush as necesary, and rest assured that your end-users will always get the most recent version.
+Because of this behavior, you can safely deploy updates to both the app store(s) and DOTA as necesary, and rest assured that your end-users will always get the most recent version.
 
 ##### Methods
 

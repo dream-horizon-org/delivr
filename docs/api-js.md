@@ -1,53 +1,28 @@
 ## API Reference
 
-The CodePush plugin is made up of two components:
-
-1. A JavaScript module, which can be imported/required, and allows the app to interact with the service during runtime (for example check for updates, inspect the metadata about the currently running app update).
-
-2. A native API (Objective-C and Java) which allows the React Native app host to bootstrap itself with the right JS bundle location.
-
-The following sections describe the shape and behavior of these APIs in detail:
-
 ### JavaScript API Reference
 
-When you require `@d11/dota`, the module object provides the following top-level methods in addition to the root-level [component decorator](#codepush):
+When you require `@d11/dota`, the module object provides the following top-level methods in addition to the root-level [component decorator](#DOTA):
 
 * [allowRestart](#codepushallowrestart): Re-allows programmatic restarts to occur as a result of an update being installed, and optionally, immediately restarts the app if a pending update had attempted to restart the app while restarts were disallowed. This is an advanced API and is only necessary if your app explicitly disallowed restarts via the `disallowRestart` method.
 
-* [checkForUpdate](#codepushcheckforupdate): Asks the CodePush service whether the configured app deployment has an update available.
+* [checkForUpdate](#codepushcheckforupdate): Asks the DOTA service whether the configured app deployment has an update available.
 
-* [disallowRestart](#codepushdisallowrestart): Temporarily disallows any programmatic restarts to occur as a result of a CodePush update being installed. This is an advanced API, and is useful when a component within your app (for example an onboarding process) needs to ensure that no end-user interruptions can occur during its lifetime.
-
-* [getCurrentPackage](#codepushgetcurrentpackage): Retrieves the metadata about the currently installed update (like description, installation time, size). *NOTE: As of `v1.10.3-beta` of the CodePush module, this method is deprecated in favor of [`getUpdateMetadata`](#codepushgetupdatemetadata)*.
+* [disallowRestart](#codepushdisallowrestart): Temporarily disallows any programmatic restarts to occur as a result of a DOTA update being installed. This is an advanced API, and is useful when a component within your app (for example an onboarding process) needs to ensure that no end-user interruptions can occur during its lifetime.
 
 * [getUpdateMetadata](#codepushgetupdatemetadata): Retrieves the metadata for an installed update (like description, mandatory).
 
-* [notifyAppReady](#codepushnotifyappready): Notifies the CodePush runtime that an installed update is considered successful. If you are manually checking for and installing updates (i.e. not using the [sync](#codepushsync) method to handle it all for you), then this method **MUST** be called; otherwise CodePush will treat the update as failed and rollback to the previous version when the app next restarts.
+* [notifyAppReady](#codepushnotifyappready): Notifies the DOTA runtime that an installed update is considered successful. If you are manually checking for and installing updates (i.e. not using the [sync](#codepushsync) method to handle it all for you), then this method **MUST** be called; otherwise DOTA will treat the update as failed and rollback to the previous version when the app next restarts.
 
 * [restartApp](#codepushrestartapp): Immediately restarts the app. If there is an update pending, it will be immediately displayed to the end user. Otherwise, calling this method simply has the same behavior as the end user killing and restarting the process.
 
-* [sync](#codepushsync): Allows checking for an update, downloading it and installing it, all with a single call. Unless you need custom UI and/or behavior, we recommend most developers to use this method when integrating CodePush into their apps
+* [sync](#codepushsync): Allows checking for an update, downloading it and installing it, all with a single call. Unless you need custom UI and/or behavior, we recommend most developers to use this method when integrating DOTA into their apps
 
-* [clearUpdates](#clearupdates): Clear all downloaded CodePush updates. This is useful when switching to a different deployment which may have an older release than the current package. 
+* [clearUpdates](#clearupdates): Clear all downloaded DOTA updates. This is useful when switching to a different deployment which may have an older release than the current package. 
    
-    _Note: we don’t recommend to use this method in scenarios other than that (CodePush will call this method automatically when needed in other cases) as it could lead to unpredictable behavior._
+    _Note: we don’t recommend to use this method in scenarios other than that (DOTA will call this method automatically when needed in other cases) as it could lead to unpredictable behavior._
 
-#### codePush
-
-```javascript
-// Wrapper function
-codePush(rootComponent: React.Component): React.Component;
-codePush(options: CodePushOptions)(rootComponent: React.Component): React.Component;
-```
-```javascript
-// Decorator; Requires ES7 support
-@codePush
-@codePush(options: CodePushOptions)
-```
-
-Used to wrap a React component inside a "higher order" React component that knows how to synchronize your app's JavaScript bundle and image assets when it is mounted. Internally, the higher-order component calls [`sync`](#codepushsync) inside its `componentDidMount` lifecycle handle, which in turns performs an update check, downloads the update if it exists and installs the update for you.
-
-This decorator provides support for letting you customize its behaviour to easily enable apps with different requirements. Below are some examples of ways you can use it (you can pick one or even use a combination):
+#### DOTA
 
 1. **Silent sync on app start** *(the simplest, default behavior)*. Your app will automatically download available updates, and apply them the next time the app restarts (like the OS or end user killed it, or the device was restarted). This way, the entire update experience is "silent" to the end user, since they don't see any update prompt and/or "synthetic" app restarts.
 
@@ -55,18 +30,41 @@ This decorator provides support for letting you customize its behaviour to easil
     // Fully silent update which keeps the app in
     // sync with the server, without ever
     // interrupting the end user
-    class MyApp extends Component<{}> {}
-    MyApp = codePush(MyApp);
-    export default MyApp;
+    import codePush from '@d11/dota';
+    
+    function MyApp {
+    ...
+    }
+    
+    export default codePush(MyApp);
     ```
 
 2. **Silent sync every time the app resumes**. Same as 1, except we check for updates, or apply an update if one exists every time the app returns to the foreground after being "backgrounded".
 
     ```javascript
     // Sync for updates every time the app resumes.
-    class MyApp extends Component<{}> {}
-    MyApp = codePush({ checkFrequency: codePush.CheckFrequency.ON_APP_RESUME, installMode: codePush.InstallMode.ON_NEXT_RESUME })(MyApp);
-    export default MyApp;
+    import codePush, { CodePushOptions } from '@d11/dota';
+
+    let codePushOptions: CodePushOptions = { checkFrequency: codePush.CheckFrequency.ON_APP_RESUME, installMode: codePush.InstallMode.ON_NEXT_RESUME};
+
+    function MyApp {
+        ...
+    }
+
+    export default codePush(codePushOptions)(MyApp);
+    ```
+
+    ```javascript
+    // Sync for updates every time the app resumes.
+    import codePush, { CodePushOptions } from '@d11/dota';
+
+    let codePushOptions: CodePushOptions = { updateDialog: true, installMode: codePush.InstallMode.IMMEDIATE};
+
+    function MyApp {
+        ...
+    }
+
+    export default codePush(codePushOptions)(MyApp);
     ```
 
 3. **Interactive**. When an update is available, prompt the end user for permission before downloading it, and then immediately apply the update. If an update was released using the `mandatory` flag, the end user would still be notified about the update, but they wouldn't have the choice to ignore it.
@@ -75,9 +73,15 @@ This decorator provides support for letting you customize its behaviour to easil
     // Active update, which lets the end user know
     // about each update, and displays it to them
     // immediately after downloading it
-    class MyApp extends Component<{}> {}
-    MyApp = codePush({ updateDialog: true, installMode: codePush.InstallMode.IMMEDIATE })(MyApp);
-    export default MyApp;
+    import codePush, { CodePushOptions } from '@d11/dota';
+
+    let codePushOptions: CodePushOptions = { updateDialog: true, installMode: codePush.InstallMode.IMMEDIATE};
+
+    function MyApp {
+        ...
+    }
+
+    export default codePush(codePushOptions)(MyApp);
     ```
 
 4. **Log/display progress**. While the app is syncing with the server for updates, make use of the `codePushStatusDidChange` and/or `codePushDownloadDidProgress` event hooks to log down the different stages of this process, or even display a progress bar to the user.
@@ -85,33 +89,44 @@ This decorator provides support for letting you customize its behaviour to easil
     ```javascript
     // Make use of the event hooks to keep track of
     // the different stages of the sync process.
-    class MyApp extends Component<{}> {
-        codePushStatusDidChange(status) {
-            switch(status) {
-                case codePush.SyncStatus.CHECKING_FOR_UPDATE:
-                    console.log("Checking for updates.");
-                    break;
-                case codePush.SyncStatus.DOWNLOADING_PACKAGE:
-                    console.log("Downloading package.");
-                    break;
-                case codePush.SyncStatus.INSTALLING_UPDATE:
-                    console.log("Installing update.");
-                    break;
-                case codePush.SyncStatus.UP_TO_DATE:
-                    console.log("Up-to-date.");
-                    break;
-                case codePush.SyncStatus.UPDATE_INSTALLED:
-                    console.log("Update installed.");
-                    break;
-            }
-        }
+    import React, { useEffect } from 'react';
+    import codePush from '@d11/dota';
 
-        codePushDownloadDidProgress(progress) {
-            console.log(progress.receivedBytes + " of " + progress.totalBytes + " received.");
-        }
+    let codePushOptions: CodePushOptions = { checkFrequency: codePush.CheckFrequency.MANUAL};
+
+    function MyApp() {
+        useEffect(() => {
+            const syncStatusChangeCallback = (status) => {
+                switch (status) {
+                    case codePush.SyncStatus.CHECKING_FOR_UPDATE:
+                        console.log("Checking for updates.");
+                        break;
+                    case codePush.SyncStatus.DOWNLOADING_PACKAGE:
+                        console.log("Downloading package.");
+                        break;
+                    case codePush.SyncStatus.INSTALLING_UPDATE:
+                        console.log("Installing update.");
+                        break;
+                    case codePush.SyncStatus.UP_TO_DATE:
+                        console.log("Up-to-date.");
+                        break;
+                    case codePush.SyncStatus.UPDATE_INSTALLED:
+                        console.log("Update installed.");
+                        break;
+                }
+            };
+
+            const downloadProgressCallback = (progress) => {
+                console.log(progress.receivedBytes + " of " + progress.totalBytes + " received.");
+            };
+
+            codePush.sync({}, syncStatusChangeCallback, downloadProgressCallback);
+        }, []);
+
+        ...
     }
-    MyApp = codePush(MyApp);
-    export default MyApp;
+
+    export default codePush(codePushOptions)(MyApp);
     ```
 
 ##### CodePushOptions
@@ -128,7 +143,7 @@ The `codePush` decorator accepts an "options" object that allows you to customiz
 
 * __minimumBackgroundDuration__ *(Number)* - Specifies the minimum number of seconds that the app needs to have been in the background before restarting the app. This property only applies to updates which are installed using `InstallMode.ON_NEXT_RESUME` or `InstallMode.ON_NEXT_SUSPEND`, and can be useful for getting your update in front of end users sooner, without being too obtrusive. Defaults to `0`, which has the effect of applying the update immediately after a resume or unless the app suspension is long enough to not matter, regardless how long it was in the background.
 
-* __updateDialog__ *(UpdateDialogOptions)* - An "options" object used to determine whether a confirmation dialog should be displayed to the end user when an update is available, and if so, what strings to use. Defaults to `null`, which has the effect of disabling the dialog completely. Setting this to any truthy value will enable the dialog with the default strings, and passing an object to this parameter allows enabling the dialog as well as overriding one or more of the default strings. Before enabling this option within an App Store-distributed app, please refer to [this note](https://github.com/microsoft/react-native-code-push#app-store).
+* __updateDialog__ *(UpdateDialogOptions)* - An "options" object used to determine whether a confirmation dialog should be displayed to the end user when an update is available, and if so, what strings to use. Defaults to `null`, which has the effect of disabling the dialog completely. Setting this to any truthy value will enable the dialog with the default strings, and passing an object to this parameter allows enabling the dialog as well as overriding one or more of the default strings. Before enabling this option within an App Store-distributed app, please refer to [this note](https://github.com/ds-horizon/delivr-sdk-ota#app-store).
 
     The following list represents the available options and their defaults:
 
@@ -162,7 +177,7 @@ Called when the sync process moves from one stage to another in the overall upda
 
 ##### codePushDownloadDidProgress (event hook)
 
-Called periodically when an available update is being downloaded from the CodePush server. The method is called with a `DownloadProgress` object, which contains the following two properties:
+Called periodically when an available update is being downloaded from the DOTA server. The method is called with a `DownloadProgress` object, which contains the following two properties:
 
 * __totalBytes__ *(Number)* - The total number of bytes expected to be received for this update (i.e. the size of the set of files which changed from the previous release).
 
@@ -176,15 +191,15 @@ codePush.allowRestart(): void;
 
 Re-allows programmatic restarts to occur, that would have otherwise been rejected due to a previous call to `disallowRestart`. If `disallowRestart` was never called in the first place, then calling this method will simply result in a no-op.
 
-If a CodePush update is currently pending, which attempted to restart the app (for example it used `InstallMode.IMMEDIATE`), but was blocked due to `disallowRestart` having been called, then calling `allowRestart` will result in an immediate restart. This allows the update to be applied as soon as possible, without interrupting the end user during critical workflows (for example an onboarding process).
+If a DOTA update is currently pending, which attempted to restart the app (for example it used `InstallMode.IMMEDIATE`), but was blocked due to `disallowRestart` having been called, then calling `allowRestart` will result in an immediate restart. This allows the update to be applied as soon as possible, without interrupting the end user during critical workflows (for example an onboarding process).
 
 For example, calling `allowRestart` would trigger an immediate restart if either of the three scenarios mentioned in the [`disallowRestart` docs](#codepushdisallowrestart) occured after `disallowRestart` was called. However, calling `allowRestart` wouldn't trigger a restart if the following were true:
 
-1. No CodePush updates were installed since the last time `disallowRestart` was called, and therefore, there isn't any need to restart anyways.
+1. No DOTA updates were installed since the last time `disallowRestart` was called, and therefore, there isn't any need to restart anyways.
 
-2. There is currently a pending CodePush update, but it was installed via `InstallMode.ON_NEXT_RESTART`, and therefore, doesn't require a programmatic restart.
+2. There is currently a pending DOTA update, but it was installed via `InstallMode.ON_NEXT_RESTART`, and therefore, doesn't require a programmatic restart.
 
-3. There is currently a pending CodePush update, but it was installed via `InstallMode.ON_NEXT_RESUME` and the app hasn't been put into the background yet, and therefore, there isn't a need to programmatically restart yet.
+3. There is currently a pending DOTA update, but it was installed via `InstallMode.ON_NEXT_RESUME` and the app hasn't been put into the background yet, and therefore, there isn't a need to programmatically restart yet.
 
 4. No calls to `restartApp` were made since the last time `disallowRestart` was called.
 
@@ -198,10 +213,10 @@ See [disallowRestart](#codepushdisallowrestart) for an example of how this metho
 codePush.checkForUpdate(deploymentKey: String = null, handleBinaryVersionMismatchCallback: (update: RemotePackage) => void): Promise<RemotePackage>;
 ```
 
-Queries the CodePush service to see whether the configured app deployment has an update available. By default, it will use the deployment key that is configured in your `Info.plist` file (iOS), or `MainActivity.java` file (Android), but you can override that by specifying a value via the optional `deploymentKey` parameter. This can be useful when you want to dynamically "redirect" a user to a specific deployment, such as allowing "early access" via an easter egg or a user setting switch.
+Queries the DOTA service to see whether the configured app deployment has an update available. By default, it will use the deployment key that is configured in your `Info.plist` file (iOS), or `MainActivity.java` file (Android), but you can override that by specifying a value via the optional `deploymentKey` parameter. This can be useful when you want to dynamically "redirect" a user to a specific deployment, such as allowing "early access" via an easter egg or a user setting switch.
 
 Second optional parameter `handleBinaryVersionMismatchCallback` is an optional callback function that can be used to notify user if there are any binary update.
-E.g. consider a use-case where currently installed binary version is 1.0.1 with label(codepush label) v1. Later native code was changed in the dev cycle and binary version was updated to 1.0.2. When code-push update check is triggered we ignore updates having binary version mismatch (because the update is not targeting to the binary version of currently installed app). In this case installed app (1.0.1) will ignore the update targeting version 1.0.2. You can use `handleBinaryVersionMismatchCallback` to provide a hook to handle such situations.
+E.g. consider a use-case where currently installed binary version is 1.0.1 with label(dota label) v1. Later native code was changed in the dev cycle and binary version was updated to 1.0.2. When DOTA update check is triggered we ignore updates having binary version mismatch (because the update is not targeting to the binary version of currently installed app). In this case installed app (1.0.1) will ignore the update targeting version 1.0.2. You can use `handleBinaryVersionMismatchCallback` to provide a hook to handle such situations.
 
 **NOTE:**
 Be cautious to use Alerts within this callback if you are developing iOS application, due to [App Store](https://developer.apple.com/app-store/review/guidelines/) review process: 
@@ -240,72 +255,40 @@ codePush.disallowRestart(): void;
 
 Temporarily disallows programmatic restarts to occur as a result of either of following scenarios:
 
-1. A CodePush update is installed using `InstallMode.IMMEDIATE`
-2. A CodePush update is installed using `InstallMode.ON_NEXT_RESUME` and the app is resumed from the background (optionally being throttled by the `minimumBackgroundDuration` property)
+1. A DOTA update is installed using `InstallMode.IMMEDIATE`
+2. A DOTA update is installed using `InstallMode.ON_NEXT_RESUME` and the app is resumed from the background (optionally being throttled by the `minimumBackgroundDuration` property)
 3. The `restartApp` method was called
 
 *NOTE: #1 and #2 effectively work by calling `restartApp` for you, so you can think of `disallowRestart` as blocking any call to `restartApp`, regardless if your app calls it directly or indirectly.*
 
 After calling this method, any calls to `sync` would still be allowed to check for an update, download it and install it, but an attempt to restart the app would be queued until `allowRestart` is called. This way, the restart request is captured and can be "flushed" whenever you want to allow it to occur.
 
-This is an advanced API, and is primarily useful when individual components within your app (like an onboarding process) need to ensure that no end-user interruptions can occur during their lifetime, while continuing to allow the app to keep syncing with the CodePush server at its own pace and using whatever install modes are appropriate. This has the benefit of allowing the app to discover and download available updates as soon as possible, while also preventing any disruptions during key end-user experiences.
+This is an advanced API, and is primarily useful when individual components within your app (like an onboarding process) need to ensure that no end-user interruptions can occur during their lifetime, while continuing to allow the app to keep syncing with the DOTA server at its own pace and using whatever install modes are appropriate. This has the benefit of allowing the app to discover and download available updates as soon as possible, while also preventing any disruptions during key end-user experiences.
 
-As an alternative, you could also choose to simply use `InstallMode.ON_NEXT_RESTART` whenever calling `sync` (which will never attempt to programmatically restart the app), and then explicity calling `restartApp` at points in your app that you know it is "safe" to do so. `disallowRestart` provides an alternative approach to this when the code that synchronizes with the CodePush server is separate from the code/components that want to enforce a no-restart policy.
-
-Example Usage:
-
-```javascript
-class OnboardingProcess extends Component {
-    ...
-
-    componentWillMount() {
-        // Ensure that any CodePush updates which are
-        // synchronized in the background can't trigger
-        // a restart while this component is mounted.
-        codePush.disallowRestart();
-    }
-
-    componentWillUnmount() {
-        // Reallow restarts, and optionally trigger
-        // a restart if one was currently pending.
-        codePush.allowRestart();
-    }
-
-    ...
-}
-```
-
-#### codePush.getCurrentPackage
-
-*NOTE: This method is considered deprecated as of `v1.10.3-beta` of the CodePush module. If you're running this version (or newer), we would recommend using the [`codePush.getUpdateMetadata`](#codepushgetupdatemetadata) instead, since it has more predictable behavior.*
-
-```javascript
-codePush.getCurrentPackage(): Promise<LocalPackage>;
-```
-
-Retrieves the metadata about the currently installed "package" (like description, installation time). This can be useful for scenarios such as displaying a "what's new?" dialog after an update has been applied or checking whether there is a pending update that is waiting to be applied via a resume or restart.
-
-This method returns a `Promise` which resolves to one of two possible values:
-
-1. `null` if the app is currently running the JS bundle from the binary and not a CodePush update. This occurs in the following scenarios:
-
-    1. The end-user installed the app binary and has yet to install a CodePush update
-    1. The end-user installed an update of the binary (for example from the store), which cleared away the old CodePush updates, and gave precedence back to the JS binary in the binary.
-
-2. A [`LocalPackage`](#localpackage) instance which represents the metadata for the currently running CodePush update.
+As an alternative, you could also choose to simply use `InstallMode.ON_NEXT_RESTART` whenever calling `sync` (which will never attempt to programmatically restart the app), and then explicity calling `restartApp` at points in your app that you know it is "safe" to do so. `disallowRestart` provides an alternative approach to this when the code that synchronizes with the DOTA server is separate from the code/components that want to enforce a no-restart policy.
 
 Example Usage:
 
 ```javascript
-codePush.getCurrentPackage()
-.then((update) => {
-    // If the current app "session" represents the first time
-    // this update has run, and it had a description provided
-    // with it upon release, let's show it to the end user
-    if (update.isFirstRun && update.description) {
-        // Display a "what's new?" modal
+    import React, { useEffect } from 'react';
+    import codePush from '@d11/dota';
+
+    function OnboardingProcess() {
+        useEffect(() => {
+            // Ensure that any DOTA updates which are
+            // synchronized in the background can't trigger
+            // a restart while this component is mounted.
+            codePush.disallowRestart();
+
+            return () => {
+                // Reallow restarts, and optionally trigger
+                // a restart if one was currently pending.
+                codePush.allowRestart();
+            };
+        }, []);
+
+        ...
     }
-});
 ```
 
 #### codePush.getUpdateMetadata
@@ -320,20 +303,20 @@ This method returns a `Promise` which resolves to one of two possible values:
 
 1. `null` if an update with the specified state doesn't currently exist. This occurs in the following scenarios:
 
-    1. The end-user hasn't installed any CodePush updates yet, and therefore, no metadata is available for any updates, regardless what you specify as the `updateState` parameter.
+    1. The end-user hasn't installed any DOTA updates yet, and therefore, no metadata is available for any updates, regardless what you specify as the `updateState` parameter.
 
-    2. The end-user installed an update of the binary (for example from the store), which cleared away the old CodePush updates, and gave precedence back to the JS binary in the binary. Therefore, it would exhibit the same behavior as #1
+    2. The end-user installed an update of the binary (for example from the store), which cleared away the old DOTA updates, and gave precedence back to the JS binary in the binary. Therefore, it would exhibit the same behavior as #1
 
-    3. The `updateState` parameter is set to `UpdateState.RUNNING`, but the app isn't currently running a CodePush update. There may be a pending update, but the app hasn't been restarted yet in order to make it active.
+    3. The `updateState` parameter is set to `UpdateState.RUNNING`, but the app isn't currently running a DOTA update. There may be a pending update, but the app hasn't been restarted yet in order to make it active.
 
     4. The `updateState` parameter is set to `UpdateState.PENDING`, but the app doesn't have any currently pending updates.
 
-2. A [`LocalPackage`](#localpackage) instance which represents the metadata for the currently requested CodePush update (either the running or pending).
+2. A [`LocalPackage`](#localpackage) instance which represents the metadata for the currently requested DOTA update (either the running or pending).
 
 Example Usage:
 
 ```javascript
-// Check if there is currently a CodePush update running, and if
+// Check if there is currently a DOTA update running, and if
 // so, register it with the HockeyApp SDK (https://github.com/slowpath/react-native-hockeyapp)
 // so that crash reports will correctly display the JS bundle version the user was running.
 codePush.getUpdateMetadata().then((update) => {
@@ -356,7 +339,7 @@ codePush.getUpdateMetadata(UpdateState.PENDING).then((update) => {
 codePush.notifyAppReady(): Promise<void>;
 ```
 
-Notifies the CodePush runtime that a freshly installed update should be considered successful, and therefore, an automatic client-side rollback isn't necessary. It is mandatory to call this function somewhere in the code of the updated bundle. Otherwise, when the app next restarts, the CodePush runtime will assume that the installed update has failed and roll back to the previous version. This behavior exists to help ensure that your end users aren't blocked by a broken update.
+Notifies the DOTA runtime that a freshly installed update should be considered successful, and therefore, an automatic client-side rollback isn't necessary. It is mandatory to call this function somewhere in the code of the updated bundle. Otherwise, when the app next restarts, the DOTA runtime will assume that the installed update has failed and roll back to the previous version. This behavior exists to help ensure that your end users aren't blocked by a broken update.
 
 If you are using the `sync` function, and doing your update check on app start, then you don't need to manually call `notifyAppReady` since `sync` will call it for you. This behavior exists due to the assumption that the point at which `sync` is called in your app represents a good approximation of a successful startup.
 
@@ -442,7 +425,7 @@ codePush.sync({ mandatoryInstallMode: codePush.InstallMode.ON_NEXT_RESUME });
 codePush.sync({ updateDialog: { title: "An update is available!" } });
 
 // Displaying an update prompt which includes the
-// description associated with the CodePush release
+// description associated with the DOTA release
 codePush.sync({
    updateDialog: {
     appendReleaseDescription: true,
@@ -489,7 +472,7 @@ codePush.sync({ updateDialog: true },
 
 This method returns a `Promise` which is resolved to a `SyncStatus` code that indicates why the `sync` call succeeded. This code can be one of the following `SyncStatus` values:
 
-* __codePush.SyncStatus.UP_TO_DATE__ *(0)* - The app is up-to-date with the CodePush server.
+* __codePush.SyncStatus.UP_TO_DATE__ *(0)* - The app is up-to-date with the DOTA server.
 
 * __codePush.SyncStatus.UPDATE_IGNORED__ *(2)* - The app had an optional update which the end user chose to ignore. (This is only applicable when the `updateDialog` is used)
 
@@ -501,11 +484,11 @@ The `sync` method can be called anywhere you'd like to check for an update. That
 
 #### Package objects
 
-The `checkForUpdate` and `getUpdateMetadata` methods return `Promise` objects, that when resolved, provide acces to "package" objects. The package represents your code update as well as any extra metadata (like description, mandatory?). The CodePush API has the distinction between the following types of packages:
+The `checkForUpdate` and `getUpdateMetadata` methods return `Promise` objects, that when resolved, provide acces to "package" objects. The package represents your code update as well as any extra metadata (like description, mandatory?). The DOTA API has the distinction between the following types of packages:
 
 * [LocalPackage](#localpackage): Represents a downloaded update that is either already running, or has been installed and is pending an app restart.
 
-* [RemotePackage](#remotepackage): Represents an available update on the CodePush server that hasn't been downloaded yet.
+* [RemotePackage](#remotepackage): Represents an available update on the DOTA server that hasn't been downloaded yet.
 
 ##### LocalPackage
 
@@ -519,7 +502,7 @@ Contains details about an update that has been downloaded locally or already ins
 - __isFirstRun__: Indicates whether this is the first time the update has been run after being installed. This is useful for determining whether you would like to show a "What's New?" UI to the end user after installing an update. *(Boolean)*
 - __isMandatory__: Indicates whether the update is considered mandatory.  This is the value that was specified in the CLI when the update was released. *(Boolean)*
 - __isPending__: Indicates whether this update is in a "pending" state. When `true`, that means the update has been downloaded and installed, but the app restart needed to apply it hasn't occurred yet, and therefore, it's changes aren't currently visible to the end-user. *(Boolean)*
-- __label__: The internal label automatically given to the update by the CodePush server, such as `v5`. This value uniquely identifies the update within it's deployment. *(String)*
+- __label__: The internal label automatically given to the update by the DOTA server, such as `v5`. This value uniquely identifies the update within it's deployment. *(String)*
 - __packageHash__: The SHA hash value of the update. *(String)*
 - __packageSize__: The size of the code contained within the update, in bytes. *(Number)*
 
@@ -529,7 +512,7 @@ Contains details about an update that has been downloaded locally or already ins
 
 ##### RemotePackage
 
-Contains details about an update that is available for download from the CodePush server. You get a reference to an instance of this object by calling the `checkForUpdate` method when an update is available. If you are using the `sync` API, you don't need to worry about the `RemotePackage`, since it will handle the download and installation process automatically for you.
+Contains details about an update that is available for download from the DOTA server. You get a reference to an instance of this object by calling the `checkForUpdate` method when an update is available. If you are using the `sync` API, you don't need to worry about the `RemotePackage`, since it will handle the download and installation process automatically for you.
 
 ###### Properties
 
@@ -539,11 +522,11 @@ The `RemotePackage` inherits all of the same properties as the `LocalPackage`, b
 
 ###### Methods
 
-- __download(downloadProgressCallback?: Function): Promise&lt;LocalPackage&gt;__: Downloads the available update from the CodePush service. If a `downloadProgressCallback` is specified, it will be called periodically with a `DownloadProgress` object (`{ totalBytes: Number, receivedBytes: Number }`) that reports the progress of the download until it completes. Returns a Promise that resolves with the `LocalPackage`.
+- __download(downloadProgressCallback?: Function): Promise&lt;LocalPackage&gt;__: Downloads the available update from the DOTA service. If a `downloadProgressCallback` is specified, it will be called periodically with a `DownloadProgress` object (`{ totalBytes: Number, receivedBytes: Number }`) that reports the progress of the download until it completes. Returns a Promise that resolves with the `LocalPackage`.
 
 #### Enums
 
-The CodePush API includes the following enums which can be used to customize the update experience:
+The DOTA API includes the following enums which can be used to customize the update experience:
 
 ##### InstallMode
 
@@ -576,9 +559,9 @@ This enum is provided to the `syncStatusChangedCallback` function that can be pa
 * __codePush.SyncStatus.UPDATE_IGNORED__ *(2)* - The app has an optional update, which the end user chose to ignore. (This is only applicable when the `updateDialog` is used)
 * __codePush.SyncStatus.UNKNOWN_ERROR__ *(3)* - The sync operation encountered an unknown error.
 * __codePush.SyncStatus.SYNC_IN_PROGRESS__ *(4)* - There is an ongoing `sync` operation running which prevents the current call from being executed.
-* __codePush.SyncStatus.CHECKING_FOR_UPDATE__ *(5)* - The CodePush server is being queried for an update.
+* __codePush.SyncStatus.CHECKING_FOR_UPDATE__ *(5)* - The DOTA server is being queried for an update.
 * __codePush.SyncStatus.AWAITING_USER_ACTION__ *(6)* - An update is available, and a confirmation dialog was shown to the end user. (This is only applicable when the `updateDialog` is used)
-* __codePush.SyncStatus.DOWNLOADING_PACKAGE__ *(7)* - An available update is being downloaded from the CodePush server.
+* __codePush.SyncStatus.DOWNLOADING_PACKAGE__ *(7)* - An available update is being downloaded from the DOTA server.
 * __codePush.SyncStatus.INSTALLING_UPDATE__ *(8)* - An available update was downloaded and is about to be installed.
 * __codePush.SyncStatus.UPDATE_IGNORED_ROLLBACK__ *(9)* - An update was available but was ignored due to previous rollback
 * __codePush.SyncStatus.UPDATE_AVAILABLE__ *(10)* - An update is available and is about to be downloaded
