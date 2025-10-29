@@ -60,7 +60,7 @@ If you would like your app to discover updates more quickly, you can refer to th
 
 ## Creating the JavaScript bundle (Hermes)
 
-There are two ways to generate the JavaScript bundle for DOTA:
+There are two ways to generate the Hermes bundle for DOTA:
 
 ### 1. Automated Bundle Generation (Recommended)
 
@@ -96,13 +96,15 @@ cd ios && pod install
 
 #### Base Bytecode Optimization (New Feature)
 
-DOTA provides full bundle updates and patch bundle updates (sending only diffs instead of full bundles). Refer to the [CLI documentation](https://github.com/ds-horizon/delivr-cli#patch-bundle-release) for patch creation and release processes.
+DOTA provides full bundle and patch bundle updates (sending only diffs instead of full bundles). Refer to the [CLI documentation](https://github.com/ds-horizon/delivr-cli#patch-bundle-release) for patch creation and release process.
 
-DOTA's new base bytecode feature allows you to significantly reduce patch bundle sizes by using the bytecode structure from your base bundle. This requires creating a new full DOTA bundle with the flag: `--base-bytecode path/to/oldBundle`.
+DOTA's new base bytecode feature allows you to significantly reduce patch bundle size by using the bytecode structure from your base bundle. This requires creating a new full DOTA bundle with the flag: `--base-bytecode path/to/oldBundle`.
 
 We have automated this process, and you only need to set an environment variable, it will be handled internally.
 
 #### For Android
+
+Follow any of the way to set a path to base bundle path. In case of base bundle leave it empty.
 
 - **Command line option:**
   ```bash
@@ -129,7 +131,7 @@ We have automated this process, and you only need to set an environment variable
 
 To enable this feature, you need to create and apply a patch for `react-native-xcode.sh` as React Native doesn't directly expose this capability on iOS.
 
-- **Create and Apply Patch:**
+**Create and Apply Patch:**
 
 <details>
 <summary>Patch Package Setup (Skip if already installed)</summary>
@@ -150,7 +152,7 @@ To enable this feature, you need to create and apply a patch for `react-native-x
 
 </details>
 
-- **Modify and Create Patch**:
+**Modify and Create Patch**:
   Locate `react-native-xcode.sh` in your `node_modules/react-native/scripts`. Edit it to add support for base bytecode:
 
   ```bash
@@ -169,10 +171,7 @@ To enable this feature, you need to create and apply a patch for `react-native-x
   yarn patch-package react-native
   ```
 
-- **Apply the patch**:
-  Run `yarn postinstall` or `npm run postinstall`.
-
-**Environment Configuration:**
+**Environment Configuration:** Use any of the below step to pass base bundle path.
 
 - **In `.xcode.env`:**
   ```bash

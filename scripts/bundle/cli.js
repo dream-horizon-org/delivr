@@ -9,12 +9,12 @@ const program = new Command();
 
 program
   .name('dota')
-  .description('CLI tool for bundling React Native apps with CodePush')
+  .description('DOTA CLI tool for bundling React Native apps with CodePush')
   .version('1.0.0');
 
 program
   .command('bundle')
-  .description('Generate a JS bundle and assets, compile to HBC and optionally emit sourcemap')
+  .description('Generate a Hermes bundle and assets, compile to HBC and optionally emit sourcemap')
   .requiredOption('--platform <platform>', 'Specify platform: android or ios')
   .option('--bundle-path <path>', 'Directory to place the bundle in', '.dota')
   .option('--assets-path <path>', 'Directory to place assets in', '.dota')
