@@ -11,11 +11,6 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 - **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
 - **Architecture Support**: Compatible with both old and new architecture setups.
 
-* [Getting Started](#getting-started)
-* [Usage](#usage)
-* [Creating the JavaScript bundle](#creating-the-javascript-bundle-hermes)
-* [Releasing Updates](#releasing-updates)
-
 ## Getting Started
 
 You can add [DOTA](docs/ota-updates.md) to your React Native app by running the following command from within your app's root directory:
