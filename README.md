@@ -6,7 +6,7 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 
 - **Full and Patch Bundle Updates**: Deliver both full updates and efficient patch updates by sending only the differences.
 - **Brotli Compression Support**: Utilize [Brotli compression](https://github.com/ds-horizon/delivr-cli#release-management) to optimize both full and patch bundles for even smaller sizes compared to the default deflate algorithm.
-- **Base Bytecode Optimization**: Reduce patch bundle sizes significantly using the bytecode structure of your base bundle. Learn more in the [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) section.
+- **Base Bytecode Optimization**: Reduce patch bundle sizes significantly using the [bytecode](#understanding-base-bytecode-optimization) structure of your base bundle.
 - **Automated Bundle Handling**: Automatically manage bundles for both Android and iOS, ensuring seamless integration with the DOTA platform.
 - **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
 - **Architecture Support**: Compatible with both old and new architecture setups.
@@ -126,6 +126,8 @@ Options:
 yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
 ```
 
+> **Note**: When generating a patch bundle using this script, ensure that the base bundle shipped with the APK is identical to the one generated here. Any discrepancy in flags, especially if additional flags are passed to React Native during bundle generation, may lead to patch application issues. If uncertain, follow the Automated Bundle Generation step to maintain consistency.
+
 ## ✨ Base Bytecode Optimization (New Feature)
 
 Enhance your app's performance by significantly reducing patch bundle sizes using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method. For more details, see [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) below.
@@ -217,6 +219,9 @@ yarn dota bundle --platform android --base-bundle-path .dota/android/index.andro
 ```
 
 > **Note**: If you prefer not to use this feature, simply leave the `DOTA_BASE_BUNDLE_PATH` environment variable unset or exclude the `--base-bundle-path` option during manual generation.
+
+> **Note**: The priority for configuring the base bundle path is as follows: 1) Project property (`dotaBaseBundlePath`) via `gradle.properties`, 2) Command line option, 3) Environment variable (`DOTA_BASE_BUNDLE_PATH`). This allows for more granular control within your project setup.
+
 
 ### Understanding Base Bytecode Optimization
 
