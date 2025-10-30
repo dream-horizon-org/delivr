@@ -11,11 +11,25 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 - **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
 - **Architecture Support**: Compatible with both old and new architecture setups.
 
-## Usage
+## Getting Started with DOTA
 
-### Quick Start
+Integrate DOTA into your React Native app seamlessly:
 
-Integrate OTA updates effortlessly by wrapping your root component with `codePush`:
+### Installation
+
+Run the following command from your app's root directory:
+
+```shell
+# Yarn
+yarn add @d11/dota
+
+# NPM
+npm install @d11/dota
+```
+
+### Quick Setup
+
+Wrap your root component with `codePush` to enable OTA updates easily:
 
 ```javascript
 import codePush from "@d11/dota";
@@ -27,17 +41,24 @@ function MyApp() {
 export default codePush(MyApp);
 ```
 
-### Default Behavior
+### Platform Setup
 
-By default, DOTA checks for updates at every app start. Updates are silently downloaded and applied on the next restart for a seamless user experience. Mandatory updates are installed immediately to ensure users receive critical updates without delay.
+For platform-specific details:
 
-### Define Update Policies
+- [iOS Setup](docs/setup-ios.md)
+- [Android Setup](docs/setup-android.md)
 
-- **Check Frequency**: Decide when to check for updates — on app start, after a button press, or at regular intervals.
-  
-- **User Notification**: Choose how you'll inform users about available updates.
+### Default Behavior and Configuration
 
-For more customization options, refer to the [DOTA API reference](docs/api-js.md#dota).
+By default, DOTA checks for updates every time the app starts. Updates download silently and apply on the next restart, ensuring a smooth experience. Mandatory updates install immediately to deliver critical updates promptly.
+
+#### Customize Update Policies
+
+- **Check Frequency**: Configure when to check for updates (e.g., on app start, button press).
+
+- **User Notification**: Decide how users will be notified about updates.
+
+For more advanced configurations, consult the [DOTA API reference](docs/api-js.md#dota).
 
 ## Creating the JavaScript bundle (Hermes)
 
