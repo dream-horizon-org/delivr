@@ -11,7 +11,7 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 - **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
 - **Architecture Support**: Compatible with both old and new architecture setups.
 
-## Getting Started with DOTA
+## 🔧 Getting Started with DOTA
 
 Integrate DOTA into your React Native app seamlessly:
 
@@ -27,9 +27,9 @@ yarn add @d11/dota
 npm install @d11/dota
 ```
 
-### Quick Setup
+### Setup
 
-Wrap your root component with `codePush` to enable OTA updates easily:
+Wrap your root component with `codePush` to enable OTA updates:
 
 ```javascript
 import codePush from "@d11/dota";
@@ -41,9 +41,7 @@ function MyApp() {
 export default codePush(MyApp);
 ```
 
-### Platform Setup
-
-For platform-specific details:
+Additionally, complete the platform-specific setup to ensure full integration:
 
 - [iOS Setup](docs/setup-ios.md)
 - [Android Setup](docs/setup-android.md)
@@ -55,7 +53,7 @@ By default, DOTA checks for updates every time the app starts. Updates download 
 #### Customize Update Policies
 
 - **Check Frequency**: Configure when to check for updates (e.g., on app start, button press).
-
+  
 - **User Notification**: Decide how users will be notified about updates.
 
 For more advanced configurations, consult the [DOTA API reference](docs/api-js.md#dota).
