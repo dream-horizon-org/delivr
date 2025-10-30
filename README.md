@@ -31,15 +31,15 @@ npm install @d11/dota
 
 Wrap your root component with `codePush` to enable OTA updates:
 
-```javascript
-import codePush from "@d11/dota";
+  ```javascript
+  import codePush from "@d11/dota";
 
 function MyApp() {
   // Your app code here
-}
+  }
 
-export default codePush(MyApp);
-```
+  export default codePush(MyApp);
+  ```
 
 Additionally, complete the platform-specific setup to ensure full integration:
 
@@ -81,7 +81,7 @@ In your `Podfile`, add:
 require_relative '../node_modules/@d11/dota/ios/scripts/dota_pod_helpers.rb'
 
 # Include in the `post_install` block:
-post_install do |installer|
+post_install do |installer| 
   dota_post_install(installer, 'YourAppTarget', File.expand_path(__dir__))
 end
 ```
@@ -131,54 +131,41 @@ yarn dota bundle --platform android --base-bundle-path .dota/android/index.andro
 Note: The base bundle path is used for Hermes bytecode optimization. If provided, the bundle will be compiled with the base bundle as reference, which can significantly reduce the size of patch bundles. For more details on creating optimized patches, see the [delivr-cli patch bundle documentation](https://github.com/ds-horizon/delivr-cli#patch-bundle-release).
 ```
 
-### Base Bytecode Optimization (New Feature)
+## ✨ Base Bytecode Optimization (New Feature)
 
-DOTA provides full bundle and patch bundle updates (sending only diffs instead of full bundles). Refer to the [CLI documentation](https://github.com/ds-horizon/delivr-cli#patch-bundle-release) for patch creation and release process.
+Enhance your app's performance by significantly reducing patch bundle sizes using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method:
 
-DOTA's new base bytecode feature allows you to significantly reduce patch bundle size by using the bytecode structure from your base bundle. This requires creating a new full DOTA bundle with the flag: `--base-bytecode path/to/oldBundle`.
+### Automated Setup
 
-We have automated this process, and you only need to set an environment variable, it will be handled internally.
+Ensure your [automated bundle generation](#1-automated-bundle-generation-recommended) is configured, and set up your environment as follows:
 
-#### For Android
+- **Android**: Use any of the following methods to specify the base bundle path:
+  - Command line option:
+    ```bash
+    ./gradlew assembleRelease -PdotaBaseBundlePath=/path/to/base/bundle
+    ```
+  - Environment variable:
+    ```bash
+    export DOTA_BASE_BUNDLE_PATH=/path/to/base/bundle
+    ./gradlew assembleRelease
+    ```
+  - `gradle.properties` file:
+    ```
+    dotaBaseBundlePath=/path/to/base/bundle
+    ```
 
-Follow any of the way to set a path to base bundle path. In case of base bundle leave it empty.
+- **iOS**: To enable base bytecode optimization, you'll need to modify `node_modules/react-native/scripts/react-native-xcode.sh`. Since React Native doesn’t directly expose this feature, creating a patch is essential for implementing custom changes.
 
-- **Command line option:**
-  ```bash
-  ./gradlew assembleRelease -PdotaBaseBundlePath=/path/to/base/bundle
-  ```
+  **Patch Package Setup** (Skip if already installed):
 
-- **Environment variable:**
-  ```bash
-  # Using Gradle build commands
-  export DOTA_BASE_BUNDLE_PATH=/path/to/base/bundle
-  ./gradlew assembleRelease
+  1. Install [patch-package](https://www.npmjs.com/package/patch-package):
 
-  # Using RN CLI
-  export DOTA_BASE_BUNDLE_PATH=/path/to/base/bundle && \
-  yarn android --mode=Release
-  ```
-
-- **gradle.properties file:**
-  ```
-  dotaBaseBundlePath=/path/to/base/bundle
-  ```
-
-#### For iOS
-
-To enable this feature, you need to create and apply a patch for `react-native-xcode.sh` as React Native doesn't directly expose this capability on iOS.
-
-**Create and Apply Patch:**
-
-<details>
-<summary>Patch Package Setup (Skip if already installed)</summary>
-
-- **Install [patch-package](https://www.npmjs.com/package/patch-package)**:
   ```bash
   yarn add patch-package postinstall-postinstall --dev
   ```
 
-- **Add postinstall script**:
+  2. Add a postinstall script to ensure patches are applied:
+
   ```json
   {
     "scripts": {
@@ -187,40 +174,58 @@ To enable this feature, you need to create and apply a patch for `react-native-x
   }
   ```
 
-</details>
-
-**Modify and Create Patch**:
-  Locate `react-native-xcode.sh` in your `node_modules/react-native/scripts`. Edit it to add support for base bytecode:
+  **Modify and Create Patch**: Locate `node_modules/react-native/scripts/react-native-xcode.sh` and add support for base bytecode. Insert the following code **before the Hermes CLI execution block**:
 
   ```bash
   # Inside react-native-xcode.sh
+
   BASE_BYTECODE_PATH=""
-  echo "DOTA_BASE_BUNDLE_PATH: $DOTA_BASE_BUNDLE_PATH"
   if [[ ! -z $DOTA_BASE_BUNDLE_PATH ]]; then
-    BASE_BYTECODE_PATH="--base-bytecode $DOTA_BASE_BUNDLE_PATH"
+    if [[ -f $DOTA_BASE_BUNDLE_PATH ]]; then
+      BASE_BYTECODE_PATH="--base-bytecode $DOTA_BASE_BUNDLE_PATH"
+      echo "Using --base-bytecode with path: $DOTA_BASE_BUNDLE_PATH"
+    else
+      echo "Not using --base-bytecode, path: $DOTA_BASE_BUNDLE_PATH, file not found"
+      BASE_BYTECODE_PATH=""
+    fi
   fi
 
   "$HERMES_CLI_PATH" -emit-binary -max-diagnostic-width=80 $EXTRA_COMPILER_ARGS -out "$DEST/$BUNDLE_NAME.jsbundle" "$BUNDLE_FILE" $BASE_BYTECODE_PATH
   ```
 
   Create the patch using:
+
   ```bash
   yarn patch-package react-native
   ```
 
-**Environment Configuration:** Use any of the below step to pass base bundle path.
+  **Environment Configuration**: Configure the base bundle path through an environment variable:
 
-- **In `.xcode.env`:**
-  ```bash
-  export DOTA_BASE_BUNDLE_PATH=/path/to/base.bundle
-  ```
+  - In `.xcode.env`:
 
-- **Directly within a terminal session:**
-  ```bash
-  export DOTA_BASE_BUNDLE_PATH=/path/to/base.bundle && yarn ios --mode=Release
-  ```
+    ```bash
+    export DOTA_BASE_BUNDLE_PATH=/path/to/base.bundle
+    ```
 
-> Note: For your initial app release (base bundle), you don't need to set any path - the bundle will be automatically generated and copied to .dota/android. When creating CodePush updates later, you should set the path to this base bundle (from .dota/android) to enable the optimization.
+  - Or directly within a terminal session:
+
+    ```bash
+    export DOTA_BASE_BUNDLE_PATH=/path/to/base.bundle && yarn ios --mode=Release
+    ```
+
+### Manual Bundle Generation
+
+When using [manual bundle generation](#2-manual-bundle-generation), configure the CLI with the `--base-bundle-path` option:
+
+```bash
+yarn dota bundle --platform android --base-bundle-path .dota/android/index.android.bundle
+```
+
+> **Note**: If you prefer not to use this feature, simply leave the `DOTA_BASE_BUNDLE_PATH` environment variable unset or exclude the `--base-bundle-path` option during manual generation.
+
+### Understanding Base Bytecode Optimization
+
+Base bytecode optimization enables smaller patch bundles by utilizing the bytecode structure of a previously created base bundle. When you generate updates, this previous bundle acts as a reference, ensuring only changes are transmitted. This method enhances performance, reducing data usage and ensuring faster updates.
 
 ## Releasing Updates
 
