@@ -6,7 +6,7 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 
 - **Full and Patch Bundle Updates**: Deliver both full updates and efficient patch updates by sending only the differences.
 - **Brotli Compression Support**: Utilize [Brotli compression](https://github.com/ds-horizon/delivr-cli#release-management) to optimize both full and patch bundles for even smaller sizes compared to the default deflate algorithm.
-- **Base Bytecode Optimization**: Reduce patch bundle sizes significantly using the bytecode structure of your base bundle.
+- **Base Bytecode Optimization**: Reduce patch bundle sizes significantly using the bytecode structure of your base bundle. Learn more in the [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) section.
 - **Automated Bundle Handling**: Automatically manage bundles for both Android and iOS, ensuring seamless integration with the DOTA platform.
 - **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
 - **Architecture Support**: Compatible with both old and new architecture setups.
@@ -124,16 +124,11 @@ Options:
 
 # Example with options
 yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
-
-# Example with base bytecode optimization
-yarn dota bundle --platform android --base-bundle-path .dota/android/index.android.bundle
-
-Note: The base bundle path is used for Hermes bytecode optimization. If provided, the bundle will be compiled with the base bundle as reference, which can significantly reduce the size of patch bundles. For more details on creating optimized patches, see the [delivr-cli patch bundle documentation](https://github.com/ds-horizon/delivr-cli#patch-bundle-release).
 ```
 
 ## ✨ Base Bytecode Optimization (New Feature)
 
-Enhance your app's performance by significantly reducing patch bundle sizes using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method:
+Enhance your app's performance by significantly reducing patch bundle sizes using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method. For more details, see [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) below.
 
 ### Automated Setup
 
