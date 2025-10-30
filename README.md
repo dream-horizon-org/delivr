@@ -13,22 +13,20 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 
 ## Getting Started
 
-You can add [DOTA](docs/ota-updates.md) to your React Native app by running the following command from within your app's root directory:
+Easily integrate [DOTA](docs/ota-updates.md) into your React Native app using the following commands:
 
-* Yarn
 ```shell
+# Yarn
 yarn add @d11/dota
-```
-* NPM
-```shell
+
+# NPM
 npm install @d11/dota
 ```
 
-As with all other React Native plugins, the integration experience is different for iOS and Android, so perform the following setup steps depending on which platform(s) you are targeting. Note, if you are targeting both platforms it is recommended to create separate DOTA applications for each platform through DOTA dashboard.
+For platform-specific setup, follow the instructions below. It's recommended to manage separate DOTA applications for iOS and Android through the DOTA dashboard if targeting both platforms:
 
-Then continue with installing the native module
-  * [iOS Setup](docs/setup-ios.md)
-  * [Android Setup](docs/setup-android.md)
+- [iOS Setup](docs/setup-ios.md)
+- [Android Setup](docs/setup-android.md)
 
 ## Usage
 
