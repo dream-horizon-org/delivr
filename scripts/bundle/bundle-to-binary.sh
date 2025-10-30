@@ -39,12 +39,15 @@ HERMESC="node_modules/react-native/sdks/hermesc/${HERMES_OS_BIN}/hermesc"
 HBC_SOURCEMAP_FLAGS="-output-source-map"
 EXTRA_FLAGS=""
 if [[ ! -z "${BASE_BUNDLE_PATH}" ]]; then
-  EXTRA_FLAGS="--base-bytecode ${BASE_BUNDLE_PATH}"
+  if [[ -f "${BASE_BUNDLE_PATH}" ]]; then
+    echo "Using base bytecode flag: ${BASE_BUNDLE_PATH}"
+    EXTRA_FLAGS="--base-bytecode ${BASE_BUNDLE_PATH}"
+  else
+    echo "Error: Base bytecode file not found: ${BASE_BUNDLE_PATH}"
+  fi
 fi
-echo "EXTRA_FLAGS: ${EXTRA_FLAGS}"
 
 # create binary bundle from js bundle (-O=optmised, -w=no-warnings) 
 ${HERMESC} -emit-binary -out ${HBC_BUNDLE_FILE} ${JS_BUNDLE_FILE} -O -w ${HBC_SOURCEMAP_FLAGS} ${EXTRA_FLAGS}
 
 echo "Wrote HBC output to: ${HBC_BUNDLE_FILE}"
-

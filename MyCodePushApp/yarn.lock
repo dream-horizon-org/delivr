@@ -1024,7 +1024,7 @@
   resolved "https://registry.yarnpkg.com/@colors/colors/-/colors-1.5.0.tgz#bb504579c1cae923e6576a4f5da43d25f97bdbd9"
   integrity sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==
 
-"@d11/delivr-cli@^0.0.5":
+"@d11/delivr-cli@0.0.5":
   version "0.0.5"
   resolved "https://registry.yarnpkg.com/@d11/delivr-cli/-/delivr-cli-0.0.5.tgz#647d4227371447cbb3873f680d61b36f897fa19d"
   integrity sha512-smuFDDgm+mapqqKNF6vnNFdKuNvxV1HMtEmiJ24FvtJYvuPTbbANPPlzfq+wa9rIZ6MKKKOnrc8HWLHlASbvaw==
@@ -1058,7 +1058,7 @@
     yazl "^2.5.1"
 
 "@d11/dota@file:..":
-  version "0.0.5"
+  version "1.1.0"
   dependencies:
     glob "^7.1.7"
     hoist-non-react-statics "^3.3.2"
