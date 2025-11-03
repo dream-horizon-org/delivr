@@ -23,9 +23,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CodePushDeploymentKey</key>
-	<string>deployment-key</string>
+	<string>wqVl6RpHJD9E8O4Wa9HcnTrY_yGs41U_kVo6zg</string>
 	<key>CodePushServerURL</key>
-	<string>http://server-url</string>
+	<string>https://dota-server-delivruat.delivr.live/</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

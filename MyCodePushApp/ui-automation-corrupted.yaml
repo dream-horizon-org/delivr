@@ -1,0 +1,37 @@
+appId: com.mycodepushapp
+device: android                  
+
+---
+# Step 1: Launch the app 
+- launchApp
+
+
+
+# Step 3: Wait for and verify update dialog
+- assertVisible: "Update available"
+
+# Step 4: Verify the update message
+- assertVisible: "A new version of the app is available. Would you like to update?"
+
+# Step 5: Tap the Install button
+- tapOn: "Install"
+
+- waitForAnimationToEnd:
+    timeout: 15000 
+- tapOn: 
+    text: "Install"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 12000
+
+# Wait for corrupted bundle to potentially crash
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Corrupted bundle should cause app to crash or rollback
+# Check that the new screen is NOT shown (app crashed or rolled back)
+- assertNotVisible:
+    text: "App1.tsx"
+
+- launchApp
+- assertVisible: "💡 Open App.tsx to get started"

@@ -1,0 +1,29 @@
+appId: com.mycodepushapp
+device: android                  
+
+---
+# Step 1: Launch the app 
+- launchApp
+
+
+# Step 3: Wait for and verify update dialog
+- assertVisible: "Update available"
+
+# Step 4: Verify the update message
+- assertVisible: "A new version of the app is available. Would you like to update?"
+
+# Step 5: Tap the Install button
+- tapOn: "Install"
+
+- waitForAnimationToEnd:
+    timeout: 15000 
+- tapOn: 
+    text: "Install"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 12000
+
+
+# Step 6: Verify image loaded successfully
+- assertVisible: "✅ Image Loaded Successfully"
+

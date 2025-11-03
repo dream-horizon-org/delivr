@@ -18,12 +18,12 @@ export const getCodePushConfig = (env: 'staging' | 'production'): CodePushConfig
   if (env === 'staging') {
     return {
       ...commonConfig,
-      serverUrl: '<server-url>',
+      serverUrl: 'https://dota-server-delivruat.delivr.live/',
     };
   }
 
   return {
     ...commonConfig,
-    serverUrl: '<server-url>',
+    serverUrl: 'https://dota-server-delivruat.delivr.live/',
   };
 };

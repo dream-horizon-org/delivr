@@ -1,12 +1,7 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React from 'react';
 
 import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import {StatusBar, StyleSheet, useColorScheme, View} from 'react-native';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
@@ -42,7 +37,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-}); 
+});
+
 const env = 'staging';
 
 export default withCodePush(getCodePushConfig(env))(App);
