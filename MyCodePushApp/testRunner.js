@@ -214,7 +214,7 @@ function testPatchBundleBrotli() {
   run('yarn install', 'Installing dependencies');
   run('yarn android --mode=Release', 'Creating base bundle');
   directoryChange('.dota-testing', '.dota/android', '.dota-testing/android-base');
-  updateTemplateFileName('App.tsx', 'App1.tsx');
+  updateTemplateFileName('App.tsx', 'AppNew.tsx');
   run('yarn android --mode=Release', 'Creating codepush bundle');
   directoryChange('.dota-testing', '.dota/android', '.dota-testing/android-cp');
   

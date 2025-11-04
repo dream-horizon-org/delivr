@@ -1,22 +1,21 @@
 {
-  "timestamp": "2025-11-04T12:00:28.160Z",
+  "timestamp": "2025-11-04T16:22:27.055Z",
   "summary": {
     "total": 1,
-    "passed": 0,
-    "failed": 1,
+    "passed": 1,
+    "failed": 0,
     "skipped": 0,
-    "passRate": "0.0%"
+    "passRate": "100.0%"
   },
   "results": {
-    "passed": [],
-    "failed": [
+    "passed": [
       {
-        "name": "assets-fullbundle",
-        "displayName": "Assets Full Bundle Test",
-        "duration": "19.43",
-        "error": "addImage is not defined"
+        "name": "fullbundle",
+        "displayName": "Full Bundle Test",
+        "duration": "79.52"
       }
     ],
+    "failed": [],
     "skipped": []
   }
 }

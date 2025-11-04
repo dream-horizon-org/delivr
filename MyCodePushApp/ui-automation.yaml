@@ -26,4 +26,4 @@ device: android
 
 
 - assertNotVisible: "Update available" 
-- assertVisible: "💡 Open App.tsx to get started"
+- assertVisible: "💡 Open AppNew.tsx to get started"
