@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-11-04T12:00:28.160Z",
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0,
+    "passRate": "0.0%"
+  },
+  "results": {
+    "passed": [],
+    "failed": [
+      {
+        "name": "assets-fullbundle",
+        "displayName": "Assets Full Bundle Test",
+        "duration": "19.43",
+        "error": "addImage is not defined"
+      }
+    ],
+    "skipped": []
+  }
+}

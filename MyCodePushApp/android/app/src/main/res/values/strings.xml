@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">MyCodePushApp</string>
-    <string moduleConfig="true" name="CodePushServerUrl">https://dota-server-delivruat.delivr.live/</string>
-    <string moduleConfig="true" name="CodePushDeploymentKey">wqVl6RpHJD9E8O4Wa9HcnTrY_yGs41U_kVo6zg</string>
+    <string moduleConfig="true" name="CodePushServerUrl">http://localhost:1080/</string>
+    <string moduleConfig="true" name="CodePushDeploymentKey">deployment-key-1</string>
 </resources>
