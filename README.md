@@ -130,9 +130,9 @@ yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
 
 ## ✨ Base Bytecode Optimization (New Feature)
 
-> **Availability**: Base bytecode optimization is available starting from version 1.2.0.
+> Base bytecode optimization is available starting from version 1.2.0.
 
-Enhance your app's performance by significantly reducing patch bundle sizes using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method. For more details, see [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) below.
+Significantly reduce patch bundle size using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method. For more details, see [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) below.
 
 ### Automated Setup
 
