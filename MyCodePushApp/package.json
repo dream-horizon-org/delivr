@@ -2,7 +2,7 @@
   "name": "MyCodePushApp",
   "version": "0.0.1",
   "private": true,
-  "packageManager": "yarn@4.5.1",
+
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
@@ -11,7 +11,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@d11/dota": "file:///Users/harshavardhanithota/Documents/d11-delivr-react-native-ota-0.0.11.tgz",
+    "@d11/dota": "file:..",
     "@react-native/new-app-screen": "0.81.4",
     "@tanstack/react-query": "^5.56.2",
     "axios": "^1.7.7",
