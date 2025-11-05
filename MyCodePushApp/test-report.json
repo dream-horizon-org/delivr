@@ -1,66 +1,19 @@
 {
-  "timestamp": "2025-11-05T03:45:58.177Z",
+  "timestamp": "2025-11-05T08:26:46.147Z",
   "summary": {
-    "total": 10,
-    "passed": 8,
-    "failed": 2,
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
     "skipped": 0,
-    "passRate": "80.0%"
+    "passRate": "0.0%"
   },
   "results": {
-    "passed": [
-      {
-        "name": "eventflow-fullbundle",
-        "displayName": "Event Flow Full Bundle Test",
-        "duration": "88.34"
-      },
-      {
-        "name": "fullbundle",
-        "displayName": "Full Bundle Test",
-        "duration": "99.06"
-      },
-      {
-        "name": "fullbundle-config-error",
-        "displayName": "Full Bundle Config Error Test",
-        "duration": "98.60"
-      },
-      {
-        "name": "fullbundle-corrupted",
-        "displayName": "Full Bundle Corrupted Test",
-        "duration": "111.93"
-      },
-      {
-        "name": "fullbundle-brotli",
-        "displayName": "Full Bundle with Brotli",
-        "duration": "99.07"
-      },
-      {
-        "name": "patch-config-error",
-        "displayName": "Patch Config Error Test",
-        "duration": "2593.96"
-      },
-      {
-        "name": "patchbundle-corrupted",
-        "displayName": "Patch Bundle Corrupted Test",
-        "duration": "100.41"
-      },
-      {
-        "name": "assets-fullbundle",
-        "displayName": "Assets Full Bundle Test",
-        "duration": "127.20"
-      }
-    ],
+    "passed": [],
     "failed": [
       {
-        "name": "patchbundle",
-        "displayName": "Patch Bundle Test",
-        "duration": "113.16",
-        "error": "❌ Maestro test failed — assertion error or UI mismatch."
-      },
-      {
-        "name": "patchbundle-brotli",
-        "displayName": "Patch Bundle with Brotli",
-        "duration": "113.41",
+        "name": "ios-fullbundle",
+        "displayName": "iOS Full Bundle Test",
+        "duration": "140.62",
         "error": "❌ Maestro test failed — assertion error or UI mismatch."
       }
     ],

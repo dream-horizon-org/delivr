@@ -19,21 +19,19 @@ const testResults = {
 
 // Test Registry
 const TEST_CASES = {
-  'eventflow-fullbundle': {
-    name: 'Event Flow Full Bundle Test',
-    description: 'Tests event flow with full bundle',
-    fn: testEventFlowFullBundle
-  },
-  'patchbundle': {
-    name: 'Patch Bundle Test',
-    description: 'Tests patch bundle deployment',
-    fn: testPatchBundle
-  },
+ 
   'fullbundle': {
     name: 'Full Bundle Test',
     description: 'Tests full bundle deployment with CodePush',
     fn: testFullBundle
   },
+  
+  'patchbundle': {
+    name: 'Patch Bundle Test',
+    description: 'Tests patch bundle deployment',
+    fn: testPatchBundle
+  },
+  
   
   'fullbundle-config-error': {
     name: 'Full Bundle Config Error Test',
@@ -50,8 +48,6 @@ const TEST_CASES = {
     description: 'Tests full bundle with Brotli compression',
     fn: testFullBundleBrotli
   },
-  
-  
   'patch-config-error': {
     name: 'Patch Config Error Test',
     description: 'Tests patch bundle without -p true flag',
@@ -72,6 +68,11 @@ const TEST_CASES = {
     name: 'Assets Full Bundle Test',
     description: 'Tests full bundle with assets',
     fn: testAssetsFullBundle
+  },
+  'eventflow-fullbundle': {
+    name: 'Event Flow Full Bundle Test',
+    description: 'Tests event flow with full bundle',
+    fn: testEventFlowFullBundle
   },
   
 };
