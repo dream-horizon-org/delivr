@@ -1,105 +1,112 @@
 # React Native Module for OTA Updates
 
-Instantly deliver JS and asset updates to your React Native apps. Know more about [OTA Updates](docs/ota-updates.md)
-<!-- React Native Catalog -->
+Instantly deliver JS and asset updates to your React Native apps. Know more about [OTA Updates](docs/ota-updates.md).
 
-* [Getting Started](#getting-started)
-* [Usage](#usage)
-* [Creating the JavaScript bundle](#creating-the-javascript-bundle-hermes)
-* [Releasing Updates](#releasing-updates)
-* [Debugging](#debugging)
-* [Advanced Topics](#advanced-topics)
-* [API Reference](#api-reference)
+## 🚀 Key Features
 
-<!-- React Native Catalog -->
+- **Full and Patch Bundle Updates**: Deliver both full updates and efficient patch updates by sending only the differences.
+- **Brotli Compression Support**: Utilize [Brotli compression](https://github.com/ds-horizon/delivr-cli#release-management) to optimize both full and patch bundles for even smaller sizes compared to the default deflate algorithm.
+- **Base Bytecode Optimization**: Reduce patch bundle sizes significantly using the [bytecode](#understanding-base-bytecode-optimization) structure of your base bundle.
+- **Automated Bundle Handling**: Automatically manage bundles for both Android and iOS, ensuring seamless integration with the DOTA platform.
+- **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
+- **Architecture Support**: Compatible with both old and new architecture setups.
 
-## Getting Started
+## 🔧 Getting Started with DOTA
 
-You can add [DOTA](docs/ota-updates.md) to your React Native app by running the following command from within your app's root directory:
+Integrate DOTA into your React Native app seamlessly:
 
-* Yarn
+### Installation
+
+Run the following command from your app's root directory:
+
 ```shell
+# Yarn
 yarn add @d11/dota
-```
-* NPM
-```shell
+
+# NPM
 npm install @d11/dota
 ```
 
-As with all other React Native plugins, the integration experience is different for iOS and Android, so perform the following setup steps depending on which platform(s) you are targeting. Note, if you are targeting both platforms it is recommended to create separate DOTA applications for each platform through DOTA dashboard.
+### Setup
 
-Then continue with installing the native module
-  * [iOS Setup](docs/setup-ios.md)
-  * [Android Setup](docs/setup-android.md)
-
-## Usage
-
-The only thing left is to add the necessary code to your app to control the following policies:
-
-1. When (and how often) to check for an update? (for example app start, in response to clicking a button in a settings page, periodically at some fixed interval)
-
-2. When an update is available, how to present it to the end user?
-
-The simplest way to get started:
-
-* Wrap your root component with the `codePush`:
+Wrap your root component with `codePush` to enable OTA updates:
 
   ```javascript
   import codePush from "@d11/dota";
 
-  function MyApp () {
-    ...
+function MyApp() {
+  // Your app code here
   }
 
   export default codePush(MyApp);
   ```
 
-By default, DOTA will check for updates on every app start. If an update is available, it will be silently downloaded, and installed the next time the app is restarted (either explicitly by the end user or by the OS), which ensures the least invasive experience for your end users. If an available update is mandatory, then it will be installed immediately, ensuring that the end user gets it as soon as possible.
+Additionally, complete the platform-specific setup to ensure full integration:
 
-If you would like your app to discover updates more quickly, you can refer to the [DOTA API reference](docs/api-js.md#dota) 
+- [iOS Setup](docs/setup-ios.md)
+- [Android Setup](docs/setup-android.md)
+
+### Default Behavior and Configuration
+
+By default, DOTA checks for updates every time the app starts. Updates download silently and apply on the next restart, ensuring a smooth experience. Mandatory updates install immediately to deliver critical updates promptly.
+
+#### Customize Update Policies
+
+- **Check Frequency**: Configure when to check for updates (e.g., on app start, button press).
+  
+- **User Notification**: Decide how users will be notified about updates.
+
+For more advanced configurations, consult the [DOTA API reference](docs/api-js.md#dota).
 
 ## Creating the JavaScript bundle (Hermes)
 
-There are two ways to generate the JavaScript bundle for DOTA:
-
 ### 1. Automated Bundle Generation (Recommended)
 
-This method automatically copies the bundle that is generated during your app's build process.
+This method effortlessly integrates DOTA and Hermes by automatically using the bundle generated during your app's build process.
 
-#### For Android:
+#### Android Setup
 
-Add this line to your `android/app/build.gradle`:
+Add to `android/app/build.gradle`. This ensures the bundle is copied to the `.dota/android` directory for processing.
 
 ```gradle
 apply from: "../../node_modules/@d11/dota/android/codepush.gradle"
 ```
 
-#### For iOS:
+To disable the default copying of the bundle, add the following in `gradle.properties`:
 
-1. Add this line at the top of your `Podfile`:
-```ruby
-require_relative '../node_modules/@d11/dota/ios/scripts/dota_pod_helpers.rb'
 ```
-Note: Make sure that it correctly points to node_modules path.
+dotaCopyBundle=false
+```
 
-2. In the `post_install` block of your `Podfile`, add:
+#### iOS Setup
+
+In your `Podfile`, add:
+
 ```ruby
+# Import at the top
+require_relative '../node_modules/@d11/dota/ios/scripts/dota_pod_helpers.rb'
+
+# Include in the `post_install` block:
 post_install do |installer| 
-  
-  # Add the Dota post install script
-  # Replace with your app's target name
-  dota_post_install(installer, <target>, File.expand_path(__dir__))
+  dota_post_install(installer, 'YourAppTarget', File.expand_path(__dir__))
 end
 ```
 
-3. Run pod install:
+To disable the bundle copy process, set the environment variable in the `.xcode.env` file or directly in the CLI:
+
+```bash
+export DOTA_COPY_BUNDLE=false
+```
+
+Run:
+
 ```bash
 cd ios && pod install
 ```
 
-This will add a new build phase named "[Dota] Copy DOTA Bundle" that automatically handles bundle generation and copying. The bundles and assets will be generated in `.dota/<platform>` directory at your project root.
+This ensures the bundle is copied to the `.dota/ios` directory for processing.
 
-### 2. Manual Bundle Generation (Using CLI Tool)
+### 2. Manual Bundle Generation
 
 Use this method if you need more control over the bundle generation process or need to generate bundles outside of the build process.
 
@@ -111,37 +118,126 @@ yarn dota bundle --platform android
 yarn dota bundle --platform ios
 ```
 
-#### Available Options
+#### CLI Options
 
-The CLI supports the following options:
+Customize with available options:
 
 ```bash
 Options:
   --platform <platform>      Specify platform: android or ios (required)
-  --bundle-path <path>      Directory to place the bundle in (default: ".dota")
-  --assets-path <path>      Directory to place assets in (default: ".dota")
-  --sourcemap-path <path>   Directory to place sourcemaps in (default: ".dota")
+  --bundle-path <path>      Directory to place the bundle in, default is .dota/<platform> (default: ".dota")
+  --assets-path <path>      Directory to place assets in, default is .dota/<platform> (default: ".dota")
+  --sourcemap-path <path>   Directory to place sourcemaps in, default is .dota/<platform> (default: ".dota")
   --make-sourcemap         Generate sourcemap (default: false)
   --entry-file <file>      Entry file (default: "index.ts")
   --dev <boolean>          Development mode (default: "false")
+  --base-bundle-path <path> Path to base bundle for Hermes bytecode optimization
   -h, --help              Display help for command
 
 # Example with options
 yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
 ```
 
-#### Output Files
+> **Note**: When generating a patch bundle using this script, ensure that the base bundle shipped with the APK is identical to the one generated here. Any discrepancy in flags, especially if additional flags are passed to React Native during bundle generation, may lead to patch application issues. If uncertain, follow the Automated Bundle Generation step to maintain consistency.
 
-By default, the CLI will generate:
-- For Android:
-  - `.dota/index.android.bundle` - The optimized Hermes bundle
-  - `.dota/` - Directory containing any assets
-  - `.dota/index.android.bundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+## ✨ Base Bytecode Optimization (New Feature)
 
-- For iOS:
-  - `.dota/main.jsbundle` - The optimized Hermes bundle
-  - `.dota/` - Directory containing any assets
-  - `.dota/main.jsbundle.json` - Sourcemap file (if --make-sourcemap is enabled)
+> Base bytecode optimization is available starting from version 1.2.0.
+
+Significantly reduce patch bundle size using base bytecode optimization. There are two ways to set this up, depending on your bundle generation method. For more details, see [Understanding Base Bytecode Optimization](#understanding-base-bytecode-optimization) below.
+
+### Automated Setup
+
+Ensure your [automated bundle generation](#1-automated-bundle-generation-recommended) is configured, and set up your environment as follows:
+
+- **Android**: Use any of the following methods to specify the base bundle path:
+  - Command line option:
+    ```bash
+    ./gradlew assembleRelease -PdotaBaseBundlePath=/path/to/base/bundle
+    ```
+  - Environment variable:
+    ```bash
+    export DOTA_BASE_BUNDLE_PATH=/path/to/base/bundle
+    ./gradlew assembleRelease
+    ```
+  - `gradle.properties` file:
+    ```
+    dotaBaseBundlePath=/path/to/base/bundle
+    ```
+
+- **iOS**: To enable base bytecode optimization, you'll need to modify `node_modules/react-native/scripts/react-native-xcode.sh`. Since React Native doesn’t directly expose this feature, creating a patch is essential for implementing custom changes.
+
+  **Patch Package Setup** (Skip if already installed):
+
+  1. Install [patch-package](https://www.npmjs.com/package/patch-package):
+
+  ```bash
+  yarn add patch-package postinstall-postinstall --dev
+  ```
+
+  2. Add a postinstall script to ensure patches are applied:
+
+  ```json
+  {
+    "scripts": {
+      "postinstall": "patch-package"
+    }
+  }
+  ```
+
+  **Modify and Create Patch**: Locate `node_modules/react-native/scripts/react-native-xcode.sh` and add support for base bytecode. Insert the following code **before the Hermes CLI execution block**:
+
+  ```bash
+  # Inside react-native-xcode.sh
+
+  BASE_BYTECODE_PATH=""
+  if [[ ! -z $DOTA_BASE_BUNDLE_PATH ]]; then
+    if [[ -f $DOTA_BASE_BUNDLE_PATH ]]; then
+      BASE_BYTECODE_PATH="--base-bytecode $DOTA_BASE_BUNDLE_PATH"
+      echo "Using --base-bytecode with path: $DOTA_BASE_BUNDLE_PATH"
+    else
+      echo "Not using --base-bytecode, path: $DOTA_BASE_BUNDLE_PATH, file not found"
+      BASE_BYTECODE_PATH=""
+    fi
+  fi
+
+  "$HERMES_CLI_PATH" -emit-binary -max-diagnostic-width=80 $EXTRA_COMPILER_ARGS -out "$DEST/$BUNDLE_NAME.jsbundle" "$BUNDLE_FILE" $BASE_BYTECODE_PATH
+  ```
+
+  Create the patch using:
+
+  ```bash
+  yarn patch-package react-native
+  ```
+
+  **Environment Configuration**: Configure the base bundle path through an environment variable:
+
+  - In `.xcode.env`:
+
+    ```bash
+    export DOTA_BASE_BUNDLE_PATH=/path/to/base.bundle
+    ```
+
+  - Or directly within a terminal session:
+
+    ```bash
+    export DOTA_BASE_BUNDLE_PATH=/path/to/base.bundle && yarn ios --mode=Release
+    ```
+
+### Manual Bundle Generation
+
+When using [manual bundle generation](#2-manual-bundle-generation), configure the CLI with the `--base-bundle-path` option:
+
+```bash
+yarn dota bundle --platform android --base-bundle-path .dota/android/index.android.bundle
+```
+
+> **Note**: To opt-out of using the base bytecode optimization feature, ensure the DOTA_BASE_BUNDLE_PATH environment variable is not set. You can unset it by executing unset DOTA_BASE_BUNDLE_PATH. Alternatively, during manual bundle generation, simply omit the --base-bundle-path option.
+
+
+### Understanding Base Bytecode Optimization
+
+Base bytecode optimization enables smaller patch bundles by utilizing the bytecode structure of a previously created base bundle. When you generate updates, this previous bundle acts as a reference, ensuring only changes are transmitted. This method enhances performance, reducing data usage and ensuring faster updates.
 
 ## Releasing Updates
 

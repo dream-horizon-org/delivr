@@ -58,6 +58,31 @@ android.buildTypes.each { buildType ->
     buildType.resValue 'string', "CODE_PUSH_APK_BUILD_TIME", String.format("\"%d\"", System.currentTimeMillis())
 }
 
+// Configure Hermes flags for base bytecode optimization
+def baseBundlePath = project.hasProperty('dotaBaseBundlePath') ? project.dotaBaseBundlePath : 
+                    System.getenv('DOTA_BASE_BUNDLE_PATH') ?: null
+
+if (baseBundlePath != null) {
+    def isBundleFileExists = file(baseBundlePath).exists()
+    if (isBundleFileExists) {
+        if (project.hasProperty('hermesEnabled') && project.hermesEnabled.toBoolean()) {
+            def currentFlags = config.hermesFlags ? new ArrayList(config.hermesFlags.get()) : new ArrayList([])
+            if (!currentFlags.any { it.contains("--base-bytecode") }) {
+                currentFlags.add("--base-bytecode")
+                currentFlags.add(baseBundlePath)
+                config.hermesFlags.set(currentFlags)
+                println "[DOTA] Added base bytecode flags to Hermes configuration"
+            } else {
+                println "[DOTA] Hermes bytecode optimization already enabled"
+            }
+        }
+    } else {
+        println "[DOTA] Skipping base bytecode optimization, base bundle file does not exist: ${baseBundlePath}"
+    }
+} else {
+    println "[DOTA] Skipping base bytecode optimization, base bundle path is not set"
+}
+
 gradle.projectsEvaluated {
     def debuggableVariants = config.debuggableVariants ? config.debuggableVariants.get() : ['debug']
 
@@ -154,11 +179,8 @@ gradle.projectsEvaluated {
 
         def copyCodePushBundle = tasks.create(name: "copyCodePushBundle${targetName}", type: Copy) {
 
-            println "Configuring copyCodePushBundle task for ${targetName}"
-
-            println "jsBundleDir: ${jsBundleDir}"
-            println "resourcesDir: ${resourcesDir}"
-            println "CprojectDir: ${projectDir}"
+            println "[DOTA] Configuring copyCodePushBundle task for ${targetName}"
+            println "[DOTA] Project directory: ${projectDir}"
             
             from jsBundleDir
             from resourcesDir
@@ -170,7 +192,7 @@ gradle.projectsEvaluated {
             dependsOn "createBundle${targetName}JsAndAssets"
 
             doLast {
-                println "Completed copyCodePushBundle task for ${targetName}"
+                println "[DOTA] Completed copyCodePushBundle task for ${targetName}"
             }
         }
 
@@ -182,13 +204,15 @@ gradle.projectsEvaluated {
         runBefore("processUniversal${targetName}Resources", generateBundledResourcesHash)
         runBefore("process${targetName}Resources", generateBundledResourcesHash)
 
-                // Ensure the copy task runs after the bundle and assets are created
-        copyCodePushBundle.dependsOn("createBundle${targetName}JsAndAssets")
-
-        // Run the copy task before any tasks that need the copied files
-        runBefore("processArmeabi-v7a${targetName}Resources", copyCodePushBundle)
-        runBefore("processX86${targetName}Resources", copyCodePushBundle)
-        runBefore("processUniversal${targetName}Resources", copyCodePushBundle)
-        runBefore("process${targetName}Resources", copyCodePushBundle)
+        def shouldCopyBundle = project.hasProperty('dotaCopyBundle') ? project.dotaCopyBundle.toBoolean() : true
+        if (shouldCopyBundle) {
+            copyCodePushBundle.dependsOn("createBundle${targetName}JsAndAssets")
+            runBefore("processArmeabi-v7a${targetName}Resources", copyCodePushBundle)
+            runBefore("processX86${targetName}Resources", copyCodePushBundle)
+            runBefore("processUniversal${targetName}Resources", copyCodePushBundle)
+            runBefore("process${targetName}Resources", copyCodePushBundle)
+        } else {
+            println "[DOTA] Skipping copyCodePushBundle task for ${targetName}, dotaCopyBundle is set to ${shouldCopyBundle}"
+        }
     }
 }

@@ -9,19 +9,20 @@ const program = new Command();
 
 program
   .name('dota')
-  .description('CLI tool for bundling React Native apps with CodePush')
+  .description('DOTA CLI tool for bundling React Native apps with CodePush')
   .version('1.0.0');
 
 program
   .command('bundle')
-  .description('Generate a JS bundle and assets, compile to HBC and optionally emit sourcemap')
+  .description('Generate a Hermes bundle and assets, compile to HBC and optionally emit sourcemap')
   .requiredOption('--platform <platform>', 'Specify platform: android or ios')
-  .option('--bundle-path <path>', 'Directory to place the bundle in', '.dota')
-  .option('--assets-path <path>', 'Directory to place assets in', '.dota')
-  .option('--sourcemap-path <path>', 'Directory to place sourcemaps in', '.dota')
+  .option('--bundle-path <path>', 'Directory to place the bundle in, default is .dota/<platform>', '.dota')
+  .option('--assets-path <path>', 'Directory to place assets in, default is .dota/<platform>', '.dota')
+  .option('--sourcemap-path <path>', 'Directory to place sourcemaps in, default is .dota/<platform>', '.dota')
   .option('--make-sourcemap <boolean>', 'Generate sourcemap: true or false', 'false')
     .option('--entry-file <file>', 'Entry file', 'index.ts')
     .option('--dev <boolean>', 'Development mode', 'false')
+    .option('--base-bundle-path <path>', 'Path to base bundle', '')
     .allowUnknownOption() // Allow additional options to be passed to react-native bundle
     .action((options) => {
       // Validate platform
@@ -29,6 +30,10 @@ program
         console.error('Error: Platform must be either "android" or "ios"');
         process.exit(1);
       }
+
+      options.bundlePath = path.join(options.bundlePath, options.platform);
+      options.assetsPath = path.join(options.assetsPath, options.platform);
+      options.sourcemapPath = path.join(options.sourcemapPath, options.platform);
 
       // Create necessary directories
       [options.bundlePath, options.assetsPath, options.sourcemapPath].forEach(dir => {
@@ -47,7 +52,7 @@ program
       process.env.SOURCE_MAP_PATH = options.sourcemapPath;
       process.env.MAKE_SOURCEMAP = options.makeSourcemap === 'true' ? '1' : '';
       process.env.ENTRY_FILE = options.entryFile;
-
+      process.env.BASE_BUNDLE_PATH = options.baseBundlePath || '';
       // Build the bundle command using the existing script
       const bundleCommand = [
         './node_modules/@d11/dota/scripts/bundle/bundle.sh',

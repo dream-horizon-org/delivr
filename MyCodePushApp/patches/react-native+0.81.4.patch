@@ -1,0 +1,23 @@
+diff --git a/node_modules/react-native/scripts/react-native-xcode.sh b/node_modules/react-native/scripts/react-native-xcode.sh
+index 1dcdf55..8780056 100755
+--- a/node_modules/react-native/scripts/react-native-xcode.sh
++++ b/node_modules/react-native/scripts/react-native-xcode.sh
+@@ -176,7 +176,17 @@ else
+   if [[ $EMIT_SOURCEMAP == true ]]; then
+     EXTRA_COMPILER_ARGS="$EXTRA_COMPILER_ARGS -output-source-map"
+   fi
+-  "$HERMES_CLI_PATH" -emit-binary -max-diagnostic-width=80 $EXTRA_COMPILER_ARGS -out "$DEST/$BUNDLE_NAME.jsbundle" "$BUNDLE_FILE"
++  BASE_BYTECODE_PATH=""
++  if [[ ! -z $DOTA_BASE_BUNDLE_PATH ]]; then
++    if [[ -f $DOTA_BASE_BUNDLE_PATH ]]; then
++      BASE_BYTECODE_PATH="--base-bytecode $DOTA_BASE_BUNDLE_PATH"
++      echo "Using --base-bytecode with path: $DOTA_BASE_BUNDLE_PATH"
++    else
++      echo "Not using --base-bytecode, path: $DOTA_BASE_BUNDLE_PATH, file not found"
++      BASE_BYTECODE_PATH=""
++    fi
++  fi
++  "$HERMES_CLI_PATH" -emit-binary -max-diagnostic-width=80 $EXTRA_COMPILER_ARGS -out "$DEST/$BUNDLE_NAME.jsbundle" "$BUNDLE_FILE" $BASE_BYTECODE_PATH
+   if [[ $EMIT_SOURCEMAP == true ]]; then
+     HBC_SOURCEMAP_FILE="$DEST/$BUNDLE_NAME.jsbundle.map"
+     "$NODE_BINARY" "$COMPOSE_SOURCEMAP_PATH" "$PACKAGER_SOURCEMAP_FILE" "$HBC_SOURCEMAP_FILE" -o "$SOURCEMAP_FILE"
