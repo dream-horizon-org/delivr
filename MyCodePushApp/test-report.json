@@ -1,22 +1,21 @@
 {
-  "timestamp": "2025-11-05T08:26:46.147Z",
+  "timestamp": "2025-11-06T09:35:26.328Z",
   "summary": {
     "total": 1,
-    "passed": 0,
-    "failed": 1,
+    "passed": 1,
+    "failed": 0,
     "skipped": 0,
-    "passRate": "0.0%"
+    "passRate": "100.0%"
   },
   "results": {
-    "passed": [],
-    "failed": [
+    "passed": [
       {
-        "name": "ios-fullbundle",
-        "displayName": "iOS Full Bundle Test",
-        "duration": "140.62",
-        "error": "❌ Maestro test failed — assertion error or UI mismatch."
+        "name": "fullbundle",
+        "displayName": "Full Bundle Test",
+        "duration": "94.02"
       }
     ],
+    "failed": [],
     "skipped": []
   }
 }

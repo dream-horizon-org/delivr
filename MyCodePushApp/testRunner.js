@@ -140,7 +140,7 @@ function testFullBundleConfigError() {
   revertTemplateFileName('App.tsx', 'App.tsx');
   run('yarn android --mode=Release', 'Creating bundle');
   
-  const result = run(`maestro test ./ui-automation.yaml`, 'Run Maestro test');
+  const result = run(`maestro test ./ui-automation-corrupted.yaml`, 'Run Maestro test');
   if (!result.success) {
     throw new Error('❌ Maestro test failed — assertion error or UI mismatch.');
   }
