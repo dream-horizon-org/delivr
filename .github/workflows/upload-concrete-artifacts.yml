@@ -1,16 +1,18 @@
-name: Upload Snapshot Artifacts
+name: Upload Concrete Artifacts
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [closed]
+    branches:
+      - release/managed-solution-main
 
 concurrency:
   group: ${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  upload-snapshot-artifacts:
-    name: Upload Snapshot Artifacts
+  upload-concrete-artifacts:
+    name: Upload Concrete Artifacts
     runs-on: [self-hosted, linux, X64, onboarding]
     env:
       ARTIFACT_NAME: dota-server
