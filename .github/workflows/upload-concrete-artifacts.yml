@@ -30,14 +30,14 @@ jobs:
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
           nvm -v
-          nvm install 20.0.0
-          nvm use 20.0.0
+          nvm install 18.18.0
+          nvm use 18.18.0
           node -v
 
       - name: Set up Node
         uses: actions/setup-node@v3
         with:
-          node-version: '20.0.0'
+          node-version: '18.18.0'
 
       - name: Upload artifacts
         id: upload-artifacts
