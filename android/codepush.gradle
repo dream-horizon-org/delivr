@@ -77,6 +77,8 @@ if (isValidBundle) {
             println "[DOTA] Hermes bytecode optimization already enabled"
         }
     }
+} else {
+    println "[DOTA] Skipping base bytecode optimization, base bundle path: ${baseBundlePath} Exists: ${file(baseBundlePath).exists()}"
 }
 
 gradle.projectsEvaluated {

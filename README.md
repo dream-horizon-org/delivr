@@ -220,9 +220,7 @@ When using [manual bundle generation](#2-manual-bundle-generation), configure th
 yarn dota bundle --platform android --base-bundle-path .dota/android/index.android.bundle
 ```
 
-> **Note**: If you prefer not to use this feature, simply leave the `DOTA_BASE_BUNDLE_PATH` environment variable unset or exclude the `--base-bundle-path` option during manual generation.
-
-> **Note**: The priority for configuring the base bundle path is as follows: 1) Project property (`dotaBaseBundlePath`) via `gradle.properties`, 2) Command line option, 3) Environment variable (`DOTA_BASE_BUNDLE_PATH`). This allows for more granular control within your project setup.
+> **Note**: To opt-out of using the base bytecode optimization feature, ensure the DOTA_BASE_BUNDLE_PATH environment variable is not set. You can unset it by executing unset DOTA_BASE_BUNDLE_PATH. Alternatively, during manual bundle generation, simply omit the --base-bundle-path option.
 
 
 ### Understanding Base Bytecode Optimization
