@@ -1,7 +1,7 @@
 PODS:
   - Base64 (1.1.2)
   - boost (1.84.0)
-  - CodePush (0.0.11):
+  - CodePush (1.1.0):
     - Base64 (~> 1.1)
     - JWT (~> 3.0.0-beta.12)
     - React-Core
@@ -2588,7 +2588,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Base64: cecfb41a004124895a7bcee567a89bae5a89d49b
   boost: 7e761d76ca2ce687f7cc98e698152abd03a18f90
-  CodePush: 4d91197849c2a6e13a429283f047def07b8d25fc
+  CodePush: 633f9b90018d9c0551de89384e920f5b74ae09ea
   DoubleConversion: cb417026b2400c8f53ae97020b2be961b59470cb
   fast_float: b32c788ed9c6a8c584d114d0047beda9664e7cc6
   FBLazyVector: 941bef1c8eeabd9fe1f501e30a5220beee913886

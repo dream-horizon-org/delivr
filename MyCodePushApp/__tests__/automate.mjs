@@ -7,34 +7,43 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function directoryChange(testingDir, androidDir, androidBaseDir) {
-  // Always resolve relative to project root (automate.js file location)
-  const projectRoot = path.resolve(__dirname);
+export function directoryChange(src, dest) {
+  // Always resolve relative to project root (go up one level from __tests__)
+  const projectRoot = path.resolve(__dirname, '..');
   
-  const resolvedTestingDir = path.resolve(projectRoot, testingDir);
-  const resolvedAndroidDir = path.resolve(projectRoot, androidDir);
-  const resolvedAndroidBaseDir = path.resolve(projectRoot, androidBaseDir);
+  const resolvedSrc = path.resolve(projectRoot, src);
+  const resolvedDest = path.resolve(projectRoot, dest);
+  
+  // Get destination parent directory
+  const destParent = path.dirname(resolvedDest);
+  
+  // Create destination parent directory if it doesn't exist (including .dota-testing)
+  if (!fs.existsSync(destParent)) {
+    fs.mkdirSync(destParent, { recursive: true });
+    console.log(`📁 Created destination directory: ${destParent}`);
+  }
 
-  // Ensure target parent exists
-  if (!fs.existsSync(resolvedTestingDir)) {
-    fs.mkdirSync(resolvedTestingDir, { recursive: true });
+  // Verify source exists
+  if (!fs.existsSync(resolvedSrc)) {
+    throw new Error(`Source directory not found: ${src}`);
   }
 
   // Remove destination if it already exists
-  if (fs.existsSync(resolvedAndroidBaseDir)) {
-    fs.rmSync(resolvedAndroidBaseDir, { recursive: true, force: true });
+  if (fs.existsSync(resolvedDest)) {
+    fs.rmSync(resolvedDest, { recursive: true, force: true });
+    console.log(`🧹 Removed existing destination: ${dest}`);
   }
 
   try {
-    fs.renameSync(resolvedAndroidDir, resolvedAndroidBaseDir);
-    console.log(`✅ Renamed & moved folder to: ${androidBaseDir}`);
+    fs.renameSync(resolvedSrc, resolvedDest);
+    console.log(`✅ Moved folder from ${src} to ${dest}`);
   } catch (err) {
-    console.error(`❌ Failed to rename/move folder: ${err.message}`);
-    process.exit(1);
+    console.error(`❌ Failed to move folder: ${err.message}`);
+    throw err;
   }
 }
 export function deleteTestingDirectory(testingDir) {
-  const projectRoot = path.resolve(__dirname);
+  const projectRoot = path.resolve(__dirname, '..');
   const resolvedTestingDir = path.resolve(projectRoot, testingDir);
 
   if (!fs.existsSync(resolvedTestingDir)) {
@@ -76,46 +85,107 @@ export function runMaestroTest(yamlFilePath) {
 
 
 
-export function updateTemplateFileName(filePath,newTemplateName)
-{
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+// Store original content for revert
+const originalContentCache = new Map();
+
+export function updateTemplateFileName(filePath, newTemplateName) {
+  // Resolve path relative to project root (go up one level from __tests__)
+  const projectRoot = path.resolve(__dirname, '..');
+  const resolvedFilePath = path.isAbsolute(filePath) ? filePath : path.resolve(projectRoot, filePath);
+  
+  if (!fs.existsSync(resolvedFilePath)) {
+    throw new Error(`File not found: ${resolvedFilePath}`);
   }
-  let code = fs.readFileSync(filePath, 'utf8');
-  const regex = /templateFileName\s*=\s*["'][^"']+["']/;
-  if (!regex.test(code)) {
-    console.warn('templateFileName prop not found in the file.');
+  
+  let code = fs.readFileSync(resolvedFilePath, 'utf8');
+  
+  // Store original content if not already stored
+  if (!originalContentCache.has(resolvedFilePath)) {
+    originalContentCache.set(resolvedFilePath, code);
+    console.log(`📝 Stored original content for ${resolvedFilePath}`);
+  }
+  
+  // Find the NewAppScreen component and replace its entire content
+  // Pattern: <NewAppScreen ... /> or <NewAppScreen ... >...</NewAppScreen>
+  const newAppScreenPattern = /<NewAppScreen[\s\S]*?\/>/;
+  const newAppScreenPatternMultiline = /<NewAppScreen[\s\S]*?<\/NewAppScreen>/;
+  
+  // Check if Text is already imported from react-native
+  const hasTextImport = /import\s*\{[^}]*\bText\b[^}]*\}\s*from\s*['"]react-native['"]/.test(code);
+  
+  // Add Text to react-native import if needed
+  if (!hasTextImport) {
+    const reactNativeImportPattern = /(import\s*\{[^}]+)\}\s*from\s*['"]react-native['"]/;
+    if (reactNativeImportPattern.test(code)) {
+      code = code.replace(
+        reactNativeImportPattern,
+        (match, imports) => {
+          // Add Text to the imports if not already there
+          if (!match.includes('Text')) {
+            return `${imports}, Text } from 'react-native'`;
+          }
+          return match;
+        }
+      );
+    } else {
+      // If no react-native import exists, add it after React import
+      const reactImport = code.match(/import\s+.*\s+from\s+['"]react['"]/);
+      if (reactImport) {
+        code = code.replace(
+          reactImport[0],
+          `${reactImport[0]}\nimport { Text } from 'react-native';`
+        );
+      } else {
+        // Add both imports at the top
+        code = `import { Text } from 'react-native';\n${code}`;
+      }
+    }
+  }
+  
+  // Replace NewAppScreen with Text component showing the message
+  const updatedMessage = "DOTA Updated bundle loaded successfully🚀";
+  const replacement = `<Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginTop: 50 }}>${updatedMessage}</Text>`;
+  
+  if (newAppScreenPatternMultiline.test(code)) {
+    code = code.replace(newAppScreenPatternMultiline, replacement);
+  } else if (newAppScreenPattern.test(code)) {
+    code = code.replace(newAppScreenPattern, replacement);
+  } else {
+    console.warn('⚠️ NewAppScreen component not found in the file.');
     return;
   }
-  const newCode = code.replace(
-    regex,
-    `templateFileName="${newTemplateName}"`
-  );
-  fs.writeFileSync(filePath, newCode, 'utf8');
-  console.log(`Updated templateFileName to "${newTemplateName}" in ${filePath}`);
+  
+  fs.writeFileSync(resolvedFilePath, code, 'utf8');
+  console.log(`✅ Updated ${resolvedFilePath} to show: "${updatedMessage}"`);
 }
 
-export function revertTemplateFileName(filePath,newTemplateName)
-{
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+export function revertTemplateFileName(filePath, newTemplateName) {
+  // Resolve path relative to project root (go up one level from __tests__)
+  const projectRoot = path.resolve(__dirname, '..');
+  const resolvedFilePath = path.isAbsolute(filePath) ? filePath : path.resolve(projectRoot, filePath);
+  
+  if (!fs.existsSync(resolvedFilePath)) {
+    throw new Error(`File not found: ${resolvedFilePath}`);
   }
-  let code = fs.readFileSync(filePath, 'utf8');
-  const regex = /templateFileName\s*=\s*["'][^"']+["']/;
-  if (!regex.test(code)) {
-    console.warn('templateFileName prop not found in the file.');
+  
+  // Check if we have original content cached
+  if (!originalContentCache.has(resolvedFilePath)) {
+    console.warn(`⚠️ No original content found for ${resolvedFilePath}. Cannot revert.`);
     return;
   }
-  const newCode = code.replace(
-    regex,
-    `templateFileName="${newTemplateName}"`
-  );
-  fs.writeFileSync(filePath, newCode, 'utf8');
-  console.log(`Updated templateFileName to "${newTemplateName}" in ${filePath}`);
+  
+  // Restore original content
+  const originalCode = originalContentCache.get(resolvedFilePath);
+  fs.writeFileSync(resolvedFilePath, originalCode, 'utf8');
+  
+  // Remove from cache after revert
+  originalContentCache.delete(resolvedFilePath);
+  
+  console.log(`✅ Reverted ${resolvedFilePath} to original content`);
 }
 
 export function createSubFolderInTestingDir(subFolderName) {
-  const projectRoot = path.resolve(__dirname);
+  const projectRoot = path.resolve(__dirname, '..');
   const dotaTestingPath = path.resolve(projectRoot, '.dota-testing');
   const subFolderPath = path.resolve(dotaTestingPath, subFolderName);
 
@@ -141,7 +211,7 @@ export function createSubFolderInTestingDir(subFolderName) {
 
 
 export function moveAssets(assetFolderName = 'drawable-mdpi') {
-  const projectRoot = path.resolve(__dirname);
+  const projectRoot = path.resolve(__dirname, '..');
   const sourcePath = path.resolve(projectRoot, `.dota-testing/android-cp/${assetFolderName}`);
   const destinationBase = path.resolve(projectRoot, `.dota-testing/.codepush`);
   const destinationPath = path.resolve(destinationBase, assetFolderName);
@@ -174,7 +244,7 @@ export function moveAssets(assetFolderName = 'drawable-mdpi') {
 }
 
 export function corruptBundle(bundlePath, corruptionType = 'truncate', bytesToRemove = 1000) {
-  const projectRoot = path.resolve(__dirname);
+  const projectRoot = path.resolve(__dirname, '..');
   const resolvedBundlePath = path.resolve(projectRoot, bundlePath);
 
   try {
@@ -241,7 +311,7 @@ export function corruptBundle(bundlePath, corruptionType = 'truncate', bytesToRe
 }
 
 export function addImage() {
-  const projectRoot = path.resolve(__dirname);
+  const projectRoot = path.resolve(__dirname, '..');
   const imageFile = path.join(projectRoot, "assets", "icon.png");
   const appFile = path.join(projectRoot, "App.tsx");
 
@@ -410,7 +480,7 @@ export function addImage() {
   console.log("✅ App.tsx updated successfully with image loading state and error handling!");
 }
 export function removeImage() {
-  const projectRoot = path.resolve(__dirname);
+  const projectRoot = path.resolve(__dirname, '..');
   const appFile = path.join(projectRoot, "App.tsx");
 
   if (!fs.existsSync(appFile)) {

@@ -19,9 +19,7 @@ export const getCodePushConfig = (env: 'staging' | 'production'): CodePushConfig
   // For Android emulator, use 10.0.2.2 instead of localhost to reach host machine
   // For iOS simulator, localhost works
   // The native config (strings.xml/Info.plist) should also be set, but JS config can override
-  const serverUrl = Platform.OS === 'android' 
-    ? 'http://10.0.2.2:1080/'
-    : 'http://localhost:1080/';
+  const serverUrl = 'http://localhost:1080/';
 
   if (env === 'staging') {
     return {

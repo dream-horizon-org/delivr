@@ -8,7 +8,12 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:fullbundle": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testNamePattern='fullbundle'",
+    "test:patchbundle": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testNamePattern='patchbundle'",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose"
   },
   "dependencies": {
     "@d11/dota": "file:..",
@@ -23,7 +28,7 @@
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.25.3",
     "@babel/runtime": "^7.25.0",
-    "@d11/delivr-cli": "^0.0.2",
+    "@d11/delivr-cli": "0.0.5",
     "@react-native-community/cli": "20.0.0",
     "@react-native-community/cli-platform-android": "20.0.0",
     "@react-native-community/cli-platform-ios": "20.0.0",

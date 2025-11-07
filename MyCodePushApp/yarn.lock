@@ -1487,9 +1487,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@d11/dota@file:///Users/harshavardhanithota/Documents/d11-delivr-react-native-ota-0.0.11.tgz::locator=MyCodePushApp%40workspace%3A.":
-  version: 0.0.11
-  resolution: "@d11/dota@file:///Users/harshavardhanithota/Documents/d11-delivr-react-native-ota-0.0.11.tgz#///Users/harshavardhanithota/Documents/d11-delivr-react-native-ota-0.0.11.tgz::hash=796177&locator=MyCodePushApp%40workspace%3A."
+"@d11/dota@file:..::locator=MyCodePushApp%40workspace%3A.":
+  version: 1.1.0
+  resolution: "@d11/dota@file:..#..::hash=ed842d&locator=MyCodePushApp%40workspace%3A."
   dependencies:
     glob: "npm:^7.1.7"
     hoist-non-react-statics: "npm:^3.3.2"
@@ -1498,8 +1498,8 @@ __metadata:
     semver: "npm:^7.3.5"
     xcode: "npm:3.0.1"
   bin:
-    delivr-react-native-ota: ./scripts/bundle/cli.js
-  checksum: 10c0/3821cdeebc592a8f085155ef32e909562d1c38424cd097ed294a437193890ce206a1ed4e445c26db052a48b58794c3daa1155cb5cbf4a759db0285ec92c41fc6
+    dota: ./scripts/bundle/cli.js
+  checksum: 10c0/71f8ab3ab654f6d6ab7fd5457ed7d52bbe1c1bd76b221fb22990fffba347114519e7398447c72355e7c507aa46b698d9e819acefe71c1b7b29a447db0ce0e057
   languageName: node
   linkType: hard
 
@@ -2881,7 +2881,7 @@ __metadata:
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.25.0"
     "@d11/delivr-cli": "npm:^0.0.2"
-    "@d11/dota": "file:///Users/harshavardhanithota/Documents/d11-delivr-react-native-ota-0.0.11.tgz"
+    "@d11/dota": "file:.."
     "@react-native-community/cli": "npm:20.0.0"
     "@react-native-community/cli-platform-android": "npm:20.0.0"
     "@react-native-community/cli-platform-ios": "npm:20.0.0"
@@ -9449,11 +9449,11 @@ __metadata:
 
 "typescript@patch:typescript@npm%3A^5.8.3#optional!builtin<compat/typescript>":
   version: 5.9.3
-  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=cef18b"
+  resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10c0/6f7e53bf0d9702350deeb6f35e08b69cbc8b958c33e0ec77bdc0ad6a6c8e280f3959dcbfde6f5b0848bece57810696489deaaa53d75de3578ff255d168c1efbd
+  checksum: 10c0/ad09fdf7a756814dce65bc60c1657b40d44451346858eea230e10f2e95a289d9183b6e32e5c11e95acc0ccc214b4f36289dcad4bf1886b0adb84d711d336a430
   languageName: node
   linkType: hard
 
