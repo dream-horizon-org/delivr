@@ -196,6 +196,41 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
+  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+    tenant = clone(tenant);
+    tenant.id = this.newId();
+    tenant.createdBy = accountId;
+    tenant.createdTime = new Date().getTime();
+
+    this.tenants[tenant.id] = tenant;
+    
+    // Add tenant to account mapping
+    if (!this.accountToTenantsMap[accountId]) {
+      this.accountToTenantsMap[accountId] = [];
+    }
+    this.accountToTenantsMap[accountId].push(tenant.id);
+    
+    this.saveStateAsync();
+    return Promise.resolve(clone(tenant));
+  }
+
+  // Tenant Collaborator Methods (stubs for json-storage)
+  public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+    return Promise.resolve({});
+  }
+
+  public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
   public getAccountByEmail(email: string): Promise<storage.Account> {
     for (const id in this.accounts) {
       if (this.accounts[id].email === email) {

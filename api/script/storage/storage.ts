@@ -34,16 +34,32 @@ export interface StorageError extends error.CodePushError {
 }
 
 /**
- * Specifies an account with the power to manage apps, deployments and packages
+ * Unified Account/User interface
+ * Combines OG Delivr User + New Delivr Account
+ * No global role - roles are tenant-specific (user_tenant_roles table)
  */
 export interface Account {
-  azureAdId?: string;
-  /*generated*/ createdTime: number;
-  /*const*/ email: string;
-  gitHubId?: string;
+  // Core fields
   /*generated*/ id?: string;
-  microsoftId?: string;
-  /*const*/ name: string;
+  /*const*/ email: string;
+  /*const*/ name: string;  // Combined firstName + lastName from OG Delivr
+  /*generated*/ createdTime: number;
+  /*generated*/ updatedAt?: number;
+  
+  // OAuth Provider IDs (union of both systems)
+  ssoId?: string;         // From OG Delivr - Google SSO ID
+  azureAdId?: string;     // From New Delivr - Azure AD
+  gitHubId?: string;      // From New Delivr - GitHub
+  microsoftId?: string;   // From New Delivr - Microsoft
+  
+  // User Profile (from OG Delivr)
+  firstName?: string;     // Optional: can parse from name
+  lastName?: string;      // Optional: can parse from name
+  picture?: string;       // Profile picture URL
+  
+  // Integrations (from OG Delivr - tenant-specific, move to tenant_integrations later)
+  slackId?: string;       // TODO: Move to tenant_integrations
+  teamsId?: string;       // TODO: Move to tenant_integrations
 }
 
 export interface CollaboratorProperties {
@@ -156,6 +172,7 @@ export interface Storage {
 
 
   getTenants(accountId: string): Promise<Organization[]>;
+  addTenant(accountId: string, tenant: Organization): Promise<Organization>;
   removeTenant(accountId: string, tenantId: string): Promise<void>;
 
   addApp(accountId: string, app: App): Promise<App>;
@@ -169,6 +186,12 @@ export interface Storage {
   getCollaborators(accountId: string, appId: string): Promise<CollaboratorMap>;
   updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void>;
   removeCollaborator(accountId: string, appId: string, email: string): Promise<void>;
+  
+  // Tenant collaborator methods
+  getTenantCollaborators(tenantId: string): Promise<CollaboratorMap>;
+  addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
+  updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
+  removeTenantCollaborator(tenantId: string, email: string): Promise<void>;
 
   addDeployment(accountId: string, appId: string, deployment: Deployment): Promise<string>;
   getDeployment(accountId: string, appId: string, deploymentId: string): Promise<Deployment>;

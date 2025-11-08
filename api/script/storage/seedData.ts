@@ -133,22 +133,51 @@ async function seed() {
   try {
     // Initialize models
     const models = createModelss(sequelize);
-    // // Sync database
-    // await sequelize.sync({ force: true });
-    await sequelize.sync({ alter: true }); // Alters tables without dropping them
+    
+    // Sync database WITHOUT altering - migrations handle schema
+    await sequelize.sync({ alter: false });
 
+    // Check if database already has data
+    const accountCount = await models.Account.count();
+    
+    if (accountCount > 0) {
+      console.log("⏭️  Database already contains data. Skipping seeding to preserve existing data.");
+      console.log(`   Found ${accountCount} accounts. To force re-seed, clear the database manually.`);
+      return;
+    }
 
-    // // Insert seed data in order
+    console.log("🌱 Database is empty. Starting seeding process...");
+
+    // Disable foreign key checks for seeding
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0;');
+
+    // Clear existing seed data in reverse order (to avoid FK constraints)
+    // Note: This should never run now since we check for data above, but keeping for safety
+    await models.AccessKey.destroy({ where: {} });
+    await models.Package.destroy({ where: {} });
+    await models.Deployment.destroy({ where: {} });
+    await models.Collaborator.destroy({ where: {} });
+    await models.App.destroy({ where: {} });
+    await models.Tenant.destroy({ where: {} });
+    await models.Account.destroy({ where: {} });
+
+    // Re-enable foreign key checks
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
+
+    // Insert seed data in order
     await models.Account.bulkCreate(seedData.accounts);
     await models.Tenant.bulkCreate(seedData.tenants);
     await models.App.bulkCreate(seedData.apps);
     await models.Collaborator.bulkCreate(seedData.collaborators);
-        // Insert deployments with `currentPackageId` temporarily set to `null`
+    
+    // Insert deployments with `currentPackageId` temporarily set to `null`
     await models.Deployment.bulkCreate(seedData.deployments.map((deployment) => ({
-          ...deployment,
-          packageId: null, // Temporarily set to null to break circular dependency
+      ...deployment,
+      packageId: null, // Temporarily set to null to break circular dependency
     })));
     await models.Package.bulkCreate(seedData.packages);
+    
+    // Update deployments with their package IDs
     await Promise.all(seedData.deployments.map(async (deployment) => {
       if (deployment.packageId) {
         await models.Deployment.update(
@@ -159,9 +188,9 @@ async function seed() {
     }));
     await models.AccessKey.bulkCreate(seedData.accessKeys);
 
-    console.log("Seed data has been inserted successfully.");
+    console.log("✅ Seed data has been inserted successfully.");
   } catch (error) {
-    console.error("Error seeding data:", error);
+    console.error("❌ Error seeding data:", error);
   } finally {
     await sequelize.close();
   }

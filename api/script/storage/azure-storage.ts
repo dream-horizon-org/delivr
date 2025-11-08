@@ -355,7 +355,34 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
+  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+    tenant = storage.clone(tenant);
+    tenant.id = shortid.generate();
+    tenant.createdBy = accountId;
+    tenant.createdTime = new Date().getTime();
+    
+    // Azure implementation - stub for now
+    return Promise.resolve(tenant);
+  }
+
   public removeTenant(accountId: string, tenantId: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  // Tenant Collaborator Methods (stubs for azure-storage)
+  public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+    return Promise.resolve({});
+  }
+
+  public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+    return Promise.resolve(<void>null);
+  }
+
+  public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 

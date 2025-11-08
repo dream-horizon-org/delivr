@@ -26,6 +26,7 @@ import PackageManifest = hashUtils.PackageManifest;
 import tryJSON = require("try-json");
 import rateLimit from "express-rate-limit";
 import { isPrototypePollutionKey } from "../storage/storage";
+import * as tenantPermissions from "../middleware/tenant-permissions";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -274,13 +275,101 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
 
     storage
-      .getTenants(accountId) // Calls the storage method we’ll define next
+      .getTenants(accountId)
       .then((tenants: storageTypes.Organization[]) => {
         res.send({ organisations: tenants });
       })
       .catch((error: any) => {
-        next(error); // Forward error to error handler
+        next(error);
       });
+  });
+
+  router.post("/tenants", (req: Request, res: Response, next: (err?: any) => void): any => {
+    const accountId: string = req.user.id;
+    const tenant = req.body;
+
+    if (!tenant.displayName) {
+      return res.status(400).send({ error: "displayName is required" });
+    }
+
+    storage
+      .addTenant(accountId, tenant)
+      .then((createdTenant: storageTypes.Organization) => {
+        res.status(201).send({ organisation: createdTenant });
+      })
+      .catch((error: any) => {
+        console.error("Error creating tenant:", error);
+        next(error);
+      });
+  });
+
+  // Get tenant collaborators (Owner only)
+  router.get("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    console.log("Getting collaborators for tenant:", req.params.tenantId);
+    const tenantId: string = req.params.tenantId;
+    
+    try {
+      const collaborators = await storage.getTenantCollaborators(tenantId);
+      return res.status(200).send({ collaborators });
+    } catch (error: any) {
+      console.error("Error fetching tenant collaborators:", error);
+      return next(error);
+    }
+  });
+
+  // Add tenant collaborator (Owner only)
+  router.post("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    const { email, permission } = req.body;
+
+    if (!email) {
+      return res.status(400).send({ error: "email is required" });
+    }
+
+    if (!permission || !['Editor', 'Viewer'].includes(permission)) {
+      return res.status(400).send({ error: "permission must be either 'Editor' or 'Viewer'" });
+    }
+
+    try {
+      await storage.addTenantCollaborator(tenantId, email, permission);
+      return res.status(201).send({ message: "Collaborator added successfully" });
+    } catch (error: any) {
+      console.error("Error adding tenant collaborator:", error);
+      return next(error);
+    }
+  });
+
+  // Update tenant collaborator permission (Owner only)
+  router.patch("/tenants/:tenantId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    const email: string = req.params.email;
+    const { permission } = req.body;
+
+    if (!permission || !['Editor', 'Viewer'].includes(permission)) {
+      return res.status(400).send({ error: "permission must be either 'Editor' or 'Viewer'" });
+    }
+
+    try {
+      await storage.updateTenantCollaborator(tenantId, email, permission);
+      return res.status(200).send({ message: "Collaborator updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating tenant collaborator:", error);
+      return next(error);
+    }
+  });
+
+  // Remove tenant collaborator (Owner only)
+  router.delete("/tenants/:tenantId/collaborators/:email", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    const email: string = req.params.email;
+
+    try {
+      await storage.removeTenantCollaborator(tenantId, email);
+      return res.status(200).send({ message: "Collaborator removed successfully" });
+    } catch (error: any) {
+      console.error("Error removing tenant collaborator:", error);
+      return next(error);
+    }
   });
 
   router.delete("/tenants/:tenantId", (req: Request, res: Response, next: (err?: any) => void): any => {
@@ -511,6 +600,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const accountId: string = req.user.id;
     const appName: string = req.params.appName;
     const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+    console.log("Getting collaborators for app:", appName, "tenantId:", tenantId);
     nameResolver
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {

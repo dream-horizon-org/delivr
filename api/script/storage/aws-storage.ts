@@ -36,12 +36,34 @@ export function createAccessKey(sequelize: Sequelize) {
 //Creating Account Type
 export function createAccount(sequelize: Sequelize) {
   return sequelize.define("account", {
-    createdTime: { type: DataTypes.FLOAT, allowNull: false, defaultValue: () => new Date().getTime() },  // Set default value
-    name: { type: DataTypes.STRING, allowNull: false },
-    email: { type: DataTypes.STRING, allowNull: false },
+    // Core fields
     id: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    createdTime: { type: DataTypes.FLOAT, allowNull: false, defaultValue: () => new Date().getTime() },
+    updatedAt: { type: DataTypes.FLOAT, allowNull: true },
+    
+    // OAuth Provider IDs (union of both systems)
+    ssoId: { type: DataTypes.STRING, allowNull: true, unique: true },  // Google SSO from OG Delivr
+    azureAdId: { type: DataTypes.STRING, allowNull: true },
+    gitHubId: { type: DataTypes.STRING, allowNull: true },
+    microsoftId: { type: DataTypes.STRING, allowNull: true },
+    
+    // User Profile
+    firstName: { type: DataTypes.STRING, allowNull: true },
+    lastName: { type: DataTypes.STRING, allowNull: true },
+    picture: { type: DataTypes.STRING, allowNull: true },
+    
+    // Integrations (TODO: Move to tenant_integrations table)
+    slackId: { type: DataTypes.STRING, allowNull: true },
+    teamsId: { type: DataTypes.STRING, allowNull: true },
+  }, {
+    tableName: 'accounts',
+    timestamps: false  // We handle timestamps manually
   });
 }
+
+
 
 
 //Creating App
@@ -50,15 +72,18 @@ export function createApp(sequelize: Sequelize) {
     return sequelize.define("apps", {
         createdTime: { type: DataTypes.FLOAT, allowNull: false },
         name: { type: DataTypes.STRING, allowNull: false },
-        id: { type: DataTypes.STRING, allowNull: false, primaryKey:true},
-        accountId: { type: DataTypes.STRING, allowNull: false, references: {
-            model: sequelize.models["account"],
+        id: { type: DataTypes.STRING, allowNull: false, primaryKey: true},
+        accountId: { 
+          type: DataTypes.STRING, 
+          allowNull: true,  // Optional for backward compatibility
+          references: {
+            model: 'accounts',
             key: 'id',
           },
         },
         tenantId: {
           type: DataTypes.UUID,
-          allowNull: true,
+          allowNull: true,  // Optional for backward compatibility (v1 apps might not have it)
           references: {
             model: 'tenants',
             key: 'id',
@@ -101,16 +126,33 @@ export function createTenant(sequelize: Sequelize) {
 
 //Create Collabarorators
 
+// Unified collaborators table - supports BOTH app-level AND tenant-level collaboration
 export function createCollaborators(sequelize: Sequelize) {
     return sequelize.define("collaborator", {
         email: {type: DataTypes.STRING, allowNull: false},
         accountId: { type: DataTypes.STRING, allowNull: false },
-        appId: { type: DataTypes.STRING, allowNull: false },
+        appId: { 
+          type: DataTypes.STRING, 
+          allowNull: true  // Null for tenant-level collaborators
+        },
+        tenantId: {
+          type: DataTypes.UUID,
+          allowNull: true,  // Null for app-level-only collaborators
+          references: {
+            model: 'tenants',
+            key: 'id',
+          },
+        },
         permission: {
             type: DataTypes.ENUM({
-                values: ["Collaborator", "Owner"]
+                values: ["Owner", "Editor", "Viewer", "Collaborator"]  // Expanded to include tenant roles
             }),
             allowNull:true
+        },
+        isCreator: {
+          type: DataTypes.BOOLEAN,
+          allowNull: false,
+          defaultValue: false  // True for tenant creators
         },
     })
 }
@@ -226,22 +268,26 @@ export function createModelss(sequelize: Sequelize) {
   const Account = createAccount(sequelize);
   const AccessKey = createAccessKey(sequelize);
   const AppPointer = createAppPointer(sequelize);
-  const Collaborator = createCollaborators(sequelize);
+  const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
 
   // Define associations
 
-  // Account and App
-  Account.hasMany(App, { foreignKey: 'accountId' });
-  App.belongsTo(Account, { foreignKey: 'accountId' });
-
-  // Account and Tenant
+  // Account and Tenant (Creator relationship)
   Account.hasMany(Tenant, { foreignKey: 'createdBy' });
   Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
 
-  // Tenant and App (One Tenant can have many Apps)
+  // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
   App.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+  // Account and App (One Account can have many Apps) - OLD FLOW (backward compatibility)
+  Account.hasMany(App, { foreignKey: 'accountId' });
+  App.belongsTo(Account, { foreignKey: 'accountId' });
+  
+  // Tenant and Collaborator (One Tenant can have many Collaborators) - NEW FLOW
+  Tenant.hasMany(Collaborator, { foreignKey: 'tenantId' });
+  Collaborator.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
   // App and Deployment (One App can have many Deployments)
   App.hasMany(Deployment, { foreignKey: 'appId' });
@@ -258,7 +304,6 @@ export function createModelss(sequelize: Sequelize) {
   Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
   Collaborator.belongsTo(App, { foreignKey: 'appId' });
 
-  // Return all models for convenience (optional)
   return {
     Tenant,
     Package,
@@ -266,7 +311,7 @@ export function createModelss(sequelize: Sequelize) {
     Account,
     AccessKey,
     AppPointer,
-    Collaborator,
+    Collaborator,  // UNIFIED: supports both app-level AND tenant-level
     App,
   };
 }
@@ -284,7 +329,7 @@ export function defer<T>() {
 
 
 export const MODELS = {
-  COLLABORATOR : "collaborator",
+  COLLABORATOR : "collaborator",  // UNIFIED: supports both app-level AND tenant-level collaboration
   DEPLOYMENT : "deployment",
   APPS : "apps",
   PACKAGE : "package",
@@ -530,84 +575,107 @@ export class S3Storage implements storage.Storage {
       return this.setupPromise
         .then(() => this.getAccount(accountId)) // Fetch account details to check permissions
         .then(async (account: storage.Account) => {
-          // Set initial tenantId and tenantName from app data
-          let tenantId = app.tenantId;
-          let tenantName = app.tenantName;
-    
-          // Check if a tenantId is provided, and if so, verify or create tenant
+          const tenantId = app.tenantId;
+          
+          // V2 Flow: Tenant-based (NEW)
           if (tenantId) {
-            // Attempt to find the tenant by tenantId and tenantName
+            // Verify tenant exists
             const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
               where: { id: tenantId },
             });
-    
-            // If tenant is not found or tenantName doesn't match, create a new tenant
+            
             if (!tenant) {
-              console.log(`Specified tenant (ID: ${tenantId}, Name: ${tenantName}) does not exist. Creating a new tenant.`);
-    
-              const idTogenerate = shortid.generate();
-              // Create a new tenant with the specified tenantName, owned by the accountId
-              const newTenant = await this.sequelize.models[MODELS.TENANT].create({
-                id: idTogenerate,
-                displayName: tenantName,
-                createdBy: accountId,
-              });
-    
-              tenantId = idTogenerate;
-            } else {
-              // Verify if the user has admin permissions for the existing tenant
-              // const isAdmin = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
-              //   where: { accountId, tenantId, permission: storage.Permissions.Owner },
-              // });
-              const isAdmin = tenant.dataValues.createdBy === accountId;
-              if (!isAdmin) {
-                throw storage.storageError(storage.ErrorCode.Invalid, "User does not have admin permissions for the specified tenant.");
-              }
+              throw storage.storageError(
+                storage.ErrorCode.NotFound, 
+                "Specified organization does not exist."
+              );
             }
-          } else if(tenantName) {
-            //MARK Fix: Check if tenantName does not exist
-            const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
-              where: { displayName: tenantName },
+            
+            // Check user has permission (editor or admin) in the tenant
+            // Query tenant-level collaborators (where appId is null)
+            const tenantCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
+              where: { 
+                accountId, 
+                tenantId,
+                appId: null  // Tenant-level collaborator
+              },
             });
-
-            if(tenant) {
-              throw storage.storageError(storage.ErrorCode.AlreadyExists, "An organization or user of this name already exists. Please select a different name.");
-              //throw new Error("An organization or user of this name already exists. Please select a different name.")
-            } else {
-            // If no tenantId is provided, set tenantId to NULL (app is standalone/personal)
-              const idTogenerate = shortid.generate();
-              // Create a new tenant with the specified tenantName, owned by the accountId
-              const newTenant = await this.sequelize.models[MODELS.TENANT].create({
-                id: idTogenerate,
-                displayName: tenantName,
-                createdBy: accountId,
-              });
-              tenantId = idTogenerate;
+            
+            if (!tenantCollab) {
+              throw storage.storageError(
+                storage.ErrorCode.Invalid, 
+                "You are not a member of this organization."
+              );
             }
+            
+            const userPermission = tenantCollab.dataValues.permission;
+            if (userPermission === 'Viewer') {
+              throw storage.storageError(
+                storage.ErrorCode.Invalid, 
+                "You need Owner or Editor permissions to create apps."
+              );
+            }
+      
+            // Set the tenantId and tenantName on the app object
+            app.tenantId = tenantId;
+            app.tenantName = tenant.dataValues.displayName;
+      
+            // Add the App (tenant is the owner, accountId also set for backward compat)
+            const addedApp = await this.sequelize.models[MODELS.APPS].create({
+              ...app,
+              accountId, // Set both for dual compatibility
+            });
+      
+            // Add tenant-level collaborator entry (unified collaborators table)
+            const tenantCollabMap = {
+              email: account.email,
+              accountId,
+              tenantId,  // Tenant-level collaborator
+              appId: null,  // No specific app
+              permission: storage.Permissions.Owner,
+            };
+            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
+              where: { tenantId, accountId },
+              defaults: tenantCollabMap,
+            });
+            
+            // Also add app-level collaborator entry for backward compatibility
+            const appCollabMap = {
+              email: account.email,
+              accountId,
+              appId: app.id,  // App-level collaborator
+              tenantId: null,  // No tenant association for app-level
+              permission: storage.Permissions.Owner,
+            };
+            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
+              where: { appId: app.id, email: account.email },
+              defaults: appCollabMap,
+            });
+      
+            return addedApp;
+          } 
+          // V1 Flow: Account-based (OLD - backward compatibility)
+          else {
+            // Add the App with accountId as owner (old flow)
+            const addedApp = await this.sequelize.models[MODELS.APPS].create({
+              ...app,
+              accountId, // Direct account ownership
+            });
+      
+            // Add app-level collaborator entry (old flow)
+            const collabMap = {
+              email: account.email,
+              accountId,
+              permission: storage.Permissions.Owner,
+              appId: app.id,
+            };
+            await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
+              where: { appId: app.id, email: account.email },
+              defaults: collabMap,
+            });
+      
+            return addedApp;
           }
-    
-          // Set the tenantId on the app object
-          app.tenantId = tenantId;
-    
-          // Add the App with accountId and tenantId
-          const addedApp = await this.sequelize.models[MODELS.APPS].create({
-            ...app,
-            accountId,
-          });
-    
-          // Add a Collaborator entry for the app owner
-          const collabMap = {
-            email: account.email,
-            accountId,
-            permission: storage.Permissions.Owner,
-            appId: app.id,
-          };
-          await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-            where: { appId: app.id, email: account.email },
-            defaults: collabMap,
-          });
-    
-          return addedApp;
         })
         .then(() => app) // Return the app object
         .catch((error) => {
@@ -618,25 +686,51 @@ export class S3Storage implements storage.Storage {
     
 
     public getApps(accountId: string): Promise<storage.App[]> {
+      // Get apps from BOTH flows:
+      // V2: User → Tenant (via collaborators) → Apps (NEW)
+      // V1: User → Apps (directly via accountId) (OLD - backward compatibility)
       return this.setupPromise
-        .then(() => {
-        // Fetch all tenants where the account is a collaborator
-        return this.sequelize.models[exports.MODELS.COLLABORATOR].findAll({
-            where: { accountId: accountId },
-        });
-      }).then((collaborators) => {
-          const appIds = collaborators.map((collaborator) => {
-              const collaboratorModel = collaborator.dataValues;
-              return collaboratorModel.appId;
+        .then(async () => {
+          // V2 Flow: Get all tenants user is a member of
+          // Query tenant-level collaborators (where appId is null)
+          const tenantCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+            where: { 
+              accountId,
+              appId: null  // Tenant-level collaborators only
+            },
           });
-          return this.sequelize.models[exports.MODELS.APPS].findAll({
-              where: {
-                  id: appIds, // Match app IDs
-              }
+          
+          // Extract tenant IDs
+          const tenantIds = tenantCollabRecords.map((record: any) => 
+            record.dataValues.tenantId
+          ).filter(id => id !== null);  // Filter out any nulls
+          
+          // V2: Get all apps from these tenants
+          const tenantApps = tenantIds.length > 0 
+            ? await this.sequelize.models[MODELS.APPS].findAll({
+                where: {
+                  tenantId: tenantIds
+                }
+              })
+            : [];
+          
+          // V1 Flow: Get all apps directly owned by accountId (old flow)
+          const accountApps = await this.sequelize.models[MODELS.APPS].findAll({
+            where: {
+              accountId,
+              tenantId: null  // Only get old-style apps (no tenant)
+            }
           });
-      })
-        .then(async (flatAppsModel) => {
-          const flatApps = flatAppsModel.map((val) => val.dataValues);
+          
+          // Merge both lists, avoiding duplicates
+          const allAppsModel = [...tenantApps, ...accountApps];
+          const uniqueAppsMap = new Map();
+          allAppsModel.forEach((app: any) => {
+            const appData = app.dataValues;
+            uniqueAppsMap.set(appData.id, appData);
+          });
+          
+          const flatApps = Array.from(uniqueAppsMap.values());
           const apps = [];
           for (let i = 0; i < flatApps.length; i++) {
             const updatedApp = await this.getCollabrators(flatApps[i], accountId);
@@ -648,48 +742,84 @@ export class S3Storage implements storage.Storage {
     }
     
     public getTenants(accountId: string): Promise<storage.Organization[]> {
-      //first get all tenants
-      //get apps for each tenant
-      //check if user is owner or collaborator of one of that app
-      //if yes then serve that tenant
+      // Fetch all tenants where the user is a member (via collaborators)
+      // User → Tenant (parent entity) → Apps
       return this.setupPromise
-        .then(() => {
-          // Fetch all tenants where the account is a collaborator
-          return this.sequelize.models[MODELS.COLLABORATOR].findAll({
-            where: { accountId: accountId },
-          });
-        }).then((collaborators) => {
-          const appIds = collaborators.map((collaborator) => {
-            const collaboratorModel = collaborator.dataValues;
-            return collaboratorModel.appId
-          });
-          return this.sequelize.models[MODELS.APPS].findAll({
-            where: {
-              id: appIds, // Match app IDs
+        .then(async () => {
+          // Get user's tenant-level collaborations (where appId is null)
+          const tenantCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+            where: { 
+              accountId,
+              appId: null  // Tenant-level collaborators only
             }
           });
-        }).then((apps) => {
-          const tenantIds = apps.map((app) => app.dataValues.tenantId);
-          return this.sequelize.models[MODELS.TENANT].findAll({
-            where: {
-              id: tenantIds, // Match tenant IDs
-            }
-          });
+          
+          // Fetch full tenant details for each
+          const tenants = await Promise.all(
+            tenantCollabs.map(async (collab: any) => {
+              const tenantId = collab.dataValues.tenantId;
+              const permission = collab.dataValues.permission;
+              
+              const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
+                where: { id: tenantId }
+              });
+              
+              if (!tenant) return null;
+              
+              return {
+                id: tenant.dataValues.id,
+                displayName: tenant.dataValues.displayName,
+                role: permission,  // Already in correct format: Owner/Editor/Viewer
+                createdBy: tenant.dataValues.createdBy,
+                createdTime: tenant.dataValues.createdTime
+              };
+            })
+          );
+          
+          // Filter out any nulls
+          return tenants.filter(t => t !== null);
         })
-        .then((tenantsModel) => {
-          // Format tenants into the desired response structure
-          const tenants = tenantsModel.map((tenantModel) => {
-            const tenant = tenantModel.dataValues;
-            const permission = tenant.createdBy === accountId ? "Owner" : "Collaborator";
-            //permission could be modified if user account does not belong to Collabrator to any other app of that tenant.
-            return {
-              id: tenant.id,
-              displayName: tenant.displayName, // Assuming `displayName` in Tenant model holds org name
-              role: permission,
-            };
-          });
+        .catch(S3Storage.storageErrorHandler);
+    }
     
-          return tenants;
+    public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+      return this.setupPromise
+        .then(async () => {
+          const tenantId = tenant.id || shortid.generate();
+          const now = new Date().getTime();
+          
+          // Create the tenant
+          const createdTenant = await this.sequelize.models[MODELS.TENANT].create({
+            id: tenantId,
+            displayName: tenant.displayName,
+            createdBy: accountId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          // Add creator as tenant-level collaborator with Owner permission
+          const account = await this.sequelize.models[MODELS.ACCOUNT].findOne({
+            where: { id: accountId }
+          });
+          
+          await this.sequelize.models[MODELS.COLLABORATOR].create({
+            email: account.dataValues.email,
+            accountId: accountId,
+            appId: null,  // Tenant-level (no specific app)
+            tenantId: tenantId,
+            permission: 'Owner',  // Creator gets Owner permission
+            isCreator: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          return {
+            id: tenantId,
+            displayName: tenant.displayName,
+            role: 'Owner',
+            createdBy: accountId,
+            createdTime: now
+          };
         })
         .catch(S3Storage.storageErrorHandler);
     }
@@ -738,6 +868,115 @@ export class S3Storage implements storage.Storage {
           return this.sequelize.models[MODELS.TENANT].destroy({
             where: { id: tenantId, createdBy: accountId },
           });
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    // Tenant Collaborator Methods
+    
+    public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+      return this.setupPromise
+        .then(async () => {
+          // Get all tenant-level collaborators (where appId is NULL)
+          const collaborators = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+            where: {
+              tenantId: tenantId,
+              appId: null
+            }
+          });
+
+          const collaboratorMap: storage.CollaboratorMap = {};
+          
+          for (const collab of collaborators) {
+            const email = collab.dataValues.email;
+            collaboratorMap[email] = {
+              accountId: collab.dataValues.accountId,
+              permission: collab.dataValues.permission
+            };
+          }
+
+          return collaboratorMap;
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+      return this.setupPromise
+        .then(async () => {
+          // Find the account by email
+          const account = await this.sequelize.models[MODELS.ACCOUNT].findOne({
+            where: { email: email }
+          });
+
+          if (!account) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "User with this email does not exist");
+          }
+
+          const accountId = account.dataValues.id;
+
+          // Check if collaborator already exists
+          const existing = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
+            where: {
+              tenantId: tenantId,
+              accountId: accountId,
+              appId: null
+            }
+          });
+
+          if (existing) {
+            throw storage.storageError(storage.ErrorCode.AlreadyExists, "User is already a collaborator");
+          }
+
+          // Add collaborator
+          await this.sequelize.models[MODELS.COLLABORATOR].create({
+            email: email,
+            accountId: accountId,
+            tenantId: tenantId,
+            appId: null,
+            permission: permission,
+            isCreator: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+      return this.setupPromise
+        .then(async () => {
+          const result = await this.sequelize.models[MODELS.COLLABORATOR].update(
+            { permission: permission, updatedAt: new Date() },
+            {
+              where: {
+                tenantId: tenantId,
+                email: email,
+                appId: null
+              }
+            }
+          );
+
+          if (result[0] === 0) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "Collaborator not found");
+          }
+        })
+        .catch(S3Storage.storageErrorHandler);
+    }
+
+    public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
+      return this.setupPromise
+        .then(async () => {
+          const result = await this.sequelize.models[MODELS.COLLABORATOR].destroy({
+            where: {
+              tenantId: tenantId,
+              email: email,
+              appId: null
+            }
+          });
+
+          if (result === 0) {
+            throw storage.storageError(storage.ErrorCode.NotFound, "Collaborator not found");
+          }
         })
         .catch(S3Storage.storageErrorHandler);
     }
