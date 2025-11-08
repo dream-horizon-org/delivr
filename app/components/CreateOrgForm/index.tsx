@@ -25,7 +25,7 @@ export function CreateOrgForm() {
             </Center>
           </Card.Section>
 
-          <TextInput
+          {/* <TextInput
             label="Enter Organization Name"
             placeholder="Organization Name"
             key={form.key("name")}
@@ -37,7 +37,7 @@ export function CreateOrgForm() {
                 },
               },
             }}
-          />
+          /> */}
 
           <CTAButton
             fullWidth

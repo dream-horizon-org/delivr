@@ -401,6 +401,87 @@ class Codepush {
       }
     );
   }
+
+  async createOrganization(displayName: string, userId: string) {
+    return this.__client.post<
+      { displayName: string },
+      AxiosResponse<{ organisation: { id: string; displayName: string; role: string; createdBy: string; createdTime: number } }>
+    >(
+      "/tenants",
+      {
+        displayName,
+      },
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  // Tenant Collaborator Methods
+  async getTenantCollaborators(tenantId: string, userId: string) {
+    return this.__client.get<
+      null,
+      AxiosResponse<{ collaborators: Record<string, { accountId: string; permission: string }> }>
+    >(
+      `/tenants/${tenantId}/collaborators`,
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  async addTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+    return this.__client.post<
+      { email: string; permission: string },
+      AxiosResponse<{ message: string }>
+    >(
+      `/tenants/${tenantId}/collaborators`,
+      {
+        email,
+        permission,
+      },
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  async updateTenantCollaborator(tenantId: string, email: string, permission: string, userId: string) {
+    return this.__client.patch<
+      { permission: string },
+      AxiosResponse<{ message: string }>
+    >(
+      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      {
+        permission,
+      },
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
+
+  async removeTenantCollaborator(tenantId: string, email: string, userId: string) {
+    return this.__client.delete<
+      null,
+      AxiosResponse<{ message: string }>
+    >(
+      `/tenants/${tenantId}/collaborators/${encodeURIComponent(email)}`,
+      {
+        headers: {
+          userId: userId,
+        },
+      }
+    );
+  }
 }
 
 export const CodepushService = new Codepush();

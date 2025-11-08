@@ -1,4 +1,4 @@
-import { useSubmit } from "@remix-run/react";
+import { useSubmit, useSearchParams } from "@remix-run/react";
 import { LoaderFunctionArgs } from "@remix-run/node";
 import { AuthenticatorService } from "~/.server/services/Auth/Auth";
 import { LoginForm } from "~/components/Pages/Login";
@@ -9,6 +9,8 @@ export const loader = ({ request }: LoaderFunctionArgs) => {
 
 export default function AuthenticationForm() {
   const submit = useSubmit();
+  const [searchParams] = useSearchParams();
+  const error = searchParams.get("error");
 
   const login = () => {
     submit(null, {
@@ -17,5 +19,5 @@ export default function AuthenticationForm() {
     });
   };
 
-  return <LoginForm onClickLogin={login} />;
+  return <LoginForm onClickLogin={login} error={error} />;
 }

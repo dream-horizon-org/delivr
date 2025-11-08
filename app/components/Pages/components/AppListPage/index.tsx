@@ -48,9 +48,12 @@ export function AppListPage({ user }: AppListPageProps) {
   const { data: orgs = [] } = useGetOrgList();
   const currentOrg = orgs.find((org) => org.id === params.org);
 
+  // Render content based on state
+  let content;
+
   if (isLoading) {
-    return (
-      <Box>
+    content = (
+      <>
         <Group justify="space-between" align="center" mb="xl">
           <Skeleton height={40} width={250} />
           <Skeleton height={40} width={200} />
@@ -62,34 +65,11 @@ export function AppListPage({ user }: AppListPageProps) {
               <Skeleton key={index} width={250} height={250} radius="md" />
             ))}
         </Flex>
-      </Box>
+      </>
     );
-  }
-
-  if (isError) {
-    return (
-      <Box>
-        <Group justify="space-between" align="center" mb="lg">
-          <Group gap="xs" align="center">
-            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
-              {currentOrg?.orgName || "Organization"}
-            </Text>
-            <IconChevronRight size={theme.other.sizes.icon.md} color={theme.other.text.tertiary} />
-            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
-              Applications
-            </Text>
-          </Group>
-        </Group>
-        <Text c="red" ta="center" p="xl">
-          Something went wrong while loading apps!
-        </Text>
-      </Box>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Box>
+  } else if (isError) {
+    content = (
+      <>
         <Group justify="space-between" align="center" mb="lg">
           <Group gap="xs" align="center">
             <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
@@ -102,7 +82,37 @@ export function AppListPage({ user }: AppListPageProps) {
           </Group>
           <CTAButton
             leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
-            onClick={() => navigate(route("/dashboard/create/app"))}
+            onClick={() => setCreateAppOpen(true)}
+            styles={{
+              root: {
+                boxShadow: theme.other.shadows.md,
+              },
+            }}
+          >
+            Create App
+          </CTAButton>
+        </Group>
+        <Text c="red" ta="center" p="xl">
+          Something went wrong while loading apps!
+        </Text>
+      </>
+    );
+  } else if (!data || data.length === 0) {
+    content = (
+      <>
+        <Group justify="space-between" align="center" mb="lg">
+          <Group gap="xs" align="center">
+            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+              {currentOrg?.orgName || "Organization"}
+            </Text>
+            <IconChevronRight size={theme.other.sizes.icon.md} color={theme.other.text.tertiary} />
+            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+              Applications
+            </Text>
+          </Group>
+          <CTAButton
+            leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+            onClick={() => setCreateAppOpen(true)}
             styles={{
               root: {
                 boxShadow: theme.other.shadows.md,
@@ -117,62 +127,68 @@ export function AppListPage({ user }: AppListPageProps) {
             No apps found. Create your first app to get started!
           </Text>
         </Paper>
-      </Box>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <Group justify="space-between" align="center" mb="lg">
+          <Group gap="xs" align="center">
+            <Text 
+              size="sm" 
+              fw={theme.other.typography.fontWeight.medium} 
+              c={theme.other.text.tertiary}
+              style={{ cursor: "pointer" }}
+              onClick={() => navigate(route("/dashboard"))}
+            >
+              {currentOrg?.orgName || "Organization"}
+            </Text>
+            <IconChevronRight size={theme.other.sizes.icon.sm} color={theme.other.text.tertiary} />
+            <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+              Applications
+            </Text>
+          </Group>
+          
+          <CTAButton
+            leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+            onClick={() => setCreateAppOpen(true)}
+          >
+            Create App
+          </CTAButton>
+        </Group>
+
+        <Flex gap="lg" wrap="wrap">
+          {data.map((app) => (
+            <AppListRow
+              key={app.id}
+              app={app}
+              onNavigate={() => {
+                navigate(
+                  route("/dashboard/:org/:app", {
+                    org: params.org ?? "",
+                    app: app.id,
+                  })
+                );
+              }}
+              onDelete={() => {
+                setDeleteAppState({ id: app.id, name: app.name });
+              }}
+            />
+          ))}
+        </Flex>
+      </>
     );
   }
 
   return (
     <Box>
-      <Group justify="space-between" align="center" mb="lg">
-        <Group gap="xs" align="center">
-          <Text 
-            size="sm" 
-            fw={theme.other.typography.fontWeight.medium} 
-            c={theme.other.text.tertiary}
-            style={{ cursor: "pointer" }}
-            onClick={() => navigate(route("/dashboard"))}
-          >
-            {currentOrg?.orgName || "Organization"}
-          </Text>
-          <IconChevronRight size={theme.other.sizes.icon.sm} color={theme.other.text.tertiary} />
-          <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
-            Applications
-          </Text>
-        </Group>
-        
-        <CTAButton
-          leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
-          onClick={() => setCreateAppOpen(true)}
-        >
-          Create App
-        </CTAButton>
-      </Group>
+      {content}
 
-      <Flex gap="lg" wrap="wrap">
-        {data.map((app) => (
-          <AppListRow
-            key={app.id}
-            app={app}
-            onNavigate={() => {
-              navigate(
-                route("/dashboard/:org/:app", {
-                  org: params.org ?? "",
-                  app: app.id,
-                })
-              );
-            }}
-            onDelete={() => {
-              setDeleteAppState({ id: app.id, name: app.name });
-            }}
-          />
-        ))}
-      </Flex>
-
-      {/* Create App Modal */}
+      {/* Create App Modal - Always rendered */}
       <Modal
         opened={createAppOpen}
         onClose={() => setCreateAppOpen(false)}
-        title="Create App"
+        title="Create Application"
         centered
       >
         <CreateAppForm

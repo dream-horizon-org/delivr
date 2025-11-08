@@ -9,7 +9,6 @@ import { IconBuilding } from "@tabler/icons-react";
 import { useState } from "react";
 import { notifications } from "@mantine/notifications";
 import axios from "axios";
-import { route } from "routes-gen";
 
 type CreateOrgModalProps = {
   onSuccess: () => void;
@@ -18,9 +17,9 @@ type CreateOrgModalProps = {
 export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<{ orgName: string; appName: string }>({
+  const form = useForm<{ orgName: string }>({
     mode: "controlled",
-    initialValues: { orgName: "", appName: "" },
+    initialValues: { orgName: "" },
     validateInputOnChange: true,
     validateInputOnBlur: true,
     validate: {
@@ -29,15 +28,10 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
         if (value.length < 3) return "Organization name must be at least 3 characters";
         return null;
       },
-      appName: (value) => {
-        if (!value || value.length === 0) return "Initial app name is required";
-        if (value.length < 3) return "App name must be at least 3 characters";
-        return null;
-      },
     },
   });
 
-  const handleSubmit = async (values: { orgName: string; appName: string }) => {
+  const handleSubmit = async (values: { orgName: string }) => {
     // Validate before submitting
     if (form.validate().hasErrors) {
       return;
@@ -45,14 +39,24 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
 
     setIsLoading(true);
     try {
-      // Create org by creating an app with orgName
-      await axios.post(
-        route("/api/v1/:org/apps", { org: "new" }),
-        {
-          orgName: values.orgName,
-          name: values.appName,
-        }
-      );
+      // Create organization using the new tenant API
+      // Use a Remix form action instead of direct axios call
+      const formData = new FormData();
+      formData.append("displayName", values.orgName);
+      
+      const response = await fetch("/api/v1/tenants", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ displayName: values.orgName }),
+        credentials: "include", // Important: includes cookies for authentication
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create organization");
+      }
 
       notifications.show({
         title: "Success",
@@ -64,7 +68,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     } catch (error: any) {
       notifications.show({
         title: "Error",
-        message: error.response?.data?.message || "Failed to create organization",
+        message: error.message || "Failed to create organization",
         color: "red",
       });
     } finally {
@@ -76,7 +80,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Create a new organization with an initial app. You can add more apps later.
+          Create a new organization to manage your apps and team members.
         </Text>
 
         <TextInput
@@ -90,17 +94,6 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
           disabled={isLoading}
         />
 
-        <TextInput
-          label="Initial App Name"
-          placeholder="My First App"
-          description="Every organization needs at least one app"
-          required
-          withAsterisk
-          key={form.key("appName")}
-          {...form.getInputProps("appName")}
-          disabled={isLoading}
-        />
-
         <Button
           type="submit"
           fullWidth
@@ -108,8 +101,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
           disabled={
             isLoading ||
             !!Object.keys(form.errors).length ||
-            !form.values.orgName?.trim() ||
-            !form.values.appName?.trim()
+            !form.values.orgName?.trim()
           }
         >
           Create Organization

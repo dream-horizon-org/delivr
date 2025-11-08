@@ -7,6 +7,7 @@ import {
   useMantineTheme,
   Collapse,
   Modal,
+  Divider,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -14,9 +15,13 @@ import {
   IconAppWindow,
   IconChevronDown,
   IconChevronUp,
+  IconUsers,
+  IconSettings,
+  IconRocket,
+  IconCloud,
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
-import { useNavigate } from "@remix-run/react";
+import { useNavigate, useLocation } from "@remix-run/react";
 import { route } from "routes-gen";
 import { useGetAppListForOrg } from "../../AppList/hooks/useGetAppListForOrg";
 import { CTAButton } from "~/components/CTAButton";
@@ -36,22 +41,89 @@ type CombinedSidebarProps = {
   userEmail: string;
 };
 
-
-// Component for each organization with its apps
-function OrgWithApps({
-  org,
+// Navigation item component
+function NavItem({
+  icon: Icon,
+  label,
   isActive,
+  onClick,
+  isOwnerOnly = false,
+  isOwner = false,
+}: {
+  icon: any;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+  isOwnerOnly?: boolean;
+  isOwner?: boolean;
+}) {
+  const theme = useMantineTheme();
+
+  // Hide owner-only items if not owner
+  if (isOwnerOnly && !isOwner) {
+    return null;
+  }
+
+  return (
+    <UnstyledButton
+      onClick={onClick}
+      style={{
+        width: "100%",
+        padding: `${theme.other.spacing.sm} ${theme.other.spacing.md}`,
+        borderRadius: theme.other.borderRadius.md,
+        transition: theme.other.transitions.fast,
+        background: isActive ? theme.other.brand.gradient : "transparent",
+        border: "1px solid transparent",
+      }}
+      styles={{
+        root: {
+          "&:hover": {
+            background: isActive
+              ? theme.other.brand.gradient
+              : theme.other.backgrounds.hover,
+          },
+        },
+      }}
+    >
+      <Box
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: theme.other.spacing.md,
+        }}
+      >
+        <Icon
+          size={theme.other.sizes.icon.lg}
+          color={isActive ? theme.other.text.white : theme.other.text.secondary}
+          stroke={1.5}
+        />
+        <Text
+          fw={theme.other.typography.fontWeight.medium}
+          size="sm"
+          c={isActive ? "white" : theme.other.text.secondary}
+        >
+          {label}
+        </Text>
+      </Box>
+    </UnstyledButton>
+  );
+}
+
+// OTA Module with expandable apps
+function OTAModule({
+  org,
   currentAppId,
   userEmail,
   isExpanded,
   onToggleExpand,
+  isActive,
 }: {
   org: Organization;
-  isActive: boolean;
   currentAppId?: string;
   userEmail: string;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  isActive: boolean;
 }) {
   const theme = useMantineTheme();
   const navigate = useNavigate();
@@ -70,12 +142,10 @@ function OrgWithApps({
         }}
         style={{
           width: "100%",
-          padding: `${theme.other.spacing.md} ${theme.other.spacing.lg}`,
+          padding: `${theme.other.spacing.sm} ${theme.other.spacing.md}`,
           borderRadius: theme.other.borderRadius.md,
           transition: theme.other.transitions.fast,
-          background: isActive
-            ? theme.other.brand.gradient
-            : "transparent",
+          background: isActive ? theme.other.brand.gradient : "transparent",
           border: "1px solid transparent",
         }}
         styles={{
@@ -88,62 +158,50 @@ function OrgWithApps({
           },
         }}
       >
-        <Box style={{ display: "flex", alignItems: "center", gap: theme.other.spacing.md }}>
-          <IconBuilding 
-            size={theme.other.sizes.icon.xl} 
+        <Box
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: theme.other.spacing.md,
+          }}
+        >
+          <IconCloud
+            size={theme.other.sizes.icon.lg}
             color={isActive ? theme.other.text.white : theme.other.text.secondary}
             stroke={1.5}
           />
-          <Box style={{ flex: 1, minWidth: 0 }}>
+          <Box style={{ flex: 1 }}>
             <Text
-              fw={theme.other.typography.fontWeight.semibold}
-              size="md"
+              fw={theme.other.typography.fontWeight.medium}
+              size="sm"
               c={isActive ? "white" : theme.other.text.secondary}
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
             >
-              {org.orgName}
+              OTA (Over-The-Air)
             </Text>
           </Box>
-          <Box
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleExpand();
-            }}
-            style={{
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              padding: theme.other.spacing.xxs,
-            }}
-          >
-            {isExpanded ? (
-              <IconChevronUp 
-                size={theme.other.sizes.icon.md} 
-                color={isActive ? theme.other.text.white : theme.other.text.secondary}
-              />
-            ) : (
-              <IconChevronDown 
-                size={theme.other.sizes.icon.md} 
-                color={isActive ? theme.other.text.white : theme.other.text.secondary}
-              />
-            )}
-          </Box>
+          {isExpanded ? (
+            <IconChevronUp
+              size={theme.other.sizes.icon.sm}
+              color={isActive ? theme.other.text.white : theme.other.text.secondary}
+            />
+          ) : (
+            <IconChevronDown
+              size={theme.other.sizes.icon.sm}
+              color={isActive ? theme.other.text.white : theme.other.text.secondary}
+            />
+          )}
         </Box>
       </UnstyledButton>
 
       <Collapse in={isExpanded}>
-        <Box style={{ paddingLeft: theme.other.spacing.lg, marginTop: theme.other.spacing.sm, marginBottom: theme.other.spacing.sm }}>
+        <Box style={{ paddingLeft: theme.other.spacing.xl, marginTop: theme.other.spacing.xs }}>
           {isLoading ? (
             <Text size="xs" c="dimmed" p="xs">
               Loading apps...
             </Text>
           ) : apps.length === 0 ? (
             <Text size="xs" c="dimmed" p="xs">
-              No apps
+              No apps yet
             </Text>
           ) : (
             <Stack gap="xxs">
@@ -163,9 +221,8 @@ function OrgWithApps({
                     }}
                     style={{
                       width: "100%",
-                      padding: `${theme.other.spacing.sm} ${theme.other.spacing.md}`,
-                      paddingBottom: theme.other.spacing.md,
-                      borderRadius: 0,
+                      padding: `${theme.other.spacing.xs} ${theme.other.spacing.sm}`,
+                      borderRadius: theme.other.borderRadius.sm,
                       transition: theme.other.transitions.fast,
                       backgroundColor: isAppActive
                         ? theme.other.brand.light
@@ -188,15 +245,27 @@ function OrgWithApps({
                         gap: theme.other.spacing.sm,
                       }}
                     >
-                      <IconAppWindow 
-                        size={theme.other.sizes.icon.md} 
-                        color={isAppActive ? theme.other.brand.primary : theme.other.text.secondary}
+                      <IconAppWindow
+                        size={theme.other.sizes.icon.md}
+                        color={
+                          isAppActive
+                            ? theme.other.brand.primary
+                            : theme.other.text.tertiary
+                        }
                         stroke={1.5}
                       />
                       <Text
-                        fw={isAppActive ? theme.other.typography.fontWeight.semibold : theme.other.typography.fontWeight.medium}
-                        size="sm"
-                        c={isAppActive ? theme.other.brand.primaryDark : theme.other.text.secondary}
+                        fw={
+                          isAppActive
+                            ? theme.other.typography.fontWeight.semibold
+                            : theme.other.typography.fontWeight.regular
+                        }
+                        size="xs"
+                        c={
+                          isAppActive
+                            ? theme.other.brand.primaryDark
+                            : theme.other.text.tertiary
+                        }
                         style={{
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -218,6 +287,223 @@ function OrgWithApps({
   );
 }
 
+// Organization-focused sidebar (when inside an org)
+function OrgSidebar({
+  org,
+  currentAppId,
+  userEmail,
+}: {
+  org: Organization;
+  currentAppId?: string;
+  userEmail: string;
+}) {
+  const theme = useMantineTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [otaExpanded, setOtaExpanded] = useState(true);
+
+  const isManageActive = location.pathname.includes("/manage");
+  const isSettingsActive = location.pathname.includes("/delete"); // Delete is under settings
+  const isOTAActive = location.pathname.includes("/apps") || !!currentAppId;
+
+  return (
+    <Box>
+      {/* Organization Header */}
+      <Box
+        style={{
+          padding: `${theme.other.spacing.lg} ${theme.other.spacing.lg}`,
+          borderBottom: `1px solid ${theme.other.borders.primary}`,
+        }}
+      >
+        <Box style={{ display: "flex", alignItems: "center", gap: theme.other.spacing.sm }}>
+          <IconBuilding
+            size={theme.other.sizes.icon.xl}
+            color={theme.other.brand.primary}
+            stroke={1.5}
+          />
+          <Box style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              fw={theme.other.typography.fontWeight.bold}
+              size="md"
+              c={theme.other.text.primary}
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {org.orgName}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {org.isAdmin ? "Owner" : "Member"}
+            </Text>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Navigation Items */}
+      <Box style={{ padding: theme.other.spacing.md }}>
+        <Stack gap="xs">
+          {/* Modules Section */}
+          <Text
+            size="xs"
+            fw={theme.other.typography.fontWeight.semibold}
+            c={theme.other.text.disabled}
+            style={{
+              letterSpacing: theme.other.typography.letterSpacing.wider,
+              marginBottom: theme.other.spacing.xs,
+              paddingLeft: theme.other.spacing.sm,
+            }}
+          >
+            MODULES
+          </Text>
+
+          {/* Release Management - Coming Soon */}
+          <NavItem
+            icon={IconRocket}
+            label="Release Management"
+            isActive={false}
+            onClick={() => {
+              // TODO: Implement when ready
+              console.log("Release Management - Coming soon");
+            }}
+          />
+
+          {/* OTA (Over-The-Air) */}
+          <OTAModule
+            org={org}
+            currentAppId={currentAppId}
+            userEmail={userEmail}
+            isExpanded={otaExpanded}
+            onToggleExpand={() => setOtaExpanded(!otaExpanded)}
+            isActive={isOTAActive}
+          />
+
+          <Divider my="sm" />
+
+          {/* Team & Settings Section */}
+          <Text
+            size="xs"
+            fw={theme.other.typography.fontWeight.semibold}
+            c={theme.other.text.disabled}
+            style={{
+              letterSpacing: theme.other.typography.letterSpacing.wider,
+              marginBottom: theme.other.spacing.xs,
+              paddingLeft: theme.other.spacing.sm,
+            }}
+          >
+            ORGANIZATION
+          </Text>
+
+          {/* Manage Team - Owner Only */}
+          <NavItem
+            icon={IconUsers}
+            label="Manage Team"
+            isActive={isManageActive}
+            onClick={() => navigate(route("/dashboard/:org/manage", { org: org.id }))}
+            isOwnerOnly={true}
+            isOwner={org.isAdmin}
+          />
+
+          {/* Settings - Owner Only */}
+          <NavItem
+            icon={IconSettings}
+            label="Settings"
+            isActive={isSettingsActive}
+            onClick={() =>
+              navigate(
+                route("/dashboard/delete") + `?type=org&id=${org.id}&name=${org.orgName}`
+              )
+            }
+            isOwnerOnly={true}
+            isOwner={org.isAdmin}
+          />
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
+// All organizations list (when on dashboard home)
+function AllOrgsList({
+  organizations,
+  onSelectOrg,
+}: {
+  organizations: Organization[];
+  onSelectOrg: (orgId: string) => void;
+}) {
+  const theme = useMantineTheme();
+
+  return (
+    <Box>
+      <Text
+        size="sm"
+        fw={theme.other.typography.fontWeight.semibold}
+        c={theme.other.text.disabled}
+        style={{
+          letterSpacing: theme.other.typography.letterSpacing.wider,
+          marginBottom: theme.other.spacing.md,
+          paddingLeft: theme.other.spacing.lg,
+        }}
+      >
+        ORGANIZATIONS
+      </Text>
+      <Stack gap="xs">
+        {organizations.map((org) => (
+          <UnstyledButton
+            key={org.id}
+            onClick={() => onSelectOrg(org.id)}
+            style={{
+              width: "100%",
+              padding: `${theme.other.spacing.md} ${theme.other.spacing.lg}`,
+              borderRadius: theme.other.borderRadius.md,
+              transition: theme.other.transitions.fast,
+            }}
+            styles={{
+              root: {
+                "&:hover": {
+                  backgroundColor: theme.other.backgrounds.hover,
+                },
+              },
+            }}
+          >
+            <Box
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: theme.other.spacing.md,
+              }}
+            >
+              <IconBuilding
+                size={theme.other.sizes.icon.xl}
+                color={theme.other.text.secondary}
+                stroke={1.5}
+              />
+              <Box style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  fw={theme.other.typography.fontWeight.semibold}
+                  size="md"
+                  c={theme.other.text.primary}
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {org.orgName}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {org.isAdmin ? "Owner" : "Member"}
+                </Text>
+              </Box>
+            </Box>
+          </UnstyledButton>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
 export function CombinedSidebar({
   organizations,
   currentOrgId,
@@ -226,15 +512,9 @@ export function CombinedSidebar({
 }: CombinedSidebarProps) {
   const theme = useMantineTheme();
   const navigate = useNavigate();
-  const [expandedOrgId, setExpandedOrgId] = useState<string | null>(currentOrgId || null);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
 
-  // Auto-expand the organization that contains the current app
-  useEffect(() => {
-    if (currentOrgId) {
-      setExpandedOrgId(currentOrgId);
-    }
-  }, [currentOrgId, currentAppId]);
+  const currentOrg = organizations.find((org) => org.id === currentOrgId);
 
   return (
     <Box
@@ -253,48 +533,36 @@ export function CombinedSidebar({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          paddingRight: theme.other.spacing.lg,
         }}
       >
-        <Stack gap="xs" style={{ paddingLeft: theme.other.spacing.lg, paddingTop: theme.other.spacing["3xl"], paddingBottom: theme.other.spacing.md, flex: 1 }}>
+        <Stack
+          gap="xs"
+          style={{
+            paddingTop: theme.other.spacing["3xl"],
+            paddingBottom: theme.other.spacing.md,
+            flex: 1,
+          }}
+        >
           <ScrollArea style={{ height: "calc(100vh - 220px)" }}>
-            <Text
-              size="sm"
-              fw={theme.other.typography.fontWeight.semibold}
-              c={theme.other.text.disabled}
-              style={{
-                letterSpacing: theme.other.typography.letterSpacing.wider,
-                marginBottom: theme.other.spacing.md,
-                paddingLeft: theme.other.spacing.lg,
-              }}
-            >
-              ORGANIZATIONS
-            </Text>
-            <Stack gap="md">
-              {organizations.map((org) => {
-                const isActive = org.id === currentOrgId;
-
-                return (
-                  <OrgWithApps
-                    key={org.id}
-                    org={org}
-                    isActive={isActive}
-                    currentAppId={currentAppId}
-                    userEmail={userEmail}
-                    isExpanded={expandedOrgId === org.id}
-                    onToggleExpand={() => {
-                      setExpandedOrgId(expandedOrgId === org.id ? null : org.id);
-                    }}
-                  />
-                );
-              })}
-            </Stack>
+            {currentOrg ? (
+              // Show org-specific navigation when inside an org
+              <OrgSidebar org={currentOrg} currentAppId={currentAppId} userEmail={userEmail} />
+            ) : (
+              // Show all orgs when on dashboard home
+              <AllOrgsList
+                organizations={organizations}
+                onSelectOrg={(orgId) =>
+                  navigate(route("/dashboard/:org/apps", { org: orgId }))
+                }
+              />
+            )}
           </ScrollArea>
         </Stack>
 
         <Box
           style={{
             paddingLeft: theme.other.spacing.lg,
+            paddingRight: theme.other.spacing.lg,
             paddingTop: theme.other.spacing.md,
             paddingBottom: theme.other.spacing.lg,
             borderTop: `1px solid ${theme.other.borders.primary}`,

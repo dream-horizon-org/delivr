@@ -29,19 +29,25 @@ export function OrgListWithActions() {
             label: "Apps",
             link: route("/dashboard/:org/apps", { org: org.id }),
           },
-          // {
-          //   label: "Manage",
-          //   link: route("/dashboard/:org/manage", {
-          //     org: org.id,
-          //   }),
-          // },
+          {
+            label: "Manage Team",
+            link: route("/dashboard/:org/manage", {
+              org: org.id,
+            }),
+          },
           {
             label: "Delete",
             link:
               route("/dashboard/delete") +
               `?type=org&id=${org.id}&name=${org.orgName}`,
           },
-        ].filter((_item) => (org.isAdmin ? true : _item.label !== "Delete")),
+        ].filter((_item) => {
+          // Only show "Manage Team" and "Delete" to owners
+          if (!org.isAdmin && (_item.label === "Delete" || _item.label === "Manage Team")) {
+            return false;
+          }
+          return true;
+        }),
       };
     });
   }, [data]);
