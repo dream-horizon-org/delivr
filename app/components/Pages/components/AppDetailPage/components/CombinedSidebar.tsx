@@ -19,6 +19,8 @@ import {
   IconSettings,
   IconRocket,
   IconCloud,
+  IconChartBar,
+  IconList,
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "@remix-run/react";
@@ -305,6 +307,8 @@ function OrgSidebar({
   const isManageActive = location.pathname.includes("/manage");
   const isSettingsActive = location.pathname.includes("/delete"); // Delete is under settings
   const isOTAActive = location.pathname.includes("/apps") || !!currentAppId;
+  const isReleaseDashboardActive = location.pathname.includes("/release-management") && !location.pathname.includes("/releases");
+  const isReleasesActive = location.pathname.includes("/releases");
 
   return (
     <Box>
@@ -358,16 +362,23 @@ function OrgSidebar({
             MODULES
           </Text>
 
-          {/* Release Management - Coming Soon */}
+          {/* Release Management Dashboard */}
           <NavItem
-            icon={IconRocket}
-            label="Release Management"
-            isActive={false}
-            onClick={() => {
-              // TODO: Implement when ready
-              console.log("Release Management - Coming soon");
-            }}
+            icon={IconChartBar}
+            label="Release Dashboard"
+            isActive={isReleaseDashboardActive}
+            onClick={() => navigate(`/dashboard/${org.id}/release-management`)}
           />
+
+          {/* Releases List */}
+          <NavItem
+            icon={IconList}
+            label="Releases"
+            isActive={isReleasesActive}
+            onClick={() => navigate(`/dashboard/${org.id}/releases`)}
+          />
+
+          <Divider my="sm" />
 
           {/* OTA (Over-The-Air) */}
           <OTAModule
