@@ -2,7 +2,7 @@
 -- Date: 2025-11-08
 -- WARNING: This will remove data! Only use for development rollback.
 
--- Remove expanded permissions and isCreator from collaborators
+-- Revert to legacy permission enum (if rolling back)
 ALTER TABLE collaborators
   MODIFY COLUMN permission ENUM('Collaborator', 'Owner') DEFAULT NULL;
 
@@ -20,11 +20,7 @@ ALTER TABLE collaborators
   DROP COLUMN IF EXISTS tenantId;
 
 -- Remove OAuth and profile fields from accounts
-ALTER TABLE accounts DROP COLUMN IF EXISTS teamsId;
-ALTER TABLE accounts DROP COLUMN IF EXISTS slackId;
 ALTER TABLE accounts DROP COLUMN IF EXISTS picture;
-ALTER TABLE accounts DROP COLUMN IF EXISTS lastName;
-ALTER TABLE accounts DROP COLUMN IF EXISTS firstName;
 ALTER TABLE accounts DROP COLUMN IF EXISTS microsoftId;
 ALTER TABLE accounts DROP COLUMN IF EXISTS gitHubId;
 ALTER TABLE accounts DROP COLUMN IF EXISTS azureAdId;

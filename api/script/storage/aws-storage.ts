@@ -51,13 +51,7 @@ export function createAccount(sequelize: Sequelize) {
     microsoftId: { type: DataTypes.STRING, allowNull: true },
     
     // User Profile
-    firstName: { type: DataTypes.STRING, allowNull: true },
-    lastName: { type: DataTypes.STRING, allowNull: true },
     picture: { type: DataTypes.STRING, allowNull: true },
-    
-    // Integrations (TODO: Move to tenant_integrations table)
-    slackId: { type: DataTypes.STRING, allowNull: true },
-    teamsId: { type: DataTypes.STRING, allowNull: true },
   }, {
     tableName: 'accounts',
     timestamps: false  // We handle timestamps manually
@@ -146,7 +140,7 @@ export function createCollaborators(sequelize: Sequelize) {
         },
         permission: {
             type: DataTypes.ENUM({
-                values: ["Owner", "Editor", "Viewer", "Collaborator"]  // Expanded to include tenant roles
+                values: ["Owner", "Editor", "Viewer"]  // Tenant-level roles
             }),
             allowNull:true
         },
@@ -1081,8 +1075,8 @@ export class S3Storage implements storage.Storage {
   
           isTargetAlreadyCollaborator = S3Storage.isCollaborator(app.collaborators, email);
   
-          // Update the current owner to be a collaborator
-          S3Storage.setCollaboratorPermission(app.collaborators, requestingCollaboratorEmail, storage.Permissions.Collaborator);
+          // Update the current owner to be an editor
+          S3Storage.setCollaboratorPermission(app.collaborators, requestingCollaboratorEmail, storage.Permissions.Editor);
   
           // set target collaborator as an owner.
           if (isTargetAlreadyCollaborator) {
@@ -1138,7 +1132,7 @@ export class S3Storage implements storage.Storage {
           email = account.email;
           return this.addCollaboratorWithPermissions(accountId, app, email, {
             accountId: account.id,
-            permission: storage.Permissions.Collaborator,
+            permission: storage.Permissions.Editor,
           });
         })
         .catch(S3Storage.storageErrorHandler);
@@ -1154,7 +1148,7 @@ export class S3Storage implements storage.Storage {
       .then(([app, accountToModify]: [storage.App, storage.Account]) => {
         // Use the original email stored on the account to ensure casing is consistent
         email = accountToModify.email;
-        let permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Collaborator;
+        let permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
         return this.updateCollaboratorWithPermissions(accountId, app, email, {
           accountId: accountToModify.id,
           permission: permission,
@@ -1241,7 +1235,7 @@ export class S3Storage implements storage.Storage {
           collaboratorsMap &&
           email &&
           collaboratorsMap[email] &&
-          (<storage.CollaboratorProperties>collaboratorsMap[email]).permission === storage.Permissions.Collaborator
+          (<storage.CollaboratorProperties>collaboratorsMap[email]).permission !== storage.Permissions.Owner
         );
       }
 

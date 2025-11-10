@@ -26,7 +26,8 @@ export module ReleaseMethod {
 
 export module Permissions {
   export const Owner = "Owner";
-  export const Collaborator = "Collaborator";
+  export const Editor = "Editor";
+  export const Viewer = "Viewer";
 }
 
 export interface StorageError extends error.CodePushError {
@@ -53,13 +54,7 @@ export interface Account {
   microsoftId?: string;   // From New Delivr - Microsoft
   
   // User Profile (from OG Delivr)
-  firstName?: string;     // Optional: can parse from name
-  lastName?: string;      // Optional: can parse from name
   picture?: string;       // Profile picture URL
-  
-  // Integrations (from OG Delivr - tenant-specific, move to tenant_integrations later)
-  slackId?: string;       // TODO: Move to tenant_integrations
-  teamsId?: string;       // TODO: Move to tenant_integrations
 }
 
 export interface CollaboratorProperties {
