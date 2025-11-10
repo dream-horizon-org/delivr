@@ -496,7 +496,7 @@ export class AzureStorage implements storage.Storage {
         isTargetAlreadyCollaborator = AzureStorage.isCollaborator(app.collaborators, email);
 
         // Update the current owner to be a collaborator
-        AzureStorage.setCollaboratorPermission(app.collaborators, requestingCollaboratorEmail, storage.Permissions.Collaborator);
+        AzureStorage.setCollaboratorPermission(app.collaborators, requestingCollaboratorEmail, storage.Permissions.Editor);
 
         // set target collaborator as an owner.
         if (isTargetAlreadyCollaborator) {
@@ -532,7 +532,7 @@ export class AzureStorage implements storage.Storage {
         email = account.email;
         return this.addCollaboratorWithPermissions(accountId, app, email, {
           accountId: account.id,
-          permission: storage.Permissions.Collaborator,
+          permission: storage.Permissions.Viewer,
         });
       })
       .catch(AzureStorage.azureErrorHandler);
@@ -1489,7 +1489,7 @@ export class AzureStorage implements storage.Storage {
       collaboratorsMap &&
       email &&
       collaboratorsMap[email] &&
-      (<storage.CollaboratorProperties>collaboratorsMap[email]).permission === storage.Permissions.Collaborator
+      (<storage.CollaboratorProperties>collaboratorsMap[email]).permission !== storage.Permissions.Owner
     );
   }
 

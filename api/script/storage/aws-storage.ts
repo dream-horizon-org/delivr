@@ -1132,7 +1132,7 @@ export class S3Storage implements storage.Storage {
           email = account.email;
           return this.addCollaboratorWithPermissions(accountId, app, email, {
             accountId: account.id,
-            permission: storage.Permissions.Editor,
+            permission: storage.Permissions.Viewer,
           });
         })
         .catch(S3Storage.storageErrorHandler);

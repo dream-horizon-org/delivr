@@ -417,7 +417,7 @@ export class JsonStorage implements storage.Storage {
         return JsonStorage.getRejectedPromise(storage.ErrorCode.AlreadyExists);
       }
 
-      app.collaborators[requesterEmail].permission = storage.Permissions.Collaborator;
+      app.collaborators[requesterEmail].permission = storage.Permissions.Editor;
       if (this.isCollaborator(app.collaborators, email)) {
         app.collaborators[email].permission = storage.Permissions.Owner;
       } else {
@@ -446,7 +446,7 @@ export class JsonStorage implements storage.Storage {
       // Use the original email stored on the account to ensure casing is consistent
       email = this.accounts[targetCollaboratorAccountId].email;
 
-      app.collaborators[email] = { accountId: targetCollaboratorAccountId, permission: storage.Permissions.Collaborator };
+      app.collaborators[email] = { accountId: targetCollaboratorAccountId, permission: storage.Permissions.Viewer };
       this.addAppPointer(targetCollaboratorAccountId, app.id);
       return this.updateApp(accountId, app);
     });
@@ -847,7 +847,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   private isCollaborator(list: storage.CollaboratorMap, email: string): boolean {
-    return list && list[email] && list[email].permission === storage.Permissions.Collaborator;
+    return list && list[email] && list[email].permission !== storage.Permissions.Owner;
   }
 
   private isAccountIdCollaborator(list: storage.CollaboratorMap, accountId: string): boolean {

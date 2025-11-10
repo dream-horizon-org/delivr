@@ -604,7 +604,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     nameResolver
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return storage.getCollaborators(accountId, app.id);
       })
       .then((retrievedMap: storageTypes.CollaboratorMap) => {
@@ -629,7 +629,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
           app.collaborators && email && app.collaborators[email] && app.collaborators[email].isCurrentAccount;
         throwIfInvalidPermissions(
           app,
-          isAttemptingToRemoveSelf ? storageTypes.Permissions.Collaborator : storageTypes.Permissions.Owner
+          isAttemptingToRemoveSelf ? storageTypes.Permissions.Editor : storageTypes.Permissions.Owner
         );
         return storage.removeCollaborator(accountId, app.id, email);
       })
@@ -644,7 +644,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const appName: string = req.params.appName;
     const email: string = req.params.email;
     const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let role: string = "Collaborator";
+    let role: string = "Viewer";
     if(req.body.role !== undefined) {
       role = req.body.role;
     }
@@ -658,13 +658,13 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .then((app: storageTypes.App) => {
           throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
         
-        // Prevent ONLY the app creator from changing their permission from Owner to Collaborator
+        // Prevent the app creator from demoting themselves from Owner
         const collaboratorBeingModified = app.collaborators[email];
         if (collaboratorBeingModified) {
           const collaboratorAccountId = collaboratorBeingModified.accountId;
           const appCreatorAccountId = (app as any).accountId;
-          if (collaboratorAccountId === appCreatorAccountId && role === "Collaborator") {
-            throw errorUtils.restError(errorUtils.ErrorCode.Conflict,"The app creator permission can not be changed from Owner to Collaborator.");
+          if (collaboratorAccountId === appCreatorAccountId && role !== "Owner") {
+            throw errorUtils.restError(errorUtils.ErrorCode.Conflict,"The app creator permission cannot be changed from Owner to a non-Owner role.");
           }
         }
         
@@ -686,7 +686,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return storage.getDeployments(accountId, appId);
       })
       .then(async (deployments: storageTypes.Deployment[]) => {
@@ -775,7 +775,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return nameResolver.resolveDeployment(accountId, appId, deploymentName);
       })
       .then(async (deployment: storageTypes.Deployment) => {
@@ -902,7 +902,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return storage.getDeployments(accountId, app.id);
       })
       .then((storageDeployments: storageTypes.Deployment[]) => {
@@ -1027,7 +1027,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
           .resolveApp(accountId, appName, tenantId)
           .then((app: storageTypes.App) => {
             appId = app.id;
-            throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+            throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
             return nameResolver.resolveDeployment(accountId, appId, deploymentName);
           })
           .then((deployment: storageTypes.Deployment) => {
@@ -1171,7 +1171,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .resolveApp(accountId, appName, tenantId)
       .then((app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
         return nameResolver.resolveDeployment(accountId, appId, deploymentName);
       })
       .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
@@ -1197,7 +1197,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         .resolveApp(accountId, appName, tenantId)
         .then((app: storageTypes.App) => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+          throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
           return nameResolver.resolveDeployment(accountId, appId, deploymentName);
         })
         .then((deployment: storageTypes.Deployment): Promise<redis.DeploymentMetrics> => {
@@ -1234,7 +1234,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         .resolveApp(accountId, appName, tenantId)
         .then((app: storageTypes.App) => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+          throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
           // Get source and dest manifests in parallel.
           return Promise.all([
             nameResolver.resolveDeployment(accountId, appId, sourceDeploymentName),
@@ -1328,7 +1328,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         .resolveApp(accountId, appName, tenantId)
         .then((app: storageTypes.App) => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Collaborator);
+          throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
           return nameResolver.resolveDeployment(accountId, appId, deploymentName);
         })
         .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
@@ -1487,7 +1487,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
     return storage
       .getApp(accountId, appId)
       .then((storageApp: storageTypes.App) => {
-        throwIfInvalidPermissions(storageApp, storageTypes.Permissions.Collaborator);
+        throwIfInvalidPermissions(storageApp, storageTypes.Permissions.Editor);
         return storage.getPackageHistory(accountId, appId, deploymentId);
       })
       .then((history: storageTypes.Package[]) => {
