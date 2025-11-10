@@ -1,0 +1,408 @@
+-- ============================================================================
+-- Release Management Migration Script
+-- Migrated from OG Delivr with tenant-centric modifications
+-- 
+-- Creates 18 tables:
+-- - Core: releases, release_tasks, release_builds, builds, pre_release_tasks,
+--         regression_cycles, rollouts, rollout_stats, rollout_user_adoption,
+--         cherry_picks, state_history, state_history_items
+-- - Automation: cron_jobs, cron_change_logs
+-- - Reference: platforms, targets
+-- - Settings: release_settings, global_settings
+-- - Features: whats_new
+-- 
+-- Key Changes from OG Delivr:
+-- - Added `tenantId` to releases table for multi-tenancy
+-- - Changed userId -> accountId for consistency
+-- - Permissions handled via existing tenant system (Owner/Editor/Viewer)
+-- ============================================================================
+
+USE codepushdb;
+
+-- ============================================================================
+-- REFERENCE TABLES (Shared across tenants)
+-- ============================================================================
+
+-- Platform table (iOS, Android)
+CREATE TABLE IF NOT EXISTS platforms (
+  id VARCHAR(255) PRIMARY KEY,
+  name ENUM('ANDROID', 'IOS') NOT NULL UNIQUE,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Target table (WEB, PLAY_STORE, APP_STORE)
+CREATE TABLE IF NOT EXISTS targets (
+  id VARCHAR(255) PRIMARY KEY,
+  name ENUM('WEB', 'PLAY_STORE', 'APP_STORE') NOT NULL UNIQUE,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ============================================================================
+-- TENANT INTEGRATION CONFIGURATIONS
+-- ============================================================================
+
+-- Tenant Integrations table - Stores all tenant-level configurations
+-- This replaces hardcoded environment variables from OG Delivr
+CREATE TABLE IF NOT EXISTS tenant_integrations (
+  id VARCHAR(255) PRIMARY KEY,
+  tenantId CHAR(36) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  
+  -- Integration type and status
+  integrationType ENUM(
+    'GITHUB',
+    'GITLAB', 
+    'BITBUCKET',
+    'JENKINS',
+    'GITHUB_ACTIONS',
+    'SLACK',
+    'TEAMS',
+    'JIRA',
+    'LINEAR',
+    'APP_STORE_CONNECT',
+    'PLAY_STORE',
+    'CODE_SIGNING',
+    'FIREBASE',
+    'TEST_RAIL'
+  ) NOT NULL,
+  
+  isEnabled BOOLEAN DEFAULT FALSE,
+  isRequired BOOLEAN DEFAULT FALSE, -- Marks if this integration is mandatory for release management
+  
+  -- Encrypted configuration (JSON)
+  -- Structure varies by integration type
+  config JSON NOT NULL,
+  
+  -- Metadata
+  configuredByAccountId VARCHAR(255) NOT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  lastVerifiedAt TIMESTAMP NULL, -- Last time credentials were verified
+  verificationStatus ENUM('NOT_VERIFIED', 'VALID', 'INVALID', 'EXPIRED') DEFAULT 'NOT_VERIFIED',
+  
+  -- Unique constraint: one integration type per tenant
+  UNIQUE KEY unique_tenant_integration (tenantId, integrationType),
+  
+  INDEX idx_tenant_integrations_tenant (tenantId),
+  INDEX idx_tenant_integrations_type (integrationType),
+  INDEX idx_tenant_integrations_enabled (tenantId, isEnabled)
+  
+  -- Note: Foreign keys will be added after all tables are created
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ============================================================================
+-- CORE RELEASE TABLES
+-- ============================================================================
+
+-- Releases table (tenant-scoped)
+CREATE TABLE IF NOT EXISTS releases (
+  id VARCHAR(255) PRIMARY KEY,
+  tenantId CHAR(36) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  releaseKey VARCHAR(255) NOT NULL UNIQUE,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  kickOffReminderDate DATETIME NULL,
+  plannedDate DATETIME NOT NULL,
+  releaseDate DATETIME NULL,
+  targetReleaseDate DATETIME NOT NULL,
+  isDelayed BOOLEAN DEFAULT FALSE,
+  delayedReason TEXT NULL,
+  version VARCHAR(255) NOT NULL,
+  type ENUM('HOTFIX', 'PLANNED', 'MAJOR') DEFAULT 'PLANNED',
+  status ENUM('PENDING', 'STARTED', 'REGRESSION_IN_PROGRESS', 'BUILD_SUBMITTED', 'RELEASED', 'ARCHIVED') DEFAULT 'PENDING',
+  baseVersion VARCHAR(255) NOT NULL,
+  baseBranch VARCHAR(255) NULL,
+  branchRelease VARCHAR(255) NULL,
+  branchCodepush VARCHAR(255) NULL,
+  updateType ENUM('OPTIONAL', 'FORCE') DEFAULT 'OPTIONAL',
+  createdByAccountId VARCHAR(255) NULL,
+  parentId VARCHAR(255) NULL,
+  releasePilotAccountId VARCHAR(255) NOT NULL,
+  lastUpdateByAccountId VARCHAR(255) NOT NULL,
+  iOSTestRunId VARCHAR(255) NULL,
+  webTestRunId VARCHAR(255) NULL,
+  playStoreRunId VARCHAR(255) NULL,
+  webEpicId VARCHAR(255) NULL,
+  playStoreEpicId VARCHAR(255) NULL,
+  iOSEpicId VARCHAR(255) NULL,
+  releaseTag VARCHAR(255) NULL,
+  slackMessageTimestamps JSON NULL,
+  iOSUserAdoption INT DEFAULT 0,
+  playstoreUserAdoption INT DEFAULT 0,
+  webUserAdoption INT DEFAULT 0,
+  autoPilot ENUM('PENDING', 'RUNNING', 'PAUSED', 'COMPLETED') DEFAULT 'PENDING',
+  webFinalBuildNumber VARCHAR(255) NULL,
+  PSFinalBuildNumber VARCHAR(255) NULL,
+  IOSFinalBuildNumber VARCHAR(255) NULL,
+  
+  INDEX idx_releases_tenant (tenantId),
+  INDEX idx_releases_tenant_created (tenantId, createdAt),
+  INDEX idx_releases_tenant_status_planned (tenantId, status, plannedDate),
+  INDEX idx_releases_pilot_status (releasePilotAccountId, status),
+  INDEX idx_releases_last_updater (lastUpdateByAccountId),
+  INDEX idx_releases_parent (parentId)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ReleaseBuilds table - Container for final builds
+CREATE TABLE IF NOT EXISTS release_builds (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseId VARCHAR(255) UNIQUE NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Builds table - Individual builds (iOS, Android, Web)
+CREATE TABLE IF NOT EXISTS builds (
+  id VARCHAR(255) PRIMARY KEY,
+  number VARCHAR(255) NOT NULL,
+  link VARCHAR(500) NULL,
+  releaseId VARCHAR(255) NULL,
+  platformId VARCHAR(255) NULL,
+  targetId VARCHAR(255) NULL,
+  regressionId VARCHAR(255) NULL,
+  releaseBuildsId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_builds_release (releaseId),
+  INDEX idx_builds_platform (platformId),
+  INDEX idx_builds_target (targetId),
+  INDEX idx_builds_regression (regressionId),
+  INDEX idx_builds_release_builds (releaseBuildsId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- PreReleaseTasks table - Container for pre-release tasks
+CREATE TABLE IF NOT EXISTS pre_release_tasks (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseId VARCHAR(255) UNIQUE NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ReleaseTasks table - Kick-off, pre-release, and regression tasks
+CREATE TABLE IF NOT EXISTS release_tasks (
+  id VARCHAR(255) PRIMARY KEY,
+  taskId VARCHAR(255) UNIQUE NULL,
+  branch VARCHAR(255) NULL,
+  isReleaseKickOffTask BOOLEAN DEFAULT FALSE,
+  isRegressionSubTasks BOOLEAN DEFAULT FALSE,
+  identifier ENUM('PRE_REGRESSION_', 'REGRESSION_', 'REGRESSION_SUB_', 'PRE_RELEASE_') NULL,
+  workflowStatus ENUM('triggered', 'queued', 'in_progress', 'completed', 'waiting', 'requested') NULL,
+  isGithubWorkflow BOOLEAN DEFAULT FALSE,
+  taskType ENUM(
+    'PRE_KICK_OFF_REMINDER', 'FORK_BRANCH', 'UPDATE_GITHUB_VARIABLES',
+    'PRE_RELEASE_CHERRY_PICKS_REMINDER', 'ADD_L6_APPROVAL_CHECK',
+    'FINAL_PRE_REGRESSION_BUILDS', 'TRIGGER_REGRESSION_BUILDS',
+    'AUTOMATION_RUNS', 'TRIGGER_AUTOMATION_RUNS', 'RESET_TEST_RAIL_STATUS',
+    'CHERRY_REMINDER', 'CREATE_RELEASE_NOTES', 'TEST_FLIGHT_BUILD',
+    'CREATE_RELEASE_TAG'
+  ) NULL,
+  taskStatus ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED') DEFAULT 'PENDING',
+  runId VARCHAR(255) NULL,
+  workflowId VARCHAR(255) NULL,
+  taskConclusion ENUM('success', 'failure', 'cancelled', 'skipped') NULL,
+  accountId VARCHAR(255) NULL,
+  regressionId VARCHAR(255) NULL,
+  releaseId VARCHAR(255) NULL,
+  preReleaseTasksId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_tasks_release (releaseId),
+  INDEX idx_tasks_regression (regressionId),
+  INDEX idx_tasks_pre_release (preReleaseTasksId),
+  INDEX idx_tasks_account (accountId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- RegressionCycle table - Regression test cycles
+CREATE TABLE IF NOT EXISTS regression_cycles (
+  id VARCHAR(255) PRIMARY KEY,
+  isLatest BOOLEAN DEFAULT TRUE,
+  releaseId VARCHAR(255) NULL,
+  status ENUM('NOT_STARTED', 'STARTED', 'IN_PROGRESS', 'DONE') DEFAULT 'NOT_STARTED',
+  cycleTag VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_regression_release (releaseId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Rollout table - Release rollout tracking
+CREATE TABLE IF NOT EXISTS rollouts (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseId VARCHAR(255) NULL,
+  platformId VARCHAR(255) NULL,
+  targetId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_rollouts_release (releaseId),
+  INDEX idx_rollouts_platform (platformId),
+  INDEX idx_rollouts_target (targetId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- RolloutStats table - Rollout statistics
+CREATE TABLE IF NOT EXISTS rollout_stats (
+  id VARCHAR(255) PRIMARY KEY,
+  stats FLOAT DEFAULT 0,
+  rolloutId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_rollout_stats_rollout (rolloutId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- RolloutUserAdoption table - User adoption metrics
+CREATE TABLE IF NOT EXISTS rollout_user_adoption (
+  id VARCHAR(255) PRIMARY KEY,
+  userAdoption INT DEFAULT 0,
+  userAdoptionPercentage VARCHAR(255) DEFAULT '0.0',
+  rolloutId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_rollout_adoption_rollout (rolloutId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- CherryPicks table - Cherry-pick PR requests
+CREATE TABLE IF NOT EXISTS cherry_picks (
+  id VARCHAR(255) PRIMARY KEY,
+  commitId VARCHAR(255) UNIQUE NULL,
+  isApprovalRequired BOOLEAN DEFAULT TRUE,
+  prLink VARCHAR(500) NULL,
+  authorAccountId VARCHAR(255) NULL,
+  jiraLink VARCHAR(500) NULL,
+  approverAccountId VARCHAR(255) NULL,
+  approvalStatus ENUM('REQUESTED', 'APPROVED', 'REJECTED') DEFAULT 'REQUESTED',
+  status ENUM('PENDING', 'PICKED', 'SUCCESS', 'FAILURE') DEFAULT 'PENDING',
+  failureReason TEXT NULL,
+  releaseId VARCHAR(255) NULL,
+  failureStatus ENUM('NOT_APPROVED', 'CONFLICTS', 'SERVER_ERROR') NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_cherry_picks_release (releaseId),
+  INDEX idx_cherry_picks_author (authorAccountId),
+  INDEX idx_cherry_picks_approver (approverAccountId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- StateHistory table - Audit trail for all changes
+CREATE TABLE IF NOT EXISTS state_history (
+  id VARCHAR(255) PRIMARY KEY,
+  action ENUM('CREATE', 'UPDATE', 'REMOVE', 'ADD') DEFAULT 'CREATE',
+  accountId VARCHAR(255) NOT NULL,
+  releaseId VARCHAR(255) NULL,
+  codepushId VARCHAR(255) NULL,
+  settingsId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_state_history_release (releaseId),
+  INDEX idx_state_history_account (accountId),
+  INDEX idx_state_history_composite (id, releaseId, codepushId, settingsId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- StateHistoryItem table - Individual change items in history
+CREATE TABLE IF NOT EXISTS state_history_items (
+  id VARCHAR(255) PRIMARY KEY,
+  `group` VARCHAR(255) NULL,
+  type ENUM('CREATE', 'UPDATE', 'REMOVE', 'ADD') DEFAULT 'CREATE',
+  value TEXT NULL,
+  oldValue TEXT NULL,
+  `key` VARCHAR(255) NULL,
+  metadata JSON NULL,
+  historyId VARCHAR(255) NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  INDEX idx_state_history_items_history (historyId),
+  INDEX idx_state_history_items_composite (id, historyId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ============================================================================
+-- AUTOMATION TABLES
+-- ============================================================================
+
+-- CronJob table - Autopilot automation
+CREATE TABLE IF NOT EXISTS cron_jobs (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseId VARCHAR(255) NOT NULL UNIQUE,
+  stage1Status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED') DEFAULT 'PENDING',
+  stage2Status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED') DEFAULT 'PENDING',
+  stage3Status ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED') DEFAULT 'PENDING',
+  cronStatus ENUM('PENDING', 'RUNNING', 'PAUSED', 'COMPLETED') DEFAULT 'PENDING',
+  cronCreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  cronStoppedAt TIMESTAMP NULL,
+  cronCreatedByAccountId VARCHAR(255) NOT NULL,
+  regressionTimings VARCHAR(255) DEFAULT '09:00,17:00',
+  upcomingRegressions JSON NULL,
+  cronConfig JSON NOT NULL,
+  regressionTimestamp VARCHAR(255) NULL,
+  
+  INDEX idx_cron_jobs_created_by (cronCreatedByAccountId),
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- CronChangeLogs table - Cron job change history
+CREATE TABLE IF NOT EXISTS cron_change_logs (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseId VARCHAR(255) NOT NULL,
+  type VARCHAR(255) NOT NULL,
+  previousValue JSON NULL,
+  newValue JSON NULL,
+  updatedByAccountId VARCHAR(255) NOT NULL,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ============================================================================
+-- FEATURE TABLES
+-- ============================================================================
+
+-- WhatsNew table - Release notes/announcements
+CREATE TABLE IF NOT EXISTS whats_new (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseId VARCHAR(255) NOT NULL,
+  target ENUM('WEB', 'PLAY_STORE', 'APP_STORE') NOT NULL,
+  title VARCHAR(255) NULL,
+  body LONGTEXT NULL,
+  CTA VARCHAR(255) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ============================================================================
+-- SETTINGS TABLES
+-- ============================================================================
+
+-- ReleaseSettings table - Global release settings
+CREATE TABLE IF NOT EXISTS release_settings (
+  id VARCHAR(255) PRIMARY KEY,
+  releaseOffset VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- GlobalSettings table - Global configuration
+CREATE TABLE IF NOT EXISTS global_settings (
+  id VARCHAR(255) PRIMARY KEY,
+  config JSON NULL,
+  updatedByAccountId VARCHAR(255) NOT NULL,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- ============================================================================
+-- COMPLETE
+-- ============================================================================
+
+SELECT 'Release Management tables created successfully!' as Status;
+

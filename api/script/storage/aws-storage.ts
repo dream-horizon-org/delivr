@@ -8,6 +8,7 @@ import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
 import * as utils from "../utils/common";
 import * as security from "../utils/security";
+import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -270,6 +271,7 @@ export function createModelss(sequelize: Sequelize) {
   const AppPointer = createAppPointer(sequelize);
   const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
+  const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
 
   // Define associations
 
@@ -304,6 +306,14 @@ export function createModelss(sequelize: Sequelize) {
   Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
   Collaborator.belongsTo(App, { foreignKey: 'appId' });
 
+  // SCM Integration associations
+  // Tenant has ONE SCM integration (set up during onboarding)
+  Tenant.hasOne(SCMIntegrations, { foreignKey: 'tenantId', as: 'scmIntegration' });
+  SCMIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  
+  // Account (creator) reference
+  SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
+
   return {
     Tenant,
     Package,
@@ -313,6 +323,7 @@ export function createModelss(sequelize: Sequelize) {
     AppPointer,
     Collaborator,  // UNIFIED: supports both app-level AND tenant-level
     App,
+    SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
   };
 }
 
