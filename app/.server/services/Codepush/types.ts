@@ -1,7 +1,70 @@
+// Integration types
+export type IntegrationType = 'scm' | 'targetPlatform' | 'pipeline' | 'communication';
+
+export type SCMIntegration = {
+  type: 'scm';
+  id: string;
+  scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  displayName: string;
+  owner: string;
+  repo: string;
+  repositoryUrl: string;
+  defaultBranch: string;
+  isActive: boolean;
+  verificationStatus: 'PENDING' | 'VALID' | 'INVALID' | 'EXPIRED';
+  lastVerifiedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TargetPlatformIntegration = {
+  type: 'targetPlatform';
+  id: string;
+  platform: 'APP_STORE' | 'PLAY_STORE';
+  displayName: string;
+  isActive: boolean;
+  verificationStatus: 'PENDING' | 'VALID' | 'INVALID' | 'EXPIRED';
+  // TODO: Add more fields when implemented
+};
+
+export type PipelineIntegration = {
+  type: 'pipeline';
+  id: string;
+  pipelineType: 'GITHUB_ACTIONS' | 'JENKINS';
+  displayName: string;
+  isActive: boolean;
+  // TODO: Add more fields when implemented
+};
+
+export type CommunicationIntegration = {
+  type: 'communication';
+  id: string;
+  communicationType: 'SLACK' | 'TEAMS' | 'EMAIL';
+  displayName: string;
+  isActive: boolean;
+  // TODO: Add more fields when implemented
+};
+
+export type Integration = 
+  | SCMIntegration 
+  | TargetPlatformIntegration 
+  | PipelineIntegration 
+  | CommunicationIntegration;
+
 export type Organization = {
   id: string;
   displayName: string;
   role: "Owner" | "Collaborator";
+  releaseManagement?: {
+    setupComplete: boolean;
+    setupSteps: {
+      scmIntegration: boolean;
+      targetPlatforms: boolean;
+      pipelines: boolean;
+      communication: boolean;
+    };
+    integrations: Integration[];  // Array of all integration objects
+  };
 };
 
 // Base types for terms-related entities
@@ -328,4 +391,13 @@ export type CreateReleaseRequest = BaseHeader & {
 
 export type CreateReleaseResponse = {
   package: Package;
+};
+
+// Tenant Info Types
+export type TenantInfoRequest = BaseHeader & {
+  tenantId: string;
+};
+
+export type TenantInfoResponse = {
+  organisation: Organization;
 };

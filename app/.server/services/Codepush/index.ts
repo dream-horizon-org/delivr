@@ -44,6 +44,8 @@ import {
   UpdateCollabaratorsResponse,
   UpdateDeploymentsReleaseRequest,
   UpdatePackageRequest,
+  TenantInfoRequest,
+  TenantInfoResponse,
 } from "./types";
 
 class Codepush {
@@ -480,6 +482,20 @@ class Codepush {
           userId: userId,
         },
       }
+    );
+  }
+
+  /**
+   * Get tenant info with release management setup status
+   */
+  async getTenantInfo(data: TenantInfoRequest) {
+    const headers: Pick<TenantInfoRequest, "userId"> = {
+      userId: data.userId,
+    };
+    
+    return this.__client.get<TenantInfoResponse>(
+      `/tenants/${data.tenantId}`,
+      { headers }
     );
   }
 }
