@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useParams } from '@remix-run/react';
 import type { GitHubConnection } from '../types';
 
 interface UseGitHubConnectionProps {
@@ -11,6 +12,7 @@ interface UseGitHubConnectionProps {
 }
 
 export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnectionProps = {}) {
+  const { org } = useParams();
   const [connection, setConnection] = useState<Partial<GitHubConnection>>(initialData || {});
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,28 +28,42 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
       return false;
     }
     
+    // Parse owner and repo from URL
+    const urlMatch = connection.repoUrl.match(/github\.com[/:]([\w-]+)\/([\w-]+)/);
+    if (!urlMatch) {
+      setError('Invalid GitHub repository URL');
+      return false;
+    }
+    
+    const [, owner, repo] = urlMatch;
+    
     setIsVerifying(true);
     setError(null);
     
     try {
-      // Call API to verify
-      const response = await fetch('/api/v1/setup/verify-github', {
+      console.log(`[useGitHubConnection] Calling verify endpoint for ${owner}/${repo}`);
+      
+      // Call NEW SCM integration verify endpoint
+      const response = await fetch(`/api/v1/tenants/${org}/integrations/scm/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          repoUrl: connection.repoUrl,
-          token: connection.token,
+          scmType: 'GITHUB',
+          owner,
+          repo,
+          accessToken: connection.token,
         }),
       });
       
       const result = await response.json();
+      console.log(`[useGitHubConnection] Verification result:`, result);
       
       if (result.success) {
         const verifiedConnection: GitHubConnection = {
           repoUrl: connection.repoUrl,
           token: connection.token,
-          owner: result.data.owner,
-          repoName: result.data.repoName,
+          owner: owner,
+          repoName: repo,
           isVerified: true,
         };
         
@@ -55,16 +71,17 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
         onVerified?.(verifiedConnection);
         return true;
       } else {
-        setError(result.error || 'Verification failed');
+        setError(result.error || result.message || 'Verification failed');
         return false;
       }
     } catch (err) {
+      console.error('[useGitHubConnection] Verification error:', err);
       setError('Failed to verify connection. Please try again.');
       return false;
     } finally {
       setIsVerifying(false);
     }
-  }, [connection, onVerified]);
+  }, [connection, onVerified, org]);
   
   const reset = useCallback(() => {
     setConnection({});
