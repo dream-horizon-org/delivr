@@ -290,18 +290,68 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         const scmIntegration = await scmController.findActiveByTenant(tenantId);
 
         // TODO: Check other required integrations (targets, pipelines, etc.)
+        // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
+        // const pipelines = await storage.getTenantPipelines(tenantId);
+        // const communication = await storage.getTenantCommunicationIntegrations(tenantId);
+        
+        const setupSteps = {
+          scm: {
+            completed: !!scmIntegration,
+            required: true,
+            label: "GitHub Integration",
+            description: "Connect your GitHub repository",
+            data: scmIntegration ? {
+              owner: scmIntegration.owner,
+              repo: scmIntegration.repo,
+              displayName: scmIntegration.displayName
+            } : null
+          },
+          targetPlatforms: {
+            completed: false,  // TODO: Implement
+            required: true,
+            label: "Target Platforms",
+            description: "Configure App Store and/or Play Store"
+          },
+          pipelines: {
+            completed: false,  // TODO: Implement
+            required: false,  // Optional
+            label: "CI/CD Pipelines",
+            description: "Set up build pipelines (optional)"
+          },
+          communication: {
+            completed: false,  // TODO: Implement
+            required: false,  // Optional
+            label: "Slack Integration",
+            description: "Connect Slack for notifications (optional)"
+          }
+        };
+
+        // Calculate overall completion
+        const requiredSteps = Object.values(setupSteps).filter(step => step.required);
+        const completedRequiredSteps = requiredSteps.filter(step => step.completed);
+        const setupComplete = requiredSteps.length === completedRequiredSteps.length;
+        
+        const totalSteps = Object.keys(setupSteps).length;
+        const completedSteps = Object.values(setupSteps).filter(step => step.completed).length;
         
         return res.status(200).json({
-          setupComplete: !!scmIntegration,
-          requiredSteps: {
-            scmIntegration: !!scmIntegration,
-            targetPlatforms: false,  // TODO: Check
-            pipelines: false,        // TODO: Check (optional)
-            communication: false     // TODO: Check (optional)
+          setupComplete,
+          progress: {
+            completed: completedSteps,
+            total: totalSteps,
+            percentage: Math.round((completedSteps / totalSteps) * 100),
+            requiredCompleted: completedRequiredSteps.length,
+            requiredTotal: requiredSteps.length
           },
-          message: scmIntegration 
-            ? "Release Management is configured" 
-            : "Please complete the setup wizard"
+          steps: setupSteps,
+          message: setupComplete 
+            ? "Release Management is fully configured" 
+            : "Please complete the required setup steps",
+          nextStep: !setupSteps.scm.completed 
+            ? "scm" 
+            : !setupSteps.targetPlatforms.completed 
+            ? "targetPlatforms" 
+            : null
         });
       } catch (error: any) {
         console.error("Error checking setup status:", error);
