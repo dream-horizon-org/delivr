@@ -26,8 +26,11 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
       const tenantId: string = req.params.tenantId;
       const { owner, repo, accessToken, scmType = 'GITHUB' } = req.body;
 
+      console.log(`[SCM-VERIFY] Starting verification for tenant: ${tenantId}, owner: ${owner}, repo: ${repo}, scmType: ${scmType}`);
+
       // Validation
       if (!owner || !repo || !accessToken) {
+        console.log(`[SCM-VERIFY] Validation failed - missing required fields`);
         return res.status(400).json({
           success: false,
           error: "owner, repo, and accessToken are required"
@@ -35,6 +38,7 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
       }
 
       if (scmType !== 'GITHUB') {
+        console.log(`[SCM-VERIFY] Unsupported scmType: ${scmType}`);
         return res.status(400).json({
           success: false,
           error: "Only GITHUB is currently supported"
@@ -42,8 +46,11 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
       }
 
       try {
+        console.log(`[SCM-VERIFY] Calling verifyGitHubConnection for ${owner}/${repo}`);
         // Verify GitHub token and repository access
         const verificationResult = await verifyGitHubConnection(owner, repo, accessToken);
+
+        console.log(`[SCM-VERIFY] Verification result: ${verificationResult.isValid ? 'SUCCESS' : 'FAILED'} - ${verificationResult.message}`);
 
         return res.status(200).json({
           success: verificationResult.isValid,
@@ -52,7 +59,7 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
           details: verificationResult.details
         });
       } catch (error: any) {
-        console.error("Error verifying SCM connection:", error);
+        console.error(`[SCM-VERIFY] Error verifying SCM connection for ${owner}/${repo}:`, error);
         return res.status(200).json({
           success: false,
           verified: false,
@@ -199,21 +206,29 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
       const tenantId: string = req.params.tenantId;
       const updateData = req.body;
 
+      console.log(`[SCM-UPDATE] Starting update for tenant: ${tenantId}, updating fields:`, Object.keys(updateData));
+
       try {
         const scmController = getSCMController();
         const existing = await scmController.findActiveByTenant(tenantId);
 
         if (!existing) {
+          console.log(`[SCM-UPDATE] No existing SCM integration found for tenant: ${tenantId}`);
           return res.status(404).json({
             success: false,
             error: "No SCM integration found for this tenant"
           });
         }
 
+        console.log(`[SCM-UPDATE] Found existing integration: ${existing.owner}/${existing.repo} (ID: ${existing.id})`);
+
         // If updating accessToken, re-verify
         if (updateData.accessToken) {
+          console.log(`[SCM-UPDATE] Access token is being updated, re-verifying connection for ${existing.owner}/${existing.repo}`);
           const verificationResult = await verifyGitHubConnection(existing.owner, existing.repo, updateData.accessToken);
           
+          console.log(`[SCM-UPDATE] Re-verification result: ${verificationResult.isValid ? 'SUCCESS' : 'FAILED'} - ${verificationResult.message}`);
+
           if (!verificationResult.isValid) {
             return res.status(400).json({
               success: false,
@@ -223,10 +238,14 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
           }
 
           // Update verification status separately
+          console.log(`[SCM-UPDATE] Updating verification status to VALID for integration ID: ${existing.id}`);
           await scmController.updateVerificationStatus(existing.id, VerificationStatus.VALID);
         }
 
+        console.log(`[SCM-UPDATE] Updating integration ID: ${existing.id}`);
         const updated = await scmController.update(existing.id, updateData);
+
+        console.log(`[SCM-UPDATE] Successfully updated integration for tenant: ${tenantId}`);
 
         return res.status(200).json({
           success: true,
@@ -234,7 +253,7 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
           integration: sanitizeSCMResponse(updated)
         });
       } catch (error: any) {
-        console.error("Error updating SCM integration:", error);
+        console.error(`[SCM-UPDATE] Error updating SCM integration for tenant ${tenantId}:`, error);
         return res.status(500).json({
           success: false,
           error: error.message || "Failed to update SCM integration"
@@ -298,8 +317,12 @@ async function verifyGitHubConnection(
   message: string;
   details?: any;
 }> {
+  const maskedToken = accessToken ? `${accessToken.substring(0, 4)}...${accessToken.substring(accessToken.length - 4)}` : 'N/A';
+  console.log(`[VERIFY-GITHUB] Starting verification for ${owner}/${repo} with token: ${maskedToken}`);
+
   try {
     // 1. Verify token by getting authenticated user
+    console.log(`[VERIFY-GITHUB] Step 1: Verifying token with GitHub API /user endpoint`);
     const userResponse = await fetch('https://api.github.com/user', {
       headers: {
         'Authorization': `token ${accessToken}`,
@@ -308,8 +331,11 @@ async function verifyGitHubConnection(
       }
     });
 
+    console.log(`[VERIFY-GITHUB] GitHub /user API response status: ${userResponse.status} ${userResponse.statusText}`);
+
     if (!userResponse.ok) {
       const errorText = await userResponse.text();
+      console.error(`[VERIFY-GITHUB] Token verification failed: ${userResponse.status} ${userResponse.statusText}`, errorText);
       return {
         isValid: false,
         message: `Invalid GitHub token: ${userResponse.status} ${userResponse.statusText}`,
@@ -318,8 +344,10 @@ async function verifyGitHubConnection(
     }
 
     const userData = await userResponse.json();
+    console.log(`[VERIFY-GITHUB] Token verified successfully for user: ${(userData as any).login}`);
 
     // 2. Verify repository access
+    console.log(`[VERIFY-GITHUB] Step 2: Verifying repository access for ${owner}/${repo}`);
     const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
       headers: {
         'Authorization': `token ${accessToken}`,
@@ -328,8 +356,11 @@ async function verifyGitHubConnection(
       }
     });
 
+    console.log(`[VERIFY-GITHUB] GitHub /repos API response status: ${repoResponse.status} ${repoResponse.statusText}`);
+
     if (!repoResponse.ok) {
       if (repoResponse.status === 404) {
+        console.error(`[VERIFY-GITHUB] Repository ${owner}/${repo} not found or access denied (404)`);
         return {
           isValid: false,
           message: `Repository ${owner}/${repo} not found or access denied`,
@@ -338,6 +369,7 @@ async function verifyGitHubConnection(
       }
       
       const errorText = await repoResponse.text();
+      console.error(`[VERIFY-GITHUB] Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`, errorText);
       return {
         isValid: false,
         message: `Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`,
@@ -346,16 +378,23 @@ async function verifyGitHubConnection(
     }
 
     const repoData = await repoResponse.json();
+    console.log(`[VERIFY-GITHUB] Repository access verified: ${(repoData as any).full_name}, private: ${(repoData as any).private}`);
 
     // 3. Check required permissions
+    console.log(`[VERIFY-GITHUB] Step 3: Checking repository permissions`);
     const permissions = (repoData as any).permissions || {};
+    console.log(`[VERIFY-GITHUB] Permissions:`, { pull: permissions.pull, push: permissions.push, admin: permissions.admin });
+
     if (!permissions.pull && !permissions.push) {
+      console.error(`[VERIFY-GITHUB] Insufficient permissions - token does not have pull or push access`);
       return {
         isValid: false,
         message: 'Token does not have sufficient permissions for this repository',
         details: { permissions }
       };
     }
+
+    console.log(`[VERIFY-GITHUB] ✅ Verification successful for ${owner}/${repo} - User: ${(userData as any).login}, Branch: ${(repoData as any).default_branch}`);
 
     return {
       isValid: true,
@@ -369,7 +408,7 @@ async function verifyGitHubConnection(
       }
     };
   } catch (error: any) {
-    console.error('GitHub verification error:', error);
+    console.error(`[VERIFY-GITHUB] ❌ Verification failed for ${owner}/${repo} with error:`, error);
     return {
       isValid: false,
       message: `Connection failed: ${error.message}`,
