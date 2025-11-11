@@ -303,6 +303,83 @@ export function getManagementRouter(config: ManagementConfig): Router {
       });
   });
 
+  // Get tenant info with release setup status and integrations
+  router.get("/tenants/:tenantId", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
+    const tenantId: string = req.params.tenantId;
+    
+    try {
+      // Get tenant details
+      const accountId: string = req.user.id;
+      const tenants = await storage.getTenants(accountId);
+      const tenant = tenants.find((t: storageTypes.Organization) => t.id === tenantId);
+      
+      if (!tenant) {
+        return res.status(404).send({ error: "Tenant not found" });
+      }
+
+      // Get all integrations for this tenant
+      const scmController = (storage as any).scmController;
+      
+      // SCM integrations (GitHub, GitLab, Bitbucket)
+      const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
+      
+      // TODO: Get other integrations when implemented
+      // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
+      // const pipelines = await storage.getTenantPipelines(tenantId);
+      // const communicationIntegrations = await storage.getTenantCommunicationIntegrations(tenantId);
+      
+      // Build unified integrations array with type field
+      const integrations: any[] = [];
+      
+      // Add SCM integrations (sanitize - remove sensitive tokens)
+      scmIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'scm',
+          id: integration.id,
+          scmType: integration.scmType,
+          displayName: integration.displayName,
+          owner: integration.owner,
+          repo: integration.repo,
+          repositoryUrl: integration.repositoryUrl,
+          defaultBranch: integration.defaultBranch,
+          isActive: integration.isActive,
+          verificationStatus: integration.verificationStatus,
+          lastVerifiedAt: integration.lastVerifiedAt,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: accessToken, webhookSecret are intentionally excluded
+        });
+      });
+      
+      // TODO: Add other integration types
+      // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
+      // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
+      // communicationIntegrations.forEach(c => integrations.push({ type: 'communication', ...c }));
+      
+      // Calculate setup completion
+      const releaseSetupComplete = scmIntegrations.length > 0;  // For now, just check SCM
+      
+      return res.status(200).send({
+        organisation: {
+          ...tenant,
+          releaseManagement: {
+            setupComplete: releaseSetupComplete,
+            setupSteps: {
+              scmIntegration: scmIntegrations.length > 0,
+              targetPlatforms: false,  // TODO: Implement
+              pipelines: false,        // TODO: Implement (optional)
+              communication: false     // TODO: Implement (optional)
+            },
+            integrations: integrations  // Single array with all integrations
+          }
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching tenant info:", error);
+      return next(error);
+    }
+  });
+
   // Get tenant collaborators (Owner only)
   router.get("/tenants/:tenantId/collaborators", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
     console.log("Getting collaborators for tenant:", req.params.tenantId);
