@@ -60,13 +60,13 @@ const seedData = {
     { id: "tenant_2", displayName: "Organization Two", createdBy: "id_1" },
   ],
   apps: [
-    { id: "id_2", name: "App One", accountId: "id_0", tenantId: "tenant_1", createdTime: new Date().getTime() },
-    { id: "id_3", name: "App Two", accountId: "id_1", tenantId: "tenant_2", createdTime: new Date().getTime() },
-    { id: "id_4", name: "Independent App", accountId: "id_0", createdTime: new Date().getTime() }, // App without a tenant association
+    { id: "id_2", name: "App One", userId: "id_0", tenantId: "tenant_1", createdTime: new Date().getTime() },
+    { id: "id_3", name: "App Two", userId: "id_1", tenantId: "tenant_2", createdTime: new Date().getTime() },
+    { id: "id_4", name: "Independent App", userId: "id_0", createdTime: new Date().getTime() }, // App without a tenant association
   ],
   collaborators: [
-    { email: "user1@example.com", accountId: "id_0", appId: "id_2", permission: "Owner", role: "Admin" },
-    { email: "user2@example.com", accountId: "id_1", appId: "id_3", permission: "Owner", role: "Admin" },
+    { email: "user1@example.com", userId: "id_0", appId: "id_2", permission: "Owner", role: "Admin" },
+    { email: "user2@example.com", userId: "id_1", appId: "id_3", permission: "Owner", role: "Admin" },
   ],
   deployments: [
     {
@@ -160,7 +160,7 @@ const seedData = {
     {
       id: "id_6",
       name: "accessKey1",
-      accountId: "id_0",
+      userId: "id_0",
       createdBy: "admin",
       createdTime: new Date().getTime(),
       friendlyName: "Default Access Key",

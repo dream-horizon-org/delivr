@@ -27,7 +27,7 @@ export function createAccessKey(sequelize: Sequelize) {
           }),
           allowNull:true
         },
-        accountId: { type: DataTypes.STRING, allowNull: false, references: {
+        userId: { type: DataTypes.STRING, allowNull: false, references: {
             model: sequelize.models["account"],
             key: 'id',
           },},
@@ -122,7 +122,7 @@ export function createApp(sequelize: Sequelize) {
         createdTime: { type: DataTypes.FLOAT, allowNull: false },
         name: { type: DataTypes.STRING, allowNull: false },
         id: { type: DataTypes.STRING, allowNull: false, primaryKey: true},
-        accountId: { 
+        userId: { 
           type: DataTypes.STRING, 
           allowNull: true,  // Optional for backward compatibility
           references: {
@@ -179,7 +179,7 @@ export function createTenant(sequelize: Sequelize) {
 export function createCollaborators(sequelize: Sequelize) {
     return sequelize.define("collaborator", {
         email: {type: DataTypes.STRING, allowNull: false},
-        accountId: { type: DataTypes.STRING, allowNull: false },
+        userId: { type: DataTypes.STRING, allowNull: false },
         appId: { 
           type: DataTypes.STRING, 
           allowNull: true  // Null for tenant-level collaborators
@@ -217,6 +217,7 @@ export function createDeployment(sequelize: Sequelize) {
       packageId: {  // Ensure this has the same type as the 'id' in 'packages'
           type: DataTypes.UUID,  // Use UUID type if 'packages.id' is a UUID
           allowNull: true,
+      field: 'userId',
           references: {
               model: sequelize.models["package"],
               key: 'id',
@@ -263,6 +264,7 @@ export function createPackage(sequelize: Sequelize) {
       deploymentId: { // Foreign key to associate this package with a deployment history
         type: DataTypes.STRING,
         allowNull: true,
+      field: 'userId',
         references: {
           model: sequelize.models["deployment"],
           key: 'id',
@@ -281,7 +283,7 @@ export function createAppPointer(sequelize: Sequelize) {
           allowNull: false,
           defaultValue: DataTypes.UUIDV4, // Generates a UUID by default
         },
-        accountId: {
+        userId: {
           type: DataTypes.STRING,
           allowNull: false,
           references: {
@@ -339,8 +341,8 @@ export function createModelss(sequelize: Sequelize) {
   App.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
   // User and App (One User can have many Apps) - OLD FLOW (backward compatibility)
-  User.hasMany(App, { foreignKey: 'accountId' });
-  App.belongsTo(User, { foreignKey: 'accountId' });
+  User.hasMany(App, { foreignKey: 'userId' });
+  App.belongsTo(User, { foreignKey: 'userId' });
   
   // Tenant and Collaborator (One Tenant can have many Collaborators) - NEW FLOW
   Tenant.hasMany(Collaborator, { foreignKey: 'tenantId' });
@@ -356,7 +358,7 @@ export function createModelss(sequelize: Sequelize) {
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
 
   // Collaborator associations (Collaborators belong to both User and App)
-  Collaborator.belongsTo(User, { foreignKey: 'accountId' });
+  Collaborator.belongsTo(User, { foreignKey: 'userId' });
   Collaborator.belongsTo(App, { foreignKey: 'appId' });
 
   // SCM Integration associations
@@ -400,7 +402,7 @@ export const MODELS = {
   APPS : "apps",
   PACKAGE : "package",
   ACCESSKEY : "accessKey",
-  ACCOUNT : "account",
+  ACCOUNT : "user",
   APPPOINTER: "AppPointer",
   TENANT : "tenant",
 }
@@ -560,11 +562,11 @@ export class S3Storage implements storage.Storage {
           .catch(S3Storage.storageErrorHandler);
       }
   
-    public getAccount(accountId: string): Promise<storage.Account> {
-      console.log("Fetching account for accountId:", accountId); // Debug log
+    public getAccount(userId: string): Promise<storage.Account> {
+      console.log("Fetching account for userId:", userId); // Debug log
       return this.setupPromise
         .then(() => {
-          return this.sequelize.models[MODELS.ACCOUNT].findByPk(accountId)
+          return this.sequelize.models[MODELS.ACCOUNT].findByPk(userId)
         })
         .then((account) => {
           console.log("Fetched account:", account.dataValues); // Debug log
@@ -601,13 +603,13 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
 
-    public getAppOwnershipCount(accountId: string): Promise<number> {
+    public getAppOwnershipCount(userId: string): Promise<number> {
         return this.setupPromise
             .then(() => {
                 // Direct query to collaborators table
                 return this.sequelize.models[MODELS.COLLABORATOR].count({
                     where: {
-                        accountId: accountId,
+                        userId: userId,
                         permission: 'Owner'
                     }
                 });
@@ -629,17 +631,17 @@ export class S3Storage implements storage.Storage {
             throw storage.storageError(storage.ErrorCode.Expired, "The access key has expired.");
           }
   
-          return accessKey.dataValues["accountId"];
+          return accessKey.dataValues["userId"];
         })
         .catch(S3Storage.storageErrorHandler);
     }
   
-    public addApp(accountId: string, app: storage.App): Promise<storage.App> {
+    public addApp(userId: string, app: storage.App): Promise<storage.App> {
       app = storage.clone(app); // Clone the app data to avoid mutating the original
       app.id = shortid.generate();
     
       return this.setupPromise
-        .then(() => this.getAccount(accountId)) // Fetch account details to check permissions
+        .then(() => this.getAccount(userId)) // Fetch account details to check permissions
         .then(async (account: storage.Account) => {
           const tenantId = app.tenantId;
           
@@ -661,7 +663,7 @@ export class S3Storage implements storage.Storage {
             // Query tenant-level collaborators (where appId is null)
             const tenantCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
               where: { 
-                accountId, 
+                userId, 
                 tenantId,
                 appId: null  // Tenant-level collaborator
               },
@@ -686,29 +688,29 @@ export class S3Storage implements storage.Storage {
             app.tenantId = tenantId;
             app.tenantName = tenant.dataValues.displayName;
       
-            // Add the App (tenant is the owner, accountId also set for backward compat)
+            // Add the App (tenant is the owner, userId also set for backward compat)
             const addedApp = await this.sequelize.models[MODELS.APPS].create({
               ...app,
-              accountId, // Set both for dual compatibility
+              userId, // Set both for dual compatibility
             });
       
             // Add tenant-level collaborator entry (unified collaborators table)
             const tenantCollabMap = {
               email: account.email,
-              accountId,
+              userId,
               tenantId,  // Tenant-level collaborator
               appId: null,  // No specific app
               permission: storage.Permissions.Owner,
             };
             await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-              where: { tenantId, accountId },
+              where: { tenantId, userId },
               defaults: tenantCollabMap,
             });
             
             // Also add app-level collaborator entry for backward compatibility
             const appCollabMap = {
               email: account.email,
-              accountId,
+              userId,
               appId: app.id,  // App-level collaborator
               tenantId: null,  // No tenant association for app-level
               permission: storage.Permissions.Owner,
@@ -722,16 +724,16 @@ export class S3Storage implements storage.Storage {
           } 
           // V1 Flow: Account-based (OLD - backward compatibility)
           else {
-            // Add the App with accountId as owner (old flow)
+            // Add the App with userId as owner (old flow)
             const addedApp = await this.sequelize.models[MODELS.APPS].create({
               ...app,
-              accountId, // Direct account ownership
+              userId, // Direct account ownership
             });
       
             // Add app-level collaborator entry (old flow)
             const collabMap = {
               email: account.email,
-              accountId,
+              userId,
               permission: storage.Permissions.Owner,
               appId: app.id,
             };
@@ -751,17 +753,17 @@ export class S3Storage implements storage.Storage {
     }
     
 
-    public getApps(accountId: string): Promise<storage.App[]> {
+    public getApps(userId: string): Promise<storage.App[]> {
       // Get apps from BOTH flows:
       // V2: User → Tenant (via collaborators) → Apps (NEW)
-      // V1: User → Apps (directly via accountId) (OLD - backward compatibility)
+      // V1: User → Apps (directly via userId) (OLD - backward compatibility)
       return this.setupPromise
         .then(async () => {
           // V2 Flow: Get all tenants user is a member of
           // Query tenant-level collaborators (where appId is null)
           const tenantCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
-              accountId,
+              userId,
               appId: null  // Tenant-level collaborators only
             },
           });
@@ -780,10 +782,10 @@ export class S3Storage implements storage.Storage {
               })
             : [];
           
-          // V1 Flow: Get all apps directly owned by accountId (old flow)
+          // V1 Flow: Get all apps directly owned by userId (old flow)
           const accountApps = await this.sequelize.models[MODELS.APPS].findAll({
             where: {
-              accountId,
+              userId,
               tenantId: null  // Only get old-style apps (no tenant)
             }
           });
@@ -799,7 +801,7 @@ export class S3Storage implements storage.Storage {
           const flatApps = Array.from(uniqueAppsMap.values());
           const apps = [];
           for (let i = 0; i < flatApps.length; i++) {
-            const updatedApp = await this.getCollabrators(flatApps[i], accountId);
+            const updatedApp = await this.getCollabrators(flatApps[i], userId);
             apps.push(updatedApp);
           }
           return apps;
@@ -807,7 +809,7 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public getTenants(accountId: string): Promise<storage.Organization[]> {
+    public getTenants(userId: string): Promise<storage.Organization[]> {
       // Fetch all tenants where the user is a member (via collaborators)
       // User → Tenant (parent entity) → Apps
       return this.setupPromise
@@ -815,7 +817,7 @@ export class S3Storage implements storage.Storage {
           // Get user's tenant-level collaborations (where appId is null)
           const tenantCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
-              accountId,
+              userId,
               appId: null  // Tenant-level collaborators only
             }
           });
@@ -848,7 +850,7 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+    public addTenant(userId: string, tenant: storage.Organization): Promise<storage.Organization> {
       return this.setupPromise
         .then(async () => {
           const tenantId = tenant.id || shortid.generate();
@@ -858,19 +860,19 @@ export class S3Storage implements storage.Storage {
           const createdTenant = await this.sequelize.models[MODELS.TENANT].create({
             id: tenantId,
             displayName: tenant.displayName,
-            createdBy: accountId,
+            createdBy: userId,
             createdAt: new Date(),
             updatedAt: new Date()
           });
           
           // Add creator as tenant-level collaborator with Owner permission
           const account = await this.sequelize.models[MODELS.ACCOUNT].findOne({
-            where: { id: accountId }
+            where: { id: userId }
           });
           
           await this.sequelize.models[MODELS.COLLABORATOR].create({
             email: account.dataValues.email,
-            accountId: accountId,
+            userId: userId,
             appId: null,  // Tenant-level (no specific app)
             tenantId: tenantId,
             permission: 'Owner',  // Creator gets Owner permission
@@ -883,14 +885,14 @@ export class S3Storage implements storage.Storage {
             id: tenantId,
             displayName: tenant.displayName,
             role: 'Owner',
-            createdBy: accountId,
+            createdBy: userId,
             createdTime: now
           };
         })
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public removeTenant(accountId: string, tenantId: string): Promise<void> {
+    public removeTenant(userId: string, tenantId: string): Promise<void> {
       return this.setupPromise
         .then( async () => {
           // Remove all apps under the tenant
@@ -904,7 +906,7 @@ export class S3Storage implements storage.Storage {
             throw storage.storageError(storage.ErrorCode.NotFound, "Specified Organisation does not exist.");
           }
 
-          if(tenant.dataValues.createdBy !== accountId) {
+          if(tenant.dataValues.createdBy !== userId) {
             throw storage.storageError(storage.ErrorCode.Invalid, "User does not have admin permissions for the specified tenant.");
           }
 
@@ -914,11 +916,11 @@ export class S3Storage implements storage.Storage {
     
           // Iterate over each app and take appropriate action
           for (const app of apps) {
-            const appOwnerId = app.dataValues.accountId;
+            const appOwnerId = app.dataValues.userId;
     
-            if (appOwnerId === accountId) {
+            if (appOwnerId === userId) {
               // If the app is owned by the user, remove it
-              await this.removeApp(accountId, app.dataValues.id);
+              await this.removeApp(userId, app.dataValues.id);
             } else {
               // If the app is not owned by the user, set tenantId to null
               await this.sequelize.models[MODELS.APPS].update(
@@ -932,7 +934,7 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           // Remove the tenant entry
           return this.sequelize.models[MODELS.TENANT].destroy({
-            where: { id: tenantId, createdBy: accountId },
+            where: { id: tenantId, createdBy: userId },
           });
         })
         .catch(S3Storage.storageErrorHandler);
@@ -956,7 +958,7 @@ export class S3Storage implements storage.Storage {
           for (const collab of collaborators) {
             const email = collab.dataValues.email;
             collaboratorMap[email] = {
-              accountId: collab.dataValues.accountId,
+              userId: collab.dataValues.userId,
               permission: collab.dataValues.permission
             };
           }
@@ -978,13 +980,13 @@ export class S3Storage implements storage.Storage {
             throw storage.storageError(storage.ErrorCode.NotFound, "User with this email does not exist");
           }
 
-          const accountId = account.dataValues.id;
+          const userId = account.dataValues.id;
 
           // Check if collaborator already exists
           const existing = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
             where: {
               tenantId: tenantId,
-              accountId: accountId,
+              userId: userId,
               appId: null
             }
           });
@@ -996,7 +998,7 @@ export class S3Storage implements storage.Storage {
           // Add collaborator
           await this.sequelize.models[MODELS.COLLABORATOR].create({
             email: email,
-            accountId: accountId,
+            userId: userId,
             tenantId: tenantId,
             appId: null,
             permission: permission,
@@ -1047,7 +1049,7 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public getApp(accountId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
+    public getApp(userId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.APPS].findByPk(appId, {
@@ -1055,7 +1057,7 @@ export class S3Storage implements storage.Storage {
           });
         })
         .then((flatAppModel) => {
-          return this.getCollabrators(flatAppModel.dataValues, accountId);
+          return this.getCollabrators(flatAppModel.dataValues, userId);
         })
         .then((app) => {
           return app;
@@ -1064,35 +1066,35 @@ export class S3Storage implements storage.Storage {
     }
     
   
-    public removeApp(accountId: string, appId: string): Promise<void> {
+    public removeApp(userId: string, appId: string): Promise<void> {
       return this.setupPromise
         .then(() => {
           // Remove all collaborator entries for this app
           return this.sequelize.models[MODELS.COLLABORATOR].destroy({
-            where: { appId, accountId },
+            where: { appId, userId },
           });
         })
         .then(() => {
           // Remove the app entry
           return this.sequelize.models[MODELS.APPS].destroy({
-            where: { id: appId, accountId },
+            where: { id: appId, userId },
           });
         })
         .then(() => {
           // Remove the app entry
           //MARK: Fix this
-          this.removeAppPointer(accountId, appId);
+          this.removeAppPointer(userId, appId);
         })
         .catch(S3Storage.storageErrorHandler);
     }    
   
-    public updateApp(accountId: string, app: storage.App): Promise<void> {
+    public updateApp(userId: string, app: storage.App): Promise<void> {
       const appId: string = app.id;
       if (!appId) throw new Error("No app id");
   
       return this.setupPromise
         .then(() => {
-          return this.updateAppWithPermission(accountId,app,true)
+          return this.updateAppWithPermission(userId,app,true)
         })
         .catch(S3Storage.storageErrorHandler);
     }
@@ -1102,7 +1104,7 @@ export class S3Storage implements storage.Storage {
     //P1
 
     //MARK: TODO
-    public transferApp(accountId: string, appId: string, email: string): Promise<void> {
+    public transferApp(userId: string, appId: string, email: string): Promise<void> {
       let app: storage.App;
       let targetCollaboratorAccountId: string;
       let requestingCollaboratorEmail: string;
@@ -1110,7 +1112,7 @@ export class S3Storage implements storage.Storage {
   
       return this.setupPromise
         .then(() => {
-          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+          const getAppPromise: Promise<storage.App> = this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
           const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
           return Promise.all<any>([getAppPromise, accountPromise]);
         })
@@ -1118,7 +1120,7 @@ export class S3Storage implements storage.Storage {
           targetCollaboratorAccountId = accountPromiseResult.id;
           email = accountPromiseResult.email; // Use the original email stored on the account to ensure casing is consistent
           app = appPromiseResult;
-          requestingCollaboratorEmail = S3Storage.getEmailForAccountId(app.collaborators, accountId);
+          requestingCollaboratorEmail = S3Storage.getEmailForAccountId(app.collaborators, userId);
   
           if (requestingCollaboratorEmail === email) {
             throw storage.storageError(storage.ErrorCode.AlreadyExists, "The given account already owns the app.");
@@ -1144,13 +1146,13 @@ export class S3Storage implements storage.Storage {
             S3Storage.setCollaboratorPermission(app.collaborators, email, storage.Permissions.Owner);
           } else {
             const targetOwnerProperties: storage.CollaboratorProperties = {
-              accountId: targetCollaboratorAccountId,
+              userId: targetCollaboratorAccountId,
               permission: storage.Permissions.Owner,
             };
             S3Storage.addToCollaborators(app.collaborators, email, targetOwnerProperties);
           }
   
-          return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true);
+          return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true);
         })
         .then(() => {
           if (!isTargetAlreadyCollaborator) {
@@ -1162,14 +1164,14 @@ export class S3Storage implements storage.Storage {
     }
   
 
-    private addAppPointer(accountId: string, appId: string): Promise<void> {
+    private addAppPointer(userId: string, appId: string): Promise<void> {
         return this.setupPromise
           .then(() => {
             // Directly create the pointer in the DB using foreign keys (instead of partition/row keys)
             return this.sequelize.models[MODELS.APPPOINTER].create({
-              accountId,
+              userId,
               appId,
-              partitionKeyPointer: `accountId ${accountId}`,
+              partitionKeyPointer: `userId ${userId}`,
               rowKeyPointer: `appId ${appId}`,
             });
           })
@@ -1181,28 +1183,28 @@ export class S3Storage implements storage.Storage {
       }
       
     //P0
-    public addCollaborator(accountId: string, appId: string, email: string): Promise<void> {
+    public addCollaborator(userId: string, appId: string, email: string): Promise<void> {
       return this.setupPromise
         .then(() => {
-          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+          const getAppPromise: Promise<storage.App> = this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
           const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
           return Promise.all<any>([getAppPromise, accountPromise]);
         })
         .then(([app, account]: [storage.App, storage.Account]) => {
           // Use the original email stored on the account to ensure casing is consistent
           email = account.email;
-          return this.addCollaboratorWithPermissions(accountId, app, email, {
-            accountId: account.id,
+          return this.addCollaboratorWithPermissions(userId, app, email, {
+            userId: account.id,
             permission: storage.Permissions.Viewer,
           });
         })
         .catch(S3Storage.storageErrorHandler);
     }
 
-    public updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void> {
+    public updateCollaborators(userId: string, appId: string, email: string, role: string): Promise<void> {
       return this.setupPromise
       .then(() => {
-        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        const getAppPromise: Promise<storage.App> = this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
         const requestCollaboratorAccountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
         return Promise.all<any>([getAppPromise, requestCollaboratorAccountPromise]);
       })
@@ -1210,18 +1212,18 @@ export class S3Storage implements storage.Storage {
         // Use the original email stored on the account to ensure casing is consistent
         email = accountToModify.email;
         let permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
-        return this.updateCollaboratorWithPermissions(accountId, app, email, {
-          accountId: accountToModify.id,
+        return this.updateCollaboratorWithPermissions(userId, app, email, {
+          userId: accountToModify.id,
           permission: permission,
         });
       })
       .catch(S3Storage.storageErrorHandler);
     }
   
-    public getCollaborators(accountId: string, appId: string): Promise<storage.CollaboratorMap> {
+    public getCollaborators(userId: string, appId: string): Promise<storage.CollaboratorMap> {
       return this.setupPromise
         .then(() => {
-          return this.getApp(accountId, appId, /*keepCollaboratorIds*/ false);
+          return this.getApp(userId, appId, /*keepCollaboratorIds*/ false);
         })
         .then((app: storage.App) => {
           return Promise.resolve(app.collaborators);
@@ -1229,11 +1231,11 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
   
-    public removeCollaborator(accountId: string, appId: string, email: string): Promise<void> {
+    public removeCollaborator(userId: string, appId: string, email: string): Promise<void> {
         return this.setupPromise
         .then(() => {
           // Get the App and Collaborators from the DB
-          return this.getApp(accountId, appId, true);
+          return this.getApp(userId, appId, true);
         })
         .then((app: storage.App) => {
           const removedCollabProperties: storage.CollaboratorProperties = app.collaborators[email];
@@ -1251,20 +1253,20 @@ export class S3Storage implements storage.Storage {
           delete app.collaborators[email];
   
           // Update the App in the DB
-          return this.updateAppWithPermission(accountId, app, true).then(() => {
-            return this.removeAppPointer(removedCollabProperties.accountId, app.id);
+          return this.updateAppWithPermission(userId, app, true).then(() => {
+            return this.removeAppPointer(removedCollabProperties.userId, app.id);
           });
         })
         .catch(S3Storage.storageErrorHandler);
     }
 
-    private removeAppPointer(accountId: string, appId: string): Promise<void> {
+    private removeAppPointer(userId: string, appId: string): Promise<void> {
         return this.setupPromise
         .then(() => {
           // Use Sequelize to destroy (delete) the record
           return this.sequelize.models[MODELS.APPPOINTER].destroy({
             where: {
-              accountId: accountId,
+              userId: userId,
               appId: appId,
             },
           });
@@ -1317,15 +1319,15 @@ export class S3Storage implements storage.Storage {
       }
 
       private addCollaboratorWithPermissions(
-        accountId: string,
+        userId: string,
         app: storage.App,
         email: string,
         collabProperties: storage.CollaboratorProperties
       ): Promise<void> {
         if (app && app.collaborators && !app.collaborators[email]) {
           app.collaborators[email] = collabProperties;
-          return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true).then(() => {
-            return this.addAppPointer(collabProperties.accountId, app.id);
+          return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true).then(() => {
+            return this.addAppPointer(collabProperties.userId, app.id);
           });
         } else {
           throw storage.storageError(storage.ErrorCode.AlreadyExists, "The given account is already a collaborator for this app.");
@@ -1333,15 +1335,15 @@ export class S3Storage implements storage.Storage {
       }
 
       private updateCollaboratorWithPermissions(
-        accountId: string,
+        userId: string,
         app: storage.App,
         email: string,
         collabProperties: storage.CollaboratorProperties
       ): Promise<void> {
         if (app && app.collaborators && app.collaborators[email]) {
           app.collaborators[email] = collabProperties;
-          return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true).then(() => {
-            return this.addAppPointer(collabProperties.accountId, app.id);
+          return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true).then(() => {
+            return this.addAppPointer(collabProperties.userId, app.id);
           });
         } else {
           throw storage.storageError(storage.ErrorCode.AlreadyExists, "The given account is already a collaborator for this app.");
@@ -1352,7 +1354,7 @@ export class S3Storage implements storage.Storage {
       //Deployment Methods
 
     
-      public addDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<string> {
+      public addDeployment(userId: string, appId: string, deployment: storage.Deployment): Promise<string> {
         let deploymentId: string;
         return this.setupPromise
           .then(() => {
@@ -1386,7 +1388,7 @@ export class S3Storage implements storage.Storage {
     }
 
 
-    public getDeployments(accountId: string, appId: string): Promise<storage.Deployment[]> {
+    public getDeployments(userId: string, appId: string): Promise<storage.Deployment[]> {
       return this.setupPromise
         .then(() => {
           // Retrieve deployments for the given appId, including the associated Package
@@ -1396,7 +1398,7 @@ export class S3Storage implements storage.Storage {
         })
         .then((flatDeployments: any[]) => {
           // Use Promise.all to wait for all unflattenDeployment promises to resolve
-          return Promise.all(flatDeployments.map((flatDeployment) => this.attachPackageToDeployment(accountId,flatDeployment)));
+          return Promise.all(flatDeployments.map((flatDeployment) => this.attachPackageToDeployment(userId,flatDeployment)));
         })
         .catch((error) => {
           console.error("Error retrieving deployments:", error);
@@ -1404,7 +1406,7 @@ export class S3Storage implements storage.Storage {
         });
     }
 
-    public removeDeployment(accountId: string, appId: string, deploymentId: string): Promise<void> {
+    public removeDeployment(userId: string, appId: string, deploymentId: string): Promise<void> {
       //MARK:TODO TEST THIS
         return this.setupPromise
           .then(() => {
@@ -1423,7 +1425,7 @@ export class S3Storage implements storage.Storage {
           });
     }
 
-    public updateDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<void> {
+    public updateDeployment(userId: string, appId: string, deployment: storage.Deployment): Promise<void> {
         const deploymentId: string = deployment.id;
         if (!deploymentId) throw new Error("No deployment id");
     
@@ -1448,7 +1450,7 @@ export class S3Storage implements storage.Storage {
             }
  */
     
-    public commitPackage(accountId: string, appId: string, deploymentId: string, appPackage: storage.Package): Promise<storage.Package> {
+    public commitPackage(userId: string, appId: string, deploymentId: string, appPackage: storage.Package): Promise<storage.Package> {
         if (!deploymentId) throw new Error("No deployment id");
         if (!appPackage) throw new Error("No package specified");
     
@@ -1456,12 +1458,12 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Fetch the package history from S3
-            return this.getPackageHistory(accountId, appId, deploymentId);
+            return this.getPackageHistory(userId, appId, deploymentId);
           })
           .then((history: storage.Package[]) => {
             packageHistory = history;
             appPackage.label = this.getNextLabel(packageHistory);
-            return this.getAccount(accountId);
+            return this.getAccount(userId);
           })
           .then(async (account: storage.Account) => {
             appPackage.releasedBy = account.email;
@@ -1495,7 +1497,7 @@ export class S3Storage implements storage.Storage {
 
 
 
-    public clearPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<void> {
+    public clearPackageHistory(userId: string, appId: string, deploymentId: string): Promise<void> {
       return this.setupPromise
         .then(() => {
           // Remove all packages linked to the deployment
@@ -1517,7 +1519,7 @@ export class S3Storage implements storage.Storage {
         });
     }
     
-    public getPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<storage.Package[]> {
+    public getPackageHistory(userId: string, appId: string, deploymentId: string): Promise<storage.Package[]> {
       return this.setupPromise
         .then(() => {
           // Fetch all packages associated with the deploymentId, ordered by uploadTime
@@ -1537,7 +1539,7 @@ export class S3Storage implements storage.Storage {
     }
     
 
-    public updatePackageHistory(accountId: string, appId: string, deploymentId: string, history: storage.Package[]): Promise<void> {
+    public updatePackageHistory(userId: string, appId: string, deploymentId: string, history: storage.Package[]): Promise<void> {
         if (!history || !history.length) {
           throw storage.storageError(storage.ErrorCode.Invalid, "Cannot clear package history from an update operation");
         }
@@ -1772,12 +1774,12 @@ export class S3Storage implements storage.Storage {
 
 
     //Access Key Conformation
-    public addAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<string> {
+    public addAccessKey(userId: string, accessKey: storage.AccessKey): Promise<string> {
         accessKey.id = shortid.generate();
         return this.setupPromise
           .then(() => {
             // Insert the access key into the database
-            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, accountId });
+            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, userId });
           })
           .then(() => {
             return accessKey.id;
@@ -1792,7 +1794,7 @@ export class S3Storage implements storage.Storage {
           if (!accessKey) {
             throw new Error("Access key not found");
           }
-          return this.getAccount(accessKey.accountId);
+          return this.getAccount(accessKey.userId);
         }).catch((error: any) => {
           console.error("Error retrieving account:", error);
           throw error;
@@ -1807,7 +1809,7 @@ export class S3Storage implements storage.Storage {
           if (!accessKey) {
             throw new Error("Access key not found");
           }
-          return this.getAccount(accessKey.accountId);
+          return this.getAccount(accessKey.userId);
         }).catch((error: any) => {
           console.error("Error retrieving account:", error);
           throw error;
@@ -1815,13 +1817,13 @@ export class S3Storage implements storage.Storage {
     }
 
 
-    public getAccessKey(accountId: string, accessKeyId: string): Promise<storage.AccessKey> {
+    public getAccessKey(userId: string, accessKeyId: string): Promise<storage.AccessKey> {
         return this.setupPromise
           .then(() => {
             // Find the access key in the database using Sequelize
             return this.sequelize.models[MODELS.ACCESSKEY].findOne({
               where: {
-                accountId: accountId,
+                userId: userId,
                 id: accessKeyId,
               },
             });
@@ -1838,11 +1840,11 @@ export class S3Storage implements storage.Storage {
           });
     }
 
-    public removeAccessKey(accountId: string, accessKeyId: string): Promise<void> {
+    public removeAccessKey(userId: string, accessKeyId: string): Promise<void> {
         return this.setupPromise
           .then(() => {
             // First, retrieve the access key
-            return this.getAccessKey(accountId, accessKeyId);
+            return this.getAccessKey(userId, accessKeyId);
           })
           .then((accessKey) => {
             if (!accessKey) {
@@ -1852,7 +1854,7 @@ export class S3Storage implements storage.Storage {
             // Remove the access key from the database
             return this.sequelize.models[MODELS.ACCESSKEY].destroy({
               where: {
-                accountId: accountId,
+                userId: userId,
                 id: accessKeyId,
               },
             });
@@ -1866,7 +1868,7 @@ export class S3Storage implements storage.Storage {
           });
     }
 
-    public updateAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<void> {
+    public updateAccessKey(userId: string, accessKey: storage.AccessKey): Promise<void> {
         if (!accessKey) {
           throw new Error("No access key provided");
         }
@@ -1880,7 +1882,7 @@ export class S3Storage implements storage.Storage {
             // Update the access key in the database
             return this.sequelize.models[exports.MODELS.ACCESSKEY].update(accessKey, {
               where: {
-                accountId: accountId,
+                userId: userId,
                 id: accessKey.id,
               },
             });
@@ -1897,17 +1899,17 @@ export class S3Storage implements storage.Storage {
     
     
 
-    public getAccessKeys(accountId: string): Promise<storage.AccessKey[]> {
+    public getAccessKeys(userId: string): Promise<storage.AccessKey[]> {
         return this.setupPromise
           .then(() => {
             // Retrieve all access keys for the account
-            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { accountId } });
+            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { userId } });
           })
           .then((accessKeys: any[]) => {
             return accessKeys.map((accessKey: any) => accessKey.dataValues);
           });
     }
-    public getDeployment(accountId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
+    public getDeployment(userId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
         return this.setupPromise
           .then(async () => {
             // Fetch the deployment by appId and deploymentId using Sequelize
@@ -1915,7 +1917,7 @@ export class S3Storage implements storage.Storage {
           })
           .then(async (flatDeployment: any) => {
             // Convert the retrieved Sequelize object to the desired format
-            return this.attachPackageToDeployment(accountId, flatDeployment);
+            return this.attachPackageToDeployment(userId, flatDeployment);
           })
           .catch((error) => {
             // Handle any Sequelize errors here
@@ -2009,7 +2011,7 @@ export class S3Storage implements storage.Storage {
     }
   
 
-    private async getCollabrators(app:storage.App, accountId) {
+    private async getCollabrators(app:storage.App, userId) {
       const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({where : {appId: app.id}})
       const collabMap = {}
       collabModel.map((collab) => {
@@ -2018,7 +2020,7 @@ export class S3Storage implements storage.Storage {
           "isCurrentAccount" : false
         }
       })
-      const currentUserEmail: string = S3Storage.getEmailForAccountId(collabMap, accountId);
+      const currentUserEmail: string = S3Storage.getEmailForAccountId(collabMap, userId);
       if (currentUserEmail && collabMap[currentUserEmail]) {
         collabMap[currentUserEmail].isCurrentAccount = true;
       }
@@ -2028,7 +2030,7 @@ export class S3Storage implements storage.Storage {
 
     
 
-    public updateAppWithPermission(accountId: string, app: any, updateCollaborator: boolean = false): Promise<void> {
+    public updateAppWithPermission(userId: string, app: any, updateCollaborator: boolean = false): Promise<void> {
         const appId: string = app.id;
         if (!appId) throw new Error("No app id");
     
@@ -2057,7 +2059,7 @@ export class S3Storage implements storage.Storage {
                                     const collaborator = app.collaborators[email];
                                     return {
                                         email,
-                                        accountId: collaborator.accountId,
+                                        userId: collaborator.userId,
                                         appId: appId,
                                         permission: collaborator.permission,
                                     };
@@ -2174,10 +2176,10 @@ export class S3Storage implements storage.Storage {
       throw storage.storageError(errorCode, errorMessage);
     }
   
-    private static getEmailForAccountId(collaboratorsMap: storage.CollaboratorMap, accountId: string): string {
+    private static getEmailForAccountId(collaboratorsMap: storage.CollaboratorMap, userId: string): string {
       if (collaboratorsMap) {
         for (const email of Object.keys(collaboratorsMap)) {
-          if ((<storage.CollaboratorProperties>collaboratorsMap[email]).accountId === accountId) {
+          if ((<storage.CollaboratorProperties>collaboratorsMap[email]).userId === userId) {
             return email;
           }
         }

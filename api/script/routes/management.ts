@@ -661,9 +661,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
         // Prevent the app creator from demoting themselves from Owner
         const collaboratorBeingModified = app.collaborators[email];
         if (collaboratorBeingModified) {
-          const collaboratorAccountId = collaboratorBeingModified.accountId;
-          const appCreatorAccountId = (app as any).accountId;
-          if (collaboratorAccountId === appCreatorAccountId && role !== "Owner") {
+          const collaboratorUserId = collaboratorBeingModified.userId;
+          const appCreatorUserId = (app as any).userId;
+          if (collaboratorUserId === appCreatorUserId && role !== "Owner") {
             throw errorUtils.restError(errorUtils.ErrorCode.Conflict,"The app creator permission cannot be changed from Owner to a non-Owner role.");
           }
         }

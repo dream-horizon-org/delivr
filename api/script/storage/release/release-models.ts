@@ -695,7 +695,7 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(ReleaseTaskConclusion)),
       allowNull: true
     },
-    accountId: {
+    userId: {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
@@ -744,7 +744,7 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
       { fields: ['releaseId'] },
       { fields: ['regressionId'] },
       { fields: ['preReleaseTasksId'] },
-      { fields: ['accountId'] },
+      { fields: ['userId'] },
       { fields: ['taskId'], unique: true }
     ]
   });
@@ -1037,7 +1037,7 @@ export function createStateHistoryModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(StateChangeType)),
       defaultValue: StateChangeType.CREATE
     },
-    accountId: {
+    userId: {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
@@ -1076,7 +1076,7 @@ export function createStateHistoryModel(sequelize: Sequelize) {
     timestamps: true,
     indexes: [
       { fields: ['releaseId'] },
-      { fields: ['accountId'] },
+      { fields: ['userId'] },
       { fields: ['id', 'releaseId', 'codepushId', 'settingsId'] }
     ]
   });
@@ -1414,7 +1414,7 @@ export function createReleaseModels(sequelize: Sequelize) {
   models.ReleaseTasks.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
   models.ReleaseTasks.belongsTo(models.RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
   models.ReleaseTasks.belongsTo(models.PreReleaseTasks, { foreignKey: 'preReleaseTasksId', as: 'preReleaseTasks' });
-  models.ReleaseTasks.belongsTo(sequelize.models.user, { foreignKey: 'accountId', as: 'account' });
+  models.ReleaseTasks.belongsTo(sequelize.models.user, { foreignKey: 'userId', as: 'account' });
   
   // RegressionCycle associations
   models.RegressionCycle.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
@@ -1441,7 +1441,7 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // StateHistory associations
   models.StateHistory.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.StateHistory.belongsTo(sequelize.models.user, { foreignKey: 'accountId', as: 'account' });
+  models.StateHistory.belongsTo(sequelize.models.user, { foreignKey: 'userId', as: 'account' });
   models.StateHistory.hasMany(models.StateHistoryItem, { foreignKey: 'historyId', as: 'changes' });
   
   // StateHistoryItem associations

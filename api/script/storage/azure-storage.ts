@@ -25,16 +25,16 @@ module Keys {
   const DELIMITER = " ";
   const LEAF_MARKER = "*";
 
-  export function getAccountPartitionKey(accountId: string): string {
+  export function getAccountPartitionKey(userId: string): string {
     validateParameters(Array.prototype.slice.apply(arguments));
-    return "accountId" + DELIMITER + accountId;
+    return "userId" + DELIMITER + userId;
   }
 
-  export function getAccountAddress(accountId: string): Pointer {
+  export function getAccountAddress(userId: string): Pointer {
     validateParameters(Array.prototype.slice.apply(arguments));
     return <Pointer>{
-      partitionKeyPointer: getAccountPartitionKey(accountId),
-      rowKeyPointer: getHierarchicalAccountRowKey(accountId),
+      partitionKeyPointer: getAccountPartitionKey(userId),
+      rowKeyPointer: getHierarchicalAccountRowKey(userId),
     };
   }
 
@@ -48,9 +48,9 @@ module Keys {
     return generateHierarchicalAppKey(/*markLeaf=*/ true, appId, deploymentId);
   }
 
-  export function getHierarchicalAccountRowKey(accountId: string, appId?: string): string {
+  export function getHierarchicalAccountRowKey(userId: string, appId?: string): string {
     validateParameters(Array.prototype.slice.apply(arguments));
-    return generateHierarchicalAccountKey(/*markLeaf=*/ true, accountId, appId);
+    return generateHierarchicalAccountKey(/*markLeaf=*/ true, userId, appId);
   }
 
   export function generateHierarchicalAppKey(markLeaf: boolean, appId: string, deploymentId?: string): string {
@@ -70,15 +70,15 @@ module Keys {
     return key;
   }
 
-  export function generateHierarchicalAccountKey(markLeaf: boolean, accountId: string, appId?: string): string {
+  export function generateHierarchicalAccountKey(markLeaf: boolean, userId: string, appId?: string): string {
     validateParameters(Array.prototype.slice.apply(arguments).slice(1));
-    let key = delimit("accountId", accountId, /*prependDelimiter=*/ false);
+    let key = delimit("userId", userId, /*prependDelimiter=*/ false);
 
     if (typeof appId !== "undefined") {
       key += delimit("appId", appId);
     }
 
-    // Mark leaf key with a '*', e.g. 'accountId 123 appId 456' -> 'accountId 123 appId* 456'
+    // Mark leaf key with a '*', e.g. 'userId 123 appId 456' -> 'userId 123 appId* 456'
     if (markLeaf) {
       const lastIdDelimiter: number = key.lastIndexOf(DELIMITER);
       key = key.substring(0, lastIdDelimiter) + LEAF_MARKER + key.substring(lastIdDelimiter);
@@ -87,9 +87,9 @@ module Keys {
     return key;
   }
 
-  export function getAccessKeyRowKey(accountId: string, accessKeyId?: string): string {
+  export function getAccessKeyRowKey(userId: string, accessKeyId?: string): string {
     validateParameters(Array.prototype.slice.apply(arguments));
-    let key: string = "accountId_" + accountId + "_accessKeyId*_";
+    let key: string = "userId_" + userId + "_accessKeyId*_";
 
     if (accessKeyId !== undefined) {
       key += accessKeyId;
@@ -165,7 +165,7 @@ interface DeploymentKeyPointer {
 }
 
 interface AccessKeyPointer {
-  accountId: string;
+  userId: string;
   expires: number;
 }
 
@@ -247,8 +247,8 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getAccount(accountId: string): Promise<storage.Account> {
-    const address: Pointer = Keys.getAccountAddress(accountId);
+  public getAccount(userId: string): Promise<storage.Account> {
+    const address: Pointer = Keys.getAccountAddress(userId);
 
     return this._setupPromise
       .then(() => {
@@ -317,7 +317,7 @@ export class AzureStorage implements storage.Storage {
   }
 
 // NOTE: This method is not implemented for azure storage
-  public getAppOwnershipCount(accountId: string): Promise<number> {
+  public getAppOwnershipCount(userId: string): Promise<number> {
     return Promise.reject(
       storage.storageError(
         storage.ErrorCode.Other,
@@ -334,20 +334,20 @@ export class AzureStorage implements storage.Storage {
       .then(() => {
         return this.retrieveByKey(partitionKey, rowKey);
       })
-      .then((accountIdObject: AccessKeyPointer) => {
-        if (new Date().getTime() >= accountIdObject.expires) {
+      .then((userIdObject: AccessKeyPointer) => {
+        if (new Date().getTime() >= userIdObject.expires) {
           throw storage.storageError(storage.ErrorCode.Expired, "The access key has expired.");
         }
 
-        return accountIdObject.accountId;
+        return userIdObject.userId;
       })
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getTenants(accountId: string): Promise<storage.Organization[]> {
+  public getTenants(userId: string): Promise<storage.Organization[]> {
     return this._setupPromise
       .then(() => {
-        return this.getAccount(accountId);
+        return this.getAccount(userId);
       })
       .then((account: storage.Account) => {
         return [];
@@ -355,17 +355,17 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
+  public addTenant(userId: string, tenant: storage.Organization): Promise<storage.Organization> {
     tenant = storage.clone(tenant);
     tenant.id = shortid.generate();
-    tenant.createdBy = accountId;
+    tenant.createdBy = userId;
     tenant.createdTime = new Date().getTime();
     
     // Azure implementation - stub for now
     return Promise.resolve(tenant);
   }
 
-  public removeTenant(accountId: string, tenantId: string): Promise<void> {
+  public removeTenant(userId: string, tenantId: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
@@ -386,17 +386,17 @@ export class AzureStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public addApp(accountId: string, app: storage.App): Promise<storage.App> {
+  public addApp(userId: string, app: storage.App): Promise<storage.App> {
     app = storage.clone(app); // pass by value
     app.id = shortid.generate();
 
     return this._setupPromise
       .then(() => {
-        return this.getAccount(accountId);
+        return this.getAccount(userId);
       })
       .then((account: storage.Account) => {
         const collabMap: storage.CollaboratorMap = {};
-        collabMap[account.email] = { accountId: accountId, permission: storage.Permissions.Owner };
+        collabMap[account.email] = { userId: userId, permission: storage.Permissions.Owner };
 
         app.collaborators = collabMap;
 
@@ -404,7 +404,7 @@ export class AzureStorage implements storage.Storage {
         return this.insertByAppHierarchy(flatApp, app.id);
       })
       .then(() => {
-        return this.addAppPointer(accountId, app.id);
+        return this.addAppPointer(userId, app.id);
       })
       .then(() => {
         return app;
@@ -412,14 +412,14 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getApps(accountId: string): Promise<storage.App[]> {
+  public getApps(userId: string): Promise<storage.App[]> {
     return this._setupPromise
       .then(() => {
-        return this.getCollectionByHierarchy(accountId);
+        return this.getCollectionByHierarchy(userId);
       })
       .then((flatApps: any[]) => {
         const apps: storage.App[] = flatApps.map((flatApp: any) => {
-          return AzureStorage.unflattenApp(flatApp, accountId);
+          return AzureStorage.unflattenApp(flatApp, userId);
         });
 
         return apps;
@@ -427,22 +427,22 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getApp(accountId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
+  public getApp(userId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
     return this._setupPromise
       .then(() => {
         return this.retrieveByAppHierarchy(appId);
       })
       .then((flatApp: any) => {
-        return AzureStorage.unflattenApp(flatApp, accountId);
+        return AzureStorage.unflattenApp(flatApp, userId);
       })
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public removeApp(accountId: string, appId: string): Promise<void> {
+  public removeApp(userId: string, appId: string): Promise<void> {
     // remove entries for all collaborators account before removing the app
     return this._setupPromise
       .then(() => {
-        return this.removeAllCollaboratorsAppPointers(accountId, appId);
+        return this.removeAllCollaboratorsAppPointers(userId, appId);
       })
       .then(() => {
         return this.cleanUpByAppHierarchy(appId);
@@ -450,18 +450,18 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public updateApp(accountId: string, app: storage.App): Promise<void> {
+  public updateApp(userId: string, app: storage.App): Promise<void> {
     const appId: string = app.id;
     if (!appId) throw new Error("No app id");
 
     return this._setupPromise
       .then(() => {
-        return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ false);
+        return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ false);
       })
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public transferApp(accountId: string, appId: string, email: string): Promise<void> {
+  public transferApp(userId: string, appId: string, email: string): Promise<void> {
     let app: storage.App;
     let targetCollaboratorAccountId: string;
     let requestingCollaboratorEmail: string;
@@ -469,7 +469,7 @@ export class AzureStorage implements storage.Storage {
 
     return this._setupPromise
       .then(() => {
-        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        const getAppPromise: Promise<storage.App> = this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
         const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
         return Promise.all<any>([getAppPromise, accountPromise]);
       })
@@ -477,7 +477,7 @@ export class AzureStorage implements storage.Storage {
         targetCollaboratorAccountId = accountPromiseResult.id;
         email = accountPromiseResult.email; // Use the original email stored on the account to ensure casing is consistent
         app = appPromiseResult;
-        requestingCollaboratorEmail = AzureStorage.getEmailForAccountId(app.collaborators, accountId);
+        requestingCollaboratorEmail = AzureStorage.getEmailForAccountId(app.collaborators, userId);
 
         if (requestingCollaboratorEmail === email) {
           throw storage.storageError(storage.ErrorCode.AlreadyExists, "The given account already owns the app.");
@@ -503,13 +503,13 @@ export class AzureStorage implements storage.Storage {
           AzureStorage.setCollaboratorPermission(app.collaborators, email, storage.Permissions.Owner);
         } else {
           const targetOwnerProperties: storage.CollaboratorProperties = {
-            accountId: targetCollaboratorAccountId,
+            userId: targetCollaboratorAccountId,
             permission: storage.Permissions.Owner,
           };
           AzureStorage.addToCollaborators(app.collaborators, email, targetOwnerProperties);
         }
 
-        return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true);
+        return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true);
       })
       .then(() => {
         if (!isTargetAlreadyCollaborator) {
@@ -520,28 +520,28 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public addCollaborator(accountId: string, appId: string, email: string): Promise<void> {
+  public addCollaborator(userId: string, appId: string, email: string): Promise<void> {
     return this._setupPromise
       .then(() => {
-        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        const getAppPromise: Promise<storage.App> = this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
         const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
         return Promise.all<any>([getAppPromise, accountPromise]);
       })
       .then(([app,account]:[storage.App,storage.Account]) => {
         // Use the original email stored on the account to ensure casing is consistent
         email = account.email;
-        return this.addCollaboratorWithPermissions(accountId, app, email, {
-          accountId: account.id,
+        return this.addCollaboratorWithPermissions(userId, app, email, {
+          userId: account.id,
           permission: storage.Permissions.Viewer,
         });
       })
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getCollaborators(accountId: string, appId: string): Promise<storage.CollaboratorMap> {
+  public getCollaborators(userId: string, appId: string): Promise<storage.CollaboratorMap> {
     return this._setupPromise
       .then(() => {
-        return this.getApp(accountId, appId, /*keepCollaboratorIds*/ false);
+        return this.getApp(userId, appId, /*keepCollaboratorIds*/ false);
       })
       .then((app: storage.App) => {
         return Promise.resolve(<storage.CollaboratorMap>(app.collaborators));
@@ -549,11 +549,11 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void> {
+  public updateCollaborators(userId: string, appId: string, email: string, role: string): Promise<void> {
     //MARK: TODO TEST
     return this._setupPromise
       .then(() => {
-        return this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        return this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
       })
       .then((app: storage.App) => {
         const collaboratorEmails: string[] = Object.keys(app.collaborators);
@@ -562,15 +562,15 @@ export class AzureStorage implements storage.Storage {
           collaboratorProperties.permission = role;
         });
 
-        return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true);
+        return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true);
       })
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public removeCollaborator(accountId: string, appId: string, email: string): Promise<void> {
+  public removeCollaborator(userId: string, appId: string, email: string): Promise<void> {
     return this._setupPromise
       .then(() => {
-        return this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        return this.getApp(userId, appId, /*keepCollaboratorIds*/ true);
       })
       .then((app: storage.App) => {
         const removedCollabProperties: storage.CollaboratorProperties = app.collaborators[email];
@@ -585,14 +585,14 @@ export class AzureStorage implements storage.Storage {
           throw storage.storageError(storage.ErrorCode.AlreadyExists, "Cannot remove the owner of the app from collaborator list.");
         }
 
-        return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true).then(() => {
-          return this.removeAppPointer(removedCollabProperties.accountId, app.id);
+        return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true).then(() => {
+          return this.removeAppPointer(removedCollabProperties.userId, app.id);
         });
       })
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public addDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<string> {
+  public addDeployment(userId: string, appId: string, deployment: storage.Deployment): Promise<string> {
     let deploymentId: string;
     return this._setupPromise
       .then(() => {
@@ -656,7 +656,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getDeployment(accountId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
+  public getDeployment(userId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
     return this._setupPromise
       .then(() => {
         return this.retrieveByAppHierarchy(appId, deploymentId);
@@ -667,10 +667,10 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getDeployments(accountId: string, appId: string): Promise<storage.Deployment[]> {
+  public getDeployments(userId: string, appId: string): Promise<storage.Deployment[]> {
     return this._setupPromise
       .then(() => {
-        return this.getCollectionByHierarchy(accountId, appId);
+        return this.getCollectionByHierarchy(userId, appId);
       })
       .then((flatDeployments: any[]) => {
         const deployments: storage.Deployment[] = [];
@@ -683,7 +683,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public removeDeployment(accountId: string, appId: string, deploymentId: string): Promise<void> {
+  public removeDeployment(userId: string, appId: string, deploymentId: string): Promise<void> {
     return this._setupPromise
       .then(() => {
         return this.cleanUpByAppHierarchy(appId, deploymentId);
@@ -694,7 +694,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public updateDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<void> {
+  public updateDeployment(userId: string, appId: string, deployment: storage.Deployment): Promise<void> {
     const deploymentId: string = deployment.id;
     if (!deploymentId) throw new Error("No deployment id");
 
@@ -707,7 +707,7 @@ export class AzureStorage implements storage.Storage {
   }
 
   public commitPackage(
-    accountId: string,
+    userId: string,
     appId: string,
     deploymentId: string,
     appPackage: storage.Package
@@ -725,7 +725,7 @@ export class AzureStorage implements storage.Storage {
       .then((history: storage.Package[]) => {
         packageHistory = history;
         appPackage.label = this.getNextLabel(packageHistory);
-        return this.getAccount(accountId);
+        return this.getAccount(userId);
       })
       .then((account: storage.Account) => {
         appPackage.releasedBy = account.email;
@@ -755,7 +755,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public clearPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<void> {
+  public clearPackageHistory(userId: string, appId: string, deploymentId: string): Promise<void> {
     return this._setupPromise
       .then(() => {
         return this.retrieveByAppHierarchy(appId, deploymentId);
@@ -770,7 +770,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<storage.Package[]> {
+  public getPackageHistory(userId: string, appId: string, deploymentId: string): Promise<storage.Package[]> {
     return this._setupPromise
       .then(() => {
         return this.getPackageHistoryFromBlob(deploymentId);
@@ -778,7 +778,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public updatePackageHistory(accountId: string, appId: string, deploymentId: string, history: storage.Package[]): Promise<void> {
+  public updatePackageHistory(userId: string, appId: string, deploymentId: string, history: storage.Package[]): Promise<void> {
     // If history is null or empty array we do not update the package history, use clearPackageHistory for that.
     if (!history || !history.length) {
       throw storage.storageError(storage.ErrorCode.Invalid, "Cannot clear package history from an update operation");
@@ -825,7 +825,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public addAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<string> {
+  public addAccessKey(userId: string, accessKey: storage.AccessKey): Promise<string> {
     accessKey = storage.clone(accessKey); // pass by value
     accessKey.id = shortid.generate();
 
@@ -833,12 +833,12 @@ export class AzureStorage implements storage.Storage {
       .then(() => {
         const partitionKey: string = Keys.getShortcutAccessKeyPartitionKey(accessKey.name);
         const rowKey: string = "";
-        const accessKeyPointer: AccessKeyPointer = { accountId, expires: accessKey.expires };
+        const accessKeyPointer: AccessKeyPointer = { userId, expires: accessKey.expires };
         const accessKeyPointerEntity: any = this.wrap(accessKeyPointer, partitionKey, rowKey);
         return this._tableClient.createEntity(accessKeyPointerEntity);
       })
       .then(() => {
-        return this.insertAccessKey(accessKey, accountId);
+        return this.insertAccessKey(accessKey, userId);
       })
       .then((): string => {
         return accessKey.id;
@@ -846,9 +846,9 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getAccessKey(accountId: string, accessKeyId: string): Promise<storage.AccessKey> {
-    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
-    const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKeyId);
+  public getAccessKey(userId: string, accessKeyId: string): Promise<storage.AccessKey> {
+    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const rowKey: string = Keys.getAccessKeyRowKey(userId, accessKeyId);
     return this._setupPromise
       .then(() => {
         return this.retrieveByKey(partitionKey, rowKey);
@@ -856,12 +856,12 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getAccessKeys(accountId: string): Promise<storage.AccessKey[]> {
+  public getAccessKeys(userId: string): Promise<storage.AccessKey[]> {
     const deferred = defer<storage.AccessKey[]>();
 
-    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
-    const rowKey: string = Keys.getHierarchicalAccountRowKey(accountId);
-    const searchKey: string = Keys.getAccessKeyRowKey(accountId);
+    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const rowKey: string = Keys.getHierarchicalAccountRowKey(userId);
+    const searchKey: string = Keys.getAccessKeyRowKey(userId);
 
     // Fetch both the parent account (for error-checking purposes) and the access tokens
     const query = `PartitionKey eq '${partitionKey}' and (RowKey eq '${rowKey}' or (RowKey gt '${searchKey}' and RowKey lt '${searchKey}~'))`;
@@ -898,14 +898,14 @@ export class AzureStorage implements storage.Storage {
     return deferred.promise;
   }
 
-  public removeAccessKey(accountId: string, accessKeyId: string): Promise<void> {
+  public removeAccessKey(userId: string, accessKeyId: string): Promise<void> {
     return this._setupPromise
       .then(() => {
-        return this.getAccessKey(accountId, accessKeyId);
+        return this.getAccessKey(userId, accessKeyId);
       })
       .then((accessKey) => {
-        const partitionKey: string = Keys.getAccountPartitionKey(accountId);
-        const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKeyId);
+        const partitionKey: string = Keys.getAccountPartitionKey(userId);
+        const rowKey: string = Keys.getAccessKeyRowKey(userId, accessKeyId);
         const shortcutAccessKeyPartitionKey: string = Keys.getShortcutAccessKeyPartitionKey(accessKey.name, false);
 
         return Promise.all<any>([
@@ -916,7 +916,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public updateAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<void> {
+  public updateAccessKey(userId: string, accessKey: storage.AccessKey): Promise<void> {
     if (!accessKey) {
       throw new Error("No access key");
     }
@@ -925,8 +925,8 @@ export class AzureStorage implements storage.Storage {
       throw new Error("No access key id");
     }
 
-    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
-    const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKey.id);
+    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const rowKey: string = Keys.getAccessKeyRowKey(userId, accessKey.id);
 
     return this._setupPromise
       .then(() => {
@@ -935,7 +935,7 @@ export class AzureStorage implements storage.Storage {
       })
       .then(() => {
         const newAccessKeyPointer: AccessKeyPointer = {
-          accountId,
+          userId,
           expires: accessKey.expires,
         };
 
@@ -1126,30 +1126,30 @@ export class AzureStorage implements storage.Storage {
   }
 
   private addCollaboratorWithPermissions(
-    accountId: string,
+    userId: string,
     app: storage.App,
     email: string,
     collabProperties: storage.CollaboratorProperties
   ): Promise<void> {
     if (app && app.collaborators && !app.collaborators[email]) {
       app.collaborators[email] = collabProperties;
-      return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true).then(() => {
-        return this.addAppPointer(collabProperties.accountId, app.id);
+      return this.updateAppWithPermission(userId, app, /*updateCollaborator*/ true).then(() => {
+        return this.addAppPointer(collabProperties.userId, app.id);
       });
     } else {
       throw storage.storageError(storage.ErrorCode.AlreadyExists, "The given account is already a collaborator for this app.");
     }
   }
 
-  private addAppPointer(accountId: string, appId: string): Promise<void> {
+  private addAppPointer(userId: string, appId: string): Promise<void> {
     const deferred = defer<void>();
 
     const appPartitionKey: string = Keys.getAppPartitionKey(appId);
     const appRowKey: string = Keys.getHierarchicalAppRowKey(appId);
     const pointer: Pointer = { partitionKeyPointer: appPartitionKey, rowKeyPointer: appRowKey };
 
-    const accountPartitionKey: string = Keys.getAccountPartitionKey(accountId);
-    const accountRowKey: string = Keys.getHierarchicalAccountRowKey(accountId, appId);
+    const accountPartitionKey: string = Keys.getAccountPartitionKey(userId);
+    const accountRowKey: string = Keys.getHierarchicalAccountRowKey(userId, appId);
 
     const entity: any = this.wrap(pointer, accountPartitionKey, accountRowKey);
     this._tableClient
@@ -1164,11 +1164,11 @@ export class AzureStorage implements storage.Storage {
     return deferred.promise;
   }
 
-  private removeAppPointer(accountId: string, appId: string): Promise<void> {
+  private removeAppPointer(userId: string, appId: string): Promise<void> {
     const deferred = defer<void>();
 
-    const accountPartitionKey: string = Keys.getAccountPartitionKey(accountId);
-    const accountRowKey: string = Keys.getHierarchicalAccountRowKey(accountId, appId);
+    const accountPartitionKey: string = Keys.getAccountPartitionKey(userId);
+    const accountRowKey: string = Keys.getHierarchicalAccountRowKey(userId, appId);
 
     this._tableClient
       .deleteEntity(accountPartitionKey, accountRowKey)
@@ -1182,17 +1182,17 @@ export class AzureStorage implements storage.Storage {
     return deferred.promise;
   }
 
-  private removeAllCollaboratorsAppPointers(accountId: string, appId: string): Promise<void> {
-    return this.getApp(accountId, appId, /*keepCollaboratorIds*/ true)
+  private removeAllCollaboratorsAppPointers(userId: string, appId: string): Promise<void> {
+    return this.getApp(userId, appId, /*keepCollaboratorIds*/ true)
       .then((app: storage.App) => {
         const collaboratorMap: storage.CollaboratorMap = app.collaborators;
-        const requesterEmail: string = AzureStorage.getEmailForAccountId(collaboratorMap, accountId);
+        const requesterEmail: string = AzureStorage.getEmailForAccountId(collaboratorMap, userId);
 
         const removalPromises: Promise<void>[] = [];
 
         Object.keys(collaboratorMap).forEach((key: string) => {
           const collabProperties: storage.CollaboratorProperties = collaboratorMap[key];
-          removalPromises.push(this.removeAppPointer(collabProperties.accountId, app.id));
+          removalPromises.push(this.removeAppPointer(collabProperties.userId, app.id));
         });
 
         return Promise.allSettled(removalPromises);
@@ -1200,7 +1200,7 @@ export class AzureStorage implements storage.Storage {
       .then(() => { });
   }
 
-  private updateAppWithPermission(accountId: string, app: storage.App, updateCollaborator: boolean = false): Promise<void> {
+  private updateAppWithPermission(userId: string, app: storage.App, updateCollaborator: boolean = false): Promise<void> {
     const appId: string = app.id;
     if (!appId) throw new Error("No app id");
 
@@ -1236,14 +1236,14 @@ export class AzureStorage implements storage.Storage {
       });
   }
 
-  private insertAccessKey(accessKey: storage.AccessKey, accountId: string): Promise<string> {
+  private insertAccessKey(accessKey: storage.AccessKey, userId: string): Promise<string> {
     accessKey = storage.clone(accessKey);
     accessKey.name = utils.hashWithSHA256(accessKey.name);
 
     const deferred = defer<string>();
 
-    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
-    const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKey.id);
+    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const rowKey: string = Keys.getAccessKeyRowKey(userId, accessKey.id);
 
     const entity: any = this.wrap(accessKey, partitionKey, rowKey);
 
@@ -1302,7 +1302,7 @@ export class AzureStorage implements storage.Storage {
     }
   }
 
-  private async getCollectionByHierarchy(accountId: string, appId?: string, deploymentId?: string): Promise<any[]> {
+  private async getCollectionByHierarchy(userId: string, appId?: string, deploymentId?: string): Promise<any[]> {
     let partitionKey: string;
     let rowKey: string;
     let childrenSearchKey: string;
@@ -1313,13 +1313,13 @@ export class AzureStorage implements storage.Storage {
     searchKeyArgs.push(/*leafId=*/ "");
 
     if (appId) {
-      searchKeyArgs.splice(1, 1); // remove accountId
+      searchKeyArgs.splice(1, 1); // remove userId
       partitionKey = Keys.getAppPartitionKey(appId);
       rowKey = Keys.getHierarchicalAppRowKey(appId, deploymentId);
       childrenSearchKey = Keys.generateHierarchicalAppKey.apply(null, searchKeyArgs);
     } else {
-      partitionKey = Keys.getAccountPartitionKey(accountId);
-      rowKey = Keys.getHierarchicalAccountRowKey(accountId);
+      partitionKey = Keys.getAccountPartitionKey(userId);
+      rowKey = Keys.getHierarchicalAccountRowKey(userId);
       childrenSearchKey = Keys.generateHierarchicalAccountKey.apply(null, searchKeyArgs);
     }
 
@@ -1509,10 +1509,10 @@ export class AzureStorage implements storage.Storage {
     }
   }
 
-  private static getEmailForAccountId(collaboratorsMap: storage.CollaboratorMap, accountId: string): string {
+  private static getEmailForAccountId(collaboratorsMap: storage.CollaboratorMap, userId: string): string {
     if (collaboratorsMap) {
       for (const email of Object.keys(collaboratorsMap)) {
-        if ((<storage.CollaboratorProperties>collaboratorsMap[email]).accountId === accountId) {
+        if ((<storage.CollaboratorProperties>collaboratorsMap[email]).userId === userId) {
           return email;
         }
       }

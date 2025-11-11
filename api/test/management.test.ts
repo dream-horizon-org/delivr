@@ -89,12 +89,12 @@ function managementTests(useJsonStorage?: boolean): void {
       .then(() => {
         return storage.addAccount(account);
       })
-      .then((accountId: string) => {
-        account.id = accountId;
+      .then((userId: string) => {
+        account.id = userId;
         return storage.addAccount(otherAccount);
       })
-      .then((accountId: string) => {
-        otherAccount.id = accountId;
+      .then((userId: string) => {
+        otherAccount.id = userId;
         accessKey = testUtils.makeStorageAccessKey();
         return storage.addAccessKey(account.id, accessKey);
       })

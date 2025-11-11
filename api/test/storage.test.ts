@@ -76,8 +76,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
 
     beforeEach(() => {
       account = utils.makeAccount();
-      return storage.addAccount(account).then((accountId: string): void => {
-        account.id = accountId;
+      return storage.addAccount(account).then((userId: string): void => {
+        account.id = userId;
       });
     });
 
@@ -213,7 +213,7 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
   });
 
   describe("Account", () => {
-    it("will reject promise for a non-existent account by accountId", () => {
+    it("will reject promise for a non-existent account by userId", () => {
       return storage.getAccount("IdThatDoesNotExist").then(failOnCallSucceeded, (error: storageTypes.StorageError) => {
         assert.equal(error.code, storageTypes.ErrorCode.NotFound);
       });
@@ -222,19 +222,19 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
     it("can generate an id for a new account", () => {
       var account: storageTypes.Account = utils.makeAccount();
 
-      return storage.addAccount(account).then((accountId: string) => {
-        assert(accountId);
+      return storage.addAccount(account).then((userId: string) => {
+        assert(userId);
       });
     });
 
-    it("can get an account by accountId", () => {
+    it("can get an account by userId", () => {
       var account: storageTypes.Account = utils.makeAccount();
       account.name = "test 456";
 
       return storage
         .addAccount(account)
-        .then((accountId: string) => {
-          return storage.getAccount(accountId);
+        .then((userId: string) => {
+          return storage.getAccount(userId);
         })
         .then((accountFromApi: storageTypes.Account) => {
           assert.equal(accountFromApi.name, "test 456");
@@ -247,7 +247,7 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
 
       return storage
         .addAccount(account)
-        .then((accountId: string) => {
+        .then((userId: string) => {
           return storage.getAccountByEmail(account.email);
         })
         .then((accountFromApi: storageTypes.Account) => {
@@ -260,8 +260,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
 
       return storage
         .addAccount(account)
-        .then((accountId: string) => {
-          account.id = accountId;
+        .then((userId: string) => {
+          account.id = userId;
           var updates: any = { gitHubId: "2" };
           return storage.updateAccount(account.email, updates);
         })
@@ -287,7 +287,7 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
       var account: storageTypes.Account = utils.makeAccount();
       var expectedResult: string = JSON.stringify(account);
 
-      return storage.addAccount(account).then((accountId: string) => {
+      return storage.addAccount(account).then((userId: string) => {
         var actualResult: string = JSON.stringify(account);
 
         assert.strictEqual(actualResult, expectedResult);
@@ -300,7 +300,7 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
 
       return storage
         .addAccount(account)
-        .then((accountId: string) => {
+        .then((userId: string) => {
           var newAccount: storageTypes.Account = utils.makeAccount();
           newAccount.email = account.email.toUpperCase();
           return storage.addAccount(newAccount);
@@ -318,8 +318,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
     beforeEach(() => {
       account = utils.makeAccount();
 
-      return storage.addAccount(account).then((accountId: string) => {
-        account.id = accountId;
+      return storage.addAccount(account).then((userId: string) => {
+        account.id = userId;
       });
     });
 
@@ -506,15 +506,15 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
         account2 = utils.makeAccount();
         return storage
           .addAccount(account2)
-          .then((accountId: string) => {
-            account2.id = accountId;
+          .then((userId: string) => {
+            account2.id = userId;
           })
           .then(() => {
             account3 = utils.makeAccount();
             return storage.addAccount(account3);
           })
-          .then((accountId: string) => {
-            account3.id = accountId;
+          .then((userId: string) => {
+            account3.id = userId;
           })
           .then(() => {
             appToTransfer = utils.makeStorageApp();
@@ -634,15 +634,15 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
         account2 = utils.makeAccount();
         return storage
           .addAccount(account2)
-          .then((accountId: string) => {
-            account2.id = accountId;
+          .then((userId: string) => {
+            account2.id = userId;
           })
           .then(() => {
             account3 = utils.makeAccount();
             return storage.addAccount(account3);
           })
-          .then((accountId: string) => {
-            account3.id = accountId;
+          .then((userId: string) => {
+            account3.id = userId;
           })
           .then(() => {
             appToTransfer = utils.makeStorageApp();
@@ -771,8 +771,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
       app = utils.makeStorageApp();
       return storage
         .addAccount(account)
-        .then((accountId: string) => {
-          account.id = accountId;
+        .then((userId: string) => {
+          account.id = userId;
           return storage.addApp(account.id, app);
         })
         .then((addedApp: storageTypes.App) => {
@@ -979,8 +979,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
 
       return storage
         .addAccount(account)
-        .then((accountId: string): Promise<storageTypes.App> => {
-          account.id = accountId;
+        .then((userId: string): Promise<storageTypes.App> => {
+          account.id = userId;
 
           return storage.addApp(account.id, app);
         })
@@ -1015,8 +1015,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
       account = utils.makeAccount();
       return storage
         .addAccount(account)
-        .then((accountId: string) => {
-          account.id = accountId;
+        .then((userId: string) => {
+          account.id = userId;
           app = utils.makeStorageApp();
           return storage.addApp(account.id, app);
         })
@@ -1083,8 +1083,8 @@ function storageTests(StorageType: new (...args: any[]) => storageTypes.Storage,
           assert.equal("description123", deploymentPackages[deploymentPackages.length - 1].description);
           return storage.addAccount(account2);
         })
-        .then((accountId: string) => {
-          account2.id = accountId;
+        .then((userId: string) => {
+          account2.id = userId;
           return storage.transferApp(account.id, app.id, account2.email);
         })
         .then(() => {
