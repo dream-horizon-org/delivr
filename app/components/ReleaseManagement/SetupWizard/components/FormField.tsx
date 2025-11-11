@@ -4,10 +4,16 @@
 
 import React from 'react';
 
+interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
 interface FormFieldProps {
   label: string;
   name: string;
-  type?: 'text' | 'password' | 'url' | 'email' | 'textarea';
+  type?: 'text' | 'password' | 'url' | 'email' | 'textarea' | 'select';
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -16,6 +22,7 @@ interface FormFieldProps {
   helpText?: string;
   rows?: number; // for textarea
   disabled?: boolean;
+  options?: SelectOption[]; // for select
 }
 
 export function FormField({
@@ -30,6 +37,7 @@ export function FormField({
   helpText,
   rows = 3,
   disabled = false,
+  options = [],
 }: FormFieldProps) {
   const inputClasses = `
     block w-full rounded-md shadow-sm
@@ -49,7 +57,27 @@ export function FormField({
       </label>
       
       <div className="mt-1">
-        {type === 'textarea' ? (
+        {type === 'select' ? (
+          <select
+            id={name}
+            name={name}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            required={required}
+            disabled={disabled}
+            className={inputClasses}
+          >
+            {options.map((option) => (
+              <option 
+                key={option.value} 
+                value={option.value}
+                disabled={option.disabled}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : type === 'textarea' ? (
           <textarea
             id={name}
             name={name}

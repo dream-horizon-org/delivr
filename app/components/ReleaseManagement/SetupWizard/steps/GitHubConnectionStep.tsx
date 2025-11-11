@@ -40,16 +40,46 @@ export function GitHubConnectionStep({ initialData, onComplete }: GitHubConnecti
       error={error}
     >
       <div className="space-y-6">
-        {/* Repository URL */}
+        {/* SCM Type */}
         <FormField
-          label="Repository URL"
-          name="repoUrl"
-          type="url"
-          value={connection.repoUrl || ''}
-          onChange={(value) => updateField('repoUrl', value)}
-          placeholder="https://github.com/organization/repository"
+          label="Source Control"
+          name="scmType"
+          type="select"
+          value={connection.scmType || 'GITHUB'}
+          onChange={(value) => updateField('scmType', value)}
+          options={[
+            { value: 'GITHUB', label: 'GitHub' },
+            { value: 'GITLAB', label: 'GitLab (Coming Soon)', disabled: true },
+            { value: 'BITBUCKET', label: 'Bitbucket (Coming Soon)', disabled: true },
+          ]}
           required
-          helpText="The GitHub repository URL where your code is hosted"
+          helpText="Select your source control provider"
+          disabled={isVerified}
+        />
+        
+        {/* Owner */}
+        <FormField
+          label="Repository Owner"
+          name="owner"
+          type="text"
+          value={connection.owner || ''}
+          onChange={(value) => updateField('owner', value)}
+          placeholder="organization or username"
+          required
+          helpText="The GitHub organization or username that owns the repository"
+          disabled={isVerified}
+        />
+        
+        {/* Repository Name */}
+        <FormField
+          label="Repository Name"
+          name="repoName"
+          type="text"
+          value={connection.repoName || ''}
+          onChange={(value) => updateField('repoName', value)}
+          placeholder="repository-name"
+          required
+          helpText="The name of your repository (without the owner)"
           disabled={isVerified}
         />
         
@@ -100,7 +130,7 @@ export function GitHubConnectionStep({ initialData, onComplete }: GitHubConnecti
             <button
               type="button"
               onClick={handleVerify}
-              disabled={!connection.repoUrl || !connection.token || isVerifying}
+              disabled={!connection.owner || !connection.repoName || !connection.token || isVerifying}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isVerifying ? (

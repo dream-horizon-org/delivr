@@ -23,34 +23,27 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
   }, []);
   
   const verifyConnection = useCallback(async () => {
-    if (!connection.repoUrl || !connection.token) {
-      setError('Repository URL and token are required');
+    if (!connection.owner || !connection.repoName || !connection.token) {
+      setError('Owner, repository name, and access token are required');
       return false;
     }
     
-    // Parse owner and repo from URL
-    const urlMatch = connection.repoUrl.match(/github\.com[/:]([\w-]+)\/([\w-]+)/);
-    if (!urlMatch) {
-      setError('Invalid GitHub repository URL');
-      return false;
-    }
-    
-    const [, owner, repo] = urlMatch;
+    const scmType = connection.scmType || 'GITHUB';
     
     setIsVerifying(true);
     setError(null);
     
     try {
-      console.log(`[useGitHubConnection] Calling verify endpoint for ${owner}/${repo}`);
+      console.log(`[useGitHubConnection] Calling verify endpoint for ${connection.owner}/${connection.repoName} (${scmType})`);
       
       // Call NEW SCM integration verify endpoint
       const response = await fetch(`/api/v1/tenants/${org}/integrations/scm/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          scmType: 'GITHUB',
-          owner,
-          repo,
+          scmType,
+          owner: connection.owner,
+          repo: connection.repoName,
           accessToken: connection.token,
         }),
       });
@@ -60,10 +53,11 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
       
       if (result.success) {
         const verifiedConnection: GitHubConnection = {
-          repoUrl: connection.repoUrl,
+          scmType,
+          owner: connection.owner,
+          repoName: connection.repoName,
           token: connection.token,
-          owner: owner,
-          repoName: repo,
+          repoUrl: `https://github.com/${connection.owner}/${connection.repoName}`,
           isVerified: true,
         };
         
@@ -95,7 +89,7 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
     updateField,
     verifyConnection,
     reset,
-    isValid: !!connection.repoUrl && !!connection.token,
+    isValid: !!connection.owner && !!connection.repoName && !!connection.token,
     isVerified: !!connection.isVerified,
   };
 }

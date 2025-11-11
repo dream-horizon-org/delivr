@@ -20,10 +20,11 @@ export interface WizardStepConfig {
 }
 
 export interface GitHubConnection {
-  repoUrl: string;
+  scmType?: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  owner: string;
+  repoName: string;
   token: string;
-  owner?: string;
-  repoName?: string;
+  repoUrl?: string; // Constructed from owner/repoName
   isVerified: boolean;
 }
 
