@@ -7,8 +7,8 @@ import * as storage from "./storage";
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
 import * as utils from "../utils/common";
-import * as security from "../utils/security";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -125,10 +125,17 @@ export function createTenant(sequelize: Sequelize) {
 export function createCollaborators(sequelize: Sequelize) {
     return sequelize.define("collaborator", {
         email: {type: DataTypes.STRING, allowNull: false},
-        accountId: { type: DataTypes.STRING, allowNull: false },
+        accountId: { 
+          type: DataTypes.STRING, 
+          allowNull: false,
+          references: {
+            model: 'accounts',
+            key: 'id',
+          }
+        },
         appId: { 
           type: DataTypes.STRING, 
-          allowNull: true  // Null for tenant-level collaborators
+          allowNull: true  // Null for tenant-level collaborators (NO FK constraint)
         },
         tenantId: {
           type: DataTypes.UUID,
@@ -296,9 +303,15 @@ export function createModelss(sequelize: Sequelize) {
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
   //Package.hasMany(Deployment, { foreignKey: 'packageId', as: 'deployments' });
 
-  // Collaborator associations (Collaborators belong to both Account and App)
+  // Collaborator associations
+  // Note: accountId FK is defined in model, Account association is for querying only
   Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
-  Collaborator.belongsTo(App, { foreignKey: 'appId' });
+  
+  // appId association WITHOUT FK constraint (collaborators can be tenant-level without app)
+  Collaborator.belongsTo(App, { 
+    foreignKey: 'appId',
+    constraints: false  // Don't create FK constraint - appId can be NULL for tenant-level collaborators
+  });
 
   // SCM Integration associations
   // Tenant has ONE SCM integration (set up during onboarding)
@@ -323,7 +336,9 @@ export function createModelss(sequelize: Sequelize) {
 
 //function to mimic defer function in q package
 export function defer<T>() {
+  // eslint-disable-next-line no-unused-vars
   let resolve!: (value: T | PromiseLike<T>) => void;
+  // eslint-disable-next-line no-unused-vars
   let reject!: (reason?: any) => void;
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
@@ -354,6 +369,7 @@ export class S3Storage implements storage.Storage {
     private bucketName : string = process.env.S3_BUCKETNAME || "codepush-local-bucket";
     private sequelize:Sequelize;
     private setupPromise: Promise<void>;
+    public scmController!: SCMIntegrationController;  // SCM integration controller
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -427,11 +443,11 @@ export class S3Storage implements storage.Storage {
   }
 
     private setup(): Promise<void> {
-      let headBucketParams: HeadBucketRequest = {
+      const headBucketParams: HeadBucketRequest = {
           Bucket: this.bucketName,
       };
 
-      let createBucketParams: CreateBucketRequest = {
+      const createBucketParams: CreateBucketRequest = {
           Bucket: this.bucketName,
       };
 
@@ -453,6 +469,11 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           const models = createModelss(this.sequelize);
           console.log("Models registered");
+          
+          // Initialize SCM Integration Controller
+          this.scmController = new SCMIntegrationController(models.SCMIntegrations);
+          console.log("SCM Integration Controller initialized");
+          
           // return this.sequelize.sync();
         })
         .then(() => {
@@ -794,7 +815,7 @@ export class S3Storage implements storage.Storage {
           const now = new Date().getTime();
           
           // Create the tenant
-          const createdTenant = await this.sequelize.models[MODELS.TENANT].create({
+          await this.sequelize.models[MODELS.TENANT].create({
             id: tenantId,
             displayName: tenant.displayName,
             createdBy: accountId,
@@ -986,7 +1007,7 @@ export class S3Storage implements storage.Storage {
         .catch(S3Storage.storageErrorHandler);
     }
     
-    public getApp(accountId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
+    public getApp(accountId: string, appId: string): Promise<storage.App> {
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.APPS].findByPk(appId, {
@@ -1049,7 +1070,7 @@ export class S3Storage implements storage.Storage {
   
       return this.setupPromise
         .then(() => {
-          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId);
           const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
           return Promise.all<any>([getAppPromise, accountPromise]);
         })
@@ -1123,7 +1144,7 @@ export class S3Storage implements storage.Storage {
     public addCollaborator(accountId: string, appId: string, email: string): Promise<void> {
       return this.setupPromise
         .then(() => {
-          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+          const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId);
           const accountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
           return Promise.all<any>([getAppPromise, accountPromise]);
         })
@@ -1141,14 +1162,14 @@ export class S3Storage implements storage.Storage {
     public updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void> {
       return this.setupPromise
       .then(() => {
-        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId, /*keepCollaboratorIds*/ true);
+        const getAppPromise: Promise<storage.App> = this.getApp(accountId, appId);
         const requestCollaboratorAccountPromise: Promise<storage.Account> = this.getAccountByEmail(email);
         return Promise.all<any>([getAppPromise, requestCollaboratorAccountPromise]);
       })
       .then(([app, accountToModify]: [storage.App, storage.Account]) => {
         // Use the original email stored on the account to ensure casing is consistent
         email = accountToModify.email;
-        let permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
+        const permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
         return this.updateCollaboratorWithPermissions(accountId, app, email, {
           accountId: accountToModify.id,
           permission: permission,
@@ -1160,7 +1181,7 @@ export class S3Storage implements storage.Storage {
     public getCollaborators(accountId: string, appId: string): Promise<storage.CollaboratorMap> {
       return this.setupPromise
         .then(() => {
-          return this.getApp(accountId, appId, /*keepCollaboratorIds*/ false);
+          return this.getApp(accountId, appId);
         })
         .then((app: storage.App) => {
           return Promise.resolve(app.collaborators);
@@ -1172,7 +1193,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
         .then(() => {
           // Get the App and Collaborators from the DB
-          return this.getApp(accountId, appId, true);
+          return this.getApp(accountId, appId);
         })
         .then((app: storage.App) => {
           const removedCollabProperties: storage.CollaboratorProperties = app.collaborators[email];
@@ -1405,9 +1426,8 @@ export class S3Storage implements storage.Storage {
           .then(async (account: storage.Account) => {
             appPackage.releasedBy = account.email;
     
-            // Remove the rollout value for the last package.
-            const lastPackage: storage.Package = packageHistory.length ? packageHistory[packageHistory.length - 1] : null;
-            //MARK: TODO TEST THIS
+            // Note: Rollout handling commented out for future implementation
+            // const lastPackage: storage.Package = packageHistory.length ? packageHistory[packageHistory.length - 1] : null;
             // if (lastPackage) {
             //   lastPackage.rollout = null;
             // }
@@ -1526,7 +1546,7 @@ export class S3Storage implements storage.Storage {
     
 
     //blobs
-    public addBlob(blobId: string, stream: stream.Readable, streamLength: number): Promise<string> {
+    public addBlob(blobId: string, stream: stream.Readable): Promise<string> {
       return this.setupPromise
       .then(() => {
         // Generate a unique key if blobId is not provided
@@ -1617,7 +1637,7 @@ export class S3Storage implements storage.Storage {
     public getPackageHistoryFromDeploymentKey(deploymentKey: string): Promise<storage.Package[]> {
         return this.setupPromise
           .then(async () => {
-            let deployment = await this.sequelize.models[MODELS.DEPLOYMENT].findOne({ where: { key: deploymentKey } });
+            const deployment = await this.sequelize.models[MODELS.DEPLOYMENT].findOne({ where: { key: deploymentKey } });
             if (!deployment?.dataValues) {
               console.log(`Deployment not found for key: ${deploymentKey}`);
               return [];
@@ -2074,7 +2094,7 @@ export class S3Storage implements storage.Storage {
         errorMessage = azureError.message;
       }
   
-      if (overrideMessage && overrideCondition == errorCodeRaw) {
+      if (overrideMessage && overrideCondition === errorCodeRaw) {
         errorMessage = overrideValue;
       }
   

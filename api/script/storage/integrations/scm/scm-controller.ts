@@ -5,7 +5,7 @@
  * This is the DATA ACCESS LAYER - only DB operations, no business logic
  */
 
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 import { Model, ModelStatic } from 'sequelize';
 import { 
   CreateSCMIntegrationDto, 
@@ -15,6 +15,9 @@ import {
   SafeSCMIntegration,
   VerificationStatus
 } from './scm-types';
+
+// Create nanoid generator with custom alphabet (alphanumeric + underscore + hyphen)
+const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-', 21);
 
 // ============================================================================
 // Controller Class
@@ -258,6 +261,7 @@ export class SCMIntegrationController {
    */
   private toSafeObject(data: any): SafeSCMIntegration {
     const { accessToken, webhookSecret, ...safe } = data;
+    console.log('webhookSecret', webhookSecret);
     
     return {
       ...safe,
