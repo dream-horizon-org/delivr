@@ -11,12 +11,17 @@ const verifySCM: AuthenticatedActionFunction = async ({ request, params, user })
     return json({ error: 'Tenant ID required' }, { status: 400 });
   }
 
+  console.log(`[Frontend-Verify-Route] Received verify request for tenant: ${tenantId}, userId: ${user.user.id}`);
+
   try {
     const body = await request.json();
     const { scmType, owner, repo, accessToken } = body;
 
+    console.log(`[Frontend-Verify-Route] Request body: scmType=${scmType}, owner=${owner}, repo=${repo}`);
+
     // Validate required fields
     if (!scmType || !owner || !repo || !accessToken) {
+      console.log(`[Frontend-Verify-Route] Validation failed - missing required fields`);
       return json(
         {
           success: false,
@@ -26,17 +31,22 @@ const verifySCM: AuthenticatedActionFunction = async ({ request, params, user })
       );
     }
 
-    const result = await SCMIntegrationService.verifySCM({
-      tenantId,
-      scmType,
-      owner,
-      repo,
-      accessToken,
-    });
+    console.log(`[Frontend-Verify-Route] Calling SCMIntegrationService.verifySCM`);
+    const result = await SCMIntegrationService.verifySCM(
+      {
+        tenantId,
+        scmType,
+        owner,
+        repo,
+        accessToken,
+      },
+      user.user.id
+    );
 
+    console.log(`[Frontend-Verify-Route] Verification result:`, result);
     return json(result);
   } catch (error) {
-    console.error('SCM verification error:', error);
+    console.error('[Frontend-Verify-Route] SCM verification error:', error);
     return json(
       {
         success: false,

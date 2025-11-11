@@ -19,7 +19,10 @@ class IntegrationService {
   /**
    * Verify SCM connection before saving
    */
-  async verifySCM(request: VerifySCMRequest): Promise<VerifySCMResponse> {
+  async verifySCM(request: VerifySCMRequest, userId: string): Promise<VerifySCMResponse> {
+    console.log(`[IntegrationService] Verifying SCM for tenant: ${request.tenantId}, owner: ${request.owner}, repo: ${request.repo}`);
+    console.log(`[IntegrationService] Calling backend: ${this.__client.defaults.baseURL}/tenants/${request.tenantId}/integrations/scm/verify`);
+    
     const { data } = await this.__client.post<VerifySCMResponse>(
       `/tenants/${request.tenantId}/integrations/scm/verify`,
       {
@@ -27,8 +30,15 @@ class IntegrationService {
         owner: request.owner,
         repo: request.repo,
         accessToken: request.accessToken,
+      },
+      {
+        headers: {
+          userId,
+        },
       }
     );
+    
+    console.log(`[IntegrationService] Backend response:`, data);
     return data;
   }
 
