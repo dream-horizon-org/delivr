@@ -35,8 +35,8 @@ export function createAccessKey(sequelize: Sequelize) {
 }
 
 //Creating Account Type
-export function createAccount(sequelize: Sequelize) {
-  return sequelize.define("account", {
+export function createUser(sequelize: Sequelize) {
+  return sequelize.define("user", {
     // Core fields
     id: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
@@ -53,12 +53,66 @@ export function createAccount(sequelize: Sequelize) {
     // User Profile
     picture: { type: DataTypes.STRING, allowNull: true },
   }, {
-    tableName: 'accounts',
+    tableName: 'users',
     timestamps: false  // We handle timestamps manually
   });
 }
 
-
+export function createUserChannel(sequelize: Sequelize) {
+  return sequelize.define("UserChannel", {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      allowNull: false,
+    },
+    userId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      field: 'user_id',
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    externalChannelId: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+      field: 'external_channel_id',
+    },
+    channelType: {
+      type: DataTypes.ENUM('google_oauth', 'github_oauth', 'slack', 'teams', 'other'),
+      allowNull: false,
+      defaultValue: 'other',
+      field: 'channel_type',
+    },
+    channelMetadata: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      field: 'channel_metadata',
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      field: 'is_active',
+    },
+  }, {
+    tableName: 'user_channels',
+    underscored: true,
+    indexes: [
+      {
+        name: 'idx_user_channels_user_id',
+        fields: ['user_id'],
+      },
+      {
+        name: 'idx_user_channels_external',
+        unique: true,
+        fields: ['external_channel_id', 'channel_type'],
+      },
+    ],
+  });
+}
 
 
 //Creating App
@@ -72,7 +126,7 @@ export function createApp(sequelize: Sequelize) {
           type: DataTypes.STRING, 
           allowNull: true,  // Optional for backward compatibility
           references: {
-            model: 'accounts',
+            model: 'users',
             key: 'id',
           },
         },
@@ -106,7 +160,7 @@ export function createTenant(sequelize: Sequelize) {
       type: DataTypes.STRING,
       allowNull: false,
       references: {
-        model: 'accounts',
+        model: 'users',
         key: 'id',
       },
     },
@@ -231,7 +285,7 @@ export function createAppPointer(sequelize: Sequelize) {
           type: DataTypes.STRING,
           allowNull: false,
           references: {
-            model: 'accounts', // References Account model
+            model: 'users', // References Account model
             key: 'id',
           },
         },
@@ -257,29 +311,36 @@ export function createAppPointer(sequelize: Sequelize) {
 
 export function createModelss(sequelize: Sequelize) {
   // Create models and register them
+  const User = createUser(sequelize);  // ← Changed from Account
+  const UserChannel = createUserChannel(sequelize);  // ← NEW
   const Tenant = createTenant(sequelize);
   const Package = createPackage(sequelize);
   const Deployment = createDeployment(sequelize);
-  const Account = createAccount(sequelize);
   const AccessKey = createAccessKey(sequelize);
   const AppPointer = createAppPointer(sequelize);
   const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
 
+  // ============================================
   // Define associations
+  // ============================================
 
-  // Account and Tenant (Creator relationship)
-  Account.hasMany(Tenant, { foreignKey: 'createdBy' });
-  Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
+  // User ↔ UserChannel (1:N) - NEW
+  User.hasMany(UserChannel, { foreignKey: 'userId', as: 'channels' });
+  UserChannel.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
+
+  // User and Tenant (Creator relationship)
+  User.hasMany(Tenant, { foreignKey: 'createdBy' });
+  Tenant.belongsTo(User, { foreignKey: 'createdBy' });
 
   // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
   App.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
-  // Account and App (One Account can have many Apps) - OLD FLOW (backward compatibility)
-  Account.hasMany(App, { foreignKey: 'accountId' });
-  App.belongsTo(Account, { foreignKey: 'accountId' });
+  // User and App (One User can have many Apps) - OLD FLOW (backward compatibility)
+  User.hasMany(App, { foreignKey: 'accountId' });
+  App.belongsTo(User, { foreignKey: 'accountId' });
   
   // Tenant and Collaborator (One Tenant can have many Collaborators) - NEW FLOW
   Tenant.hasMany(Collaborator, { foreignKey: 'tenantId' });
@@ -290,14 +351,12 @@ export function createModelss(sequelize: Sequelize) {
   Deployment.belongsTo(App, { foreignKey: 'appId' });
 
   // Deployment and Package (One Package can be linked to many Deployments)
-  //
   Deployment.hasMany(Package, { foreignKey: 'deploymentId', as: 'packageHistory' });
   Package.belongsTo(Deployment, { foreignKey: 'deploymentId' });
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
-  //Package.hasMany(Deployment, { foreignKey: 'packageId', as: 'deployments' });
 
-  // Collaborator associations (Collaborators belong to both Account and App)
-  Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
+  // Collaborator associations (Collaborators belong to both User and App)
+  Collaborator.belongsTo(User, { foreignKey: 'accountId' });
   Collaborator.belongsTo(App, { foreignKey: 'appId' });
 
   // SCM Integration associations
@@ -305,14 +364,15 @@ export function createModelss(sequelize: Sequelize) {
   Tenant.hasOne(SCMIntegrations, { foreignKey: 'tenantId', as: 'scmIntegration' });
   SCMIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
   
-  // Account (creator) reference
-  SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
+  // User (creator) reference for SCM
+  SCMIntegrations.belongsTo(User, { foreignKey: 'createdByAccountId', as: 'creator' });
 
   return {
+    User,  // ← Changed from Account
+    UserChannel,  // ← NEW
     Tenant,
     Package,
     Deployment,
-    Account,
     AccessKey,
     AppPointer,
     Collaborator,  // UNIFIED: supports both app-level AND tenant-level
@@ -320,6 +380,7 @@ export function createModelss(sequelize: Sequelize) {
     SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
   };
 }
+
 
 //function to mimic defer function in q package
 export function defer<T>() {

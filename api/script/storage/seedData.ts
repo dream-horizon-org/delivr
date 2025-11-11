@@ -9,9 +9,51 @@ const sequelize = new Sequelize("codepushdb", "root", "root", {
 
 // Seed data
 const seedData = {
-  accounts: [
+  users: [
     { id: "id_0", email: "user1@example.com", name: "User One", createdTime: new Date().getTime() },
     { id: "id_1", email: "user2@example.com", name: "User Two", createdTime: new Date().getTime() },
+  ],
+  userChannels: [
+    {
+      id: "channel_1",
+      userId: "id_0",
+      externalChannelId: "google-oauth-sub-123456789",
+      channelType: "google_oauth",
+      channelMetadata: JSON.stringify({
+        email: "user1@example.com",
+        email_verified: true,
+        given_name: "User",
+        family_name: "One",
+        locale: "en"
+      }),
+      isActive: true,
+    },
+    {
+      id: "channel_2",
+      userId: "id_1",
+      externalChannelId: "google-oauth-sub-987654321",
+      channelType: "google_oauth",
+      channelMetadata: JSON.stringify({
+        email: "user2@example.com",
+        email_verified: true,
+        given_name: "User",
+        family_name: "Two",
+        locale: "en"
+      }),
+      isActive: true,
+    },
+    {
+      id: "channel_3",
+      userId: "id_0",
+      externalChannelId: "slack-user-U123ABC456",
+      channelType: "slack",
+      channelMetadata: JSON.stringify({
+        team_id: "T123DEF789",
+        username: "user.one",
+        real_name: "User One"
+      }),
+      isActive: true,
+    },
   ],
   tenants: [
     { id: "tenant_1", displayName: "Organization One", createdBy: "id_0" },
@@ -134,11 +176,12 @@ async function seed() {
     // Initialize models
     const models = createModelss(sequelize);
     
-    // Sync database WITHOUT altering - migrations handle schema
-    await sequelize.sync({ alter: false });
+    // NOTE: We use SQL migrations to manage schema, not Sequelize sync
+    // Migrations are in /migrations folder and should be run manually
+    // await sequelize.sync({ alter: false }); // REMOVED - causes FK constraint conflicts
 
     // Check if database already has data
-    const accountCount = await models.Account.count();
+    const accountCount = await models.User.count();
     
     if (accountCount > 0) {
       console.log("⏭️  Database already contains data. Skipping seeding to preserve existing data.");
@@ -159,13 +202,15 @@ async function seed() {
     await models.Collaborator.destroy({ where: {} });
     await models.App.destroy({ where: {} });
     await models.Tenant.destroy({ where: {} });
-    await models.Account.destroy({ where: {} });
+    await models.UserChannel.destroy({ where: {} });
+    await models.User.destroy({ where: {} });
 
     // Re-enable foreign key checks
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
 
     // Insert seed data in order
-    await models.Account.bulkCreate(seedData.accounts);
+    await models.User.bulkCreate(seedData.users);
+    await models.UserChannel.bulkCreate(seedData.userChannels);
     await models.Tenant.bulkCreate(seedData.tenants);
     await models.App.bulkCreate(seedData.apps);
     await models.Collaborator.bulkCreate(seedData.collaborators);
