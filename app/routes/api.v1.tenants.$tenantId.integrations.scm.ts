@@ -1,0 +1,164 @@
+import { json } from '@remix-run/node';
+import {
+  authenticateLoaderRequest,
+  authenticateActionRequest,
+  type AuthenticatedActionFunction,
+} from '~/utils/authenticate';
+import { SCMIntegrationService } from '~/.server/services/ReleaseManagement';
+
+/**
+ * GET - Fetch SCM integration for tenant
+ */
+export const loader = authenticateLoaderRequest(
+  async ({ request, params, user }) => {
+    const tenantId = params.tenantId;
+    if (!tenantId) {
+      return json({ error: 'Tenant ID required' }, { status: 400 });
+    }
+
+    try {
+      const integration = await SCMIntegrationService.getSCMIntegration(
+        tenantId,
+        user.user.id
+      );
+
+      if (!integration) {
+        return json({ integration: null }, { status: 200 });
+      }
+
+      return json({ integration });
+    } catch (error) {
+      console.error('Get SCM integration error:', error);
+      return json(
+        {
+          error: error instanceof Error ? error.message : 'Failed to get SCM integration',
+        },
+        { status: 500 }
+      );
+    }
+  }
+);
+
+/**
+ * POST - Create SCM integration
+ */
+const createSCMIntegration: AuthenticatedActionFunction = async ({ request, params, user }) => {
+  const tenantId = params.tenantId;
+  if (!tenantId) {
+    return json({ error: 'Tenant ID required' }, { status: 400 });
+  }
+
+  try {
+    const body = await request.json();
+    const { scmType, owner, repo, accessToken, displayName, branch } = body;
+
+    // Validate required fields
+    if (!scmType || !owner || !repo || !accessToken) {
+      return json(
+        {
+          error: 'Missing required fields: scmType, owner, repo, accessToken',
+        },
+        { status: 400 }
+      );
+    }
+
+    const integration = await SCMIntegrationService.createSCMIntegration(
+      tenantId,
+      user.user.id,
+      {
+        tenantId,
+        scmType,
+        owner,
+        repo,
+        displayName: displayName || `${owner}/${repo}`,
+        branch,
+        status: 'VALID',
+        isActive: true,
+      } as any
+    );
+
+    return json({ integration }, { status: 201 });
+  } catch (error) {
+    console.error('Create SCM integration error:', error);
+    return json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create SCM integration',
+      },
+      { status: 500 }
+    );
+  }
+};
+
+/**
+ * PATCH - Update SCM integration
+ */
+const updateSCMIntegration: AuthenticatedActionFunction = async ({ request, params, user }) => {
+  const tenantId = params.tenantId;
+  if (!tenantId) {
+    return json({ error: 'Tenant ID required' }, { status: 400 });
+  }
+
+  try {
+    const body = await request.json();
+    const { integrationId, ...updateData } = body;
+
+    if (!integrationId) {
+      return json({ error: 'Integration ID required' }, { status: 400 });
+    }
+
+    const integration = await SCMIntegrationService.updateSCMIntegration(
+      tenantId,
+      user.user.id,
+      integrationId,
+      updateData
+    );
+
+    return json({ integration });
+  } catch (error) {
+    console.error('Update SCM integration error:', error);
+    return json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to update SCM integration',
+      },
+      { status: 500 }
+    );
+  }
+};
+
+/**
+ * DELETE - Delete SCM integration
+ */
+const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, params, user }) => {
+  const tenantId = params.tenantId;
+  if (!tenantId) {
+    return json({ error: 'Tenant ID required' }, { status: 400 });
+  }
+
+  try {
+    const body = await request.json();
+    const { integrationId } = body;
+
+    if (!integrationId) {
+      return json({ error: 'Integration ID required' }, { status: 400 });
+    }
+
+    await SCMIntegrationService.deleteSCMIntegration(tenantId, user.user.id, integrationId);
+
+    return json({ success: true });
+  } catch (error) {
+    console.error('Delete SCM integration error:', error);
+    return json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to delete SCM integration',
+      },
+      { status: 500 }
+    );
+  }
+};
+
+export const action = authenticateActionRequest({
+  POST: createSCMIntegration,
+  PATCH: updateSCMIntegration,
+  DELETE: deleteSCMIntegration,
+});
+

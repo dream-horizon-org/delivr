@@ -95,6 +95,22 @@ export enum IntegrationType {
   TEST_RAIL = 'TEST_RAIL'
 }
 
+
+export interface SCMIntegration {
+  id: string;
+  tenantId: string;
+  scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  displayName: string;
+  owner: string;
+  repo: string;
+  branch?: string;
+  // accessToken excluded for security
+  status: 'VALID' | 'INVALID' | 'PENDING';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============================================================================
 // INTERFACES
 // ============================================================================
@@ -356,3 +372,22 @@ export interface ReleaseCyclesResponse {
   cycles: ReleaseCycle[];
 }
 
+
+export interface VerifySCMRequest {
+  tenantId: string;
+  scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  owner: string;
+  repo: string;
+  accessToken: string;
+}
+
+export interface VerifySCMResponse {
+  success: boolean;
+  repoDetails?: {
+    fullName: string;
+    description: string;
+    defaultBranch: string;
+    private: boolean;
+  };
+  error?: string;
+}
