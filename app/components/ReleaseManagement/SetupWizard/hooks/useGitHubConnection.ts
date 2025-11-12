@@ -15,6 +15,7 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
   const { org } = useParams();
   const [connection, setConnection] = useState<Partial<GitHubConnection>>(initialData || {});
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const updateField = useCallback((field: keyof GitHubConnection, value: any) => {
@@ -77,6 +78,50 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
     }
   }, [connection, onVerified, org]);
   
+  const saveConnection = useCallback(async () => {
+    if (!connection.isVerified) {
+      setError('Please verify the connection before saving');
+      return false;
+    }
+    
+    setIsSaving(true);
+    setError(null);
+    
+    try {
+      console.log(`[useGitHubConnection] Saving SCM integration for ${connection.owner}/${connection.repoName}`);
+      
+      // Call CREATE SCM integration endpoint
+      const response = await fetch(`/api/v1/tenants/${org}/integrations/scm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scmType: connection.scmType || 'GITHUB',
+          owner: connection.owner,
+          repo: connection.repoName,
+          accessToken: connection.token,
+          displayName: `${connection.owner}/${connection.repoName}`,
+        }),
+      });
+      
+      const result = await response.json();
+      console.log(`[useGitHubConnection] Save result:`, result);
+      
+      if (response.ok && result.integration) {
+        console.log(`[useGitHubConnection] Successfully saved integration with ID: ${result.integration.id}`);
+        return true;
+      } else {
+        setError(result.error || 'Failed to save integration');
+        return false;
+      }
+    } catch (err) {
+      console.error('[useGitHubConnection] Save error:', err);
+      setError('Failed to save connection. Please try again.');
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [connection, org]);
+  
   const reset = useCallback(() => {
     setConnection({});
     setError(null);
@@ -85,9 +130,11 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
   return {
     connection,
     isVerifying,
+    isSaving,
     error,
     updateField,
     verifyConnection,
+    saveConnection,
     reset,
     isValid: !!connection.owner && !!connection.repoName && !!connection.token,
     isVerified: !!connection.isVerified,
