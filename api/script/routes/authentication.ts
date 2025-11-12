@@ -116,14 +116,24 @@ export class Authentication {
   public async authenticate(req: Request, res: Response, next: (err?: Error) => void) {
     // Bypass authentication in development mode
     if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
-      if (req.body.user === undefined) {
+      // Check for userid in headers first (for testing with different users)
+      const userId = Array.isArray(req.headers.userid) ? req.headers.userid[0] : req.headers.userid;
+      
+      if (userId) {
+        // Custom user provided via header
+        req.user = {
+          id: userId,
+        };
+      } else if (req.body.user !== undefined) {
+        // User provided via body
+        req.user = req.body.user;
+      } else {
+        // Default test user
         req.user = {
           id: "id_0",
           email: "user1@example.com",
           name: "User One",
         };
-      } else {
-        req.user = req.headers.userId;
       }
       return next();
     }

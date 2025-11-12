@@ -9,6 +9,7 @@ import * as shortid from "shortid";
 import * as utils from "../utils/common";
 import * as security from "../utils/security";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { createRelease } from "./release-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -37,24 +38,36 @@ export function createAccessKey(sequelize: Sequelize) {
 //Creating Account Type
 export function createUser(sequelize: Sequelize) {
   return sequelize.define("user", {
-    // Core fields
-    id: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
-    email: { type: DataTypes.STRING, allowNull: false, unique: true },
-    name: { type: DataTypes.STRING, allowNull: false },
-    createdTime: { type: DataTypes.FLOAT, allowNull: false, defaultValue: () => new Date().getTime() },
-    updatedAt: { type: DataTypes.FLOAT, allowNull: true },
-    
-    // OAuth Provider IDs (union of both systems)
-    ssoId: { type: DataTypes.STRING, allowNull: true, unique: true },  // Google SSO from OG Delivr
-    azureAdId: { type: DataTypes.STRING, allowNull: true },
-    gitHubId: { type: DataTypes.STRING, allowNull: true },
-    microsoftId: { type: DataTypes.STRING, allowNull: true },
-    
-    // User Profile
-    picture: { type: DataTypes.STRING, allowNull: true },
+    id: { 
+      type: DataTypes.STRING, 
+      allowNull: false, 
+      primaryKey: true 
+    },
+    email: { 
+      type: DataTypes.STRING, 
+      allowNull: false, 
+      unique: true 
+    },
+    name: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    picture: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
+    },
+    metadata: { 
+      type: DataTypes.JSON, 
+      allowNull: true 
+    },
+    createdTime: { 
+      type: DataTypes.FLOAT, 
+      allowNull: false, 
+      defaultValue: () => new Date().getTime() 
+    },
   }, {
     tableName: 'users',
-    timestamps: false  // We handle timestamps manually
+    timestamps: true
   });
 }
 
@@ -99,7 +112,7 @@ export function createUserChannel(sequelize: Sequelize) {
     },
   }, {
     tableName: 'user_channels',
-    underscored: true,
+    timestamps: true,
     indexes: [
       {
         name: 'idx_user_channels_user_id',
@@ -169,6 +182,14 @@ export function createTenant(sequelize: Sequelize) {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  }, {
+    timestamps: true,
+    tableName: 'tenants'
   });
 }
 
@@ -203,6 +224,9 @@ export function createCollaborators(sequelize: Sequelize) {
           allowNull: false,
           defaultValue: false  // True for tenant creators
         },
+    }, {
+      tableName: 'collaborators',
+      timestamps: true
     })
 }
 
@@ -214,10 +238,10 @@ export function createDeployment(sequelize: Sequelize) {
       id: { type: DataTypes.STRING, allowNull: true, primaryKey: true },
       name: { type: DataTypes.STRING, allowNull: false },
       key: { type: DataTypes.STRING, allowNull: false },
-      packageId: {  // Ensure this has the same type as the 'id' in 'packages'
-          type: DataTypes.UUID,  // Use UUID type if 'packages.id' is a UUID
+      packageId: {
+          type: DataTypes.UUID,
           allowNull: true,
-      field: 'userId',
+          field: 'packageId',
           references: {
               model: sequelize.models["package"],
               key: 'id',
@@ -227,11 +251,14 @@ export function createDeployment(sequelize: Sequelize) {
           type: DataTypes.STRING,
           allowNull: false,
           references: {
-              model: sequelize.models["apps"], // Foreign key to the App model
+              model: sequelize.models["apps"],
               key: 'id',
           },
       },
       createdTime: { type: DataTypes.FLOAT, allowNull: true },
+  }, {
+    tableName: 'deployments',
+    timestamps: true
   });
 }
 
@@ -261,15 +288,18 @@ export function createPackage(sequelize: Sequelize) {
       size: { type: DataTypes.FLOAT, allowNull: false },
       uploadTime: { type: DataTypes.BIGINT, allowNull: false },
       isBundlePatchingEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-      deploymentId: { // Foreign key to associate this package with a deployment history
+      deploymentId: {
         type: DataTypes.STRING,
         allowNull: true,
-      field: 'userId',
+        field: 'deploymentId',
         references: {
           model: sequelize.models["deployment"],
           key: 'id',
         },
       },
+  }, {
+    tableName: 'packages',
+    timestamps: true
   });
 }
 
@@ -323,6 +353,7 @@ export function createModelss(sequelize: Sequelize) {
   const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
+  const Release = createRelease(sequelize);  // Release management from Delivr
 
   // ============================================
   // Define associations
@@ -335,6 +366,30 @@ export function createModelss(sequelize: Sequelize) {
   // User and Tenant (Creator relationship)
   User.hasMany(Tenant, { foreignKey: 'createdBy' });
   Tenant.belongsTo(User, { foreignKey: 'createdBy' });
+  
+  // Tenant and Release (One Tenant can have many Releases)
+  Tenant.hasMany(Release, { foreignKey: 'tenantId' });
+  Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  
+  // App and Release (One App can have many Releases)
+  App.hasMany(Release, { foreignKey: 'appId' });
+  Release.belongsTo(App, { foreignKey: 'appId' });
+  
+  // User and Release (Creator relationship)
+  User.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
+  Release.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+  
+  // User and Release (Pilot relationship)
+  User.hasMany(Release, { foreignKey: 'releasePilotId', as: 'pilotedReleases' });
+  Release.belongsTo(User, { foreignKey: 'releasePilotId', as: 'pilot' });
+  
+  // User and Release (Last updater relationship)
+  User.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
+  Release.belongsTo(User, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  
+  // Release self-referencing (Parent-child for hotfixes)
+  Release.hasMany(Release, { foreignKey: 'parentId', as: 'hotfixes' });
+  Release.belongsTo(Release, { foreignKey: 'parentId', as: 'parent' });
 
   // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
@@ -498,18 +553,10 @@ export class S3Storage implements storage.Storage {
           Bucket: this.bucketName,
       };
 
-      return this.s3.headBucket(headBucketParams).promise()
-        .catch((err) => {
-          if (err.code === 'NotFound' || err.code === 'NoSuchBucket') {
-            console.log(`Bucket ${this.bucketName} does not exist, creating it...`);
-            return this.s3.createBucket(createBucketParams).promise();
-          } else if (err.code === 'Forbidden') {
-            console.error('Forbidden: Check your credentials and S3 endpoint');
-            throw err;
-          } else {
-            throw err;
-          }
-        })
+      // Skip S3 setup for now - continue with database only
+      console.log('⏭️  Skipping S3 setup - proceeding with database initialization only');
+      
+      return Promise.resolve()
         .then(() => {
           return this.sequelize.authenticate();
         })
