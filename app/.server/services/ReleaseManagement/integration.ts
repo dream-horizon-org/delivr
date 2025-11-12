@@ -72,6 +72,16 @@ class IntegrationService {
     userId: string,
     data: Omit<SCMIntegration, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<SCMIntegration> {
+    console.log(`[IntegrationService] Creating SCM integration for tenant: ${tenantId}`);
+    console.log(`[IntegrationService] Calling backend: ${this.__client.defaults.baseURL}/tenants/${tenantId}/integrations/scm`);
+    console.log(`[IntegrationService] Data:`, { 
+      scmType: (data as any).scmType, 
+      owner: (data as any).owner, 
+      repo: (data as any).repo,
+      displayName: (data as any).displayName,
+      hasAccessToken: !!(data as any).accessToken
+    });
+    
     const { data: result } = await this.__client.post<SCMIntegration>(
       `/tenants/${tenantId}/integrations/scm`,
       data,
@@ -81,6 +91,8 @@ class IntegrationService {
         },
       }
     );
+    
+    console.log(`[IntegrationService] Backend response:`, result);
     return result;
   }
 

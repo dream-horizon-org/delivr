@@ -48,12 +48,17 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     return json({ error: 'Tenant ID required' }, { status: 400 });
   }
 
+  console.log(`[Frontend-Create-Route] Creating SCM integration for tenant: ${tenantId}, userId: ${user.user.id}`);
+
   try {
     const body = await request.json();
     const { scmType, owner, repo, accessToken, displayName, branch } = body;
 
+    console.log(`[Frontend-Create-Route] Request body:`, { scmType, owner, repo, displayName, branch, hasAccessToken: !!accessToken });
+
     // Validate required fields
     if (!scmType || !owner || !repo || !accessToken) {
+      console.log(`[Frontend-Create-Route] Validation failed - missing fields`);
       return json(
         {
           error: 'Missing required fields: scmType, owner, repo, accessToken',
@@ -62,6 +67,7 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
       );
     }
 
+    console.log(`[Frontend-Create-Route] Calling SCMIntegrationService.createSCMIntegration`);
     const integration = await SCMIntegrationService.createSCMIntegration(
       tenantId,
       user.user.id,
@@ -70,6 +76,7 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
         scmType,
         owner,
         repo,
+        accessToken,
         displayName: displayName || `${owner}/${repo}`,
         branch,
         status: 'VALID',
@@ -77,9 +84,14 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
       } as any
     );
 
+    console.log(`[Frontend-Create-Route] Successfully created integration:`, integration?.id);
     return json({ integration }, { status: 201 });
   } catch (error) {
-    console.error('Create SCM integration error:', error);
+    console.error('[Frontend-Create-Route] Create SCM integration error:', error);
+    console.error('[Frontend-Create-Route] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return json(
       {
         error: error instanceof Error ? error.message : 'Failed to create SCM integration',
