@@ -22,7 +22,12 @@ import {
   TenantIntegration,
   Build,
   ReleaseTask,
-  CherryPick
+  CherryPick,
+  ReleaseStatus,
+  UpdateType,
+  BuildStatus,
+  TaskStatus,
+  CherryPickStatus
 } from './types';
 
 import {
@@ -119,8 +124,8 @@ class ReleaseManagementService {
       releaseKey: `R-${new Date().getFullYear()}-${String(mockReleases.length + 1).padStart(2, '0')}`,
       version: request.version,
       type: request.type,
-      status: 'PENDING',
-      updateType: request.updateType || 'OPTIONAL',
+      status: ReleaseStatus.PENDING,
+      updateType: request.updateType || UpdateType.OPTIONAL,
       baseVersion: request.baseVersion,
       baseBranch: request.baseBranch,
       branchRelease: `release/${request.version}`,
@@ -207,7 +212,7 @@ class ReleaseManagementService {
       platform: request.platform,
       target: request.target,
       buildNumber: request.buildNumber,
-      status: 'PENDING',
+      status: BuildStatus.PENDING,
       createdAt: new Date().toISOString()
     };
 
@@ -225,7 +230,7 @@ class ReleaseManagementService {
       platform: request.platform,
       target: request.target,
       buildNumber: 'auto-generated',
-      status: 'IN_PROGRESS',
+      status: BuildStatus.IN_PROGRESS,
       startedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
@@ -248,7 +253,7 @@ class ReleaseManagementService {
       commitId: request.commitId,
       prLink: request.prLink,
       jiraLink: request.jiraLink,
-      status: 'PENDING',
+      status: CherryPickStatus.PENDING,
       isApprovalRequired: request.isApprovalRequired,
       author: {
         id: 'current_user',
@@ -275,7 +280,7 @@ class ReleaseManagementService {
     }
 
     cherryPick.approvalStatus = request.approved ? 'APPROVED' : 'REJECTED';
-    cherryPick.status = request.approved ? 'APPROVED' : 'REJECTED';
+    cherryPick.status = request.approved ? CherryPickStatus.APPROVED : CherryPickStatus.REJECTED;
     cherryPick.approver = {
       id: 'current_user',
       name: 'Current User',
@@ -420,7 +425,7 @@ class ReleaseManagementService {
       throw new Error('Task not found');
     }
 
-    task.status = 'IN_PROGRESS';
+    task.status = TaskStatus.IN_PROGRESS;
     task.updatedAt = new Date().toISOString();
 
     return task;
