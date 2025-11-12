@@ -1,11 +1,10 @@
 import { useQuery } from "react-query";
 import axios, { AxiosResponse } from "axios";
-import { route } from "routes-gen";
 import { TenantInfoResponse, Organization } from "~/.server/services/Codepush/types";
 
 export const getTenantInfo = async (tenantId: string): Promise<Organization> => {
   const { data } = await axios.get<null, AxiosResponse<TenantInfoResponse>>(
-    route("/api/v1/tenants/:tenantId/info", { tenantId })
+    `/api/v1/tenants/${tenantId}/info`
   );
   return data.organisation;
 };

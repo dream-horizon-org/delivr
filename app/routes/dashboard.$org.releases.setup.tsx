@@ -82,6 +82,8 @@ export default function ReleaseSetupPage() {
   
   // Fetch tenant info to check existing integrations
   const { data: tenantInfo, isLoading } = useTenantInfo(org);
+
+  console.log('tenantInfo', tenantInfo);
   
   // Check if SCM integration already exists
   const hasSCMIntegration = tenantInfo?.organisation?.releaseManagement?.integrations?.some(
