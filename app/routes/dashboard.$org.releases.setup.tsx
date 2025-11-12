@@ -29,19 +29,22 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   }
   
   // Fetch tenant info from real backend API
-  const codepushService = new CodepushService();
-  const tenantInfo = await codepushService.getTenantInfo({ tenantId: org });
+  const response = await CodepushService.getTenantInfo({ 
+    tenantId: org,
+    userId: user.user.id 
+  });
+  const organisation = response.data.organisation;
   
   // If setup is complete, redirect to releases dashboard
-  if (tenantInfo.organisation.releaseManagement?.setupComplete) {
+  if (organisation.releaseManagement?.setupComplete) {
     return redirect(`/dashboard/${org}/releases`);
   }
   
   return json({
     org,
     user,
-    setupComplete: tenantInfo.organisation.releaseManagement?.setupComplete || false,
-    setupSteps: tenantInfo.organisation.releaseManagement?.setupSteps || {},
+    setupComplete: organisation.releaseManagement?.setupComplete || false,
+    setupSteps: organisation.releaseManagement?.setupSteps || {},
   });
 });
 
@@ -61,10 +64,13 @@ export const action = authenticateActionRequest({
       // This action just checks if setup is complete and redirects
       
       // Fetch latest tenant info to check completion
-      const codepushService = new CodepushService();
-      const tenantInfo = await codepushService.getTenantInfo({ tenantId: org });
+      const response = await CodepushService.getTenantInfo({ 
+        tenantId: org,
+        userId: user.user.id 
+      });
+      const organisation = response.data.organisation;
       
-      if (tenantInfo.organisation.releaseManagement?.setupComplete) {
+      if (organisation.releaseManagement?.setupComplete) {
         return redirect(`/dashboard/${org}/releases`);
       }
       
@@ -82,11 +88,10 @@ export default function ReleaseSetupPage() {
   
   // Fetch tenant info to check existing integrations
   const { data: tenantInfo, isLoading } = useTenantInfo(org);
-
-  console.log('tenantInfo', tenantInfo);
   
   // Check if SCM integration already exists
-  const hasSCMIntegration = tenantInfo?.organisation?.releaseManagement?.integrations?.some(
+  // Note: tenantInfo IS the organisation object (already unwrapped by getTenantInfo)
+  const hasSCMIntegration = tenantInfo?.releaseManagement?.integrations?.some(
     (integration: any) => integration.type === 'scm' && integration.isActive
   );
   
