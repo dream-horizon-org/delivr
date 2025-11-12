@@ -6,7 +6,7 @@
 import { json, redirect } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
-import { getSetupStatus, getSetupData, saveSetupData } from '~/.server/services/ReleaseManagement/setup';
+import { CodepushService } from '~/.server/services/Codepush';
 import { useTenantInfo } from '~/hooks/useTenantInfo';
 import type { SetupWizardData } from '~/components/ReleaseManagement/SetupWizard/types';
 
@@ -28,20 +28,20 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
     throw new Response('Organization not found', { status: 404 });
   }
   
-  // Get current setup status and data
-  const setupStatus = await getSetupStatus(org);
-  const setupData = await getSetupData(org);
+  // Fetch tenant info from real backend API
+  const codepushService = new CodepushService();
+  const tenantInfo = await codepushService.getTenantInfo({ tenantId: org });
   
-  // If setup is complete, redirect to releases page
-  if (setupStatus.isComplete) {
+  // If setup is complete, redirect to releases dashboard
+  if (tenantInfo.organisation.releaseManagement?.setupComplete) {
     return redirect(`/dashboard/${org}/releases`);
   }
   
   return json({
     org,
     user,
-    setupStatus,
-    setupData,
+    setupComplete: tenantInfo.organisation.releaseManagement?.setupComplete || false,
+    setupSteps: tenantInfo.organisation.releaseManagement?.setupSteps || {},
   });
 });
 
@@ -57,16 +57,14 @@ export const action = authenticateActionRequest({
     const actionType = formData.get('_action');
     
     if (actionType === 'save') {
-      const setupDataJson = formData.get('setupData') as string;
-      const setupData = JSON.parse(setupDataJson) as SetupWizardData;
+      // Note: Setup data is saved via individual API calls (SCM integration, etc.)
+      // This action just checks if setup is complete and redirects
       
-      // Save setup data
-      await saveSetupData(org, setupData as any);
+      // Fetch latest tenant info to check completion
+      const codepushService = new CodepushService();
+      const tenantInfo = await codepushService.getTenantInfo({ tenantId: org });
       
-      // Check if setup is now complete
-      const setupStatus = await getSetupStatus(org);
-      
-      if (setupStatus.isComplete) {
+      if (tenantInfo.organisation.releaseManagement?.setupComplete) {
         return redirect(`/dashboard/${org}/releases`);
       }
       
@@ -79,7 +77,7 @@ export const action = authenticateActionRequest({
 
 export default function ReleaseSetupPage() {
   const data = useLoaderData<typeof loader>();
-  const { org, setupData: initialData } = data as any;
+  const { org } = data as any;
   const navigate = useNavigate();
   
   // Fetch tenant info to check existing integrations
@@ -105,22 +103,11 @@ export default function ReleaseSetupPage() {
     isLastStep,
     updateWizardData,
   } = useSetupWizard({
-    initialData,
     hasSCMIntegration, // Pass flag to skip SCM step
-    onComplete: async (data) => {
-      // Submit the completed setup
-      const formData = new FormData();
-      formData.append('_action', 'save');
-      formData.append('setupData', JSON.stringify(data));
-      
-      const response = await fetch(`/dashboard/${org}/releases/setup`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (response.ok) {
-        navigate(`/dashboard/${org}/releases`);
-      }
+    onComplete: async () => {
+      // All setup data is saved via individual API calls during the wizard
+      // Just navigate to dashboard
+      navigate(`/dashboard/${org}/releases`);
     },
   });
   
