@@ -39,7 +39,7 @@ export async function getUserAppPermission(
     }
     
     // Check if user is app creator (can delete)
-    if (app.dataValues.createdBy === userId) {
+    if (app.dataValues.userId === userId) {
       return {
         permission: 'Owner',
         isCreator: true,

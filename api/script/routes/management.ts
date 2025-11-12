@@ -27,6 +27,7 @@ import tryJSON = require("try-json");
 import rateLimit from "express-rate-limit";
 import { isPrototypePollutionKey } from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
+import { getUserAppPermission } from "../middleware/app-permissions";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -484,9 +485,27 @@ export function getManagementRouter(config: ManagementConfig): Router {
     
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
+        
+        // NEW: Use app-permissions logic for deletion
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        
+        // Check canDelete flag (only app creator OR tenant owner)
+        if (!appPermission.canDelete) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            `Only app creators and tenant owners can delete apps. Your permission: ${appPermission.permission} (source: ${appPermission.source})`
+          );
+        }
+        
         return storage.getDeployments(accountId, appId);
       })
       .then((deployments: storageTypes.Deployment[]) => {
@@ -515,13 +534,30 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     storage
       .getApps(accountId)
-      .then((apps: storageTypes.App[]): void | Promise<void> => {
+      .then(async (apps: storageTypes.App[]): Promise<void> => {
         const existingApp: storageTypes.App = NameResolver.findByName(apps, appName);
         if (!existingApp) {
           errorUtils.sendNotFoundError(res, `App "${appName}" does not exist.`);
           return;
         }
-        throwIfInvalidPermissions(existingApp, storageTypes.Permissions.Owner);
+        
+        // NEW: Use app-permissions logic - Editor or Owner can update
+        const appPermission = await getUserAppPermission(storage, accountId, existingApp.id);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        
+        // Only Editor or Owner can update (not Viewer)
+        if (appPermission.permission === 'Viewer') {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            `You need Editor or Owner permission to update apps. Your permission: ${appPermission.permission}`
+          );
+        }
 
         if ((app.name || app.name === "") && app.name !== existingApp.name) {
           if (NameResolver.isDuplicate(apps, app.name)) {
@@ -565,8 +601,25 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
+      .then(async (app: storageTypes.App) => {
+        // NEW: Only app creator OR tenant owner can transfer
+        const appPermission = await getUserAppPermission(storage, accountId, app.id);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        
+        // Only Owner (tenant owner or app creator) can transfer
+        if (appPermission.permission !== 'Owner') {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "Transferring apps requires Owner permission."
+          );
+        }
+        
         return storage.transferApp(accountId, app.id, email);
       })
       .then(() => {
@@ -684,9 +737,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+        
+        // NEW: ALL tenant members (including Viewer) can list deployments
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        // Viewer, Editor, Owner all can proceed
+        
         return storage.getDeployments(accountId, appId);
       })
       .then(async (deployments: storageTypes.Deployment[]) => {
@@ -741,9 +805,26 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const storageDeployment: storageTypes.Deployment = converterUtils.toStorageDeployment(restDeployment, new Date().getTime());
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
+        
+        // NEW: Editor+ can create deployments (NOT Viewer)
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        
+        if (appPermission.permission === 'Viewer') {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "Creating deployments requires Editor or Owner permission. Viewers can only manage releases within existing deployments."
+          );
+        }
+        
         return storage.getDeployments(accountId, app.id);
       })
       .then((deployments: storageTypes.Deployment[]): void | Promise<void> => {
@@ -773,9 +854,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+        
+        // NEW: ALL tenant members (including Viewer) can view deployment
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        // Viewer, Editor, Owner all can proceed
+        
         return nameResolver.resolveDeployment(accountId, appId, deploymentName);
       })
       .then(async (deployment: storageTypes.Deployment) => {
@@ -819,9 +911,26 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
+        
+        // NEW: Editor+ can delete deployments (NOT Viewer)
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        
+        if (appPermission.permission === 'Viewer') {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "Deleting deployments requires Editor or Owner permission."
+          );
+        }
+        
         return nameResolver.resolveDeployment(accountId, appId, deploymentName);
       })
       .then((deployment: storageTypes.Deployment) => {
@@ -853,9 +962,26 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
+        
+        // NEW: Editor+ can rename deployments (NOT Viewer)
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        
+        if (appPermission.permission === 'Viewer') {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "Updating deployments requires Editor or Owner permission."
+          );
+        }
+        
         return storage.getDeployments(accountId, app.id);
       })
       .then((storageDeployments: storageTypes.Deployment[]): void | Promise<void> => {
@@ -900,9 +1026,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+        
+        // NEW: ALL tenant members (including Viewer) can update release metadata
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        // Viewer, Editor, Owner all can proceed
+        
         return storage.getDeployments(accountId, app.id);
       })
       .then((storageDeployments: storageTypes.Deployment[]) => {
@@ -1025,9 +1162,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
         nameResolver
           .resolveApp(accountId, appName, tenantId)
-          .then((app: storageTypes.App) => {
+          .then(async (app: storageTypes.App) => {
             appId = app.id;
-            throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+            
+            // NEW: ALL tenant members (including Viewer) can upload releases
+            const appPermission = await getUserAppPermission(storage, accountId, appId);
+            
+            if (!appPermission) {
+              throw errorUtils.restError(
+                errorUtils.ErrorCode.Unauthorized,
+                "You do not have access to this app!"
+              );
+            }
+            // Viewer, Editor, Owner all can proceed
+            
             return nameResolver.resolveDeployment(accountId, appId, deploymentName);
           })
           .then((deployment: storageTypes.Deployment) => {
@@ -1136,9 +1284,26 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       nameResolver
         .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App): Promise<storageTypes.Deployment> => {
+        .then(async (app: storageTypes.App): Promise<storageTypes.Deployment> => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Owner);
+          
+          // NEW: Editor+ can clear history (NOT Viewer)
+          const appPermission = await getUserAppPermission(storage, accountId, appId);
+          
+          if (!appPermission) {
+            throw errorUtils.restError(
+              errorUtils.ErrorCode.Unauthorized,
+              "You do not have access to this app!"
+            );
+          }
+          
+          if (appPermission.permission === 'Viewer') {
+            throw errorUtils.restError(
+              errorUtils.ErrorCode.Unauthorized,
+              "Clearing deployment history requires Editor or Owner permission."
+            );
+          }
+          
           return nameResolver.resolveDeployment(accountId, appId, deploymentName);
         })
         .then((deployment: storageTypes.Deployment): Promise<void> => {
@@ -1169,9 +1334,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
     nameResolver
       .resolveApp(accountId, appName, tenantId)
-      .then((app: storageTypes.App) => {
+      .then(async (app: storageTypes.App) => {
         appId = app.id;
-        throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+        
+        // NEW: ALL tenant members (including Viewer) can view history
+        const appPermission = await getUserAppPermission(storage, accountId, appId);
+        
+        if (!appPermission) {
+          throw errorUtils.restError(
+            errorUtils.ErrorCode.Unauthorized,
+            "You do not have access to this app!"
+          );
+        }
+        // Viewer, Editor, Owner all can proceed
+        
         return nameResolver.resolveDeployment(accountId, appId, deploymentName);
       })
       .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
@@ -1195,9 +1371,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       nameResolver
         .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App) => {
+        .then(async (app: storageTypes.App) => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+          
+          // NEW: ALL tenant members (including Viewer) can view metrics
+          const appPermission = await getUserAppPermission(storage, accountId, appId);
+          
+          if (!appPermission) {
+            throw errorUtils.restError(
+              errorUtils.ErrorCode.Unauthorized,
+              "You do not have access to this app!"
+            );
+          }
+          // Viewer, Editor, Owner all can proceed
+          
           return nameResolver.resolveDeployment(accountId, appId, deploymentName);
         })
         .then((deployment: storageTypes.Deployment): Promise<redis.DeploymentMetrics> => {
@@ -1232,9 +1419,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       nameResolver
         .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App) => {
+        .then(async (app: storageTypes.App) => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+          
+          // NEW: ALL tenant members (including Viewer) can promote releases
+          const appPermission = await getUserAppPermission(storage, accountId, appId);
+          
+          if (!appPermission) {
+            throw errorUtils.restError(
+              errorUtils.ErrorCode.Unauthorized,
+              "You do not have access to this app!"
+            );
+          }
+          // Viewer, Editor, Owner all can proceed
+          
           // Get source and dest manifests in parallel.
           return Promise.all([
             nameResolver.resolveDeployment(accountId, appId, sourceDeploymentName),
@@ -1326,9 +1524,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       nameResolver
         .resolveApp(accountId, appName, tenantId)
-        .then((app: storageTypes.App) => {
+        .then(async (app: storageTypes.App) => {
           appId = app.id;
-          throwIfInvalidPermissions(app, storageTypes.Permissions.Editor);
+          
+          // NEW: ALL tenant members (including Viewer) can rollback releases
+          const appPermission = await getUserAppPermission(storage, accountId, appId);
+          
+          if (!appPermission) {
+            throw errorUtils.restError(
+              errorUtils.ErrorCode.Unauthorized,
+              "You do not have access to this app!"
+            );
+          }
+          // Viewer, Editor, Owner all can proceed
+          
           return nameResolver.resolveDeployment(accountId, appId, deploymentName);
         })
         .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
@@ -1417,14 +1626,35 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const collaboratorsMap: storageTypes.CollaboratorMap = app.collaborators;
 
     let isPermitted: boolean = false;
+    let userPermission: string = null;
 
+    // Find current user's permission
     if (collaboratorsMap) {
       for (const email of Object.keys(collaboratorsMap)) {
         if ((<storageTypes.CollaboratorProperties>collaboratorsMap[email]).isCurrentAccount) {
-          const permission: string = collaboratorsMap[email].permission;
-          isPermitted = permission === storageTypes.Permissions.Owner || permission === requiredPermission;
+          userPermission = collaboratorsMap[email].permission;
           break;
         }
+      }
+    }
+
+    // Check permission hierarchy
+    // Owner > Editor > Viewer
+    if (userPermission) {
+      if (requiredPermission === storageTypes.Permissions.Owner) {
+        // Only Owner can do this
+        isPermitted = userPermission === storageTypes.Permissions.Owner;
+      } else if (requiredPermission === storageTypes.Permissions.Editor) {
+        // Owner or Editor can do this
+        isPermitted = 
+          userPermission === storageTypes.Permissions.Owner || 
+          userPermission === storageTypes.Permissions.Editor;
+      } else if (requiredPermission === storageTypes.Permissions.Viewer) {
+        // Anyone (Owner, Editor, Viewer) can do this
+        isPermitted = 
+          userPermission === storageTypes.Permissions.Owner || 
+          userPermission === storageTypes.Permissions.Editor ||
+          userPermission === storageTypes.Permissions.Viewer;
       }
     }
 

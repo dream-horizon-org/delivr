@@ -67,7 +67,7 @@ export function createUser(sequelize: Sequelize) {
     },
   }, {
     tableName: 'users',
-    timestamps: true
+    timestamps: false  // Users table uses createdTime instead of createdAt/updatedAt
   });
 }
 
@@ -2059,18 +2059,96 @@ export class S3Storage implements storage.Storage {
   
 
     private async getCollabrators(app:storage.App, userId) {
-      const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({where : {appId: app.id}})
-      const collabMap = {}
-      collabModel.map((collab) => {
-        collabMap[collab.dataValues["email"]] = {
-          ...collab.dataValues,
-          "isCurrentAccount" : false
+      // BACKWARDS COMPATIBLE: Support both old app-level AND new tenant-level collaborators
+      // Query: (tenantId = X AND appId IS NULL) OR (appId = Y)
+      const { Op } = require('sequelize');
+      
+      const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+        where: { 
+          [Op.or]: [
+            { tenantId: app.tenantId, appId: null },  // NEW: Tenant-level
+            { appId: app.id }                         // OLD: App-level (backwards compat)
+          ]
         }
-      })
+      });
+      
+      const collabMap = {}
+      let foundOldFormat = false;
+      
+      collabModel.forEach((collab) => {
+        const email = collab.dataValues["email"];
+        const isAppLevel = collab.dataValues.appId !== null;
+        const isTenantLevel = collab.dataValues.appId === null;
+        
+        // Log warning if old app-level collaborator found
+        if (isAppLevel) {
+          foundOldFormat = true;
+          console.warn('⚠️ OLD APP-LEVEL COLLABORATOR FOUND:', {
+            email: email,
+            appId: collab.dataValues.appId,
+            appName: app.name,
+            message: 'Run migration: migrations/009_migrate_app_level_to_tenant_level.sql'
+          });
+        }
+        
+        // If user exists in BOTH app-level and tenant-level, tenant-level wins
+        if (collabMap[email]) {
+          if (isTenantLevel) {
+            // Override with tenant-level
+            collabMap[email] = {
+              ...collab.dataValues,
+              isCurrentAccount: false,
+              source: 'tenant_level'
+            };
+          }
+          // If app-level and already exists, skip (tenant-level already set)
+        } else {
+          // First time seeing this user
+          collabMap[email] = {
+            ...collab.dataValues,
+            isCurrentAccount: false,
+            source: isAppLevel ? 'app_level_legacy' : 'tenant_level'
+          };
+        }
+      });
+      
+      // Log summary if old format found
+      if (foundOldFormat) {
+        console.warn(`⚠️ App "${app.name}" (${app.id}) has old app-level collaborators. Migration recommended.`);
+      }
+      
+      // Mark current user
       const currentUserEmail: string = S3Storage.getEmailForAccountId(collabMap, userId);
       if (currentUserEmail && collabMap[currentUserEmail]) {
         collabMap[currentUserEmail].isCurrentAccount = true;
       }
+      
+      // NEW: Check if current user is app creator (automatic Owner)
+      const appCreatorId = (app as any).userId || (app as any).createdBy;
+      if (appCreatorId === userId) {
+        // Get user's email
+        const user = await this.sequelize.models["user"].findByPk(userId);
+        if (user) {
+          const userEmail = user.dataValues.email;
+          
+          // If user is already in collabMap, ensure they have Owner permission
+          if (collabMap[userEmail]) {
+            collabMap[userEmail].permission = 'Owner';
+            collabMap[userEmail].isCurrentAccount = true;
+            collabMap[userEmail].source = 'app_creator';
+          } else {
+            // Add creator to collabMap as Owner
+            collabMap[userEmail] = {
+              userId: userId,
+              email: userEmail,
+              permission: 'Owner',
+              isCurrentAccount: true,
+              source: 'app_creator'
+            };
+          }
+        }
+      }
+      
       app["collaborators"] = collabMap
       return app;
     }
