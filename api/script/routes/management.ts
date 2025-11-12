@@ -351,13 +351,25 @@ export function getManagementRouter(config: ManagementConfig): Router {
         });
       });
       
-      // TODO: Add other integration types
+      // TODO: Add other integration types when implemented
       // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
       // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
       // communicationIntegrations.forEach(c => integrations.push({ type: 'communication', ...c }));
       
       // Calculate setup completion
-      const releaseSetupComplete = scmIntegrations.length > 0;  // For now, just check SCM
+      // Setup is complete when ALL REQUIRED steps are done:
+      // - SCM Integration: REQUIRED
+      // - Target Platforms: REQUIRED (not implemented yet)
+      // - Pipelines: OPTIONAL
+      // - Communication: OPTIONAL
+      const hasRequiredSCM = scmIntegrations.length > 0;
+      const hasRequiredTargetPlatforms = false; // TODO: Check actual target platforms when implemented
+      
+      // Setup is complete ONLY when BOTH required steps are done
+      // Since target platforms are not yet implemented, setupComplete will always be FALSE
+      // Once target platforms are implemented, change line below to:
+      // const hasRequiredTargetPlatforms = targetPlatforms.length > 0;
+      const releaseSetupComplete = hasRequiredSCM && hasRequiredTargetPlatforms;
       
       return res.status(200).send({
         organisation: {
@@ -366,7 +378,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             setupComplete: releaseSetupComplete,
             setupSteps: {
               scmIntegration: scmIntegrations.length > 0,
-              targetPlatforms: false,  // TODO: Implement
+              targetPlatforms: false,  // TODO: Implement target platforms
               pipelines: false,        // TODO: Implement (optional)
               communication: false     // TODO: Implement (optional)
             },
