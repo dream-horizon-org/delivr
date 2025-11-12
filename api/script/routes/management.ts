@@ -365,10 +365,11 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const hasRequiredSCM = scmIntegrations.length > 0;
       const hasRequiredTargetPlatforms = false; // TODO: Check actual target platforms when implemented
       
-      // For now, only SCM is implemented, so we check just that
-      // Once target platforms are implemented, this should be:
-      // const releaseSetupComplete = hasRequiredSCM && hasRequiredTargetPlatforms;
-      const releaseSetupComplete = hasRequiredSCM; // TODO: Add target platforms check
+      // Setup is complete ONLY when BOTH required steps are done
+      // Since target platforms are not yet implemented, setupComplete will always be FALSE
+      // Once target platforms are implemented, change line below to:
+      // const hasRequiredTargetPlatforms = targetPlatforms.length > 0;
+      const releaseSetupComplete = hasRequiredSCM && hasRequiredTargetPlatforms;
       
       return res.status(200).send({
         organisation: {
