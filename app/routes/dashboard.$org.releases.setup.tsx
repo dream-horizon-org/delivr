@@ -7,6 +7,7 @@ import { json, redirect } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupStatus, getSetupData, saveSetupData } from '~/.server/services/ReleaseManagement/setup';
+import { useTenantInfo } from '~/hooks/useTenantInfo';
 import type { SetupWizardData } from '~/components/ReleaseManagement/SetupWizard/types';
 
 // Import components
@@ -81,6 +82,14 @@ export default function ReleaseSetupPage() {
   const { org, setupData: initialData } = data as any;
   const navigate = useNavigate();
   
+  // Fetch tenant info to check existing integrations
+  const { data: tenantInfo, isLoading } = useTenantInfo(org);
+  
+  // Check if SCM integration already exists
+  const hasSCMIntegration = tenantInfo?.organisation?.releaseManagement?.integrations?.some(
+    (integration: any) => integration.type === 'scm' && integration.isActive
+  );
+  
   const {
     currentStep,
     currentStepConfig,
@@ -97,6 +106,7 @@ export default function ReleaseSetupPage() {
     updateWizardData,
   } = useSetupWizard({
     initialData,
+    hasSCMIntegration, // Pass flag to skip SCM step
     onComplete: async (data) => {
       // Submit the completed setup
       const formData = new FormData();
@@ -114,18 +124,51 @@ export default function ReleaseSetupPage() {
     },
   });
   
+  // Show loading state while fetching tenant info
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading setup...</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Render current step
   const renderStep = () => {
     switch (currentStep) {
       case 'github':
         return (
-          <GitHubConnectionStep
-            initialData={wizardData.github}
-            onComplete={(data) => {
-              updateWizardData({ github: data });
-              goToNextStep();
-            }}
-          />
+          <div className="space-y-4">
+            {hasSCMIntegration && (
+              <div className="rounded-md bg-green-50 border border-green-200 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-green-800">
+                      ✓ SCM Integration Already Configured
+                    </h3>
+                    <p className="mt-1 text-sm text-green-700">
+                      Your GitHub repository is already connected. You can skip this step or reconfigure if needed.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <GitHubConnectionStep
+              initialData={wizardData.github}
+              onComplete={(data) => {
+                updateWizardData({ github: data });
+                goToNextStep();
+              }}
+            />
+          </div>
         );
         
       case 'targets':

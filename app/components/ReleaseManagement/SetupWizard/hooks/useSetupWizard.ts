@@ -7,11 +7,14 @@ import type { SetupStep, WizardStepConfig, SetupWizardData } from '../types';
 
 interface UseSetupWizardProps {
   initialData?: SetupWizardData;
+  hasSCMIntegration?: boolean; // Flag to indicate SCM is already configured
   onComplete?: (data: SetupWizardData) => void;
 }
 
-export function useSetupWizard({ initialData, onComplete }: UseSetupWizardProps = {}) {
-  const [currentStep, setCurrentStep] = useState<SetupStep>('github');
+export function useSetupWizard({ initialData, hasSCMIntegration = false, onComplete }: UseSetupWizardProps = {}) {
+  // Determine initial step: skip GitHub if SCM integration exists
+  const initialStep = hasSCMIntegration ? 'targets' : 'github';
+  const [currentStep, setCurrentStep] = useState<SetupStep>(initialStep);
   const [wizardData, setWizardData] = useState<SetupWizardData>(initialData || {});
   
   // Define all steps with their config
@@ -21,8 +24,9 @@ export function useSetupWizard({ initialData, onComplete }: UseSetupWizardProps 
       title: 'Connect GitHub',
       description: 'Connect your GitHub repository',
       isRequired: true,
-      isComplete: !!wizardData.github?.isVerified,
-      canSkip: false,
+      // Mark as complete if SCM integration exists OR if verified through wizard
+      isComplete: hasSCMIntegration || !!wizardData.github?.isVerified,
+      canSkip: hasSCMIntegration, // Allow skipping if already configured
     },
     {
       id: 'targets',
@@ -64,7 +68,7 @@ export function useSetupWizard({ initialData, onComplete }: UseSetupWizardProps 
       isComplete: false,
       canSkip: false,
     },
-  ], [wizardData]);
+  ], [wizardData, hasSCMIntegration]);
   
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   const currentStepConfig = steps[currentStepIndex];
