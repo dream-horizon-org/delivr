@@ -60,15 +60,10 @@ fi
 HBC_TEMP_FILE="${JS_BUNDLE_FILE}.hbc"
 HBC_SOURCEMAP_FILE="${JS_BUNDLE_FILE}.hbc.map" # NOTE: This is by convention always true
 
-./node_modules/@d11/dota/scripts/bundle/bundle-to-binary.sh ${JS_BUNDLE_FILE} ${HBC_TEMP_FILE}
+./node_modules/@d11/dota/scripts/bundle/bundle-to-binary.sh ${JS_BUNDLE_FILE} ${HBC_TEMP_FILE} ${PLATFORM} ${MAKE_SOURCEMAP}
 
 echo "Replacing JS bundle with HBC"
 mv ${HBC_TEMP_FILE} ${JS_BUNDLE_FILE}
-
-# Clean up sourcemap if not required
-if [[ -z "${MAKE_SOURCEMAP}" ]]; then
-  rm ${HBC_SOURCEMAP_FILE}
-fi
 
 #####################################################################
 # Compose sourcemaps if required

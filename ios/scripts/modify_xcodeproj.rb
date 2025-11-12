@@ -29,6 +29,21 @@ end
 phase.shell_script = <<-SCRIPT
 set -e
 
+# Source the .xcode.env file
+ENV_PATH="$PODS_ROOT/../.xcode.env"
+if [ -f "$ENV_PATH" ]; then
+    source "$ENV_PATH"
+    echo "Env variables sourced from $ENV_PATH"
+else
+    echo "Env file $ENV_PATH not found. Ensure it exists."
+fi
+
+echo "Dota - DOTA_COPY_BUNDLE: $DOTA_COPY_BUNDLE"
+if [[ "$DOTA_COPY_BUNDLE" == "false" ]]; then
+    echo "Dota - Skipping bundle copy as DOTA_COPY_BUNDLE is set to false."
+    exit 0
+fi
+
 BUNDLE_NAME="main"
 DEST="$CONFIGURATION_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
 BUNDLE_FILE="$DEST/$BUNDLE_NAME.jsbundle"
