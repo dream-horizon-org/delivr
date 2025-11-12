@@ -7,12 +7,19 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:fullbundle": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testNamePattern='fullbundle'",
+    "test:patchbundle": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testNamePattern='patchbundle'",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose",
     "postinstall": "patch-package"
   },
   "dependencies": {
     "@d11/dota": "file:..",
     "@react-native/new-app-screen": "0.81.4",
+    "@tanstack/react-query": "5.56.2",
+    "axios": "1.7.7",
     "react": "19.1.0",
     "react-native": "0.81.4",
     "react-native-safe-area-context": "^5.5.2"

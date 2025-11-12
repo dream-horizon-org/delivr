@@ -46,9 +46,7 @@
     "xcode": "3.0.1"
   },
   "devDependencies": {
-    "code-push": "^4.2.2",
     "@types/assert": "^1.5.2",
-    "commander": "^11.1.0",
     "@types/mkdirp": "^1.0.1",
     "@types/mocha": "^9.0.0",
     "@types/node": "^14.0.27",
@@ -56,6 +54,7 @@
     "archiver": "latest",
     "body-parser": "latest",
     "code-push-plugin-testing-framework": "file:./code-push-plugin-testing-framework",
+    "commander": "11.1.0",
     "del": "v6.0.0",
     "express": "latest",
     "mkdirp": "latest",
