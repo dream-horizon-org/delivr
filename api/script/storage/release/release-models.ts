@@ -695,7 +695,7 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(ReleaseTaskConclusion)),
       allowNull: true
     },
-    userId: {
+    accountId: {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
@@ -744,7 +744,7 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
       { fields: ['releaseId'] },
       { fields: ['regressionId'] },
       { fields: ['preReleaseTasksId'] },
-      { fields: ['userId'] },
+      { fields: ['accountId'] },
       { fields: ['taskId'], unique: true }
     ]
   });
@@ -1037,7 +1037,7 @@ export function createStateHistoryModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(StateChangeType)),
       defaultValue: StateChangeType.CREATE
     },
-    userId: {
+    accountId: {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
@@ -1076,7 +1076,7 @@ export function createStateHistoryModel(sequelize: Sequelize) {
     timestamps: true,
     indexes: [
       { fields: ['releaseId'] },
-      { fields: ['userId'] },
+      { fields: ['accountId'] },
       { fields: ['id', 'releaseId', 'codepushId', 'settingsId'] }
     ]
   });
@@ -1385,13 +1385,13 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // TenantIntegrations associations
   models.TenantIntegrations.belongsTo(sequelize.models.tenants, { foreignKey: 'tenantId', as: 'tenant' });
-  models.TenantIntegrations.belongsTo(sequelize.models.user, { foreignKey: 'configuredByAccountId', as: 'configuredBy' });
+  models.TenantIntegrations.belongsTo(sequelize.models.accounts, { foreignKey: 'configuredByAccountId', as: 'configuredBy' });
   
   // Release associations
   models.Release.belongsTo(sequelize.models.tenants, { foreignKey: 'tenantId', as: 'tenant' });
-  models.Release.belongsTo(sequelize.models.user, { foreignKey: 'createdByAccountId', as: 'creator' });
-  models.Release.belongsTo(sequelize.models.user, { foreignKey: 'releasePilotAccountId', as: 'releasePilot' });
-  models.Release.belongsTo(sequelize.models.user, { foreignKey: 'lastUpdateByAccountId', as: 'lastUpdater' });
+  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'createdByAccountId', as: 'creator' });
+  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'releasePilotAccountId', as: 'releasePilot' });
+  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'lastUpdateByAccountId', as: 'lastUpdater' });
   models.Release.belongsTo(models.Release, { foreignKey: 'parentId', as: 'parent' });
   models.Release.hasMany(models.Release, { foreignKey: 'parentId', as: 'hotfixes' });
   
@@ -1414,7 +1414,7 @@ export function createReleaseModels(sequelize: Sequelize) {
   models.ReleaseTasks.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
   models.ReleaseTasks.belongsTo(models.RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
   models.ReleaseTasks.belongsTo(models.PreReleaseTasks, { foreignKey: 'preReleaseTasksId', as: 'preReleaseTasks' });
-  models.ReleaseTasks.belongsTo(sequelize.models.user, { foreignKey: 'userId', as: 'account' });
+  models.ReleaseTasks.belongsTo(sequelize.models.accounts, { foreignKey: 'accountId', as: 'account' });
   
   // RegressionCycle associations
   models.RegressionCycle.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
@@ -1436,12 +1436,12 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // CherryPicks associations
   models.CherryPicks.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.CherryPicks.belongsTo(sequelize.models.user, { foreignKey: 'authorAccountId', as: 'author' });
-  models.CherryPicks.belongsTo(sequelize.models.user, { foreignKey: 'approverAccountId', as: 'approver' });
+  models.CherryPicks.belongsTo(sequelize.models.accounts, { foreignKey: 'authorAccountId', as: 'author' });
+  models.CherryPicks.belongsTo(sequelize.models.accounts, { foreignKey: 'approverAccountId', as: 'approver' });
   
   // StateHistory associations
   models.StateHistory.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.StateHistory.belongsTo(sequelize.models.user, { foreignKey: 'userId', as: 'account' });
+  models.StateHistory.belongsTo(sequelize.models.accounts, { foreignKey: 'accountId', as: 'account' });
   models.StateHistory.hasMany(models.StateHistoryItem, { foreignKey: 'historyId', as: 'changes' });
   
   // StateHistoryItem associations
@@ -1449,13 +1449,13 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // CronJob associations
   models.CronJob.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.CronJob.belongsTo(sequelize.models.user, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
+  models.CronJob.belongsTo(sequelize.models.accounts, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
   
   // CronChangeLogs associations
-  models.CronChangeLogs.belongsTo(sequelize.models.user, { foreignKey: 'updatedByAccountId', as: 'updater' });
+  models.CronChangeLogs.belongsTo(sequelize.models.accounts, { foreignKey: 'updatedByAccountId', as: 'updater' });
   
   // GlobalSettings associations
-  models.GlobalSettings.belongsTo(sequelize.models.user, { foreignKey: 'updatedByAccountId', as: 'updater' });
+  models.GlobalSettings.belongsTo(sequelize.models.accounts, { foreignKey: 'updatedByAccountId', as: 'updater' });
 
   return models;
 }

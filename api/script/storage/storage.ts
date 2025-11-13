@@ -58,7 +58,7 @@ export interface Account {
 }
 
 export interface CollaboratorProperties {
-  /*generated*/ userId?: string;
+  /*generated*/ accountId?: string;
   /*generated*/ isCurrentAccount?: boolean;
   permission: string;
 }
@@ -159,28 +159,28 @@ export interface Storage {
   checkHealth(): Promise<void>;
 
   addAccount(account: Account): Promise<string>;
-  getAccount(userId: string): Promise<Account>;
+  getAccount(accountId: string): Promise<Account>;
   getAccountByEmail(email: string): Promise<Account>;
   getAccountIdFromAccessKey(accessKey: string): Promise<string>;
   updateAccount(email: string, updates: Account): Promise<void>;
-  getAppOwnershipCount(userId: string): Promise<number>;
+  getAppOwnershipCount(accountId: string): Promise<number>;
 
 
-  getTenants(userId: string): Promise<Organization[]>;
-  addTenant(userId: string, tenant: Organization): Promise<Organization>;
-  removeTenant(userId: string, tenantId: string): Promise<void>;
+  getTenants(accountId: string): Promise<Organization[]>;
+  addTenant(accountId: string, tenant: Organization): Promise<Organization>;
+  removeTenant(accountId: string, tenantId: string): Promise<void>;
 
-  addApp(userId: string, app: App): Promise<App>;
-  getApps(userId: string): Promise<App[]>;
-  getApp(userId: string, appId: string): Promise<App>;
-  removeApp(userId: string, appId: string): Promise<void>;
-  transferApp(userId: string, appId: string, email: string): Promise<void>;
-  updateApp(userId: string, app: App): Promise<void>;
+  addApp(accountId: string, app: App): Promise<App>;
+  getApps(accountId: string): Promise<App[]>;
+  getApp(accountId: string, appId: string): Promise<App>;
+  removeApp(accountId: string, appId: string): Promise<void>;
+  transferApp(accountId: string, appId: string, email: string): Promise<void>;
+  updateApp(accountId: string, app: App): Promise<void>;
 
-  addCollaborator(userId: string, appId: string, email: string): Promise<void>;
-  getCollaborators(userId: string, appId: string): Promise<CollaboratorMap>;
-  updateCollaborators(userId: string, appId: string, email: string, role: string): Promise<void>;
-  removeCollaborator(userId: string, appId: string, email: string): Promise<void>;
+  addCollaborator(accountId: string, appId: string, email: string): Promise<void>;
+  getCollaborators(accountId: string, appId: string): Promise<CollaboratorMap>;
+  updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void>;
+  removeCollaborator(accountId: string, appId: string, email: string): Promise<void>;
   
   // Tenant collaborator methods
   getTenantCollaborators(tenantId: string): Promise<CollaboratorMap>;
@@ -188,28 +188,28 @@ export interface Storage {
   updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void>;
   removeTenantCollaborator(tenantId: string, email: string): Promise<void>;
 
-  addDeployment(userId: string, appId: string, deployment: Deployment): Promise<string>;
-  getDeployment(userId: string, appId: string, deploymentId: string): Promise<Deployment>;
+  addDeployment(accountId: string, appId: string, deployment: Deployment): Promise<string>;
+  getDeployment(accountId: string, appId: string, deploymentId: string): Promise<Deployment>;
   getDeploymentInfo(deploymentKey: string): Promise<DeploymentInfo>;
-  getDeployments(userId: string, appId: string): Promise<Deployment[]>;
-  removeDeployment(userId: string, appId: string, deploymentId: string): Promise<void>;
-  updateDeployment(userId: string, appId: string, deployment: Deployment): Promise<void>;
+  getDeployments(accountId: string, appId: string): Promise<Deployment[]>;
+  removeDeployment(accountId: string, appId: string, deploymentId: string): Promise<void>;
+  updateDeployment(accountId: string, appId: string, deployment: Deployment): Promise<void>;
 
-  commitPackage(userId: string, appId: string, deploymentId: string, appPackage: Package): Promise<Package>;
-  clearPackageHistory(userId: string, appId: string, deploymentId: string): Promise<void>;
+  commitPackage(accountId: string, appId: string, deploymentId: string, appPackage: Package): Promise<Package>;
+  clearPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<void>;
   getPackageHistoryFromDeploymentKey(deploymentKey: string): Promise<Package[]>;
-  getPackageHistory(userId: string, appId: string, deploymentId: string): Promise<Package[]>;
-  updatePackageHistory(userId: string, appId: string, deploymentId: string, history: Package[]): Promise<void>;
+  getPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<Package[]>;
+  updatePackageHistory(accountId: string, appId: string, deploymentId: string, history: Package[]): Promise<void>;
 
   addBlob(blobId: string, addstream: stream.Readable, streamLength: number): Promise<string>;
   getBlobUrl(blobId: string): Promise<string>;
   removeBlob(blobId: string): Promise<void>;
 
-  addAccessKey(userId: string, accessKey: AccessKey): Promise<string>;
-  getAccessKey(userId: string, accessKeyId: string): Promise<AccessKey>;
-  getAccessKeys(userId: string): Promise<AccessKey[]>;
-  removeAccessKey(userId: string, accessKeyId: string): Promise<void>;
-  updateAccessKey(userId: string, accessKey: AccessKey): Promise<void>;
+  addAccessKey(accountId: string, accessKey: AccessKey): Promise<string>;
+  getAccessKey(accountId: string, accessKeyId: string): Promise<AccessKey>;
+  getAccessKeys(accountId: string): Promise<AccessKey[]>;
+  removeAccessKey(accountId: string, accessKeyId: string): Promise<void>;
+  updateAccessKey(accountId: string, accessKey: AccessKey): Promise<void>;
   getUserFromAccessKey(accessKey: string): Promise<Account>;
   getUserFromAccessToken(accessToken: string): Promise<Account>;
 
@@ -402,9 +402,9 @@ export class NameResolver {
     };
   }
 
-  public resolveAccessKey(userId: string, name: string): Promise<AccessKey> {
+  public resolveAccessKey(accountId: string, name: string): Promise<AccessKey> {
     return this._storage
-      .getAccessKeys(userId)
+      .getAccessKeys(accountId)
       .then((accessKeys: AccessKey[]): AccessKey => {
         const accessKey: AccessKey = NameResolver.findByName(accessKeys, name);
         if (!accessKey) throw storageError(ErrorCode.NotFound);
@@ -414,9 +414,9 @@ export class NameResolver {
       .catch(NameResolver.errorMessageOverride(ErrorCode.NotFound, `Access key "${name}" does not exist.`));
   }
 
-  public resolveApp(userId: string, name: string, tenantId?: string, permission?: string): Promise<App> {
+  public resolveApp(accountId: string, name: string, tenantId?: string, permission?: string): Promise<App> {
     return this._storage
-      .getApps(userId)
+      .getApps(accountId)
       .then((apps: App[]): App => {
         //check this logic
         const app: App = tenantId ? NameResolver.findAppByTenantId(apps, tenantId, name) : NameResolver.findByName(apps, name);
@@ -426,9 +426,9 @@ export class NameResolver {
       .catch(NameResolver.errorMessageOverride(ErrorCode.NotFound, `App "${name}" does not exist.`));
   }
 
-  public resolveDeployment(userId: string, appId: string, name: string): Promise<Deployment> {
+  public resolveDeployment(accountId: string, appId: string, name: string): Promise<Deployment> {
     return this._storage
-      .getDeployments(userId, appId)
+      .getDeployments(accountId, appId)
       .then((deployments: Deployment[]): Deployment => {
         const deployment: Deployment = NameResolver.findByName(deployments, name);
         if (!deployment) throw storageError(ErrorCode.NotFound);
