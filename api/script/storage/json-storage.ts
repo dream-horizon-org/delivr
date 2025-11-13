@@ -160,20 +160,20 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getAccount(accountId: string): Promise<storage.Account> {
-    if (!this.accounts[userId]) {
+    if (!this.accounts[accountId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
-    return Promise.resolve(clone(this.accounts[userId]));
+    return Promise.resolve(clone(this.accounts[accountId]));
   }
 
   public removeTenant(accountId: string, tenantId: string): Promise<void> {
-    if (!this.accounts[userId] || !this.tenants[tenantId]) {
+    if (!this.accounts[accountId] || !this.tenants[tenantId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
     const tenant = this.tenants[tenantId];
-    const tenantAccounts = this.accountToTenantsMap[userId];
+    const tenantAccounts = this.accountToTenantsMap[accountId];
     if (tenantAccounts.indexOf(tenantId) !== -1) {
       tenantAccounts.splice(tenantAccounts.indexOf(tenantId), 1);
     }
@@ -185,7 +185,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getTenants(accountId: string): Promise<storage.Organization[]> {
-    const tenantIds = this.accountToTenantsMap[userId];
+    const tenantIds = this.accountToTenantsMap[accountId];
     if (tenantIds) {
       const tenants = tenantIds.map((id: string) => {
         return this.tenants[id];
@@ -205,10 +205,10 @@ export class JsonStorage implements storage.Storage {
     this.tenants[tenant.id] = tenant;
     
     // Add tenant to account mapping
-    if (!this.accountToTenantsMap[userId]) {
-      this.accountToTenantsMap[userId] = [];
+    if (!this.accountToTenantsMap[accountId]) {
+      this.accountToTenantsMap[accountId] = [];
     }
-    this.accountToTenantsMap[userId].push(tenant.id);
+    this.accountToTenantsMap[accountId].push(tenant.id);
     
     this.saveStateAsync();
     return Promise.resolve(clone(tenant));
@@ -251,8 +251,8 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getAppOwnershipCount(accountId: string): Promise<number> {
-    return this.getAccount(userId).then((account: storage.Account) => {
-      const appIds = this.accountToAppsMap[userId];
+    return this.getAccount(accountId).then((account: storage.Account) => {
+      const appIds = this.accountToAppsMap[accountId];
       
       if (!appIds) {
         return 0;
@@ -292,7 +292,7 @@ export class JsonStorage implements storage.Storage {
   public addApp(accountId: string, app: storage.App): Promise<storage.App> {
     app = clone(app); // pass by value
 
-    const account = this.accounts[userId];
+    const account = this.accounts[accountId];
     if (!account) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
@@ -303,7 +303,7 @@ export class JsonStorage implements storage.Storage {
     map[account.email] = <storage.CollaboratorProperties>{ accountId: accountId, permission: "Owner" };
     app.collaborators = map;
 
-    const accountApps = this.accountToAppsMap[userId];
+    const accountApps = this.accountToAppsMap[accountId];
     if (accountApps.indexOf(app.id) === -1) {
       accountApps.push(app.id);
     }
@@ -322,7 +322,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getApps(accountId: string): Promise<storage.App[]> {
-    const appIds = this.accountToAppsMap[userId];
+    const appIds = this.accountToAppsMap[accountId];
     if (appIds) {
       const storageApps = appIds.map((id: string) => {
         return this.apps[id];
@@ -339,7 +339,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getApp(accountId: string, appId: string): Promise<storage.App> {
-    if (!this.accounts[userId] || !this.apps[appId]) {
+    if (!this.accounts[accountId] || !this.apps[appId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -350,11 +350,11 @@ export class JsonStorage implements storage.Storage {
   }
 
   public removeApp(accountId: string, appId: string): Promise<void> {
-    if (!this.accounts[userId] || !this.apps[appId]) {
+    if (!this.accounts[accountId] || !this.apps[appId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
-    if (userId !== this.appToAccountMap[appId]) {
+    if (accountId !== this.appToAccountMap[appId]) {
       throw new Error("Wrong accountId");
     }
 
@@ -375,7 +375,7 @@ export class JsonStorage implements storage.Storage {
       delete this.apps[appId];
 
       delete this.appToAccountMap[appId];
-      const accountApps = this.accountToAppsMap[userId];
+      const accountApps = this.accountToAppsMap[accountId];
       accountApps.splice(accountApps.indexOf(appId), 1);
 
       this.saveStateAsync();
@@ -387,7 +387,7 @@ export class JsonStorage implements storage.Storage {
   public updateApp(accountId: string, app: storage.App, ensureIsOwner: boolean = true): Promise<void> {
     app = clone(app); // pass by value
 
-    if (!this.accounts[userId] || !this.apps[app.id]) {
+    if (!this.accounts[accountId] || !this.apps[app.id]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -403,7 +403,7 @@ export class JsonStorage implements storage.Storage {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.Invalid, "Invalid email parameter");
     }
     return this.getApp(accountId, appId).then((app: storage.App) => {
-      const account: storage.Account = this.accounts[userId];
+      const account: storage.Account = this.accounts[accountId];
       const requesterEmail: string = account.email;
       const targetOwnerAccountId: string = this.emailToAccountMap[email.toLowerCase()];
       if (!targetOwnerAccountId) {
@@ -454,13 +454,13 @@ export class JsonStorage implements storage.Storage {
 
   public getUserFromAccessKey(accessKey: string): Promise<storage.Account> {
     return this.getAccountIdFromAccessKey(accessKey).then((accountId: string) => {
-      return this.getAccount(userId);
+      return this.getAccount(accountId);
     });
   }
 
   public getUserFromAccessToken(accessToken: string): Promise<storage.Account> {
     return this.getAccountIdFromAccessKey(accessToken).then((accountId: string) => {
-      return this.getAccount(userId);
+      return this.getAccount(accountId);
     });
   }
 
@@ -508,7 +508,7 @@ export class JsonStorage implements storage.Storage {
     deployment = clone(deployment); // pass by value
 
     const app: storage.App = this.apps[appId];
-    if (!this.accounts[userId] || !app) {
+    if (!this.accounts[accountId] || !app) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -554,7 +554,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getDeployment(accountId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
-    if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deploymentId]) {
+    if (!this.accounts[accountId] || !this.apps[appId] || !this.deployments[deploymentId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -563,7 +563,7 @@ export class JsonStorage implements storage.Storage {
 
   public getDeployments(accountId: string, appId: string): Promise<storage.Deployment[]> {
     const deploymentIds = this.appToDeploymentsMap[appId];
-    if (this.accounts[userId] && deploymentIds) {
+    if (this.accounts[accountId] && deploymentIds) {
       const deployments = deploymentIds.map((id: string) => {
         return this.deployments[id];
       });
@@ -574,7 +574,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   public removeDeployment(accountId: string, appId: string, deploymentId: string): Promise<void> {
-    if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deploymentId]) {
+    if (!this.accounts[accountId] || !this.apps[appId] || !this.deployments[deploymentId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -597,7 +597,7 @@ export class JsonStorage implements storage.Storage {
   public updateDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<void> {
     deployment = clone(deployment); // pass by value
 
-    if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deployment.id]) {
+    if (!this.accounts[accountId] || !this.apps[appId] || !this.deployments[deployment.id]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -612,7 +612,7 @@ export class JsonStorage implements storage.Storage {
     appPackage = clone(appPackage); // pass by value
 
     if (!appPackage) throw new Error("No package specified");
-    if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deploymentId]) {
+    if (!this.accounts[accountId] || !this.apps[appId] || !this.deployments[deploymentId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
@@ -711,7 +711,7 @@ export class JsonStorage implements storage.Storage {
   public addAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<string> {
     accessKey = clone(accessKey); // pass by value
 
-    const account: storage.Account = this.accounts[userId];
+    const account: storage.Account = this.accounts[accountId];
 
     if (!account) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
@@ -719,10 +719,10 @@ export class JsonStorage implements storage.Storage {
 
     accessKey.id = this.newId();
 
-    let accountAccessKeys: string[] = this.accountToAccessKeysMap[userId];
+    let accountAccessKeys: string[] = this.accountToAccessKeysMap[accountId];
 
     if (!accountAccessKeys) {
-      accountAccessKeys = this.accountToAccessKeysMap[userId] = [];
+      accountAccessKeys = this.accountToAccessKeysMap[accountId] = [];
     } else if (accountAccessKeys.indexOf(accessKey.id) !== -1) {
       return Promise.resolve("");
     }
@@ -749,7 +749,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   public getAccessKeys(accountId: string): Promise<storage.AccessKey[]> {
-    const accessKeyIds: string[] = this.accountToAccessKeysMap[userId];
+    const accessKeyIds: string[] = this.accountToAccessKeysMap[accountId];
 
     if (accessKeyIds) {
       const accessKeys: storage.AccessKey[] = accessKeyIds.map((id: string): storage.AccessKey => {
@@ -772,7 +772,7 @@ export class JsonStorage implements storage.Storage {
       delete this.accessKeys[accessKeyId];
       delete this.accessKeyToAccountMap[accessKeyId];
 
-      const accessKeyIds: string[] = this.accountToAccessKeysMap[userId];
+      const accessKeyIds: string[] = this.accountToAccessKeysMap[accountId];
       const index: number = accessKeyIds.indexOf(accessKeyId);
 
       if (index >= 0) {
@@ -862,7 +862,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   private removeAppPointer(accountId: string, appId: string): void {
-    const accountApps: string[] = this.accountToAppsMap[userId];
+    const accountApps: string[] = this.accountToAppsMap[accountId];
     const index: number = accountApps.indexOf(appId);
     if (index > -1) {
       accountApps.splice(index, 1);
@@ -870,7 +870,7 @@ export class JsonStorage implements storage.Storage {
   }
 
   private addAppPointer(accountId: string, appId: string): void {
-    const accountApps = this.accountToAppsMap[userId];
+    const accountApps = this.accountToAppsMap[accountId];
     if (accountApps.indexOf(appId) === -1) {
       accountApps.push(appId);
     }

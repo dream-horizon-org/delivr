@@ -212,7 +212,7 @@ export function createSCMIntegrationModel(sequelize: Sequelize) {
         },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE',
-        comment: 'User who created this',
+        comment: 'Account who created this',
       },
       
       createdAt: {
