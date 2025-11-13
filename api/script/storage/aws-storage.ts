@@ -1833,7 +1833,7 @@ export class S3Storage implements storage.Storage {
           });
     }
 
-    public getAccountFromAccessKey(accessKey: string): Promise<storage.Account> {
+    public getUserFromAccessKey(accessKey: string): Promise<storage.Account> {
         return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.ACCESSKEY].findOne({ where: { friendlyName: accessKey } });
@@ -1848,7 +1848,7 @@ export class S3Storage implements storage.Storage {
         });
     }
 
-    public getAccountFromAccessToken(accessToken: string): Promise<storage.Account> {
+    public getUserFromAccessToken(accessToken: string): Promise<storage.Account> {
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.ACCESSKEY].findOne({ where: { name: accessToken } });
