@@ -58,7 +58,7 @@ export class JsonStorage implements storage.Storage {
   public accountToAccessKeysMap: { [id: string]: string[] } = {};
   public accessKeyToAccountMap: { [id: string]: string } = {};
 
-  public accessKeyNameToAccountIdMap: { [accessKeyName: string]: { userId: string; expires: number } } = {};
+  public accessKeyNameToAccountIdMap: { [accessKeyName: string]: { accountId: string; expires: number } } = {};
 
   private static CollaboratorNotFound: string = "The specified e-mail address doesn't represent a registered user";
   private _blobServerPromise: Promise<http.Server>;
@@ -159,7 +159,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(account.id);
   }
 
-  public getAccount(userId: string): Promise<storage.Account> {
+  public getAccount(accountId: string): Promise<storage.Account> {
     if (!this.accounts[userId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
@@ -167,7 +167,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(this.accounts[userId]));
   }
 
-  public removeTenant(userId: string, tenantId: string): Promise<void> {
+  public removeTenant(accountId: string, tenantId: string): Promise<void> {
     if (!this.accounts[userId] || !this.tenants[tenantId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
@@ -184,7 +184,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public getTenants(userId: string): Promise<storage.Organization[]> {
+  public getTenants(accountId: string): Promise<storage.Organization[]> {
     const tenantIds = this.accountToTenantsMap[userId];
     if (tenantIds) {
       const tenants = tenantIds.map((id: string) => {
@@ -196,10 +196,10 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public addTenant(userId: string, tenant: storage.Organization): Promise<storage.Organization> {
+  public addTenant(accountId: string, tenant: storage.Organization): Promise<storage.Organization> {
     tenant = clone(tenant);
     tenant.id = this.newId();
-    tenant.createdBy = userId;
+    tenant.createdBy = accountId;
     tenant.createdTime = new Date().getTime();
 
     this.tenants[tenant.id] = tenant;
@@ -250,7 +250,7 @@ export class JsonStorage implements storage.Storage {
     });
   }
 
-  public getAppOwnershipCount(userId: string): Promise<number> {
+  public getAppOwnershipCount(accountId: string): Promise<number> {
     return this.getAccount(userId).then((account: storage.Account) => {
       const appIds = this.accountToAppsMap[userId];
       
@@ -286,10 +286,10 @@ export class JsonStorage implements storage.Storage {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.Expired, "The access key has expired.");
     }
 
-    return Promise.resolve(this.accessKeyNameToAccountIdMap[accessKey].userId);
+    return Promise.resolve(this.accessKeyNameToAccountIdMap[accessKey].accountId);
   }
 
-  public addApp(userId: string, app: storage.App): Promise<storage.App> {
+  public addApp(accountId: string, app: storage.App): Promise<storage.App> {
     app = clone(app); // pass by value
 
     const account = this.accounts[userId];
@@ -300,7 +300,7 @@ export class JsonStorage implements storage.Storage {
     app.id = this.newId();
 
     const map: storage.CollaboratorMap = {};
-    map[account.email] = <storage.CollaboratorProperties>{ userId: userId, permission: "Owner" };
+    map[account.email] = <storage.CollaboratorProperties>{ accountId: accountId, permission: "Owner" };
     app.collaborators = map;
 
     const accountApps = this.accountToAppsMap[userId];
@@ -312,7 +312,7 @@ export class JsonStorage implements storage.Storage {
       this.appToDeploymentsMap[app.id] = [];
     }
 
-    this.appToAccountMap[app.id] = userId;
+    this.appToAccountMap[app.id] = accountId;
 
     this.apps[app.id] = app;
 
@@ -321,7 +321,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(app));
   }
 
-  public getApps(userId: string): Promise<storage.App[]> {
+  public getApps(accountId: string): Promise<storage.App[]> {
     const appIds = this.accountToAppsMap[userId];
     if (appIds) {
       const storageApps = appIds.map((id: string) => {
@@ -329,7 +329,7 @@ export class JsonStorage implements storage.Storage {
       });
       const apps: storage.App[] = clone(storageApps);
       apps.forEach((app: storage.App) => {
-        this.addIsCurrentAccountProperty(app, userId);
+        this.addIsCurrentAccountProperty(app, accountId);
       });
 
       return Promise.resolve(apps);
@@ -338,30 +338,30 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public getApp(userId: string, appId: string): Promise<storage.App> {
+  public getApp(accountId: string, appId: string): Promise<storage.App> {
     if (!this.accounts[userId] || !this.apps[appId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
     const app: storage.App = clone(this.apps[appId]);
-    this.addIsCurrentAccountProperty(app, userId);
+    this.addIsCurrentAccountProperty(app, accountId);
 
     return Promise.resolve(app);
   }
 
-  public removeApp(userId: string, appId: string): Promise<void> {
+  public removeApp(accountId: string, appId: string): Promise<void> {
     if (!this.accounts[userId] || !this.apps[appId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
     if (userId !== this.appToAccountMap[appId]) {
-      throw new Error("Wrong userId");
+      throw new Error("Wrong accountId");
     }
 
     const deployments = this.appToDeploymentsMap[appId].slice();
     const promises: any[] = [];
     deployments.forEach((deploymentId: string) => {
-      promises.push(this.removeDeployment(userId, appId, deploymentId));
+      promises.push(this.removeDeployment(accountId, appId, deploymentId));
     });
 
     return Promise.all(promises).then(() => {
@@ -370,7 +370,7 @@ export class JsonStorage implements storage.Storage {
       const app: storage.App = clone(this.apps[appId]);
       const collaborators: storage.CollaboratorMap = app.collaborators;
       Object.keys(collaborators).forEach((emailKey: string) => {
-        this.removeAppPointer(collaborators[emailKey].userId, appId);
+        this.removeAppPointer(collaborators[emailKey].accountId, appId);
       });
       delete this.apps[appId];
 
@@ -384,7 +384,7 @@ export class JsonStorage implements storage.Storage {
     });
   }
 
-  public updateApp(userId: string, app: storage.App, ensureIsOwner: boolean = true): Promise<void> {
+  public updateApp(accountId: string, app: storage.App, ensureIsOwner: boolean = true): Promise<void> {
     app = clone(app); // pass by value
 
     if (!this.accounts[userId] || !this.apps[app.id]) {
@@ -398,11 +398,11 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public transferApp(userId: string, appId: string, email: string): Promise<void> {
+  public transferApp(accountId: string, appId: string, email: string): Promise<void> {
     if (isPrototypePollutionKey(email)) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.Invalid, "Invalid email parameter");
     }
-    return this.getApp(userId, appId).then((app: storage.App) => {
+    return this.getApp(accountId, appId).then((app: storage.App) => {
       const account: storage.Account = this.accounts[userId];
       const requesterEmail: string = account.email;
       const targetOwnerAccountId: string = this.emailToAccountMap[email.toLowerCase()];
@@ -421,19 +421,19 @@ export class JsonStorage implements storage.Storage {
       if (this.isCollaborator(app.collaborators, email)) {
         app.collaborators[email].permission = storage.Permissions.Owner;
       } else {
-        app.collaborators[email] = { permission: storage.Permissions.Owner, userId: targetOwnerAccountId };
+        app.collaborators[email] = { permission: storage.Permissions.Owner, accountId: targetOwnerAccountId };
         this.addAppPointer(targetOwnerAccountId, app.id);
       }
 
-      return this.updateApp(userId, app);
+      return this.updateApp(accountId, app);
     });
   }
 
-  public addCollaborator(userId: string, appId: string, email: string): Promise<void> {
+  public addCollaborator(accountId: string, appId: string, email: string): Promise<void> {
     if (isPrototypePollutionKey(email)) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.Invalid, "Invalid email parameter");
     }
-    return this.getApp(userId, appId).then((app: storage.App) => {
+    return this.getApp(accountId, appId).then((app: storage.App) => {
       if (this.isCollaborator(app.collaborators, email) || this.isOwner(app.collaborators, email)) {
         return JsonStorage.getRejectedPromise(storage.ErrorCode.AlreadyExists);
       }
@@ -446,27 +446,27 @@ export class JsonStorage implements storage.Storage {
       // Use the original email stored on the account to ensure casing is consistent
       email = this.accounts[targetCollaboratorAccountId].email;
 
-      app.collaborators[email] = { userId: targetCollaboratorAccountId, permission: storage.Permissions.Viewer };
+      app.collaborators[email] = { accountId: targetCollaboratorAccountId, permission: storage.Permissions.Viewer };
       this.addAppPointer(targetCollaboratorAccountId, app.id);
-      return this.updateApp(userId, app);
+      return this.updateApp(accountId, app);
     });
   }
 
   public getUserFromAccessKey(accessKey: string): Promise<storage.Account> {
-    return this.getAccountIdFromAccessKey(accessKey).then((userId: string) => {
+    return this.getAccountIdFromAccessKey(accessKey).then((accountId: string) => {
       return this.getAccount(userId);
     });
   }
 
   public getUserFromAccessToken(accessToken: string): Promise<storage.Account> {
-    return this.getAccountIdFromAccessKey(accessToken).then((userId: string) => {
+    return this.getAccountIdFromAccessKey(accessToken).then((accountId: string) => {
       return this.getAccount(userId);
     });
   }
 
-  public updateCollaborators(userId: string, appId: string, email: string, role: string): Promise<void> {
+  public updateCollaborators(accountId: string, appId: string, email: string, role: string): Promise<void> {
     //MARK: TODO TEST
-    return this.getApp(userId, appId).then((app: storage.App) => {
+    return this.getApp(accountId, appId).then((app: storage.App) => {
       if (role === "Owner") {
         return JsonStorage.getRejectedPromise(storage.ErrorCode.Invalid, "Cannot update role to Owner");
       }
@@ -477,18 +477,18 @@ export class JsonStorage implements storage.Storage {
         }
       });
 
-      return this.updateApp(userId, app);
+      return this.updateApp(accountId, app);
     });
   }
 
-  public getCollaborators(userId: string, appId: string): Promise<storage.CollaboratorMap> {
-    return this.getApp(userId, appId).then((app: storage.App) => {
+  public getCollaborators(accountId: string, appId: string): Promise<storage.CollaboratorMap> {
+    return this.getApp(accountId, appId).then((app: storage.App) => {
       return Promise.resolve(<storage.CollaboratorMap>(app.collaborators));
     });
   }
 
-  public removeCollaborator(userId: string, appId: string, email: string): Promise<void> {
-    return this.getApp(userId, appId).then((app: storage.App) => {
+  public removeCollaborator(accountId: string, appId: string, email: string): Promise<void> {
+    return this.getApp(accountId, appId).then((app: storage.App) => {
       if (this.isOwner(app.collaborators, email)) {
         return JsonStorage.getRejectedPromise(storage.ErrorCode.AlreadyExists);
       }
@@ -500,11 +500,11 @@ export class JsonStorage implements storage.Storage {
 
       this.removeAppPointer(targetCollaboratorAccountId, appId);
       delete app.collaborators[email];
-      return this.updateApp(userId, app, /*ensureIsOwner*/ false);
+      return this.updateApp(accountId, app, /*ensureIsOwner*/ false);
     });
   }
 
-  public addDeployment(userId: string, appId: string, deployment: storage.Deployment): Promise<string> {
+  public addDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<string> {
     deployment = clone(deployment); // pass by value
 
     const app: storage.App = this.apps[appId];
@@ -553,7 +553,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone((<any>this.deployments[deploymentId]).packageHistory));
   }
 
-  public getDeployment(userId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
+  public getDeployment(accountId: string, appId: string, deploymentId: string): Promise<storage.Deployment> {
     if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deploymentId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
@@ -561,7 +561,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(this.deployments[deploymentId]));
   }
 
-  public getDeployments(userId: string, appId: string): Promise<storage.Deployment[]> {
+  public getDeployments(accountId: string, appId: string): Promise<storage.Deployment[]> {
     const deploymentIds = this.appToDeploymentsMap[appId];
     if (this.accounts[userId] && deploymentIds) {
       const deployments = deploymentIds.map((id: string) => {
@@ -573,7 +573,7 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public removeDeployment(userId: string, appId: string, deploymentId: string): Promise<void> {
+  public removeDeployment(accountId: string, appId: string, deploymentId: string): Promise<void> {
     if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deploymentId]) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
@@ -594,7 +594,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public updateDeployment(userId: string, appId: string, deployment: storage.Deployment): Promise<void> {
+  public updateDeployment(accountId: string, appId: string, deployment: storage.Deployment): Promise<void> {
     deployment = clone(deployment); // pass by value
 
     if (!this.accounts[userId] || !this.apps[appId] || !this.deployments[deployment.id]) {
@@ -608,7 +608,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public commitPackage(userId: string, appId: string, deploymentId: string, appPackage: storage.Package): Promise<storage.Package> {
+  public commitPackage(accountId: string, appId: string, deploymentId: string, appPackage: storage.Package): Promise<storage.Package> {
     appPackage = clone(appPackage); // pass by value
 
     if (!appPackage) throw new Error("No package specified");
@@ -633,7 +633,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(appPackage));
   }
 
-  public clearPackageHistory(userId: string, appId: string, deploymentId: string): Promise<void> {
+  public clearPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<void> {
     const deployment: storage.Deployment = this.deployments[deploymentId];
     if (!deployment) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
@@ -646,7 +646,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public getPackageHistory(userId: string, appId: string, deploymentId: string): Promise<storage.Package[]> {
+  public getPackageHistory(accountId: string, appId: string, deploymentId: string): Promise<storage.Package[]> {
     const deployment: any = <any>this.deployments[deploymentId];
     if (!deployment) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
@@ -655,7 +655,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(clone(deployment.packageHistory));
   }
 
-  public updatePackageHistory(userId: string, appId: string, deploymentId: string, history: storage.Package[]): Promise<void> {
+  public updatePackageHistory(accountId: string, appId: string, deploymentId: string, history: storage.Package[]): Promise<void> {
     if (!history || !history.length) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.Invalid, "Cannot clear package history from an update operation");
     }
@@ -708,7 +708,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public addAccessKey(userId: string, accessKey: storage.AccessKey): Promise<string> {
+  public addAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<string> {
     accessKey = clone(accessKey); // pass by value
 
     const account: storage.Account = this.accounts[userId];
@@ -729,26 +729,26 @@ export class JsonStorage implements storage.Storage {
 
     accountAccessKeys.push(accessKey.id);
 
-    this.accessKeyToAccountMap[accessKey.id] = userId;
+    this.accessKeyToAccountMap[accessKey.id] = accountId;
     this.accessKeys[accessKey.id] = accessKey;
-    this.accessKeyNameToAccountIdMap[accessKey.name] = { userId, expires: accessKey.expires };
+    this.accessKeyNameToAccountIdMap[accessKey.name] = { accountId, expires: accessKey.expires };
 
     this.saveStateAsync();
 
     return Promise.resolve(accessKey.id);
   }
 
-  public getAccessKey(userId: string, accessKeyId: string): Promise<storage.AccessKey> {
+  public getAccessKey(accountId: string, accessKeyId: string): Promise<storage.AccessKey> {
     const expectedAccountId: string = this.accessKeyToAccountMap[accessKeyId];
 
-    if (!expectedAccountId || expectedAccountId !== userId) {
+    if (!expectedAccountId || expectedAccountId !== accountId) {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
     return Promise.resolve(clone(this.accessKeys[accessKeyId]));
   }
 
-  public getAccessKeys(userId: string): Promise<storage.AccessKey[]> {
+  public getAccessKeys(accountId: string): Promise<storage.AccessKey[]> {
     const accessKeyIds: string[] = this.accountToAccessKeysMap[userId];
 
     if (accessKeyIds) {
@@ -762,10 +762,10 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public removeAccessKey(userId: string, accessKeyId: string): Promise<void> {
+  public removeAccessKey(accountId: string, accessKeyId: string): Promise<void> {
     const expectedAccountId: string = this.accessKeyToAccountMap[accessKeyId];
 
-    if (expectedAccountId && expectedAccountId === userId) {
+    if (expectedAccountId && expectedAccountId === accountId) {
       const accessKey: storage.AccessKey = this.accessKeys[accessKeyId];
 
       delete this.accessKeyNameToAccountIdMap[accessKey.name];
@@ -786,13 +786,13 @@ export class JsonStorage implements storage.Storage {
     return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
   }
 
-  public updateAccessKey(userId: string, accessKey: storage.AccessKey): Promise<void> {
+  public updateAccessKey(accountId: string, accessKey: storage.AccessKey): Promise<void> {
     accessKey = clone(accessKey); // pass by value
 
     if (accessKey && accessKey.id) {
       const expectedAccountId: string = this.accessKeyToAccountMap[accessKey.id];
 
-      if (expectedAccountId && expectedAccountId === userId) {
+      if (expectedAccountId && expectedAccountId === accountId) {
         merge(this.accessKeys[accessKey.id], accessKey);
         this.accessKeyNameToAccountIdMap[accessKey.name].expires = accessKey.expires;
 
@@ -822,10 +822,10 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  private addIsCurrentAccountProperty(app: storage.App, userId: string): void {
+  private addIsCurrentAccountProperty(app: storage.App, accountId: string): void {
     if (app && app.collaborators) {
       Object.keys(app.collaborators).forEach((email: string) => {
-        if (app.collaborators[email].userId === userId) {
+        if (app.collaborators[email].accountId === accountId) {
           app.collaborators[email].isCurrentAccount = true;
         }
       });
@@ -850,10 +850,10 @@ export class JsonStorage implements storage.Storage {
     return list && list[email] && list[email].permission !== storage.Permissions.Owner;
   }
 
-  private isAccountIdCollaborator(list: storage.CollaboratorMap, userId: string): boolean {
+  private isAccountIdCollaborator(list: storage.CollaboratorMap, accountId: string): boolean {
     const keys: string[] = Object.keys(list);
     for (let i = 0; i < keys.length; i++) {
-      if (list[keys[i]].userId === userId) {
+      if (list[keys[i]].accountId === accountId) {
         return true;
       }
     }
@@ -861,7 +861,7 @@ export class JsonStorage implements storage.Storage {
     return false;
   }
 
-  private removeAppPointer(userId: string, appId: string): void {
+  private removeAppPointer(accountId: string, appId: string): void {
     const accountApps: string[] = this.accountToAppsMap[userId];
     const index: number = accountApps.indexOf(appId);
     if (index > -1) {
@@ -869,7 +869,7 @@ export class JsonStorage implements storage.Storage {
     }
   }
 
-  private addAppPointer(userId: string, appId: string): void {
+  private addAppPointer(accountId: string, appId: string): void {
     const accountApps = this.accountToAppsMap[userId];
     if (accountApps.indexOf(appId) === -1) {
       accountApps.push(appId);
