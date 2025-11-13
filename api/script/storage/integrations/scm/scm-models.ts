@@ -207,7 +207,7 @@ export function createSCMIntegrationModel(sequelize: Sequelize) {
         type: DataTypes.STRING(255),
         allowNull: false,
         references: {
-          model: 'users',
+          model: 'accounts',
           key: 'id',
         },
         onDelete: 'RESTRICT',

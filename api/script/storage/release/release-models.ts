@@ -200,7 +200,7 @@ export function createTenantIntegrationsModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -386,7 +386,7 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -402,7 +402,7 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -410,7 +410,7 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -699,7 +699,7 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -962,7 +962,7 @@ export function createCherryPicksModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -974,7 +974,7 @@ export function createCherryPicksModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -1041,7 +1041,7 @@ export function createStateHistoryModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -1190,7 +1190,7 @@ export function createCronJobModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -1249,7 +1249,7 @@ export function createCronChangeLogsModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },
@@ -1335,7 +1335,7 @@ export function createGlobalSettingsModel(sequelize: Sequelize) {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id'
       }
     },

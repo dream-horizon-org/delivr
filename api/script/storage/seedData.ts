@@ -181,7 +181,7 @@ async function seed() {
     // await sequelize.sync({ alter: false }); // REMOVED - causes FK constraint conflicts
 
     // Check if database already has data
-    const accountCount = await models.User.count();
+    const accountCount = await models.Account.count();
     
     if (accountCount > 0) {
       console.log("⏭️  Database already contains data. Skipping seeding to preserve existing data.");
@@ -203,13 +203,13 @@ async function seed() {
     await models.App.destroy({ where: {} });
     await models.Tenant.destroy({ where: {} });
     await models.UserChannel.destroy({ where: {} });
-    await models.User.destroy({ where: {} });
+    await models.Account.destroy({ where: {} });
 
     // Re-enable foreign key checks
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 1;');
 
     // Insert seed data in order
-    await models.User.bulkCreate(seedData.users);
+    await models.Account.bulkCreate(seedData.users);
     await models.UserChannel.bulkCreate(seedData.userChannels);
     await models.Tenant.bulkCreate(seedData.tenants);
     await models.App.bulkCreate(seedData.apps);

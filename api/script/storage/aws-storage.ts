@@ -28,7 +28,7 @@ export function createAccessKey(sequelize: Sequelize) {
           }),
           allowNull:true
         },
-        userId: { type: DataTypes.STRING, allowNull: false, references: {
+        accountId: { type: DataTypes.STRING, allowNull: false, references: {
             model: sequelize.models["account"],
             key: 'id',
           },},
@@ -36,8 +36,8 @@ export function createAccessKey(sequelize: Sequelize) {
 }
 
 //Creating Account Type
-export function createUser(sequelize: Sequelize) {
-  return sequelize.define("user", {
+export function createAccount(sequelize: Sequelize) {
+  return sequelize.define("account", {
     id: { 
       type: DataTypes.STRING, 
       allowNull: false, 
@@ -66,8 +66,8 @@ export function createUser(sequelize: Sequelize) {
       defaultValue: () => new Date().getTime() 
     },
   }, {
-    tableName: 'users',
-    timestamps: false  // Users table uses createdTime instead of createdAt/updatedAt
+    tableName: 'accounts',
+    timestamps: false  // Accounts table uses createdTime instead of createdAt/updatedAt
   });
 }
 
@@ -79,12 +79,12 @@ export function createUserChannel(sequelize: Sequelize) {
       primaryKey: true,
       allowNull: false,
     },
-    userId: {
+    accountId: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      field: 'user_id',
+      field: 'accountId',
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id',
       },
     },
@@ -115,8 +115,8 @@ export function createUserChannel(sequelize: Sequelize) {
     timestamps: true,
     indexes: [
       {
-        name: 'idx_user_channels_user_id',
-        fields: ['user_id'],
+        name: 'idx_user_channels_account_id',
+        fields: ['accountId'],
       },
       {
         name: 'idx_user_channels_external',
@@ -135,11 +135,11 @@ export function createApp(sequelize: Sequelize) {
         createdTime: { type: DataTypes.FLOAT, allowNull: false },
         name: { type: DataTypes.STRING, allowNull: false },
         id: { type: DataTypes.STRING, allowNull: false, primaryKey: true},
-        userId: { 
+        accountId: { 
           type: DataTypes.STRING, 
           allowNull: true,  // Optional for backward compatibility
           references: {
-            model: 'users',
+            model: 'accounts',
             key: 'id',
           },
         },
@@ -173,7 +173,7 @@ export function createTenant(sequelize: Sequelize) {
       type: DataTypes.STRING,
       allowNull: false,
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id',
       },
     },
@@ -200,7 +200,7 @@ export function createTenant(sequelize: Sequelize) {
 export function createCollaborators(sequelize: Sequelize) {
     return sequelize.define("collaborator", {
         email: {type: DataTypes.STRING, allowNull: false},
-        userId: { type: DataTypes.STRING, allowNull: false },
+        accountId: { type: DataTypes.STRING, allowNull: false },
         appId: { 
           type: DataTypes.STRING, 
           allowNull: true  // Null for tenant-level collaborators
@@ -313,11 +313,11 @@ export function createAppPointer(sequelize: Sequelize) {
           allowNull: false,
           defaultValue: DataTypes.UUIDV4, // Generates a UUID by default
         },
-        userId: {
+        accountId: {
           type: DataTypes.STRING,
           allowNull: false,
           references: {
-            model: 'users', // References Account model
+            model: 'accounts', // References Account model
             key: 'id',
           },
         },
@@ -343,8 +343,8 @@ export function createAppPointer(sequelize: Sequelize) {
 
 export function createModelss(sequelize: Sequelize) {
   // Create models and register them
-  const User = createUser(sequelize);  // ← Changed from Account
-  const UserChannel = createUserChannel(sequelize);  // ← NEW
+  const Account = createAccount(sequelize);
+  const UserChannel = createUserChannel(sequelize);
   const Tenant = createTenant(sequelize);
   const Package = createPackage(sequelize);
   const Deployment = createDeployment(sequelize);
@@ -359,13 +359,13 @@ export function createModelss(sequelize: Sequelize) {
   // Define associations
   // ============================================
 
-  // User ↔ UserChannel (1:N) - NEW
-  User.hasMany(UserChannel, { foreignKey: 'userId', as: 'channels' });
-  UserChannel.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
+  // Account ↔ UserChannel (1:N)
+  Account.hasMany(UserChannel, { foreignKey: 'accountId', as: 'channels' });
+  UserChannel.belongsTo(Account, { foreignKey: 'accountId', onDelete: 'CASCADE' });
 
-  // User and Tenant (Creator relationship)
-  User.hasMany(Tenant, { foreignKey: 'createdBy' });
-  Tenant.belongsTo(User, { foreignKey: 'createdBy' });
+  // Account and Tenant (Creator relationship)
+  Account.hasMany(Tenant, { foreignKey: 'createdBy' });
+  Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
   
   // Tenant and Release (One Tenant can have many Releases)
   Tenant.hasMany(Release, { foreignKey: 'tenantId' });
@@ -375,17 +375,17 @@ export function createModelss(sequelize: Sequelize) {
   App.hasMany(Release, { foreignKey: 'appId' });
   Release.belongsTo(App, { foreignKey: 'appId' });
   
-  // User and Release (Creator relationship)
-  User.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
-  Release.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+  // Account and Release (Creator relationship)
+  Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
+  Release.belongsTo(Account, { foreignKey: 'createdBy', as: 'creator' });
   
-  // User and Release (Pilot relationship)
-  User.hasMany(Release, { foreignKey: 'releasePilotId', as: 'pilotedReleases' });
-  Release.belongsTo(User, { foreignKey: 'releasePilotId', as: 'pilot' });
+  // Account and Release (Pilot relationship)
+  Account.hasMany(Release, { foreignKey: 'releasePilotId', as: 'pilotedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'releasePilotId', as: 'pilot' });
   
-  // User and Release (Last updater relationship)
-  User.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
-  Release.belongsTo(User, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  // Account and Release (Last updater relationship)
+  Account.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
   
   // Release self-referencing (Parent-child for hotfixes)
   Release.hasMany(Release, { foreignKey: 'parentId', as: 'hotfixes' });
@@ -395,9 +395,9 @@ export function createModelss(sequelize: Sequelize) {
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
   App.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
-  // User and App (One User can have many Apps) - OLD FLOW (backward compatibility)
-  User.hasMany(App, { foreignKey: 'userId' });
-  App.belongsTo(User, { foreignKey: 'userId' });
+  // Account and App (One Account can have many Apps) - OLD FLOW (backward compatibility)
+  Account.hasMany(App, { foreignKey: 'accountId' });
+  App.belongsTo(Account, { foreignKey: 'accountId' });
   
   // Tenant and Collaborator (One Tenant can have many Collaborators) - NEW FLOW
   Tenant.hasMany(Collaborator, { foreignKey: 'tenantId' });
@@ -412,8 +412,8 @@ export function createModelss(sequelize: Sequelize) {
   Package.belongsTo(Deployment, { foreignKey: 'deploymentId' });
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
 
-  // Collaborator associations (Collaborators belong to both User and App)
-  Collaborator.belongsTo(User, { foreignKey: 'userId' });
+  // Collaborator associations (Collaborators belong to both Account and App)
+  Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
   Collaborator.belongsTo(App, { foreignKey: 'appId' });
 
   // SCM Integration associations
@@ -421,12 +421,12 @@ export function createModelss(sequelize: Sequelize) {
   Tenant.hasOne(SCMIntegrations, { foreignKey: 'tenantId', as: 'scmIntegration' });
   SCMIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
   
-  // User (creator) reference for SCM
-  SCMIntegrations.belongsTo(User, { foreignKey: 'createdByAccountId', as: 'creator' });
+  // Account (creator) reference for SCM
+  SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
   return {
-    User,  // ← Changed from Account
-    UserChannel,  // ← NEW
+    Account,
+    UserChannel,
     Tenant,
     Package,
     Deployment,
@@ -656,7 +656,7 @@ export class S3Storage implements storage.Storage {
                 // Direct query to collaborators table
                 return this.sequelize.models[MODELS.COLLABORATOR].count({
                     where: {
-                        userId: userId,
+                        accountId: userId,
                         permission: 'Owner'
                     }
                 });
@@ -710,7 +710,7 @@ export class S3Storage implements storage.Storage {
             // Query tenant-level collaborators (where appId is null)
             const tenantCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
               where: { 
-                userId, 
+                accountId: userId, 
                 tenantId,
                 appId: null  // Tenant-level collaborator
               },
@@ -744,20 +744,20 @@ export class S3Storage implements storage.Storage {
             // Add tenant-level collaborator entry (unified collaborators table)
             const tenantCollabMap = {
               email: account.email,
-              userId,
+              accountId: userId,
               tenantId,  // Tenant-level collaborator
               appId: null,  // No specific app
               permission: storage.Permissions.Owner,
             };
             await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-              where: { tenantId, userId },
+              where: { tenantId, accountId: userId },
               defaults: tenantCollabMap,
             });
             
             // Also add app-level collaborator entry for backward compatibility
             const appCollabMap = {
               email: account.email,
-              userId,
+              accountId: userId,
               appId: app.id,  // App-level collaborator
               tenantId: null,  // No tenant association for app-level
               permission: storage.Permissions.Owner,
@@ -810,7 +810,7 @@ export class S3Storage implements storage.Storage {
           // Query tenant-level collaborators (where appId is null)
           const tenantCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
-              userId,
+              accountId: userId,
               appId: null  // Tenant-level collaborators only
             },
           });
@@ -864,7 +864,7 @@ export class S3Storage implements storage.Storage {
           // Get user's tenant-level collaborations (where appId is null)
           const tenantCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
-              userId,
+              accountId: userId,
               appId: null  // Tenant-level collaborators only
             }
           });
@@ -919,7 +919,7 @@ export class S3Storage implements storage.Storage {
           
           await this.sequelize.models[MODELS.COLLABORATOR].create({
             email: account.dataValues.email,
-            userId: userId,
+            accountId: userId,
             appId: null,  // Tenant-level (no specific app)
             tenantId: tenantId,
             permission: 'Owner',  // Creator gets Owner permission
@@ -1005,7 +1005,7 @@ export class S3Storage implements storage.Storage {
           for (const collab of collaborators) {
             const email = collab.dataValues.email;
             collaboratorMap[email] = {
-              userId: collab.dataValues.userId,
+              userId: collab.dataValues.accountId,
               permission: collab.dataValues.permission
             };
           }
@@ -1033,7 +1033,7 @@ export class S3Storage implements storage.Storage {
           const existing = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
             where: {
               tenantId: tenantId,
-              userId: userId,
+              accountId: userId,
               appId: null
             }
           });
@@ -1045,7 +1045,7 @@ export class S3Storage implements storage.Storage {
           // Add collaborator
           await this.sequelize.models[MODELS.COLLABORATOR].create({
             email: email,
-            userId: userId,
+            accountId: userId,
             tenantId: tenantId,
             appId: null,
             permission: permission,
@@ -1118,13 +1118,13 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           // Remove all collaborator entries for this app
           return this.sequelize.models[MODELS.COLLABORATOR].destroy({
-            where: { appId, userId },
+            where: { appId, accountId: userId },
           });
         })
         .then(() => {
           // Remove the app entry
           return this.sequelize.models[MODELS.APPS].destroy({
-            where: { id: appId, userId },
+            where: { id: appId, accountId: userId },
           });
         })
         .then(() => {
@@ -1193,7 +1193,7 @@ export class S3Storage implements storage.Storage {
             S3Storage.setCollaboratorPermission(app.collaborators, email, storage.Permissions.Owner);
           } else {
             const targetOwnerProperties: storage.CollaboratorProperties = {
-              userId: targetCollaboratorAccountId,
+              userId: targetCollaboratorAccountId,  // This is for CollaboratorProperties interface (returned to client)
               permission: storage.Permissions.Owner,
             };
             S3Storage.addToCollaborators(app.collaborators, email, targetOwnerProperties);
@@ -1241,7 +1241,7 @@ export class S3Storage implements storage.Storage {
           // Use the original email stored on the account to ensure casing is consistent
           email = account.email;
           return this.addCollaboratorWithPermissions(userId, app, email, {
-            userId: account.id,
+            userId: account.id,  // This is for CollaboratorProperties interface (returned to client)
             permission: storage.Permissions.Viewer,
           });
         })
@@ -1260,7 +1260,7 @@ export class S3Storage implements storage.Storage {
         email = accountToModify.email;
         let permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
         return this.updateCollaboratorWithPermissions(userId, app, email, {
-          userId: accountToModify.id,
+          userId: accountToModify.id,  // This is for CollaboratorProperties interface (returned to client)
           permission: permission,
         });
       })
@@ -1313,7 +1313,7 @@ export class S3Storage implements storage.Storage {
           // Use Sequelize to destroy (delete) the record
           return this.sequelize.models[MODELS.APPPOINTER].destroy({
             where: {
-              userId: userId,
+              accountId: userId,
               appId: appId,
             },
           });
@@ -1826,7 +1826,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Insert the access key into the database
-            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, userId });
+            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, accountId: userId });
           })
           .then(() => {
             return accessKey.id;
@@ -1870,7 +1870,7 @@ export class S3Storage implements storage.Storage {
             // Find the access key in the database using Sequelize
             return this.sequelize.models[MODELS.ACCESSKEY].findOne({
               where: {
-                userId: userId,
+                accountId: userId,
                 id: accessKeyId,
               },
             });
@@ -1901,7 +1901,7 @@ export class S3Storage implements storage.Storage {
             // Remove the access key from the database
             return this.sequelize.models[MODELS.ACCESSKEY].destroy({
               where: {
-                userId: userId,
+                accountId: userId,
                 id: accessKeyId,
               },
             });
@@ -1929,7 +1929,7 @@ export class S3Storage implements storage.Storage {
             // Update the access key in the database
             return this.sequelize.models[exports.MODELS.ACCESSKEY].update(accessKey, {
               where: {
-                userId: userId,
+                accountId: userId,
                 id: accessKey.id,
               },
             });
@@ -1950,7 +1950,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Retrieve all access keys for the account
-            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { userId } });
+            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { accountId: userId } });
           })
           .then((accessKeys: any[]) => {
             return accessKeys.map((accessKey: any) => accessKey.dataValues);
@@ -2096,7 +2096,9 @@ export class S3Storage implements storage.Storage {
           if (isTenantLevel) {
             // Override with tenant-level
             collabMap[email] = {
-              ...collab.dataValues,
+              userId: collab.dataValues.accountId,  // Map DB column accountId to interface property userId
+              email: collab.dataValues.email,
+              permission: collab.dataValues.permission,
               isCurrentAccount: false,
               source: 'tenant_level'
             };
@@ -2105,7 +2107,9 @@ export class S3Storage implements storage.Storage {
         } else {
           // First time seeing this user
           collabMap[email] = {
-            ...collab.dataValues,
+            userId: collab.dataValues.accountId,  // Map DB column accountId to interface property userId
+            email: collab.dataValues.email,
+            permission: collab.dataValues.permission,
             isCurrentAccount: false,
             source: isAppLevel ? 'app_level_legacy' : 'tenant_level'
           };
@@ -2124,10 +2128,10 @@ export class S3Storage implements storage.Storage {
       }
       
       // NEW: Check if current user is app creator (automatic Owner)
-      const appCreatorId = (app as any).userId || (app as any).createdBy;
+      const appCreatorId = (app as any).accountId || (app as any).createdBy;
       if (appCreatorId === userId) {
         // Get user's email
-        const user = await this.sequelize.models["user"].findByPk(userId);
+        const user = await this.sequelize.models["account"].findByPk(userId);
         if (user) {
           const userEmail = user.dataValues.email;
           
@@ -2139,7 +2143,7 @@ export class S3Storage implements storage.Storage {
           } else {
             // Add creator to collabMap as Owner
             collabMap[userEmail] = {
-              userId: userId,
+              userId: userId,  // This is for CollaboratorMap interface (returned to client)
               email: userEmail,
               permission: 'Owner',
               isCurrentAccount: true,
@@ -2184,7 +2188,7 @@ export class S3Storage implements storage.Storage {
                                     const collaborator = app.collaborators[email];
                                     return {
                                         email,
-                                        userId: collaborator.userId,
+                                        accountId: collaborator.userId,  // DB column is accountId, but interface uses userId
                                         appId: appId,
                                         permission: collaborator.permission,
                                     };

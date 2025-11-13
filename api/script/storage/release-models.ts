@@ -134,7 +134,7 @@ export function createRelease(sequelize: Sequelize) {
       allowNull: true,
       field: 'created_by',
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id',
       },
       comment: 'Release creator (automatic Owner)',
@@ -144,7 +144,7 @@ export function createRelease(sequelize: Sequelize) {
       allowNull: false,
       field: 'release_pilot_id',
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id',
       },
       comment: 'Release pilot (automatic Owner)',
@@ -154,7 +154,7 @@ export function createRelease(sequelize: Sequelize) {
       allowNull: false,
       field: 'last_updated_by',
       references: {
-        model: 'users',
+        model: 'accounts',
         key: 'id',
       },
     },
