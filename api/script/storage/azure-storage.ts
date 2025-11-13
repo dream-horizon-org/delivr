@@ -27,14 +27,14 @@ module Keys {
 
   export function getAccountPartitionKey(accountId: string): string {
     validateParameters(Array.prototype.slice.apply(arguments));
-    return "userId" + DELIMITER + accountId;
+    return "accountId" + DELIMITER + accountId;
   }
 
   export function getAccountAddress(accountId: string): Pointer {
     validateParameters(Array.prototype.slice.apply(arguments));
     return <Pointer>{
-      partitionKeyPointer: getAccountPartitionKey(userId),
-      rowKeyPointer: getHierarchicalAccountRowKey(userId),
+      partitionKeyPointer: getAccountPartitionKey(accountId),
+      rowKeyPointer: getHierarchicalAccountRowKey(accountId),
     };
   }
 
@@ -72,13 +72,13 @@ module Keys {
 
   export function generateHierarchicalAccountKey(markLeaf: boolean, accountId: string, appId?: string): string {
     validateParameters(Array.prototype.slice.apply(arguments).slice(1));
-    let key = delimit("userId", accountId, /*prependDelimiter=*/ false);
+    let key = delimit("accountId", accountId, /*prependDelimiter=*/ false);
 
     if (typeof appId !== "undefined") {
       key += delimit("appId", appId);
     }
 
-    // Mark leaf key with a '*', e.g. 'userId 123 appId 456' -> 'userId 123 appId* 456'
+    // Mark leaf key with a '*', e.g. 'accountId 123 appId 456' -> 'accountId 123 appId* 456'
     if (markLeaf) {
       const lastIdDelimiter: number = key.lastIndexOf(DELIMITER);
       key = key.substring(0, lastIdDelimiter) + LEAF_MARKER + key.substring(lastIdDelimiter);
@@ -89,7 +89,7 @@ module Keys {
 
   export function getAccessKeyRowKey(accountId: string, accessKeyId?: string): string {
     validateParameters(Array.prototype.slice.apply(arguments));
-    let key: string = "userId_" + accountId + "_accessKeyId*_";
+    let key: string = "accountId_" + accountId + "_accessKeyId*_";
 
     if (accessKeyId !== undefined) {
       key += accessKeyId;
@@ -248,7 +248,7 @@ export class AzureStorage implements storage.Storage {
   }
 
   public getAccount(accountId: string): Promise<storage.Account> {
-    const address: Pointer = Keys.getAccountAddress(userId);
+    const address: Pointer = Keys.getAccountAddress(accountId);
 
     return this._setupPromise
       .then(() => {
@@ -334,12 +334,12 @@ export class AzureStorage implements storage.Storage {
       .then(() => {
         return this.retrieveByKey(partitionKey, rowKey);
       })
-      .then((userIdObject: AccessKeyPointer) => {
-        if (new Date().getTime() >= userIdObject.expires) {
+      .then((accountIdObject: AccessKeyPointer) => {
+        if (new Date().getTime() >= accountIdObject.expires) {
           throw storage.storageError(storage.ErrorCode.Expired, "The access key has expired.");
         }
 
-        return userIdObject.userId;
+        return accountIdObject.accountId;
       })
       .catch(AzureStorage.azureErrorHandler);
   }
@@ -347,7 +347,7 @@ export class AzureStorage implements storage.Storage {
   public getTenants(accountId: string): Promise<storage.Organization[]> {
     return this._setupPromise
       .then(() => {
-        return this.getAccount(userId);
+        return this.getAccount(accountId);
       })
       .then((account: storage.Account) => {
         return [];
@@ -392,7 +392,7 @@ export class AzureStorage implements storage.Storage {
 
     return this._setupPromise
       .then(() => {
-        return this.getAccount(userId);
+        return this.getAccount(accountId);
       })
       .then((account: storage.Account) => {
         const collabMap: storage.CollaboratorMap = {};
@@ -415,7 +415,7 @@ export class AzureStorage implements storage.Storage {
   public getApps(accountId: string): Promise<storage.App[]> {
     return this._setupPromise
       .then(() => {
-        return this.getCollectionByHierarchy(userId);
+        return this.getCollectionByHierarchy(accountId);
       })
       .then((flatApps: any[]) => {
         const apps: storage.App[] = flatApps.map((flatApp: any) => {
@@ -586,7 +586,7 @@ export class AzureStorage implements storage.Storage {
         }
 
         return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true).then(() => {
-          return this.removeAppPointer(removedCollabProperties.userId, app.id);
+          return this.removeAppPointer(removedCollabProperties.accountId, app.id);
         });
       })
       .catch(AzureStorage.azureErrorHandler);
@@ -725,7 +725,7 @@ export class AzureStorage implements storage.Storage {
       .then((history: storage.Package[]) => {
         packageHistory = history;
         appPackage.label = this.getNextLabel(packageHistory);
-        return this.getAccount(userId);
+        return this.getAccount(accountId);
       })
       .then((account: storage.Account) => {
         appPackage.releasedBy = account.email;
@@ -847,7 +847,7 @@ export class AzureStorage implements storage.Storage {
   }
 
   public getAccessKey(accountId: string, accessKeyId: string): Promise<storage.AccessKey> {
-    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
     const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKeyId);
     return this._setupPromise
       .then(() => {
@@ -859,9 +859,9 @@ export class AzureStorage implements storage.Storage {
   public getAccessKeys(accountId: string): Promise<storage.AccessKey[]> {
     const deferred = defer<storage.AccessKey[]>();
 
-    const partitionKey: string = Keys.getAccountPartitionKey(userId);
-    const rowKey: string = Keys.getHierarchicalAccountRowKey(userId);
-    const searchKey: string = Keys.getAccessKeyRowKey(userId);
+    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
+    const rowKey: string = Keys.getHierarchicalAccountRowKey(accountId);
+    const searchKey: string = Keys.getAccessKeyRowKey(accountId);
 
     // Fetch both the parent account (for error-checking purposes) and the access tokens
     const query = `PartitionKey eq '${partitionKey}' and (RowKey eq '${rowKey}' or (RowKey gt '${searchKey}' and RowKey lt '${searchKey}~'))`;
@@ -904,7 +904,7 @@ export class AzureStorage implements storage.Storage {
         return this.getAccessKey(accountId, accessKeyId);
       })
       .then((accessKey) => {
-        const partitionKey: string = Keys.getAccountPartitionKey(userId);
+        const partitionKey: string = Keys.getAccountPartitionKey(accountId);
         const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKeyId);
         const shortcutAccessKeyPartitionKey: string = Keys.getShortcutAccessKeyPartitionKey(accessKey.name, false);
 
@@ -925,7 +925,7 @@ export class AzureStorage implements storage.Storage {
       throw new Error("No access key id");
     }
 
-    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
     const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKey.id);
 
     return this._setupPromise
@@ -1134,7 +1134,7 @@ export class AzureStorage implements storage.Storage {
     if (app && app.collaborators && !app.collaborators[email]) {
       app.collaborators[email] = collabProperties;
       return this.updateAppWithPermission(accountId, app, /*updateCollaborator*/ true).then(() => {
-        return this.addAppPointer(collabProperties.userId, app.id);
+        return this.addAppPointer(collabProperties.accountId, app.id);
       });
     } else {
       throw storage.storageError(storage.ErrorCode.AlreadyExists, "The given account is already a collaborator for this app.");
@@ -1148,7 +1148,7 @@ export class AzureStorage implements storage.Storage {
     const appRowKey: string = Keys.getHierarchicalAppRowKey(appId);
     const pointer: Pointer = { partitionKeyPointer: appPartitionKey, rowKeyPointer: appRowKey };
 
-    const accountPartitionKey: string = Keys.getAccountPartitionKey(userId);
+    const accountPartitionKey: string = Keys.getAccountPartitionKey(accountId);
     const accountRowKey: string = Keys.getHierarchicalAccountRowKey(accountId, appId);
 
     const entity: any = this.wrap(pointer, accountPartitionKey, accountRowKey);
@@ -1167,7 +1167,7 @@ export class AzureStorage implements storage.Storage {
   private removeAppPointer(accountId: string, appId: string): Promise<void> {
     const deferred = defer<void>();
 
-    const accountPartitionKey: string = Keys.getAccountPartitionKey(userId);
+    const accountPartitionKey: string = Keys.getAccountPartitionKey(accountId);
     const accountRowKey: string = Keys.getHierarchicalAccountRowKey(accountId, appId);
 
     this._tableClient
@@ -1192,7 +1192,7 @@ export class AzureStorage implements storage.Storage {
 
         Object.keys(collaboratorMap).forEach((key: string) => {
           const collabProperties: storage.CollaboratorProperties = collaboratorMap[key];
-          removalPromises.push(this.removeAppPointer(collabProperties.userId, app.id));
+          removalPromises.push(this.removeAppPointer(collabProperties.accountId, app.id));
         });
 
         return Promise.allSettled(removalPromises);
@@ -1242,7 +1242,7 @@ export class AzureStorage implements storage.Storage {
 
     const deferred = defer<string>();
 
-    const partitionKey: string = Keys.getAccountPartitionKey(userId);
+    const partitionKey: string = Keys.getAccountPartitionKey(accountId);
     const rowKey: string = Keys.getAccessKeyRowKey(accountId, accessKey.id);
 
     const entity: any = this.wrap(accessKey, partitionKey, rowKey);
@@ -1318,8 +1318,8 @@ export class AzureStorage implements storage.Storage {
       rowKey = Keys.getHierarchicalAppRowKey(appId, deploymentId);
       childrenSearchKey = Keys.generateHierarchicalAppKey.apply(null, searchKeyArgs);
     } else {
-      partitionKey = Keys.getAccountPartitionKey(userId);
-      rowKey = Keys.getHierarchicalAccountRowKey(userId);
+      partitionKey = Keys.getAccountPartitionKey(accountId);
+      rowKey = Keys.getHierarchicalAccountRowKey(accountId);
       childrenSearchKey = Keys.generateHierarchicalAccountKey.apply(null, searchKeyArgs);
     }
 
@@ -1512,7 +1512,7 @@ export class AzureStorage implements storage.Storage {
   private static getEmailForAccountId(collaboratorsMap: storage.CollaboratorMap, accountId: string): string {
     if (collaboratorsMap) {
       for (const email of Object.keys(collaboratorsMap)) {
-        if ((<storage.CollaboratorProperties>collaboratorsMap[email]).userId === accountId) {
+        if ((<storage.CollaboratorProperties>collaboratorsMap[email]).accountId === accountId) {
           return email;
         }
       }
