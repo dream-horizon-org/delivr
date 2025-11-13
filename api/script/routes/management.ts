@@ -27,7 +27,7 @@ import tryJSON = require("try-json");
 import rateLimit from "express-rate-limit";
 import { isPrototypePollutionKey } from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
-import { getUserAppPermission } from "../middleware/app-permissions";
+import * as appPermissions from "../middleware/app-permissions";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -241,7 +241,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       })
       .then((): void => {
         //send message that it is deleted successfully.
-        res.sendStatus(201).send("Access key deleted successfully");
+        res.status(200).send("Access key deleted successfully");
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
@@ -378,9 +378,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
     const tenantId: string = req.params.tenantId;
 
     storage
-      .removeTenant(accountId, tenantId) // Calls the storage method we’ll define next
+      .removeTenant(accountId, tenantId) // Calls the storage method we'll define next
       .then(() => {
-        res.sendStatus(201).send("Org deleted successfully");
+        res.status(200).send("Org deleted successfully");
       })
       .catch((error: any) => {
         next(error); // Forward error to error handler
@@ -476,38 +476,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.delete("/apps/:appName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let invalidationError: Error;
-    
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: Use app-permissions logic for deletion
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        
-        // Check canDelete flag (only app creator OR tenant owner)
-        if (!appPermission.canDelete) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            `Only app creators and tenant owners can delete apps. Your permission: ${appPermission.permission} (source: ${appPermission.source})`
-          );
-        }
-        
-        return storage.getDeployments(accountId, appId);
-      })
+  router.delete("/apps/:appName", 
+    appPermissions.requireAppDeletePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;  // Already resolved by middleware
+      const appId: string = app.id;
+      let invalidationError: Error;
+      
+      storage.getDeployments(accountId, appId)
       .then((deployments: storageTypes.Deployment[]) => {
         const invalidationPromises: Promise<void>[] = deployments.map((deployment: storageTypes.Deployment) => {
           return invalidateCachedPackage(deployment.key);
@@ -521,52 +498,31 @@ export function getManagementRouter(config: ManagementConfig): Router {
         return storage.removeApp(accountId, appId);
       })
       .then(() => {
-        res.sendStatus(201).send("App deleted successfully");
+        res.status(200).send("App deleted successfully");
         if (invalidationError) throw invalidationError;
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.patch("/apps/:appName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const app: restTypes.App = converterUtils.appFromBody(req.body);
+  router.patch("/apps/:appName", 
+    appPermissions.requireAppEditor({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const existingApp: storageTypes.App = (req as any).app;  // Already resolved by middleware
+      const app: restTypes.App = converterUtils.appFromBody(req.body);
 
-    storage
-      .getApps(accountId)
-      .then(async (apps: storageTypes.App[]): Promise<void> => {
-        const existingApp: storageTypes.App = NameResolver.findByName(apps, appName);
-        if (!existingApp) {
-          errorUtils.sendNotFoundError(res, `App "${appName}" does not exist.`);
-          return;
-        }
-        
-        // NEW: Use app-permissions logic - Editor or Owner can update
-        const appPermission = await getUserAppPermission(storage, accountId, existingApp.id);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        
-        // Only Editor or Owner can update (not Viewer)
-        if (appPermission.permission === 'Viewer') {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            `You need Editor or Owner permission to update apps. Your permission: ${appPermission.permission}`
-          );
-        }
+      storage
+        .getApps(accountId)
+        .then(async (apps: storageTypes.App[]): Promise<void> => {
+          // Name change validation
+          if ((app.name || app.name === "") && app.name !== existingApp.name) {
+            if (NameResolver.isDuplicate(apps, app.name)) {
+              errorUtils.sendConflictError(res, "An app named '" + app.name + "' already exists.");
+              return;
+            }
 
-        if ((app.name || app.name === "") && app.name !== existingApp.name) {
-          if (NameResolver.isDuplicate(apps, app.name)) {
-            errorUtils.sendConflictError(res, "An app named '" + app.name + "' already exists.");
-            return;
+            existingApp.name = app.name;
           }
-
-          existingApp.name = app.name;
-        }
 
         const validationErrors = validationUtils.validateApp(existingApp, /*isUpdate=*/ true);
         if (validationErrors.length) {
@@ -590,43 +546,23 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.post("/apps/:appName/transfer/:email", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const email: string = req.params.email;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    if (isPrototypePollutionKey(email)) {
-      return res.status(400).send("Invalid email parameter");
-    }
+  router.post("/apps/:appName/transfer/:email", 
+    appPermissions.requireAppOwner({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;  // Already resolved by middleware
+      const email: string = req.params.email;
+      
+      if (isPrototypePollutionKey(email)) {
+        return res.status(400).send("Invalid email parameter");
+      }
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        // NEW: Only app creator OR tenant owner can transfer
-        const appPermission = await getUserAppPermission(storage, accountId, app.id);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        
-        // Only Owner (tenant owner or app creator) can transfer
-        if (appPermission.permission !== 'Owner') {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "Transferring apps requires Owner permission."
-          );
-        }
-        
-        return storage.transferApp(accountId, app.id, email);
-      })
-      .then(() => {
-        res.sendStatus(201);
-      })
-      .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
-  });
+      storage.transferApp(accountId, app.id, email)
+        .then(() => {
+          res.sendStatus(201);
+        })
+        .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
+    });
 
   router.post("/apps/:appName/collaborators/:email", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
@@ -687,7 +623,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         return storage.removeCollaborator(accountId, app.id, email);
       })
       .then(() => {
-        res.sendStatus(201).send("Collaborator removed successfully");
+        res.status(200).send("Collaborator removed successfully");
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
@@ -729,30 +665,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.get("/apps/:appName/deployments", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    let appId: string;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
+  router.get("/apps/:appName/deployments",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: ALL tenant members (including Viewer) can list deployments
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        // Viewer, Editor, Owner all can proceed
-        
-        return storage.getDeployments(accountId, appId);
-      })
+      storage.getDeployments(accountId, appId)
       .then(async (deployments: storageTypes.Deployment[]) => {
         deployments.sort((first: restTypes.Deployment, second: restTypes.Deployment) => {
             return first.name.localeCompare(second.name);
@@ -789,44 +709,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.post("/apps/:appName/deployments", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
+  router.post("/apps/:appName/deployments", 
+    appPermissions.requireDeploymentStructurePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const appName: string = req.params.appName;
+      let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
 
-    const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ false);
-    if (validationErrors.length) {
-      errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
-      return;
-    }
+      const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ false);
+      if (validationErrors.length) {
+        errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
+        return;
+      }
 
-    const storageDeployment: storageTypes.Deployment = converterUtils.toStorageDeployment(restDeployment, new Date().getTime());
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: Editor+ can create deployments (NOT Viewer)
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        
-        if (appPermission.permission === 'Viewer') {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "Creating deployments requires Editor or Owner permission. Viewers can only manage releases within existing deployments."
-          );
-        }
-        
-        return storage.getDeployments(accountId, app.id);
-      })
+      const storageDeployment: storageTypes.Deployment = converterUtils.toStorageDeployment(restDeployment, new Date().getTime());
+      
+      storage.getDeployments(accountId, appId)
       .then((deployments: storageTypes.Deployment[]): void | Promise<void> => {
         if (NameResolver.isDuplicate(deployments, restDeployment.name)) {
           errorUtils.sendConflictError(res, "A deployment named '" + restDeployment.name + "' already exists.");
@@ -845,31 +745,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.get("/apps/:appName/deployments/:deploymentName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
+  router.get("/apps/:appName/deployments/:deploymentName",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: ALL tenant members (including Viewer) can view deployment
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        // Viewer, Editor, Owner all can proceed
-        
-        return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-      })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
       .then(async (deployment: storageTypes.Deployment) => {
           const metrics = await redisManager.getMetricsWithDeploymentKey(deployment.key);
           const deploymentMetrics = converterUtils.toRestDeploymentMetrics(metrics);
@@ -901,38 +785,16 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.delete("/apps/:appName/deployments/:deploymentName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let deploymentId: string;
+  router.delete("/apps/:appName/deployments/:deploymentName",
+    appPermissions.requireDeploymentStructurePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
+      let deploymentId: string;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: Editor+ can delete deployments (NOT Viewer)
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        
-        if (appPermission.permission === 'Viewer') {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "Deleting deployments requires Editor or Owner permission."
-          );
-        }
-        
-        return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-      })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
       .then((deployment: storageTypes.Deployment) => {
         deploymentId = deployment.id;
         return invalidateCachedPackage(deployment.key);
@@ -941,49 +803,28 @@ export function getManagementRouter(config: ManagementConfig): Router {
         return storage.removeDeployment(accountId, appId, deploymentId);
       })
       .then(() => {
-        res.sendStatus(201).send("Deployment deleted successfully");
+        res.status(200).send("Deployment deleted successfully");
       })
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.patch("/apps/:appName/deployments/:deploymentName", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
-    let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
+  router.patch("/apps/:appName/deployments/:deploymentName",
+    appPermissions.requireDeploymentStructurePermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const appName: string = req.params.appName;
+      const deploymentName: string = req.params.deploymentName;
+      let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
 
-    const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ true);
-    if (validationErrors.length) {
-      errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
-      return;
-    }
+      const validationErrors = validationUtils.validateDeployment(restDeployment, /*isUpdate=*/ true);
+      if (validationErrors.length) {
+        errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
+        return;
+      }
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: Editor+ can rename deployments (NOT Viewer)
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        
-        if (appPermission.permission === 'Viewer') {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "Updating deployments requires Editor or Owner permission."
-          );
-        }
-        
-        return storage.getDeployments(accountId, app.id);
-      })
+      storage.getDeployments(accountId, appId)
       .then((storageDeployments: storageTypes.Deployment[]): void | Promise<void> => {
         const storageDeployment: storageTypes.Deployment = NameResolver.findByName(storageDeployments, deploymentName);
 
@@ -1008,40 +849,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.patch("/apps/:appName/deployments/:deploymentName/release", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const info: restTypes.PackageInfo = req.body.packageInfo || {};
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    const validationErrors: validationUtils.ValidationError[] = validationUtils.validatePackageInfo(info, /*allOptional*/ true);
-    if (validationErrors.length) {
-      errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
-      return;
-    }
+  router.patch("/apps/:appName/deployments/:deploymentName/release",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
+      const info: restTypes.PackageInfo = req.body.packageInfo || {};
+      const validationErrors: validationUtils.ValidationError[] = validationUtils.validatePackageInfo(info, /*allOptional*/ true);
+      if (validationErrors.length) {
+        errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
+        return;
+      }
 
-    let updateRelease: boolean = false;
-    let storageDeployment: storageTypes.Deployment;
-    let appId: string;
+      let updateRelease: boolean = false;
+      let storageDeployment: storageTypes.Deployment;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: ALL tenant members (including Viewer) can update release metadata
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        // Viewer, Editor, Owner all can proceed
-        
-        return storage.getDeployments(accountId, app.id);
-      })
+      storage.getDeployments(accountId, appId)
       .then((storageDeployments: storageTypes.Deployment[]) => {
         storageDeployment = NameResolver.findByName(storageDeployments, deploymentName);
 
@@ -1124,12 +949,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.post(
     "/apps/:appName/deployments/:deploymentName/release",
+    appPermissions.requireDeploymentPermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const appName: string = req.params.appName;
       const deploymentName: string = req.params.deploymentName;
       const file: any = getFileWithField(req, "package");
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
 
       if (!file || !file.buffer) {
         errorUtils.sendMalformedRequestError(res, "A deployment package must include a file.");
@@ -1154,30 +981,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }
 
         // These variables are for hoisting promise results and flattening the following promise chain.
-        let appId: string;
         let deploymentToReleaseTo: storageTypes.Deployment;
         let storagePackage: storageTypes.Package;
         let lastPackageHashWithSameAppVersion: string;
         let newManifest: PackageManifest;
 
-        nameResolver
-          .resolveApp(accountId, appName, tenantId)
-          .then(async (app: storageTypes.App) => {
-            appId = app.id;
-            
-            // NEW: ALL tenant members (including Viewer) can upload releases
-            const appPermission = await getUserAppPermission(storage, accountId, appId);
-            
-            if (!appPermission) {
-              throw errorUtils.restError(
-                errorUtils.ErrorCode.Unauthorized,
-                "You do not have access to this app!"
-              );
-            }
-            // Viewer, Editor, Owner all can proceed
-            
-            return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-          })
+        nameResolver.resolveDeployment(accountId, appId, deploymentName)
           .then((deployment: storageTypes.Deployment) => {
             deploymentToReleaseTo = deployment;
             const existingPackage: storageTypes.Package = deployment.package;
@@ -1274,38 +1083,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.delete(
     "/apps/:appName/deployments/:deploymentName/history",
+    appPermissions.requireDeploymentStructurePermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
-      const appName: string = req.params.appName;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const deploymentName: string = req.params.deploymentName;
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-      let appId: string;
       let deploymentToGetHistoryOf: storageTypes.Deployment;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then(async (app: storageTypes.App): Promise<storageTypes.Deployment> => {
-          appId = app.id;
-          
-          // NEW: Editor+ can clear history (NOT Viewer)
-          const appPermission = await getUserAppPermission(storage, accountId, appId);
-          
-          if (!appPermission) {
-            throw errorUtils.restError(
-              errorUtils.ErrorCode.Unauthorized,
-              "You do not have access to this app!"
-            );
-          }
-          
-          if (appPermission.permission === 'Viewer') {
-            throw errorUtils.restError(
-              errorUtils.ErrorCode.Unauthorized,
-              "Clearing deployment history requires Editor or Owner permission."
-            );
-          }
-          
-          return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-        })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
         .then((deployment: storageTypes.Deployment): Promise<void> => {
           deploymentToGetHistoryOf = deployment;
           return storage.clearPackageHistory(accountId, appId, deploymentToGetHistoryOf.id);
@@ -1318,38 +1104,22 @@ export function getManagementRouter(config: ManagementConfig): Router {
           }
         })
         .then(() => {
-          res.sendStatus(201).send("Deployment History deleted successfully");
+          res.status(200).send("Deployment History deleted successfully");
           return invalidateCachedPackage(deploymentToGetHistoryOf.key);
         })
         .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
     }
   );
 
-  router.get("/apps/:appName/deployments/:deploymentName/history", (req: Request, res: Response, next: (err?: any) => void): any => {
-    const accountId: string = req.user.id;
-    const appName: string = req.params.appName;
-    const deploymentName: string = req.params.deploymentName;
-    const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-    let appId: string;
+  router.get("/apps/:appName/deployments/:deploymentName/history",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
+      const deploymentName: string = req.params.deploymentName;
 
-    nameResolver
-      .resolveApp(accountId, appName, tenantId)
-      .then(async (app: storageTypes.App) => {
-        appId = app.id;
-        
-        // NEW: ALL tenant members (including Viewer) can view history
-        const appPermission = await getUserAppPermission(storage, accountId, appId);
-        
-        if (!appPermission) {
-          throw errorUtils.restError(
-            errorUtils.ErrorCode.Unauthorized,
-            "You do not have access to this app!"
-          );
-        }
-        // Viewer, Editor, Owner all can proceed
-        
-        return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-      })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
       .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
         return storage.getPackageHistory(accountId, appId, deployment.id);
       })
@@ -1359,34 +1129,18 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  router.get("/apps/:appName/deployments/:deploymentName/metrics", (req: Request, res: Response, next: (err?: any) => void): any => {
-    if (!redisManager.isEnabled) {
-      res.send({ metrics: {} });
-    } else {
-      const accountId: string = req.user.id;
-      const appName: string = req.params.appName;
-      const deploymentName: string = req.params.deploymentName;
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-      let appId: string;
+  router.get("/apps/:appName/deployments/:deploymentName/metrics",
+    appPermissions.requireDeploymentPermission({ storage }),
+    (req: Request, res: Response, next: (err?: any) => void): any => {
+      if (!redisManager.isEnabled) {
+        res.send({ metrics: {} });
+      } else {
+        const accountId: string = req.user.id;
+        const app: storageTypes.App = (req as any).app;
+        const appId: string = app.id;
+        const deploymentName: string = req.params.deploymentName;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then(async (app: storageTypes.App) => {
-          appId = app.id;
-          
-          // NEW: ALL tenant members (including Viewer) can view metrics
-          const appPermission = await getUserAppPermission(storage, accountId, appId);
-          
-          if (!appPermission) {
-            throw errorUtils.restError(
-              errorUtils.ErrorCode.Unauthorized,
-              "You do not have access to this app!"
-            );
-          }
-          // Viewer, Editor, Owner all can proceed
-          
-          return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-        })
+        nameResolver.resolveDeployment(accountId, appId, deploymentName)
         .then((deployment: storageTypes.Deployment): Promise<redis.DeploymentMetrics> => {
           return redisManager.getMetricsWithDeploymentKey(deployment.key);
         })
@@ -1400,45 +1154,29 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.post(
     "/apps/:appName/deployments/:sourceDeploymentName/promote/:destDeploymentName",
+    appPermissions.requireDeploymentPermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const appName: string = req.params.appName;
       const sourceDeploymentName: string = req.params.sourceDeploymentName;
       const destDeploymentName: string = req.params.destDeploymentName;
       const info: restTypes.PackageInfo = req.body.packageInfo || {};
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
       const validationErrors: validationUtils.ValidationError[] = validationUtils.validatePackageInfo(info, /*allOptional*/ true);
       if (validationErrors.length) {
         errorUtils.sendMalformedRequestError(res, JSON.stringify(validationErrors));
         return;
       }
 
-      let appId: string;
       let destDeployment: storageTypes.Deployment;
       let sourcePackage: storageTypes.Package;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then(async (app: storageTypes.App) => {
-          appId = app.id;
-          
-          // NEW: ALL tenant members (including Viewer) can promote releases
-          const appPermission = await getUserAppPermission(storage, accountId, appId);
-          
-          if (!appPermission) {
-            throw errorUtils.restError(
-              errorUtils.ErrorCode.Unauthorized,
-              "You do not have access to this app!"
-            );
-          }
-          // Viewer, Editor, Owner all can proceed
-          
-          // Get source and dest manifests in parallel.
-          return Promise.all([
-            nameResolver.resolveDeployment(accountId, appId, sourceDeploymentName),
-            nameResolver.resolveDeployment(accountId, appId, destDeploymentName),
-          ]);
-        })
+      // Get source and dest manifests in parallel.
+      Promise.all([
+        nameResolver.resolveDeployment(accountId, appId, sourceDeploymentName),
+        nameResolver.resolveDeployment(accountId, appId, destDeploymentName),
+      ])
         .then(([sourceDeployment,destinationDeployment]:[storageTypes.Deployment,storageTypes.Deployment]) => {
           destDeployment = destinationDeployment;
 
@@ -1512,34 +1250,18 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
   router.post(
     "/apps/:appName/deployments/:deploymentName/rollback/:targetRelease?",
+    appPermissions.requireDeploymentPermission({ storage }),
     (req: Request, res: Response, next: (err?: any) => void): any => {
       const accountId: string = req.user.id;
+      const app: storageTypes.App = (req as any).app;
+      const appId: string = app.id;
       const appName: string = req.params.appName;
       const deploymentName: string = req.params.deploymentName;
-      const tenantId: string = Array.isArray(req.headers.tenant) ? req.headers.tenant[0] : req.headers.tenant;
-      let appId: string;
       let deploymentToRollback: storageTypes.Deployment;
       const targetRelease: string = req.params.targetRelease;
       let destinationPackage: storageTypes.Package;
 
-      nameResolver
-        .resolveApp(accountId, appName, tenantId)
-        .then(async (app: storageTypes.App) => {
-          appId = app.id;
-          
-          // NEW: ALL tenant members (including Viewer) can rollback releases
-          const appPermission = await getUserAppPermission(storage, accountId, appId);
-          
-          if (!appPermission) {
-            throw errorUtils.restError(
-              errorUtils.ErrorCode.Unauthorized,
-              "You do not have access to this app!"
-            );
-          }
-          // Viewer, Editor, Owner all can proceed
-          
-          return nameResolver.resolveDeployment(accountId, appId, deploymentName);
-        })
+      nameResolver.resolveDeployment(accountId, appId, deploymentName)
         .then((deployment: storageTypes.Deployment): Promise<storageTypes.Package[]> => {
           deploymentToRollback = deployment;
           return storage.getPackageHistory(accountId, appId, deployment.id);

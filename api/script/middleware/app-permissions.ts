@@ -13,10 +13,75 @@ import { getUserTenantPermission } from './tenant-permissions';
  * 2. Tenant Owner → full access including delete
  * 3. Tenant Editor → can create/edit apps but NOT delete
  * 4. Tenant Viewer → read-only, but can perform deployments
+ * 
+ * SELF-RESOLVING: Middleware automatically resolves appName → appId
  */
 
 export interface AppPermissionConfig {
   storage: Storage;
+}
+
+// ============================================================
+// INTERNAL UTILITY: Resolve app (name or ID)
+// ============================================================
+
+/**
+ * Internal helper to resolve app from request parameters
+ * Handles both :appName and :appId route patterns
+ * 
+ * @returns { appId, app? } or null if not found
+ */
+async function resolveApp(
+  config: AppPermissionConfig,
+  req: Request
+): Promise<{ appId: string; app?: any } | null> {
+  const userId = req.user?.id;
+  
+  if (!userId) {
+    return null;
+  }
+  
+  // Try appName first (most common pattern)
+  if (req.params.appName) {
+    const appName = req.params.appName;
+    const tenantId = Array.isArray(req.headers.tenant) 
+      ? req.headers.tenant[0] 
+      : req.headers.tenant;
+    
+    if (!tenantId) {
+      throw new Error('Tenant header required');
+    }
+    
+    try {
+      // Import NameResolver from storage
+      const storageModule = await import('../storage/storage');
+      const NameResolver = storageModule.NameResolver;
+      const nameResolver = new NameResolver(config.storage);
+      
+      const app = await nameResolver.resolveApp(userId, appName, tenantId);
+      
+      if (!app) {
+        return null;
+      }
+      
+      return { appId: app.id, app };
+    } catch (error) {
+      console.error('Error resolving app by name:', error);
+      return null;
+    }
+  }
+  
+  // Try appId from params
+  if (req.params.appId) {
+    return { appId: req.params.appId };
+  }
+  
+  // Try appId from body (rare)
+  if (req.body.appId) {
+    return { appId: req.body.appId };
+  }
+  
+  return null;
 }
 
 /**
@@ -100,20 +165,26 @@ export async function getUserAppPermission(
 /**
  * Middleware: Require app access
  * User must have at least 'Viewer' permission
+ * Automatically resolves appName → appId
  */
 export function requireAppAccess(config: AppPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const appId = req.params.appId || req.body.appId;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!appId) {
-      return res.status(400).json({ error: 'App ID required' });
+    // Resolve app (handles both appName and appId)
+    const resolved = await resolveApp(config, req);
+    
+    if (!resolved) {
+      return res.status(404).json({ error: 'App not found' });
     }
     
+    const { appId, app } = resolved;
+    
+    // Check permission
     const appPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!appPermission) {
@@ -122,7 +193,8 @@ export function requireAppAccess(config: AppPermissionConfig) {
       });
     }
     
-    // Attach permission info to request
+    // Attach to request
+    if (app) (req as any).app = app;
     (req as any).appPermission = appPermission;
     next();
   };
@@ -131,20 +203,26 @@ export function requireAppAccess(config: AppPermissionConfig) {
 /**
  * Middleware: Require Editor or Owner permission
  * User must be able to modify the app
+ * Automatically resolves appName → appId
  */
 export function requireAppEditor(config: AppPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const appId = req.params.appId || req.body.appId;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!appId) {
-      return res.status(400).json({ error: 'App ID required' });
+    // Resolve app (handles both appName and appId)
+    const resolved = await resolveApp(config, req);
+    
+    if (!resolved) {
+      return res.status(404).json({ error: 'App not found' });
     }
     
+    const { appId, app } = resolved;
+    
+    // Check permission
     const appPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!appPermission) {
@@ -161,6 +239,8 @@ export function requireAppEditor(config: AppPermissionConfig) {
       });
     }
     
+    // Attach to request
+    if (app) (req as any).app = app;
     (req as any).appPermission = appPermission;
     next();
   };
@@ -170,20 +250,26 @@ export function requireAppEditor(config: AppPermissionConfig) {
  * Middleware: Require delete permission
  * User must be app creator OR tenant owner
  * Tenant Editor CANNOT delete apps (even if they created them)
+ * Automatically resolves appName → appId
  */
 export function requireAppDeletePermission(config: AppPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const appId = req.params.appId || req.body.appId;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!appId) {
-      return res.status(400).json({ error: 'App ID required' });
+    // Resolve app (handles both appName and appId)
+    const resolved = await resolveApp(config, req);
+    
+    if (!resolved) {
+      return res.status(404).json({ error: 'App not found' });
     }
     
+    const { appId, app } = resolved;
+    
+    // Check permission
     const appPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!appPermission) {
@@ -202,6 +288,8 @@ export function requireAppDeletePermission(config: AppPermissionConfig) {
       });
     }
     
+    // Attach to request
+    if (app) (req as any).app = app;
     (req as any).appPermission = appPermission;
     next();
   };
@@ -210,20 +298,26 @@ export function requireAppDeletePermission(config: AppPermissionConfig) {
 /**
  * Middleware: Require deployment permission
  * Viewers can perform deployments (special case)
+ * Automatically resolves appName → appId
  */
 export function requireDeploymentPermission(config: AppPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const appId = req.params.appId || req.body.appId;
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    if (!appId) {
-      return res.status(400).json({ error: 'App ID required' });
+    // Resolve app (handles both appName and appId)
+    const resolved = await resolveApp(config, req);
+    
+    if (!resolved) {
+      return res.status(404).json({ error: 'App not found' });
     }
     
+    const { appId, app } = resolved;
+    
+    // Check permission
     const appPermission = await getUserAppPermission(config.storage, userId, appId);
     
     if (!appPermission) {
@@ -233,6 +327,104 @@ export function requireDeploymentPermission(config: AppPermissionConfig) {
     }
     
     // All roles (Viewer+) can perform deployments
+    // Attach to request
+    if (app) (req as any).app = app;
+    (req as any).appPermission = appPermission;
+    next();
+  };
+}
+
+/**
+ * Middleware: Require Editor or Owner permission for deployment structure changes
+ * Used for: create deployment, rename deployment, delete deployment, clear history
+ * Viewers CANNOT change deployment structure (only perform release operations)
+ * Automatically resolves appName → appId
+ */
+export function requireDeploymentStructurePermission(config: AppPermissionConfig) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Resolve app (handles both appName and appId)
+    const resolved = await resolveApp(config, req);
+    
+    if (!resolved) {
+      return res.status(404).json({ error: 'App not found' });
+    }
+    
+    const { appId, app } = resolved;
+    
+    // Check permission
+    const appPermission = await getUserAppPermission(config.storage, userId, appId);
+    
+    if (!appPermission) {
+      return res.status(403).json({ 
+        error: 'You do not have access to this app' 
+      });
+    }
+    
+    // Editor or Owner required
+    if (appPermission.permission === 'Viewer') {
+      return res.status(403).json({ 
+        error: 'Viewers cannot modify deployment structure',
+        currentPermission: appPermission.permission,
+        hint: 'You need Editor or Owner permission to create/delete deployments'
+      });
+    }
+    
+    // Attach to request
+    if (app) (req as any).app = app;
+    (req as any).appPermission = appPermission;
+    next();
+  };
+}
+
+/**
+ * Middleware: Require Owner permission
+ * User must be app creator OR tenant owner (not tenant editor)
+ * Used for sensitive operations like transferring ownership
+ * Automatically resolves appName → appId
+ */
+export function requireAppOwner(config: AppPermissionConfig) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Resolve app (handles both appName and appId)
+    const resolved = await resolveApp(config, req);
+    
+    if (!resolved) {
+      return res.status(404).json({ error: 'App not found' });
+    }
+    
+    const { appId, app } = resolved;
+    
+    // Check permission
+    const appPermission = await getUserAppPermission(config.storage, userId, appId);
+    
+    if (!appPermission) {
+      return res.status(403).json({ 
+        error: 'You do not have access to this app' 
+      });
+    }
+    
+    // Only Owner (app creator OR tenant owner)
+    if (appPermission.permission !== 'Owner') {
+      return res.status(403).json({ 
+        error: 'Only app owners can perform this action',
+        currentPermission: appPermission.permission,
+        hint: 'You need to be the app creator or tenant owner'
+      });
+    }
+    
+    // Attach to request
+    if (app) (req as any).app = app;
     (req as any).appPermission = appPermission;
     next();
   };
