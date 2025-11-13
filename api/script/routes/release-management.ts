@@ -6,6 +6,7 @@ import { Request, Response, Router } from "express";
 import * as storageTypes from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
+import { createSlackIntegrationRoutes } from "./slack-integrations";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -62,7 +63,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  // TODO: Implement communication integration routes
+  const slackRoutes = createSlackIntegrationRoutes(storage);
+  router.use(slackRoutes);
   // router.use(createCommunicationRoutes(storage));
 
   // ============================================================================
@@ -289,10 +291,13 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         const scmController = (storage as any).scmController;
         const scmIntegration = await scmController.findActiveByTenant(tenantId);
 
+        // Check Slack integration
+        const slackController = (storage as any).slackController;
+        const slackIntegration = await slackController.findByTenant(tenantId);
+
         // TODO: Check other required integrations (targets, pipelines, etc.)
         // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
         // const pipelines = await storage.getTenantPipelines(tenantId);
-        // const communication = await storage.getTenantCommunicationIntegrations(tenantId);
         
         const setupSteps = {
           scm: {
@@ -319,10 +324,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
             description: "Set up build pipelines (optional)"
           },
           communication: {
-            completed: false,  // TODO: Implement
+            completed: !!slackIntegration,
             required: false,  // Optional
             label: "Slack Integration",
-            description: "Connect Slack for notifications (optional)"
+            description: "Connect Slack for notifications (optional)",
+            data: slackIntegration ? {
+              workspaceName: slackIntegration.slackWorkspaceName,
+              workspaceId: slackIntegration.slackWorkspaceId,
+              verificationStatus: slackIntegration.verificationStatus
+            } : null
           }
         };
 
