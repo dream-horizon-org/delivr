@@ -374,6 +374,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       }
       
       // TODO: Add other integration types when implemented
+
       // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
       // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
       
