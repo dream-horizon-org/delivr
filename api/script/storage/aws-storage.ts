@@ -8,6 +8,7 @@ import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
 import * as utils from "../utils/common";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { createRelease } from "./release-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 
 //Creating Access Key
@@ -37,28 +38,96 @@ export function createAccessKey(sequelize: Sequelize) {
 //Creating Account Type
 export function createAccount(sequelize: Sequelize) {
   return sequelize.define("account", {
-    // Core fields
-    id: { type: DataTypes.STRING, allowNull: false, primaryKey: true },
-    email: { type: DataTypes.STRING, allowNull: false, unique: true },
-    name: { type: DataTypes.STRING, allowNull: false },
-    createdTime: { type: DataTypes.FLOAT, allowNull: false, defaultValue: () => new Date().getTime() },
-    updatedAt: { type: DataTypes.FLOAT, allowNull: true },
-    
-    // OAuth Provider IDs (union of both systems)
-    ssoId: { type: DataTypes.STRING, allowNull: true, unique: true },  // Google SSO from OG Delivr
-    azureAdId: { type: DataTypes.STRING, allowNull: true },
-    gitHubId: { type: DataTypes.STRING, allowNull: true },
-    microsoftId: { type: DataTypes.STRING, allowNull: true },
-    
-    // User Profile
-    picture: { type: DataTypes.STRING, allowNull: true },
+    id: { 
+      type: DataTypes.STRING, 
+      allowNull: false, 
+      primaryKey: true 
+    },
+    email: { 
+      type: DataTypes.STRING, 
+      allowNull: false, 
+      unique: true 
+    },
+    name: { 
+      type: DataTypes.STRING, 
+      allowNull: false 
+    },
+    picture: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
+    },
+    metadata: { 
+      type: DataTypes.JSON, 
+      allowNull: true 
+    },
+    // Note: createdTime kept for backward compatibility, but createdAt/updatedAt are now primary
+    createdTime: { 
+      type: DataTypes.FLOAT, 
+      allowNull: true,  // Made optional since we're using createdAt now
+      defaultValue: () => new Date().getTime() 
+    },
   }, {
     tableName: 'accounts',
-    timestamps: false  // We handle timestamps manually
+    timestamps: true,  // Now uses createdAt/updatedAt (DATETIME) instead of createdTime (FLOAT)
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
   });
 }
 
-
+export function createAccountChannel(sequelize: Sequelize) {
+  return sequelize.define("AccountChannel", {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      allowNull: false,
+    },
+    accountId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      references: {
+        model: 'accounts',
+        key: 'id',
+      },
+    },
+    externalChannelId: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+      field: 'external_channel_id',
+    },
+    channelType: {
+      type: DataTypes.ENUM('google_oauth', 'github_oauth', 'slack', 'teams', 'other'),
+      allowNull: false,
+      defaultValue: 'other',
+      field: 'channel_type',
+    },
+    channelMetadata: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      field: 'channel_metadata',
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      field: 'is_active',
+    },
+  }, {
+    tableName: 'account_channels',
+    timestamps: true,
+    indexes: [
+      {
+        name: 'idx_account_channels_account_id',
+        fields: ['accountId'],
+      },
+      {
+        name: 'idx_account_channels_external',
+        unique: true,
+        fields: ['external_channel_id', 'channel_type'],
+      },
+    ],
+  });
+}
 
 
 //Creating App
@@ -115,6 +184,14 @@ export function createTenant(sequelize: Sequelize) {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+  }, {
+    timestamps: true,
+    tableName: 'tenants'
   });
 }
 
@@ -156,6 +233,9 @@ export function createCollaborators(sequelize: Sequelize) {
           allowNull: false,
           defaultValue: false  // True for tenant creators
         },
+    }, {
+      tableName: 'collaborators',
+      timestamps: true
     })
 }
 
@@ -167,8 +247,8 @@ export function createDeployment(sequelize: Sequelize) {
       id: { type: DataTypes.STRING, allowNull: true, primaryKey: true },
       name: { type: DataTypes.STRING, allowNull: false },
       key: { type: DataTypes.STRING, allowNull: false },
-      packageId: {  // Ensure this has the same type as the 'id' in 'packages'
-          type: DataTypes.UUID,  // Use UUID type if 'packages.id' is a UUID
+      packageId: {
+          type: DataTypes.UUID,
           allowNull: true,
           references: {
               model: sequelize.models["package"],
@@ -179,11 +259,14 @@ export function createDeployment(sequelize: Sequelize) {
           type: DataTypes.STRING,
           allowNull: false,
           references: {
-              model: sequelize.models["apps"], // Foreign key to the App model
+              model: sequelize.models["apps"],
               key: 'id',
           },
       },
       createdTime: { type: DataTypes.FLOAT, allowNull: true },
+  }, {
+    tableName: 'deployments',
+    timestamps: true
   });
 }
 
@@ -213,7 +296,7 @@ export function createPackage(sequelize: Sequelize) {
       size: { type: DataTypes.FLOAT, allowNull: false },
       uploadTime: { type: DataTypes.BIGINT, allowNull: false },
       isBundlePatchingEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-      deploymentId: { // Foreign key to associate this package with a deployment history
+      deploymentId: {
         type: DataTypes.STRING,
         allowNull: true,
         references: {
@@ -221,6 +304,9 @@ export function createPackage(sequelize: Sequelize) {
           key: 'id',
         },
       },
+  }, {
+    tableName: 'packages',
+    timestamps: true
   });
 }
 
@@ -264,21 +350,49 @@ export function createAppPointer(sequelize: Sequelize) {
 
 export function createModelss(sequelize: Sequelize) {
   // Create models and register them
+  const Account = createAccount(sequelize);
+  const AccountChannel = createAccountChannel(sequelize);
   const Tenant = createTenant(sequelize);
   const Package = createPackage(sequelize);
   const Deployment = createDeployment(sequelize);
-  const Account = createAccount(sequelize);
   const AccessKey = createAccessKey(sequelize);
   const AppPointer = createAppPointer(sequelize);
   const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
+  const Release = createRelease(sequelize);  // Release management from Delivr
 
+  // ============================================
   // Define associations
+  // ============================================
+
+  // Account ↔ AccountChannel (1:N)
+  Account.hasMany(AccountChannel, { foreignKey: 'accountId', as: 'channels' });
+  AccountChannel.belongsTo(Account, { foreignKey: 'accountId', onDelete: 'CASCADE' });
 
   // Account and Tenant (Creator relationship)
   Account.hasMany(Tenant, { foreignKey: 'createdBy' });
   Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
+  
+  // Tenant and Release (One Tenant can have many Releases)
+  Tenant.hasMany(Release, { foreignKey: 'tenantId' });
+  Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  
+  // Account and Release (Creator relationship)
+  Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
+  Release.belongsTo(Account, { foreignKey: 'createdBy', as: 'creator' });
+  
+  // Account and Release (Pilot relationship)
+  Account.hasMany(Release, { foreignKey: 'releasePilotId', as: 'pilotedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'releasePilotId', as: 'pilot' });
+  
+  // Account and Release (Last updater relationship)
+  Account.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  
+  // Release self-referencing (Parent-child for hotfixes)
+  Release.hasMany(Release, { foreignKey: 'parentId', as: 'hotfixes' });
+  Release.belongsTo(Release, { foreignKey: 'parentId', as: 'parent' });
 
   // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
@@ -297,11 +411,9 @@ export function createModelss(sequelize: Sequelize) {
   Deployment.belongsTo(App, { foreignKey: 'appId' });
 
   // Deployment and Package (One Package can be linked to many Deployments)
-  //
   Deployment.hasMany(Package, { foreignKey: 'deploymentId', as: 'packageHistory' });
   Package.belongsTo(Deployment, { foreignKey: 'deploymentId' });
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
-  //Package.hasMany(Deployment, { foreignKey: 'packageId', as: 'deployments' });
 
   // Collaborator associations
   // Note: accountId FK is defined in model, Account association is for querying only
@@ -318,14 +430,15 @@ export function createModelss(sequelize: Sequelize) {
   Tenant.hasOne(SCMIntegrations, { foreignKey: 'tenantId', as: 'scmIntegration' });
   SCMIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
   
-  // Account (creator) reference
+  // Account (creator) reference for SCM
   SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
   return {
+    Account,
+    AccountChannel,
     Tenant,
     Package,
     Deployment,
-    Account,
     AccessKey,
     AppPointer,
     Collaborator,  // UNIFIED: supports both app-level AND tenant-level
@@ -333,6 +446,7 @@ export function createModelss(sequelize: Sequelize) {
     SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
   };
 }
+
 
 //function to mimic defer function in q package
 export function defer<T>() {
@@ -617,11 +731,11 @@ export class S3Storage implements storage.Storage {
               );
             }
             
-            // Check user has permission (editor or admin) in the tenant
+            // Check Account has permission (editor or admin) in the tenant
             // Query tenant-level collaborators (where appId is null)
             const tenantCollab = await this.sequelize.models[MODELS.COLLABORATOR].findOne({
               where: { 
-                accountId, 
+                accountId: accountId, 
                 tenantId,
                 appId: null  // Tenant-level collaborator
               },
@@ -634,8 +748,8 @@ export class S3Storage implements storage.Storage {
               );
             }
             
-            const userPermission = tenantCollab.dataValues.permission;
-            if (userPermission === 'Viewer') {
+            const accountPermission = tenantCollab.dataValues.permission;
+            if (accountPermission === 'Viewer') {
               throw storage.storageError(
                 storage.ErrorCode.Invalid, 
                 "You need Owner or Editor permissions to create apps."
@@ -655,20 +769,20 @@ export class S3Storage implements storage.Storage {
             // Add tenant-level collaborator entry (unified collaborators table)
             const tenantCollabMap = {
               email: account.email,
-              accountId,
+              accountId: accountId,
               tenantId,  // Tenant-level collaborator
               appId: null,  // No specific app
               permission: storage.Permissions.Owner,
             };
             await this.sequelize.models[MODELS.COLLABORATOR].findOrCreate({
-              where: { tenantId, accountId },
+              where: { tenantId, accountId: accountId },
               defaults: tenantCollabMap,
             });
             
             // Also add app-level collaborator entry for backward compatibility
             const appCollabMap = {
               email: account.email,
-              accountId,
+              accountId: accountId,
               appId: app.id,  // App-level collaborator
               tenantId: null,  // No tenant association for app-level
               permission: storage.Permissions.Owner,
@@ -691,7 +805,7 @@ export class S3Storage implements storage.Storage {
             // Add app-level collaborator entry (old flow)
             const collabMap = {
               email: account.email,
-              accountId,
+              accountId: accountId,
               permission: storage.Permissions.Owner,
               appId: app.id,
             };
@@ -713,15 +827,15 @@ export class S3Storage implements storage.Storage {
 
     public getApps(accountId: string): Promise<storage.App[]> {
       // Get apps from BOTH flows:
-      // V2: User → Tenant (via collaborators) → Apps (NEW)
-      // V1: User → Apps (directly via accountId) (OLD - backward compatibility)
+      // V2: Account → Tenant (via collaborators) → Apps (NEW)
+      // V1: Account → Apps (directly via accountId) (OLD - backward compatibility)
       return this.setupPromise
         .then(async () => {
-          // V2 Flow: Get all tenants user is a member of
+          // V2 Flow: Get all tenants Account is a member of
           // Query tenant-level collaborators (where appId is null)
           const tenantCollabRecords = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
-              accountId,
+              accountId: accountId,
               appId: null  // Tenant-level collaborators only
             },
           });
@@ -743,7 +857,7 @@ export class S3Storage implements storage.Storage {
           // V1 Flow: Get all apps directly owned by accountId (old flow)
           const accountApps = await this.sequelize.models[MODELS.APPS].findAll({
             where: {
-              accountId,
+              accountId: accountId,
               tenantId: null  // Only get old-style apps (no tenant)
             }
           });
@@ -768,14 +882,14 @@ export class S3Storage implements storage.Storage {
     }
     
     public getTenants(accountId: string): Promise<storage.Organization[]> {
-      // Fetch all tenants where the user is a member (via collaborators)
-      // User → Tenant (parent entity) → Apps
+      // Fetch all tenants where the account is a member (via collaborators)
+      // Account → Tenant (parent entity) → Apps
       return this.setupPromise
         .then(async () => {
-          // Get user's tenant-level collaborations (where appId is null)
+          // Get account's tenant-level collaborations (where appId is null)
           const tenantCollabs = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
             where: { 
-              accountId,
+              accountId: accountId,
               appId: null  // Tenant-level collaborators only
             }
           });
@@ -855,7 +969,7 @@ export class S3Storage implements storage.Storage {
         .then( async () => {
           // Remove all apps under the tenant
           //Remove all collaborators from that apps
-          //check permission whether user is owner or not
+          //check permission whether Account is owner or not
           const tenant = await this.sequelize.models[MODELS.TENANT].findOne({
             where: { id: tenantId },
           });
@@ -865,7 +979,7 @@ export class S3Storage implements storage.Storage {
           }
 
           if(tenant.dataValues.createdBy !== accountId) {
-            throw storage.storageError(storage.ErrorCode.Invalid, "User does not have admin permissions for the specified tenant.");
+            throw storage.storageError(storage.ErrorCode.Invalid, "Account does not have admin permissions for the specified tenant.");
           }
 
           const apps = await this.sequelize.models[MODELS.APPS].findAll({
@@ -877,10 +991,10 @@ export class S3Storage implements storage.Storage {
             const appOwnerId = app.dataValues.accountId;
     
             if (appOwnerId === accountId) {
-              // If the app is owned by the user, remove it
+              // If the app is owned by the Account, remove it
               await this.removeApp(accountId, app.dataValues.id);
             } else {
-              // If the app is not owned by the user, set tenantId to null
+              // If the app is not owned by the Account, set tenantId to null
               await this.sequelize.models[MODELS.APPS].update(
                 { tenantId: null },
                 { where: { id: app.dataValues.id } }
@@ -935,7 +1049,7 @@ export class S3Storage implements storage.Storage {
           });
 
           if (!account) {
-            throw storage.storageError(storage.ErrorCode.NotFound, "User with this email does not exist");
+            throw storage.storageError(storage.ErrorCode.NotFound, "Account with this email does not exist");
           }
 
           const accountId = account.dataValues.id;
@@ -950,7 +1064,7 @@ export class S3Storage implements storage.Storage {
           });
 
           if (existing) {
-            throw storage.storageError(storage.ErrorCode.AlreadyExists, "User is already a collaborator");
+            throw storage.storageError(storage.ErrorCode.AlreadyExists, "Account is already a collaborator");
           }
 
           // Add collaborator
@@ -1029,13 +1143,13 @@ export class S3Storage implements storage.Storage {
         .then(() => {
           // Remove all collaborator entries for this app
           return this.sequelize.models[MODELS.COLLABORATOR].destroy({
-            where: { appId, accountId },
+            where: { appId, accountId: accountId },
           });
         })
         .then(() => {
           // Remove the app entry
           return this.sequelize.models[MODELS.APPS].destroy({
-            where: { id: appId, accountId },
+            where: { id: appId, accountId: accountId },
           });
         })
         .then(() => {
@@ -1104,7 +1218,7 @@ export class S3Storage implements storage.Storage {
             S3Storage.setCollaboratorPermission(app.collaborators, email, storage.Permissions.Owner);
           } else {
             const targetOwnerProperties: storage.CollaboratorProperties = {
-              accountId: targetCollaboratorAccountId,
+              accountId: targetCollaboratorAccountId,  // This is for CollaboratorProperties interface (returned to client)
               permission: storage.Permissions.Owner,
             };
             S3Storage.addToCollaborators(app.collaborators, email, targetOwnerProperties);
@@ -1152,7 +1266,7 @@ export class S3Storage implements storage.Storage {
           // Use the original email stored on the account to ensure casing is consistent
           email = account.email;
           return this.addCollaboratorWithPermissions(accountId, app, email, {
-            accountId: account.id,
+            accountId: account.id,  // This is for CollaboratorProperties interface (returned to client)
             permission: storage.Permissions.Viewer,
           });
         })
@@ -1171,7 +1285,7 @@ export class S3Storage implements storage.Storage {
         email = accountToModify.email;
         const permission = role === "Owner" ? storage.Permissions.Owner : storage.Permissions.Editor;
         return this.updateCollaboratorWithPermissions(accountId, app, email, {
-          accountId: accountToModify.id,
+          accountId: accountToModify.id,  // This is for CollaboratorProperties interface (returned to client)
           permission: permission,
         });
       })
@@ -1736,7 +1850,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Insert the access key into the database
-            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, accountId });
+            return this.sequelize.models[MODELS.ACCESSKEY].create({ ...accessKey, accountId: accountId });
           })
           .then(() => {
             return accessKey.id;
@@ -1751,7 +1865,7 @@ export class S3Storage implements storage.Storage {
           if (!accessKey) {
             throw new Error("Access key not found");
           }
-          return this.getAccount(accessKey.accountId);
+          return this.getAccount(accessKey.dataValues.accountId);
         }).catch((error: any) => {
           console.error("Error retrieving account:", error);
           throw error;
@@ -1766,7 +1880,7 @@ export class S3Storage implements storage.Storage {
           if (!accessKey) {
             throw new Error("Access key not found");
           }
-          return this.getAccount(accessKey.accountId);
+          return this.getAccount(accessKey.dataValues.accountId);
         }).catch((error: any) => {
           console.error("Error retrieving account:", error);
           throw error;
@@ -1860,7 +1974,7 @@ export class S3Storage implements storage.Storage {
         return this.setupPromise
           .then(() => {
             // Retrieve all access keys for the account
-            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { accountId } });
+            return this.sequelize.models[MODELS.ACCESSKEY].findAll({ where: { accountId: accountId } });
           })
           .then((accessKeys: any[]) => {
             return accessKeys.map((accessKey: any) => accessKey.dataValues);
@@ -1969,18 +2083,100 @@ export class S3Storage implements storage.Storage {
   
 
     private async getCollabrators(app:storage.App, accountId) {
-      const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({where : {appId: app.id}})
-      const collabMap = {}
-      collabModel.map((collab) => {
-        collabMap[collab.dataValues["email"]] = {
-          ...collab.dataValues,
-          "isCurrentAccount" : false
+      // BACKWARDS COMPATIBLE: Support both old app-level AND new tenant-level collaborators
+      // Query: (tenantId = X AND appId IS NULL) OR (appId = Y)
+      const { Op } = require('sequelize');
+      
+      const collabModel = await this.sequelize.models[MODELS.COLLABORATOR].findAll({
+        where: { 
+          [Op.or]: [
+            { tenantId: app.tenantId, appId: null },  // NEW: Tenant-level
+            { appId: app.id }                         // OLD: App-level (backwards compat)
+          ]
         }
-      })
-      const currentUserEmail: string = S3Storage.getEmailForAccountId(collabMap, accountId);
-      if (currentUserEmail && collabMap[currentUserEmail]) {
-        collabMap[currentUserEmail].isCurrentAccount = true;
+      });
+      
+      const collabMap = {}
+      let foundOldFormat = false;
+      
+      collabModel.forEach((collab) => {
+        const email = collab.dataValues["email"];
+        const isAppLevel = collab.dataValues.appId !== null;
+        const isTenantLevel = collab.dataValues.appId === null;
+        
+        // Log warning if old app-level collaborator found
+        if (isAppLevel) {
+          foundOldFormat = true;
+          console.warn('⚠️ OLD APP-LEVEL COLLABORATOR FOUND:', {
+            email: email,
+            appId: collab.dataValues.appId,
+            appName: app.name,
+            message: 'Run migration: migrations/009_migrate_app_level_to_tenant_level.sql'
+          });
+        }
+        
+        // If Account exists in BOTH app-level and tenant-level, tenant-level wins
+        if (collabMap[email]) {
+          if (isTenantLevel) {
+            // Override with tenant-level
+            collabMap[email] = {
+              accountId: collab.dataValues.accountId,  // Map DB column accountId to interface property accountId
+              email: collab.dataValues.email,
+              permission: collab.dataValues.permission,
+              isCurrentAccount: false,
+              source: 'tenant_level'
+            };
+          }
+          // If app-level and already exists, skip (tenant-level already set)
+        } else {
+          // First time seeing this Account
+          collabMap[email] = {
+            accountId: collab.dataValues.accountId,  // Map DB column accountId to interface property accountId
+            email: collab.dataValues.email,
+            permission: collab.dataValues.permission,
+            isCurrentAccount: false,
+            source: isAppLevel ? 'app_level_legacy' : 'tenant_level'
+          };
+        }
+      });
+      
+      // Log summary if old format found
+      if (foundOldFormat) {
+        console.warn(`⚠️ App "${app.name}" (${app.id}) has old app-level collaborators. Migration recommended.`);
       }
+      
+      // Mark current Account
+      const currentAccountEmail: string = S3Storage.getEmailForAccountId(collabMap, accountId);
+      if (currentAccountEmail && collabMap[currentAccountEmail]) {
+        collabMap[currentAccountEmail].isCurrentAccount = true;
+      }
+      
+      // NEW: Check if current Account is app creator (automatic Owner)
+      const appCreatorId = (app as any).accountId || (app as any).createdBy;
+      if (appCreatorId === accountId) {
+        // Get Account's email
+        const account = await this.sequelize.models["account"].findByPk(accountId);
+        if (account) {
+          const accountEmail = account.dataValues.email;
+          
+          // If Account is already in collabMap, ensure they have Owner permission
+          if (collabMap[accountEmail]) {
+            collabMap[accountEmail].permission = 'Owner';
+            collabMap[accountEmail].isCurrentAccount = true;
+            collabMap[accountEmail].source = 'app_creator';
+          } else {
+            // Add creator to collabMap as Owner
+            collabMap[accountEmail] = {
+              accountId: accountId,  // This is for CollaboratorMap interface (returned to client)
+              email: accountEmail,
+              permission: 'Owner',
+              isCurrentAccount: true,
+              source: 'app_creator'
+            };
+          }
+        }
+      }
+      
       app["collaborators"] = collabMap
       return app;
     }
@@ -2016,7 +2212,7 @@ export class S3Storage implements storage.Storage {
                                     const collaborator = app.collaborators[email];
                                     return {
                                         email,
-                                        accountId: collaborator.accountId,
+                                        accountId: collaborator.accountId,  // DB column is accountId, but interface uses accountId
                                         appId: appId,
                                         permission: collaborator.permission,
                                     };
