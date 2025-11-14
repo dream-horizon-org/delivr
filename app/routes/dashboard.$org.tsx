@@ -8,7 +8,7 @@ import { json } from '@remix-run/node';
 import { Outlet, useLoaderData } from '@remix-run/react';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { CodepushService } from '~/.server/services/Codepush';
-import type { Organisation } from '~/.server/services/Codepush/types';
+import type { Organization } from '~/.server/services/Codepush/types';
 
 export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   const { org: tenantId } = params;
@@ -39,7 +39,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
 export type OrgLayoutLoaderData = {
   tenantId: string;
-  organisation: Organisation;
+  organisation: Organization;
   user: any;
 };
 
