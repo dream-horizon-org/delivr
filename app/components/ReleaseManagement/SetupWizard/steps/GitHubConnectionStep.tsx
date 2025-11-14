@@ -135,8 +135,8 @@ export function GitHubConnectionStep({ initialData, onComplete }: GitHubConnecti
         
         {/* Action Buttons */}
         <div className="flex items-center gap-3">
-          {/* Verify Button */}
-          {!isVerified && (
+        {/* Verify Button */}
+        {!isVerified && (
             <button
               type="button"
               onClick={handleVerify}
@@ -183,7 +183,7 @@ export function GitHubConnectionStep({ initialData, onComplete }: GitHubConnecti
               )}
             </button>
           )}
-        </div>
+          </div>
         
         {/* How to get token */}
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
