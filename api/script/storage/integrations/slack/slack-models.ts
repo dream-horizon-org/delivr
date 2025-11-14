@@ -137,7 +137,7 @@ export function createSlackIntegrationModel(sequelize: Sequelize) {
     },
     {
       sequelize,
-      tableName: 'tenant_communication_integrations',
+      tableName: 'tenant_comm_integrations',
       timestamps: true,
       indexes: [
         // Query integrations by tenant

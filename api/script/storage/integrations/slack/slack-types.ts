@@ -113,13 +113,10 @@ export interface VerificationResult {
  * 
  * This is what gets returned from API endpoints - tokens removed!
  */
-export interface SafeSlackIntegration extends Omit<
+export type SafeSlackIntegration = Omit<
   TenantCommunicationIntegration,
   'slackBotToken'
-> {
-  // Add computed fields
-  hasValidToken?: boolean;
-}
+>;
 
 // ============================================================================
 // Query Filters

@@ -263,10 +263,8 @@ export class SlackIntegrationController {
   private toSafeObject(data: any): SafeSlackIntegration {
     const { slackBotToken, ...safe } = data;
     
-    return {
-      ...safe,
-      hasValidToken: !!slackBotToken, // Just indicate if token exists
-    };
+    // Return all fields except the sensitive token
+    return safe;
   }
 }
 

@@ -440,9 +440,6 @@ export function createModelss(sequelize: Sequelize) {
   // Tenant has ONE Slack integration (set up during onboarding)
   Tenant.hasOne(SlackIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
   SlackIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
-  
-  // Account (creator) reference
-  SlackIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
   return {
     Account,

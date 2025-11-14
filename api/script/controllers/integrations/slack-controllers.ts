@@ -172,10 +172,16 @@ export async function createOrUpdateSlackIntegration(
 
       const created = await slackController.create(createData);
       
+      // Mark as verified since token was provided (assumes it was verified in the UI flow)
+      await slackController.updateVerificationStatus(created.id, VerificationStatus.VALID);
+      
+      // Fetch updated record
+      const updated = await slackController.findByTenant(tenantId, CommunicationType.SLACK);
+      
       return res.status(201).json({
         success: true,
         message: "Slack integration created successfully",
-        integration: sanitizeSlackResponse(created)
+        integration: sanitizeSlackResponse(updated)
       });
     }
   } catch (error: any) {
@@ -460,10 +466,7 @@ async function fetchSlackChannelsAPI(
  */
 function sanitizeSlackResponse(integration: any): SafeSlackIntegration {
   const { slackBotToken, ...safe } = integration;
-  return {
-    ...safe,
-    // Return masked version of sensitive field
-    hasValidToken: !!slackBotToken
-  };
+  // Return all fields except the sensitive token
+  return safe;
 }
 
