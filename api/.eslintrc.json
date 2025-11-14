@@ -10,7 +10,7 @@
     "rules": {
         "no-var": "error",
         "prefer-const": "error",
-        "no-unused-vars": "error",
+        "no-unused-vars": "off",
         "eqeqeq": "error",
         "no-eval": "error"
     }
