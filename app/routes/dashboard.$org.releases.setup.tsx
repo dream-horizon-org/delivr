@@ -4,11 +4,11 @@
  */
 
 import { json, redirect } from '@remix-run/node';
-import { useLoaderData, useNavigate } from '@remix-run/react';
-import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
+import { useNavigate, useRouteLoaderData } from '@remix-run/react';
+import { authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { CodepushService } from '~/.server/services/Codepush';
-import { useTenantInfo } from '~/hooks/useTenantInfo';
 import type { SetupWizardData } from '~/components/ReleaseManagement/SetupWizard/types';
+import type { OrgLayoutLoaderData } from './dashboard.$org';
 
 // Import components
 import { useSetupWizard } from '~/components/ReleaseManagement/SetupWizard/hooks';
@@ -20,33 +20,6 @@ import {
   CICDSetupStep,
   SlackIntegrationStep,
 } from '~/components/ReleaseManagement/SetupWizard/steps';
-
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
-  const { org } = params;
-  
-  if (!org) {
-    throw new Response('Organization not found', { status: 404 });
-  }
-  
-  // Fetch tenant info from real backend API
-  const response = await CodepushService.getTenantInfo({ 
-    tenantId: org,
-    userId: user.user.id 
-  });
-  const organisation = response.data.organisation;
-  
-  // If setup is complete, redirect to releases dashboard
-  if (organisation.releaseManagement?.setupComplete) {
-    return redirect(`/dashboard/${org}/releases`);
-  }
-  
-  return json({
-    org,
-    user,
-    setupComplete: organisation.releaseManagement?.setupComplete || false,
-    setupSteps: organisation.releaseManagement?.setupSteps || {},
-  });
-});
 
 export const action = authenticateActionRequest({
   [ActionMethods.POST]: async ({ request, params, user }) => {
@@ -82,18 +55,25 @@ export const action = authenticateActionRequest({
 });
 
 export default function ReleaseSetupPage() {
-  const data = useLoaderData<typeof loader>();
-  const { org } = data as any;
+  // Get shared tenant data from parent layout (no redundant API call!)
+  const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const navigate = useNavigate();
   
-  // Fetch tenant info to check existing integrations
-  const { data: tenantInfo, isLoading } = useTenantInfo(org);
+  if (!orgData) {
+    throw new Error('Organization data not loaded');
+  }
+
+  const { tenantId: org, organisation } = orgData;
   
   // Check if SCM integration already exists
-  // Note: tenantInfo IS the organisation object (already unwrapped by getTenantInfo)
-  const hasSCMIntegration = tenantInfo?.releaseManagement?.integrations?.some(
+  const hasSCMIntegration = organisation?.releaseManagement?.integrations?.some(
     (integration: any) => integration.type === 'scm' && integration.isActive
   );
+  
+  // Redirect if setup is already complete
+  if (organisation?.releaseManagement?.setupComplete) {
+    navigate(`/dashboard/${org}/releases`);
+  }
   
   const {
     currentStep,
@@ -117,18 +97,6 @@ export default function ReleaseSetupPage() {
       navigate(`/dashboard/${org}/releases`);
     },
   });
-  
-  // Show loading state while fetching tenant info
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-sm text-gray-600">Loading setup...</p>
-        </div>
-      </div>
-    );
-  }
   
   // Render current step
   const renderStep = () => {

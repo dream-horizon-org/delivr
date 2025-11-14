@@ -5,9 +5,8 @@
  */
 
 import { useEffect } from 'react';
-import { Outlet, useParams, useNavigate, useLocation } from '@remix-run/react';
-import { useTenantInfo } from '~/hooks/useTenantInfo';
-import { Flex, Loader, Text } from '@mantine/core';
+import { Outlet, useParams, useNavigate, useLocation, useRouteLoaderData } from '@remix-run/react';
+import type { OrgLayoutLoaderData } from './dashboard.$org';
 
 export default function ReleasesLayout() {
   const params = useParams();
@@ -15,8 +14,15 @@ export default function ReleasesLayout() {
   const location = useLocation();
   const { org } = params;
 
-  // Fetch tenant info (includes release management setup status)
-  const { data: tenantInfo, isLoading, error } = useTenantInfo(org);
+  // Get shared tenant data from parent layout (no redundant API call!)
+  const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  
+  if (!orgData) {
+    throw new Error('Organization data not loaded');
+  }
+
+  const { organisation } = orgData;
+  const setupComplete = organisation?.releaseManagement?.setupComplete;
 
   useEffect(() => {
     // Skip redirect logic if we're already on the setup page
@@ -24,63 +30,17 @@ export default function ReleasesLayout() {
       return;
     }
 
-    // Once data is loaded, check if setup is complete
-    const setupComplete = tenantInfo?.releaseManagement?.setupComplete;
-    if (tenantInfo && !setupComplete) {
+    // If setup is not complete, redirect to setup wizard
+    if (!setupComplete) {
       console.log('Release management not set up, redirecting to setup wizard');
       navigate(`/dashboard/${org}/releases/setup`);
     }
-  }, [tenantInfo, navigate, org, location.pathname]);
+  }, [setupComplete, navigate, org, location.pathname]);
 
-  // Show loading state while checking setup status
-  if (isLoading) {
-    return (
-      <Flex 
-        direction="column" 
-        align="center" 
-        justify="center" 
-        style={{ minHeight: '400px' }}
-        gap="md"
-      >
-        <Loader size="lg" />
-        <Text size="sm" c="dimmed">Checking release management setup...</Text>
-      </Flex>
-    );
-  }
-
-  // Show error state if setup check failed
-  if (error) {
-    return (
-      <Flex 
-        direction="column" 
-        align="center" 
-        justify="center" 
-        style={{ minHeight: '400px' }}
-        gap="md"
-      >
-        <Text size="lg" fw={600} c="red">Failed to check setup status</Text>
-        <Text size="sm" c="dimmed">Please try again or contact support</Text>
-      </Flex>
-    );
-  }
-
-  const setupComplete = tenantInfo?.releaseManagement?.setupComplete;
-
-  // If setup is not complete and we're not on setup page, show loading
+  // If setup is not complete and we're not on setup page, don't render children
   // (the useEffect will handle the redirect)
-  if (tenantInfo && !setupComplete && !location.pathname.includes('/releases/setup')) {
-    return (
-      <Flex 
-        direction="column" 
-        align="center" 
-        justify="center" 
-        style={{ minHeight: '400px' }}
-        gap="md"
-      >
-        <Loader size="lg" />
-        <Text size="sm" c="dimmed">Redirecting to setup wizard...</Text>
-      </Flex>
-    );
+  if (!setupComplete && !location.pathname.includes('/releases/setup')) {
+    return null; // Let the useEffect redirect handle navigation
   }
 
   // Render child routes

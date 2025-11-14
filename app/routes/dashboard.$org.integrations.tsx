@@ -1,53 +1,28 @@
 import { useState } from 'react';
-import { json } from '@remix-run/node';
-import { useLoaderData, useParams } from '@remix-run/react';
+import { useParams, useRouteLoaderData } from '@remix-run/react';
 import { Container, Title, Text, Tabs } from '@mantine/core';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { CodepushService } from '~/.server/services/Codepush';
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import type { SCMIntegration } from '~/.server/services/Codepush/types';
-
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
-  const { org: tenantId } = params;
-
-  if (!tenantId) {
-    throw new Response('Tenant ID is required', { status: 400 });
-  }
-
-  try {
-    // Fetch tenant info to get connected integrations
-    const response = await CodepushService.getTenantInfo({
-      userId: user.user.id,
-      tenantId
-    });
-
-    const organisation = response.data.organisation;
-    const connectedIntegrations = organisation?.releaseManagement?.integrations || [];
-
-    // Get GitHub integration if connected
-    const githubIntegration = connectedIntegrations.find((i: any) => i.type === 'scm') as SCMIntegration | undefined;
-
-    return json({
-      tenantId,
-      githubIntegration: githubIntegration || null
-    });
-  } catch (error) {
-    console.error('Error loading integrations:', error);
-    return json({
-      tenantId,
-      githubIntegration: null as SCMIntegration | null
-    });
-  }
-});
+import type { OrgLayoutLoaderData } from './dashboard.$org';
 
 export default function IntegrationsPage() {
-  const loaderData = useLoaderData<typeof loader>();
-  const { tenantId, githubIntegration } = loaderData as { tenantId: string; githubIntegration: SCMIntegration | null };
+  // Get shared tenant data from parent layout (no redundant API call!)
+  const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  
+  if (!orgData) {
+    throw new Error('Organization data not loaded');
+  }
+
+  const { tenantId, organisation } = orgData;
   const params = useParams();
+
+  // Extract integrations from the shared data
+  const connectedIntegrations = organisation?.releaseManagement?.integrations || [];
+  const githubIntegration = connectedIntegrations.find((i: any) => i.type === 'scm') as SCMIntegration | undefined;
 
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
