@@ -257,8 +257,8 @@ function packageDiffTests(StorageType: new (...args: any[]) => storage.Storage):
             account = utils.makeAccount();
             return storage.addAccount(account);
           })
-          .then((userId: string) => {
-            account.id = userId;
+          .then((accountId: string) => {
+            account.id = accountId;
             app = utils.makeStorageApp();
             return storage.addApp(account.id, app);
           })

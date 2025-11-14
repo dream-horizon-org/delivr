@@ -75,8 +75,8 @@ describe("Acquisition Rest API", () => {
         account = utils.makeAccount();
         return storageInstance.addAccount(account);
       })
-      .then((userId: string) => {
-        account.id = userId;
+      .then((accountId: string) => {
+        account.id = accountId;
         app = utils.makeStorageApp();
         return storageInstance.addApp(account.id, app);
       })
@@ -673,8 +673,8 @@ describe("Acquisition Rest API", () => {
         account2 = utils.makeAccount();
         return storageInstance
           .addAccount(account2)
-          .then((userId: string) => {
-            account2.id = userId;
+          .then((accountId: string) => {
+            account2.id = accountId;
             app2 = utils.makeStorageApp();
             return storageInstance.addApp(account2.id, app2);
           })
@@ -886,8 +886,8 @@ describe("Acquisition Rest API", () => {
         account2 = utils.makeAccount();
         return storageInstance
           .addAccount(account2)
-          .then((userId: string) => {
-            account2.id = userId;
+          .then((accountId: string) => {
+            account2.id = accountId;
             app2 = utils.makeStorageApp();
             return storageInstance.addApp(account2.id, app2);
           })
@@ -1049,8 +1049,8 @@ describe("Acquisition Rest API", () => {
         account2 = utils.makeAccount();
         return storageInstance
           .addAccount(account2)
-          .then((userId: string) => {
-            account2.id = userId;
+          .then((accountId: string) => {
+            account2.id = accountId;
             app2 = utils.makeStorageApp();
             return storageInstance.addApp(account2.id, app2);
           })

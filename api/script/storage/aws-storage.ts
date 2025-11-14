@@ -60,14 +60,17 @@ export function createAccount(sequelize: Sequelize) {
       type: DataTypes.JSON, 
       allowNull: true 
     },
+    // Note: createdTime kept for backward compatibility, but createdAt/updatedAt are now primary
     createdTime: { 
       type: DataTypes.FLOAT, 
-      allowNull: false, 
+      allowNull: true,  // Made optional since we're using createdAt now
       defaultValue: () => new Date().getTime() 
     },
   }, {
     tableName: 'accounts',
-    timestamps: false  // Accounts table uses createdTime instead of createdAt/updatedAt
+    timestamps: true,  // Now uses createdAt/updatedAt (DATETIME) instead of createdTime (FLOAT)
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
   });
 }
 
@@ -82,7 +85,6 @@ export function createAccountChannel(sequelize: Sequelize) {
     accountId: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      field: 'accountId',
       references: {
         model: 'accounts',
         key: 'id',
@@ -248,7 +250,6 @@ export function createDeployment(sequelize: Sequelize) {
       packageId: {
           type: DataTypes.UUID,
           allowNull: true,
-          field: 'packageId',
           references: {
               model: sequelize.models["package"],
               key: 'id',
@@ -298,7 +299,6 @@ export function createPackage(sequelize: Sequelize) {
       deploymentId: {
         type: DataTypes.STRING,
         allowNull: true,
-        field: 'deploymentId',
         references: {
           model: sequelize.models["deployment"],
           key: 'id',
@@ -377,10 +377,6 @@ export function createModelss(sequelize: Sequelize) {
   // Tenant and Release (One Tenant can have many Releases)
   Tenant.hasMany(Release, { foreignKey: 'tenantId' });
   Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
-  
-  // App and Release (One App can have many Releases)
-  App.hasMany(Release, { foreignKey: 'appId' });
-  Release.belongsTo(App, { foreignKey: 'appId' });
   
   // Account and Release (Creator relationship)
   Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
@@ -569,10 +565,18 @@ export class S3Storage implements storage.Storage {
           Bucket: this.bucketName,
       };
 
-      // Skip S3 setup for now - continue with database only
-      console.log('⏭️  Skipping S3 setup - proceeding with database initialization only');
-      
-      return Promise.resolve()
+      return this.s3.headBucket(headBucketParams).promise()
+        .catch((err) => {
+          if (err.code === 'NotFound' || err.code === 'NoSuchBucket') {
+            console.log(`Bucket ${this.bucketName} does not exist, creating it...`);
+            return this.s3.createBucket(createBucketParams).promise();
+          } else if (err.code === 'Forbidden') {
+            console.error('Forbidden: Check your credentials and S3 endpoint');
+            throw err;
+          } else {
+            throw err;
+          }
+        })
         .then(() => {
           return this.sequelize.authenticate();
         })
