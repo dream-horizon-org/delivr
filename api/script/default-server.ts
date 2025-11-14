@@ -11,6 +11,7 @@ import { JsonStorage } from "./storage/json-storage";
 import { RedisManager } from "./redis-manager";
 import { MemcachedManager } from "./memcached-manager";
 import { Storage } from "./storage/storage";
+import { initializeStorage } from "./storage/storage-instance";
 import { Response } from "express";
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "<your-s3-bucket-name>";
 const RDS_DB_INSTANCE_IDENTIFIER = process.env.RDS_DB_INSTANCE_IDENTIFIER || "<your-rds-instance>";
@@ -56,6 +57,10 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       } else {
         storage = new JsonStorage();
       }
+      
+      // Initialize storage singleton for global access
+      initializeStorage(storage);
+      console.log('[Storage] Storage singleton initialized');
     })
     .then(() => {
       const app = express();
@@ -168,7 +173,12 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
         } else {
           app.use(auth.router());
         }
+        
+        // DOTA Management Routes (deployments, apps, packages)
         app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+        
+        // Release Management Routes (releases, builds, integrations)
+        app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
       } else {
         app.use(auth.router());
       }

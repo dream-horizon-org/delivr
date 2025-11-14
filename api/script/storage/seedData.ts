@@ -65,8 +65,8 @@ const seedData = {
     { id: "id_4", name: "Independent App", accountId: "id_0", createdTime: new Date().getTime() }, // App without a tenant association
   ],
   collaborators: [
-    { email: "user1@example.com", accountId: "id_0", appId: "id_2", permission: "Owner", role: "Admin" },
-    { email: "user2@example.com", accountId: "id_1", appId: "id_3", permission: "Owner", role: "Admin" },
+    { email: "user1@example.com", accountId: "id_0", appId: "id_2", permission: "Owner", isCreator: false },
+    { email: "user2@example.com", accountId: "id_1", appId: "id_3", permission: "Owner", isCreator: false },
   ],
   deployments: [
     {
@@ -165,7 +165,7 @@ const seedData = {
       createdTime: new Date().getTime(),
       friendlyName: "Default Access Key",
       expires: 1735689600000,
-      scope: "all",
+      scope: "All",  // Fixed: Must match ENUM value 'All' (capital A)
     },
   ],
 };
