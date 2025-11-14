@@ -140,6 +140,16 @@ export function requireEditor(config: TenantPermissionConfig) {
  * Middleware: Require Owner permission
  * User must be organization owner
  */
+export const allowAll = (config: TenantPermissionConfig) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    next();
+  };
+};
+
+/**
+ * Middleware: Require Owner permission
+ * User must be organization owner
+ */
 export function requireOwner(config: TenantPermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
