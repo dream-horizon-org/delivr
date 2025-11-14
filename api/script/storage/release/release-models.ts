@@ -382,7 +382,7 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(UpdateType)),
       defaultValue: UpdateType.OPTIONAL
     },
-    createdByAccountId: {
+    createdBy: {
       type: DataTypes.STRING(255),
       allowNull: true,
       references: {
@@ -398,7 +398,7 @@ export function createReleaseModel(sequelize: Sequelize) {
         key: 'id'
       }
     },
-    releasePilotAccountId: {
+    releasePilotId: {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
@@ -406,7 +406,7 @@ export function createReleaseModel(sequelize: Sequelize) {
         key: 'id'
       }
     },
-    lastUpdateByAccountId: {
+    lastUpdatedBy: {
       type: DataTypes.STRING(255),
       allowNull: false,
       references: {
@@ -481,9 +481,9 @@ export function createReleaseModel(sequelize: Sequelize) {
       { fields: ['tenantId'] },
       { fields: ['tenantId', 'createdAt'] },
       { fields: ['tenantId', 'status', 'plannedDate'] },
-      { fields: ['releasePilotAccountId', 'status'] },
+      { fields: ['releasePilotId', 'status'] },
       { fields: ['releaseKey'], unique: true },
-      { fields: ['lastUpdateByAccountId'] },
+      { fields: ['lastUpdatedBy'] },
       { fields: ['parentId'] }
     ]
   });
@@ -1389,9 +1389,9 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // Release associations
   models.Release.belongsTo(sequelize.models.tenants, { foreignKey: 'tenantId', as: 'tenant' });
-  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'createdByAccountId', as: 'creator' });
-  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'releasePilotAccountId', as: 'releasePilot' });
-  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'lastUpdateByAccountId', as: 'lastUpdater' });
+  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'createdBy', as: 'creator' });
+  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'releasePilotId', as: 'releasePilot' });
+  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
   models.Release.belongsTo(models.Release, { foreignKey: 'parentId', as: 'parent' });
   models.Release.hasMany(models.Release, { foreignKey: 'parentId', as: 'hotfixes' });
   
