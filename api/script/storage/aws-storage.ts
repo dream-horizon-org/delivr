@@ -413,7 +413,7 @@ export function createModelss(sequelize: Sequelize) {
   Deployment.belongsTo(Package, { foreignKey: 'packageId', as: 'packageDetails' });
 
   // Collaborator associations (Collaborators belong to both Account and App)
-  Collaborator.belongsTo(Account, { foreignKey: 'accountId' });
+  Collaborator.belongsTo(Account, { foreignKey: 'accountId', targetKey: 'id' });
   Collaborator.belongsTo(App, { foreignKey: 'appId' });
 
   // SCM Integration associations

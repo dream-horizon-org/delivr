@@ -104,7 +104,8 @@ export async function getUserAppPermission(
     }
     
     // Check if user is app creator (can delete)
-    if (app.dataValues.userId === userId) {
+    // Note: DB column is accountId, but parameter is userId (from req.user.id)
+    if (app.dataValues.accountId === userId) {
       return {
         permission: 'Owner',
         isCreator: true,
