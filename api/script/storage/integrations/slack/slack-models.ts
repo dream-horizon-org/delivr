@@ -56,7 +56,7 @@ export function createSlackIntegrationModel(sequelize: Sequelize) {
       // FOREIGN KEY - TENANT
       // ========================================================================
       tenantId: {
-        type: DataTypes.CHAR(36),
+        type: DataTypes.UUID,
         allowNull: false,
         references: {
           model: 'tenants',

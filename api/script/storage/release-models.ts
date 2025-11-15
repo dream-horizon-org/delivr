@@ -27,7 +27,7 @@ export function createRelease(sequelize: Sequelize) {
     
     // Multi-tenancy (NEW - not in Delivr)
     tenantId: {
-      type: DataTypes.CHAR(36),
+      type: DataTypes.UUID,
       allowNull: false,
       field: 'tenant_id',
       references: {
