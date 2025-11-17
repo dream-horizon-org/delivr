@@ -53,3 +53,5 @@ __queuestorage__
 
 # VS Code settings
 .vscode/
+
+./docs*.md
