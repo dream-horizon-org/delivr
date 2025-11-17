@@ -106,8 +106,9 @@ export class SlackIntegrationController {
    */
   async findByTenant(
     tenantId: string,
-    communicationType: CommunicationType = CommunicationType.SLACK
-  ): Promise<SafeSlackIntegration | null> {
+    communicationType: CommunicationType = CommunicationType.SLACK,
+    includeToken: boolean = false
+  ): Promise<TenantCommunicationIntegration | SafeSlackIntegration | null> {
     const integration = await this.model.findOne({
       where: { 
         tenantId, 
@@ -117,7 +118,9 @@ export class SlackIntegrationController {
     });
 
     if (!integration) return null;
-    return this.toSafeObject(integration.toJSON());
+    
+    const data = integration.toJSON();
+    return includeToken ? data : this.toSafeObject(data);
   }
 
   /**

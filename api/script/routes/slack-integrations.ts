@@ -65,6 +65,14 @@ export function createSlackIntegrationRoutes(storage: Storage): Router {
     slackControllers.deleteSlackIntegration
   );
 
+  // ============================================================================
+  // SEND Message to Slack
+  // ============================================================================
+  router.post(
+    "/tenants/:tenantId/integrations/slack/send-message",
+    tenantPermissions.requireOwner({ storage }),
+    slackControllers.sendSlackMessage
+  );
 
   return router;
 }
