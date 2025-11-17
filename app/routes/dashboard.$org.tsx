@@ -32,6 +32,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
     const organisation = response.data.organisation;
 
+    // 🔧 HARDCODED: Override setupComplete to always be true for development
+    if (organisation?.releaseManagement) {
+      organisation.releaseManagement.setupComplete = true;
+    }
+
     // Return with no-cache headers to ensure fresh data
     return json({
       tenantId,

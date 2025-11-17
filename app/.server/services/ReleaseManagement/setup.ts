@@ -155,8 +155,25 @@ mockSetupData.set('dream11-org', {
 
 /**
  * Check if setup is complete for a tenant
+ * 
+ * 🔧 HARDCODED: Setup is always marked as complete for development/testing
  */
 export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
+  // 🚀 HARDCODED: Always return setup as complete
+  return {
+    isComplete: true,
+    completedSteps: {
+      github: true,
+      targets: true,
+      platformCredentials: true,
+      cicd: true,
+      slack: true,
+    },
+    completedAt: new Date().toISOString(),
+    lastUpdatedAt: new Date().toISOString(),
+  };
+  
+  /* ORIGINAL LOGIC - COMMENTED OUT FOR TESTING
   const setupData = mockSetupData.get(tenantId);
   
   if (!setupData) {
@@ -193,6 +210,7 @@ export async function getSetupStatus(tenantId: string): Promise<SetupStatus> {
     completedAt: isComplete ? new Date().toISOString() : undefined,
     lastUpdatedAt: new Date().toISOString(),
   };
+  */
 }
 
 /**
