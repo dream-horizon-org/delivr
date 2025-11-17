@@ -1,45 +1,78 @@
-// Integration types
-export type IntegrationType = 'scm' | 'targetPlatform' | 'pipeline' | 'communication';
+// ============================================================================
+// Integration Type Constants (Re-exported from shared constants)
+// ============================================================================
+
+import {
+  INTEGRATION_TYPES,
+  SCM_TYPES,
+  TARGET_PLATFORM_TYPES,
+  PIPELINE_TYPES,
+  COMMUNICATION_TYPES,
+  VERIFICATION_STATUS,
+} from '~/constants/integrations';
+
+// Re-export for backward compatibility
+export {
+  INTEGRATION_TYPES,
+  SCM_TYPES,
+  TARGET_PLATFORM_TYPES,
+  PIPELINE_TYPES,
+  COMMUNICATION_TYPES,
+  VERIFICATION_STATUS,
+};
+
+export type {
+  IntegrationType,
+  SCMType,
+  TargetPlatformType,
+  PipelineType,
+  CommunicationType,
+  VerificationStatusType,
+} from '~/constants/integrations';
+
+// ============================================================================
+// Integration Type Definitions
+// ============================================================================
 
 export type SCMIntegration = {
-  type: 'scm';
+  type: typeof INTEGRATION_TYPES.SCM;
   id: string;
-  scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  scmType: (typeof SCM_TYPES)[keyof typeof SCM_TYPES];
   displayName: string;
   owner: string;
   repo: string;
   repositoryUrl: string;
   defaultBranch: string;
   isActive: boolean;
-  verificationStatus: 'PENDING' | 'VALID' | 'INVALID' | 'EXPIRED';
+  verificationStatus: (typeof VERIFICATION_STATUS)[keyof typeof VERIFICATION_STATUS];
   lastVerifiedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
 
 export type TargetPlatformIntegration = {
-  type: 'targetPlatform';
+  type: typeof INTEGRATION_TYPES.TARGET_PLATFORM;
   id: string;
-  platform: 'APP_STORE' | 'PLAY_STORE';
+  platform: (typeof TARGET_PLATFORM_TYPES)[keyof typeof TARGET_PLATFORM_TYPES];
   displayName: string;
   isActive: boolean;
-  verificationStatus: 'PENDING' | 'VALID' | 'INVALID' | 'EXPIRED';
+  verificationStatus: (typeof VERIFICATION_STATUS)[keyof typeof VERIFICATION_STATUS];
   // TODO: Add more fields when implemented
 };
 
 export type PipelineIntegration = {
-  type: 'pipeline';
+  type: typeof INTEGRATION_TYPES.PIPELINE;
   id: string;
-  pipelineType: 'GITHUB_ACTIONS' | 'JENKINS';
+  pipelineType: (typeof PIPELINE_TYPES)[keyof typeof PIPELINE_TYPES];
   displayName: string;
   isActive: boolean;
   // TODO: Add more fields when implemented
 };
 
 export type CommunicationIntegration = {
-  type: 'communication';
+  type: typeof INTEGRATION_TYPES.COMMUNICATION;
   id: string;
-  communicationType: 'SLACK' | 'TEAMS' | 'EMAIL';
+  communicationType: (typeof COMMUNICATION_TYPES)[keyof typeof COMMUNICATION_TYPES];
   displayName: string;
   isActive: boolean;
   // TODO: Add more fields when implemented
@@ -57,14 +90,16 @@ export type Organization = {
   role: "Owner" | "Collaborator";
   releaseManagement?: {
     setupComplete: boolean;
-    setupSteps: {
-      scmIntegration: boolean;
-      targetPlatforms: boolean;
-      pipelines: boolean;
-      communication: boolean;
-    };
+    setupSteps: SetupStepsInfo
     integrations: Integration[];  // Array of all integration objects
   };
+};
+
+export type SetupStepsInfo = {
+  scmIntegration?: boolean;
+  targetPlatforms: boolean;
+  pipelines?: boolean;
+  communication?: boolean;
 };
 
 // Base types for terms-related entities

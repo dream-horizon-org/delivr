@@ -2,22 +2,45 @@
  * Types for Setup Wizard components
  */
 
-export type SetupStep = 
-  | 'github'
-  | 'targets'
-  | 'platform-credentials'
-  | 'cicd'
-  | 'slack'
-  | 'review';
+/**
+ * Top-level setup buckets
+ * Each bucket represents a major category of setup
+ */
+export type SetupBucket = 
+  | 'scm'              // Source Control Management (GitHub, GitLab, etc.)
+  | 'distribution'     // Distribution Platforms (App Store, Play Store)
+  | 'cicd'             // CI/CD Pipelines (GitHub Actions, Jenkins)
+  | 'communication'    // Communication Channels (Slack, Discord, etc.)
+  | 'review';          // Final review step
 
-export interface WizardStepConfig {
-  id: SetupStep;
+/**
+ * Bucket configuration
+ * Defines the structure and state of each setup bucket
+ */
+export interface SetupBucketConfig {
+  id: SetupBucket;
   title: string;
   description: string;
   isRequired: boolean;
   isComplete: boolean;
   canSkip: boolean;
+  /** Optional icon or visual identifier */
+  icon?: string;
+  /** Integration type this bucket manages (if applicable) */
+  integrationType?: 'scm' | 'targetPlatform' | 'pipeline' | 'communication';
 }
+
+/**
+ * Legacy type alias for backward compatibility
+ * @deprecated Use SetupBucket instead
+ */
+export type SetupStep = SetupBucket;
+
+/**
+ * Legacy interface for backward compatibility
+ * @deprecated Use SetupBucketConfig instead
+ */
+export interface WizardStepConfig extends SetupBucketConfig {}
 
 export interface GitHubConnection {
   scmType?: 'GITHUB' | 'GITLAB' | 'BITBUCKET';

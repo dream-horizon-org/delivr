@@ -1,144 +1,269 @@
 /**
  * Custom hook for managing Setup Wizard state and navigation
+ * 
+ * Bucket-based architecture:
+ * - Top-level buckets represent major setup categories (SCM, Distribution, CI/CD, Communication)
+ * - Each bucket manages its own internal steps
+ * - OnboardingFlow only tracks bucket-level completion
+ * - Integrations data from tenant info determines bucket state
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import type { SetupStep, WizardStepConfig, SetupWizardData } from '../types';
+import type { SetupBucket, SetupBucketConfig, SetupWizardData } from '../types';
+import { 
+  SetupStepsInfo, 
+  Integration,
+} from '~/.server/services/Codepush/types';
+import {
+  type IntegrationType,
+  INTEGRATION_TYPES,
+  VERIFICATION_STATUS
+} from '~/constants/integrations';
 
 interface UseSetupWizardProps {
   initialData?: SetupWizardData;
-  hasSCMIntegration?: boolean; // Flag to indicate SCM is already configured
   onComplete?: (data: SetupWizardData) => void;
+  setupStepsInfo?: SetupStepsInfo;
+  integrations?: Integration[]; // Current integrations from tenant info
 }
 
-export function useSetupWizard({ initialData, hasSCMIntegration = false, onComplete }: UseSetupWizardProps = {}) {
-  // Determine initial step: skip GitHub if SCM integration exists
-  const initialStep = hasSCMIntegration ? 'targets' : 'github';
-  const [currentStep, setCurrentStep] = useState<SetupStep>(initialStep);
+
+/**
+ * Utility: Check if integrations of a specific type exist and are valid
+ */
+function hasValidIntegration(integrations: Integration[] | undefined, type: IntegrationType): boolean {
+  console.log('integrations', integrations);
+  console.log('type', type);
+  if (!integrations) return false;
+  return integrations.some(integration => {
+    // Must match type and be active
+    if (integration.type !== type) {
+      return false;
+    }
+    
+    // Check isActive flag (required for all integrations)
+    if ('isActive' in integration && !integration.isActive) {
+      return false;
+    }
+    
+    // Check verification status for integrations that have it (SCM, Slack)
+    if ('verificationStatus' in integration) {
+      // Accept both 'VALID' (correct) and 'PENDING' (for backward compatibility)
+      // Backend should always set to 'VALID' after save, but we handle 'PENDING' gracefully
+      return integration.verificationStatus === VERIFICATION_STATUS.VALID || 
+             integration.verificationStatus === VERIFICATION_STATUS.PENDING;
+    }
+    
+    // For integrations without verificationStatus (pipeline, communication without it)
+    // Just having the integration with isActive=true is enough
+    return true;
+  });
+}
+
+/**
+ * Utility: Get all integrations of a specific type
+ */
+function getIntegrationsByType(integrations: Integration[] | undefined, type: IntegrationType): Integration[] {
+  if (!integrations) return [];
+  return integrations.filter(integration => integration.type === type);
+}
+
+/**
+ * Determines the initial bucket based on which setup steps are already completed
+ */
+function determineInitialBucket(setupSteps?: SetupStepsInfo, integrations?: Integration[]): SetupBucket {
+  if (!setupSteps) {
+    return 'scm';
+  }
+
+  // Start from the first incomplete bucket
+  // Only check for implemented integrations: SCM (GitHub) and Communication (Slack)
+  
+  if (!setupSteps.scmIntegration || !hasValidIntegration(integrations, 'scm')) {
+    return 'scm';
+  }
+  
+  // TODO: Uncomment when distribution platforms are implemented
+  // if (!setupSteps.targetPlatforms || !hasValidIntegration(integrations, 'targetPlatform')) {
+  //   return 'distribution';
+  // }
+  
+  // TODO: Uncomment when CI/CD pipelines are implemented
+  // if (!setupSteps.pipelines) {
+  //   return 'cicd';
+  // }
+  
+  if (!setupSteps.communication || !hasValidIntegration(integrations, INTEGRATION_TYPES.COMMUNICATION)) {
+    return 'communication';
+  }
+  
+  // All steps complete, go to review
+  return 'review';
+}
+
+export function useSetupWizard({ setupStepsInfo, initialData, integrations, onComplete }: UseSetupWizardProps) {
+  // Determine initial bucket based on completed setup steps
+  const initialBucket = determineInitialBucket(setupStepsInfo, integrations);
+  const [currentBucket, setCurrentBucket] = useState<SetupBucket>(initialBucket);
   const [wizardData, setWizardData] = useState<SetupWizardData>(initialData || {});
+
   
-  // Define all steps with their config
-  const steps: WizardStepConfig[] = useMemo(() => [
-    {
-      id: 'github',
-      title: 'Connect GitHub',
-      description: 'Connect your GitHub repository',
-      isRequired: true,
-      // Mark as complete if SCM integration exists OR if verified through wizard
-      isComplete: hasSCMIntegration || !!wizardData.github?.isVerified,
-      canSkip: hasSCMIntegration, // Allow skipping if already configured
-    },
-    {
-      id: 'targets',
-      title: 'Select Targets',
-      description: 'Choose deployment platforms',
-      isRequired: true,
-      isComplete: !!(wizardData.targets?.appStore || wizardData.targets?.playStore),
-      canSkip: false,
-    },
-    {
-      id: 'platform-credentials',
-      title: 'Platform Credentials',
-      description: 'Configure App Store & Play Store',
-      isRequired: true,
-      isComplete: validatePlatformCredentials(wizardData),
-      canSkip: false,
-    },
-    {
-      id: 'cicd',
-      title: 'CI/CD Setup',
-      description: 'Connect build pipelines (optional)',
-      isRequired: false,
-      isComplete: !!(wizardData.cicdPipelines && wizardData.cicdPipelines.length > 0),
-      canSkip: true,
-    },
-    {
-      id: 'slack',
-      title: 'Slack Integration',
-      description: 'Connect Slack for notifications (optional)',
-      isRequired: false,
-      isComplete: !!wizardData.slack?.isVerified,
-      canSkip: true,
-    },
-    {
-      id: 'review',
-      title: 'Review & Complete',
-      description: 'Review your configuration',
-      isRequired: true,
-      isComplete: false,
-      canSkip: false,
-    },
-  ], [wizardData, hasSCMIntegration]);
   
-  const currentStepIndex = steps.findIndex(s => s.id === currentStep);
-  const currentStepConfig = steps[currentStepIndex];
+  // Define all buckets with their config
+  // Currently only SCM (GitHub) and Communication (Slack) are implemented
+  const buckets: SetupBucketConfig[] = useMemo(() => {
+    return [
+      // 1. Source Control Management (GitHub) - IMPLEMENTED
+      {
+        id: 'scm',
+        title: 'Connect Source Control',
+        description: 'Connect your GitHub repository',
+        isRequired: true,
+        isComplete: hasValidIntegration(integrations, INTEGRATION_TYPES.SCM),
+        canSkip: false,
+        integrationType: INTEGRATION_TYPES.SCM,
+        icon: '📦',
+      },
+      
+      // 2. Distribution Platforms - NOT YET IMPLEMENTED
+      // TODO: Uncomment when App Store and Play Store integration is ready
+      // {
+      //   id: 'distribution',
+      //   title: 'Distribution Platforms',
+      //   description: 'Connect App Store and Play Store for distribution',
+      //   isRequired: true,
+      //   isComplete: hasValidIntegration(integrations, INTEGRATION_TYPES.TARGET_PLATFORM),
+      //   canSkip: false,
+      //   integrationType: INTEGRATION_TYPES.TARGET_PLATFORM,
+      //   icon: '🚀',
+      // },
+      
+      // 3. CI/CD Pipelines - NOT YET IMPLEMENTED
+      // TODO: Uncomment when CI/CD pipeline integration is ready
+      // {
+      //   id: 'cicd',
+      //   title: 'CI/CD Pipelines',
+      //   description: 'Connect build pipelines (optional)',
+      //   isRequired: false,
+      //   isComplete: hasValidIntegration(integrations, INTEGRATION_TYPES.PIPELINE),
+      //   canSkip: true,
+      //   integrationType: INTEGRATION_TYPES.PIPELINE,
+      //   icon: '⚙️',
+      // },
+      
+      // 4. Communication Channels (Slack) - IMPLEMENTED
+      {
+        id: 'communication',
+        title: 'Communication Channels',
+        description: 'Connect Slack for release notifications (optional)',
+        isRequired: false,
+        isComplete: hasValidIntegration(integrations, INTEGRATION_TYPES.COMMUNICATION),
+        canSkip: true,
+        integrationType: INTEGRATION_TYPES.COMMUNICATION,
+        icon: '💬',
+      },
+      
+      // 5. Review & Complete
+      {
+        id: 'review',
+        title: 'Review & Complete',
+        description: 'Review your configuration and complete setup',
+        isRequired: true,
+        isComplete: false,
+        canSkip: false,
+        icon: '✅',
+      },
+    ];
+  }, [integrations]);
   
-  // Check if setup is complete (all required steps done)
+  const currentBucketIndex = buckets.findIndex(b => b.id === currentBucket);
+  const currentBucketConfig = buckets[currentBucketIndex];
+  
+  // Check if setup is complete (all required buckets done)
   const isSetupComplete = useMemo(() => {
-    return steps
-      .filter(s => s.isRequired)
-      .every(s => s.isComplete || s.id === 'review');
-  }, [steps]);
+    return buckets
+      .filter(b => b.isRequired)
+      .every(b => b.isComplete || b.id === 'review');
+  }, [buckets]);
   
   // Navigation functions
-  const goToNextStep = useCallback(() => {
-    if (currentStepIndex < steps.length - 1) {
-      setCurrentStep(steps[currentStepIndex + 1].id);
+  const goToNextBucket = useCallback(() => {
+    if (currentBucketIndex < buckets.length - 1) {
+      setCurrentBucket(buckets[currentBucketIndex + 1].id);
     } else if (isSetupComplete && onComplete) {
       onComplete(wizardData);
     }
-  }, [currentStepIndex, steps, isSetupComplete, wizardData, onComplete]);
+  }, [currentBucketIndex, buckets, isSetupComplete, wizardData, onComplete]);
   
-  const goToPreviousStep = useCallback(() => {
-    if (currentStepIndex > 0) {
-      setCurrentStep(steps[currentStepIndex - 1].id);
+  const goToPreviousBucket = useCallback(() => {
+    if (currentBucketIndex > 0) {
+      setCurrentBucket(buckets[currentBucketIndex - 1].id);
     }
-  }, [currentStepIndex, steps]);
+  }, [currentBucketIndex, buckets]);
   
-  const goToStep = useCallback((stepId: SetupStep) => {
-    setCurrentStep(stepId);
+  const goToBucket = useCallback((bucketId: SetupBucket) => {
+    setCurrentBucket(bucketId);
   }, []);
+  console.log('currentBucketConfig', currentBucketConfig);
   
-  const canGoToNextStep = currentStepConfig?.isComplete || currentStepConfig?.canSkip;
-  const canGoToPreviousStep = currentStepIndex > 0;
-  const isLastStep = currentStepIndex === steps.length - 1;
+  // Special case for review step: can proceed if all required steps are complete
+  const canGoToNextBucket = currentBucketConfig?.id === 'review' 
+    ? isSetupComplete 
+    : (currentBucketConfig?.isComplete || currentBucketConfig?.canSkip || false);
+  
+  const canGoToPreviousBucket = currentBucketIndex > 0;
+  const isLastBucket = currentBucketIndex === buckets.length - 1;
   
   // Update wizard data
   const updateWizardData = useCallback((updates: Partial<SetupWizardData>) => {
     setWizardData(prev => ({ ...prev, ...updates }));
   }, []);
+
+  // Get integrations for the current bucket
+  const getCurrentBucketIntegrations = useCallback(() => {
+    if (!currentBucketConfig?.integrationType) return [];
+    return getIntegrationsByType(integrations, currentBucketConfig.integrationType);
+  }, [currentBucketConfig, integrations]);
   
   return {
     // State
-    currentStep,
-    currentStepConfig,
-    currentStepIndex,
-    steps,
+    currentBucket,
+    currentBucketConfig,
+    currentBucketIndex,
+    buckets,
     wizardData,
     isSetupComplete,
+    integrations: integrations || [],
     
     // Navigation
-    goToNextStep,
-    goToPreviousStep,
-    goToStep,
-    canGoToNextStep,
-    canGoToPreviousStep,
-    isLastStep,
+    goToNextBucket,
+    goToPreviousBucket,
+    goToBucket,
+    canGoToNextBucket,
+    canGoToPreviousBucket,
+    isLastBucket,
     
     // Data management
     updateWizardData,
+    getCurrentBucketIntegrations,
+    
+    // Legacy aliases for backward compatibility
+    currentStep: currentBucket,
+    currentStepConfig: currentBucketConfig,
+    currentStepIndex: currentBucketIndex,
+    steps: buckets,
+    goToNextStep: goToNextBucket,
+    goToPreviousStep: goToPreviousBucket,
+    goToStep: goToBucket,
+    canGoToNextStep: canGoToNextBucket,
+    canGoToPreviousStep: canGoToPreviousBucket,
+    isLastStep: isLastBucket,
   };
 }
 
-// Helper to validate platform credentials
-function validatePlatformCredentials(data: SetupWizardData): boolean {
-  const { targets, appStoreConnect, playStoreConnect } = data;
-  
-  if (!targets) return false;
-  
-  if (targets.appStore && !appStoreConnect?.isVerified) return false;
-  if (targets.playStore && !playStoreConnect?.isVerified) return false;
-  
-  return true;
-}
+
+/**
+ * Export utility functions for external use
+ */
+export { hasValidIntegration, getIntegrationsByType, determineInitialBucket };
 

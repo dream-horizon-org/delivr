@@ -18,7 +18,7 @@ export enum ActionMethods {
 
 type AuthenticatedRequestArgs<T> = T & { user: User };
 
-type AuthenticatedLoaderFunction = (
+export type AuthenticatedLoaderFunction = (
   args: AuthenticatedRequestArgs<LoaderFunctionArgs>
 ) => ReturnType<LoaderFunction>;
 

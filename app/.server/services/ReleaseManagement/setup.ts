@@ -3,7 +3,7 @@
  * Handles tenant setup for Release Management features
  */
 
-import type { TenantIntegration } from './types';
+import type { TenantIntegration } from './integrations/types';
 
 // Setup status for a tenant
 export interface SetupStatus {

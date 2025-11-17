@@ -1,175 +1,113 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouteLoaderData } from '@remix-run/react';
-import { Container, Title, Text, Tabs } from '@mantine/core';
+import { Container, Title, Text, Tabs, Loader as MantineLoader } from '@mantine/core';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
-import type { SCMIntegration } from '~/.server/services/Codepush/types';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
+import { INTEGRATION_TYPES } from '~/constants/integrations';
 
 export default function IntegrationsPage() {
   // Get shared tenant data from parent layout (no redundant API call!)
   const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
-  
-  if (!orgData) {
-    throw new Error('Organization data not loaded');
-  }
-
-  const { tenantId, organisation } = orgData;
   const params = useParams();
 
-  // Extract integrations from the shared data
-  const connectedIntegrations = organisation?.releaseManagement?.integrations || [];
-  const githubIntegration = connectedIntegrations.find((i: any) => i.type === 'scm') as SCMIntegration | undefined;
-
+  const [allIntegrations, setAllIntegrations] = useState<Integration[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
   const [detailModalOpened, setDetailModalOpened] = useState(false);
   const [connectModalOpened, setConnectModalOpened] = useState(false);
 
-  // Define all available integrations
-  const allIntegrations: Integration[] = [
-    // Source Control
-    {
-      id: 'github',
-      name: 'GitHub',
-      description: 'Connect your GitHub repository to manage releases, trigger workflows, and automate deployments.',
-      category: IntegrationCategory.SOURCE_CONTROL,
-      icon: '🐙',
-      status: githubIntegration ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
-      isAvailable: true,
-      config: githubIntegration ? {
-        owner: githubIntegration.owner,
-        repo: githubIntegration.repo,
-        repositoryUrl: `https://github.com/${githubIntegration.owner}/${githubIntegration.repo}`,
-        defaultBranch: githubIntegration.defaultBranch || 'main'
-      } : undefined,
-      connectedAt: githubIntegration ? new Date(githubIntegration.createdAt) : undefined,
-      connectedBy: githubIntegration ? 'Current User' : undefined
-    },
-    {
-      id: 'gitlab',
-      name: 'GitLab',
-      description: 'Integrate with GitLab for CI/CD pipelines and release management.',
-      category: IntegrationCategory.SOURCE_CONTROL,
-      icon: '🦊',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'bitbucket',
-      name: 'Bitbucket',
-      description: 'Connect Bitbucket repositories for code management and deployments.',
-      category: IntegrationCategory.SOURCE_CONTROL,
-      icon: '🪣',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
+  console.log('orgData', orgData);
+  console.log("allIntegrations", allIntegrations);
 
-    // Communication
-    {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Send release notifications and updates to your Slack workspace.',
-      category: IntegrationCategory.COMMUNICATION,
-      icon: '💬',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'teams',
-      name: 'Microsoft Teams',
-      description: 'Get notified about releases in Microsoft Teams channels.',
-      category: IntegrationCategory.COMMUNICATION,
-      icon: '👥',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'discord',
-      name: 'Discord',
-      description: 'Receive release updates in your Discord server.',
-      category: IntegrationCategory.COMMUNICATION,
-      icon: '🎮',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
+  useEffect(() => {
+    const fetchIntegrations = async () => {
+      try {
+        // Fetch system-wide available integrations
+        const response = await fetch('/api/v1/integrations/available');
+        const data = await response.json();
+        
+        if (!orgData) {
+          // If no org data, just show available integrations
+          setAllIntegrations(data.integrations);
+          setIsLoading(false);
+          return;
+        }
 
-    // CI/CD
-    {
-      id: 'jenkins',
-      name: 'Jenkins',
-      description: 'Trigger Jenkins builds and track deployment pipelines.',
-      category: IntegrationCategory.CI_CD,
-      icon: '🔨',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'circleci',
-      name: 'CircleCI',
-      description: 'Integrate with CircleCI for continuous integration and deployment.',
-      category: IntegrationCategory.CI_CD,
-      icon: '⭕',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
+        // Extract tenant-specific connected integrations
+        const connectedIntegrations = orgData.organisation?.releaseManagement?.integrations || [];
+        const githubIntegration = connectedIntegrations.find((i: any) => i.type === INTEGRATION_TYPES.SCM) as any;
+        const slackIntegration = connectedIntegrations.find(
+          (i: any) => i.type === 'communication' && i.communicationType === 'SLACK'
+        ) as any;
+        
+        // Merge: Update connection status for tenant-connected integrations
+        const integrationsWithStatus = data.integrations.map((integration: Integration) => {
+          // Check if GitHub is connected for this tenant
+          if (integration.id === 'github' && githubIntegration) {
+            return {
+              ...integration,
+              status: IntegrationStatus.CONNECTED,
+              config: {
+                owner: githubIntegration.owner,
+                repo: githubIntegration.repo,
+                repositoryUrl: `https://github.com/${githubIntegration.owner}/${githubIntegration.repo}`,
+                defaultBranch: githubIntegration.defaultBranch || 'main'
+              },
+              connectedAt: new Date(githubIntegration.createdAt),
+              connectedBy: 'Current User'
+            };
+          }
+          
+          // Check if Slack is connected for this tenant
+          if (integration.id === 'slack' && slackIntegration) {
+            return {
+              ...integration,
+              status: IntegrationStatus.CONNECTED,
+              config: {
+                workspaceName: slackIntegration.workspaceName,
+                workspaceId: slackIntegration.workspaceId,
+                botUserId: slackIntegration.botUserId,
+                channels: slackIntegration.slackChannels || [],
+                channelsCount: slackIntegration.channelsCount || 0,
+                verificationStatus: slackIntegration.verificationStatus,
+                hasValidToken: slackIntegration.hasValidToken
+              },
+              connectedAt: new Date(slackIntegration.createdAt),
+              connectedBy: 'Current User'
+            };
+          }
+          
+          return integration;
+        });
 
-    // Cloud Platforms
-    {
-      id: 'aws',
-      name: 'AWS',
-      description: 'Deploy and manage releases on Amazon Web Services.',
-      category: IntegrationCategory.CLOUD_PLATFORMS,
-      icon: '☁️',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
-    },
-    {
-      id: 'gcp',
-      name: 'Google Cloud',
-      description: 'Integrate with Google Cloud Platform for deployments.',
-      category: IntegrationCategory.CLOUD_PLATFORMS,
-      icon: '🌐',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
-    },
-    {
-      id: 'azure',
-      name: 'Microsoft Azure',
-      description: 'Connect to Azure for cloud deployments and services.',
-      category: IntegrationCategory.CLOUD_PLATFORMS,
-      icon: '🔷',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
-    },
+        setAllIntegrations(integrationsWithStatus);
+      } catch (error) {
+        console.error('Failed to fetch integrations:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // Monitoring
-    {
-      id: 'sentry',
-      name: 'Sentry',
-      description: 'Track errors and performance issues in your releases.',
-      category: IntegrationCategory.MONITORING,
-      icon: '🔍',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'datadog',
-      name: 'Datadog',
-      description: 'Monitor application performance and metrics.',
-      category: IntegrationCategory.MONITORING,
-      icon: '📊',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
-    }
-  ];
+    fetchIntegrations();
+  }, [orgData]);
+
+  if (!orgData || isLoading) {
+    return (
+      <Container size="xl" className="py-8">
+        <div className="flex justify-center items-center min-h-[400px]">
+          <MantineLoader size="lg" />
+        </div>
+      </Container>
+    );
+  }
+
+
+  const { tenantId } = orgData;
 
   // Group integrations by category
   const integrationsByCategory = allIntegrations.reduce((acc, integration) => {
@@ -182,27 +120,32 @@ export default function IntegrationsPage() {
 
   const handleCardClick = (integration: Integration) => {
     if (integration.status === IntegrationStatus.CONNECTED) {
-      // Show details modal
+      // Show details modal with actual integration data (no hardcoded features/permissions)
       const details: IntegrationDetails = {
         ...integration,
-        features: getFeatures(integration.id),
-        permissions: getPermissions(integration.id),
         lastSyncedAt: new Date(),
-        webhookUrl: integration.id === 'github' ? `https://delivr.yourdomain.com/api/github-webhooks/${tenantId}` : undefined,
+        // GitHub-specific webhook info (when implemented)
+        webhookUrl: integration.id === 'github' 
+          ? `https://delivr.yourdomain.com/api/github-webhooks/${tenantId}` 
+          : undefined,
         webhookStatus: integration.id === 'github' ? 'active' : undefined
       };
       setSelectedIntegration(details);
       setDetailModalOpened(true);
     } else {
-      // Show connect modal
+      // Show connect modal (handles all integration types)
       setConnectingIntegration(integration);
       setConnectModalOpened(true);
     }
   };
 
-  const handleConnect = (integrationId: string) => {
+  const handleConnect = (integrationId: string, data?: any) => {
     if (integrationId === 'github') {
-      // Navigate to GitHub setup
+      // Navigate to GitHub setup in release management wizard
+      window.location.href = `/dashboard/${params.org}/releases/setup`;
+    } else if (integrationId === 'slack') {
+      // Navigate to Slack setup in release management wizard
+      console.log('[Slack] Navigating to setup wizard for Slack integration');
       window.location.href = `/dashboard/${params.org}/releases/setup`;
     } else {
       // For other integrations, show success message (demo)
@@ -210,40 +153,34 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleDisconnect = (integrationId: string) => {
-    // For now, just show an alert
-    alert(`Disconnecting ${integrationId}...`);
-    // TODO: Implement actual disconnect logic
-  };
-
-  const getFeatures = (integrationId: string): string[] => {
-    const features: Record<string, string[]> = {
-      github: [
-        'Branch Management',
-        'Workflow Triggers',
-        'Release Notes',
-        'Tag Management',
-        'Webhooks'
-      ],
-      slack: ['Real-time Notifications', 'Channel Integration', 'Custom Messages'],
-      jenkins: ['Build Triggers', 'Pipeline Integration', 'Artifact Management']
-    };
-    return features[integrationId] || [];
-  };
-
-  const getPermissions = (integrationId: string): string[] => {
-    const permissions: Record<string, string[]> = {
-      github: [
-        'Read repository contents',
-        'Create branches and tags',
-        'Trigger workflows',
-        'Manage webhooks',
-        'Read pull requests'
-      ],
-      slack: ['Send messages', 'Read channels'],
-      jenkins: ['Trigger builds', 'Read build status']
-    };
-    return permissions[integrationId] || [];
+  const handleDisconnect = async (integrationId: string) => {
+    if (integrationId === 'slack') {
+      const confirmDisconnect = window.confirm(
+        'Are you sure you want to disconnect Slack? This will stop all release notifications.'
+      );
+      
+      if (!confirmDisconnect) return;
+      
+      try {
+        const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          alert('Slack disconnected successfully!');
+          window.location.reload();
+        } else {
+          const error = await response.json();
+          alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Failed to disconnect Slack:', error);
+        alert('Failed to disconnect Slack. Please try again.');
+      }
+    } else {
+      // For other integrations, show confirmation
+      alert(`Disconnecting ${integrationId}...`);
+    }
   };
 
   return (
@@ -295,35 +232,5 @@ export default function IntegrationsPage() {
       />
     </Container>
   );
-}
-
-function getFeatures(integrationId: string): string[] {
-  const features: Record<string, string[]> = {
-    github: [
-      'Branch Management',
-      'Workflow Triggers',
-      'Release Notes',
-      'Tag Management',
-      'Webhooks'
-    ],
-    slack: ['Real-time Notifications', 'Channel Integration', 'Custom Messages'],
-    jenkins: ['Build Triggers', 'Pipeline Integration', 'Artifact Management']
-  };
-  return features[integrationId] || [];
-}
-
-function getPermissions(integrationId: string): string[] {
-  const permissions: Record<string, string[]> = {
-    github: [
-      'Read repository contents',
-      'Create branches and tags',
-      'Trigger workflows',
-      'Manage webhooks',
-      'Read pull requests'
-    ],
-    slack: ['Send messages', 'Read channels'],
-    jenkins: ['Trigger builds', 'Read build status']
-  };
-  return permissions[integrationId] || [];
 }
 

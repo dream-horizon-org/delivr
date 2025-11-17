@@ -21,6 +21,7 @@ import {
   IconCloud,
   IconChartBar,
   IconList,
+  IconPlug,
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "@remix-run/react";
@@ -307,8 +308,14 @@ function OrgSidebar({
   const isManageActive = location.pathname.includes("/manage");
   const isSettingsActive = location.pathname.includes("/delete"); // Delete is under settings
   const isOTAActive = location.pathname.includes("/apps") || !!currentAppId;
-  const isReleaseDashboardActive = location.pathname.includes("/release-management") && !location.pathname.includes("/releases");
-  const isReleasesActive = location.pathname.includes("/releases");
+  // Updated: Release Dashboard is now /releases (index), Releases List is /releases/list
+  const isReleaseDashboardActive = location.pathname === `/dashboard/${org.id}/releases` || 
+                                     location.pathname.includes("/release-management");
+  const isReleasesActive = location.pathname.includes("/releases/list") || 
+                           (location.pathname.includes("/releases/") && 
+                            !location.pathname.includes("/releases/setup") &&
+                            location.pathname !== `/dashboard/${org.id}/releases`);
+  const isIntegrationsActive = location.pathname.includes("/integrations");
 
   return (
     <Box>
@@ -362,20 +369,30 @@ function OrgSidebar({
             MODULES
           </Text>
 
-          {/* Release Management Dashboard */}
+          {/* Release Management Dashboard - Analytics View */}
           <NavItem
             icon={IconChartBar}
             label="Release Dashboard"
             isActive={isReleaseDashboardActive}
-            onClick={() => navigate(`/dashboard/${org.id}/release-management`)}
+            onClick={() => navigate(`/dashboard/${org.id}/releases`)}
           />
 
-          {/* Releases List */}
+          {/* Releases List - List View */}
           <NavItem
             icon={IconList}
             label="Releases"
             isActive={isReleasesActive}
-            onClick={() => navigate(`/dashboard/${org.id}/releases`)}
+            onClick={() => navigate(`/dashboard/${org.id}/releases/list`)}
+          />
+
+          {/* Integrations */}
+          <NavItem
+            icon={IconPlug}
+            label="Integrations"
+            isActive={isIntegrationsActive}
+            onClick={() => navigate(`/dashboard/${org.id}/integrations`)}
+            isOwnerOnly={true}
+            isOwner={org.isAdmin}
           />
 
           <Divider my="sm" />

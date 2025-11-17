@@ -1,15 +1,20 @@
 /**
- * Release Management - Main Releases Page
- * Shows list of releases with guard to check setup completion
+ * Release Management Dashboard (Index Route)
+ * Analytics and overview page for release management
+ * Displayed at: /dashboard/:org/releases
+ * 
+ * Data Flow:
+ * - Parent route (releases.tsx) handles setup validation
+ * - Gets org data from root parent route (dashboard.$org)
+ * - Fetches releases data for analytics
+ * - No setup checks needed here - parent handles all redirects
  */
 
-import { json, redirect } from '@remix-run/node';
-import { useLoaderData, Link, useSearchParams } from '@remix-run/react';
-import { useState, useMemo } from 'react';
+import { json } from '@remix-run/node';
+import { useLoaderData, useRouteLoaderData, Link } from '@remix-run/react';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { getSetupStatus } from '~/.server/services/ReleaseManagement/setup';
 import { getReleases } from '~/.server/services/ReleaseManagement';
-import type { Release } from '~/.server/services/ReleaseManagement/types';
+import type { OrgLayoutLoaderData } from './dashboard.$org';
 
 export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   const { org } = params;
@@ -18,70 +23,102 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
     throw new Response('Organization not found', { status: 404 });
   }
   
-  // **ROUTE GUARD**: Check if setup is complete
-  const setupStatus = await getSetupStatus(org);
+  // NOTE: Setup status is available from parent route - no need to fetch again!
+  // We'll access it via useRouteLoaderData in the component
   
-  if (!setupStatus.isComplete) {
-    // Redirect to setup wizard
-    return redirect(`/dashboard/${org}/releases/setup`);
+  // Fetch all releases for analytics (only if we need them)
+  // We'll determine if setup is complete in the component
+  try {
+    const releasesResponse = await getReleases(org);
+    const releases = releasesResponse.releases || [];
+    
+    // Calculate analytics
+    const totalReleases = releases.length;
+    const activeReleases = releases.filter((r: any) => 
+      r.status !== 'RELEASED' && r.status !== 'CANCELLED' && r.status !== 'ARCHIVED'
+    ).length;
+    const completedReleases = releases.filter((r: any) => r.status === 'RELEASED').length;
+    const upcomingReleases = releases.filter((r: any) => r.status === 'KICKOFF_PENDING').length;
+    
+    // Calculate success rate (non-cancelled completed releases)
+    const successRate = totalReleases > 0 
+      ? Math.round((completedReleases / totalReleases) * 100) 
+      : 0;
+    
+    // Get recent releases (last 5)
+    const recentReleases = releases.slice(0, 5);
+    
+    // Calculate average release cycle time (mock for now)
+    const avgCycleTime = '14 days'; // TODO: Calculate from actual data
+    
+    // Get completed releases for adoption chart (last 5 completed)
+    const completedReleasesForChart = releases
+      .filter((r: any) => r.status === 'RELEASED' && r.userAdoption)
+      .slice(0, 5)
+      .reverse(); // Oldest to newest for chart
+    
+    // Prepare chart data for user adoption trend
+    const adoptionChartData = completedReleasesForChart.map((r: any) => ({
+      version: r.version,
+      ios: r.userAdoption?.ios || 0,
+      android: r.userAdoption?.android || 0,
+      web: r.userAdoption?.web || 0,
+    }));
+    
+    return json({
+      analytics: {
+        totalReleases,
+        activeReleases,
+        completedReleases,
+        upcomingReleases,
+        successRate,
+        avgCycleTime,
+      },
+      recentReleases,
+      adoptionChartData,
+    });
+  } catch (error) {
+    console.error('[ReleaseDashboard] Error fetching releases:', error);
+    return json({
+      analytics: {
+        totalReleases: 0,
+        activeReleases: 0,
+        completedReleases: 0,
+        upcomingReleases: 0,
+        successRate: 0,
+        avgCycleTime: 'N/A',
+      },
+      recentReleases: [],
+      adoptionChartData: [],
+    });
   }
-  
-  // Fetch releases
-  const releasesResponse = await getReleases(org);
-  
-  return json({
-    org,
-    user,
-    releases: releasesResponse.releases,
-    total: releasesResponse.total,
-    setupStatus,
-  });
 });
 
-type TabType = 'upcoming' | 'active' | 'completed';
-
-// Helper function to categorize releases
-function categorizeRelease(release: any): TabType {
-  const status = release.status;
+export default function ReleaseDashboardPage() {
+  const loaderData = useLoaderData<typeof loader>();
+  const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   
-  // Completed: Released or Cancelled
-  if (status === 'RELEASED' || status === 'CANCELLED') {
-    return 'completed';
+  if (!orgData) {
+    throw new Error('Organization data not found');
   }
   
-  // Upcoming: Kickoff pending or not started
-  if (status === 'KICKOFF_PENDING') {
-    return 'upcoming';
-  }
+  const { tenantId: org } = orgData;
   
-  // Active: Everything else
-  return 'active';
-}
-
-export default function ReleasesPage() {
-  const data = useLoaderData<typeof loader>();
-  const { org, releases } = data as any;
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabType>((searchParams.get('tab') as TabType) || 'active');
-  
-  // Filter releases by tab
-  const filteredReleases = useMemo(() => {
-    return releases.filter((release: any) => categorizeRelease(release) === activeTab);
-  }, [releases, activeTab]);
-  
-  // Count releases per tab
-  const releaseCounts = useMemo(() => {
-    return {
-      upcoming: releases.filter((r: any) => categorizeRelease(r) === 'upcoming').length,
-      active: releases.filter((r: any) => categorizeRelease(r) === 'active').length,
-      completed: releases.filter((r: any) => categorizeRelease(r) === 'completed').length,
+  // Extract data (guaranteed to exist as loader always returns this structure)
+  const { analytics, recentReleases, adoptionChartData } = loaderData as {
+    analytics: {
+      totalReleases: number;
+      activeReleases: number;
+      completedReleases: number;
+      upcomingReleases: number;
+      successRate: number;
+      avgCycleTime: string;
     };
-  }, [releases]);
-  
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-    setSearchParams({ tab });
+    recentReleases: any[];
+    adoptionChartData: any[];
   };
+  
+  // No setup check needed - parent route (releases.tsx) handles validation
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -90,22 +127,21 @@ export default function ReleasesPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Release Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Release Dashboard</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Manage and track your app releases
+                Overview and analytics for your release management
               </p>
             </div>
             
             <div className="flex space-x-3">
               <Link
-                to={`/dashboard/${org}/releases/settings`}
+                to={`/dashboard/${org}/releases/list`}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
               >
                 <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                Settings
+                View All Releases
               </Link>
               
               <Link
@@ -124,201 +160,343 @@ export default function ReleasesPage() {
       
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
-              <button
-                onClick={() => handleTabChange('upcoming')}
-                className={`${
-                  activeTab === 'upcoming'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
-              >
-                Upcoming
-                <span className={`${
-                  activeTab === 'upcoming'
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-gray-100 text-gray-900'
-                } ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium`}>
-                  {releaseCounts.upcoming}
-                </span>
-              </button>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          {/* Total Releases */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Releases</dt>
+                    <dd className="text-3xl font-semibold text-gray-900">{analytics.totalReleases}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <button
-                onClick={() => handleTabChange('active')}
-                className={`${
-                  activeTab === 'active'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
-              >
-                Active
-                <span className={`${
-                  activeTab === 'active'
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-gray-100 text-gray-900'
-                } ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium`}>
-                  {releaseCounts.active}
-                </span>
-              </button>
+          {/* Active Releases */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Active Releases</dt>
+                    <dd className="text-3xl font-semibold text-gray-900">{analytics.activeReleases}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <button
-                onClick={() => handleTabChange('completed')}
-                className={`${
-                  activeTab === 'completed'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
-              >
-                Completed
-                <span className={`${
-                  activeTab === 'completed'
-                    ? 'bg-blue-100 text-blue-600'
-                    : 'bg-gray-100 text-gray-900'
-                } ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium`}>
-                  {releaseCounts.completed}
-                </span>
-              </button>
-            </nav>
+          {/* Completed Releases */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                    <dd className="text-3xl font-semibold text-gray-900">{analytics.completedReleases}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Success Rate */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Success Rate</dt>
+                    <dd className="text-3xl font-semibold text-gray-900">{analytics.successRate}%</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        
-        {/* Releases Content */}
-        {filteredReleases.length === 0 ? (
-          // Empty State
-          <div className="text-center bg-white rounded-lg shadow p-12">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No {activeTab} releases</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {activeTab === 'upcoming' && 'No upcoming releases scheduled.'}
-              {activeTab === 'active' && 'No releases currently in progress.'}
-              {activeTab === 'completed' && 'No completed releases yet.'}
-            </p>
-            {activeTab === 'upcoming' && (
-              <div className="mt-6">
-                <Link
-                  to={`/dashboard/${org}/releases/create`}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Create Release
-                </Link>
+
+        {/* User Adoption Chart */}
+        {adoptionChartData && adoptionChartData.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {/* Adoption Trend Chart */}
+            <div className="lg:col-span-2 bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">User Adoption by Release</h2>
+              <div className="h-64">
+                <div className="flex items-end justify-between h-full space-x-2">
+                  {adoptionChartData.map((data: any, index: number) => (
+                    <div key={index} className="flex-1 flex flex-col items-center">
+                      {/* Bars */}
+                      <div className="w-full flex space-x-1 items-end h-48">
+                        {/* iOS Bar */}
+                        <div className="flex-1 flex flex-col items-center">
+                          <div
+                            className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                            style={{ height: `${data.ios}%` }}
+                            title={`iOS: ${data.ios}%`}
+                          ></div>
+                        </div>
+                        {/* Android Bar */}
+                        <div className="flex-1 flex flex-col items-center">
+                          <div
+                            className="w-full bg-green-500 rounded-t transition-all hover:bg-green-600"
+                            style={{ height: `${data.android}%` }}
+                            title={`Android: ${data.android}%`}
+                          ></div>
+                        </div>
+                        {/* Web Bar */}
+                        <div className="flex-1 flex flex-col items-center">
+                          <div
+                            className="w-full bg-purple-500 rounded-t transition-all hover:bg-purple-600"
+                            style={{ height: `${data.web}%` }}
+                            title={`Web: ${data.web}%`}
+                          ></div>
+                        </div>
+                      </div>
+                      {/* Version Label */}
+                      <div className="text-xs text-gray-600 mt-2 text-center truncate w-full">
+                        v{data.version}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Legend */}
+              <div className="flex justify-center space-x-6 mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                  <span className="text-sm text-gray-600">iOS</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded"></div>
+                  <span className="text-sm text-gray-600">Android</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-purple-500 rounded"></div>
+                  <span className="text-sm text-gray-600">Web</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Latest Release Adoption */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Latest Release Adoption</h3>
+              {adoptionChartData.length > 0 && (
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Version {adoptionChartData[adoptionChartData.length - 1].version}</span>
+                    </div>
+                  </div>
+                  
+                  {/* iOS Adoption */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">iOS</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {adoptionChartData[adoptionChartData.length - 1].ios}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all"
+                        style={{ width: `${adoptionChartData[adoptionChartData.length - 1].ios}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Android Adoption */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">Android</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {adoptionChartData[adoptionChartData.length - 1].android}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full transition-all"
+                        style={{ width: `${adoptionChartData[adoptionChartData.length - 1].android}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Web Adoption */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-gray-600">Web</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {adoptionChartData[adoptionChartData.length - 1].web}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-purple-500 h-2 rounded-full transition-all"
+                        style={{ width: `${adoptionChartData[adoptionChartData.length - 1].web}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Average */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Average Adoption</span>
+                      <span className="text-lg font-bold text-gray-900">
+                        {Math.round(
+                          (adoptionChartData[adoptionChartData.length - 1].ios +
+                           adoptionChartData[adoptionChartData.length - 1].android +
+                           adoptionChartData[adoptionChartData.length - 1].web) / 3
+                        )}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Releases */}
+        <div className="bg-white shadow rounded-lg mb-8">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Recent Releases</h2>
+              <Link
+                to={`/dashboard/${org}/releases/list`}
+                className="text-sm font-medium text-blue-600 hover:text-blue-500"
+              >
+                View all →
+              </Link>
+            </div>
+            
+            {recentReleases && recentReleases.length > 0 ? (
+              <div className="space-y-3">
+                {recentReleases.map((release: any) => (
+                  <Link
+                    key={release.id}
+                    to={`/dashboard/${org}/releases/${release.id}`}
+                    className="block border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-sm font-semibold text-gray-900">{release.releaseKey}</h3>
+                          <span className="text-sm text-gray-500">v{release.version}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            release.releaseType === 'HOTFIX' ? 'bg-red-100 text-red-800' :
+                            release.releaseType === 'MAJOR' ? 'bg-purple-100 text-purple-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {release.releaseType}
+                          </span>
+                        </div>
+                        {release.releasePilot && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Pilot: {release.releasePilot.name}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-4">
+                        {release.plannedDate && (
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500">Planned</p>
+                            <p className="text-xs font-medium text-gray-900">
+                              {new Date(release.plannedDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
+                        
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          release.status === 'RELEASED' ? 'bg-green-100 text-green-800' :
+                          release.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+                          release.status === 'KICKOFF_PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {release.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500">No releases yet</p>
               </div>
             )}
           </div>
-        ) : (
-          // Releases List (Card View)
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {filteredReleases.map((release: any) => (
-              <Link
-                key={release.id}
-                to={`/dashboard/${org}/releases/${release.id}`}
-                className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
-              >
-                {/* Release Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{release.releaseKey}</h3>
-                    <p className="text-sm text-gray-500 mt-1">Version {release.version}</p>
-                  </div>
-                  
-                  <div className="flex flex-col items-end space-y-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      release.releaseType === 'HOTFIX' ? 'bg-red-100 text-red-800' :
-                      release.releaseType === 'MAJOR' ? 'bg-purple-100 text-purple-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {release.releaseType}
-                    </span>
-                    
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      release.status === 'RELEASED' ? 'bg-green-100 text-green-800' :
-                      release.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-                      release.status === 'KICKOFF_PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {release.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Release Info */}
-                <div className="space-y-2 text-sm">
-                  {release.releasePilot && (
-                    <div className="flex items-center text-gray-600">
-                      <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <span className="font-medium">Pilot:</span>
-                      <span className="ml-1">{release.releasePilot.name}</span>
-                    </div>
-                  )}
-                  
-                  {release.plannedDate && (
-                    <div className="flex items-center text-gray-600">
-                      <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="font-medium">Planned:</span>
-                      <span className="ml-1">{new Date(release.plannedDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  
-                  {release.releaseDate && (
-                    <div className="flex items-center text-gray-600">
-                      <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="font-medium">Released:</span>
-                      <span className="ml-1">{new Date(release.releaseDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  
-                  {release.finalBuildNumbers && (
-                    <div className="flex items-center text-gray-600">
-                      <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                      <span className="font-medium">Builds:</span>
-                      <span className="ml-1 text-xs">
-                        {release.finalBuildNumbers.ios && `iOS: ${release.finalBuildNumbers.ios} `}
-                        {release.finalBuildNumbers.android && `Android: ${release.finalBuildNumbers.android}`}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {release.userAdoption && activeTab === 'completed' && (
-                    <div className="flex items-center text-gray-600">
-                      <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                      <span className="font-medium">Adoption:</span>
-                      <span className="ml-1 text-xs">
-                        iOS: {release.userAdoption.ios}% | Android: {release.userAdoption.android}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Release Timeline */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Release Timeline</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Upcoming Releases</span>
+                <span className="text-sm font-semibold text-gray-900">{analytics.upcomingReleases}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">In Progress</span>
+                <span className="text-sm font-semibold text-gray-900">{analytics.activeReleases}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Average Cycle Time</span>
+                <span className="text-sm font-semibold text-gray-900">{analytics.avgCycleTime}</span>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Quick Actions */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+            <div className="space-y-3">
+              <Link
+                to={`/dashboard/${org}/releases/create`}
+                className="block w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 text-center"
+              >
+                Create New Release
+              </Link>
+              <Link
+                to={`/dashboard/${org}/releases/list?tab=active`}
+                className="block w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 text-center"
+              >
+                View Active Releases
+              </Link>
+              <Link
+                to={`/dashboard/${org}/releases/settings`}
+                className="block w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 text-center"
+              >
+                Release Settings
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

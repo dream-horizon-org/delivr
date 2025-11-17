@@ -1,13 +1,14 @@
-import { Badge, Card } from '@mantine/core';
+import { Badge, Card, Button } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 
 interface IntegrationCardProps {
   integration: Integration;
   onClick: (integration: Integration) => void;
+  onConnect?: (integration: Integration) => void;
 }
 
-export function IntegrationCard({ integration, onClick }: IntegrationCardProps) {
+export function IntegrationCard({ integration, onClick, onConnect }: IntegrationCardProps) {
   const getStatusColor = () => {
     switch (integration.status) {
       case IntegrationStatus.CONNECTED:
@@ -70,6 +71,22 @@ export function IntegrationCard({ integration, onClick }: IntegrationCardProps) 
         <Badge size="sm" color="gray" variant="outline" className="w-full">
           Coming Soon
         </Badge>
+      )}
+
+      {integration.isAvailable && integration.status !== IntegrationStatus.CONNECTED && (
+        <Button
+          fullWidth
+          size="sm"
+          variant="light"
+          color="blue"
+          onClick={(e) => {
+            e.stopPropagation();
+            const handler = onConnect || onClick;
+            handler(integration);
+          }}
+        >
+          Connect
+        </Button>
       )}
 
       {integration.status === IntegrationStatus.CONNECTED && integration.config && (

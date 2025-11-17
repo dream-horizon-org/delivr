@@ -4,6 +4,8 @@ node_modules
 /build
 .env
 
+/docs/*.md
+
 app/routes.d.ts
 
 

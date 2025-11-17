@@ -25,7 +25,7 @@ import {
   IntegrationType,
   ReleaseCycle,
   ReleasePhase
-} from './types';
+} from './integrations/types';
 
 // ============================================================================
 // SAMPLE RELEASES

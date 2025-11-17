@@ -28,7 +28,7 @@ import {
   BuildStatus,
   TaskStatus,
   CherryPickStatus
-} from './types';
+} from './integrations/types';
 
 import {
   mockReleases,
@@ -483,8 +483,8 @@ export const updateTask = (...args: Parameters<ReleaseManagementService['updateT
 export const triggerTask = (...args: Parameters<ReleaseManagementService['triggerTask']>) => 
   releaseManagementService.triggerTask(...args);
 
-// Export SCM Integration Service
-export { SCMIntegrationService } from './integration';
+// Export integration services
+
 
 export default releaseManagementService;
 

@@ -1,14 +1,16 @@
 /**
- * Release Management - Layout Route
- * Parent layout for all /releases routes
+ * Release Management - Common Parent Layout Route
+ * Parent layout for ALL release management pages (dashboard, list, details, etc.)
  * Checks if release management is set up and redirects to setup if needed
+ * 
+ * This is the SINGLE point for setup validation - no child routes check setup
  */
 
 import { useEffect } from 'react';
 import { Outlet, useParams, useNavigate, useLocation, useRouteLoaderData } from '@remix-run/react';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
 
-export default function ReleasesLayout() {
+export default function ReleasesCommonLayout() {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,8 +34,8 @@ export default function ReleasesLayout() {
 
     // If setup is not complete, redirect to setup wizard
     if (!setupComplete) {
-      console.log('Release management not set up, redirecting to setup wizard');
-      navigate(`/dashboard/${org}/releases/setup`);
+      console.log('[Releases] Setup not complete, redirecting to setup wizard');
+      navigate(`/dashboard/${org}/releases/setup`, { replace: true });
     }
   }, [setupComplete, navigate, org, location.pathname]);
 
@@ -43,7 +45,7 @@ export default function ReleasesLayout() {
     return null; // Let the useEffect redirect handle navigation
   }
 
-  // Render child routes
+  // Render child routes (dashboard, list, details, create, settings, setup)
   return <Outlet />;
 }
 

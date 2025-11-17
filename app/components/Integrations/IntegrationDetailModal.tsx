@@ -85,17 +85,50 @@ export function IntegrationDetailModal({
               </div>
             )}
 
-            {integration.config?.workspace && (
+            {/* Slack-specific configuration */}
+            {integration.config?.workspaceName && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Workspace:</span>
-                <span className="font-medium">{integration.config.workspace}</span>
+                <span className="font-medium">{integration.config.workspaceName}</span>
               </div>
             )}
 
-            {integration.config?.channelName && (
+            {integration.config?.workspaceId && (
               <div className="flex justify-between">
-                <span className="text-gray-600">Channel:</span>
-                <span className="font-medium">#{integration.config.channelName}</span>
+                <span className="text-gray-600">Workspace ID:</span>
+                <span className="font-mono text-xs">{integration.config.workspaceId}</span>
+              </div>
+            )}
+
+            {integration.config?.botUserId && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Bot User ID:</span>
+                <span className="font-mono text-xs">{integration.config.botUserId}</span>
+              </div>
+            )}
+
+            {integration.config?.channels && integration.config.channels.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-gray-600">Channels ({integration.config.channelsCount || integration.config.channels.length}):</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {integration.config.channels.map((channel: any) => (
+                    <Badge key={channel.id} size="sm" variant="light" color="blue">
+                      #{channel.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {integration.config?.verificationStatus && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Status:</span>
+                <Badge
+                  size="sm"
+                  color={integration.config.verificationStatus === 'VALID' ? 'green' : 'yellow'}
+                >
+                  {integration.config.verificationStatus}
+                </Badge>
               </div>
             )}
 

@@ -2,6 +2,9 @@
  * Organization Layout Route
  * Fetches tenant info once and shares it with all child routes
  * Eliminates redundant API calls across pages
+ * 
+ * IMPORTANT: Always fetches fresh data (no caching) to ensure
+ * release management setup status is up-to-date
  */
 
 import { json } from '@remix-run/node';
@@ -19,17 +22,27 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
   try {
     // Fetch tenant info once at the layout level
+    // This includes release management setup status and integrations
     const response = await CodepushService.getTenantInfo({
       userId: user.user.id,
       tenantId
     });
 
+    console.log('response', response.data?.organisation?.releaseManagement?.integrations);
+
     const organisation = response.data.organisation;
 
+    // Return with no-cache headers to ensure fresh data
     return json({
       tenantId,
       organisation,
       user
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
     });
   } catch (error) {
     console.error('[OrgLayout] Error loading tenant info:', error);

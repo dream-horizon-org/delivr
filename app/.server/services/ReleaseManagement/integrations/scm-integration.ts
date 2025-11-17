@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { env } from '../config';
+import { IntegrationService } from './base-integration';
 import type { 
   SCMIntegration, 
   VerifySCMRequest, 
@@ -10,20 +9,18 @@ import type {
  * SCM Integration Service
  * Handles Source Control Management integrations for Release Management
  */
-class IntegrationService {
-  private __client = axios.create({
-    baseURL: env.DELIVR_BACKEND_URL,
-    timeout: 10000,
-  });
-
+class SCMIntegrationServiceClass extends IntegrationService {
   /**
    * Verify SCM connection before saving
    */
   async verifySCM(request: VerifySCMRequest, userId: string): Promise<VerifySCMResponse> {
-    console.log(`[IntegrationService] Verifying SCM for tenant: ${request.tenantId}, owner: ${request.owner}, repo: ${request.repo}`);
-    console.log(`[IntegrationService] Calling backend: ${this.__client.defaults.baseURL}/tenants/${request.tenantId}/integrations/scm/verify`);
+    this.logRequest('POST', `/tenants/${request.tenantId}/integrations/scm/verify`, { 
+      scmType: request.scmType, 
+      owner: request.owner, 
+      repo: request.repo 
+    });
     
-    const { data } = await this.__client.post<VerifySCMResponse>(
+    const data = await this.post<VerifySCMResponse>(
       `/tenants/${request.tenantId}/integrations/scm/verify`,
       {
         scmType: request.scmType,
@@ -31,14 +28,10 @@ class IntegrationService {
         repo: request.repo,
         accessToken: request.accessToken,
       },
-      {
-        headers: {
-          userId,
-        },
-      }
+      userId
     );
     
-    console.log(`[IntegrationService] Backend response:`, data);
+    this.logResponse('POST', `/tenants/${request.tenantId}/integrations/scm/verify`, true);
     return data;
   }
 
@@ -47,17 +40,12 @@ class IntegrationService {
    */
   async getSCMIntegration(tenantId: string, userId: string): Promise<SCMIntegration | null> {
     try {
-      const { data } = await this.__client.get<SCMIntegration>(
+      return await this.get<SCMIntegration>(
         `/tenants/${tenantId}/integrations/scm`,
-        {
-          headers: {
-            userId,
-          },
-        }
+        userId
       );
-      return data;
     } catch (error: any) {
-      if (error.response?.status === 404) {
+      if ((error as any).status === 404) {
         return null;
       }
       throw error;
@@ -72,27 +60,19 @@ class IntegrationService {
     userId: string,
     data: Omit<SCMIntegration, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<SCMIntegration> {
-    console.log(`[IntegrationService] Creating SCM integration for tenant: ${tenantId}`);
-    console.log(`[IntegrationService] Calling backend: ${this.__client.defaults.baseURL}/tenants/${tenantId}/integrations/scm`);
-    console.log(`[IntegrationService] Data:`, { 
+    this.logRequest('POST', `/tenants/${tenantId}/integrations/scm`, { 
       scmType: (data as any).scmType, 
       owner: (data as any).owner, 
-      repo: (data as any).repo,
-      displayName: (data as any).displayName,
-      hasAccessToken: !!(data as any).accessToken
+      repo: (data as any).repo 
     });
     
-    const { data: result } = await this.__client.post<SCMIntegration>(
+    const result = await this.post<SCMIntegration>(
       `/tenants/${tenantId}/integrations/scm`,
       data,
-      {
-        headers: {
-          userId,
-        },
-      }
+      userId
     );
     
-    console.log(`[IntegrationService] Backend response:`, result);
+    this.logResponse('POST', `/tenants/${tenantId}/integrations/scm`, true);
     return result;
   }
 
@@ -105,16 +85,11 @@ class IntegrationService {
     integrationId: string,
     updateData: Partial<SCMIntegration>
   ): Promise<SCMIntegration> {
-    const { data } = await this.__client.patch<SCMIntegration>(
+    return await this.patch<SCMIntegration>(
       `/tenants/${tenantId}/integrations/scm`,
       { integrationId, ...updateData },
-      {
-        headers: {
-          userId,
-        },
-      }
+      userId
     );
-    return data;
   }
 
   /**
@@ -125,12 +100,10 @@ class IntegrationService {
     userId: string,
     integrationId: string
   ): Promise<void> {
-    await this.__client.delete(
+    await this.delete<void>(
       `/tenants/${tenantId}/integrations/scm`,
+      userId,
       {
-        headers: {
-          userId,
-        },
         data: { integrationId },
       }
     );
@@ -138,4 +111,4 @@ class IntegrationService {
 }
 
 // Export singleton instance
-export const SCMIntegrationService = new IntegrationService();
+export const SCMIntegrationService = new SCMIntegrationServiceClass();

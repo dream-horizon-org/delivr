@@ -3,7 +3,7 @@ import {
   authenticateActionRequest,
   type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
-import { SCMIntegrationService } from '~/.server/services/ReleaseManagement';
+import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 
 const verifySCM: AuthenticatedActionFunction = async ({ request, params, user }) => {
   const tenantId = params.tenantId;

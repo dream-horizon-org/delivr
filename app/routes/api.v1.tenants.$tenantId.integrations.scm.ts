@@ -4,7 +4,7 @@ import {
   authenticateActionRequest,
   type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
-import { SCMIntegrationService } from '~/.server/services/ReleaseManagement';
+import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 
 /**
  * GET - Fetch SCM integration for tenant
