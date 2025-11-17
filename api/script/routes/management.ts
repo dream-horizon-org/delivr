@@ -305,8 +305,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Get tenant info with release setup status and integrations
+  // IMPORTANT: No caching - always returns fresh data for release management
   router.get("/tenants/:tenantId", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
     const tenantId: string = req.params.tenantId;
+    
+    // Set no-cache headers to prevent stale data issues
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     try {
       // Get tenant details
@@ -365,7 +371,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
           workspaceId: slackIntegration.slackWorkspaceId,
           botUserId: slackIntegration.slackBotUserId,
           verificationStatus: slackIntegration.verificationStatus,
-          hasValidToken: slackIntegration.hasValidToken,
+          hasValidToken: slackIntegration.verificationStatus === 'VALID',
+          slackChannels: slackIntegration.slackChannels || [],
           channelsCount: slackIntegration.slackChannels ? slackIntegration.slackChannels.length : 0,
           createdAt: slackIntegration.createdAt,
           updatedAt: slackIntegration.updatedAt

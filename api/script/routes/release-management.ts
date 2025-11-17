@@ -74,6 +74,43 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // router.use(createTicketManagementRoutes(storage));
 
   // ============================================================================
+  // SETUP MANAGEMENT
+  // ============================================================================
+  
+  // Mark setup as complete
+  router.post(
+    "/tenants/:tenantId/release-management/complete-setup",
+    tenantPermissions.requireOwner({ storage }),
+    async (req: Request, res: Response): Promise<any> => {
+      const tenantId: string = req.params.tenantId;
+      
+      try {
+        // The setup completion is actually determined automatically by the backend
+        // based on whether required integrations (SCM) are configured
+        // This endpoint is just for optimistic UI updates
+        
+        console.log(`[Setup] Marking setup as complete for tenant: ${tenantId}`);
+        
+        // You could optionally store a flag in the database if needed
+        // For now, we just return success as the backend already handles this logic
+        
+        return res.status(200).json({
+          success: true,
+          message: "Setup marked as complete",
+          setupComplete: true,
+          tenantId
+        });
+      } catch (error: any) {
+        console.error(`[Setup] Error marking setup as complete for tenant ${tenantId}:`, error);
+        return res.status(500).json({
+          error: "Failed to mark setup as complete",
+          message: error.message
+        });
+      }
+    }
+  );
+
+  // ============================================================================
   // RELEASE OPERATIONS
   // ============================================================================
   
