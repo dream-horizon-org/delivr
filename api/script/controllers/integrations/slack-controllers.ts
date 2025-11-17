@@ -470,3 +470,121 @@ function sanitizeSlackResponse(integration: any): SafeSlackIntegration {
   return safe;
 }
 
+// ============================================================================
+// SEND MESSAGE TO SLACK
+// ============================================================================
+
+/**
+ * Controller: Send Message to Slack
+ * POST /tenants/:tenantId/integrations/slack/send-message
+ * 
+ * Supports two modes:
+ * 
+ * 1. Template message (JSON):
+ * Body: {
+ *   template: 'release-notes',
+ *   parameters: ['v2.0.0', 'prod', 'https://...'],
+ *   sendOnThread: false
+ * }
+ * 
+ * 2. Plain text (JSON):
+ * Body: {
+ *   text: 'Custom message',
+ *   channelIds: ['C12345']
+ * }
+ */
+export async function sendSlackMessage(req: Request, res: Response): Promise<void> {
+  try {
+    const { tenantId } = req.params;
+    const { template, parameters, sendOnThread, text, channelIds } = req.body;
+
+    // Import CommServiceFactory here to avoid circular dependencies
+    const { CommServiceFactory, MessageTemplate } = await import('../../services/comm');
+
+    // Create Slack service (auto-loads tenant's config)
+    const slack = await CommServiceFactory.createForTenant(tenantId);
+
+    let responses: Map<string, any>;
+
+    // Template message
+    if (template) {
+      if (!parameters || !Array.isArray(parameters)) {
+        res.status(400).json({
+          success: false,
+          error: 'parameters array is required for template messages'
+        });
+        return;
+      }
+
+      // Validate template exists
+      if (!Object.values(MessageTemplate).includes(template)) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid template: ${template}`,
+          availableTemplates: Object.values(MessageTemplate)
+        });
+        return;
+      }
+
+      responses = await slack.sendTemplateMessage(
+        tenantId,
+        template as any,
+        parameters,
+        sendOnThread || false
+      );
+    }
+    // Plain text message
+    else if (text) {
+      responses = new Map();
+      
+      // Get channels to send to
+      const channels = channelIds || (await CommServiceFactory.getTenantChannels(tenantId));
+      
+      if (!channels || channels.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'No channels specified and no default channels configured'
+        });
+        return;
+      }
+
+      // Send to each channel
+      for (const channelId of channels) {
+        const response = await slack.sendBasicMessage({
+          channelId,
+          text
+        });
+        responses.set(channelId, response);
+      }
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Either template+parameters or text must be provided'
+      });
+      return;
+    }
+
+    // Format response
+    const results = Array.from(responses.entries()).map(([channelId, response]) => ({
+      channelId,
+      success: response.ok,
+      messageTs: response.ts,
+      error: response.error
+    }));
+
+    res.json({
+      success: true,
+      results,
+      totalSent: results.filter(r => r.success).length,
+      totalFailed: results.filter(r => !r.success).length
+    });
+
+  } catch (error: any) {
+    console.error('Error sending Slack message:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send Slack message'
+    });
+  }
+}
+
