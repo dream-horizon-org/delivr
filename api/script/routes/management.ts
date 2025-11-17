@@ -305,8 +305,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Get tenant info with release setup status and integrations
+  // IMPORTANT: No caching - always returns fresh data for release management
   router.get("/tenants/:tenantId", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
     const tenantId: string = req.params.tenantId;
+    
+    // Set no-cache headers to prevent stale data issues
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     try {
       // Get tenant details
@@ -320,14 +326,17 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       // Get all integrations for this tenant
       const scmController = (storage as any).scmController;
+      const slackController = (storage as any).slackController;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
       
+      // Slack integrations
+      const slackIntegration = await slackController.findByTenant(tenantId);
+      
       // TODO: Get other integrations when implemented
       // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
       // const pipelines = await storage.getTenantPipelines(tenantId);
-      // const communicationIntegrations = await storage.getTenantCommunicationIntegrations(tenantId);
       
       // Build unified integrations array with type field
       const integrations: any[] = [];
@@ -352,10 +361,29 @@ export function getManagementRouter(config: ManagementConfig): Router {
         });
       });
       
+      // Add Slack integration (already sanitized by controller)
+      if (slackIntegration) {
+        integrations.push({
+          type: 'communication',
+          communicationType: 'SLACK',
+          id: slackIntegration.id,
+          workspaceName: slackIntegration.slackWorkspaceName,
+          workspaceId: slackIntegration.slackWorkspaceId,
+          botUserId: slackIntegration.slackBotUserId,
+          verificationStatus: slackIntegration.verificationStatus,
+          hasValidToken: slackIntegration.verificationStatus === 'VALID',
+          slackChannels: slackIntegration.slackChannels || [],
+          channelsCount: slackIntegration.slackChannels ? slackIntegration.slackChannels.length : 0,
+          createdAt: slackIntegration.createdAt,
+          updatedAt: slackIntegration.updatedAt
+          // Note: slackBotToken is intentionally excluded (never sent to client)
+        });
+      }
+      
       // TODO: Add other integration types when implemented
+
       // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
       // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
-      // communicationIntegrations.forEach(c => integrations.push({ type: 'communication', ...c }));
       
       // Calculate setup completion
       // Setup is complete when ALL REQUIRED steps are done:
@@ -381,7 +409,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
               scmIntegration: scmIntegrations.length > 0,
               targetPlatforms: false,  // TODO: Implement target platforms
               pipelines: false,        // TODO: Implement (optional)
-              communication: false     // TODO: Implement (optional)
+              communication: !!slackIntegration
             },
             integrations: integrations  // Single array with all integrations
           }
