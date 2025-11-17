@@ -123,7 +123,7 @@ export async function createOrUpdateSCMIntegration(
     const existing = await scmController.findActiveByTenant(tenantId);
     
     if (existing) {
-      // Update existing integration
+      // Update existing integration (include verification status in single update)
       const updateData: UpdateSCMIntegrationDto = {
         displayName,
         defaultBranch,
@@ -132,7 +132,8 @@ export async function createOrUpdateSCMIntegration(
         webhookSecret,
         webhookUrl,
         senderLogin,
-        isActive: true
+        isActive: true,
+        verificationStatus: VerificationStatus.VALID  // Set to VALID since frontend already verified
       };
 
       const updated = await scmController.update(existing.id, updateData);
@@ -143,7 +144,7 @@ export async function createOrUpdateSCMIntegration(
         integration: sanitizeSCMResponse(updated)
       });
     } else {
-      // Create new integration
+      // Create new integration (include verification status since frontend already verified)
       const createData: CreateSCMIntegrationDto = {
         tenantId,
         scmType: scmType as SCMType,
@@ -157,6 +158,7 @@ export async function createOrUpdateSCMIntegration(
         webhookSecret,
         webhookUrl,
         senderLogin,
+        verificationStatus: VerificationStatus.VALID,  // Set to VALID since frontend already verified
         createdByAccountId: accountId
       };
 

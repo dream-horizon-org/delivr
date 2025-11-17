@@ -13,6 +13,48 @@ const seedData = {
     { id: "id_0", email: "user1@example.com", name: "User One", createdTime: new Date().getTime() },
     { id: "id_1", email: "user2@example.com", name: "User Two", createdTime: new Date().getTime() },
   ],
+  accountChannels: [
+    {
+      id: "channel_1",
+      accountId: "id_0",
+      externalChannelId: "google-oauth-sub-123456789",
+      channelType: "google_oauth",
+      channelMetadata: JSON.stringify({
+        email: "user1@example.com",
+        email_verified: true,
+        given_name: "User",
+        family_name: "One",
+        locale: "en"
+      }),
+      isActive: true,
+    },
+    {
+      id: "channel_2",
+      accountId: "id_1",
+      externalChannelId: "google-oauth-sub-987654321",
+      channelType: "google_oauth",
+      channelMetadata: JSON.stringify({
+        email: "user2@example.com",
+        email_verified: true,
+        given_name: "User",
+        family_name: "Two",
+        locale: "en"
+      }),
+      isActive: true,
+    },
+    {
+      id: "channel_3",
+      accountId: "id_0",
+      externalChannelId: "slack-user-U123ABC456",
+      channelType: "slack",
+      channelMetadata: JSON.stringify({
+        team_id: "T123DEF789",
+        username: "user.one",
+        real_name: "User One"
+      }),
+      isActive: true,
+    },
+  ],
   tenants: [
     { id: "tenant_1", displayName: "Organization One", createdBy: "id_0" },
     { id: "tenant_2", displayName: "Organization Two", createdBy: "id_1" },
@@ -134,8 +176,9 @@ async function seed() {
     // Initialize models
     const models = createModelss(sequelize);
     
-    // Sync database WITHOUT altering - migrations handle schema
-    await sequelize.sync({ alter: false });
+    // NOTE: We use SQL migrations to manage schema, not Sequelize sync
+    // Migrations are in /migrations folder and should be run manually
+    // await sequelize.sync({ alter: false }); // REMOVED - causes FK constraint conflicts
 
     // Check if database already has data
     const accountCount = await models.Account.count();
@@ -159,6 +202,7 @@ async function seed() {
     await models.Collaborator.destroy({ where: {} });
     await models.App.destroy({ where: {} });
     await models.Tenant.destroy({ where: {} });
+    await models.AccountChannel.destroy({ where: {} });
     await models.Account.destroy({ where: {} });
 
     // Re-enable foreign key checks
@@ -166,6 +210,7 @@ async function seed() {
 
     // Insert seed data in order
     await models.Account.bulkCreate(seedData.accounts);
+    await models.AccountChannel.bulkCreate(seedData.accountChannels);
     await models.Tenant.bulkCreate(seedData.tenants);
     await models.App.bulkCreate(seedData.apps);
     await models.Collaborator.bulkCreate(seedData.collaborators);

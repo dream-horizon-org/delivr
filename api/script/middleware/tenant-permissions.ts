@@ -40,7 +40,7 @@ export async function getUserTenantPermission(
     // Query tenant-level collaborators (where appId is NULL)
     const tenantCollab = await sequelize.models[MODELS.COLLABORATOR].findOne({
       where: { 
-        accountId: userId, 
+        accountId: userId,
         tenantId: tenantId,
         appId: null  // Tenant-level collaborator
       }
