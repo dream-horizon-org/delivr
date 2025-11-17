@@ -68,24 +68,6 @@ export function getAllIntegrations(params: GetAllIntegrationsParams = {}): Integ
       status: IntegrationStatus.NOT_CONNECTED,
       isAvailable: true
     },
-    {
-      id: 'teams',
-      name: 'Microsoft Teams',
-      description: 'Get notified about releases in Microsoft Teams channels.',
-      category: IntegrationCategory.COMMUNICATION,
-      icon: '👥',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'discord',
-      name: 'Discord',
-      description: 'Receive release updates in your Discord server.',
-      category: IntegrationCategory.COMMUNICATION,
-      icon: '🎮',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
 
     // CI/CD
     {
@@ -95,69 +77,49 @@ export function getAllIntegrations(params: GetAllIntegrationsParams = {}): Integ
       category: IntegrationCategory.CI_CD,
       icon: '🔨',
       status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
-    },
-    {
-      id: 'circleci',
-      name: 'CircleCI',
-      description: 'Integrate with CircleCI for continuous integration and deployment.',
-      category: IntegrationCategory.CI_CD,
-      icon: '⭕',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
+      isAvailable: true
     },
 
-    // Cloud Platforms
+    // Test Management
     {
-      id: 'aws',
-      name: 'AWS',
-      description: 'Deploy and manage releases on Amazon Web Services.',
-      category: IntegrationCategory.CLOUD_PLATFORMS,
-      icon: '☁️',
+      id: 'checkmate',
+      name: 'Checkmate',
+      description: 'Manage test cases, track test runs, and integrate QA workflows.',
+      category: IntegrationCategory.TEST_MANAGEMENT,
+      icon: '✅',
       status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
-    },
-    {
-      id: 'gcp',
-      name: 'Google Cloud',
-      description: 'Integrate with Google Cloud Platform for deployments.',
-      category: IntegrationCategory.CLOUD_PLATFORMS,
-      icon: '🌐',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
-    },
-    {
-      id: 'azure',
-      name: 'Microsoft Azure',
-      description: 'Connect to Azure for cloud deployments and services.',
-      category: IntegrationCategory.CLOUD_PLATFORMS,
-      icon: '🔷',
-      status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
+      isAvailable: true
     },
 
-    // Monitoring
+    // Project Management
     {
-      id: 'sentry',
-      name: 'Sentry',
-      description: 'Track errors and performance issues in your releases.',
-      category: IntegrationCategory.MONITORING,
-      icon: '🔍',
+      id: 'jira',
+      name: 'Jira',
+      description: 'Link releases to Jira issues and track project progress.',
+      category: IntegrationCategory.PROJECT_MANAGEMENT,
+      icon: '📋',
       status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false
+      isAvailable: true
+    },
+
+    // App Distribution
+    {
+      id: 'appstore',
+      name: 'Apple App Store',
+      description: 'Deploy iOS apps to TestFlight and the App Store.',
+      category: IntegrationCategory.APP_DISTRIBUTION,
+      icon: '🍎',
+      status: IntegrationStatus.NOT_CONNECTED,
+      isAvailable: true
     },
     {
-      id: 'datadog',
-      name: 'Datadog',
-      description: 'Monitor application performance and metrics.',
-      category: IntegrationCategory.MONITORING,
-      icon: '📊',
+      id: 'playstore',
+      name: 'Google Play Store',
+      description: 'Publish Android apps to Google Play Console.',
+      category: IntegrationCategory.APP_DISTRIBUTION,
+      icon: '🤖',
       status: IntegrationStatus.NOT_CONNECTED,
-      isAvailable: false,
-      isPremium: true
+      isAvailable: true
     }
   ];
 }

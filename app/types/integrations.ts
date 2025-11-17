@@ -7,8 +7,9 @@ export enum IntegrationCategory {
   SOURCE_CONTROL = 'Source Control',
   COMMUNICATION = 'Communication',
   CI_CD = 'CI/CD',
-  CLOUD_PLATFORMS = 'Cloud Platforms',
-  MONITORING = 'Monitoring'
+  TEST_MANAGEMENT = 'Test Management',
+  PROJECT_MANAGEMENT = 'Project Management',
+  APP_DISTRIBUTION = 'App Distribution'
 }
 
 export enum IntegrationStatus {
