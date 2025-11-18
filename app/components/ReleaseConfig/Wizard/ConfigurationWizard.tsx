@@ -21,9 +21,9 @@ import {
   clearDraftConfig,
   validateConfiguration,
 } from '~/utils/release-config-storage';
-import { WizardStepIndicator } from './WizardStepIndicator';
 import { WizardNavigation } from './WizardNavigation';
 import { ConfigSummary } from './ConfigSummary';
+import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper';
 import { PipelineList } from '../BuildPipeline/PipelineList';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
@@ -42,14 +42,49 @@ interface ConfigurationWizardProps {
   };
 }
 
-const steps = [
-  { id: 'basic', title: 'Basic Info', icon: IconSettings },
-  { id: 'platforms', title: 'Target Platforms', icon: IconTarget },
-  { id: 'pipelines', title: 'Build Pipelines', icon: IconSettings },
-  { id: 'testing', title: 'Test Management', icon: IconTestPipe },
-  { id: 'scheduling', title: 'Scheduling', icon: IconCalendar },
-  { id: 'communication', title: 'Communication', icon: IconBell },
-  { id: 'review', title: 'Review', icon: IconFileCheck },
+const steps: Step[] = [
+  { 
+    id: 'basic', 
+    title: 'Basic Information', 
+    description: 'Name and type',
+    icon: IconSettings 
+  },
+  { 
+    id: 'platforms', 
+    title: 'Target Platforms', 
+    description: 'Select platforms',
+    icon: IconTarget 
+  },
+  { 
+    id: 'pipelines', 
+    title: 'Build Pipelines', 
+    description: 'Configure builds',
+    icon: IconSettings 
+  },
+  { 
+    id: 'testing', 
+    title: 'Test Management', 
+    description: 'Optional',
+    icon: IconTestPipe 
+  },
+  { 
+    id: 'scheduling', 
+    title: 'Scheduling', 
+    description: 'Timings & slots',
+    icon: IconCalendar 
+  },
+  { 
+    id: 'communication', 
+    title: 'Communication', 
+    description: 'Slack & email',
+    icon: IconBell 
+  },
+  { 
+    id: 'review', 
+    title: 'Review & Submit', 
+    description: 'Final check',
+    icon: IconFileCheck 
+  },
 ];
 
 export function ConfigurationWizard({
@@ -278,35 +313,56 @@ export function ConfigurationWizard({
   };
   
   return (
-    <Container size="lg" className="py-8">
-      <Paper shadow="sm" padding="xl" radius="md">
-        <div className="mb-6">
-          <Text size="xl" fw={700} className="mb-2">
-            Release Configuration
-          </Text>
-          <Text size="sm" c="dimmed">
-            Configure your release management process step by step
-          </Text>
+    <Container size="xl" className="py-8">
+      <div className="grid grid-cols-12 gap-6">
+        {/* Vertical Stepper - Left Side */}
+        <div className="col-span-3">
+          <Paper shadow="sm" padding="md" radius="md" className="sticky top-8">
+            <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">
+              Configuration Steps
+            </Text>
+            
+            <VerticalStepper
+              steps={steps}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              allowNavigation={false}
+            />
+            
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <Text size="xs" c="dimmed">
+                Step {currentStep + 1} of {steps.length}
+              </Text>
+            </div>
+          </Paper>
         </div>
         
-        <WizardStepIndicator
-          steps={steps}
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-        />
-        
-        <div className="min-h-[500px] mb-6">{renderStepContent()}</div>
-        
-        <WizardNavigation
-          currentStep={currentStep}
-          totalSteps={steps.length}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onFinish={handleFinish}
-          canProceed={canProceedFromStep(currentStep)}
-          isLoading={isSubmitting}
-        />
-      </Paper>
+        {/* Main Content - Right Side */}
+        <div className="col-span-9">
+          <Paper shadow="sm" padding="xl" radius="md">
+            <div className="mb-6">
+              <Text size="xl" fw={700} className="mb-2">
+                {steps[currentStep].title}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {steps[currentStep].description}
+              </Text>
+            </div>
+            
+            <div className="min-h-[500px] mb-6">{renderStepContent()}</div>
+            
+            <WizardNavigation
+              currentStep={currentStep}
+              totalSteps={steps.length}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              onFinish={handleFinish}
+              canProceed={canProceedFromStep(currentStep)}
+              isLoading={isSubmitting}
+            />
+          </Paper>
+        </div>
+      </div>
     </Container>
   );
 }
