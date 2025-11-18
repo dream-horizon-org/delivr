@@ -9,7 +9,8 @@ import {
   AuthType, 
   VerificationStatus, 
   CreateCICDIntegrationDto, 
-  UpdateCICDIntegrationDto 
+  UpdateCICDIntegrationDto, 
+  SafeCICDIntegration
 } from "../../storage/integrations/ci-cd/ci-cd-types";
 import { HTTP_STATUS, RESPONSE_STATUS, CONTENT_TYPE } from "../../constants/http";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES, PROVIDER_DEFAULTS, HEADERS } from "../../constants/cicd";
@@ -192,11 +193,11 @@ export async function verifyGitHubActionsConnection(req: Request, res: Response)
 }
 
 // ============================================================================
-// GITHUB ACTIONS: CREATE OR UPDATE CONNECTION
+// GITHUB ACTIONS: CREATE CONNECTION
 // POST /tenants/:tenantId/integrations/ci-cd/github-actions
 // Body: { displayName?, apiToken?, hostUrl? }
 // ============================================================================
-export async function createOrUpdateGitHubActionsConnection(req: Request, res: Response): Promise<any> {
+export async function createGitHubActionsConnection(req: Request, res: Response): Promise<any> {
   const tenantId = req.params.tenantId;
   const accountId: string = req.user.id;
 
@@ -498,9 +499,9 @@ export async function createJenkinsConnection(req: Request, res: Response): Prom
       verificationError
     };
 
-    const created = await cicd.create(createData);
+    const created: SafeCICDIntegration = await cicd.create(createData);
 
-    return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, message: SUCCESS_MESSAGES.JENKINS_CREATED });
+    return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, message: SUCCESS_MESSAGES.JENKINS_CREATED, integration: created });
   } catch (error: any) {
     const message = getErrorMessage(error, ERROR_MESSAGES.JENKINS_SAVE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, message });
@@ -554,7 +555,7 @@ export async function updateJenkinsConnection(req: Request, res: Response): Prom
       }
     }
 
-    const updated = await cicd.update(existing.id, updateData);
+    const updated: SafeCICDIntegration = await cicd.update(existing.id, updateData);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, message: SUCCESS_MESSAGES.JENKINS_UPDATED, integration: updated });
   } catch (error: any) {
     const message = getErrorMessage(error, ERROR_MESSAGES.JENKINS_UPDATE_FAILED);

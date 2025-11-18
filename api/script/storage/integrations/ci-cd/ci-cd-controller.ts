@@ -113,8 +113,7 @@ export class CICDIntegrationController {
   private toSafeObject(data: any): SafeCICDIntegration {
     const { apiToken, headerValue, ...safe } = data;
     return {
-      ...safe,
-      hasSecret: !!(apiToken || headerValue),
+      ...safe
     };
   }
 }
