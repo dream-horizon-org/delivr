@@ -1,0 +1,79 @@
+/**
+ * Checkmate Configuration Form
+ * Configure Checkmate test management integration
+ */
+
+import { Stack, TextInput, Select, Switch, Text } from '@mantine/core';
+import type { CheckmateSettings } from '~/types/release-config';
+
+interface CheckmateConfigFormProps {
+  config: Partial<CheckmateSettings>;
+  onChange: (config: Partial<CheckmateSettings>) => void;
+  availableIntegrations: Array<{ id: string; name: string; workspaceId?: string }>;
+}
+
+export function CheckmateConfigForm({
+  config,
+  onChange,
+  availableIntegrations,
+}: CheckmateConfigFormProps) {
+  const selectedIntegration = availableIntegrations.find(
+    i => i.workspaceId === config.workspaceId
+  );
+  
+  return (
+    <Stack gap="md">
+      <Select
+        label="Checkmate Integration"
+        placeholder="Select Checkmate integration"
+        data={availableIntegrations.map(i => ({
+          value: i.workspaceId || i.id,
+          label: i.name,
+        }))}
+        value={config.workspaceId}
+        onChange={(val) => onChange({ ...config, workspaceId: val || '' })}
+        required
+        description="Choose the connected Checkmate workspace"
+      />
+      
+      <TextInput
+        label="Workspace ID"
+        placeholder="workspace-123"
+        value={config.workspaceId || ''}
+        onChange={(e) => onChange({ ...config, workspaceId: e.target.value })}
+        required
+        description="Checkmate workspace identifier"
+        disabled={!!selectedIntegration}
+      />
+      
+      <TextInput
+        label="Project ID"
+        placeholder="project-456"
+        value={config.projectId || ''}
+        onChange={(e) => onChange({ ...config, projectId: e.target.value })}
+        required
+        description="Project ID within the Checkmate workspace"
+      />
+      
+      <TextInput
+        label="Test Run Name Template"
+        placeholder="v{{version}} - {{platform}} - {{date}}"
+        value={config.runNameTemplate || ''}
+        onChange={(e) => onChange({ ...config, runNameTemplate: e.target.value })}
+        description="Template for naming test runs. Available variables: {{version}}, {{platform}}, {{date}}"
+      />
+      
+      <div>
+        <Switch
+          label="Auto-create Test Runs"
+          description="Automatically create test runs in Checkmate when builds are ready"
+          checked={config.autoCreateRuns ?? true}
+          onChange={(e) =>
+            onChange({ ...config, autoCreateRuns: e.currentTarget.checked })
+          }
+        />
+      </div>
+    </Stack>
+  );
+}
+
