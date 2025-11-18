@@ -44,8 +44,8 @@ interface ConfigurationWizardProps {
 
 const steps = [
   { id: 'basic', title: 'Basic Info', icon: IconSettings },
-  { id: 'pipelines', title: 'Build Pipelines', icon: IconSettings },
   { id: 'platforms', title: 'Target Platforms', icon: IconTarget },
+  { id: 'pipelines', title: 'Build Pipelines', icon: IconSettings },
   { id: 'testing', title: 'Test Management', icon: IconTestPipe },
   { id: 'scheduling', title: 'Scheduling', icon: IconCalendar },
   { id: 'communication', title: 'Communication', icon: IconBell },
@@ -106,11 +106,11 @@ export function ConfigurationWizard({
       case 0: // Basic Info
         return !!(config.name && config.name.trim());
         
-      case 1: // Build Pipelines
-        return !!config.buildPipelines && config.buildPipelines.length > 0;
-        
-      case 2: // Target Platforms
+      case 1: // Target Platforms (MOVED UP)
         return !!config.defaultTargets && config.defaultTargets.length > 0;
+        
+      case 2: // Build Pipelines (MOVED DOWN)
+        return !!config.buildPipelines && config.buildPipelines.length > 0;
         
       case 3: // Test Management
         return true; // Optional
@@ -218,7 +218,15 @@ export function ConfigurationWizard({
           </div>
         );
         
-      case 1: // Build Pipelines
+      case 1: // Target Platforms (MOVED UP - Select platforms FIRST)
+        return (
+          <PlatformSelector
+            selectedPlatforms={config.defaultTargets || []}
+            onChange={(platforms) => setConfig({ ...config, defaultTargets: platforms })}
+          />
+        );
+        
+      case 2: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
         return (
           <PipelineList
             pipelines={config.buildPipelines || []}
@@ -227,14 +235,7 @@ export function ConfigurationWizard({
               jenkins: availableIntegrations.jenkins,
               github: availableIntegrations.github,
             }}
-          />
-        );
-        
-      case 2: // Target Platforms
-        return (
-          <PlatformSelector
             selectedPlatforms={config.defaultTargets || []}
-            onChange={(platforms) => setConfig({ ...config, defaultTargets: platforms })}
           />
         );
         

@@ -18,15 +18,21 @@ interface PipelineListProps {
     jenkins: Array<{ id: string; name: string }>;
     github: Array<{ id: string; name: string }>;
   };
+  selectedPlatforms?: Array<'WEB' | 'PLAY_STORE' | 'APP_STORE'>;
 }
 
 export function PipelineList({
   pipelines,
   onChange,
   availableIntegrations,
+  selectedPlatforms = [],
 }: PipelineListProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [editingPipeline, setEditingPipeline] = useState<BuildPipelineJob | undefined>();
+  
+  // Determine which platforms are needed based on selected targets
+  const needsAndroid = selectedPlatforms.some(p => p === 'WEB' || p === 'PLAY_STORE');
+  const needsIOS = selectedPlatforms.includes('APP_STORE');
   
   const handleAdd = () => {
     setEditingPipeline(undefined);
@@ -69,20 +75,34 @@ export function PipelineList({
               Build Pipelines
             </Text>
             <Text size="sm" c="dimmed">
-              Configure automated build pipelines for each platform and environment
+              Configure automated build pipelines for selected platforms
             </Text>
+            {selectedPlatforms.length > 0 && (
+              <Text size="xs" c="blue" className="mt-1">
+                Selected: {needsAndroid && 'Android'}{needsAndroid && needsIOS && ' + '}{needsIOS && 'iOS'}
+              </Text>
+            )}
           </div>
           
           <Button
             leftSection={<IconPlus size={18} />}
             onClick={handleAdd}
             className="bg-blue-600 hover:bg-blue-700"
+            disabled={selectedPlatforms.length === 0}
           >
             Add Pipeline
           </Button>
         </Group>
         
-        <RequiredPipelinesCheck pipelines={pipelines} />
+        {selectedPlatforms.length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <Text size="sm" c="orange" className="font-medium">
+              Please select target platforms first (previous step) to configure build pipelines.
+            </Text>
+          </div>
+        ) : (
+          <RequiredPipelinesCheck pipelines={pipelines} />
+        )}
       </div>
       
       {pipelines.length > 0 ? (
