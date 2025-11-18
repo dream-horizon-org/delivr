@@ -3,8 +3,9 @@
  * Configure Checkmate test management integration
  */
 
-import { Stack, TextInput, Select, Switch, Text } from '@mantine/core';
-import type { CheckmateSettings } from '~/types/release-config';
+import { Stack, TextInput, Select, Switch, Text, Divider } from '@mantine/core';
+import type { CheckmateSettings, CheckmateRules } from '~/types/release-config';
+import { CheckmateRulesConfig } from './CheckmateRulesConfig';
 
 interface CheckmateConfigFormProps {
   config: Partial<CheckmateSettings>;
@@ -73,6 +74,18 @@ export function CheckmateConfigForm({
           }
         />
       </div>
+
+      <Divider label="Validation Rules" labelPosition="center" className="mt-4" />
+      
+      <CheckmateRulesConfig
+        rules={config.rules || {
+          maxFailedTests: 0,
+          maxUntestedCases: 0,
+          requireAllPlatforms: true,
+          allowOverride: false,
+        }}
+        onChange={(rules) => onChange({ ...config, rules })}
+      />
     </Stack>
   );
 }

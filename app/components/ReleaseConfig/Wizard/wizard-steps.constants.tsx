@@ -7,6 +7,7 @@ import {
   IconSettings,
   IconTarget,
   IconTestPipe,
+  IconChecklist,
   IconCalendar,
   IconBell,
   IconFileCheck,
@@ -39,9 +40,15 @@ export const WIZARD_STEPS: Step[] = [
     icon: (props: { size?: number; className?: string }) => <IconTestPipe size={props.size} className={props.className} />,
   },
   { 
+    id: 'jira', 
+    title: 'Jira Project', 
+    description: 'Optional',
+    icon: (props: { size?: number; className?: string }) => <IconChecklist size={props.size} className={props.className} />,
+  },
+  { 
     id: 'communication', 
-    title: 'Communication & PM', 
-    description: 'Slack, Jira & email',
+    title: 'Communication', 
+    description: 'Slack & email',
     icon: (props: { size?: number; className?: string }) => <IconBell size={props.size} className={props.className} />,
   },
   { 
@@ -64,8 +71,9 @@ export const STEP_INDEX = {
   PLATFORMS: 1,
   PIPELINES: 2,
   TESTING: 3,
-  COMMUNICATION: 4,
-  SCHEDULING: 5,
-  REVIEW: 6,
+  JIRA: 4,
+  COMMUNICATION: 5,
+  SCHEDULING: 6,
+  REVIEW: 7,
 } as const;
 

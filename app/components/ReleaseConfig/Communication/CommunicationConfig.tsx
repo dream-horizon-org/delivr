@@ -1,12 +1,11 @@
 /**
  * Complete Communication Configuration Component
- * Main container for Slack, Jira, and email notification configuration
+ * Main container for Slack and email notification configuration
  */
 
 import { Stack, Text } from '@mantine/core';
 import type { CommunicationConfig as CommunicationConfigType } from '~/types/release-config';
 import { SlackChannelMapper } from './SlackChannelMapper';
-import { JiraProjectConfig } from './JiraProjectConfig';
 import { EmailNotificationConfig } from './EmailNotificationConfig';
 
 interface CommunicationConfigProps {
@@ -14,7 +13,6 @@ interface CommunicationConfigProps {
   onChange: (config: CommunicationConfigType) => void;
   availableIntegrations: {
     slack: Array<{ id: string; name: string }>;
-    jira: Array<{ id: string; name: string }>;
   };
 }
 
@@ -89,43 +87,14 @@ export function CommunicationConfig({
     }
   };
   
-  const handleJiraToggle = (enabled: boolean) => {
-    onChange({
-      ...config,
-      jira: enabled
-        ? {
-            enabled: true,
-            integrationId: config.jira?.integrationId || '',
-            projectKey: config.jira?.projectKey || '',
-            projectId: config.jira?.projectId,
-            issueTypeForRelease: config.jira?.issueTypeForRelease,
-            createReleaseTicket: config.jira?.createReleaseTicket || false,
-            linkBuildsToIssues: config.jira?.linkBuildsToIssues || false,
-          }
-        : undefined,
-    });
-  };
-  
-  const handleJiraChange = (updates: Partial<NonNullable<typeof config.jira>>) => {
-    if (config.jira) {
-      onChange({
-        ...config,
-        jira: {
-          ...config.jira,
-          ...updates,
-        },
-      });
-    }
-  };
-  
   return (
     <Stack gap="lg">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Communication & Project Management
+          Communication Channels
         </Text>
         <Text size="sm" c="dimmed">
-          Configure Slack notifications, Jira project tracking, and email alerts
+          Configure Slack notifications and email alerts for your team
         </Text>
       </div>
       
@@ -144,24 +113,6 @@ export function CommunicationConfig({
         onChange={handleSlackChannelsChange}
         onIntegrationChange={handleSlackIntegrationChange}
         availableIntegrations={availableIntegrations.slack}
-      />
-      
-      <JiraProjectConfig
-        enabled={config.jira?.enabled || false}
-        integrationId={config.jira?.integrationId || ''}
-        projectKey={config.jira?.projectKey || ''}
-        projectId={config.jira?.projectId}
-        issueTypeForRelease={config.jira?.issueTypeForRelease}
-        createReleaseTicket={config.jira?.createReleaseTicket}
-        linkBuildsToIssues={config.jira?.linkBuildsToIssues}
-        onToggle={handleJiraToggle}
-        onIntegrationChange={(id) => handleJiraChange({ integrationId: id })}
-        onProjectKeyChange={(key) => handleJiraChange({ projectKey: key })}
-        onProjectIdChange={(id) => handleJiraChange({ projectId: id })}
-        onIssueTypeChange={(type) => handleJiraChange({ issueTypeForRelease: type })}
-        onCreateReleaseTicketChange={(create) => handleJiraChange({ createReleaseTicket: create })}
-        onLinkBuildsChange={(link) => handleJiraChange({ linkBuildsToIssues: link })}
-        availableIntegrations={availableIntegrations.jira}
       />
       
       <EmailNotificationConfig

@@ -69,12 +69,20 @@ export interface TestManagementConfig {
   providerSettings?: CheckmateSettings | TestRailSettings;
 }
 
+export interface CheckmateRules {
+  maxFailedTests: number; // e.g., 0 means no failed tests allowed
+  maxUntestedCases: number; // e.g., 0 means all cases must be tested
+  requireAllPlatforms: boolean; // All selected platforms must pass
+  allowOverride: boolean; // Can users override and proceed despite failed rules
+}
+
 export interface CheckmateSettings {
   type: 'CHECKMATE';
   workspaceId: string;
   projectId: string;
   autoCreateRuns: boolean;
   runNameTemplate?: string; // e.g., "v{{version}} - {{platform}} - {{date}}"
+  rules: CheckmateRules; // Validation rules for test runs
 }
 
 export interface TestRailSettings {
@@ -127,6 +135,20 @@ export interface RegressionSlot {
 }
 
 // ============================================================================
+// Jira Project Configuration
+// ============================================================================
+
+export interface JiraProjectConfig {
+  enabled: boolean;
+  integrationId: string;
+  projectKey: string; // e.g., "PROJ", "APP" 
+  projectId?: string;
+  issueTypeForRelease?: string; // Issue type ID for release tickets
+  createReleaseTicket?: boolean; // Auto-create release tickets
+  linkBuildsToIssues?: boolean; // Link build info to Jira issues
+}
+
+// ============================================================================
 // Communication Configuration
 // ============================================================================
 
@@ -140,16 +162,6 @@ export interface CommunicationConfig {
       regression: string;
       critical: string;
     };
-  };
-  
-  jira?: {
-    enabled: boolean;
-    integrationId: string;
-    projectKey: string; // e.g., "PROJ" 
-    projectId?: string;
-    issueTypeForRelease?: string; // Issue type ID for release tickets
-    createReleaseTicket?: boolean; // Auto-create release tickets
-    linkBuildsToIssues?: boolean; // Link build info to Jira issues
   };
   
   email?: {
@@ -180,6 +192,9 @@ export interface ReleaseConfiguration {
   
   // Test management
   testManagement: TestManagementConfig;
+  
+  // Jira project management
+  jiraProject: JiraProjectConfig;
   
   // Scheduling
   scheduling: SchedulingConfig;
