@@ -317,7 +317,7 @@ export function ConfigurationWizard({
       <div className="grid grid-cols-12 gap-6">
         {/* Vertical Stepper - Left Side */}
         <div className="col-span-3">
-          <Paper shadow="sm" padding="md" radius="md" className="sticky top-8">
+          <Paper shadow="sm" padding="lg" radius="md" className="sticky top-8" style={{ minHeight: '700px' }}>
             <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">
               Configuration Steps
             </Text>
@@ -340,7 +340,7 @@ export function ConfigurationWizard({
         {/* Main Content - Right Side */}
         <div className="col-span-9">
           <Paper shadow="sm" padding="xl" radius="md">
-            <div className="mb-6">
+            <div className="mb-6 px-4">
               <Text size="xl" fw={700} className="mb-2">
                 {steps[currentStep].title}
               </Text>
@@ -349,17 +349,19 @@ export function ConfigurationWizard({
               </Text>
             </div>
             
-            <div className="min-h-[500px] mb-6">{renderStepContent()}</div>
+            <div className="min-h-[600px] mb-6 px-4">{renderStepContent()}</div>
             
-            <WizardNavigation
-              currentStep={currentStep}
-              totalSteps={steps.length}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              onFinish={handleFinish}
-              canProceed={canProceedFromStep(currentStep)}
-              isLoading={isSubmitting}
-            />
+            <div className="px-4">
+              <WizardNavigation
+                currentStep={currentStep}
+                totalSteps={steps.length}
+                onPrevious={handlePrevious}
+                onNext={handleNext}
+                onFinish={handleFinish}
+                canProceed={canProceedFromStep(currentStep)}
+                isLoading={isSubmitting}
+              />
+            </div>
           </Paper>
         </div>
       </div>
