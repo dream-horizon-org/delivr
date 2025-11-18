@@ -61,67 +61,51 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
     avgCycleTime = analyticsData.avgCycleTime;
     upcomingReleases = 0; // TODO: Add to analytics
   } else {
-    
-    // Calculate analytics
-    const totalReleases = releases.length;
-    const activeReleases = releases.filter((r: any) => 
-      r.status !== 'RELEASED' && r.status !== 'CANCELLED' && r.status !== 'ARCHIVED'
+    // Calculate analytics from releases
+    totalReleases = releases.length;
+    activeReleases = releases.filter((r: any) => 
+      r.status === 'IN_PROGRESS' || r.status === 'DRAFT'
     ).length;
-    const completedReleases = releases.filter((r: any) => r.status === 'RELEASED').length;
-    const upcomingReleases = releases.filter((r: any) => r.status === 'KICKOFF_PENDING').length;
+    completedReleases = releases.filter((r: any) => r.status === 'COMPLETED').length;
+    upcomingReleases = releases.filter((r: any) => r.status === 'DRAFT').length;
     
-    // Calculate success rate (non-cancelled completed releases)
-    const successRate = totalReleases > 0 
+    // Calculate success rate
+    successRate = totalReleases > 0 
       ? Math.round((completedReleases / totalReleases) * 100) 
       : 0;
     
-    // Get recent releases (last 5)
-    const recentReleases = releases.slice(0, 5);
-    
-    // Calculate average release cycle time (mock for now)
-    const avgCycleTime = '14 days'; // TODO: Calculate from actual data
-    
-    // Get completed releases for adoption chart (last 5 completed)
-    const completedReleasesForChart = releases
-      .filter((r: any) => r.status === 'RELEASED' && r.userAdoption)
-      .slice(0, 5)
-      .reverse(); // Oldest to newest for chart
-    
-    // Prepare chart data for user adoption trend
-    const adoptionChartData = completedReleasesForChart.map((r: any) => ({
-      version: r.version,
-      ios: r.userAdoption?.ios || 0,
-      android: r.userAdoption?.android || 0,
-      web: r.userAdoption?.web || 0,
-    }));
-    
-    return json({
-      analytics: {
-        totalReleases,
-        activeReleases,
-        completedReleases,
-        upcomingReleases,
-        successRate,
-        avgCycleTime,
-      },
-      recentReleases,
-      adoptionChartData,
-    });
-  } catch (error) {
-    console.error('[ReleaseDashboard] Error fetching releases:', error);
-    return json({
-      analytics: {
-        totalReleases: 0,
-        activeReleases: 0,
-        completedReleases: 0,
-        upcomingReleases: 0,
-        successRate: 0,
-        avgCycleTime: 'N/A',
-      },
-      recentReleases: [],
-      adoptionChartData: [],
-    });
+    avgCycleTime = '14 days'; // Mock for now
   }
+  
+  // Get recent releases (last 5)
+  const recentReleases = releases.slice(0, 5);
+  
+  // Get completed releases for adoption chart
+  const completedReleasesForChart = releases
+    .filter((r: any) => r.status === 'COMPLETED' && r.userAdoption)
+    .slice(0, 5)
+    .reverse();
+  
+  // Prepare chart data
+  const adoptionChartData = completedReleasesForChart.map((r: any) => ({
+    version: r.version,
+    ios: r.userAdoption?.ios || 0,
+    android: r.userAdoption?.android || 0,
+    web: r.userAdoption?.web || 0,
+  }));
+  
+  return json({
+    analytics: {
+      totalReleases,
+      activeReleases,
+      completedReleases,
+      upcomingReleases,
+      successRate,
+      avgCycleTime,
+    },
+    recentReleases,
+    adoptionChartData,
+  });
 });
 
 export default function ReleaseDashboardPage() {
