@@ -30,6 +30,8 @@ interface PipelineEditModalProps {
     github: Array<{ id: string; name: string }>;
   };
   existingPipelines: BuildPipelineJob[]; // For validation
+  fixedPlatform?: 'ANDROID' | 'IOS'; // Fixed platform (cannot be changed)
+  fixedEnvironment?: BuildEnvironment; // Fixed environment (cannot be changed)
 }
 
 const platformOptions = [
@@ -51,13 +53,17 @@ export function PipelineEditModal({
   pipeline,
   availableIntegrations,
   existingPipelines,
+  fixedPlatform,
+  fixedEnvironment,
 }: PipelineEditModalProps) {
   const isEditing = !!pipeline;
   
   const [name, setName] = useState(pipeline?.name || '');
-  const [platform, setPlatform] = useState<Platform>(pipeline?.platform || 'ANDROID');
+  const [platform, setPlatform] = useState<Platform>(
+    pipeline?.platform || fixedPlatform || 'ANDROID'
+  );
   const [environment, setEnvironment] = useState<BuildEnvironment>(
-    pipeline?.environment || 'PRE_REGRESSION'
+    pipeline?.environment || fixedEnvironment || 'PRE_REGRESSION'
   );
   const [provider, setProvider] = useState<BuildProvider>(
     pipeline?.provider || 'JENKINS'
@@ -188,6 +194,8 @@ export function PipelineEditModal({
               }
             }}
             required
+            disabled={!!fixedPlatform}
+            description={fixedPlatform ? 'Platform is fixed for this category' : undefined}
           />
           
           <Select
@@ -197,6 +205,8 @@ export function PipelineEditModal({
             onChange={(val) => setEnvironment(val as BuildEnvironment)}
             required
             error={errors.environment}
+            disabled={!!fixedEnvironment}
+            description={fixedEnvironment ? 'Environment is fixed for this category' : undefined}
           />
         </Group>
         

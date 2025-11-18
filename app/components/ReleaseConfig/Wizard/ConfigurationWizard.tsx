@@ -18,7 +18,7 @@ import { ConfigSummary } from './ConfigSummary';
 import { BasicInfoForm } from './BasicInfoForm';
 import { WIZARD_STEPS, STEP_INDEX } from './wizard-steps.constants';
 import { VerticalStepper } from '~/components/Common/VerticalStepper';
-import { PipelineList } from '../BuildPipeline/PipelineList';
+import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
 import { SchedulingConfig } from '../Scheduling/SchedulingConfig';
@@ -84,7 +84,31 @@ export function ConfigurationWizard({
         return !!config.defaultTargets && config.defaultTargets.length > 0;
         
       case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN)
-        return !!config.buildPipelines && config.buildPipelines.length > 0;
+        if (!config.buildPipelines || config.buildPipelines.length === 0) {
+          return false;
+        }
+        // Validate required pipelines based on selected distribution targets
+        const needsAndroid = config.defaultTargets?.includes('PLAY_STORE');
+        const needsIOS = config.defaultTargets?.includes('APP_STORE');
+        
+        if (needsAndroid) {
+          const hasAndroidRegression = config.buildPipelines.some(
+            p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
+          );
+          if (!hasAndroidRegression) return false;
+        }
+        
+        if (needsIOS) {
+          const hasIOSRegression = config.buildPipelines.some(
+            p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
+          );
+          const hasTestFlight = config.buildPipelines.some(
+            p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
+          );
+          if (!hasIOSRegression || !hasTestFlight) return false;
+        }
+        
+        return true;
         
       case STEP_INDEX.TESTING: // Test Management
         return true; // Optional
@@ -192,7 +216,7 @@ export function ConfigurationWizard({
         
       case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
         return (
-          <PipelineList
+          <FixedPipelineCategories
             pipelines={config.buildPipelines || []}
             onChange={(pipelines) => setConfig({ ...config, buildPipelines: pipelines })}
             availableIntegrations={{

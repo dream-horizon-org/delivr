@@ -202,10 +202,11 @@ export function generateConfigId(): string {
 // ============================================================================
 
 /**
- * Validate build pipeline configuration
+ * Validate build pipeline configuration based on target platforms
  */
 export function validateBuildPipelines(
-  buildPipelines: ReleaseConfiguration['buildPipelines']
+  buildPipelines: ReleaseConfiguration['buildPipelines'],
+  targetPlatforms: ReleaseConfiguration['defaultTargets']
 ): string[] {
   const errors: string[] = [];
   
@@ -214,12 +215,12 @@ export function validateBuildPipelines(
     return errors;
   }
   
-  // Check which platforms are being used
-  const hasAndroid = buildPipelines.some(p => p.platform === 'ANDROID');
-  const hasIOS = buildPipelines.some(p => p.platform === 'IOS');
+  // Determine required platforms from target platforms
+  const needsAndroid = targetPlatforms.includes('PLAY_STORE');
+  const needsIOS = targetPlatforms.includes('APP_STORE');
   
-  // Android requirements: Only Regression is required, Pre-Regression is optional
-  if (hasAndroid) {
+  // Android requirements: Regression is mandatory
+  if (needsAndroid) {
     const hasAndroidRegression = buildPipelines.some(
       p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
     );
@@ -229,8 +230,8 @@ export function validateBuildPipelines(
     }
   }
   
-  // iOS requirements: Regression + TestFlight required, Pre-Regression is optional
-  if (hasIOS) {
+  // iOS requirements: Regression + TestFlight are mandatory
+  if (needsIOS) {
     const hasIOSRegression = buildPipelines.some(
       p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
     );
@@ -321,14 +322,14 @@ export function validateConfiguration(
   }
   
   // Validate build pipelines
-  // if (config.buildPipelines) {
-  //   const pipelineErrors = validateBuildPipelines(config.buildPipelines);
-  //   if (pipelineErrors.length > 0) {
-  //     errors.buildPipelines = pipelineErrors;
-  //   }
-  // } else {
-  //   errors.buildPipelines = ['Build pipeline configuration is required'];
-  // }
+  if (config.buildPipelines && config.defaultTargets) {
+    const pipelineErrors = validateBuildPipelines(config.buildPipelines, config.defaultTargets);
+    if (pipelineErrors.length > 0) {
+      errors.buildPipelines = pipelineErrors;
+    }
+  } else {
+    errors.buildPipelines = ['Build pipeline configuration is required'];
+  }
   
   // Validate scheduling
   if (config.scheduling) {
