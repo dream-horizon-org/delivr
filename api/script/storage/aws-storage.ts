@@ -10,6 +10,10 @@ import * as utils from "../utils/common";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
+import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
+import { CICDIntegrationController } from "./integrations/ci-cd/ci-cd-controller";
+import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
+import { CICDWorkflowController } from "./integrations/ci-cd/workflows-controller";
 import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
 import { SlackIntegrationController } from "./integrations/slack/slack-controller";
 
@@ -362,6 +366,8 @@ export function createModelss(sequelize: Sequelize) {
   const Collaborator = createCollaborators(sequelize);  // UNIFIED: supports BOTH app-level AND tenant-level
   const App = createApp(sequelize);
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
+  const CICDIntegrations = createCICDIntegrationModel(sequelize);  // CI/CD integrations (Jenkins, etc.)
+  const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
   const Release = createRelease(sequelize);  // Release management from Delivr
 
   // ============================================
@@ -451,7 +457,10 @@ export function createModelss(sequelize: Sequelize) {
     AppPointer,
     Collaborator,  // UNIFIED: supports both app-level AND tenant-level
     App,
-    SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
+    SCMIntegrations,       // SCM integrations (GitHub, GitLab, Bitbucket)
+    CICDIntegrations,      // CI/CD connections (Jenkins, etc.)
+    CICDWorkflows,         // CI/CD workflows/jobs across providers
+    Release,
     SlackIntegrations,  // Slack integrations
   };
 }
@@ -493,6 +502,8 @@ export class S3Storage implements storage.Storage {
     private sequelize:Sequelize;
     private setupPromise: Promise<void>;
     public scmController!: SCMIntegrationController;  // SCM integration controller
+    public cicdController!: CICDIntegrationController;  // CI/CD integration controller
+    public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public constructor() {
         const s3Config = {
@@ -597,6 +608,14 @@ export class S3Storage implements storage.Storage {
           // Initialize SCM Integration Controller
           this.scmController = new SCMIntegrationController(models.SCMIntegrations);
           console.log("SCM Integration Controller initialized");
+
+          // Initialize CI/CD Integration Controller
+          this.cicdController = new CICDIntegrationController(models.CICDIntegrations);
+          console.log("CI/CD Integration Controller initialized");
+
+          // Initialize CI/CD Workflow Controller
+          this.cicdWorkflowController = new CICDWorkflowController(models.CICDWorkflows);
+          console.log("CI/CD Workflow Controller initialized");
           
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
