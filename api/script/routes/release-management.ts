@@ -3,9 +3,16 @@
 // Separate from DOTA (Over-The-Air) management routes
 
 import { Request, Response, Router } from "express";
-import * as storageTypes from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
+import * as storageTypes from "../storage/storage";
+import { S3Storage } from "../storage/aws-storage";
+// Old multi-platform routes removed - using new test-run-operations routes
 import { createSCMIntegrationRoutes } from "./scm-integrations";
+import {
+  createProjectIntegrationRoutes,
+  createReleaseConfigRoutes,
+  createTestRunOperationsRoutes
+} from "./integrations/test-management";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -46,6 +53,31 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   const scmRoutes = createSCMIntegrationRoutes(storage);
   router.use(scmRoutes);
+
+  // ============================================================================
+  // TEST MANAGEMENT INTEGRATIONS (Checkmate, TestRail, etc.)
+  // ============================================================================
+  // Only mount test management routes if using S3Storage (which has test management)
+  const isS3Storage = storage instanceof S3Storage;
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Project-Level Integration Management (Credentials)
+    const projectIntegrationRoutes = createProjectIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    router.use(projectIntegrationRoutes);
+
+    // Release Config Management (Platform Parameters + Threshold)
+    const releaseConfigRoutes = createReleaseConfigRoutes(s3Storage.testManagementConfigService);
+    router.use(releaseConfigRoutes);
+
+    // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
+    const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
+    router.use(testRunRoutes);
+    
+    console.log('[Release Management] Test Management routes mounted successfully');
+  } else {
+    console.warn('[Release Management] Test Management services not available (S3Storage required), routes not mounted');
+  }
 
   // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)

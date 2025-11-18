@@ -1,0 +1,67 @@
+/**
+ * Checkmate Provider Constants
+ * Provider-specific configuration values
+ */
+
+export const CHECKMATE_API_ENDPOINTS = {
+  PROJECTS: '/api/v1/projects',
+  CREATE_RUN: '/api/v1/run/create',
+  RUN_STATE_DETAIL: '/api/v1/run/state-detail',
+  RUN_RESET: '/api/v1/run/:runId/reset',
+  RUN_CANCEL: '/api/v1/run/:runId/cancel'
+} as const;
+
+export const CHECKMATE_HTTP_METHODS = {
+  GET: 'GET',
+  POST: 'POST',
+  PUT: 'PUT',
+  DELETE: 'DELETE'
+} as const;
+
+export const CHECKMATE_HEADERS = {
+  CONTENT_TYPE_KEY: 'Content-Type',
+  CONTENT_TYPE_VALUE: 'application/json',
+  AUTHORIZATION_KEY: 'Authorization',
+  BEARER_PREFIX: 'Bearer'
+} as const;
+
+export const CHECKMATE_HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  TIMEOUT: 408,
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503
+} as const;
+
+export const CHECKMATE_ERROR_MESSAGES = {
+  API_ERROR_PREFIX: 'Checkmate API error',
+  PROJECT_ID_REQUIRED: 'Checkmate projectId is required in platform parameters',
+  CONFIG_VALIDATION_FAILED: 'Checkmate config validation failed',
+  MISSING_BASE_URL: 'Checkmate baseUrl is required',
+  MISSING_AUTH_TOKEN: 'Checkmate authToken is required',
+  INVALID_URL_FORMAT: 'Checkmate baseUrl has invalid format',
+  UNKNOWN_ERROR: 'Unknown error'
+} as const;
+
+export const CHECKMATE_URL_TEMPLATES = {
+  PROJECT_RUN: '/project/:projectId/run/:runId',
+  RUNS: '/runs/:runId'
+} as const;
+
+export const CHECKMATE_URL_PARAMS = {
+  RUN_ID: ':runId',
+  PROJECT_ID: ':projectId'
+} as const;
+
+export const CHECKMATE_QUERY_PARAMS = {
+  RUN_ID: 'runId',
+  GROUP_BY: 'groupBy'
+} as const;
+
+export const CHECKMATE_DEFAULTS = {
+  RUN_NAME: 'Test Run'
+} as const;
