@@ -331,15 +331,15 @@ export function validateConfiguration(
     errors.buildPipelines = ['Build pipeline configuration is required'];
   }
   
-  // Validate scheduling
+  // Validate scheduling (optional - only validate if provided)
   if (config.scheduling) {
     const schedulingErrors = validateScheduling(config.scheduling);
     if (schedulingErrors.length > 0) {
       errors.scheduling = schedulingErrors;
     }
-  } else {
-    errors.scheduling = ['Scheduling configuration is required'];
   }
+  // Note: Scheduling is optional. If not provided, configuration can still be saved.
+  // Scheduled configs become "release trains" that trigger automatically.
   
   const isValid = Object.keys(errors).length === 0;
   

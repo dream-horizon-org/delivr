@@ -4,7 +4,8 @@
  */
 
 import { useState } from 'react';
-import { Stack, Text, Card, Group, TextInput, NumberInput } from '@mantine/core';
+import { Stack, Text, Card, Group, TextInput, NumberInput, Alert } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import type { SchedulingConfig as SchedulingConfigType, RegressionSlot } from '~/types/release-config';
 import { ReleaseFrequencySelector } from './ReleaseFrequencySelector';
 import { WorkingDaysSelector } from './WorkingDaysSelector';
@@ -69,12 +70,21 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
     <Stack gap="lg">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Release Scheduling
+          Release Scheduling (Optional)
         </Text>
         <Text size="sm" c="dimmed">
           Configure release cadence, working days, and regression test slots
         </Text>
       </div>
+      
+      <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light">
+        <Text size="sm">
+          <strong>This step is optional.</strong> Configure scheduling to create an automated <strong>Release Train</strong> that triggers releases on a regular cadence.
+        </Text>
+        <Text size="sm" className="mt-2">
+          If you skip this step, you can still use this configuration to manually trigger releases whenever needed.
+        </Text>
+      </Alert>
       
       {/* Release Frequency */}
       <ReleaseFrequencySelector

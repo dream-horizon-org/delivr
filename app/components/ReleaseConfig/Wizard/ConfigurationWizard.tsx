@@ -113,17 +113,11 @@ export function ConfigurationWizard({
       case STEP_INDEX.TESTING: // Test Management
         return true; // Optional
         
-      case STEP_INDEX.SCHEDULING: // Scheduling
-        return (
-          !!config.scheduling &&
-          !!config.scheduling.defaultReleaseTime &&
-          !!config.scheduling.defaultKickoffTime &&
-          config.scheduling.workingDays.length > 0 &&
-          config.scheduling.regressionSlots.length > 0
-        );
-        
       case STEP_INDEX.COMMUNICATION: // Communication
         return true; // Optional
+        
+      case STEP_INDEX.SCHEDULING: // Scheduling (Optional - for release train automation)
+        return true; // Optional - users can skip if they don't want automated scheduling
         
       case STEP_INDEX.REVIEW: // Review
         const validation = validateConfiguration(config);
@@ -238,14 +232,6 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.SCHEDULING: // Scheduling
-        return (
-          <SchedulingConfig
-            config={config.scheduling!}
-            onChange={(scheduling) => setConfig({ ...config, scheduling })}
-          />
-        );
-        
       case STEP_INDEX.COMMUNICATION: // Communication
         return (
           <CommunicationConfig
@@ -254,6 +240,14 @@ export function ConfigurationWizard({
             availableIntegrations={{
               slack: availableIntegrations.slack,
             }}
+          />
+        );
+        
+      case STEP_INDEX.SCHEDULING: // Scheduling (Optional - Release Train)
+        return (
+          <SchedulingConfig
+            config={config.scheduling!}
+            onChange={(scheduling) => setConfig({ ...config, scheduling })}
           />
         );
         

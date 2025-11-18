@@ -57,6 +57,7 @@ export function PipelineEditModal({
   fixedEnvironment,
 }: PipelineEditModalProps) {
   const isEditing = !!pipeline;
+  console.log('fixedPlatform', fixedPlatform, 'fixedEnvironment', fixedEnvironment);
   
   const [name, setName] = useState(pipeline?.name || '');
   const [platform, setPlatform] = useState<Platform>(
@@ -79,6 +80,18 @@ export function PipelineEditModal({
   if (availableIntegrations.jenkins.length > 0) availableProviders.push('JENKINS');
   if (availableIntegrations.github.length > 0) availableProviders.push('GITHUB_ACTIONS');
   availableProviders.push('MANUAL_UPLOAD'); // Always available
+  
+  // Reset form when modal opens or pipeline/fixedPlatform/fixedEnvironment changes
+  useEffect(() => {
+    if (opened) {
+      setName(pipeline?.name || '');
+      setPlatform(pipeline?.platform || fixedPlatform || 'ANDROID');
+      setEnvironment(pipeline?.environment || fixedEnvironment || 'PRE_REGRESSION');
+      setProvider(pipeline?.provider || 'JENKINS');
+      setProviderConfig(pipeline?.providerConfig || { type: 'JENKINS' });
+      setErrors({});
+    }
+  }, [opened, pipeline, fixedPlatform, fixedEnvironment]);
   
   // Reset provider config when provider changes
   useEffect(() => {

@@ -39,16 +39,16 @@ export const WIZARD_STEPS: Step[] = [
     icon: (props: { size?: number; className?: string }) => <IconTestPipe size={props.size} className={props.className} />,
   },
   { 
-    id: 'scheduling', 
-    title: 'Scheduling', 
-    description: 'Timings & slots',
-    icon: (props: { size?: number; className?: string }) => <IconCalendar size={props.size} className={props.className} />,
-  },
-  { 
     id: 'communication', 
     title: 'Communication', 
     description: 'Slack & email',
     icon: (props: { size?: number; className?: string }) => <IconBell size={props.size} className={props.className} />,
+  },
+  { 
+    id: 'scheduling', 
+    title: 'Scheduling (Optional)', 
+    description: 'Release train',
+    icon: (props: { size?: number; className?: string }) => <IconCalendar size={props.size} className={props.className} />,
   },
   { 
     id: 'review', 
@@ -64,8 +64,8 @@ export const STEP_INDEX = {
   PLATFORMS: 1,
   PIPELINES: 2,
   TESTING: 3,
-  SCHEDULING: 4,
-  COMMUNICATION: 5,
+  COMMUNICATION: 4,
+  SCHEDULING: 5,
   REVIEW: 6,
 } as const;
 
