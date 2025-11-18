@@ -214,27 +214,23 @@ export function validateBuildPipelines(
     return errors;
   }
   
-  // Check for required Android pipelines
-  const hasAndroidPreRegression = buildPipelines.some(
-    p => p.platform === 'ANDROID' && p.environment === 'PRE_REGRESSION' && p.enabled
-  );
-  const hasAndroidRegression = buildPipelines.some(
-    p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
-  );
-  
-  if (!hasAndroidPreRegression) {
-    errors.push('Android Pre-Regression pipeline is required');
-  }
-  if (!hasAndroidRegression) {
-    errors.push('Android Regression pipeline is required');
-  }
-  
-  // Check for required iOS pipelines (if iOS is enabled)
+  // Check which platforms are being used
+  const hasAndroid = buildPipelines.some(p => p.platform === 'ANDROID');
   const hasIOS = buildPipelines.some(p => p.platform === 'IOS');
-  if (hasIOS) {
-    const hasIOSPreRegression = buildPipelines.some(
-      p => p.platform === 'IOS' && p.environment === 'PRE_REGRESSION' && p.enabled
+  
+  // Android requirements: Only Regression is required, Pre-Regression is optional
+  if (hasAndroid) {
+    const hasAndroidRegression = buildPipelines.some(
+      p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
     );
+    
+    if (!hasAndroidRegression) {
+      errors.push('Android Regression pipeline is required for Play Store releases');
+    }
+  }
+  
+  // iOS requirements: Regression + TestFlight required, Pre-Regression is optional
+  if (hasIOS) {
     const hasIOSRegression = buildPipelines.some(
       p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
     );
@@ -242,14 +238,11 @@ export function validateBuildPipelines(
       p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
     );
     
-    if (!hasIOSPreRegression) {
-      errors.push('iOS Pre-Regression pipeline is required');
-    }
     if (!hasIOSRegression) {
-      errors.push('iOS Regression pipeline is required');
+      errors.push('iOS Regression pipeline is required for App Store releases');
     }
     if (!hasTestFlight) {
-      errors.push('iOS TestFlight pipeline is required');
+      errors.push('iOS TestFlight pipeline is required for App Store distribution');
     }
   }
   

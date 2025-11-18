@@ -29,7 +29,7 @@ export function WizardNavigation({
   const isLastStep = currentStep === totalSteps - 1;
   
   return (
-    <Group justify="apart" className="pt-6 border-t border-gray-200">
+    <Group justify="apart" className="w-full pt-6 border-t border-gray-200 flex items-center justify-between">
       <Button
         variant="subtle"
         leftSection={<IconArrowLeft size={18} />}

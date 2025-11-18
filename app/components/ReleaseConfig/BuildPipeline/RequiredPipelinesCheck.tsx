@@ -18,22 +18,16 @@ interface RequirementStatus {
 }
 
 export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProps) {
-  // Check Android requirements
-  const hasAndroidPreRegression = pipelines.some(
-    p => p.platform === 'ANDROID' && p.environment === 'PRE_REGRESSION' && p.enabled
-  );
+  // Check which platforms are actually being used
+  const hasAnyAndroid = pipelines.some(p => p.platform === 'ANDROID');
+  const hasAnyIOS = pipelines.some(p => p.platform === 'IOS');
   
+  // Check Android requirements (only Regression is required, Pre-Regression is optional)
   const hasAndroidRegression = pipelines.some(
     p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
   );
   
-  // Check iOS requirements (only if iOS pipelines exist)
-  const hasAnyIOS = pipelines.some(p => p.platform === 'IOS');
-  
-  const hasIOSPreRegression = pipelines.some(
-    p => p.platform === 'IOS' && p.environment === 'PRE_REGRESSION' && p.enabled
-  );
-  
+  // Check iOS requirements (Regression + TestFlight required, Pre-Regression is optional)
   const hasIOSRegression = pipelines.some(
     p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
   );
@@ -42,30 +36,24 @@ export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProp
     p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
   );
   
-  const requirements: RequirementStatus[] = [
-    {
-      name: 'Android Pre-Regression',
-      met: hasAndroidPreRegression,
-      description: 'Required for initial Android builds',
-    },
-    {
+  const requirements: RequirementStatus[] = [];
+  
+  // Add Android requirements
+  if (hasAnyAndroid) {
+    requirements.push({
       name: 'Android Regression',
       met: hasAndroidRegression,
-      description: 'Required for regression testing builds',
-    },
-  ];
+      description: 'Required for Play Store releases',
+    });
+  }
   
+  // Add iOS requirements
   if (hasAnyIOS) {
     requirements.push(
       {
-        name: 'iOS Pre-Regression',
-        met: hasIOSPreRegression,
-        description: 'Required for initial iOS builds',
-      },
-      {
         name: 'iOS Regression',
         met: hasIOSRegression,
-        description: 'Required for iOS regression testing builds',
+        description: 'Required for App Store releases',
       },
       {
         name: 'iOS TestFlight',

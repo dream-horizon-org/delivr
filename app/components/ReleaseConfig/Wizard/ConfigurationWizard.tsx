@@ -329,18 +329,18 @@ export function ConfigurationWizard({
               allowNavigation={false}
             />
             
-            <div className="mt-6 pt-4 border-t border-gray-200">
+            {/* <div className="mt-6 pt-4 border-t border-gray-200">
               <Text size="xs" c="dimmed">
                 Step {currentStep + 1} of {steps.length}
               </Text>
-            </div>
+            </div> */}
           </Paper>
         </div>
         
         {/* Main Content - Right Side */}
         <div className="col-span-9">
           <Paper shadow="sm" padding="xl" radius="md">
-            <div className="mb-6 px-4">
+            <div className="mb-6 px-4 py-4">
               <Text size="xl" fw={700} className="mb-2">
                 {steps[currentStep].title}
               </Text>
@@ -351,7 +351,7 @@ export function ConfigurationWizard({
             
             <div className="min-h-[600px] mb-6 px-4">{renderStepContent()}</div>
             
-            <div className="px-4">
+            <div className="px-4 py-4">
               <WizardNavigation
                 currentStep={currentStep}
                 totalSteps={steps.length}
