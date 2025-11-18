@@ -28,11 +28,39 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   // NOTE: Setup status is available from parent route - no need to fetch again!
   // We'll access it via useRouteLoaderData in the component
   
-  // Fetch all releases for analytics (only if we need them)
-  // We'll determine if setup is complete in the component
+  // Fetch releases and analytics from API
+  let releases = [];
+  let analyticsData = null;
+  
   try {
-    const releasesResponse = await getReleases(org);
-    const releases = releasesResponse.releases || [];
+    // Fetch analytics
+    const analyticsResponse = await fetch(`http://localhost:3000/api/v1/tenants/${org}/releases?analytics=true`);
+    if (analyticsResponse.ok) {
+      const data = await analyticsResponse.json();
+      analyticsData = data.analytics;
+    }
+    
+    // Fetch actual releases
+    const releasesResponse = await fetch(`http://localhost:3000/api/v1/tenants/${org}/releases?recent=10`);
+    if (releasesResponse.ok) {
+      const releasesData = await releasesResponse.json();
+      releases = releasesData.releases || [];
+    }
+  } catch (error) {
+    console.error('[Dashboard] Failed to fetch releases:', error);
+  }
+  
+  // Use analytics from API if available, otherwise calculate from releases
+  let totalReleases, activeReleases, completedReleases, upcomingReleases, successRate, avgCycleTime;
+  
+  if (analyticsData) {
+    totalReleases = analyticsData.totalReleases;
+    activeReleases = analyticsData.activeReleases;
+    completedReleases = analyticsData.completedReleases;
+    successRate = analyticsData.successRate;
+    avgCycleTime = analyticsData.avgCycleTime;
+    upcomingReleases = 0; // TODO: Add to analytics
+  } else {
     
     // Calculate analytics
     const totalReleases = releases.length;

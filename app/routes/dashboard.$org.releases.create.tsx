@@ -11,7 +11,7 @@ import { IconArrowLeft, IconArrowRight, IconRocket, IconSettings } from '@tabler
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { createRelease } from '~/.server/services/ReleaseManagement';
-import { loadConfigList, loadConfigById } from '~/utils/release-config-storage';
+// Config loading moved to API - no longer using local storage
 import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper';
 import { ConfigurationSelector } from '~/components/ReleaseCreation/ConfigurationSelector';
 import { ReleaseDetailsForm } from '~/components/ReleaseCreation/ReleaseDetailsForm';
@@ -48,7 +48,7 @@ const steps: Step[] = [
   },
 ];
 
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org } = params;
   
   if (!org) {
@@ -58,9 +58,22 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   // Get setup data for validation
   const setupData = await getSetupData(org);
   
-  // Load available configurations from local storage
-  // TODO: Later fetch from server
-  const configurations: any[] = []; // Mock for now
+  // Fetch active configurations from API
+  let configurations: any[] = [];
+  try {
+    const url = new URL(request.url);
+    const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?status=ACTIVE`;
+    
+    const response = await fetch(apiUrl);
+    if (response.ok) {
+      const data = await response.json();
+      configurations = data.configurations || [];
+      console.log(`[CreateRelease] Loaded ${configurations.length} active configurations`);
+    }
+  } catch (error) {
+    console.error('[CreateRelease] Failed to load configurations:', error);
+    // Continue with empty array if API fails
+  }
   
   return json({
     org,
@@ -105,7 +118,7 @@ export default function CreateReleasePage() {
   const org = loaderData.org;
   const configurations = loaderData.configurations || [];
   const navigate = useNavigate();
-  
+
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -117,30 +130,27 @@ export default function CreateReleasePage() {
   const [details, setDetails] = useState<Partial<ReleaseBasicDetails>>({});
   const [customizations, setCustomizations] = useState<Partial<ReleaseCustomizations>>({});
   
-  // Load configurations from local storage on client
+  // Select default configuration on load
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const configs = loadConfigList(org) as any[];
-      const activeConfigs = configs.filter((c: any) => c.status === 'ACTIVE');
-      const defaultConfig = activeConfigs.find((c: any) => c.isDefault);
-      
-      if (defaultConfig) {
+    if (configurations.length > 0) {
+      const defaultConfig = configurations.find((c: any) => c.isDefault && c.status === 'ACTIVE');
+      if (defaultConfig && !selectedConfigId) {
         setSelectedConfigId(defaultConfig.id);
       }
     }
-  }, [org]);
+  }, [configurations]);
   
   // Load the full configuration when a config is selected
   useEffect(() => {
     if (selectedConfigId) {
-      const config = loadConfigById(org, selectedConfigId);
+      const config = configurations.find((c: any) => c.id === selectedConfigId);
       if (config) {
         setSelectedConfig(config);
       }
     } else {
       setSelectedConfig(undefined);
     }
-  }, [org, selectedConfigId]);
+  }, [selectedConfigId, configurations]);
   
   // Pre-populate details from selected config
   useEffect(() => {
@@ -195,16 +205,49 @@ export default function CreateReleasePage() {
   };
   
   const handleSubmit = async () => {
-    // TODO: Implement actual release creation with API call
-    console.log('Creating release:', {
-      mode,
-      configId: selectedConfigId,
-      details,
-      customizations,
-    });
+    setIsSubmitting(true);
     
-    // For now, just navigate back
-    navigate(`/dashboard/${org}/releases`);
+    try {
+      // Prepare release data
+      const releaseData = {
+        configId: mode === 'WITH_CONFIG' ? selectedConfigId : undefined,
+        version: details.version,
+        releaseType: details.releaseType || 'PLANNED',
+        baseVersion: details.baseVersion,
+        kickoffDate: details.kickoffDate,
+        releaseDate: details.releaseDate,
+        description: details.description,
+        platforms: customizations.platforms || { web: false, playStore: false, appStore: false },
+        customizations: mode === 'WITH_CONFIG' ? customizations : undefined,
+        createdBy: 'current-user', // TODO: Get from auth context
+      };
+      
+      console.log('[CreateRelease] Submitting release:', releaseData);
+      
+      // Submit to API
+      const response = await fetch(`/api/v1/tenants/${org}/releases`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ release: releaseData }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create release');
+      }
+      
+      const result = await response.json();
+      console.log('[CreateRelease] Release created:', result.releaseId);
+      
+      // Navigate to the release or releases list
+      navigate(`/dashboard/${org}/releases`);
+    } catch (error) {
+      console.error('[CreateRelease] Failed to create release:', error);
+      alert(`Failed to create release: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsSubmitting(false);
+    }
   };
   
   const renderStepContent = () => {
