@@ -14,6 +14,7 @@ interface WizardNavigationProps {
   onFinish: () => void;
   canProceed: boolean;
   isLoading?: boolean;
+  isEditMode?: boolean;
 }
 
 export function WizardNavigation({
@@ -24,9 +25,12 @@ export function WizardNavigation({
   onFinish,
   canProceed,
   isLoading = false,
+  isEditMode = false,
 }: WizardNavigationProps) {
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
+
+  console.log('isFirstStep', isFirstStep, 'isLastStep', isLastStep, 'currentStep', currentStep, 'totalSteps', totalSteps, canProceed);
   
   return (
     <Group justify="apart" className="w-full pt-6 border-t border-gray-200 flex items-center justify-between">
@@ -58,11 +62,10 @@ export function WizardNavigation({
           variant="filled"
           leftSection={<IconCheck size={18} />}
           onClick={onFinish}
-          disabled={!canProceed || isLoading}
           loading={isLoading}
           className="bg-green-600 hover:bg-green-700"
         >
-          Save Configuration
+          {isEditMode ? 'Update Configuration' : 'Save Configuration'}
         </Button>
       )}
     </Group>

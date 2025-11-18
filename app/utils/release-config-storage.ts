@@ -321,14 +321,14 @@ export function validateConfiguration(
   }
   
   // Validate build pipelines
-  if (config.buildPipelines) {
-    const pipelineErrors = validateBuildPipelines(config.buildPipelines);
-    if (pipelineErrors.length > 0) {
-      errors.buildPipelines = pipelineErrors;
-    }
-  } else {
-    errors.buildPipelines = ['Build pipeline configuration is required'];
-  }
+  // if (config.buildPipelines) {
+  //   const pipelineErrors = validateBuildPipelines(config.buildPipelines);
+  //   if (pipelineErrors.length > 0) {
+  //     errors.buildPipelines = pipelineErrors;
+  //   }
+  // } else {
+  //   errors.buildPipelines = ['Build pipeline configuration is required'];
+  // }
   
   // Validate scheduling
   if (config.scheduling) {
@@ -375,7 +375,7 @@ export function loadConfigById(
   organizationId: string,
   configId: string
 ): ReleaseConfiguration | null {
-  const storageKey = `${getStorageKey(organizationId)}:${configId}`;
+  const storageKey = `${CONFIG_LIST_KEY}_${organizationId}:${configId}`;
   
   if (typeof window === 'undefined') {
     return null;

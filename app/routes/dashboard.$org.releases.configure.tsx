@@ -15,6 +15,29 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     throw new Response('Organization not found', { status: 404 });
   }
   
+  // Check if editing existing configuration
+  const url = new URL(request.url);
+  const editConfigId = url.searchParams.get('edit');
+  
+  let existingConfig: ReleaseConfiguration | null = null;
+  
+  if (editConfigId) {
+    try {
+      const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?configId=${editConfigId}`;
+      const response = await fetch(apiUrl);
+      
+      if (response.ok) {
+        const data = await response.json();
+        existingConfig = data.configuration;
+        console.log(`[Configure] Loading config for edit: ${editConfigId}`);
+      } else {
+        console.error('[Configure] Failed to load config:', await response.text());
+      }
+    } catch (error) {
+      console.error('[Configure] Error fetching config:', error);
+    }
+  }
+  
   // TODO: Fetch available integrations from server
   // For now, return mock data assuming integrations are connected
   const availableIntegrations = {
@@ -35,6 +58,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   return json({
     organizationId: org,
     availableIntegrations,
+    existingConfig,
+    isEditMode: !!editConfigId,
   });
 }
 
@@ -74,28 +99,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function ReleasesConfigurePage() {
-  const { organizationId, availableIntegrations } = useLoaderData<typeof loader>();
+  const { organizationId, availableIntegrations, existingConfig, isEditMode } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   
   const handleSubmit = async (config: ReleaseConfiguration) => {
-    const formData = new FormData();
-    formData.append('config', JSON.stringify(config));
-    
-    // Submit via fetch to trigger action
-    const response = await fetch(`/dashboard/${organizationId}/releases/configure`, {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (response.ok) {
-      navigate(`/dashboard/${organizationId}/releases`);
-    } else {
-      throw new Error('Failed to save configuration');
-    }
+    // The wizard already handles API submission directly
+    // Just navigate to settings page after successful save
+    navigate(`/dashboard/${organizationId}/settings/release-config`);
   };
   
   const handleCancel = () => {
-    navigate(`/dashboard/${organizationId}/releases`);
+    navigate(`/dashboard/${organizationId}/settings/release-config`);
   };
   
   return (
@@ -104,6 +118,8 @@ export default function ReleasesConfigurePage() {
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       availableIntegrations={availableIntegrations}
+      existingConfig={existingConfig}
+      isEditMode={isEditMode}
     />
   );
 }

@@ -22,6 +22,7 @@ import {
   IconChartBar,
   IconList,
   IconPlug,
+  IconAdjustments,
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "@remix-run/react";
@@ -314,7 +315,10 @@ function OrgSidebar({
   const isReleasesActive = location.pathname.includes("/releases/list") || 
                            (location.pathname.includes("/releases/") && 
                             !location.pathname.includes("/releases/setup") &&
+                            !location.pathname.includes("/settings/release-config") &&
                             location.pathname !== `/dashboard/${org.id}/releases`);
+  const isReleaseConfigActive = location.pathname.includes("/settings/release-config") ||
+                                location.pathname.includes("/releases/configure");
   const isIntegrationsActive = location.pathname.includes("/integrations");
 
   return (
@@ -383,6 +387,16 @@ function OrgSidebar({
             label="Releases"
             isActive={isReleasesActive}
             onClick={() => navigate(`/dashboard/${org.id}/releases/list`)}
+          />
+
+          {/* Release Configuration */}
+          <NavItem
+            icon={IconAdjustments}
+            label="Release Config"
+            isActive={isReleaseConfigActive}
+            onClick={() => navigate(`/dashboard/${org.id}/settings/release-config`)}
+            isOwnerOnly={true}
+            isOwner={org.isAdmin}
           />
 
           {/* Integrations */}

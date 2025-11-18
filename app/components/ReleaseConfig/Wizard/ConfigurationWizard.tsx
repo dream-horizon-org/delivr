@@ -4,26 +4,20 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Container, Paper, Text, TextInput, Textarea, Select, Switch } from '@mantine/core';
-import {
-  IconSettings,
-  IconTarget,
-  IconTestPipe,
-  IconCalendar,
-  IconBell,
-  IconFileCheck,
-} from '@tabler/icons-react';
+import { Container, Paper, Text, Badge } from '@mantine/core';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import {
-  generateConfigId,
   saveDraftConfig,
   loadDraftConfig,
   clearDraftConfig,
   validateConfiguration,
 } from '~/utils/release-config-storage';
+import { createDefaultConfig } from '~/utils/default-config';
 import { WizardNavigation } from './WizardNavigation';
 import { ConfigSummary } from './ConfigSummary';
-import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper';
+import { BasicInfoForm } from './BasicInfoForm';
+import { WIZARD_STEPS, STEP_INDEX } from './wizard-steps.constants';
+import { VerticalStepper } from '~/components/Common/VerticalStepper';
 import { PipelineList } from '../BuildPipeline/PipelineList';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
@@ -40,95 +34,40 @@ interface ConfigurationWizardProps {
     slack: Array<{ id: string; name: string }>;
     checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
   };
+  existingConfig?: ReleaseConfiguration | null;
+  isEditMode?: boolean;
 }
-
-const steps: Step[] = [
-  { 
-    id: 'basic', 
-    title: 'Basic Information', 
-    description: 'Name and type',
-    icon: IconSettings 
-  },
-  { 
-    id: 'platforms', 
-    title: 'Target Platforms', 
-    description: 'Select platforms',
-    icon: IconTarget 
-  },
-  { 
-    id: 'pipelines', 
-    title: 'Build Pipelines', 
-    description: 'Configure builds',
-    icon: IconSettings 
-  },
-  { 
-    id: 'testing', 
-    title: 'Test Management', 
-    description: 'Optional',
-    icon: IconTestPipe 
-  },
-  { 
-    id: 'scheduling', 
-    title: 'Scheduling', 
-    description: 'Timings & slots',
-    icon: IconCalendar 
-  },
-  { 
-    id: 'communication', 
-    title: 'Communication', 
-    description: 'Slack & email',
-    icon: IconBell 
-  },
-  { 
-    id: 'review', 
-    title: 'Review & Submit', 
-    description: 'Final check',
-    icon: IconFileCheck 
-  },
-];
 
 export function ConfigurationWizard({
   organizationId,
   onSubmit,
   onCancel,
   availableIntegrations,
+  existingConfig,
+  isEditMode = false,
 }: ConfigurationWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Initialize configuration from draft or create new
+  // Initialize configuration from existing, draft, or create new
   const [config, setConfig] = useState<Partial<ReleaseConfiguration>>(() => {
-    const draft = loadDraftConfig(organizationId);
-    if (draft) return draft;
+    // If editing, use existing config
+    if (isEditMode && existingConfig) {
+      console.log('[ConfigWizard] Loading existing config for edit:', existingConfig.id);
+      return existingConfig;
+    }
     
-    return {
-      id: generateConfigId(),
-      organizationId,
-      name: '',
-      releaseType: 'PLANNED',
-      isDefault: true,
-      defaultTargets: [],
-      buildPipelines: [],
-      testManagement: {
-        enabled: false,
-        provider: 'NONE',
-      },
-      scheduling: {
-        releaseFrequency: 'WEEKLY',
-        defaultReleaseTime: '18:00',
-        defaultKickoffTime: '10:00',
-        kickoffLeadDays: 7,
-        kickoffReminderEnabled: true,
-        kickoffReminderTime: '09:00',
-        kickoffReminderLeadDays: 1,
-        workingDays: [1, 2, 3, 4, 5],
-        timezone: 'Asia/Kolkata',
-        regressionSlots: [],
-      },
-      communication: {},
-      status: 'DRAFT',
-    };
+    // Otherwise, try to load draft
+    const draft = loadDraftConfig(organizationId);
+    if (draft) {
+      console.log('[ConfigWizard] Loading draft config');
+      return draft;
+    }
+    
+    // Create new config
+    console.log('[ConfigWizard] Creating new config');
+    return createDefaultConfig(organizationId);
   });
   
   // Auto-save draft to local storage
@@ -138,19 +77,19 @@ export function ConfigurationWizard({
   
   const canProceedFromStep = (stepIndex: number): boolean => {
     switch (stepIndex) {
-      case 0: // Basic Info
+      case STEP_INDEX.BASIC: // Basic Info
         return !!(config.name && config.name.trim());
         
-      case 1: // Target Platforms (MOVED UP)
+      case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP)
         return !!config.defaultTargets && config.defaultTargets.length > 0;
         
-      case 2: // Build Pipelines (MOVED DOWN)
+      case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN)
         return !!config.buildPipelines && config.buildPipelines.length > 0;
         
-      case 3: // Test Management
+      case STEP_INDEX.TESTING: // Test Management
         return true; // Optional
         
-      case 4: // Scheduling
+      case STEP_INDEX.SCHEDULING: // Scheduling
         return (
           !!config.scheduling &&
           !!config.scheduling.defaultReleaseTime &&
@@ -159,11 +98,12 @@ export function ConfigurationWizard({
           config.scheduling.regressionSlots.length > 0
         );
         
-      case 5: // Communication
+      case STEP_INDEX.COMMUNICATION: // Communication
         return true; // Optional
         
-      case 6: // Review
+      case STEP_INDEX.REVIEW: // Review
         const validation = validateConfiguration(config);
+        console.log('validateConfiguration', validation);
         return validation.isValid;
         
       default:
@@ -185,6 +125,7 @@ export function ConfigurationWizard({
   };
   
   const handleFinish = async () => {
+    console.log('handleFinish', currentStep, canProceedFromStep(currentStep));
     if (!canProceedFromStep(currentStep)) return;
     
     setIsSubmitting(true);
@@ -193,13 +134,15 @@ export function ConfigurationWizard({
       const completeConfig: ReleaseConfiguration = {
         ...config,
         status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        // Keep existing createdAt if editing, otherwise set new
+        createdAt: isEditMode ? config.createdAt! : new Date().toISOString(),
       } as ReleaseConfiguration;
       
-      // Submit to API
+      // Submit to API (POST for create, PUT for update)
+      const method = isEditMode ? 'PUT' : 'POST';
       const response = await fetch(`/api/v1/tenants/${organizationId}/release-config`, {
-        method: 'POST',
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -208,20 +151,22 @@ export function ConfigurationWizard({
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save configuration');
+        throw new Error(errorData.error || `Failed to ${isEditMode ? 'update' : 'save'} configuration`);
       }
       
       const result = await response.json();
-      console.log('[ConfigWizard] Configuration saved to server:', result.configId);
+      console.log(`[ConfigWizard] Configuration ${isEditMode ? 'updated' : 'saved'} to server:`, result.configId);
       
-      // Clear draft after successful submission
-      clearDraftConfig(organizationId);
+      // Clear draft after successful submission (but not when editing)
+      if (!isEditMode) {
+        clearDraftConfig(organizationId);
+      }
       
       // Call parent onSubmit with the complete config (for navigation)
       await onSubmit(completeConfig);
     } catch (error) {
       console.error('Failed to save configuration:', error);
-      alert(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`Failed to ${isEditMode ? 'update' : 'save'} configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -229,50 +174,15 @@ export function ConfigurationWizard({
   
   const renderStepContent = () => {
     switch (currentStep) {
-      case 0: // Basic Info
+      case STEP_INDEX.BASIC: // Basic Info
         return (
-          <div className="space-y-4">
-            <TextInput
-              label="Configuration Name"
-              placeholder="e.g., Standard Release Configuration"
-              value={config.name}
-              onChange={(e) => setConfig({ ...config, name: e.target.value })}
-              required
-              description="A descriptive name for this configuration"
-            />
-            
-            <Textarea
-              label="Description (Optional)"
-              placeholder="Describe when to use this configuration..."
-              value={config.description || ''}
-              onChange={(e) => setConfig({ ...config, description: e.target.value })}
-              rows={3}
-              description="Provide context about this configuration"
-            />
-            
-            <Select
-              label="Release Type"
-              data={[
-                { value: 'PLANNED', label: 'Planned Release' },
-                { value: 'HOTFIX', label: 'Hotfix Release' },
-                { value: 'EMERGENCY', label: 'Emergency Release' },
-              ]}
-              value={config.releaseType}
-              onChange={(val) => setConfig({ ...config, releaseType: val as any })}
-              required
-              description="Type of releases this configuration is for"
-            />
-            
-            <Switch
-              label="Set as Default Configuration"
-              description="Use this configuration for new releases by default"
-              checked={config.isDefault}
-              onChange={(e) => setConfig({ ...config, isDefault: e.currentTarget.checked })}
-            />
-          </div>
+          <BasicInfoForm
+            config={config}
+            onChange={setConfig}
+          />
         );
         
-      case 1: // Target Platforms (MOVED UP - Select platforms FIRST)
+      case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP - Select platforms FIRST)
         return (
           <PlatformSelector
             selectedPlatforms={config.defaultTargets || []}
@@ -280,7 +190,7 @@ export function ConfigurationWizard({
           />
         );
         
-      case 2: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
+      case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
         return (
           <PipelineList
             pipelines={config.buildPipelines || []}
@@ -293,7 +203,7 @@ export function ConfigurationWizard({
           />
         );
         
-      case 3: // Test Management
+      case STEP_INDEX.TESTING: // Test Management
         return (
           <TestManagementSelector
             config={config.testManagement!}
@@ -304,7 +214,7 @@ export function ConfigurationWizard({
           />
         );
         
-      case 4: // Scheduling
+      case STEP_INDEX.SCHEDULING: // Scheduling
         return (
           <SchedulingConfig
             config={config.scheduling!}
@@ -312,7 +222,7 @@ export function ConfigurationWizard({
           />
         );
         
-      case 5: // Communication
+      case STEP_INDEX.COMMUNICATION: // Communication
         return (
           <CommunicationConfig
             config={config.communication!}
@@ -323,48 +233,49 @@ export function ConfigurationWizard({
           />
         );
         
-      case 6: // Review
+      case STEP_INDEX.REVIEW: // Review
         return <ConfigSummary config={config} />;
         
       default:
         return null;
     }
   };
+
+  console.log('currentStep', currentStep, 'config', config, );
   
   return (
     <Container size="xl" className="py-8">
       <div className="grid grid-cols-12 gap-6">
         {/* Vertical Stepper - Left Side */}
         <div className="col-span-3">
-          <Paper shadow="sm" padding="lg" radius="md" className="sticky top-8" style={{ minHeight: '700px' }}>
+          <Paper shadow="sm" p="lg" radius="md" className="sticky top-8" style={{ minHeight: '700px' }}>
+            {isEditMode && (
+              <Badge color="blue" size="lg" className="mb-4">
+                Editing: {config.name || 'Configuration'}
+              </Badge>
+            )}
             <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">
               Configuration Steps
             </Text>
             
             <VerticalStepper
-              steps={steps}
+              steps={WIZARD_STEPS}
               currentStep={currentStep}
               completedSteps={completedSteps}
               allowNavigation={false}
             />
-            
-            {/* <div className="mt-6 pt-4 border-t border-gray-200">
-              <Text size="xs" c="dimmed">
-                Step {currentStep + 1} of {steps.length}
-              </Text>
-            </div> */}
           </Paper>
         </div>
         
         {/* Main Content - Right Side */}
         <div className="col-span-9">
-          <Paper shadow="sm" padding="xl" radius="md">
+          <Paper shadow="sm" p="xl" radius="md">
             <div className="mb-6 px-4 py-4">
               <Text size="xl" fw={700} className="mb-2">
-                {steps[currentStep].title}
+                {WIZARD_STEPS[currentStep].title}
               </Text>
               <Text size="sm" c="dimmed">
-                {steps[currentStep].description}
+                {WIZARD_STEPS[currentStep].description}
               </Text>
             </div>
             
@@ -373,12 +284,13 @@ export function ConfigurationWizard({
             <div className="px-4 py-4">
               <WizardNavigation
                 currentStep={currentStep}
-                totalSteps={steps.length}
+                totalSteps={WIZARD_STEPS.length}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
                 onFinish={handleFinish}
                 canProceed={canProceedFromStep(currentStep)}
                 isLoading={isSubmitting}
+                isEditMode={isEditMode}
               />
             </div>
           </Paper>
