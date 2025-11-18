@@ -4,7 +4,7 @@
  */
 
 import { Card, Switch, Text, Select, Group, Stack, TextInput, Checkbox, Alert } from '@mantine/core';
-import { IconBrandJira, IconInfoCircle } from '@tabler/icons-react';
+import { IconChecklist, IconInfoCircle } from '@tabler/icons-react';
 
 interface JiraProjectConfigProps {
   enabled: boolean;
@@ -46,7 +46,7 @@ export function JiraProjectConfig({
       <Stack gap="md">
         <Group justify="apart">
           <Group gap="sm">
-            <IconBrandJira size={24} className="text-blue-600" />
+            <IconChecklist size={24} className="text-blue-600" />
             <div>
               <Text fw={600} size="md">
                 Jira Project Management
