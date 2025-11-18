@@ -40,8 +40,8 @@ export const WIZARD_STEPS: Step[] = [
   },
   { 
     id: 'communication', 
-    title: 'Communication', 
-    description: 'Slack & email',
+    title: 'Communication & PM', 
+    description: 'Slack, Jira & email',
     icon: (props: { size?: number; className?: string }) => <IconBell size={props.size} className={props.className} />,
   },
   { 

@@ -50,6 +50,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     slack: [
       { id: 'slack-1', name: 'Company Workspace' },
     ],
+    jira: [
+      { id: 'jira-1', name: 'Company Jira Workspace' },
+      { id: 'jira-2', name: 'Engineering Jira' },
+    ],
     checkmate: [
       { id: 'checkmate-1', name: 'Checkmate Integration', workspaceId: 'workspace-123' },
     ],

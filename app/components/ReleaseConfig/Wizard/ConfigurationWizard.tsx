@@ -32,6 +32,7 @@ interface ConfigurationWizardProps {
     jenkins: Array<{ id: string; name: string }>;
     github: Array<{ id: string; name: string }>;
     slack: Array<{ id: string; name: string }>;
+    jira: Array<{ id: string; name: string }>;
     checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
   };
   existingConfig?: ReleaseConfiguration | null;
@@ -239,6 +240,7 @@ export function ConfigurationWizard({
             onChange={(communication) => setConfig({ ...config, communication })}
             availableIntegrations={{
               slack: availableIntegrations.slack,
+              jira: availableIntegrations.jira,
             }}
           />
         );

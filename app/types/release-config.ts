@@ -142,6 +142,16 @@ export interface CommunicationConfig {
     };
   };
   
+  jira?: {
+    enabled: boolean;
+    integrationId: string;
+    projectKey: string; // e.g., "PROJ" 
+    projectId?: string;
+    issueTypeForRelease?: string; // Issue type ID for release tickets
+    createReleaseTicket?: boolean; // Auto-create release tickets
+    linkBuildsToIssues?: boolean; // Link build info to Jira issues
+  };
+  
   email?: {
     enabled: boolean;
     notificationEmails: string[];
