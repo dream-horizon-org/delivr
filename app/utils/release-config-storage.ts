@@ -368,3 +368,28 @@ export function importConfig(jsonString: string): ReleaseConfiguration | null {
   }
 }
 
+/**
+ * Load a specific configuration by ID
+ */
+export function loadConfigById(
+  organizationId: string,
+  configId: string
+): ReleaseConfiguration | null {
+  const storageKey = `${getStorageKey(organizationId)}:${configId}`;
+  
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
+  try {
+    const data = localStorage.getItem(storageKey);
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Failed to load configuration:', error);
+  }
+  
+  return null;
+}
+

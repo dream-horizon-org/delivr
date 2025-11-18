@@ -1,14 +1,52 @@
 /**
  * Create Release Page
- * Form to create a new release
+ * Multi-step wizard to create a new release with or without configuration
  */
 
 import { json, redirect } from '@remix-run/node';
-import { useLoaderData, useNavigate, Form } from '@remix-run/react';
-import { useState } from 'react';
+import { useLoaderData, useNavigate } from '@remix-run/react';
+import { useState, useEffect } from 'react';
+import { Container, Paper, Button, Group } from '@mantine/core';
+import { IconArrowLeft, IconArrowRight, IconRocket, IconSettings } from '@tabler/icons-react';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { createRelease } from '~/.server/services/ReleaseManagement';
+import { loadConfigList, loadConfigById } from '~/utils/release-config-storage';
+import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper';
+import { ConfigurationSelector } from '~/components/ReleaseCreation/ConfigurationSelector';
+import { ReleaseDetailsForm } from '~/components/ReleaseCreation/ReleaseDetailsForm';
+import { ReleaseCustomizationPanel } from '~/components/ReleaseCreation/ReleaseCustomizationPanel';
+import { ManualConfigurationPanel } from '~/components/ReleaseCreation/ManualConfigurationPanel';
+import { ReleaseReviewSummary } from '~/components/ReleaseCreation/ReleaseReviewSummary';
+import type { ReleaseBasicDetails, ReleaseCustomizations } from '~/types/release-creation';
+import type { ReleaseConfiguration } from '~/types/release-config';
+
+const steps: Step[] = [
+  {
+    id: 'mode',
+    title: 'Choose Mode',
+    description: 'Config or Manual',
+    icon: IconRocket as any,
+  },
+  {
+    id: 'details',
+    title: 'Release Details',
+    description: 'Version & dates',
+    icon: IconArrowRight as any,
+  },
+  {
+    id: 'configure',
+    title: 'Configure',
+    description: 'Settings & options',
+    icon: IconSettings as any,
+  },
+  {
+    id: 'review',
+    title: 'Review',
+    description: 'Final check',
+    icon: IconRocket as any,
+  },
+];
 
 export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   const { org } = params;
@@ -20,10 +58,15 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   // Get setup data for validation
   const setupData = await getSetupData(org);
   
+  // Load available configurations from local storage
+  // TODO: Later fetch from server
+  const configurations: any[] = []; // Mock for now
+  
   return json({
     org,
     user,
     setupData,
+    configurations,
   });
 });
 
@@ -58,218 +101,245 @@ export const action = authenticateActionRequest({
 });
 
 export default function CreateReleasePage() {
-  const { org } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
+  const org = loaderData.org;
+  const configurations = loaderData.configurations || [];
   const navigate = useNavigate();
-  const [selectedPlatforms, setSelectedPlatforms] = useState({
-    ios: true,
-    android: true,
-    web: false,
-  });
-
+  
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  
+  // Release creation state
+  const [mode, setMode] = useState<'WITH_CONFIG' | 'MANUAL'>('WITH_CONFIG');
+  const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
+  const [selectedConfig, setSelectedConfig] = useState<ReleaseConfiguration | undefined>();
+  const [details, setDetails] = useState<Partial<ReleaseBasicDetails>>({});
+  const [customizations, setCustomizations] = useState<Partial<ReleaseCustomizations>>({});
+  
+  // Load configurations from local storage on client
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const configs = loadConfigList(org) as any[];
+      const activeConfigs = configs.filter((c: any) => c.status === 'ACTIVE');
+      const defaultConfig = activeConfigs.find((c: any) => c.isDefault);
+      
+      if (defaultConfig) {
+        setSelectedConfigId(defaultConfig.id);
+      }
+    }
+  }, [org]);
+  
+  // Load the full configuration when a config is selected
+  useEffect(() => {
+    if (selectedConfigId) {
+      const config = loadConfigById(org, selectedConfigId);
+      if (config) {
+        setSelectedConfig(config);
+      }
+    } else {
+      setSelectedConfig(undefined);
+    }
+  }, [org, selectedConfigId]);
+  
+  // Pre-populate details from selected config
+  useEffect(() => {
+    if (selectedConfig) {
+      setDetails((prevDetails) => ({
+        ...prevDetails,
+        releaseType: selectedConfig.releaseType,
+      }));
+    }
+  }, [selectedConfig]);
+  
+  const canProceedFromStep = (stepIndex: number): boolean => {
+    switch (stepIndex) {
+      case 0: // Mode selection
+        return mode === 'MANUAL' || (mode === 'WITH_CONFIG' && !!selectedConfigId);
+        
+      case 1: // Release details
+        return !!(
+          details.version &&
+          details.kickoffDate &&
+          details.releaseDate
+        );
+        
+      case 2: // Customization or Manual Configuration
+        // For manual mode, require at least one platform
+        if (mode === 'MANUAL') {
+          const platforms = customizations.platforms;
+          return !!(platforms && (platforms.web || platforms.playStore || platforms.appStore));
+        }
+        // For config mode, customization is optional
+        return true;
+        
+      case 3: // Review
+        return true;
+        
+      default:
+        return false;
+    }
+  };
+  
+  const handleNext = () => {
+    if (canProceedFromStep(currentStep)) {
+      setCompletedSteps(new Set([...completedSteps, currentStep]));
+      setCurrentStep(currentStep + 1);
+    }
+  };
+  
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+  
+  const handleSubmit = async () => {
+    // TODO: Implement actual release creation with API call
+    console.log('Creating release:', {
+      mode,
+      configId: selectedConfigId,
+      details,
+      customizations,
+    });
+    
+    // For now, just navigate back
+    navigate(`/dashboard/${org}/releases`);
+  };
+  
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 0: // Mode selection
+        return (
+          <ConfigurationSelector
+            configurations={configurations}
+            selectedMode={mode}
+            selectedConfigId={selectedConfigId}
+            onModeChange={setMode}
+            onConfigSelect={setSelectedConfigId}
+          />
+        );
+        
+      case 1: // Release details
+        return (
+          <ReleaseDetailsForm
+            details={details}
+            onChange={setDetails}
+            prePopulated={mode === 'WITH_CONFIG'}
+          />
+        );
+        
+      case 2: // Customization or Configuration
+        return mode === 'MANUAL' ? (
+          <ManualConfigurationPanel
+            customizations={customizations}
+            onChange={setCustomizations}
+          />
+        ) : (
+          <ReleaseCustomizationPanel
+            config={selectedConfig}
+            customizations={customizations}
+            onChange={setCustomizations}
+          />
+        );
+        
+      case 3: // Review
+        return (
+          <ReleaseReviewSummary
+            config={selectedConfig}
+            details={details}
+            customizations={customizations}
+          />
+        );
+        
+      default:
+        return null;
+    }
+  };
+  
+  const isLastStep = currentStep === steps.length - 1;
+  
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <button
-                type="button"
-                onClick={() => navigate(`/dashboard/${org}/releases`)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Create New Release</h1>
-            </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <Container size="xl">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Vertical Stepper - Left Side */}
+          <div className="col-span-3">
+            <Paper shadow="sm" p="lg" radius="md" className="sticky top-8" style={{ minHeight: '500px' }}>
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/dashboard/${org}/releases`)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <IconArrowLeft size={20} />
+                </button>
+                <div>
+                  <div className="text-sm font-semibold text-gray-700">Create Release</div>
+                  <div className="text-xs text-gray-500">Step-by-step wizard</div>
+                </div>
+              </div>
+              
+              <VerticalStepper
+                steps={steps}
+                currentStep={currentStep}
+                completedSteps={completedSteps}
+                allowNavigation={false}
+              />
+              
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="text-xs text-gray-500">
+                  Step {currentStep + 1} of {steps.length}
+                </div>
+              </div>
+            </Paper>
+          </div>
+          
+          {/* Main Content - Right Side */}
+          <div className="col-span-9">
+            <Paper shadow="sm" p="xl" radius="md">
+              <div className="min-h-[600px] mb-6 px-4">
+                {renderStepContent()}
+              </div>
+              
+              <div className="px-4 pt-4 border-t border-gray-200">
+                <Group justify="apart">
+                  <Button
+                    variant="subtle"
+                    leftSection={<IconArrowLeft size={18} />}
+                    onClick={handlePrevious}
+                    disabled={currentStep === 0}
+                  >
+                    Previous
+                  </Button>
+                  
+                  {!isLastStep ? (
+                    <Button
+                      variant="filled"
+                      rightSection={<IconArrowRight size={18} />}
+                      onClick={handleNext}
+                      disabled={!canProceedFromStep(currentStep)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Next Step
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="filled"
+                      leftSection={<IconRocket size={18} />}
+                      onClick={handleSubmit}
+                      disabled={!canProceedFromStep(currentStep)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Create Release
+                    </Button>
+                  )}
+                </Group>
+              </div>
+            </Paper>
           </div>
         </div>
-      </div>
-
-      {/* Form */}
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Form method="post" className="bg-white shadow rounded-lg p-6 space-y-6">
-          {/* Version */}
-          <div>
-            <label htmlFor="version" className="block text-sm font-medium text-gray-700">
-              Version *
-            </label>
-            <input
-              type="text"
-              id="version"
-              name="version"
-              required
-              placeholder="e.g., 1.2.0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Version number for this release (e.g., 1.2.0, 2.0.0)
-            </p>
-          </div>
-
-          {/* Release Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Release Type *
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              <label className="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none">
-                <input
-                  type="radio"
-                  name="releaseType"
-                  value="PLANNED"
-                  defaultChecked
-                  className="sr-only"
-                />
-                <span className="flex flex-1">
-                  <span className="flex flex-col">
-                    <span className="block text-sm font-medium text-gray-900">Planned</span>
-                    <span className="mt-1 flex items-center text-sm text-gray-500">Regular scheduled release</span>
-                  </span>
-                </span>
-              </label>
-
-              <label className="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none">
-                <input
-                  type="radio"
-                  name="releaseType"
-                  value="HOTFIX"
-                  className="sr-only"
-                />
-                <span className="flex flex-1">
-                  <span className="flex flex-col">
-                    <span className="block text-sm font-medium text-gray-900">Hotfix</span>
-                    <span className="mt-1 flex items-center text-sm text-gray-500">Urgent bug fix</span>
-                  </span>
-                </span>
-              </label>
-
-              <label className="relative flex cursor-pointer rounded-lg border bg-white p-4 shadow-sm focus:outline-none">
-                <input
-                  type="radio"
-                  name="releaseType"
-                  value="MAJOR"
-                  className="sr-only"
-                />
-                <span className="flex flex-1">
-                  <span className="flex flex-col">
-                    <span className="block text-sm font-medium text-gray-900">Major</span>
-                    <span className="mt-1 flex items-center text-sm text-gray-500">Major version update</span>
-                  </span>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Base Version */}
-          <div>
-            <label htmlFor="baseVersion" className="block text-sm font-medium text-gray-700">
-              Base Version
-            </label>
-            <input
-              type="text"
-              id="baseVersion"
-              name="baseVersion"
-              placeholder="e.g., 1.1.0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Version to branch from (optional)
-            </p>
-          </div>
-
-          {/* Planned Date */}
-          <div>
-            <label htmlFor="plannedDate" className="block text-sm font-medium text-gray-700">
-              Planned Release Date *
-            </label>
-            <input
-              type="date"
-              id="plannedDate"
-              name="plannedDate"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-
-          {/* Platforms */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Target Platforms *
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="ios"
-                  value="true"
-                  checked={selectedPlatforms.ios}
-                  onChange={(e) => setSelectedPlatforms({ ...selectedPlatforms, ios: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">iOS (App Store)</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="android"
-                  value="true"
-                  checked={selectedPlatforms.android}
-                  onChange={(e) => setSelectedPlatforms({ ...selectedPlatforms, android: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Android (Play Store)</span>
-              </label>
-
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="web"
-                  value="true"
-                  checked={selectedPlatforms.web}
-                  onChange={(e) => setSelectedPlatforms({ ...selectedPlatforms, web: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">Web</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              rows={4}
-              placeholder="What's new in this release?"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => navigate(`/dashboard/${org}/releases`)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Create Release
-            </button>
-          </div>
-        </Form>
-      </div>
+      </Container>
     </div>
   );
 }
