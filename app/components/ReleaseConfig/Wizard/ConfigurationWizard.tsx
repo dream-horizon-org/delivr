@@ -197,12 +197,31 @@ export function ConfigurationWizard({
         updatedAt: new Date().toISOString(),
       } as ReleaseConfiguration;
       
-      await onSubmit(completeConfig);
+      // Submit to API
+      const response = await fetch(`/api/v1/tenants/${organizationId}/release-config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ config: completeConfig }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save configuration');
+      }
+      
+      const result = await response.json();
+      console.log('[ConfigWizard] Configuration saved to server:', result.configId);
       
       // Clear draft after successful submission
       clearDraftConfig(organizationId);
+      
+      // Call parent onSubmit with the complete config (for navigation)
+      await onSubmit(completeConfig);
     } catch (error) {
       console.error('Failed to save configuration:', error);
+      alert(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
