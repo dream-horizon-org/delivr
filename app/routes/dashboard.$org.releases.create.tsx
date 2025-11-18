@@ -115,13 +115,14 @@ export const action = authenticateActionRequest({
 
 export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
-  const org = loaderData.org;
-  const configurations = loaderData.configurations || [];
+  const org = (loaderData as any).org;
+  const configurations = (loaderData as any).configurations || [];
   const navigate = useNavigate();
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Release creation state
   const [mode, setMode] = useState<'WITH_CONFIG' | 'MANUAL'>('WITH_CONFIG');
