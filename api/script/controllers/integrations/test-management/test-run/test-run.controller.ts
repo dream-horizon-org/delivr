@@ -8,24 +8,29 @@ import {
   validationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
+import { validatePlatforms } from './test-run.validation';
 
 /**
- * Create test runs for all platforms in a test management config
+ * Create test runs for platforms in a test management config
  * POST /test-runs/create
  * 
  * Body: {
- *   testManagementConfigId: string
+ *   testManagementConfigId: string,
+ *   platforms?: TestPlatform[]  // Optional: only create for these platforms
  * }
  * 
+ * If platforms is not provided, creates runs for ALL platforms in config.
+ * If platforms is provided, only creates runs for those specific platforms.
+ * 
  * Returns: {
- *   ios: { runId, url, status },
- *   android: { runId, url, status }
+ *   IOS: { runId, url, status },
+ *   ANDROID_WEB: { runId, url, status }
  * }
  */
 const createTestRunsHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { testManagementConfigId } = req.body;
+      const { testManagementConfigId, platforms } = req.body;
 
       const testManagementConfigIdMissing = !testManagementConfigId;
       if (testManagementConfigIdMissing) {
@@ -35,7 +40,21 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      const result = await service.createTestRuns({ testManagementConfigId });
+      // Validate platforms if provided
+      if (platforms) {
+        const platformsError = validatePlatforms(platforms);
+        if (platformsError) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('platforms', platformsError)
+          );
+          return;
+        }
+      }
+
+      const result = await service.createTestRuns({ 
+        testManagementConfigId,
+        platforms 
+      });
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(result));
     } catch (error) {

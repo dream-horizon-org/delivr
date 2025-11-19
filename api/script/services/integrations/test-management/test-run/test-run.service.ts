@@ -26,15 +26,18 @@ export class TestManagementRunService {
   ) {}
 
   /**
-   * Create test runs for all platforms configured in a test management config
+   * Create test runs for platforms in a test management config
    * 
-   * Input: testManagementConfigId
-   * Output: runIds for each platform
+   * Input: testManagementConfigId + optional platforms filter
+   * Output: runIds for each requested platform
+   * 
+   * If platforms array is provided, only creates runs for those platforms.
+   * If platforms is not provided, creates runs for ALL platforms in config.
    * 
    * We don't store the runIds - caller is responsible for storage
    */
   async createTestRuns(request: CreateTestRunsRequest): Promise<CreateTestRunsResponse> {
-    const { testManagementConfigId } = request;
+    const { testManagementConfigId, platforms } = request;
 
     // 1. Get test management config
     const config = await this.configRepo.findById(testManagementConfigId);
@@ -48,13 +51,27 @@ export class TestManagementRunService {
       throw new Error(`Integration not found: ${config.integrationId}`);
     }
 
-    // 3. Get provider
+    // 3. Get platform configurations (validate and filter if platforms specified)
+    let platformConfigs = config.platformConfigurations;
+    
+    if (platforms) {
+      platformConfigs = [];
+      for (const platform of platforms) {
+        const platformConfig = config.platformConfigurations.find(pc => pc.platform === platform);
+        if (!platformConfig) {
+          throw new Error(`Platform not found in config: ${platform}`);
+        }
+        platformConfigs.push(platformConfig);
+      }
+    }
+
+    // 4. Get provider
     const provider = ProviderFactory.getProvider(integration.providerType);
 
-    // 4. Create test run for each platform
+    // 5. Create test run for each platform
     const results: CreateTestRunsResponse = {};
 
-    for (const platformConfig of config.platformConfigurations) {
+    for (const platformConfig of platformConfigs) {
       try {
         // Call provider to create test run
         const testRun = await provider.createTestRun(

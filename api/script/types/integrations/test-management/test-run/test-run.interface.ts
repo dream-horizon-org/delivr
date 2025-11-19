@@ -18,6 +18,7 @@ export enum TestRunStatus {
  */
 export type CreateTestRunsRequest = {
   testManagementConfigId: string;
+  platforms?: TestPlatform[];  // Optional: filter to only these platforms (default: all)
 };
 
 /**
