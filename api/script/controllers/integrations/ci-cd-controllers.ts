@@ -652,32 +652,48 @@ async function verifyGitHubToken(apiToken: string): Promise<boolean> {
 // ============================================================================
 // JENKINS: TRIGGER WORKFLOW
 // POST /tenants/:tenantId/integrations/ci-cd/jenkins/trigger
-// Body: { workflowType: string, jobParameters?: Record<string, any>, platform?: string }
+// Body: { workflowId?: string, workflowType?: string, platform?: string, jobParameters?: Record<string, any> }
 // ============================================================================
 export async function triggerJenkinsWorkflow(req: Request, res: Response): Promise<any> {
   const tenantId = req.params.tenantId;
-  const { workflowType, jobParameters = {}, platform } = req.body || {};
+  const { workflowId, workflowType, platform, jobParameters = {} } = req.body || {};
 
-  const workflowTypeMissing = !workflowType;
-  if (workflowTypeMissing) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: 'workflowType is required' });
+  const hasWorkflowId = !!workflowId;
+  const hasTypeAndPlatform = !!workflowType && !!platform;
+  const selectionMissing = !hasWorkflowId && !hasTypeAndPlatform;
+  if (selectionMissing) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED });
   }
 
   try {
     const wfController = getWorkflowController();
-    const workflows = await wfController.findAll({
-      tenantId,
-      providerType: Provider.JENKINS,
-      workflowType,
-      platform: normalizePlatform(platform),
-    } as any);
+    let workflow: any = null;
 
-    const hasNoWorkflows = !workflows.length;
-    if (hasNoWorkflows) {
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: 'No matching Jenkins workflow found for tenant' });
+    if (hasWorkflowId) {
+      const item = await wfController.findById(workflowId);
+      const notFound = !item || item.tenantId !== tenantId || item.providerType !== Provider.JENKINS;
+      if (notFound) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
+      }
+      workflow = item;
+    } else {
+      const workflows = await wfController.findAll({
+        tenantId,
+        providerType: Provider.JENKINS,
+        workflowType,
+        platform: normalizePlatform(platform),
+      } as any);
+
+      const hasNoWorkflows = !workflows.length;
+      if (hasNoWorkflows) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
+      }
+      const hasMultiple = workflows.length > 1;
+      if (hasMultiple) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_MULTIPLE_FOUND });
+      }
+      workflow = workflows[0];
     }
-
-    const workflow = workflows[0];
 
     // Load integration with secrets
     const cicd = getCICDController();

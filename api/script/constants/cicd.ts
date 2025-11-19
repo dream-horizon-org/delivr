@@ -34,6 +34,8 @@ export const ERROR_MESSAGES = {
   WORKFLOW_LIST_FAILED: 'Failed to list workflows',
   WORKFLOW_FETCH_FAILED: 'Failed to fetch workflow',
   WORKFLOW_NOT_FOUND: 'Workflow not found',
+  WORKFLOW_MULTIPLE_FOUND: 'Multiple workflows found; provide workflowId',
+  WORKFLOW_SELECTION_REQUIRED: 'Provide workflowId or both workflowType and platform',
   WORKFLOW_UPDATE_FAILED: 'Failed to update workflow',
   WORKFLOW_DELETE_FAILED: 'Failed to delete workflow',
 
