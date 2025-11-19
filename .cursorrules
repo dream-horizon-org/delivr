@@ -1,8 +1,8 @@
 # Delivr Server OTA - Cursor Rules
 
 ## Reference Documentation
-- Main Coding Standards: `/Users/princetripathi/workspace/delivr/docs/CODING_STANDARDS.md`
-- Clean Code Quick Reference: `/Users/princetripathi/workspace/delivr/docs/CLEAN_CODE_QUICK_REFERENCE.md`
+- Main Coding Standards: `../docs/CODING_STANDARDS.md`
+- Clean Code Quick Reference: `../docs/CLEAN_CODE_QUICK_REFERENCE.md`
 
 ## Constants Organization
 
