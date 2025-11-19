@@ -3,6 +3,29 @@ import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
 import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 
+// Integration disconnect configuration
+const DISCONNECT_CONFIG: Record<string, { message: string; endpoint: (tenantId: string, config?: any) => string }> = {
+  slack: {
+    message: 'Are you sure you want to disconnect Slack? This will stop all release notifications.',
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/slack`
+  },
+  jenkins: {
+    message: 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.',
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`
+  },
+  'github-actions': {
+    message: 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`
+  },
+  checkmate: {
+    message: 'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.',
+    endpoint: (tenantId, config) => {
+      if (!config?.id) throw new Error('Integration ID required for Checkmate');
+      return `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${config.id}`;
+    }
+  }
+};
+
 interface IntegrationDetailModalProps {
   integration: IntegrationDetails | null;
   opened: boolean;
@@ -26,23 +49,11 @@ export function IntegrationDetailModal({
 
   const handleDisconnect = async () => {
     const integrationId = integration.id;
-    
-    // Confirm before disconnect
     const integrationName = integration.name;
-    const confirmMessage = (() => {
-      switch (integrationId) {
-        case 'slack':
-          return 'Are you sure you want to disconnect Slack? This will stop all release notifications.';
-        case 'jenkins':
-          return 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.';
-        case 'github-actions':
-          return 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.';
-        case 'checkmate':
-          return 'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.';
-        default:
-          return `Are you sure you want to disconnect ${integrationName}?`;
-      }
-    })();
+    
+    // Get config for this integration or use default
+    const config = DISCONNECT_CONFIG[integrationId];
+    const confirmMessage = config?.message || `Are you sure you want to disconnect ${integrationName}?`;
 
     if (!window.confirm(confirmMessage)) {
       return;
@@ -51,46 +62,18 @@ export function IntegrationDetailModal({
     setIsDisconnecting(true);
 
     try {
-      let response;
-      
-      // Handle disconnect based on integration type
-      switch (integrationId) {
-        case 'slack':
-          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
-            method: 'DELETE'
-          });
-          break;
-        
-        case 'jenkins':
-          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`, {
-            method: 'DELETE'
-          });
-          break;
-        
-        case 'github-actions':
-          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`, {
-            method: 'DELETE'
-          });
-          break;
-        
-        case 'checkmate':
-          // Checkmate needs the integration ID to delete
-          const checkmateId = integration.config?.id;
-          if (!checkmateId) {
-            alert('Cannot disconnect: Integration ID not found');
-            setIsDisconnecting(false);
-            return;
-          }
-          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${checkmateId}`, {
-            method: 'DELETE'
-          });
-          break;
-        
-        default:
-          alert(`Disconnect not implemented for ${integrationName}`);
-          setIsDisconnecting(false);
-          return;
+      // Check if integration has disconnect config
+      if (!config) {
+        alert(`Disconnect not implemented for ${integrationName}`);
+        setIsDisconnecting(false);
+        return;
       }
+
+      // Get the endpoint URL
+      const endpoint = config.endpoint(tenantId, integration.config);
+      
+      // Make DELETE request
+      const response = await fetch(endpoint, { method: 'DELETE' });
 
       if (response.ok) {
         alert(`${integrationName} disconnected successfully!`);
@@ -100,9 +83,9 @@ export function IntegrationDetailModal({
         const error = await response.json();
         alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to disconnect ${integration.name}:`, error);
-      alert(`Failed to disconnect ${integration.name}. Please try again.`);
+      alert(error.message || `Failed to disconnect ${integration.name}. Please try again.`);
     } finally {
       setIsDisconnecting(false);
     }
