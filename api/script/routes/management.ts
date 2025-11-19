@@ -19,6 +19,7 @@ import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
 import * as storageTypes from "../storage/storage";
+import { S3Storage } from "../storage/aws-storage";
 import * as validationUtils from "../utils/validation";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
@@ -324,6 +325,21 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
       
+      // Test Management integrations (Checkmate, TestRail, etc.)
+      let testManagementIntegrations: any[] = [];
+      const isS3Storage = storage instanceof S3Storage;
+      if (isS3Storage) {
+        try {
+          const testMgmtService = (storage as any).testManagementIntegrationService;
+          if (testMgmtService) {
+            // Use tenantId as projectId (they map 1:1)
+            testManagementIntegrations = await testMgmtService.listProjectIntegrations(tenantId);
+          }
+        } catch (error) {
+          console.warn('[Tenant] Failed to fetch test management integrations:', error);
+        }
+      }
+      
       // TODO: Get other integrations when implemented
       // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
       // const pipelines = await storage.getTenantPipelines(tenantId);
@@ -349,6 +365,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
           createdAt: integration.createdAt,
           updatedAt: integration.updatedAt
           // Note: accessToken, webhookSecret are intentionally excluded
+        });
+      });
+      
+      // Add Test Management integrations (sanitize - remove sensitive tokens)
+      testManagementIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'testManagement',
+          id: integration.id,
+          providerType: integration.providerType,
+          name: integration.name,
+          projectId: integration.projectId,
+          config: {
+            baseUrl: integration.config?.baseUrl,
+            // Note: authToken is intentionally excluded for security
+          },
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt,
+          createdByAccountId: integration.createdByAccountId
         });
       });
       
