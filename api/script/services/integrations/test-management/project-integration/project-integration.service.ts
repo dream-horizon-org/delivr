@@ -6,7 +6,7 @@ import type {
   UpdateProjectTestManagementIntegrationDto,
   VerifyProjectTestManagementIntegrationResult
 } from '~types/integrations/test-management/project-integration';
-import { ProviderFactory } from './providers/provider.factory';
+import { ProviderFactory } from '../providers/provider.factory';
 
 /**
  * Test Management Integration Service

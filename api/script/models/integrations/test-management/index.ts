@@ -1,11 +1,10 @@
 export {
-  createProjectTestManagementIntegrationModel,
-  type ProjectTestManagementIntegrationModelType,
-  ProjectTestManagementIntegrationRepository
+    ProjectTestManagementIntegrationRepository, createProjectTestManagementIntegrationModel,
+    type ProjectTestManagementIntegrationModelType
 } from './project-integration';
 
 export {
-  createReleaseConfigTestManagementModel,
-  ReleaseConfigTestManagementRepository
-} from './release-config';
+    TestManagementConfigRepository, createTestManagementConfigModel,
+    type TestManagementConfigModelType
+} from './test-management-config';
 

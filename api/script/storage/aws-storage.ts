@@ -6,21 +6,21 @@ import * as storage from "./storage";
 //import * from nanoid;
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
-import * as utils from "../utils/common";
-import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
-import { createRelease } from "./release-models";
-import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import {
   createProjectTestManagementIntegrationModel,
+  createTestManagementConfigModel,
   ProjectTestManagementIntegrationRepository,
-  createReleaseConfigTestManagementModel,
-  ReleaseConfigTestManagementRepository
+  TestManagementConfigRepository
 } from "../models/integrations/test-management";
 import {
-  TestManagementIntegrationService,
   TestManagementConfigService,
+  TestManagementIntegrationService,
   TestManagementRunService
 } from "../services/integrations/test-management";
+import * as utils from "../utils/common";
+import { SCMIntegrationController } from "./integrations/scm/scm-controller";
+import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { createRelease } from "./release-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -498,7 +498,7 @@ export class S3Storage implements storage.Storage {
     
     // Test Management Integration - Repositories and Services
     public projectIntegrationRepository!: ProjectTestManagementIntegrationRepository;
-    public releaseConfigRepository!: ReleaseConfigTestManagementRepository;
+    public testManagementConfigRepository!: TestManagementConfigRepository;
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
@@ -610,23 +610,23 @@ export class S3Storage implements storage.Storage {
           const projectIntegrationModel = createProjectTestManagementIntegrationModel(this.sequelize);
           this.projectIntegrationRepository = new ProjectTestManagementIntegrationRepository(projectIntegrationModel);
           
-          const releaseConfigModel = createReleaseConfigTestManagementModel(this.sequelize);
-          this.releaseConfigRepository = new ReleaseConfigTestManagementRepository(releaseConfigModel);
+          const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
+          this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
           
           // Service 1: Project Integration Service (manages credentials)
           this.testManagementIntegrationService = new TestManagementIntegrationService(
             this.projectIntegrationRepository
           );
           
-          // Service 2: Config Service (manages release config + platform params)
+          // Service 2: Config Service (manages test management configs)
           this.testManagementConfigService = new TestManagementConfigService(
-            this.releaseConfigRepository,
+            this.testManagementConfigRepository,
             this.projectIntegrationRepository
           );
           
           // Service 3: Run Service (stateless test operations)
           this.testManagementRunService = new TestManagementRunService(
-            this.releaseConfigRepository,
+            this.testManagementConfigRepository,
             this.projectIntegrationRepository
           );
           

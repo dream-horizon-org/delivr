@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
-import type { TestManagementRunService } from '~services/integrations/test-management/test-run.service';
+import type { TestManagementRunService } from '~services/integrations/test-management/test-run';
 import {
   errorResponse,
   getErrorStatusCode,
@@ -10,11 +10,11 @@ import {
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
 
 /**
- * Create test runs for all platforms in a release config
+ * Create test runs for all platforms in a test management config
  * POST /test-runs/create
  * 
  * Body: {
- *   releaseConfigId: string
+ *   testManagementConfigId: string
  * }
  * 
  * Returns: {
@@ -25,17 +25,17 @@ import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from
 const createTestRunsHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { releaseConfigId } = req.body;
+      const { testManagementConfigId } = req.body;
 
-      const releaseConfigIdMissing = !releaseConfigId;
-      if (releaseConfigIdMissing) {
+      const testManagementConfigIdMissing = !testManagementConfigId;
+      if (testManagementConfigIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseConfigId', 'releaseConfigId is required')
+          validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
         );
         return;
       }
 
-      const result = await service.createTestRuns({ releaseConfigId });
+      const result = await service.createTestRuns({ testManagementConfigId });
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(result));
     } catch (error) {
@@ -46,7 +46,7 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
 
 /**
  * Get test status with threshold evaluation
- * GET /test-status?runId=xxx&releaseConfigId=yyy
+ * GET /test-status?runId=xxx&testManagementConfigId=yyy
  * 
  * Returns: {
  *   runId, status, passPercentage, threshold,
@@ -56,7 +56,7 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
 const getTestStatusHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, releaseConfigId } = req.query;
+      const { runId, testManagementConfigId } = req.query;
 
       if (!runId || typeof runId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -65,14 +65,14 @@ const getTestStatusHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      if (!releaseConfigId || typeof releaseConfigId !== 'string') {
+      if (!testManagementConfigId || typeof testManagementConfigId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseConfigId', 'releaseConfigId query parameter is required')
+          validationErrorResponse('testManagementConfigId', 'testManagementConfigId query parameter is required')
         );
         return;
       }
 
-      const result = await service.getTestStatus({ runId, releaseConfigId });
+      const result = await service.getTestStatus({ runId, testManagementConfigId });
 
       res.status(HTTP_STATUS.OK).json(successResponse(result));
     } catch (error) {
@@ -87,13 +87,13 @@ const getTestStatusHandler = (service: TestManagementRunService) =>
  * 
  * Body: {
  *   runId: string,
- *   releaseConfigId: string
+ *   testManagementConfigId: string
  * }
  */
 const resetTestRunHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, releaseConfigId } = req.body;
+      const { runId, testManagementConfigId } = req.body;
 
       if (!runId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -102,14 +102,14 @@ const resetTestRunHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      if (!releaseConfigId) {
+      if (!testManagementConfigId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseConfigId', 'releaseConfigId is required')
+          validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
         );
         return;
       }
 
-      const result = await service.resetTestRun({ runId, releaseConfigId });
+      const result = await service.resetTestRun({ runId, testManagementConfigId });
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(result, TEST_MANAGEMENT_SUCCESS_MESSAGES.TEST_RUN_RESET)
@@ -126,13 +126,13 @@ const resetTestRunHandler = (service: TestManagementRunService) =>
  * 
  * Body: {
  *   runId: string,
- *   releaseConfigId: string
+ *   testManagementConfigId: string
  * }
  */
 const cancelTestRunHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, releaseConfigId } = req.body;
+      const { runId, testManagementConfigId } = req.body;
 
       if (!runId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -141,14 +141,14 @@ const cancelTestRunHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      if (!releaseConfigId) {
+      if (!testManagementConfigId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseConfigId', 'releaseConfigId is required')
+          validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
         );
         return;
       }
 
-      await service.cancelTestRun({ runId, releaseConfigId });
+      await service.cancelTestRun({ runId, testManagementConfigId });
 
       res.status(HTTP_STATUS.OK).json(
         successResponse(undefined, TEST_MANAGEMENT_SUCCESS_MESSAGES.TEST_RUN_CANCELLED)
@@ -161,12 +161,12 @@ const cancelTestRunHandler = (service: TestManagementRunService) =>
 
 /**
  * Get detailed test report
- * GET /test-report?runId=xxx&releaseConfigId=yyy&groupBy=section
+ * GET /test-report?runId=xxx&testManagementConfigId=yyy&groupBy=section
  */
 const getTestReportHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, releaseConfigId, groupBy } = req.query;
+      const { runId, testManagementConfigId, groupBy } = req.query;
 
       if (!runId || typeof runId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -175,9 +175,9 @@ const getTestReportHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      if (!releaseConfigId || typeof releaseConfigId !== 'string') {
+      if (!testManagementConfigId || typeof testManagementConfigId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseConfigId', 'releaseConfigId query parameter is required')
+          validationErrorResponse('testManagementConfigId', 'testManagementConfigId query parameter is required')
         );
         return;
       }
@@ -186,7 +186,7 @@ const getTestReportHandler = (service: TestManagementRunService) =>
 
       const result = await service.getTestReport({
         runId,
-        releaseConfigId,
+        testManagementConfigId,
         groupBy: groupByValue
       });
 

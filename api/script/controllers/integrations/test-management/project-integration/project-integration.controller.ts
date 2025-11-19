@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
-import type { TestManagementIntegrationService } from '~services/integrations/test-management/project-integration.service';
+import type { TestManagementIntegrationService } from '~services/integrations/test-management/project-integration';
 import type {
   CreateProjectTestManagementIntegrationDto,
   UpdateProjectTestManagementIntegrationDto

@@ -1,5 +1,5 @@
 import type { ProjectTestManagementIntegrationRepository } from '~models/integrations/test-management/project-integration/project-integration.repository';
-import type { ReleaseConfigTestManagementRepository } from '~models/integrations/test-management/release-config/release-config.repository';
+import type { TestManagementConfigRepository } from '~models/integrations/test-management/test-management-config/test-management-config.repository';
 import type {
   CreateTestRunsRequest,
   CreateTestRunsResponse,
@@ -11,7 +11,7 @@ import type {
   TestStatusResponse
 } from '~types/integrations/test-management';
 import { TestRunStatus } from '~types/integrations/test-management';
-import { ProviderFactory } from './providers/provider.factory';
+import { ProviderFactory } from '../providers/provider.factory';
 
 /**
  * Test Management Run Service
@@ -21,25 +21,25 @@ import { ProviderFactory } from './providers/provider.factory';
  */
 export class TestManagementRunService {
   constructor(
-    private readonly configRepo: ReleaseConfigTestManagementRepository,
+    private readonly configRepo: TestManagementConfigRepository,
     private readonly integrationRepo: ProjectTestManagementIntegrationRepository
   ) {}
 
   /**
-   * Create test runs for all platforms configured in a release config
+   * Create test runs for all platforms configured in a test management config
    * 
-   * Input: releaseConfigId
+   * Input: testManagementConfigId
    * Output: runIds for each platform
    * 
    * We don't store the runIds - caller is responsible for storage
    */
   async createTestRuns(request: CreateTestRunsRequest): Promise<CreateTestRunsResponse> {
-    const { releaseConfigId } = request;
+    const { testManagementConfigId } = request;
 
-    // 1. Get release config
-    const config = await this.configRepo.findByReleaseConfigId(releaseConfigId);
+    // 1. Get test management config
+    const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
-      throw new Error(`Release config not found: ${releaseConfigId}`);
+      throw new Error(`Test management config not found: ${testManagementConfigId}`);
     }
 
     // 2. Get integration (credentials)
@@ -79,18 +79,18 @@ export class TestManagementRunService {
   /**
    * Get test status with threshold evaluation
    * 
-   * Input: runId + releaseConfigId
+   * Input: runId + testManagementConfigId
    * Output: test status + threshold evaluation
    * 
-   * We need releaseConfigId to get the threshold from our config
+   * We need testManagementConfigId to get the threshold from our config
    */
   async getTestStatus(request: GetTestStatusRequest): Promise<TestStatusResponse> {
-    const { runId, releaseConfigId } = request;
+    const { runId, testManagementConfigId } = request;
 
-    // 1. Get release config to get threshold
-    const config = await this.configRepo.findByReleaseConfigId(releaseConfigId);
+    // 1. Get test management config to get threshold
+    const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
-      throw new Error(`Release config not found: ${releaseConfigId}`);
+      throw new Error(`Test management config not found: ${testManagementConfigId}`);
     }
 
     // 2. Get integration (credentials)
@@ -136,20 +136,18 @@ export class TestManagementRunService {
   /**
    * Reset test run in provider (Checkmate/TestRail)
    * 
-   * Input: runId
+   * Input: runId + testManagementConfigId
    * Output: success/failure
    * 
-   * We don't need releaseConfigId because we're just calling provider API
-   * However, we need to find which integration this runId belongs to...
-   * Actually, we DO need releaseConfigId to know which integration to use!
+   * We need testManagementConfigId to know which integration to use
    */
   async resetTestRun(request: TestRunActionRequest): Promise<ResetTestRunResponse> {
-    const { runId, releaseConfigId } = request;
+    const { runId, testManagementConfigId } = request;
 
     // Get config to find integration
-    const config = await this.configRepo.findByReleaseConfigId(releaseConfigId);
+    const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
-      throw new Error(`Release config not found: ${releaseConfigId}`);
+      throw new Error(`Test management config not found: ${testManagementConfigId}`);
     }
 
     // Get integration
@@ -178,16 +176,16 @@ export class TestManagementRunService {
   /**
    * Cancel test run in provider
    * 
-   * Input: runId + releaseConfigId
+   * Input: runId + testManagementConfigId
    * Output: success/failure
    */
   async cancelTestRun(request: TestRunActionRequest): Promise<void> {
-    const { runId, releaseConfigId } = request;
+    const { runId, testManagementConfigId } = request;
 
     // Get config to find integration
-    const config = await this.configRepo.findByReleaseConfigId(releaseConfigId);
+    const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
-      throw new Error(`Release config not found: ${releaseConfigId}`);
+      throw new Error(`Test management config not found: ${testManagementConfigId}`);
     }
 
     // Get integration
@@ -206,16 +204,16 @@ export class TestManagementRunService {
   /**
    * Get detailed test report
    * 
-   * Input: runId + releaseConfigId
+   * Input: runId + testManagementConfigId
    * Output: detailed report from provider
    */
   async getTestReport(request: GetTestReportRequest): Promise<TestReportResponse> {
-    const { runId, releaseConfigId, groupBy } = request;
+    const { runId, testManagementConfigId, groupBy } = request;
 
     // Get config to find integration
-    const config = await this.configRepo.findByReleaseConfigId(releaseConfigId);
+    const config = await this.configRepo.findById(testManagementConfigId);
     if (!config) {
-      throw new Error(`Release config not found: ${releaseConfigId}`);
+      throw new Error(`Test management config not found: ${testManagementConfigId}`);
     }
 
     // Get integration

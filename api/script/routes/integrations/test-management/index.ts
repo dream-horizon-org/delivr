@@ -1,3 +1,4 @@
 export { createProjectIntegrationRoutes } from './project-integration';
-export { createReleaseConfigRoutes } from './release-config';
+export { createTestManagementConfigRoutes } from './test-management-config';
 export { createTestRunOperationsRoutes } from './test-run';
+

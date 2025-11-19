@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createTestManagementIntegrationController } from '~controllers/integrations/test-management/project-integration';
-import type { TestManagementIntegrationService } from '~services/integrations/test-management/project-integration.service';
+import type { TestManagementIntegrationService } from '~services/integrations/test-management/project-integration';
 
 export const createProjectIntegrationRoutes = (service: TestManagementIntegrationService): Router => {
   const router = Router();

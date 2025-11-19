@@ -4,6 +4,14 @@ export {
   VerificationStatus
 } from './project-integration';
 
+export {
+  TEST_PLATFORM_DISPLAY_NAMES, TEST_PLATFORMS, TestPlatform
+} from './platform.interface';
+
+export {
+  isValidTestPlatform
+} from './platform.utils';
+
 // Export only types
 export type {
   CreateProjectTestManagementIntegrationDto, FindProjectIntegrationsFilter, ProjectTestManagementIntegration,
@@ -11,8 +19,9 @@ export type {
 } from './project-integration';
 
 export type {
-  FindReleaseConfigTestManagementFilter, PlatformConfiguration, ReleaseConfigTestManagement, ReleaseConfigTestManagementWithIntegration, SetReleaseConfigTestManagementDto, TestStatusWithThreshold, UpdateReleaseConfigTestManagementDto
-} from './release-config';
+  CreateTestManagementConfigDto, PlatformConfiguration,
+  TestManagementConfig, UpdateTestManagementConfigDto
+} from './test-management-config';
 
 // Export both types AND values (for enums)
 export { TestRunStatus } from './test-run';

@@ -3,6 +3,8 @@
  * No storage of runIds - Release Management owns that data
  */
 
+import type { TestPlatform } from '../platform.interface';
+
 export enum TestRunStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
@@ -12,17 +14,17 @@ export enum TestRunStatus {
 }
 
 /**
- * Request to create test runs for all platforms in a release config
+ * Request to create test runs for all platforms in a test management config
  */
 export type CreateTestRunsRequest = {
-  releaseConfigId: string;
+  testManagementConfigId: string;
 };
 
 /**
  * Single platform test run result
  */
 export type PlatformTestRun = {
-  platform: string;
+  platform: TestPlatform;
   runId: string;
   url: string;
   status: TestRunStatus;
@@ -30,9 +32,10 @@ export type PlatformTestRun = {
 
 /**
  * Response from creating test runs
+ * Keys are TestPlatform enum values (IOS, ANDROID_WEB, ANDROID_PLAYSTORE)
  */
 export type CreateTestRunsResponse = {
-  [platform: string]: {
+  [K in TestPlatform]?: {
     runId: string;
     url: string;
     status: TestRunStatus;
@@ -44,7 +47,7 @@ export type CreateTestRunsResponse = {
  */
 export type GetTestStatusRequest = {
   runId: string;
-  releaseConfigId: string;  // Needed to get threshold
+  testManagementConfigId: string;  // Needed to get threshold
 };
 
 /**
@@ -71,7 +74,7 @@ export type TestStatusResponse = {
  */
 export type TestRunActionRequest = {
   runId: string;
-  releaseConfigId: string;
+  testManagementConfigId: string;
 };
 
 /**
@@ -88,7 +91,7 @@ export type ResetTestRunResponse = {
  */
 export type GetTestReportRequest = {
   runId: string;
-  releaseConfigId: string;  // For context/integration lookup
+  testManagementConfigId: string;  // For context/integration lookup
   groupBy?: string;
 };
 

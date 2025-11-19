@@ -371,6 +371,144 @@ checkmate/
 └── index.ts                   # Public exports
 ```
 
+**CRITICAL: Enums Belong in `.interface.ts` Files**
+
+```typescript
+// ❌ BAD: Separate .enum.ts file
+// platform.enum.ts
+export enum TestPlatform { ... }
+
+// ✅ GOOD: Enum in .interface.ts
+// platform.interface.ts (GENERIC - used across domains)
+export enum TestPlatform { ... }
+export const TEST_PLATFORMS = Object.values(TestPlatform);
+
+// ✅ GOOD: Utilities in separate .utils.ts file
+// platform.utils.ts
+import { TestPlatform, TEST_PLATFORMS } from './platform.interface';
+export const isValidTestPlatform = (value: unknown): value is TestPlatform => { ... };
+
+// ✅ GOOD: Domain-specific types use full name with dashes
+// test-run.interface.ts (SPECIFIC to test management)
+// test-management-config.interface.ts (SPECIFIC to test management)
+```
+
+**Naming Convention Rules:**
+- **Generic concepts** (used across domains): `platform.interface.ts`, `status.interface.ts`
+- **Domain-specific concepts**: `test-run.interface.ts`, `user-profile.interface.ts`
+- `.interface.ts` = Types, Enums, Constants (type definitions)
+- `.utils.ts` = Utility functions (runtime logic)
+- `.enum.ts` is NOT a standard file type pattern
+
+### Use ENUMs for Fixed Sets of Values
+
+**CRITICAL RULE**: When you have a **stable, known set** of values (not user-configurable), use TypeScript ENUMs + Database ENUMs for type safety.
+
+**When to use ENUM:**
+- ✅ Fixed platform/target combinations (IOS, ANDROID_WEB, ANDROID_PLAYSTORE)
+- ✅ Status values (PENDING, IN_PROGRESS, COMPLETED)
+- ✅ Known categories that rarely change
+- ✅ Values that need database-level validation
+
+**When NOT to use ENUM:**
+- ❌ User-configurable values
+- ❌ Values that change frequently (weekly/daily)
+- ❌ Different values per tenant/environment
+- ❌ Values that need zero-downtime additions
+
+```typescript
+// ❌ BAD: Using generic string for fixed set
+export type PlatformConfiguration = {
+  platform: string;  // Any string allowed! Typos not caught!
+  parameters: Record<string, unknown>;
+};
+
+// Response with generic string keys
+export type CreateTestRunsResponse = {
+  [platform: string]: {  // No type safety!
+    runId: string;
+  };
+};
+
+// ✅ GOOD: Using ENUM for fixed set
+// Step 1: Create database enum
+// migrations/007_xxx.sql
+CREATE TYPE test_platform AS ENUM (
+  'IOS',
+  'ANDROID_WEB',
+  'ANDROID_PLAYSTORE'
+);
+
+// Step 2: Create TypeScript enum in .interface.ts file
+// types/platform.interface.ts (GENERIC concept, no domain prefix!)
+export enum TestPlatform {
+  IOS = 'IOS',
+  ANDROID_WEB = 'ANDROID_WEB',
+  ANDROID_PLAYSTORE = 'ANDROID_PLAYSTORE'
+}
+
+export const TEST_PLATFORMS = Object.values(TestPlatform);
+
+// Step 3: Create utility functions in .utils.ts file
+// types/platform.utils.ts (GENERIC concept, no domain prefix!)
+import { TestPlatform, TEST_PLATFORMS } from './platform.interface';
+
+export const isValidTestPlatform = (value: unknown): value is TestPlatform => {
+  const isString = typeof value === 'string';
+  if (!isString) {
+    return false;
+  }
+  return TEST_PLATFORMS.includes(value as TestPlatform);
+};
+
+// Step 4: Use enum in types
+export type PlatformConfiguration = {
+  platform: TestPlatform;  // ✅ Type-safe! Typos caught at compile time!
+  parameters: Record<string, unknown>;
+};
+
+// Type-safe response with enum keys
+export type CreateTestRunsResponse = {
+  [K in TestPlatform]?: {  // ✅ Type-safe keys!
+    runId: string;
+  };
+};
+
+// Step 4: Add database constraint for JSONB validation
+ALTER TABLE configs
+  ADD CONSTRAINT check_valid_platforms
+  CHECK (
+    (SELECT bool_and(
+      (value->>'platform')::text IN ('IOS', 'ANDROID_WEB', 'ANDROID_PLAYSTORE')
+    )
+    FROM jsonb_array_elements(platform_configurations) AS value)
+  );
+```
+
+**Benefits:**
+1. ✅ **Compile-time safety** - TypeScript catches typos (`'ios'` vs `'IOS'`)
+2. ✅ **Database validation** - Invalid values rejected at DB level
+3. ✅ **IDE autocomplete** - See all valid options while typing
+4. ✅ **Runtime validation** - Use type guards for safe narrowing
+5. ✅ **Refactoring support** - Rename works across entire codebase
+6. ✅ **Better error messages** - Show valid options in validation errors
+
+**Adding New Enum Values:**
+```sql
+-- Step 1: Database migration
+ALTER TYPE test_platform ADD VALUE 'TVOS';
+
+-- Step 2: Update TypeScript enum
+export enum TestPlatform {
+  IOS = 'IOS',
+  ANDROID_WEB = 'ANDROID_WEB',
+  ANDROID_PLAYSTORE = 'ANDROID_PLAYSTORE',
+  TVOS = 'TVOS'  // ← Add new value
+}
+```
+
+**Everything else automatically works** - validation, type checking, autocomplete!
+
 ### Consolidate Duplicate Types
 
 **CRITICAL RULE**: When multiple types have identical structure, consolidate them into a single type.
@@ -472,6 +610,18 @@ Where:
 - ❌ `http-constants.ts` (use `http.constants.ts`)
 - ❌ `error-utils.ts` (use `error.utils.ts`)
 - ❌ `http_utils.ts` (use `http.utils.ts`)
+
+**Wrong file type for enums:**
+- ❌ `platform.enum.ts` (enums belong in `.interface.ts` files!)
+- ❌ `status.enum.ts` (enums belong in `.interface.ts` files!)
+
+**Wrong naming for generic vs. domain-specific:**
+- ❌ `test-platform.interface.ts` (platform is GENERIC, use `platform.interface.ts`)
+- ❌ `run.interface.ts` (too generic, use `test-run.interface.ts`)
+- ✅ Use `platform.interface.ts` for GENERIC concepts (used across domains)
+- ✅ Use `test-run.interface.ts` for DOMAIN-SPECIFIC concepts
+- ✅ Use `platform.utils.ts` for utility functions (generic)
+- ✅ Use `test-run.utils.ts` for utility functions (domain-specific)
 
 **Redundant naming (already in specific folder):**
 - ❌ `utils/error-utils.ts` (redundant "utils")
@@ -1029,15 +1179,16 @@ export const CHECKMATE_HTTP_STATUS = {
 5. **Use existing constants** - Check before creating new ones
 6. **Meaningful names** - Self-documenting code (files AND variables)
 7. **Specific file names** - No "common.ts", "utils.ts", or "helpers.ts"
-8. **Consistent naming across layers** - Same base name for service, controller, types, routes
-9. **Type safety** - Use `as const` for readonly constants
-10. **Module aliases** - Use `~utils`, `~types`, etc.
-11. **Single responsibility** - Each file should have ONE clear purpose
-12. **No huge nested functions** - Define at top level, factory only composes
-13. **NEVER use `as` or `!`** - Use proper type guards and validation
-14. **ALWAYS use `??` instead of `||`** - For default values (avoids falsy value bugs)
-15. **Consolidate duplicate types** - Don't repeat identical type definitions
-16. **Avoid over-engineering** - Don't abstract what's already clear
+8. **Enums in `.interface.ts` files** - NOT `.enum.ts`, utilities in `.utils.ts`
+9. **Consistent naming across layers** - Same base name for service, controller, types, routes
+10. **Type safety** - Use `as const` for readonly constants
+11. **Module aliases** - Use `~utils`, `~types`, etc.
+12. **Single responsibility** - Each file should have ONE clear purpose
+13. **No huge nested functions** - Define at top level, factory only composes
+14. **NEVER use `as` or `!`** - Use proper type guards and validation
+15. **ALWAYS use `??` instead of `||`** - For default values (avoids falsy value bugs)
+16. **Consolidate duplicate types** - Don't repeat identical type definitions
+17. **Avoid over-engineering** - Don't abstract what's already clear
 
 ## Copyright Headers
 
@@ -1072,7 +1223,8 @@ export const NEW_CONSTANT = { ... };
 - [ ] **Message strings include domain context** (e.g., "Test management integration not found")
 - [ ] **File names follow `[category].[type].ts` convention** (e.g., `http.constants.ts`, `auth.service.ts`)
 - [ ] **No generic file names** (no `common.ts`, `utils.ts`, `helpers.ts`, `constants.ts`)
-- [ ] **Use dot separator, not dash** (`http.constants.ts`, not `http-constants.ts`)
+- [ ] **Use dot separator, not dash** (`http.constants.ts`, not `http-constants.ts`, not `test-platform.interface.ts`)
+- [ ] **Enums go in `.interface.ts` files, NOT `.enum.ts`** - Utilities go in `.utils.ts` files
 - [ ] **Consistent naming across layers** - service/controller/types/routes use same base name
 - [ ] **Types in subfolders with `index.ts`** - Not flat files (e.g., `test-run/test-run.interface.ts`)
 - [ ] **Consolidate duplicate types** - No identical type definitions
@@ -1083,6 +1235,7 @@ export const NEW_CONSTANT = { ... };
 - [ ] **No over-engineering** - Don't abstract obvious values or wrap built-in methods
 - [ ] Imports use proper module aliases (`~utils`, `~types`, etc.)
 - [ ] TypeScript types are correct (`as const`, use `type` not `interface`)
+- [ ] **Use ENUM for fixed sets of values** - Platform/target combinations, statuses, categories (DB enum + TS enum + validation)
 - [ ] Constants are documented if complex
 - [ ] No duplicate constants across different scopes
 - [ ] Each file has a single, clear purpose

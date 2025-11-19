@@ -8,7 +8,7 @@ import { S3Storage } from "../storage/aws-storage";
 import * as storageTypes from "../storage/storage";
 import {
   createProjectIntegrationRoutes,
-  createReleaseConfigRoutes,
+  createTestManagementConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
@@ -65,13 +65,13 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     const projectIntegrationRoutes = createProjectIntegrationRoutes(s3Storage.testManagementIntegrationService);
     router.use(projectIntegrationRoutes);
 
-    // Release Config Management (Platform Parameters + Threshold)
-    const releaseConfigRoutes = createReleaseConfigRoutes(s3Storage.testManagementConfigService);
-    router.use(releaseConfigRoutes);
+    // Test Management Config Management (Reusable test configurations)
+    const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
+    router.use('/test-management-configs', testManagementConfigRoutes);
 
     // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
     const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
-    router.use(testRunRoutes);
+    router.use('/test-management', testRunRoutes);
     
     console.log('[Release Management] Test Management routes mounted successfully');
   } else {

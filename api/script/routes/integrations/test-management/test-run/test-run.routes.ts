@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createTestManagementRunController } from '~controllers/integrations/test-management/test-run';
-import type { TestManagementRunService } from '~services/integrations/test-management/test-run.service';
+import type { TestManagementRunService } from '~services/integrations/test-management/test-run';
 
 /**
  * Test Run Operations Routes

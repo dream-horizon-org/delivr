@@ -31,8 +31,10 @@ export const TEST_MANAGEMENT_ERROR_MESSAGES = {
   CANCEL_TEST_RUN_FAILED: 'Failed to cancel test management test run',
   TEST_RUN_NOT_FOUND: 'Test management test run not found',
   
+  CREATE_CONFIG_FAILED: 'Failed to create test management configuration',
   GET_CONFIG_FAILED: 'Failed to get test management configuration',
-  SET_CONFIG_FAILED: 'Failed to set test management configuration',
+  LIST_CONFIGS_FAILED: 'Failed to list test management configurations',
+  UPDATE_CONFIG_FAILED: 'Failed to update test management configuration',
   DELETE_CONFIG_FAILED: 'Failed to delete test management configuration',
   CONFIG_NOT_FOUND: 'Test management configuration not found',
   
