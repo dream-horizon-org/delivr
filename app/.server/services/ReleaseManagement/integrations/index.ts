@@ -10,6 +10,7 @@ export { GitHubActionsIntegrationService } from './github-actions-integration';
 
 // Test Management Integrations
 export { CheckmateIntegrationService } from './checkmate-integration';
+export type { CheckmateIntegration, CheckmateConfig, CheckmateIntegrationResponse } from './checkmate-integration';
 
 // Project Management Integrations
 export { JiraIntegrationService } from './jira-integration';

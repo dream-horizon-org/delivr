@@ -73,6 +73,8 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       

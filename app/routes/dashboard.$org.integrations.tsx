@@ -57,6 +57,19 @@ export default function IntegrationsPage() {
         const githubActionsIntegration = connectedIntegrations.find(
           (i: any) => i.type === 'cicd' && i.providerType === 'GITHUB_ACTIONS'
         ) as any;
+
+        // Fetch Checkmate integrations separately (uses test management API)
+        let checkmateIntegrations: any[] = [];
+        try {
+          const checkmateResponse = await fetch(`/api/v1/tenants/${tenantId}/integrations/test-management/checkmate`);
+          if (checkmateResponse.ok) {
+            const checkmateData = await checkmateResponse.json();
+            checkmateIntegrations = checkmateData.data || [];
+          }
+        } catch (error) {
+          console.error('Failed to fetch Checkmate integrations:', error);
+        }
+        const checkmateIntegration = checkmateIntegrations[0]; // Use first integration
         
         // Merge: Update connection status for tenant-connected integrations
         const integrationsWithStatus = data.integrations.map((integration: Integration) => {
@@ -126,6 +139,22 @@ export default function IntegrationsPage() {
                 isActive: githubActionsIntegration.isActive
               },
               connectedAt: new Date(githubActionsIntegration.createdAt),
+              connectedBy: userDisplayName
+            };
+          }
+
+          // Check if Checkmate is connected for this tenant
+          if (integration.id === 'checkmate' && checkmateIntegration) {
+            return {
+              ...integration,
+              status: IntegrationStatus.CONNECTED,
+              config: {
+                id: checkmateIntegration.id,
+                name: checkmateIntegration.name,
+                baseUrl: checkmateIntegration.config?.baseUrl,
+                providerType: checkmateIntegration.providerType
+              },
+              connectedAt: new Date(checkmateIntegration.createdAt),
               connectedBy: userDisplayName
             };
           }
@@ -206,6 +235,12 @@ export default function IntegrationsPage() {
       console.log('[GitHub Actions] Operation successful:', data);
       // Show success message and reload to update the integration status
       alert(editingIntegration ? 'GitHub Actions integration updated successfully!' : 'GitHub Actions integration connected successfully!');
+      window.location.reload();
+    } else if (integrationId === 'checkmate') {
+      // Checkmate connection is handled by the modal with real API calls
+      console.log('[Checkmate] Operation successful:', data);
+      // Show success message and reload to update the integration status
+      alert(editingIntegration ? 'Checkmate integration updated successfully!' : 'Checkmate integration connected successfully!');
       window.location.reload();
     } else {
       // For other integrations, show success message (demo)

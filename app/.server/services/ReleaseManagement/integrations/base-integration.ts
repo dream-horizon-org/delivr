@@ -93,6 +93,26 @@ export abstract class IntegrationService {
   }
 
   /**
+   * Common PUT request
+   */
+  protected async put<T>(
+    url: string,
+    data: any,
+    userId: string,
+    config?: AxiosRequestConfig
+  ): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await this.client.put(url, data, {
+        ...config,
+        headers: this.buildHeaders(userId, config?.headers),
+      });
+      return response.data;
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Common DELETE request
    */
   protected async delete<T>(

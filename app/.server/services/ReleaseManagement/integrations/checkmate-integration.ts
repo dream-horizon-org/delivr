@@ -13,77 +13,56 @@ export enum VerificationStatus {
   PENDING = 'PENDING',
   VALID = 'VALID',
   INVALID = 'INVALID',
-  EXPIRED = 'EXPIRED'
+  ERROR = 'ERROR'
+}
+
+export interface CheckmateConfig {
+  baseUrl: string;
+  authToken: string;
 }
 
 export interface VerifyCheckmateRequest {
-  tenantId: string;
-  hostUrl: string;
-  apiKey: string;
-  workspaceId: string;
+  projectId: string;
+  integrationId: string;
   userId: string;
 }
 
 export interface VerifyCheckmateResponse {
-  verified: boolean;
+  success: boolean;
+  status: VerificationStatus;
   message: string;
-  details?: {
-    workspaceName?: string;
-    projectCount?: number;
-  };
+  error?: string;
 }
 
 export interface CreateCheckmateIntegrationRequest {
-  tenantId: string;
-  displayName?: string;
-  hostUrl: string;
-  apiKey: string;
-  workspaceId: string;
-  providerConfig?: {
-    defaultProjectId?: string;
-    syncEnabled?: boolean;
-    webhookEnabled?: boolean;
-  };
+  projectId: string;
+  name: string;
+  config: CheckmateConfig;
   userId: string;
 }
 
 export interface UpdateCheckmateIntegrationRequest {
-  tenantId: string;
-  displayName?: string;
-  hostUrl?: string;
-  apiKey?: string;
-  workspaceId?: string;
-  providerConfig?: {
-    defaultProjectId?: string;
-    syncEnabled?: boolean;
-    webhookEnabled?: boolean;
-  };
+  projectId: string;
+  integrationId: string;
+  name?: string;
+  config?: Partial<CheckmateConfig>;
   userId: string;
 }
 
 export interface CheckmateIntegration {
   id: string;
-  tenantId: string;
-  displayName: string;
-  hostUrl: string;
-  workspaceId: string;
-  providerConfig: {
-    defaultProjectId?: string;
-    syncEnabled?: boolean;
-    webhookEnabled?: boolean;
-  };
-  verificationStatus: VerificationStatus;
-  lastVerifiedAt: string | null;
-  verificationError: string | null;
-  isActive: boolean;
-  hasValidToken: boolean;
+  projectId: string;
+  name: string;
+  providerType: 'CHECKMATE';
+  config: CheckmateConfig;
+  createdByAccountId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CheckmateIntegrationResponse {
   success: boolean;
-  integration?: CheckmateIntegration;
+  data?: CheckmateIntegration | CheckmateIntegration[];
   message?: string;
   error?: string;
 }
@@ -94,57 +73,28 @@ export interface CheckmateIntegrationResponse {
 
 export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
-   * Verify Checkmate connection
-   */
-  async verifyCheckmate(data: VerifyCheckmateRequest): Promise<VerifyCheckmateResponse> {
-    this.logRequest('GET', `/tenants/${data.tenantId}/integrations/test-management/checkmate/verify`);
-    
-    try {
-      const result = await this.get<VerifyCheckmateResponse>(
-        `/tenants/${data.tenantId}/integrations/test-management/checkmate/verify`,
-        data.userId,
-        {
-          params: {
-            hostUrl: data.hostUrl,
-            apiKey: data.apiKey,
-            workspaceId: data.workspaceId
-          }
-        }
-      );
-
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/test-management/checkmate/verify`, result.verified);
-      return result;
-    } catch (error: any) {
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/test-management/checkmate/verify`, false);
-      
-      return {
-        verified: false,
-        message: error.message || 'Failed to verify Checkmate connection',
-      };
-    }
-  }
-
-  /**
    * Create Checkmate integration
    */
   async createIntegration(data: CreateCheckmateIntegrationRequest): Promise<CheckmateIntegrationResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/test-management/checkmate`);
+    this.logRequest('POST', `/projects/${data.projectId}/integrations/test-management`);
     
     try {
-      const result = await this.post<CheckmateIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/test-management/checkmate`,
+      const result = await this.post<{ success: boolean; data: CheckmateIntegration; error?: string }>(
+        `/projects/${data.projectId}/integrations/test-management`,
         {
-          displayName: data.displayName,
-          hostUrl: data.hostUrl,
-          apiKey: data.apiKey,
-          workspaceId: data.workspaceId,
-          providerConfig: data.providerConfig
+          name: data.name,
+          providerType: 'CHECKMATE',
+          config: data.config
         },
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/test-management/checkmate`, result.success);
-      return result;
+      this.logResponse('POST', `/projects/${data.projectId}/integrations/test-management`, result.success);
+      return {
+        success: result.success,
+        data: result.data,
+        error: result.error
+      };
     } catch (error: any) {
       return {
         success: false,
@@ -154,19 +104,58 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Get Checkmate integration for tenant
+   * Get all Checkmate integrations for a project
    */
-  async getIntegration(tenantId: string, userId: string): Promise<CheckmateIntegrationResponse> {
+  async listIntegrations(projectId: string, userId: string): Promise<CheckmateIntegrationResponse> {
     try {
-      return await this.get<CheckmateIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/test-management/checkmate`,
+      const result = await this.get<{ success: boolean; data: CheckmateIntegration[]; error?: string }>(
+        `/projects/${projectId}/integrations/test-management`,
         userId
       );
+
+      // Filter only Checkmate integrations
+      const checkmateIntegrations = result.data?.filter((i: any) => i.providerType === 'CHECKMATE') || [];
+
+      return {
+        success: result.success,
+        data: checkmateIntegrations,
+        error: result.error
+      };
+    } catch (error: any) {
+      if ((error as any).status === 404) {
+        return {
+          success: true,
+          data: []
+        };
+      }
+      
+      return {
+        success: false,
+        error: error.message || 'Failed to list Checkmate integrations'
+      };
+    }
+  }
+
+  /**
+   * Get single Checkmate integration
+   */
+  async getIntegration(projectId: string, integrationId: string, userId: string): Promise<CheckmateIntegrationResponse> {
+    try {
+      const result = await this.get<{ success: boolean; data: CheckmateIntegration; error?: string }>(
+        `/projects/${projectId}/integrations/test-management/${integrationId}`,
+        userId
+      );
+
+      return {
+        success: result.success,
+        data: result.data,
+        error: result.error
+      };
     } catch (error: any) {
       if ((error as any).status === 404) {
         return {
           success: false,
-          error: 'No Checkmate integration found'
+          error: 'Checkmate integration not found'
         };
       }
       
@@ -181,23 +170,25 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
    * Update Checkmate integration
    */
   async updateIntegration(data: UpdateCheckmateIntegrationRequest): Promise<CheckmateIntegrationResponse> {
-    this.logRequest('PATCH', `/tenants/${data.tenantId}/integrations/test-management/checkmate`);
+    this.logRequest('PUT', `/projects/${data.projectId}/integrations/test-management/${data.integrationId}`);
     
     try {
-      const result = await this.patch<CheckmateIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/test-management/checkmate`,
-        {
-          displayName: data.displayName,
-          hostUrl: data.hostUrl,
-          apiKey: data.apiKey,
-          workspaceId: data.workspaceId,
-          providerConfig: data.providerConfig
-        },
+      const payload: any = {};
+      if (data.name) payload.name = data.name;
+      if (data.config) payload.config = data.config;
+
+      const result = await this.put<{ success: boolean; data: CheckmateIntegration; error?: string }>(
+        `/projects/${data.projectId}/integrations/test-management/${data.integrationId}`,
+        payload,
         data.userId
       );
 
-      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/test-management/checkmate`, result.success);
-      return result;
+      this.logResponse('PUT', `/projects/${data.projectId}/integrations/test-management/${data.integrationId}`, result.success);
+      return {
+        success: result.success,
+        data: result.data,
+        error: result.error
+      };
     } catch (error: any) {
       return {
         success: false,
@@ -209,12 +200,14 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Checkmate integration
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(projectId: string, integrationId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      return await this.delete<{ success: boolean; message?: string }>(
-        `/tenants/${tenantId}/integrations/test-management/checkmate`,
+      const result = await this.delete<{ success: boolean; message?: string; error?: string }>(
+        `/projects/${projectId}/integrations/test-management/${integrationId}`,
         userId
       );
+
+      return result;
     } catch (error: any) {
       return {
         success: false,
@@ -222,8 +215,32 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
       };
     }
   }
+
+  /**
+   * Verify Checkmate integration connection
+   */
+  async verifyIntegration(data: VerifyCheckmateRequest): Promise<VerifyCheckmateResponse> {
+    this.logRequest('POST', `/projects/${data.projectId}/integrations/test-management/${data.integrationId}/verify`);
+    
+    try {
+      const result = await this.post<{ success: boolean; data: VerifyCheckmateResponse }>(
+        `/projects/${data.projectId}/integrations/test-management/${data.integrationId}/verify`,
+        {},
+        data.userId
+      );
+
+      this.logResponse('POST', `/projects/${data.projectId}/integrations/test-management/${data.integrationId}/verify`, result.data.success);
+      return result.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        status: VerificationStatus.ERROR,
+        message: error.message || 'Failed to verify Checkmate connection',
+        error: error.message
+      };
+    }
+  }
 }
 
 // Export singleton instance
 export const CheckmateIntegrationService = new CheckmateIntegrationServiceClass();
-

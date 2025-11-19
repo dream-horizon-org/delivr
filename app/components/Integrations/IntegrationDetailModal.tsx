@@ -37,6 +37,8 @@ export function IntegrationDetailModal({
           return 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.';
         case 'github-actions':
           return 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.';
+        case 'checkmate':
+          return 'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.';
         default:
           return `Are you sure you want to disconnect ${integrationName}?`;
       }
@@ -67,6 +69,19 @@ export function IntegrationDetailModal({
         
         case 'github-actions':
           response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`, {
+            method: 'DELETE'
+          });
+          break;
+        
+        case 'checkmate':
+          // Checkmate needs the integration ID to delete
+          const checkmateId = integration.config?.id;
+          if (!checkmateId) {
+            alert('Cannot disconnect: Integration ID not found');
+            setIsDisconnecting(false);
+            return;
+          }
+          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${checkmateId}`, {
             method: 'DELETE'
           });
           break;
@@ -340,7 +355,7 @@ export function IntegrationDetailModal({
           </Button>
           
           <Group>
-            {onEdit && (integration.id === 'jenkins' || integration.id === 'github-actions') && (
+            {onEdit && (integration.id === 'jenkins' || integration.id === 'github-actions' || integration.id === 'checkmate') && (
               <Button
                 variant="filled"
                 color="blue"
