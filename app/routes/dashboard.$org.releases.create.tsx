@@ -75,11 +75,16 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     // Continue with empty array if API fails
   }
   
+  // Check if returnTo query param exists (user came back from config creation)
+  const returnTo = new URL(request.url).searchParams.get('returnTo');
+  
   return json({
     org,
     user,
     setupData,
     configurations,
+    hasConfigurations: configurations.length > 0,
+    returnTo,
   });
 });
 
@@ -117,6 +122,7 @@ export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
   const org = (loaderData as any).org;
   const configurations = (loaderData as any).configurations || [];
+  const hasConfigurations = (loaderData as any).hasConfigurations;
   const navigate = useNavigate();
 
   // Wizard state
@@ -124,8 +130,7 @@ export default function CreateReleasePage() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Release creation state
-  const [mode, setMode] = useState<'WITH_CONFIG' | 'MANUAL'>('WITH_CONFIG');
+  // Release creation state - always WITH_CONFIG now
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
   const [selectedConfig, setSelectedConfig] = useState<ReleaseConfiguration | undefined>();
   const [details, setDetails] = useState<Partial<ReleaseBasicDetails>>({});
@@ -139,7 +144,7 @@ export default function CreateReleasePage() {
         setSelectedConfigId(defaultConfig.id);
       }
     }
-  }, [configurations]);
+  }, [configurations, selectedConfigId]);
   
   // Load the full configuration when a config is selected
   useEffect(() => {
@@ -163,10 +168,22 @@ export default function CreateReleasePage() {
     }
   }, [selectedConfig]);
   
+  // Handler to create new configuration
+  const handleCreateNewConfig = () => {
+    // Redirect to config creation with returnTo parameter
+    navigate(`/dashboard/${org}/releases/configure?returnTo=create`);
+  };
+  
+  // Handler to clone and edit configuration
+  const handleCloneConfig = (configId: string) => {
+    // Redirect to config creation with clone parameter
+    navigate(`/dashboard/${org}/releases/configure?clone=${configId}&returnTo=create`);
+  };
+  
   const canProceedFromStep = (stepIndex: number): boolean => {
     switch (stepIndex) {
-      case 0: // Mode selection
-        return mode === 'MANUAL' || (mode === 'WITH_CONFIG' && !!selectedConfigId);
+      case 0: // Configuration selection
+        return !!selectedConfigId;
         
       case 1: // Release details
         return !!(
@@ -175,14 +192,8 @@ export default function CreateReleasePage() {
           details.releaseDate
         );
         
-      case 2: // Customization or Manual Configuration
-        // For manual mode, require at least one platform
-        if (mode === 'MANUAL') {
-          const platforms = customizations.platforms;
-          return !!(platforms && (platforms.web || platforms.playStore || platforms.appStore));
-        }
-        // For config mode, customization is optional
-        return true;
+      case 2: // Customization
+        return true; // Customization is optional
         
       case 3: // Review
         return true;
@@ -209,9 +220,9 @@ export default function CreateReleasePage() {
     setIsSubmitting(true);
     
     try {
-      // Prepare release data
+      // Prepare release data with required configuration
       const releaseData = {
-        configId: mode === 'WITH_CONFIG' ? selectedConfigId : undefined,
+        configId: selectedConfigId, // Always required now
         version: details.version,
         releaseType: details.releaseType || 'PLANNED',
         baseVersion: details.baseVersion,
@@ -219,7 +230,7 @@ export default function CreateReleasePage() {
         releaseDate: details.releaseDate,
         description: details.description,
         platforms: customizations.platforms || { web: false, playStore: false, appStore: false },
-        customizations: mode === 'WITH_CONFIG' ? customizations : undefined,
+        customizations,
         createdBy: 'current-user', // TODO: Get from auth context
       };
       
@@ -253,14 +264,16 @@ export default function CreateReleasePage() {
   
   const renderStepContent = () => {
     switch (currentStep) {
-      case 0: // Mode selection
+      case 0: // Configuration selection
         return (
           <ConfigurationSelector
             configurations={configurations}
-            selectedMode={mode}
+            selectedMode={'WITH_CONFIG'}
             selectedConfigId={selectedConfigId}
-            onModeChange={setMode}
+            onModeChange={() => {}} // No-op since mode is fixed
             onConfigSelect={setSelectedConfigId}
+            onCreateNew={handleCreateNewConfig}
+            onClone={handleCloneConfig}
           />
         );
         
@@ -269,17 +282,12 @@ export default function CreateReleasePage() {
           <ReleaseDetailsForm
             details={details}
             onChange={setDetails}
-            prePopulated={mode === 'WITH_CONFIG'}
+            prePopulated={true}
           />
         );
         
-      case 2: // Customization or Configuration
-        return mode === 'MANUAL' ? (
-          <ManualConfigurationPanel
-            customizations={customizations}
-            onChange={setCustomizations}
-          />
-        ) : (
+      case 2: // Customization
+        return (
           <ReleaseCustomizationPanel
             config={selectedConfig}
             customizations={customizations}
@@ -302,6 +310,58 @@ export default function CreateReleasePage() {
   };
   
   const isLastStep = currentStep === steps.length - 1;
+  
+  // If no configurations exist, show banner to create one
+  if (!hasConfigurations) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <Container size="lg">
+          <Paper shadow="sm" p="xl" radius="md">
+            <div className="flex items-center gap-2 mb-6">
+              <button
+                type="button"
+                onClick={() => navigate(`/dashboard/${org}/releases`)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <IconArrowLeft size={20} />
+              </button>
+              <div>
+                <div className="text-lg font-semibold text-gray-700">Create Release</div>
+              </div>
+            </div>
+            
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <IconSettings className="h-6 w-6 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-base font-medium text-yellow-800">
+                    No Release Configuration Found
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>
+                      You need to create a release configuration before you can create releases. 
+                      Release configurations define the platforms, pipelines, testing phases, and approval workflows for your releases.
+                    </p>
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      leftSection={<IconSettings size={18} />}
+                      onClick={handleCreateNewConfig}
+                      className="bg-yellow-600 hover:bg-yellow-700"
+                    >
+                      Create Release Configuration
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Paper>
+        </Container>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gray-50 py-8">

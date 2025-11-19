@@ -1,323 +1,298 @@
 /**
- * In-Memory Release Store
- * Temporary storage until backend is ready
- * Mimics the structure expected from delivr-server-ota
+ * Release Store (Server-side)
+ * In-memory storage for releases until real database is integrated
+ * Matches old UI data structure
  */
 
-export interface Release {
-  id: string;
-  tenantId: string;
-  configId?: string; // Reference to configuration used
-  
-  // Basic details
-  version: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'EMERGENCY';
-  baseVersion?: string;
-  
-  // Dates
-  kickoffDate: string;
-  releaseDate: string;
-  
-  // Status
-  status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
-  
-  // Platforms
-  platforms: {
-    web: boolean;
-    playStore: boolean;
-    appStore: boolean;
-  };
-  
-  // Configuration snapshot (at time of creation)
-  configSnapshot?: any;
-  
-  // Customizations applied
-  customizations?: {
-    buildPipelines?: {
-      enablePreRegression: boolean;
-      enabledPipelineIds: string[];
-    };
-    testManagement?: {
-      enabled: boolean;
-      createTestRuns?: boolean;
-    };
-    communication?: {
-      enableSlack: boolean;
-      enableEmail: boolean;
-    };
-  };
-  
-  // Metadata
-  description?: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  
-  // Progress tracking
-  progress?: {
-    buildsPending: number;
-    buildsCompleted: number;
-    testsPending: number;
-    testsCompleted: number;
-    overallProgress: number; // 0-100
-  };
-}
+import type { Release, CreateReleaseInput, UpdateReleaseInput, ReleaseFilters } from '~/types/release';
 
 // In-memory store
-const releaseStore = new Map<string, Map<string, Release>>();
+const releases = new Map<string, Release>();
+
+// Counter for release keys
+let releaseCounter = 1;
 
 /**
- * Get all releases for an organization
+ * Generate unique release ID
  */
-export function getAllReleases(tenantId: string): Release[] {
-  const orgReleases = releaseStore.get(tenantId);
-  if (!orgReleases) return [];
-  
-  return Array.from(orgReleases.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+function generateReleaseId(): string {
+  return `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
- * Get a specific release by ID
+ * Generate release key (e.g., R-2024-01)
  */
-export function getReleaseById(
-  tenantId: string,
-  releaseId: string
-): Release | null {
-  const orgReleases = releaseStore.get(tenantId);
-  return orgReleases?.get(releaseId) || null;
+function generateReleaseKey(): string {
+  const year = new Date().getFullYear();
+  const number = String(releaseCounter++).padStart(2, '0');
+  return `R-${year}-${number}`;
 }
 
 /**
- * Get releases by status
+ * Get all releases for a tenant
  */
-export function getReleasesByStatus(
+export function getAllReleases(
   tenantId: string,
-  status: Release['status']
+  filters?: ReleaseFilters
 ): Release[] {
-  return getAllReleases(tenantId).filter(r => r.status === status);
-}
-
-/**
- * Get active releases (in progress)
- */
-export function getActiveReleases(tenantId: string): Release[] {
-  return getAllReleases(tenantId).filter(r => r.status === 'IN_PROGRESS');
-}
-
-/**
- * Get recent releases (last N)
- */
-export function getRecentReleases(tenantId: string, limit: number = 10): Release[] {
-  return getAllReleases(tenantId).slice(0, limit);
-}
-
-/**
- * Create a new release
- */
-export function createRelease(
-  tenantId: string,
-  release: Omit<Release, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'progress'>
-): Release {
-  let orgReleases = releaseStore.get(tenantId);
+  let results = Array.from(releases.values())
+    .filter(r => r.tenantId === tenantId);
   
-  if (!orgReleases) {
-    orgReleases = new Map();
-    releaseStore.set(tenantId, orgReleases);
+  // Apply filters
+  if (filters) {
+    if (filters.status && filters.status.length > 0) {
+      results = results.filter(r => filters.status!.includes(r.status));
+    }
+    
+    if (filters.releaseType && filters.releaseType.length > 0) {
+      results = results.filter(r => filters.releaseType!.includes(r.releaseType));
+    }
+    
+    if (filters.fromDate) {
+      results = results.filter(r => 
+        new Date(r.releaseDate) >= new Date(filters.fromDate!)
+      );
+    }
+    
+    if (filters.toDate) {
+      results = results.filter(r => 
+        new Date(r.releaseDate) <= new Date(filters.toDate!)
+      );
+    }
+    
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      results = results.filter(r => 
+        r.releaseKey.toLowerCase().includes(query) ||
+        r.version.toLowerCase().includes(query) ||
+        r.description?.toLowerCase().includes(query)
+      );
+    }
   }
   
+  // Sort by releaseDate descending (newest first)
+  results.sort((a, b) => 
+    new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
+  );
+  
+  return results;
+}
+
+/**
+ * Get single release by ID
+ */
+export function getRelease(releaseId: string): Release | null {
+  return releases.get(releaseId) || null;
+}
+
+/**
+ * Create new release from old UI format
+ */
+export function createRelease(input: CreateReleaseInput): Release {
   const now = new Date().toISOString();
-  const newRelease: Release = {
-    ...release,
-    id: `release_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    status: 'DRAFT',
+  
+  // Create user object from createdBy string
+  const createdByUser = {
+    id: input.createdBy || 'system',
+    name: 'Current User', // TODO: Get from auth context
+    email: 'user@example.com', // TODO: Get from auth context
+  };
+  
+  const release: Release = {
+    id: generateReleaseId(),
+    tenantId: input.tenantId,
+    releaseKey: generateReleaseKey(),
+    version: input.version,
+    releaseType: input.releaseType,
+    description: input.description,
+    baseVersion: input.baseVersion,
+    configId: input.configId,
+    customizations: input.customizations,
+    platforms: input.platforms,
+    kickoffDate: input.kickoffDate,
+    releaseDate: input.releaseDate,
+    plannedDate: input.releaseDate, // Use releaseDate as plannedDate
+    status: 'KICKOFF_PENDING',
+    createdBy: createdByUser,
+    lastUpdatedBy: createdByUser,
     createdAt: now,
     updatedAt: now,
-    progress: {
-      buildsPending: 0,
-      buildsCompleted: 0,
-      testsPending: 0,
-      testsCompleted: 0,
-      overallProgress: 0,
+    userAdoption: {
+      ios: 0,
+      android: 0,
+      web: 0,
     },
   };
   
-  orgReleases.set(newRelease.id, newRelease);
+  releases.set(release.id, release);
+  console.log(`[ReleaseStore] Created release: ${release.id} - ${release.releaseKey} v${release.version}`);
   
-  console.log(`[ReleaseStore] Created release ${newRelease.id} for tenant ${tenantId}`);
-  
-  return newRelease;
+  return release;
 }
 
 /**
- * Update a release
+ * Update existing release
  */
-export function updateRelease(
-  tenantId: string,
-  releaseId: string,
-  updates: Partial<Release>
-): Release | null {
-  const orgReleases = releaseStore.get(tenantId);
-  const existing = orgReleases?.get(releaseId);
+export function updateRelease(input: UpdateReleaseInput): Release | null {
+  const existing = releases.get(input.id);
   
   if (!existing) {
-    console.warn(`[ReleaseStore] Release ${releaseId} not found for tenant ${tenantId}`);
+    console.error(`[ReleaseStore] Release not found: ${input.id}`);
     return null;
   }
   
   const updated: Release = {
     ...existing,
-    ...updates,
-    id: existing.id,
-    createdAt: existing.createdAt,
+    ...input,
     updatedAt: new Date().toISOString(),
   };
   
-  orgReleases?.set(releaseId, updated);
-  
-  console.log(`[ReleaseStore] Updated release ${releaseId} for tenant ${tenantId}`);
+  releases.set(updated.id, updated);
+  console.log(`[ReleaseStore] Updated release: ${updated.id}`);
   
   return updated;
 }
 
 /**
- * Delete a release
+ * Delete release
  */
-export function deleteRelease(tenantId: string, releaseId: string): boolean {
-  const orgReleases = releaseStore.get(tenantId);
-  const deleted = orgReleases?.delete(releaseId) || false;
+export function deleteRelease(releaseId: string): boolean {
+  const existed = releases.delete(releaseId);
   
-  if (deleted) {
-    console.log(`[ReleaseStore] Deleted release ${releaseId} for tenant ${tenantId}`);
+  if (existed) {
+    console.log(`[ReleaseStore] Deleted release: ${releaseId}`);
   } else {
-    console.warn(`[ReleaseStore] Release ${releaseId} not found for tenant ${tenantId}`);
+    console.error(`[ReleaseStore] Release not found for deletion: ${releaseId}`);
   }
   
-  return deleted;
+  return existed;
 }
 
 /**
- * Start a release (change status to IN_PROGRESS)
- */
-export function startRelease(tenantId: string, releaseId: string): Release | null {
-  return updateRelease(tenantId, releaseId, {
-    status: 'IN_PROGRESS',
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Complete a release
- */
-export function completeRelease(tenantId: string, releaseId: string): Release | null {
-  return updateRelease(tenantId, releaseId, {
-    status: 'COMPLETED',
-    updatedAt: new Date().toISOString(),
-    progress: {
-      buildsPending: 0,
-      buildsCompleted: 100,
-      testsPending: 0,
-      testsCompleted: 100,
-      overallProgress: 100,
-    },
-  });
-}
-
-/**
- * Cancel a release
- */
-export function cancelRelease(tenantId: string, releaseId: string): Release | null {
-  return updateRelease(tenantId, releaseId, {
-    status: 'CANCELLED',
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Update release progress
- */
-export function updateReleaseProgress(
-  tenantId: string,
-  releaseId: string,
-  progress: Partial<Release['progress']>
-): Release | null {
-  const existing = getReleaseById(tenantId, releaseId);
-  if (!existing) return null;
-  
-  return updateRelease(tenantId, releaseId, {
-    progress: {
-      ...existing.progress!,
-      ...progress,
-    },
-  });
-}
-
-/**
- * Get release statistics
+ * Get release statistics for tenant
  */
 export function getReleaseStats(tenantId: string) {
-  const releases = getAllReleases(tenantId);
+  const tenantReleases = Array.from(releases.values())
+    .filter(r => r.tenantId === tenantId);
   
   return {
-    total: releases.length,
-    inProgress: releases.filter(r => r.status === 'IN_PROGRESS').length,
-    completed: releases.filter(r => r.status === 'COMPLETED').length,
-    draft: releases.filter(r => r.status === 'DRAFT').length,
-    cancelled: releases.filter(r => r.status === 'CANCELLED').length,
-    failed: releases.filter(r => r.status === 'FAILED').length,
+    total: tenantReleases.length,
+    byStatus: {
+      kickoffPending: tenantReleases.filter(r => r.status === 'KICKOFF_PENDING').length,
+      pending: tenantReleases.filter(r => r.status === 'PENDING').length,
+      started: tenantReleases.filter(r => r.status === 'STARTED').length,
+      regressionInProgress: tenantReleases.filter(r => r.status === 'REGRESSION_IN_PROGRESS').length,
+      buildSubmitted: tenantReleases.filter(r => r.status === 'BUILD_SUBMITTED').length,
+      released: tenantReleases.filter(r => r.status === 'RELEASED').length,
+      cancelled: tenantReleases.filter(r => r.status === 'CANCELLED').length,
+      archived: tenantReleases.filter(r => r.status === 'ARCHIVED').length,
+    },
+    byType: {
+      planned: tenantReleases.filter(r => r.releaseType === 'PLANNED').length,
+      hotfix: tenantReleases.filter(r => r.releaseType === 'HOTFIX').length,
+      major: tenantReleases.filter(r => r.releaseType === 'MAJOR').length,
+    },
   };
 }
 
 /**
- * Get release analytics
+ * Get upcoming releases (not released yet)
+ */
+export function getUpcomingReleases(tenantId: string): Release[] {
+  const now = new Date();
+  
+  return Array.from(releases.values())
+    .filter(r => 
+      r.tenantId === tenantId &&
+      r.status !== 'RELEASED' &&
+      r.status !== 'CANCELLED' &&
+      r.status !== 'ARCHIVED' &&
+      new Date(r.releaseDate) >= now
+    )
+    .sort((a, b) => 
+      new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime()
+    );
+}
+
+/**
+ * Get analytics for dashboard
  */
 export function getReleaseAnalytics(tenantId: string) {
-  const releases = getAllReleases(tenantId);
-  const completed = releases.filter(r => r.status === 'COMPLETED');
+  const tenantReleases = Array.from(releases.values())
+    .filter(r => r.tenantId === tenantId);
+  
+  const activeReleases = tenantReleases.filter(r => 
+    r.status === 'STARTED' || 
+    r.status === 'REGRESSION_IN_PROGRESS' ||
+    r.status === 'KICKOFF_PENDING'
+  );
+  
+  const completedReleases = tenantReleases.filter(r => r.status === 'RELEASED');
+  const upcomingReleases = getUpcomingReleases(tenantId);
   
   // Calculate success rate
-  const total = releases.filter(
-    r => r.status === 'COMPLETED' || r.status === 'FAILED' || r.status === 'CANCELLED'
+  const totalFinished = tenantReleases.filter(r => 
+    r.status === 'RELEASED' || r.status === 'CANCELLED'
   ).length;
-  const successful = completed.length;
-  const successRate = total > 0 ? Math.round((successful / total) * 100) : 0;
-  
-  // Platform distribution
-  const platformCount = {
-    web: releases.filter(r => r.platforms.web).length,
-    playStore: releases.filter(r => r.platforms.playStore).length,
-    appStore: releases.filter(r => r.platforms.appStore).length,
-  };
+  const successRate = totalFinished > 0 
+    ? Math.round((completedReleases.length / totalFinished) * 100)
+    : 0;
   
   return {
-    totalReleases: releases.length,
-    activeReleases: releases.filter(r => r.status === 'IN_PROGRESS').length,
-    completedReleases: completed.length,
+    totalReleases: tenantReleases.length,
+    activeReleases: activeReleases.length,
+    completedReleases: completedReleases.length,
+    upcomingReleases: upcomingReleases.length,
     successRate,
-    platformDistribution: platformCount,
-    avgCycleTime: '3.2 days', // Mock for now
+    avgCycleTime: '14 days', // Mock for now - TODO: Calculate actual
   };
 }
 
 /**
- * Clear all releases for a tenant (for testing)
+ * Clear all releases (for testing)
  */
-export function clearTenantReleases(tenantId: string): void {
-  releaseStore.delete(tenantId);
-  console.log(`[ReleaseStore] Cleared all releases for tenant ${tenantId}`);
+export function clearAllReleases(): void {
+  releases.clear();
+  releaseCounter = 1;
+  console.log('[ReleaseStore] Cleared all releases');
 }
 
 /**
- * Get store statistics (for debugging)
+ * Seed mock data for development
  */
-export function getStoreStats() {
-  return {
-    tenants: releaseStore.size,
-    totalReleases: Array.from(releaseStore.values()).reduce(
-      (sum, orgReleases) => sum + orgReleases.size,
-      0
-    ),
-  };
+export function seedMockReleases(tenantId: string): void {
+  const mockData: CreateReleaseInput[] = [
+    {
+      tenantId,
+      version: '2.5.0',
+      releaseType: 'PLANNED',
+      kickoffDate: new Date('2024-01-15').toISOString(),
+      releaseDate: new Date('2024-01-30').toISOString(),
+      description: 'Q1 2024 Feature Release',
+      platforms: { web: true, playStore: true, appStore: true },
+      createdBy: 'system',
+    },
+    {
+      tenantId,
+      version: '2.4.2',
+      releaseType: 'HOTFIX',
+      kickoffDate: new Date('2024-01-05').toISOString(),
+      releaseDate: new Date('2024-01-08').toISOString(),
+      description: 'Critical bug fixes',
+      platforms: { web: true, playStore: true, appStore: false },
+      createdBy: 'system',
+    },
+  ];
+  
+  mockData.forEach(data => {
+    const release = createRelease(data);
+    // Update status for variety
+    if (release.version === '2.4.2') {
+      updateRelease({ id: release.id, status: 'RELEASED' });
+    } else {
+      updateRelease({ id: release.id, status: 'STARTED' });
+    }
+  });
+  
+  console.log(`[ReleaseStore] Seeded ${mockData.length} mock releases for ${tenantId}`);
 }
-

@@ -37,6 +37,7 @@ interface ConfigurationWizardProps {
   };
   existingConfig?: ReleaseConfiguration | null;
   isEditMode?: boolean;
+  returnTo?: string | null;
 }
 
 export function ConfigurationWizard({
@@ -46,6 +47,7 @@ export function ConfigurationWizard({
   availableIntegrations,
   existingConfig,
   isEditMode = false,
+  returnTo,
 }: ConfigurationWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -308,6 +310,7 @@ export function ConfigurationWizard({
                 onPrevious={handlePrevious}
                 onNext={handleNext}
                 onFinish={handleFinish}
+                onCancel={onCancel}
                 canProceed={canProceedFromStep(currentStep)}
                 isLoading={isSubmitting}
                 isEditMode={isEditMode}

@@ -23,19 +23,36 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   // Check if editing existing configuration
   const url = new URL(request.url);
   const editConfigId = url.searchParams.get('edit');
+  const cloneConfigId = url.searchParams.get('clone');
   const forceNew = url.searchParams.get('new') === 'true';
+  const returnTo = url.searchParams.get('returnTo'); // Where to redirect after save
   
   let existingConfig: ReleaseConfiguration | null = null;
   
-  if (editConfigId) {
+  // Handle editing or cloning existing config
+  const configIdToLoad = editConfigId || cloneConfigId;
+  if (configIdToLoad) {
     try {
-      const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?configId=${editConfigId}`;
+      const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?configId=${configIdToLoad}`;
       const response = await fetch(apiUrl);
       
       if (response.ok) {
         const data = await response.json();
         existingConfig = data.configuration;
-        console.log(`[Configure] Loading config for edit: ${editConfigId}`);
+        
+        // If cloning, modify the config to be a new one
+        if (cloneConfigId) {
+          existingConfig = {
+            ...existingConfig,
+            id: '', // Will be generated on save
+            name: `${existingConfig.name} (Copy)`,
+            isDefault: false, // Clones are never default
+            status: 'DRAFT' as any,
+            createdAt: new Date().toISOString(),
+          };
+        }
+        
+        console.log(`[Configure] Loading config for ${cloneConfigId ? 'clone' : 'edit'}: ${configIdToLoad}`);
       } else {
         console.error('[Configure] Failed to load config:', await response.text());
       }
@@ -65,7 +82,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     availableIntegrations,
     existingConfig,
     isEditMode: !!editConfigId,
+    isCloneMode: !!cloneConfigId,
     forceNew,
+    returnTo,
     tenantInfo,
   });
 }
@@ -79,6 +98,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   
   const formData = await request.formData();
   const configJson = formData.get('config');
+  const returnTo = formData.get('returnTo') as string | null;
   
   if (!configJson || typeof configJson !== 'string') {
     return json({ success: false, error: 'Invalid configuration data' }, { status: 400 });
@@ -91,11 +111,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // const result = await saveReleaseConfiguration(org, config);
     
     console.log('[Release Config] Saving configuration:', config);
+    console.log('[Release Config] ReturnTo:', returnTo);
     
     // For now, just simulate success
     // In production, this would call the backend API
     
-    return redirect(`/dashboard/${org}/releases`);
+    // Redirect based on returnTo parameter
+    if (returnTo === 'create') {
+      return redirect(`/dashboard/${org}/releases/create?returnTo=config`);
+    } else {
+      return redirect(`/dashboard/${org}/releases`);
+    }
   } catch (error) {
     console.error('[Release Config] Failed to save:', error);
     return json(
@@ -106,7 +132,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function ReleasesConfigurePage() {
-  const { organizationId, availableIntegrations, existingConfig, isEditMode, forceNew } = useLoaderData<typeof loader>();
+  const { organizationId, availableIntegrations, existingConfig, isEditMode, isCloneMode, forceNew, returnTo } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   
   const [showDraftDialog, setShowDraftDialog] = useState(false);
@@ -126,12 +152,21 @@ export default function ReleasesConfigurePage() {
   
   const handleSubmit = async (config: ReleaseConfiguration) => {
     // The wizard already handles API submission directly
-    // Just navigate to settings page after successful save
-    navigate(`/dashboard/${organizationId}/settings/release-config`);
+    // Navigate based on returnTo parameter
+    if (returnTo === 'create') {
+      navigate(`/dashboard/${organizationId}/releases/create?returnTo=config`);
+    } else {
+      navigate(`/dashboard/${organizationId}/settings/release-config`);
+    }
   };
   
   const handleCancel = () => {
-    navigate(`/dashboard/${organizationId}/settings/release-config`);
+    // Navigate back to where user came from
+    if (returnTo === 'create') {
+      navigate(`/dashboard/${organizationId}/releases/create`);
+    } else {
+      navigate(`/dashboard/${organizationId}/settings/release-config`);
+    }
   };
   
   const handleContinueDraft = () => {
@@ -174,6 +209,7 @@ export default function ReleasesConfigurePage() {
       availableIntegrations={availableIntegrations}
       existingConfig={existingConfig}
       isEditMode={isEditMode}
+      returnTo={returnTo}
     />
   );
 }

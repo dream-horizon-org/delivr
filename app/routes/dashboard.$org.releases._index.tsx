@@ -16,9 +16,8 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { getReleases } from '~/.server/services/ReleaseManagement';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
 import { UnconfiguredBanner } from '~/components/ReleaseManagement/UnconfiguredBanner';
-import { hasReleaseConfiguration } from '~/utils/check-release-config';
 
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org } = params;
   
   if (!org) {
@@ -31,23 +30,34 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   // Fetch releases and analytics from API
   let releases = [];
   let analyticsData = null;
+  let configurations: any[] = [];
   
   try {
+    const url = new URL(request.url);
+    
+    // Fetch release configurations to check if setup is complete
+    const configsResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?status=ACTIVE`);
+    if (configsResponse.ok) {
+      const configsData = await configsResponse.json();
+      configurations = configsData.configurations || [];
+      console.log(`[Dashboard] Loaded ${configurations.length} active configurations`);
+    }
+    
     // Fetch analytics
-    const analyticsResponse = await fetch(`http://localhost:3000/api/v1/tenants/${org}/releases?analytics=true`);
+    const analyticsResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/releases?analytics=true`);
     if (analyticsResponse.ok) {
       const data = await analyticsResponse.json();
       analyticsData = data.analytics;
     }
     
     // Fetch actual releases
-    const releasesResponse = await fetch(`http://localhost:3000/api/v1/tenants/${org}/releases?recent=10`);
+    const releasesResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/releases?recent=10`);
     if (releasesResponse.ok) {
       const releasesData = await releasesResponse.json();
       releases = releasesData.releases || [];
     }
   } catch (error) {
-    console.error('[Dashboard] Failed to fetch releases:', error);
+    console.error('[Dashboard] Failed to fetch data:', error);
   }
   
   // Use analytics from API if available, otherwise calculate from releases
@@ -57,17 +67,19 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
     totalReleases = analyticsData.totalReleases;
     activeReleases = analyticsData.activeReleases;
     completedReleases = analyticsData.completedReleases;
+    upcomingReleases = analyticsData.upcomingReleases;
     successRate = analyticsData.successRate;
     avgCycleTime = analyticsData.avgCycleTime;
-    upcomingReleases = 0; // TODO: Add to analytics
   } else {
-    // Calculate analytics from releases
+    // Calculate analytics from releases (using correct status values)
     totalReleases = releases.length;
     activeReleases = releases.filter((r: any) => 
-      r.status === 'IN_PROGRESS' || r.status === 'DRAFT'
+      r.status === 'STARTED' || 
+      r.status === 'KICKOFF_PENDING' || 
+      r.status === 'REGRESSION_IN_PROGRESS'
     ).length;
-    completedReleases = releases.filter((r: any) => r.status === 'COMPLETED').length;
-    upcomingReleases = releases.filter((r: any) => r.status === 'DRAFT').length;
+    completedReleases = releases.filter((r: any) => r.status === 'RELEASED').length;
+    upcomingReleases = releases.filter((r: any) => r.status === 'KICKOFF_PENDING').length;
     
     // Calculate success rate
     successRate = totalReleases > 0 
@@ -82,7 +94,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   
   // Get completed releases for adoption chart
   const completedReleasesForChart = releases
-    .filter((r: any) => r.status === 'COMPLETED' && r.userAdoption)
+    .filter((r: any) => r.status === 'RELEASED' && r.userAdoption)
     .slice(0, 5)
     .reverse();
   
@@ -105,6 +117,7 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
     },
     recentReleases,
     adoptionChartData,
+    hasConfigurations: configurations.length > 0,
   });
 });
 
@@ -119,7 +132,7 @@ export default function ReleaseDashboardPage() {
   const { tenantId: org } = orgData;
   
   // Extract data (guaranteed to exist as loader always returns this structure)
-  const { analytics, recentReleases, adoptionChartData } = loaderData as {
+  const { analytics, recentReleases, adoptionChartData, hasConfigurations } = loaderData as {
     analytics: {
       totalReleases: number;
       activeReleases: number;
@@ -130,10 +143,8 @@ export default function ReleaseDashboardPage() {
     };
     recentReleases: any[];
     adoptionChartData: any[];
+    hasConfigurations: boolean;
   };
-  
-  // Check if release configuration exists
-  const hasConfig = hasReleaseConfiguration(org);
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -149,7 +160,7 @@ export default function ReleaseDashboardPage() {
             </div>
             
             <div className="flex space-x-3">
-              {hasConfig && (
+              {hasConfigurations && (
                 <Link
                   to={`/dashboard/${org}/settings/release-config`}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -170,7 +181,7 @@ export default function ReleaseDashboardPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                {hasConfig ? 'New Config' : 'Configure Release'}
+                {hasConfigurations ? 'New Config' : 'Configure Release'}
               </Link>
               
               <Link
@@ -199,8 +210,8 @@ export default function ReleaseDashboardPage() {
       
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Unconfigured Banner - Show if no configuration exists */}
-        {!hasConfig && <UnconfiguredBanner organizationId={org} />}
+        {/* Unconfigured Banner - Show ONLY if no configurations exist */}
+        {!hasConfigurations && <UnconfiguredBanner organizationId={org} />}
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           {/* Total Releases */}
