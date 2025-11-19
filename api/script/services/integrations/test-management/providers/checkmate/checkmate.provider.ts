@@ -3,6 +3,7 @@
  * Implements test management integration with Checkmate
  */
 
+import { AUTH_SCHEMES, CONTENT_TYPES, HTTP_HEADERS, HTTP_METHODS, HTTP_STATUS } from '~constants/http';
 import { TestManagementProviderType, TestRunStatus } from '~types/integrations/test-management';
 import type { ProjectTestManagementIntegrationConfig } from '~types/integrations/test-management/project-integration';
 import type {
@@ -15,9 +16,6 @@ import {
   CHECKMATE_API_ENDPOINTS,
   CHECKMATE_DEFAULTS,
   CHECKMATE_ERROR_MESSAGES,
-  CHECKMATE_HEADERS,
-  CHECKMATE_HTTP_METHODS,
-  CHECKMATE_HTTP_STATUS,
   CHECKMATE_QUERY_PARAMS,
   CHECKMATE_URL_PARAMS,
   CHECKMATE_URL_TEMPLATES
@@ -75,13 +73,13 @@ export class CheckmateProvider implements ITestManagementProvider {
     options: RequestInit = {}
   ): Promise<T> => {
     const url = `${checkmateConfig.baseUrl}${endpoint}`;
-    const authorizationValue = `${CHECKMATE_HEADERS.BEARER_PREFIX} ${checkmateConfig.authToken}`;
+    const authorizationValue = `${AUTH_SCHEMES.BEARER} ${checkmateConfig.authToken}`;
     
     const response = await fetch(url, {
       ...options,
       headers: {
-        [CHECKMATE_HEADERS.CONTENT_TYPE_KEY]: CHECKMATE_HEADERS.CONTENT_TYPE_VALUE,
-        [CHECKMATE_HEADERS.AUTHORIZATION_KEY]: authorizationValue,
+        [HTTP_HEADERS.CONTENT_TYPE]: CONTENT_TYPES.JSON,
+        [HTTP_HEADERS.AUTHORIZATION]: authorizationValue,
         ...options.headers
       }
     });
@@ -174,13 +172,13 @@ export class CheckmateProvider implements ITestManagementProvider {
       // Try to make a simple API call to validate credentials
       try {
         await this.makeRequest(checkmateConfig, CHECKMATE_API_ENDPOINTS.PROJECTS, {
-          method: CHECKMATE_HTTP_METHODS.GET
+          method: HTTP_METHODS.GET
         });
         return true;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '';
-        const isUnauthorized = errorMessage.includes(CHECKMATE_HTTP_STATUS.UNAUTHORIZED.toString());
-        const isForbidden = errorMessage.includes(CHECKMATE_HTTP_STATUS.FORBIDDEN.toString());
+        const isUnauthorized = errorMessage.includes(HTTP_STATUS.UNAUTHORIZED.toString());
+        const isForbidden = errorMessage.includes(HTTP_STATUS.FORBIDDEN.toString());
         const isAuthError = isUnauthorized || isForbidden;
         
         if (isAuthError) {
@@ -238,7 +236,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       checkmateConfig,
       CHECKMATE_API_ENDPOINTS.CREATE_RUN,
       {
-        method: CHECKMATE_HTTP_METHODS.POST,
+        method: HTTP_METHODS.POST,
         body: JSON.stringify(requestBody)
       }
     );
@@ -269,7 +267,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       checkmateConfig,
       endpoint,
       {
-        method: CHECKMATE_HTTP_METHODS.GET
+        method: HTTP_METHODS.GET
       }
     );
 
@@ -303,7 +301,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       checkmateConfig,
       endpoint,
       {
-        method: CHECKMATE_HTTP_METHODS.POST,
+        method: HTTP_METHODS.POST,
         body: '{}'
       }
     );
@@ -331,7 +329,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       checkmateConfig,
       endpoint,
       {
-        method: CHECKMATE_HTTP_METHODS.POST,
+        method: HTTP_METHODS.POST,
         body: '{}'
       }
     );
@@ -360,7 +358,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       checkmateConfig,
       endpoint,
       {
-        method: CHECKMATE_HTTP_METHODS.GET
+        method: HTTP_METHODS.GET
       }
     );
 

@@ -4,15 +4,14 @@
 
 import { Request, Response, Router } from "express";
 import * as tenantPermissions from "../middleware/tenant-permissions";
-import * as storageTypes from "../storage/storage";
 import { S3Storage } from "../storage/aws-storage";
-// Old multi-platform routes removed - using new test-run-operations routes
-import { createSCMIntegrationRoutes } from "./scm-integrations";
+import * as storageTypes from "../storage/storage";
 import {
   createProjectIntegrationRoutes,
   createReleaseConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
+import { createSCMIntegrationRoutes } from "./scm-integrations";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;

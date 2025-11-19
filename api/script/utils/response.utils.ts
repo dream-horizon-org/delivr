@@ -4,23 +4,11 @@
  * GLOBAL UTILITY - Used across all API endpoints
  */
 
-// ============================================================================
-// RESPONSE TYPES
-// ============================================================================
+import { HTTP_STATUS } from '~constants/http';
+import type { ErrorResponse, SuccessResponse } from './response.interface';
 
-export interface SuccessResponse<T> {
-  success: true;
-  data?: T;
-  message?: string;
-}
-
-export interface ErrorResponse {
-  success: false;
-  error: string;
-  code?: string;
-  field?: string;
-  details?: Record<string, unknown>;
-}
+// Re-export types for backwards compatibility
+export type { ErrorResponse, SuccessResponse };
 
 // ============================================================================
 // RESPONSE BUILDERS
@@ -109,25 +97,25 @@ export const getErrorStatusCode = (error: unknown): number => {
     const message = error.message.toLowerCase();
 
     const isNotFoundError = message.includes('not found');
-    if (isNotFoundError) return 404;
+    if (isNotFoundError) return HTTP_STATUS.NOT_FOUND;
 
     const isAuthError = message.includes('unauthorized') || message.includes('authentication');
-    if (isAuthError) return 401;
+    if (isAuthError) return HTTP_STATUS.UNAUTHORIZED;
 
     const isForbiddenError = message.includes('forbidden') || message.includes('permission');
-    if (isForbiddenError) return 403;
+    if (isForbiddenError) return HTTP_STATUS.FORBIDDEN;
 
     const isValidationError = message.includes('invalid') || message.includes('required');
-    if (isValidationError) return 400;
+    if (isValidationError) return HTTP_STATUS.BAD_REQUEST;
 
     const isTimeoutError = message.includes('timeout');
-    if (isTimeoutError) return 408;
+    if (isTimeoutError) return HTTP_STATUS.TIMEOUT;
 
     const isRateLimitError = message.includes('rate limit');
-    if (isRateLimitError) return 429;
+    if (isRateLimitError) return HTTP_STATUS.TOO_MANY_REQUESTS;
   }
 
-  return 500;
+  return HTTP_STATUS.INTERNAL_SERVER_ERROR;
 };
 
 // ============================================================================

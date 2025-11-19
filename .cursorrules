@@ -153,15 +153,43 @@ export const ERROR_MESSAGES = { ... };  // ✅ This is domain-specific
 
 ## No Magic Values
 
+### CRITICAL RULE: NO Hardcoded Values ANYWHERE
+
+**This applies to ALL code - controllers, services, utilities, helpers, everywhere!**
+
 ### Always use constants, never hardcoded values:
 
 ```typescript
-// ❌ BAD: Hardcoded status code
+// ❌ BAD: Hardcoded status code in controller
 res.status(400).json({ error: 'Bad request' });
 
-// ✅ GOOD: Use constant
-import { HTTP_STATUS } from '~utils/constants';
+// ✅ GOOD: Use constant in controller
+import { HTTP_STATUS } from '~constants/http';
 res.status(HTTP_STATUS.BAD_REQUEST).json({ error: 'Bad request' });
+
+// ❌ BAD: Hardcoded status codes in utility function
+export const getErrorStatusCode = (error: unknown): number => {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes('not found')) return 404;  // ❌ Hardcoded!
+    if (message.includes('unauthorized')) return 401;  // ❌ Hardcoded!
+    if (message.includes('forbidden')) return 403;  // ❌ Hardcoded!
+  }
+  return 500;  // ❌ Hardcoded!
+};
+
+// ✅ GOOD: Use constants in utility function
+import { HTTP_STATUS } from '~constants/http';
+
+export const getErrorStatusCode = (error: unknown): number => {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes('not found')) return HTTP_STATUS.NOT_FOUND;
+    if (message.includes('unauthorized')) return HTTP_STATUS.UNAUTHORIZED;
+    if (message.includes('forbidden')) return HTTP_STATUS.FORBIDDEN;
+  }
+  return HTTP_STATUS.INTERNAL_SERVER_ERROR;
+};
 
 // ❌ BAD: Magic string
 throw new Error('Failed to create integration');
@@ -170,6 +198,12 @@ throw new Error('Failed to create integration');
 import { TEST_MANAGEMENT_ERROR_MESSAGES } from '../constants';
 throw new Error(TEST_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED);
 ```
+
+**Key Points:**
+- Import `HTTP_STATUS` from `~constants/http` (NOT from local/provider constants)
+- Never use numeric literals for HTTP status codes (400, 401, 404, 500, etc.)
+- This rule applies to utility functions, not just controllers
+- Even single-use status codes should use constants for consistency
 
 ## Quick Checklist Before Creating Constants
 
@@ -1029,6 +1063,7 @@ export const NEW_CONSTANT = { ... };
 
 - [ ] **NO MAGIC STRINGS** - All error/success messages use constants from `constants.ts`
 - [ ] **NO MAGIC NUMBERS** - All numeric values extracted to named constants (except obvious values like `0`, `1`)
+- [ ] **NO HARDCODED HTTP STATUS CODES** - Use `HTTP_STATUS` from `~constants/http` everywhere (controllers, utilities, services)
 - [ ] **Use pure functions** - All response building uses pure functions from `response.utils.ts`
 - [ ] **NEVER use `as` or `!`** - All type assertions replaced with proper type guards
 - [ ] **ALWAYS use `??` instead of `||`** - For default values (check all `||` usages)
