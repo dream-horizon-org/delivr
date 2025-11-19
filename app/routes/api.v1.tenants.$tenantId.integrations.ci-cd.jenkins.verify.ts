@@ -1,13 +1,13 @@
 /**
  * API Route: Verify Jenkins CI/CD Integration
- * GET /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins/verify
+ * POST /api/v1/tenants/:tenantId/integrations/ci-cd/jenkins/verify
  */
 
-import { json, type LoaderFunctionArgs } from '@remix-run/node';
+import { json, type ActionFunctionArgs } from '@remix-run/node';
 import { JenkinsIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
   const { tenantId } = params;
 
@@ -16,13 +16,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    // Parse query parameters
-    const url = new URL(request.url);
-    const hostUrl = url.searchParams.get('hostUrl');
-    const username = url.searchParams.get('username');
-    const apiToken = url.searchParams.get('apiToken');
-    const useCrumb = url.searchParams.get('useCrumb') === 'true';
-    const crumbPath = url.searchParams.get('crumbPath');
+    // Parse request body
+    const body = await request.json();
+    const { hostUrl, username, apiToken, useCrumb, crumbPath } = body;
 
     if (!hostUrl || !username || !apiToken) {
       return json(
@@ -36,7 +32,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       hostUrl,
       username,
       apiToken,
-      useCrumb,
+      useCrumb: useCrumb ?? true,
       crumbPath: crumbPath || undefined,
       userId,
     });

@@ -110,6 +110,20 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
                 {integration.config.accountName}
               </div>
             )}
+            {integration.config.displayName && (
+              <div>
+                <span className="font-medium">Name:</span>{' '}
+                {integration.config.displayName}
+              </div>
+            )}
+            {integration.config.hostUrl && (
+              <div>
+                <span className="font-medium">Host:</span>{' '}
+                <span className="truncate inline-block max-w-[180px]" title={integration.config.hostUrl}>
+                  {integration.config.hostUrl}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

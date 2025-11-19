@@ -1,4 +1,5 @@
-import { Modal, Badge, Button, Group, Divider } from '@mantine/core';
+import { useState } from 'react';
+import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
 import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 
@@ -6,16 +7,91 @@ interface IntegrationDetailModalProps {
   integration: IntegrationDetails | null;
   opened: boolean;
   onClose: () => void;
-  onDisconnect: (integrationId: string) => void;
+  onDisconnectComplete: () => void; // Callback after successful disconnect
+  onEdit?: (integrationId: string) => void;
+  tenantId: string;
 }
 
 export function IntegrationDetailModal({
   integration,
   opened,
   onClose,
-  onDisconnect
+  onDisconnectComplete,
+  onEdit,
+  tenantId
 }: IntegrationDetailModalProps) {
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  
   if (!integration) return null;
+
+  const handleDisconnect = async () => {
+    const integrationId = integration.id;
+    
+    // Confirm before disconnect
+    const integrationName = integration.name;
+    const confirmMessage = (() => {
+      switch (integrationId) {
+        case 'slack':
+          return 'Are you sure you want to disconnect Slack? This will stop all release notifications.';
+        case 'jenkins':
+          return 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.';
+        case 'github-actions':
+          return 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.';
+        default:
+          return `Are you sure you want to disconnect ${integrationName}?`;
+      }
+    })();
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsDisconnecting(true);
+
+    try {
+      let response;
+      
+      // Handle disconnect based on integration type
+      switch (integrationId) {
+        case 'slack':
+          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
+            method: 'DELETE'
+          });
+          break;
+        
+        case 'jenkins':
+          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`, {
+            method: 'DELETE'
+          });
+          break;
+        
+        case 'github-actions':
+          response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`, {
+            method: 'DELETE'
+          });
+          break;
+        
+        default:
+          alert(`Disconnect not implemented for ${integrationName}`);
+          setIsDisconnecting(false);
+          return;
+      }
+
+      if (response.ok) {
+        alert(`${integrationName} disconnected successfully!`);
+        onClose();
+        onDisconnectComplete(); // Notify parent that disconnect is complete
+      } else {
+        const error = await response.json();
+        alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error(`Failed to disconnect ${integration.name}:`, error);
+      alert(`Failed to disconnect ${integration.name}. Please try again.`);
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
 
   const formatDate = (date?: Date) => {
     if (!date) return 'N/A';
@@ -117,6 +193,35 @@ export function IntegrationDetailModal({
                     </Badge>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Jenkins-specific configuration */}
+            {integration.config?.displayName && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Display Name:</span>
+                <span className="font-medium">{integration.config.displayName}</span>
+              </div>
+            )}
+
+            {integration.config?.hostUrl && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Host URL:</span>
+                <a
+                  href={integration.config.hostUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  {integration.config.hostUrl}
+                </a>
+              </div>
+            )}
+
+            {integration.config?.username && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Username:</span>
+                <span className="font-medium">{integration.config.username}</span>
               </div>
             )}
 
@@ -223,22 +328,34 @@ export function IntegrationDetailModal({
 
         {/* Actions */}
         <Divider />
-        <Group justify="flex-end">
+        <Group justify="space-between">
           <Button
             variant="subtle"
             color="red"
-            onClick={() => {
-              if (confirm(`Are you sure you want to disconnect ${integration.name}?`)) {
-                onDisconnect(integration.id);
-                onClose();
-              }
-            }}
+            onClick={handleDisconnect}
+            disabled={isDisconnecting}
+            leftSection={isDisconnecting ? <Loader size="xs" /> : null}
           >
-            Disconnect
+            {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
           </Button>
-          <Button variant="light" onClick={onClose}>
-            Close
-          </Button>
+          
+          <Group>
+            {onEdit && (integration.id === 'jenkins' || integration.id === 'github-actions') && (
+              <Button
+                variant="filled"
+                color="blue"
+                onClick={() => {
+                  onEdit(integration.id);
+                  onClose();
+                }}
+              >
+                Edit Connection
+              </Button>
+            )}
+            <Button variant="light" onClick={onClose}>
+              Close
+            </Button>
+          </Group>
         </Group>
       </div>
     </Modal>

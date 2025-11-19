@@ -6,6 +6,7 @@ export { SlackIntegrationService } from './slack-integration';
 
 // CI/CD Integrations
 export { JenkinsIntegrationService } from './jenkins-integration';
+export { GitHubActionsIntegrationService } from './github-actions-integration';
 
 // Test Management Integrations
 export { CheckmateIntegrationService } from './checkmate-integration';

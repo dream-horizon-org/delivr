@@ -20,17 +20,19 @@ import {
 interface JenkinsConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
+  isEditMode?: boolean;
+  existingData?: any;
 }
 
-export function JenkinsConnectionFlow({ onConnect, onCancel }: JenkinsConnectionFlowProps) {
+export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JenkinsConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
   const [formData, setFormData] = useState({
-    displayName: '',
-    hostUrl: '',
-    username: '',
-    apiToken: '',
+    displayName: existingData?.displayName || '',
+    hostUrl: existingData?.hostUrl || '',
+    username: existingData?.username || '',
+    apiToken: '', // Never pre-populate sensitive data
     useCrumb: true,
     crumbPath: '/crumbIssuer/api/json'
   });
@@ -46,16 +48,20 @@ export function JenkinsConnectionFlow({ onConnect, onCancel }: JenkinsConnection
     setVerificationResult(null);
 
     try {
-      const queryParams = new URLSearchParams({
-        hostUrl: formData.hostUrl,
-        username: formData.username,
-        apiToken: formData.apiToken,
-        useCrumb: formData.useCrumb.toString(),
-        crumbPath: formData.crumbPath
-      });
-
+      // Send data in request body with POST method (backend expects req.body)
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins/verify?${queryParams}`
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins/verify`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hostUrl: formData.hostUrl,
+            username: formData.username,
+            apiToken: formData.apiToken,
+            useCrumb: formData.useCrumb,
+            crumbPath: formData.crumbPath
+          })
+        }
       );
 
       const data = await response.json();
@@ -83,19 +89,30 @@ export function JenkinsConnectionFlow({ onConnect, onCancel }: JenkinsConnection
     setError(null);
 
     try {
+      const method = isEditMode ? 'PATCH' : 'POST';
+      const payload: any = {
+        displayName: formData.displayName || `${formData.hostUrl}`,
+        hostUrl: formData.hostUrl,
+        username: formData.username,
+        providerConfig: {
+          useCrumb: formData.useCrumb,
+          crumbPath: formData.crumbPath
+        }
+      };
+
+      // Only include apiToken if it's provided (required for create, optional for update)
+      if (formData.apiToken) {
+        payload.apiToken = formData.apiToken;
+      } else if (!isEditMode) {
+        setError('API Token is required');
+        setIsConnecting(false);
+        return;
+      }
+
       const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`, {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayName: formData.displayName || `${formData.hostUrl}`,
-          hostUrl: formData.hostUrl,
-          username: formData.username,
-          apiToken: formData.apiToken,
-          providerConfig: {
-            useCrumb: formData.useCrumb,
-            crumbPath: formData.crumbPath
-          }
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -103,21 +120,24 @@ export function JenkinsConnectionFlow({ onConnect, onCancel }: JenkinsConnection
       if (data.success) {
         onConnect(data);
       } else {
-        setError(data.error || 'Failed to connect Jenkins integration');
+        setError(data.error || `Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to connect Jenkins integration');
+      setError(err.message || `Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
     } finally {
       setIsConnecting(false);
     }
   };
 
-  const isFormValid = formData.hostUrl && formData.username && formData.apiToken;
+  // For edit mode, apiToken is optional. For create mode, it's required
+  const isFormValid = formData.hostUrl && formData.username && (isEditMode || formData.apiToken);
 
   return (
     <Stack gap="md">
-      <Alert color="blue" title="Connect Jenkins" icon={<span>🔨</span>}>
-        Connect your Jenkins server to trigger builds and track deployment pipelines.
+      <Alert color="blue" title={isEditMode ? "Edit Jenkins Connection" : "Connect Jenkins"} icon={<span>🔨</span>}>
+        {isEditMode 
+          ? 'Update your Jenkins server connection details.'
+          : 'Connect your Jenkins server to trigger builds and track deployment pipelines.'}
       </Alert>
 
       <TextInput
@@ -146,12 +166,13 @@ export function JenkinsConnectionFlow({ onConnect, onCancel }: JenkinsConnection
       />
 
       <PasswordInput
-        label="API Token"
-        placeholder="Your Jenkins API token"
-        required
+        label={isEditMode ? "API Token (leave blank to keep existing)" : "API Token"}
+        placeholder={isEditMode ? "Leave blank to keep existing token" : "Your Jenkins API token"}
+        required={!isEditMode}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-        error={!formData.apiToken && 'API Token is required'}
+        error={!isEditMode && !formData.apiToken && 'API Token is required'}
+        description={isEditMode ? "Only provide a new token if you want to update it" : undefined}
       />
 
       <Stack gap="xs">
@@ -194,22 +215,24 @@ export function JenkinsConnectionFlow({ onConnect, onCancel }: JenkinsConnection
         </Button>
         
         <Group>
-          <Button
-            variant="light"
-            onClick={handleVerify}
-            disabled={!isFormValid || isVerifying || isConnecting}
-            leftSection={isVerifying ? <Loader size="xs" /> : null}
-          >
-            {isVerifying ? 'Verifying...' : 'Verify Connection'}
-          </Button>
+          {!isEditMode && (
+            <Button
+              variant="light"
+              onClick={handleVerify}
+              disabled={!isFormValid || isVerifying || isConnecting}
+              leftSection={isVerifying ? <Loader size="xs" /> : null}
+            >
+              {isVerifying ? 'Verifying...' : 'Verify Connection'}
+            </Button>
+          )}
           
           <Button
             onClick={handleConnect}
-            disabled={!isFormValid || !verificationResult?.success || isConnecting}
+            disabled={!isFormValid || (isEditMode ? false : !verificationResult?.success) || isConnecting}
             leftSection={isConnecting ? <Loader size="xs" /> : null}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {isConnecting ? 'Connecting...' : 'Connect'}
+            {isConnecting ? (isEditMode ? 'Updating...' : 'Connecting...') : (isEditMode ? 'Update' : 'Connect')}
           </Button>
         </Group>
       </Group>

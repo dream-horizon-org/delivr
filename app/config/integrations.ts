@@ -37,7 +37,7 @@ export function getAllIntegrations(params: GetAllIntegrationsParams = {}): Integ
         defaultBranch: githubIntegration.defaultBranch || 'main'
       } : undefined,
       connectedAt: githubIntegration ? new Date(githubIntegration.createdAt) : undefined,
-      connectedBy: githubIntegration ? 'Current User' : undefined
+      connectedBy: undefined  // Will be set by the integrations page using actual user data
     },
     {
       id: 'gitlab',
@@ -76,6 +76,15 @@ export function getAllIntegrations(params: GetAllIntegrationsParams = {}): Integ
       description: 'Trigger Jenkins builds and track deployment pipelines.',
       category: IntegrationCategory.CI_CD,
       icon: '🔨',
+      status: IntegrationStatus.NOT_CONNECTED,
+      isAvailable: true
+    },
+    {
+      id: 'github-actions',
+      name: 'GitHub Actions',
+      description: 'Trigger GitHub Actions workflows and automate your CI/CD pipeline.',
+      category: IntegrationCategory.CI_CD,
+      icon: '⚡',
       status: IntegrationStatus.NOT_CONNECTED,
       isAvailable: true
     },

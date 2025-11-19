@@ -12,3 +12,6 @@ app/routes.d.ts
 coverage
 
 app/config.json
+
+# Cursor AI rules (project-specific)
+.cursorrules

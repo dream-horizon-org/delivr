@@ -18,8 +18,15 @@ export default function IntegrationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
+  const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
   const [detailModalOpened, setDetailModalOpened] = useState(false);
   const [connectModalOpened, setConnectModalOpened] = useState(false);
+
+  // Get user display name for "Connected By"
+  const userDisplayName = orgData?.user?.user?.email || 
+                          orgData?.user?.user?.name || 
+                          orgData?.user?.user?.id || 
+                          'Unknown User';
 
   console.log('orgData', orgData);
   console.log("allIntegrations", allIntegrations);
@@ -44,6 +51,12 @@ export default function IntegrationsPage() {
         const slackIntegration = connectedIntegrations.find(
           (i: any) => i.type === 'communication' && i.communicationType === 'SLACK'
         ) as any;
+        const jenkinsIntegration = connectedIntegrations.find(
+          (i: any) => i.type === 'cicd' && i.providerType === 'JENKINS'
+        ) as any;
+        const githubActionsIntegration = connectedIntegrations.find(
+          (i: any) => i.type === 'cicd' && i.providerType === 'GITHUB_ACTIONS'
+        ) as any;
         
         // Merge: Update connection status for tenant-connected integrations
         const integrationsWithStatus = data.integrations.map((integration: Integration) => {
@@ -59,7 +72,7 @@ export default function IntegrationsPage() {
                 defaultBranch: githubIntegration.defaultBranch || 'main'
               },
               connectedAt: new Date(githubIntegration.createdAt),
-              connectedBy: 'Current User'
+              connectedBy: userDisplayName
             };
           }
           
@@ -78,7 +91,42 @@ export default function IntegrationsPage() {
                 hasValidToken: slackIntegration.hasValidToken
               },
               connectedAt: new Date(slackIntegration.createdAt),
-              connectedBy: 'Current User'
+              connectedBy: userDisplayName
+            };
+          }
+          
+          // Check if Jenkins is connected for this tenant
+          if (integration.id === 'jenkins' && jenkinsIntegration) {
+            return {
+              ...integration,
+              status: IntegrationStatus.CONNECTED,
+              config: {
+                displayName: jenkinsIntegration.displayName,
+                hostUrl: jenkinsIntegration.hostUrl,
+                username: jenkinsIntegration.username,
+                verificationStatus: jenkinsIntegration.verificationStatus,
+                hasValidToken: jenkinsIntegration.hasValidToken,
+                isActive: jenkinsIntegration.isActive
+              },
+              connectedAt: new Date(jenkinsIntegration.createdAt),
+              connectedBy: userDisplayName
+            };
+          }
+          
+          // Check if GitHub Actions is connected for this tenant
+          if (integration.id === 'github-actions' && githubActionsIntegration) {
+            return {
+              ...integration,
+              status: IntegrationStatus.CONNECTED,
+              config: {
+                displayName: githubActionsIntegration.displayName,
+                hostUrl: githubActionsIntegration.hostUrl,
+                verificationStatus: githubActionsIntegration.verificationStatus,
+                hasValidToken: githubActionsIntegration.hasValidToken,
+                isActive: githubActionsIntegration.isActive
+              },
+              connectedAt: new Date(githubActionsIntegration.createdAt),
+              connectedBy: userDisplayName
             };
           }
           
@@ -147,40 +195,36 @@ export default function IntegrationsPage() {
       // Navigate to Slack setup in release management wizard
       console.log('[Slack] Navigating to setup wizard for Slack integration');
       window.location.href = `/dashboard/${params.org}/releases/setup`;
+    } else if (integrationId === 'jenkins') {
+      // Jenkins connection is handled by the modal with real API calls
+      console.log('[Jenkins] Operation successful:', data);
+      // Show success message and reload to update the integration status
+      alert(editingIntegration ? 'Jenkins integration updated successfully!' : 'Jenkins integration connected successfully!');
+      window.location.reload();
+    } else if (integrationId === 'github-actions') {
+      // GitHub Actions connection is handled by the modal with real API calls
+      console.log('[GitHub Actions] Operation successful:', data);
+      // Show success message and reload to update the integration status
+      alert(editingIntegration ? 'GitHub Actions integration updated successfully!' : 'GitHub Actions integration connected successfully!');
+      window.location.reload();
     } else {
       // For other integrations, show success message (demo)
       alert(`${integrationId} connection initiated (demo mode)`);
     }
   };
 
-  const handleDisconnect = async (integrationId: string) => {
-    if (integrationId === 'slack') {
-      const confirmDisconnect = window.confirm(
-        'Are you sure you want to disconnect Slack? This will stop all release notifications.'
-      );
-      
-      if (!confirmDisconnect) return;
-      
-      try {
-        const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
-          method: 'DELETE'
-        });
-        
-        if (response.ok) {
-          alert('Slack disconnected successfully!');
-          window.location.reload();
-        } else {
-          const error = await response.json();
-          alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Failed to disconnect Slack:', error);
-        alert('Failed to disconnect Slack. Please try again.');
-      }
-    } else {
-      // For other integrations, show confirmation
-      alert(`Disconnecting ${integrationId}...`);
+  const handleEdit = (integrationId: string) => {
+    // Find the integration to edit
+    const integration = allIntegrations.find(i => i.id === integrationId);
+    if (integration) {
+      setEditingIntegration(integration);
+      setConnectModalOpened(true);
     }
+  };
+
+  const handleDisconnectComplete = () => {
+    // Callback after successful disconnect - refresh to show updated state
+    window.location.reload();
   };
 
   return (
@@ -221,14 +265,21 @@ export default function IntegrationsPage() {
         integration={selectedIntegration}
         opened={detailModalOpened}
         onClose={() => setDetailModalOpened(false)}
-        onDisconnect={handleDisconnect}
+        onDisconnectComplete={handleDisconnectComplete}
+        onEdit={handleEdit}
+        tenantId={tenantId}
       />
 
       <IntegrationConnectModal
-        integration={connectingIntegration}
+        integration={editingIntegration || connectingIntegration}
         opened={connectModalOpened}
-        onClose={() => setConnectModalOpened(false)}
+        onClose={() => {
+          setConnectModalOpened(false);
+          setEditingIntegration(null);
+        }}
         onConnect={handleConnect}
+        isEditMode={!!editingIntegration}
+        existingData={editingIntegration?.config}
       />
     </Container>
   );

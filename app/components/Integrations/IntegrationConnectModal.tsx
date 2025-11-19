@@ -2,6 +2,7 @@ import { Modal, Button, Group, Alert } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
 import { SlackConnectionFlow } from './SlackConnectionFlow';
 import { JenkinsConnectionFlow } from './JenkinsConnectionFlow';
+import { GitHubActionsConnectionFlow } from './GitHubActionsConnectionFlow';
 import { CheckmateConnectionFlow } from './CheckmateConnectionFlow';
 import { JiraConnectionFlow } from './JiraConnectionFlow';
 
@@ -10,13 +11,17 @@ interface IntegrationConnectModalProps {
   opened: boolean;
   onClose: () => void;
   onConnect: (integrationId: string, data?: any) => void;
+  isEditMode?: boolean;
+  existingData?: any;
 }
 
 export function IntegrationConnectModal({
   integration,
   opened,
   onClose,
-  onConnect
+  onConnect,
+  isEditMode = false,
+  existingData
 }: IntegrationConnectModalProps) {
   if (!integration) return null;
 
@@ -42,6 +47,21 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
+          />
+        );
+      
+      case 'github-actions':
+        return (
+          <GitHubActionsConnectionFlow
+            onConnect={(data) => {
+              onConnect(integration.id, data);
+              onClose();
+            }}
+            onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       
@@ -177,7 +197,9 @@ export function IntegrationConnectModal({
       title={
         <div className="flex items-center gap-3">
           <span className="text-3xl">{integration.icon}</span>
-          <h2 className="text-xl font-semibold">Connect {integration.name}</h2>
+          <h2 className="text-xl font-semibold">
+            {isEditMode ? `Edit ${integration.name}` : `Connect ${integration.name}`}
+          </h2>
         </div>
       }
       size={integration.id === 'slack' ? 'lg' : 'md'}

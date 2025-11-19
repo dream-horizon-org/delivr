@@ -96,27 +96,26 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Verify Jenkins connection
    */
   async verifyJenkins(data: VerifyJenkinsRequest): Promise<VerifyJenkinsResponse> {
-    this.logRequest('GET', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`);
+    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`);
     
     try {
-      const result = await this.get<VerifyJenkinsResponse>(
+      // Send data in body with POST request (backend expects req.body)
+      const result = await this.post<VerifyJenkinsResponse>(
         `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`,
-        data.userId,
         {
-          params: {
-            hostUrl: data.hostUrl,
-            username: data.username,
-            apiToken: data.apiToken,
-            useCrumb: data.useCrumb,
-            crumbPath: data.crumbPath
-          }
-        }
+          hostUrl: data.hostUrl,
+          username: data.username,
+          apiToken: data.apiToken,
+          useCrumb: data.useCrumb,
+          crumbPath: data.crumbPath
+        },
+        data.userId
       );
 
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`, result.verified);
+      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`, result.verified);
       return result;
     } catch (error: any) {
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`, false);
+      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`, false);
       
       return {
         verified: false,
