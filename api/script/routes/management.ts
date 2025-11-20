@@ -57,6 +57,99 @@ export function getManagementRouter(config: ManagementConfig): Router {
   const router: Router = Router();
   const nameResolver: NameResolver = new NameResolver(config.storage);
 
+  // ============================================================================
+  // SYSTEM METADATA ENDPOINT
+  // Returns available integrations, platforms, release types, etc.
+  // This is static configuration - not stored in database
+  // ============================================================================
+  router.get("/system/metadata", async (req: Request, res: Response): Promise<any> => {
+    try {
+      // Static system metadata
+      const metadata = {
+        releaseManagement: {
+          integrations: {
+            SOURCE_CONTROL: [
+              { id: "github", name: "GitHub", requiresOAuth: false },
+              { id: "gitlab", name: "GitLab", requiresOAuth: false },
+              { id: "bitbucket", name: "Bitbucket", requiresOAuth: false },
+            ],
+            COMMUNICATION: [
+              { id: "slack", name: "Slack", requiresOAuth: true },
+              { id: "teams", name: "Microsoft Teams", requiresOAuth: true },
+            ],
+            CI_CD: [
+              { id: "jenkins", name: "Jenkins", requiresOAuth: false },
+              { id: "github-actions", name: "GitHub Actions", requiresOAuth: false },
+              { id: "gitlab-ci", name: "GitLab CI", requiresOAuth: false },
+            ],
+            TEST_MANAGEMENT: [
+              { id: "checkmate", name: "Checkmate", requiresOAuth: false },
+              { id: "browserstack", name: "BrowserStack", requiresOAuth: true },
+            ],
+            PROJECT_MANAGEMENT: [
+              { id: "jira", name: "Jira", requiresOAuth: true },
+              { id: "linear", name: "Linear", requiresOAuth: true },
+            ],
+            APP_DISTRIBUTION: [
+              { id: "appstore", name: "App Store", requiresOAuth: false },
+              { id: "playstore", name: "Play Store", requiresOAuth: false },
+            ],
+          },
+          platforms: [
+            { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"] },
+            { id: "IOS", name: "iOS", applicableTargets: ["APP_STORE"] },
+          ],
+          targets: [
+            { id: "PLAY_STORE", name: "Play Store" },
+            { id: "APP_STORE", name: "App Store" },
+          ],
+          releaseTypes: [
+            { id: "PLANNED", name: "Planned" },
+            { id: "HOTFIX", name: "Hotfix" },
+            { id: "EMERGENCY", name: "Emergency" },
+          ],
+          releaseStages: [
+            { id: "PRE_KICKOFF", name: "Pre-Kickoff", order: 1 },
+            { id: "KICKOFF", name: "Kickoff", order: 2 },
+            { id: "REGRESSION", name: "Regression", order: 3 },
+            { id: "READY_FOR_RELEASE", name: "Ready for Release", order: 4 },
+            { id: "RELEASED", name: "Released", order: 5 },
+          ],
+          releaseStatuses: [
+            { id: "PLANNED", name: "Planned", stage: "PRE_KICKOFF" },
+            { id: "IN_PROGRESS", name: "In Progress", stage: "KICKOFF" },
+            { id: "TESTING", name: "Testing", stage: "REGRESSION" },
+            { id: "READY", name: "Ready", stage: "READY_FOR_RELEASE" },
+            { id: "RELEASED", name: "Released", stage: "RELEASED" },
+            { id: "BLOCKED", name: "Blocked", stage: null },
+            { id: "CANCELLED", name: "Cancelled", stage: null },
+          ],
+          buildEnvironments: [
+            { id: "STAGING", name: "Staging", order: 1, applicablePlatforms: ["ANDROID", "IOS"] },
+            { id: "PRODUCTION", name: "Production", order: 2, applicablePlatforms: ["ANDROID", "IOS"] },
+            { id: "AUTOMATION", name: "Automation", order: 3, applicablePlatforms: ["ANDROID", "IOS"] },
+            { id: "CUSTOM", name: "Custom", order: 4, applicablePlatforms: ["ANDROID", "IOS"] },
+          ],
+        },
+        system: {
+          version: "1.0.0",
+          features: {
+            releaseManagement: true,
+            integrations: true,
+          },
+        },
+      };
+
+      return res.status(200).json(metadata);
+    } catch (error: any) {
+      console.error("Error fetching system metadata:", error);
+      return res.status(500).json({ 
+        error: "Failed to fetch system metadata",
+        details: error.message 
+      });
+    }
+  });
+
   router.get("/account", (req: Request, res: Response, next: (err?: any) => void): any => {
     const accountId: string = req.user.id;
     storage
@@ -409,6 +502,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
       // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
+      // const communicationIntegrations = await storage.getCommunicationIntegrations(tenantId);
+      // const cicdIntegrations = await storage.getCICDIntegrations(tenantId);
+      // const testManagementIntegrations = await storage.getTestManagementIntegrations(tenantId);
       
       // Calculate setup completion
       // Setup is complete when ALL REQUIRED steps are done:
@@ -425,6 +521,42 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // const hasRequiredTargetPlatforms = targetPlatforms.length > 0;
       const releaseSetupComplete = hasRequiredSCM && hasRequiredTargetPlatforms;
       
+      // Build tenant-specific configuration
+      // This tells the frontend what this tenant has enabled/connected
+      const tenantConfig = {
+        connectedIntegrations: {
+          SOURCE_CONTROL: scmIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.scmType.toLowerCase(),
+            name: i.displayName,
+            status: i.isActive ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              owner: i.owner,
+              repo: i.repo,
+              defaultBranch: i.defaultBranch,
+              repositoryUrl: i.repositoryUrl,
+            },
+            verificationStatus: i.verificationStatus || 'UNKNOWN',
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
+          COMMUNICATION: [],  // TODO: Add communication integrations when implemented
+          CI_CD: [],          // TODO: Add CI/CD integrations when implemented
+          TEST_MANAGEMENT: [], // TODO: Add test management integrations when implemented
+          PROJECT_MANAGEMENT: [], // TODO: Add project management integrations when implemented
+          APP_DISTRIBUTION: [],   // TODO: Add app distribution integrations when implemented
+        },
+        enabledPlatforms: ["ANDROID", "IOS"], // TODO: Make this dynamic based on tenant settings
+        enabledTargets: ["APP_STORE", "PLAY_STORE", "WEB"], // TODO: Make this dynamic
+        allowedReleaseTypes: ["PLANNED", "HOTFIX", "EMERGENCY"], // TODO: Make this dynamic
+        customSettings: {
+          defaultKickoffLeadDays: 2,
+          workingDays: [1, 2, 3, 4, 5],
+          timezone: "UTC",
+          versioningScheme: "SEMVER",
+        },
+      };
+      
       return res.status(200).send({
         organisation: {
           ...tenant,
@@ -436,7 +568,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
               pipelines: false,        // TODO: Implement (optional)
               communication: !!slackIntegration
             },
-            integrations: integrations  // Single array with all integrations
+            config: tenantConfig  // Structured config with connected integrations
           }
         }
       });
