@@ -3,7 +3,7 @@
  * Handles all SCM-related API calls to the backend
  */
 
-import { IntegrationService } from '../base-integration';
+import { IntegrationService } from './base-integration';
 
 export interface Branch {
   name: string;
