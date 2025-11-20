@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
 import { GitHubActionsWorkflowService } from "../../../../services/integrations/ci-cd/workflows/github-actions-workflow.service";
 import type { ParametersResult, RunStatus, WorkflowAdapter } from "./workflow-adapter.utils";
 

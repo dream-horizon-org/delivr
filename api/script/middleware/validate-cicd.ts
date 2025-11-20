@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/http';
-import { ERROR_MESSAGES } from '../constants/cicd';
+import { ERROR_MESSAGES } from '../controllers/integrations/ci-cd/constants';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
 const isNonEmptyString = (value: unknown): value is string => {
@@ -34,10 +34,10 @@ export const validateJenkinsVerifyBody = (req: Request, res: Response, next: Nex
 };
 
 export const validateJenkinsJobParamsBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { jobUrl } = req.body || {};
-  const isJobUrlMissing = !isNonEmptyString(jobUrl);
-  if (isJobUrlMissing) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, parameters: [], error: ERROR_MESSAGES.JENKINS_JOB_URL_REQUIRED });
+  const { workflowUrl } = req.body || {};
+  const isWorkflowUrlMissing = !isNonEmptyString(workflowUrl);
+  if (isWorkflowUrlMissing) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, parameters: [], error: ERROR_MESSAGES.JENKINS_WORKFLOW_URL_REQUIRED });
     return;
   }
   next();
@@ -163,12 +163,11 @@ export const validateConfigIdParam = (req: Request, res: Response, next: NextFun
 };
 
 export const validateWorkflowParamFetchBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { jobUrl, workflowUrl } = req.body || {};
-  const hasJobUrl = isNonEmptyString(jobUrl);
+  const { workflowUrl } = req.body || {};
   const hasWorkflowUrl = isNonEmptyString(workflowUrl);
-  const neitherProvided = !hasJobUrl && !hasWorkflowUrl;
+  const neitherProvided = !hasWorkflowUrl;
   if (neitherProvided) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_FETCH_FAILED });
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_MIN_PARAMS_REQUIRED });
     return;
   }
   next();

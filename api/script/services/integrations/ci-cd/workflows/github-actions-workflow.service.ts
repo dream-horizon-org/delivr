@@ -2,7 +2,7 @@ import { WorkflowService } from './workflow.service';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams } from '../providers/github-actions/github-actions.interface';
-import { ERROR_MESSAGES, HEADERS } from '../../../../constants/cicd';
+import { ERROR_MESSAGES, HEADERS } from '../../../../controllers/integrations/ci-cd/constants';
 import { parseGitHubRunUrl } from '../../../../utils/cicd';
 
 export class GitHubActionsWorkflowService extends WorkflowService {

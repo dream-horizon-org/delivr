@@ -6,7 +6,7 @@ import * as workflow from "../../../../controllers/integrations/ci-cd/workflows/
 export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
   const router = Router();
 
-  router.get(
+  router.post(
     "/tenants/:tenantId/integrations/ci-cd/:integrationId/job-parameters",
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,

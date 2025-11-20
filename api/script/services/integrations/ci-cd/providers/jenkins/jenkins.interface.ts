@@ -16,7 +16,7 @@ export type JenkinsVerifyResult = {
 };
 
 export type JenkinsJobParamsRequest = {
-  jobUrl: string;
+  workflowUrl: string;
   authHeader: string;
   useCrumb: boolean;
   crumbUrl: string;
@@ -36,7 +36,7 @@ export type JenkinsJobParamsResult = {
 };
 
 export type JenkinsTriggerRequest = {
-  jobUrl: string;
+  workflowUrl: string;
   authHeader: string;
   useCrumb: boolean;
   crumbUrl: string;

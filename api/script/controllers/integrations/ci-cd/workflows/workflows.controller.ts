@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
 import { getStorage } from "../../../../storage/storage-instance";
 import { normalizePlatform, getErrorMessage } from "../../../../utils/cicd";
 import type { CreateWorkflowDto, UpdateWorkflowDto } from "~types/integrations/ci-cd/workflow.interface";

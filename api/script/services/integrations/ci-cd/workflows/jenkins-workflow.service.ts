@@ -2,11 +2,11 @@ import { WorkflowService } from './workflow.service';
 import { CICDProviderType, AuthType } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsJobParamsRequest, JenkinsTriggerRequest, JenkinsQueueStatusRequest } from '../providers/jenkins/jenkins.interface';
-import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../constants/cicd';
+import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import { normalizePlatform, extractDefaultsFromWorkflow } from '../../../../utils/cicd';
 
 export class JenkinsWorkflowService extends WorkflowService {
-  fetchJobParameters = async (tenantId: string, jobUrl: string): Promise<{ parameters: Array<{
+  fetchJobParameters = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; choices?: string[];
   }>}> => {
     const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
@@ -14,9 +14,9 @@ export class JenkinsWorkflowService extends WorkflowService {
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
     if (!hasBasicCreds) throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
     const hostFromIntegration = new URL(integration.hostUrl).host;
-    const jobUrlObj = new URL(jobUrl);
-    if (hostFromIntegration !== jobUrlObj.host) {
-      const msg = `${ERROR_MESSAGES.JENKINS_HOST_MISMATCH}: ${jobUrlObj.host} != ${hostFromIntegration}`;
+    const workflowUrlObj = new URL(workflowUrl);
+    if (hostFromIntegration !== workflowUrlObj.host) {
+      const msg = `${ERROR_MESSAGES.JENKINS_HOST_MISMATCH}: ${workflowUrlObj.host} != ${hostFromIntegration}`;
       throw new Error(msg);
     }
     const authHeader = 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64');
@@ -28,7 +28,7 @@ export class JenkinsWorkflowService extends WorkflowService {
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
     const req: JenkinsJobParamsRequest = {
-      jobUrl,
+      workflowUrl,
       authHeader,
       useCrumb,
       crumbUrl,
@@ -95,7 +95,7 @@ export class JenkinsWorkflowService extends WorkflowService {
     const crumbPath = typeof crumbPathValue2 === 'string' ? crumbPathValue2 : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
     const crumbUrl = `${integration.hostUrl.endsWith('/') ? integration.hostUrl.slice(0, -1) : integration.hostUrl}${crumbPath}`;
     const req: JenkinsTriggerRequest = {
-      jobUrl: workflow.workflowUrl,
+      workflowUrl: workflow.workflowUrl,
       authHeader,
       useCrumb,
       crumbUrl,

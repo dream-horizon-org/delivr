@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { JenkinsProviderContract, JenkinsVerifyParams, JenkinsVerifyResult, JenkinsJobParamsRequest, JenkinsJobParamsResult } from './jenkins.interface';
 import { fetchWithTimeout, sanitizeJoin, appendApiJson, extractJenkinsParameters } from '../../../../../utils/cicd';
-import { HEADERS, PROVIDER_DEFAULTS, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../../../../constants/cicd';
+import { HEADERS, PROVIDER_DEFAULTS, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../../../../controllers/integrations/ci-cd/constants';
 
 export class JenkinsProvider implements JenkinsProviderContract {
   readonly type = CICDProviderType.JENKINS;
@@ -47,7 +47,7 @@ export class JenkinsProvider implements JenkinsProviderContract {
   };
 
   fetchJobParameters = async (req: JenkinsJobParamsRequest): Promise<JenkinsJobParamsResult> => {
-    const { jobUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback } = req;
+    const { workflowUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback } = req;
 
     const headers: Record<string, string> = {
       'Authorization': authHeader,
@@ -72,7 +72,7 @@ export class JenkinsProvider implements JenkinsProviderContract {
     }
 
     const jobApiUrl = appendApiJson(
-      jobUrl,
+      workflowUrl,
       'property[parameterDefinitions[name,type,description,defaultParameterValue[value],choices[*]]]'
     );
     const resp = await fetch(jobApiUrl, { headers });
@@ -99,7 +99,7 @@ export class JenkinsProvider implements JenkinsProviderContract {
   };
 
   triggerJob = async (req) => {
-    const { jobUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback, formParams } = req;
+    const { workflowUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback, formParams } = req;
     const headers: Record<string, string> = {
       'Authorization': authHeader,
       'Accept': HEADERS.ACCEPT_JSON,
@@ -126,7 +126,7 @@ export class JenkinsProvider implements JenkinsProviderContract {
       if (v !== undefined && v !== null) form.append(k, String(v));
     });
 
-    const triggerUrl = (jobUrl.endsWith('/') ? jobUrl : jobUrl + '/') + 'buildWithParameters';
+    const triggerUrl = (workflowUrl.endsWith('/') ? workflowUrl : workflowUrl + '/') + 'buildWithParameters';
     const triggerResp = await fetch(triggerUrl, { method: 'POST', headers, body: form });
     const accepted = triggerResp.status === 201 || triggerResp.status === 200;
     if (accepted) {

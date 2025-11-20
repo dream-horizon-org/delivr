@@ -18,8 +18,8 @@ export const ERROR_MESSAGES = {
   CONFIG_UPDATE_FAILED: 'Failed to update CI/CD config',
   CONFIG_DELETE_FAILED: 'Failed to delete CI/CD config',
 
-  JENKINS_JOB_URL_REQUIRED: 'jobUrl is required',
-  JENKINS_INVALID_JOB_URL: 'Invalid jobUrl',
+  JENKINS_WORKFLOW_URL_REQUIRED: 'workflowUrl is required',
+  JENKINS_INVALID_WORKFLOW_URL: 'Invalid workflowUrl',
   JENKINS_CONNECTION_NOT_FOUND: 'No Jenkins connection found for this tenant',
   JENKINS_BASIC_REQUIRED: 'Jenkins connection is not configured for BASIC auth with credentials',
   JENKINS_HOST_MISMATCH: 'Provided URL host does not match configured Jenkins host',
@@ -49,6 +49,7 @@ export const ERROR_MESSAGES = {
   WORKFLOW_SELECTION_REQUIRED: 'Provide workflowId or both workflowType and platform',
   WORKFLOW_UPDATE_FAILED: 'Failed to update workflow',
   WORKFLOW_DELETE_FAILED: 'Failed to delete workflow',
+  WORKFLOW_MIN_PARAMS_REQUIRED: 'workflowUrl is required',
 
   GHA_NO_TOKEN_AVAILABLE: 'No GitHub token available',
   GHA_INVALID_RUN_URL: 'Invalid runUrl',

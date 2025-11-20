@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
 import { getErrorMessage } from "../../../../utils/cicd";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDConfigService } from "../../../../services/integrations/ci-cd/config/config.service";

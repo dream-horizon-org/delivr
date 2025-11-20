@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
 import { JenkinsWorkflowService } from "../../../../services/integrations/ci-cd/workflows/jenkins-workflow.service";
 import type { ParametersResult, QueueStatus, WorkflowAdapter } from "./workflow-adapter.utils";
 
@@ -6,21 +6,18 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
   const service = new JenkinsWorkflowService();
 
   const fetchParameters: WorkflowAdapter["fetchParameters"] = async (tenantId, body) => {
-    const jobUrl = body.jobUrl;
-    const jobUrlMissing = !jobUrl;
-    if (jobUrlMissing) {
-      throw new Error(ERROR_MESSAGES.JENKINS_JOB_URL_REQUIRED);
+    const workflowUrl = body.workflowUrl;
+    const workflowUrlMissing = !workflowUrl;
+    if (workflowUrlMissing) {
+      throw new Error(ERROR_MESSAGES.WORKFLOW_MIN_PARAMS_REQUIRED);
     }
-
     try {
-      // Validate URL format
       // eslint-disable-next-line no-new
-      new URL(jobUrl as string);
+      new URL(workflowUrl as string);
     } catch {
-      throw new Error(ERROR_MESSAGES.JENKINS_INVALID_JOB_URL);
+      throw new Error(ERROR_MESSAGES.JENKINS_INVALID_WORKFLOW_URL);
     }
-
-    const result = await service.fetchJobParameters(tenantId, jobUrl as string);
+    const result = await service.fetchJobParameters(tenantId, workflowUrl as string);
     const mapped = result.parameters.map((p) => ({
       name: p.name,
       type: p.type,

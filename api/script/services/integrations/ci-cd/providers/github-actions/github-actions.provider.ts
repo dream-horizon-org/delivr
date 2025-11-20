@@ -1,7 +1,7 @@
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { GitHubActionsProviderContract, GHAVerifyParams, GHAVerifyResult, GHAWorkflowInputsParams, GHAWorkflowInputsResult, GHARunStatusParams, GHARunStatus } from './github-actions.interface';
 import { fetchWithTimeout, parseGitHubWorkflowUrl, extractWorkflowDispatchInputs, mapGitHubRunStatus } from '../../../../../utils/cicd';
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../../../../constants/cicd';
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../../../../controllers/integrations/ci-cd/constants';
 
 export class GitHubActionsProvider implements GitHubActionsProviderContract {
   readonly type = CICDProviderType.GITHUB_ACTIONS;

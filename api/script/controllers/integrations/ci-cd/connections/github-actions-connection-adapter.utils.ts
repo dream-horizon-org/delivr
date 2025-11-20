@@ -1,8 +1,9 @@
 import { GitHubActionsConnectionService } from "../../../../services/integrations/ci-cd/connections/github-actions-connection.service";
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
-import type { ConnectionAdapter, VerifyResult } from "./connection-adapter.utils";
-import { PROVIDER_DEFAULTS, HEADERS } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
+import type { ConnectionAdapter, VerifyResult, VerifyPreparation } from "./connection-adapter.utils";
+import { PROVIDER_DEFAULTS, HEADERS } from "../constants";
 import { fetchWithTimeout } from "../../../../utils/cicd";
+import type { TenantCICDIntegration, UpdateCICDIntegrationDto } from "~types/integrations/ci-cd/connection.interface";
 
 export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
   const service = new GitHubActionsConnectionService();
@@ -27,6 +28,26 @@ export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
     return { isValid: true, message: 'Connection verified successfully' };
   };
 
+  const prepareVerifyOnUpdate: NonNullable<ConnectionAdapter["prepareVerifyOnUpdate"]> = (args) => {
+    const { existing, update, secrets } = args;
+    const hasApiTokenUpdate = typeof update.apiToken === 'string';
+    const shouldVerify = hasApiTokenUpdate;
+    if (!shouldVerify) {
+      return { shouldVerify: false };
+    }
+    const preferredToken = update.apiToken;
+    const tokenFromSecrets = typeof secrets.apiToken === 'string' ? secrets.apiToken : undefined;
+    const tokenToCheck = typeof preferredToken === 'string' && preferredToken.trim().length > 0
+      ? preferredToken
+      : (tokenFromSecrets && tokenFromSecrets.trim().length > 0 ? tokenFromSecrets : undefined);
+    const tokenMissing = !tokenToCheck;
+    if (tokenMissing) {
+      return { shouldVerify: true, missingSecretMessage: ERROR_MESSAGES.MISSING_TOKEN_AND_SCM };
+    }
+    const body: Record<string, unknown> = { apiToken: tokenToCheck };
+    return { shouldVerify: true, body } as VerifyPreparation;
+  };
+
   const create: ConnectionAdapter["create"] = async (tenantId, accountId, body) => {
     const displayName = body.displayName as string | undefined;
     const apiToken = body.apiToken as string | undefined;
@@ -38,7 +59,7 @@ export const createGitHubActionsConnectionAdapter = (): ConnectionAdapter => {
     return created;
   };
 
-  return { verify, create };
+  return { verify, create, prepareVerifyOnUpdate };
 };
 
 

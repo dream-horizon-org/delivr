@@ -27,8 +27,8 @@ export const sanitizeJoin = (base: string, path: string): string => {
   return base + path;
 };
 
-export const appendApiJson = (jobUrl: string, tree: string): string => {
-  const url = new URL(jobUrl);
+export const appendApiJson = (workflowUrl: string, tree: string): string => {
+  const url = new URL(workflowUrl);
   if (!url.pathname.endsWith('/')) {
     url.pathname = url.pathname + '/';
   }

@@ -2,7 +2,7 @@ import { ConnectionService } from './connection.service';
 import { CICDProviderType, AuthType, VerificationStatus, type SafeCICDIntegration, type CreateCICDIntegrationDto, type UpdateCICDIntegrationDto } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/jenkins/jenkins.interface';
-import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../constants/cicd';
+import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
 
 type CreateInput = {

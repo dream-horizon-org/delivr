@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
 import { getErrorMessage } from "../../../../utils/cicd";
 import { getIntegrationForTenant, getWorkflowAdapter } from "./workflow-adapter.utils";
 
@@ -15,7 +15,7 @@ export const getJobParameters = async (req: Request, res: Response): Promise<any
     }
 
     const adapter = getWorkflowAdapter(integration.providerType);
-    const body = (req.body || {}) as { jobUrl?: string; workflowUrl?: string };
+    const body = (req.body || {}) as { workflowUrl?: string };
     const result = await adapter.fetchParameters(tenantId, body);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, parameters: result.parameters, error: null });
   } catch (e: any) {

@@ -1,5 +1,5 @@
 import { getStorage } from "../../../../storage/storage-instance";
-import { ERROR_MESSAGES } from "../../../../constants/cicd";
+import { ERROR_MESSAGES } from "../constants";
 import type { CICDIntegrationRepository } from "~models/integrations/ci-cd/connection/connection.repository";
 import { CICDProviderType } from "~types/integrations/ci-cd/connection.interface";
 import { createJenkinsAdapter } from "./jenkins-workflow-adapter.utils";
@@ -15,7 +15,7 @@ export type QueueStatus = 'pending' | 'running' | 'completed' | 'cancelled';
 export type RunStatus = 'pending' | 'running' | 'completed';
 
 export type WorkflowAdapter = {
-  fetchParameters: (tenantId: string, body: { jobUrl?: string; workflowUrl?: string }) => Promise<ParametersResult>;
+  fetchParameters: (tenantId: string, body: { workflowUrl?: string }) => Promise<ParametersResult>;
   trigger?: (tenantId: string, input: { workflowId?: string; workflowType?: string; platform?: string; jobParameters?: Record<string, unknown> }) => Promise<{ queueLocation: string }>;
   queueStatus?: (tenantId: string, body: { queueUrl: string }) => Promise<QueueStatus>;
   runStatus?: (tenantId: string, body: { runUrl?: string; owner?: string; repo?: string; runId?: string }) => Promise<RunStatus>;

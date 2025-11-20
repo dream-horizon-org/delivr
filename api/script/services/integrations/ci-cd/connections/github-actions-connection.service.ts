@@ -2,7 +2,7 @@ import { ConnectionService } from './connection.service';
 import { CICDProviderType, AuthType, VerificationStatus, type SafeCICDIntegration, type CreateCICDIntegrationDto, type UpdateCICDIntegrationDto } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAVerifyParams } from '../providers/github-actions/github-actions.interface';
-import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../constants/cicd';
+import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
 
 type CreateInput = {
