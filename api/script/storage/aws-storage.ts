@@ -6,16 +6,28 @@ import * as storage from "./storage";
 //import * from nanoid;
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
+import {
+  createProjectTestManagementIntegrationModel,
+  createTestManagementConfigModel,
+  ProjectTestManagementIntegrationRepository,
+  TestManagementConfigRepository
+} from "../models/integrations/test-management";
+import {
+  TestManagementConfigService,
+  TestManagementIntegrationService,
+  TestManagementRunService
+} from "../services/integrations/test-management";
+import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
 import * as utils from "../utils/common";
-import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
-import { createRelease } from "./release-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
 import { CICDIntegrationController } from "./integrations/ci-cd/ci-cd-controller";
 import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
 import { CICDWorkflowController } from "./integrations/ci-cd/workflows-controller";
-import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
+import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { SlackIntegrationController } from "./integrations/slack/slack-controller";
+import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
+import { createRelease } from "./release-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -502,6 +514,14 @@ export class S3Storage implements storage.Storage {
     private sequelize:Sequelize;
     private setupPromise: Promise<void>;
     public scmController!: SCMIntegrationController;  // SCM integration controller
+    
+    // Test Management Integration - Repositories and Services
+    public projectIntegrationRepository!: ProjectTestManagementIntegrationRepository;
+    public testManagementConfigRepository!: TestManagementConfigRepository;
+    public testManagementIntegrationService!: TestManagementIntegrationService;
+    public testManagementConfigService!: TestManagementConfigService;
+    public testManagementRunService!: TestManagementRunService;
+    public testManagementMetadataService!: TestManagementMetadataService;
     public cicdController!: CICDIntegrationController;  // CI/CD integration controller
     public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
     public slackController!: SlackIntegrationController;  // Slack integration controller
@@ -616,7 +636,39 @@ export class S3Storage implements storage.Storage {
           // Initialize CI/CD Workflow Controller
           this.cicdWorkflowController = new CICDWorkflowController(models.CICDWorkflows);
           console.log("CI/CD Workflow Controller initialized");
+                    
           
+          
+          // Initialize Test Management Integration
+          const projectIntegrationModel = createProjectTestManagementIntegrationModel(this.sequelize);
+          this.projectIntegrationRepository = new ProjectTestManagementIntegrationRepository(projectIntegrationModel);
+          
+          const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
+          this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
+          
+          // Service 1: Project Integration Service (manages credentials)
+          this.testManagementIntegrationService = new TestManagementIntegrationService(
+            this.projectIntegrationRepository
+          );
+          
+          // Service 2: Config Service (manages test management configs)
+          this.testManagementConfigService = new TestManagementConfigService(
+            this.testManagementConfigRepository,
+            this.projectIntegrationRepository
+          );
+          
+          // Service 3: Run Service (stateless test operations)
+          this.testManagementRunService = new TestManagementRunService(
+            this.testManagementConfigRepository,
+            this.projectIntegrationRepository
+          );
+          
+          // Service 4: Metadata Service (fetches metadata from providers)
+          this.testManagementMetadataService = new TestManagementMetadataService(
+            this.projectIntegrationRepository
+          );
+          
+          console.log("Test Management Integration initialized");
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");

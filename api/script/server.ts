@@ -1,6 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// Register module aliases for path resolution at runtime
+import 'module-alias/register';
+
 import * as express from "express";
 import * as defaultServer from "./default-server";
 import { sendErrorToDatadog } from "./utils/tracer";
