@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { getStorage } from '../../storage/storage-instance';
+import { getStorage } from '../../../storage/storage-instance';
 import { GitHubService } from './github-service';
 import { SCMType, SCMConfig } from './scm-types';
 
