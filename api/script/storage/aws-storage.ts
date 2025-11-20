@@ -6,10 +6,24 @@ import * as storage from "./storage";
 //import * from nanoid;
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
+import {
+  createProjectTestManagementIntegrationModel,
+  createTestManagementConfigModel,
+  ProjectTestManagementIntegrationRepository,
+  TestManagementConfigRepository
+} from "../models/integrations/test-management";
+import {
+  TestManagementConfigService,
+  TestManagementIntegrationService,
+  TestManagementRunService
+} from "../services/integrations/test-management";
+import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
 import * as utils from "../utils/common";
-import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
-import { createRelease } from "./release-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
+import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { SlackIntegrationController } from "./integrations/slack/slack-controller";
+import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
+import { createRelease } from "./release-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -357,6 +371,7 @@ export function createModelss(sequelize: Sequelize) {
   const Release = createRelease(sequelize);  // Release management from Delivr
 
   // ============================================
+  const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
   // Define associations
   // ============================================
 
@@ -427,6 +442,11 @@ export function createModelss(sequelize: Sequelize) {
   // Account (creator) reference for SCM
   SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
+  // Slack Integration associations
+  // Tenant has ONE Slack integration (set up during onboarding)
+  Tenant.hasOne(SlackIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
+  SlackIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
   return {
     Account,
     AccountChannel,
@@ -439,6 +459,7 @@ export function createModelss(sequelize: Sequelize) {
     App,
     SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
     Release,  // Release management
+    SlackIntegrations,  // Slack integrations
   };
 }
 
@@ -481,6 +502,15 @@ export class S3Storage implements storage.Storage {
     public scmController!: SCMIntegrationController;  // SCM integration controller
     public jiraIntegrationController!: any;  // JIRA integration controller (credentials)
     public jiraConfigurationController!: any;  // JIRA configuration controller (reusable configs)
+    
+    // Test Management Integration - Repositories and Services
+    public projectIntegrationRepository!: ProjectTestManagementIntegrationRepository;
+    public testManagementConfigRepository!: TestManagementConfigRepository;
+    public testManagementIntegrationService!: TestManagementIntegrationService;
+    public testManagementConfigService!: TestManagementConfigService;
+    public testManagementRunService!: TestManagementRunService;
+    public testManagementMetadataService!: TestManagementMetadataService;
+    public slackController!: SlackIntegrationController;  // Slack integration controller
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -620,6 +650,39 @@ export class S3Storage implements storage.Storage {
           this.jiraIntegrationController.epicService.setJiraClientFactory(createJiraClientForTenant);
           
           console.log("JIRA Epic Service initialized with Configuration Controller and Client Factory");
+          // Initialize Test Management Integration
+          const projectIntegrationModel = createProjectTestManagementIntegrationModel(this.sequelize);
+          this.projectIntegrationRepository = new ProjectTestManagementIntegrationRepository(projectIntegrationModel);
+          
+          const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
+          this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
+          
+          // Service 1: Project Integration Service (manages credentials)
+          this.testManagementIntegrationService = new TestManagementIntegrationService(
+            this.projectIntegrationRepository
+          );
+          
+          // Service 2: Config Service (manages test management configs)
+          this.testManagementConfigService = new TestManagementConfigService(
+            this.testManagementConfigRepository,
+            this.projectIntegrationRepository
+          );
+          
+          // Service 3: Run Service (stateless test operations)
+          this.testManagementRunService = new TestManagementRunService(
+            this.testManagementConfigRepository,
+            this.projectIntegrationRepository
+          );
+          
+          // Service 4: Metadata Service (fetches metadata from providers)
+          this.testManagementMetadataService = new TestManagementMetadataService(
+            this.projectIntegrationRepository
+          );
+          
+          console.log("Test Management Integration initialized");
+          // Initialize Slack Integration Controller
+          this.slackController = new SlackIntegrationController(models.SlackIntegrations);
+          console.log("Slack Integration Controller initialized");
           
           // return this.sequelize.sync();
         })

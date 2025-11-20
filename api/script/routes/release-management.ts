@@ -3,11 +3,19 @@
 // Separate from DOTA (Over-The-Air) management routes
 
 import { Request, Response, Router } from "express";
-import * as storageTypes from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
+import { S3Storage } from "../storage/aws-storage";
+import * as storageTypes from "../storage/storage";
+import {
+  createProjectIntegrationRoutes,
+  createTestManagementConfigRoutes,
+  createTestRunOperationsRoutes
+} from "./integrations/test-management";
+import { createMetadataRoutes } from "./integrations/test-management/metadata";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createJiraIntegrationRoutes } from "./jira-integrations";
 import { generateReleaseJiraLinks } from "../utils/jira-utils";
+import { createSlackIntegrationRoutes } from "./slack-integrations";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -50,6 +58,35 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.use(scmRoutes);
 
   // ============================================================================
+  // TEST MANAGEMENT INTEGRATIONS (Checkmate, TestRail, etc.)
+  // ============================================================================
+  // Only mount test management routes if using S3Storage (which has test management)
+  const isS3Storage = storage instanceof S3Storage;
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Project-Level Integration Management (Credentials)
+    const projectIntegrationRoutes = createProjectIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    router.use(projectIntegrationRoutes);
+
+    // Test Management Config Management (Reusable test configurations)
+    const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
+    router.use('/test-management-configs', testManagementConfigRoutes);
+
+    // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
+    const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
+    router.use('/test-management', testRunRoutes);
+
+    // Metadata Proxy Routes (Projects, Sections, Labels, Squads)
+    const metadataRoutes = createMetadataRoutes(s3Storage.testManagementMetadataService);
+    router.use('/integrations', metadataRoutes);
+    
+    console.log('[Release Management] Test Management routes mounted successfully');
+  } else {
+    console.warn('[Release Management] Test Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
   // TODO: Implement target platform integration routes
@@ -64,7 +101,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  // TODO: Implement communication integration routes
+  const slackRoutes = createSlackIntegrationRoutes(storage);
+  router.use(slackRoutes);
   // router.use(createCommunicationRoutes(storage));
 
   // ============================================================================
@@ -72,6 +110,43 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   const jiraRoutes = createJiraIntegrationRoutes(storage);
   router.use(jiraRoutes);
+
+  // ============================================================================
+  // SETUP MANAGEMENT
+  // ============================================================================
+  
+  // Mark setup as complete
+  router.post(
+    "/tenants/:tenantId/release-management/complete-setup",
+    tenantPermissions.requireOwner({ storage }),
+    async (req: Request, res: Response): Promise<any> => {
+      const tenantId: string = req.params.tenantId;
+      
+      try {
+        // The setup completion is actually determined automatically by the backend
+        // based on whether required integrations (SCM) are configured
+        // This endpoint is just for optimistic UI updates
+        
+        console.log(`[Setup] Marking setup as complete for tenant: ${tenantId}`);
+        
+        // You could optionally store a flag in the database if needed
+        // For now, we just return success as the backend already handles this logic
+        
+        return res.status(200).json({
+          success: true,
+          message: "Setup marked as complete",
+          setupComplete: true,
+          tenantId
+        });
+      } catch (error: any) {
+        console.error(`[Setup] Error marking setup as complete for tenant ${tenantId}:`, error);
+        return res.status(500).json({
+          error: "Failed to mark setup as complete",
+          message: error.message
+        });
+      }
+    }
+  );
 
   // ============================================================================
   // RELEASE OPERATIONS
@@ -428,10 +503,13 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         const scmController = (storage as any).scmController;
         const scmIntegration = await scmController.findActiveByTenant(tenantId);
 
+        // Check Slack integration
+        const slackController = (storage as any).slackController;
+        const slackIntegration = await slackController.findByTenant(tenantId);
+
         // TODO: Check other required integrations (targets, pipelines, etc.)
         // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
         // const pipelines = await storage.getTenantPipelines(tenantId);
-        // const communication = await storage.getTenantCommunicationIntegrations(tenantId);
         
         const setupSteps = {
           scm: {
@@ -458,10 +536,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
             description: "Set up build pipelines (optional)"
           },
           communication: {
-            completed: false,  // TODO: Implement
+            completed: !!slackIntegration,
             required: false,  // Optional
             label: "Slack Integration",
-            description: "Connect Slack for notifications (optional)"
+            description: "Connect Slack for notifications (optional)",
+            data: slackIntegration ? {
+              workspaceName: slackIntegration.slackWorkspaceName,
+              workspaceId: slackIntegration.slackWorkspaceId,
+              verificationStatus: slackIntegration.verificationStatus
+            } : null
           }
         };
 
