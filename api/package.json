@@ -104,6 +104,7 @@
     "~routes": "./bin/script/routes",
     "~utils": "./bin/script/utils",
     "~middleware": "./bin/script/middleware",
-    "~storage": "./bin/script/storage"
+    "~storage": "./bin/script/storage",
+    "~constants": "./bin/script/constants"
   }
 }

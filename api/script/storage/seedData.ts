@@ -1,3 +1,4 @@
+import 'module-alias/register';
 import { Sequelize } from "sequelize";
 import { createModelss } from "./aws-storage";
 

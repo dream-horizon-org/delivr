@@ -13,6 +13,7 @@ import {
 } from "./integrations/test-management";
 import { createMetadataRoutes } from "./integrations/test-management/metadata";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
+import { createCICDIntegrationRoutes } from "./ci-cd-integrations";
 import { createSlackIntegrationRoutes } from "./slack-integrations";
 
 export interface ReleaseManagementConfig {
@@ -93,8 +94,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)
   // ============================================================================
-  // TODO: Implement pipeline integration routes
-  // router.use(createPipelineRoutes(storage));
+  const cicdRoutes = createCICDIntegrationRoutes(storage);
+  router.use(cicdRoutes);
 
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
