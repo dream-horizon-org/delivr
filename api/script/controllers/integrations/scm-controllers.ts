@@ -413,7 +413,10 @@ export async function fetchSCMBranches(
 
   try {
     const scmController = getSCMController();
-    const integration = await scmController.findActiveByTenant(tenantId);
+    
+    // ⚠️ Use findActiveByTenantWithTokens to get the full integration WITH accessToken
+    // This is needed for making GitHub API calls
+    const integration = await scmController.findActiveByTenantWithTokens(tenantId);
 
     if (!integration) {
       return res.status(404).json({
@@ -430,30 +433,32 @@ export async function fetchSCMBranches(
       });
     }
 
-    // Fetch branches from GitHub API
-    // Note: integration object from DB has accessToken (not sanitized yet)
-    const accessToken = (integration as any).accessToken;
-    
-    // Debug logging
-    console.log('[SCM] fetchSCMBranches - integration:', {
-      id: integration.id,
-      owner: integration.owner,
-      repo: integration.repo,
-      hasAccessToken: !!accessToken,
-      tokenPreview: accessToken ? `${accessToken.substring(0, 4)}...${accessToken.substring(accessToken.length - 4)}` : 'MISSING'
-    });
-    
-    if (!accessToken) {
+    // Validate accessToken exists
+    if (!integration.accessToken) {
+      console.error('[SCM] Integration missing accessToken:', {
+        id: integration.id,
+        owner: integration.owner,
+        repo: integration.repo
+      });
       return res.status(500).json({
         success: false,
         error: "SCM integration is missing access token"
       });
     }
     
+    // Debug logging
+    console.log('[SCM] fetchSCMBranches - calling GitHub API:', {
+      id: integration.id,
+      owner: integration.owner,
+      repo: integration.repo,
+      tokenPreview: `${integration.accessToken.substring(0, 4)}...${integration.accessToken.substring(integration.accessToken.length - 4)}`
+    });
+    
+    // Fetch branches from GitHub API
     const branches = await fetchGitHubBranches(
       integration.owner,
       integration.repo,
-      accessToken
+      integration.accessToken
     );
 
     return res.status(200).json({
