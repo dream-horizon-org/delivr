@@ -5,7 +5,19 @@
     "target": "ES2022",
     "outDir": "./bin",
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": "./script",
+    "paths": {
+      "~types/*": ["types/*"],
+      "~models/*": ["models/*"],
+      "~services/*": ["services/*"],
+      "~controllers/*": ["controllers/*"],
+      "~routes/*": ["routes/*"],
+      "~utils/*": ["utils/*"],
+      "~constants/*": ["constants/*"],
+      "~middleware/*": ["middleware/*"],
+      "~storage/*": ["storage/*"]
+    }
   },
   "exclude": [
     "./bin",

@@ -151,10 +151,10 @@ export class Authentication {
                 };
                 return next();
             } else {
-                return res.status(401).send("User not found");    
+              return next();    
             }
         } else {
-            return res.status(401).send("Missing Google ID token");
+          return next();
         }
         
     }
