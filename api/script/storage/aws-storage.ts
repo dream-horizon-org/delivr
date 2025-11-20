@@ -18,6 +18,11 @@ import {
   TestManagementRunService
 } from "../services/integrations/test-management";
 import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
+import {
+  createReleaseConfigModel,
+  ReleaseConfigRepository
+} from "../models/release-configs";
+import { ReleaseConfigService } from "../services/release-configs";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
@@ -513,6 +518,8 @@ export class S3Storage implements storage.Storage {
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
     public testManagementMetadataService!: TestManagementMetadataService;
+    public releaseConfigRepository!: ReleaseConfigRepository;
+    public releaseConfigService!: ReleaseConfigService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public constructor() {
         const s3Config = {
@@ -648,6 +655,16 @@ export class S3Storage implements storage.Storage {
           );
           
           console.log("Test Management Integration initialized");
+          
+          // Initialize Release Config
+          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
+          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          this.releaseConfigService = new ReleaseConfigService(
+            this.releaseConfigRepository,
+            this.testManagementConfigService
+          );
+          console.log("Release Config Service initialized");
+          
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
