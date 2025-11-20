@@ -400,6 +400,120 @@ async function verifyGitHubConnection(
 }
 
 /**
+ * Controller: Fetch Branches from SCM Repository
+ * GET /tenants/:tenantId/integrations/scm/branches
+ */
+export async function fetchSCMBranches(
+  req: Request,
+  res: Response
+): Promise<any> {
+  const tenantId: string = req.params.tenantId;
+
+  try {
+    const scmController = getSCMController();
+    const integration = await scmController.findActiveByTenant(tenantId);
+
+    if (!integration) {
+      return res.status(404).json({
+        success: false,
+        error: "No SCM integration found for this tenant"
+      });
+    }
+
+    // Only GitHub is supported for now
+    if (integration.scmType !== 'GITHUB') {
+      return res.status(400).json({
+        success: false,
+        error: "Only GitHub repositories are currently supported"
+      });
+    }
+
+    // Fetch branches from GitHub API
+    const branches = await fetchGitHubBranches(
+      integration.owner,
+      integration.repo,
+      integration.accessToken
+    );
+
+    return res.status(200).json({
+      success: true,
+      branches,
+      defaultBranch: integration.defaultBranch
+    });
+  } catch (error: any) {
+    console.error(`[SCM] Error fetching branches:`, error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to fetch branches"
+    });
+  }
+}
+
+/**
+ * Fetch branches from GitHub repository
+ */
+async function fetchGitHubBranches(
+  owner: string,
+  repo: string,
+  accessToken: string
+): Promise<Array<{ name: string; protected: boolean; default: boolean }>> {
+  try {
+    // Fetch all branches (paginated)
+    let allBranches: any[] = [];
+    let page = 1;
+    const perPage = 100;
+    let hasMore = true;
+
+    while (hasMore && page <= 10) { // Limit to 10 pages (1000 branches max)
+      const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/branches?per_page=${perPage}&page=${page}`,
+        {
+          headers: {
+            'Authorization': `token ${accessToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Delivr-App'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch branches: ${response.status} ${response.statusText}`);
+      }
+
+      const branches = await response.json() as any[];
+      allBranches = allBranches.concat(branches);
+
+      // Check if there are more pages
+      const linkHeader = response.headers.get('link');
+      hasMore = linkHeader ? linkHeader.includes('rel="next"') : false;
+      page++;
+    }
+
+    // Get repository info for default branch
+    const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Delivr-App'
+      }
+    });
+
+    const repoData = await repoResponse.json() as GitHubRepo;
+    const defaultBranch = repoData.default_branch;
+
+    // Format branch data
+    return allBranches.map((branch: any) => ({
+      name: branch.name,
+      protected: branch.protected || false,
+      default: branch.name === defaultBranch
+    }));
+  } catch (error: any) {
+    console.error(`[SCM] Error fetching GitHub branches:`, error.message);
+    throw error;
+  }
+}
+
+/**
  * Remove sensitive fields from SCM integration response
  */
 function sanitizeSCMResponse(integration: any): SafeSCMIntegration {

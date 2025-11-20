@@ -56,5 +56,14 @@ export function createSCMIntegrationRoutes(storage: Storage): Router {
     scmControllers.deleteSCMIntegration
   );
 
+  // ============================================================================
+  // FETCH Branches from SCM Repository
+  // ============================================================================
+  router.get(
+    "/tenants/:tenantId/integrations/scm/branches",
+    tenantPermissions.requireOwner({ storage }),
+    scmControllers.fetchSCMBranches
+  );
+
   return router;
 }
