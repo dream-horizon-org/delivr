@@ -87,8 +87,9 @@ export default function IntegrationsPage() {
   console.log('[Integrations] Total integrations:', allIntegrations.length);
   console.log('[Integrations] Available integrations:', allIntegrations.filter(i => i.isAvailable).length);
   console.log('[Integrations] Coming soon integrations:', allIntegrations.filter(i => !i.isAvailable).length);
-  console.log('[Integrations] Checkmate integration:', allIntegrations.find(i => i.id === 'checkmate'));
-  console.log('[Integrations] TEST_MANAGEMENT integrations:', allIntegrations.filter(i => i.category === IntegrationCategory.TEST_MANAGEMENT));
+  console.log('[Integrations] APP_DISTRIBUTION integrations:', allIntegrations.filter(i => i.category === IntegrationCategory.APP_DISTRIBUTION));
+  console.log('[Integrations] Play Store:', allIntegrations.find(i => i.id === 'play_store'));
+  console.log('[Integrations] App Store:', allIntegrations.find(i => i.id === 'app_store'));
 
   const tenantId = params.org!;
 

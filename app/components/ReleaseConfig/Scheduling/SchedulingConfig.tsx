@@ -118,7 +118,7 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
 
     return errors;
   }, [config]);
-
+  
   const handleFrequencyChange = (frequency: ReleaseFrequency, customDays?: number) => {
     onChange({
       ...config,
@@ -126,7 +126,7 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
       customFrequencyDays: customDays,
     });
   };
-
+  
   const handleAddSlot = () => {
     const newSlot: RegressionSlot = {
       id: `slot-${Date.now()}`,
@@ -143,10 +143,10 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
     });
     setEditingSlotIndex(config.regressionSlots.length);
   };
-
+  
   const handleDeleteSlot = (index: number) => {
-    onChange({
-      ...config,
+      onChange({
+        ...config,
       regressionSlots: config.regressionSlots.filter((_, i) => i !== index),
     });
     if (editingSlotIndex === index) {
@@ -155,12 +155,12 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
   };
 
   const handleUpdateSlot = (index: number, updatedSlot: RegressionSlot) => {
-    onChange({
-      ...config,
+      onChange({
+        ...config,
       regressionSlots: config.regressionSlots.map((slot, i) => (i === index ? updatedSlot : slot)),
-    });
+      });
   };
-
+  
   return (
     <Stack gap="lg">
       <div>
@@ -171,19 +171,19 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
           Configure release cadence, timing, and regression test slots
         </Text>
       </div>
-
+      
       {validationErrors.length > 0 && (
         <Alert icon={<IconAlertCircle size={18} />} color="red" title="Validation Errors">
           <Stack gap="xs">
             {validationErrors.map((error, i) => (
               <Text key={i} size="sm">
                 • {error}
-              </Text>
+        </Text>
             ))}
           </Stack>
-        </Alert>
+      </Alert>
       )}
-
+      
       {/* Release Frequency */}
       <ReleaseFrequencySelector
         frequency={config.releaseFrequency}
@@ -226,16 +226,16 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
           />
         </Stack>
       </Card>
-
+      
       {/* Timezone */}
       <TimezonePicker timezone={config.timezone} onChange={(tz) => onChange({ ...config, timezone: tz })} />
-
+      
       {/* Working Days */}
       <WorkingDaysSelector
         workingDays={config.workingDays}
         onChange={(days) => onChange({ ...config, workingDays: days })}
       />
-
+      
       {/* Kickoff Settings */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Stack gap="md">
@@ -248,29 +248,29 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
             </Text>
           </div>
 
-          <TextInput
+            <TextInput
             label="Kickoff Time"
-            type="time"
+              type="time"
             value={config.kickoffTime}
             onChange={(e) => onChange({ ...config, kickoffTime: e.target.value })}
-            required
+              required
             description="Time when release kickoff happens"
-          />
-
+            />
+            
           <Divider label="Kickoff Reminder" labelPosition="center" />
 
           <Switch
             label="Enable Kickoff Reminder"
             description="Send a reminder before the kickoff"
             checked={config.kickoffReminderEnabled}
-            onChange={(e) =>
+              onChange={(e) =>
               onChange({
                 ...config,
                 kickoffReminderEnabled: e.currentTarget.checked,
               })
             }
           />
-
+      
           {config.kickoffReminderEnabled && (
             <TextInput
               label="Reminder Time"
@@ -339,7 +339,7 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
           </Group>
         </Stack>
       </Card>
-
+      
       {/* Regression Slots */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Stack gap="md">
