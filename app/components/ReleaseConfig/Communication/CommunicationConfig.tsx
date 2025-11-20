@@ -1,12 +1,13 @@
 /**
  * Complete Communication Configuration Component
- * Main container for Slack and email notification configuration
+ * Main container for Slack notification configuration
  */
 
-import { Stack, Text } from '@mantine/core';
+import { Stack, Text, Alert, Button } from '@mantine/core';
+import { IconAlertCircle, IconPlugConnected } from '@tabler/icons-react';
+import { useNavigate, useParams } from '@remix-run/react';
 import type { CommunicationConfig as CommunicationConfigType } from '~/types/release-config';
-import { SlackChannelMapper } from './SlackChannelMapper';
-import { EmailNotificationConfig } from './EmailNotificationConfig';
+import { SlackChannelConfigEnhanced } from './SlackChannelConfigEnhanced';
 
 interface CommunicationConfigProps {
   config: CommunicationConfigType;
@@ -14,78 +15,57 @@ interface CommunicationConfigProps {
   availableIntegrations: {
     slack: Array<{ id: string; name: string }>;
   };
+  organizationId: string;
 }
 
 export function CommunicationConfig({
   config,
   onChange,
   availableIntegrations,
+  organizationId,
 }: CommunicationConfigProps) {
-  const handleSlackToggle = (enabled: boolean) => {
-    onChange({
-      ...config,
-      slack: enabled
-        ? {
-            enabled: true,
-            integrationId: config.slack?.integrationId || '',
-            channels: config.slack?.channels || {
-              releases: '#releases',
-              builds: '#builds',
-              regression: '#regression',
-              critical: '#critical-alerts',
-            },
-          }
-        : undefined,
-    });
-  };
+  const navigate = useNavigate();
+  const params = useParams();
   
-  const handleSlackIntegrationChange = (integrationId: string) => {
-    if (config.slack) {
-      onChange({
-        ...config,
-        slack: {
-          ...config.slack,
-          integrationId,
-        },
-      });
-    }
-  };
+  // Check if any communication integrations are connected
+  const hasSlack = availableIntegrations.slack.length > 0;
+  const hasAnyIntegration = hasSlack;
   
-  const handleSlackChannelsChange = (channels: any) => {
-    if (config.slack) {
-      onChange({
-        ...config,
-        slack: {
-          ...config.slack,
-          channels,
-        },
-      });
-    }
-  };
-  
-  const handleEmailToggle = (enabled: boolean) => {
-    onChange({
-      ...config,
-      email: enabled
-        ? {
-            enabled: true,
-            notificationEmails: config.email?.notificationEmails || [],
-          }
-        : undefined,
-    });
-  };
-  
-  const handleEmailChange = (emails: string[]) => {
-    if (config.email) {
-      onChange({
-        ...config,
-        email: {
-          ...config.email,
-          notificationEmails: emails,
-        },
-      });
-    }
-  };
+  // If no integrations are connected, show setup message
+  if (!hasAnyIntegration) {
+    return (
+      <Stack gap="lg">
+        <div>
+          <Text fw={600} size="lg" className="mb-1">
+            Communication Channels
+          </Text>
+          <Text size="sm" c="dimmed">
+            Configure Slack notifications for your team
+          </Text>
+        </div>
+        
+        <Alert
+          icon={<IconAlertCircle size={16} />}
+          title="No Communication Integrations Configured"
+          color="blue"
+        >
+          <Stack gap="sm">
+            <Text size="sm">
+              You need to connect a communication integration (like Slack) before you can configure notifications.
+            </Text>
+            <Button
+              leftSection={<IconPlugConnected size={16} />}
+              variant="light"
+              size="sm"
+              onClick={() => navigate(`/dashboard/${organizationId}/integrations`)}
+            >
+              Go to Integrations
+            </Button>
+          </Stack>
+        </Alert>
+      </Stack>
+    );
+  }
   
   return (
     <Stack gap="lg">
@@ -94,33 +74,19 @@ export function CommunicationConfig({
           Communication Channels
         </Text>
         <Text size="sm" c="dimmed">
-          Configure Slack notifications and email alerts for your team
+          Configure Slack notifications for your team
         </Text>
       </div>
       
-      <SlackChannelMapper
-        enabled={config.slack?.enabled || false}
-        integrationId={config.slack?.integrationId || ''}
-        channels={
-          config.slack?.channels || {
-            releases: '',
-            builds: '',
-            regression: '',
-            critical: '',
-          }
-        }
-        onToggle={handleSlackToggle}
-        onChange={handleSlackChannelsChange}
-        onIntegrationChange={handleSlackIntegrationChange}
-        availableIntegrations={availableIntegrations.slack}
-      />
-      
-      <EmailNotificationConfig
-        enabled={config.email?.enabled || false}
-        emails={config.email?.notificationEmails || []}
-        onToggle={handleEmailToggle}
-        onChange={handleEmailChange}
-      />
+      {/* Only show Slack if connected */}
+      {hasSlack && (
+        <SlackChannelConfigEnhanced
+          config={config}
+          onChange={onChange}
+          availableIntegrations={availableIntegrations.slack}
+          organizationId={organizationId}
+        />
+      )}
     </Stack>
   );
 }

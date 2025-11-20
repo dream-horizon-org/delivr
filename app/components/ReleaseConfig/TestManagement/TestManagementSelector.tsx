@@ -6,7 +6,7 @@
 import { Stack, Text, Switch, Select, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { TestManagementConfig, TestManagementProvider } from '~/types/release-config';
-import { CheckmateConfigForm } from './CheckmateConfigForm';
+import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
 
 interface TestManagementSelectorProps {
   config: TestManagementConfig;
@@ -99,7 +99,7 @@ export function TestManagementSelector({
                 </Text>
                 
                 {availableIntegrations.checkmate.length > 0 ? (
-                  <CheckmateConfigForm
+                  <CheckmateConfigFormEnhanced
                     config={config.providerSettings as any || {}}
                     onChange={handleProviderSettingsChange}
                     availableIntegrations={availableIntegrations.checkmate}

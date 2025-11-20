@@ -26,9 +26,22 @@ export function IntegrationConnectModal({
 }: IntegrationConnectModalProps) {
   if (!integration) return null;
 
+  // Debug: Log integration details
+  console.log('[IntegrationConnectModal] Integration:', {
+    id: integration.id,
+    name: integration.name,
+    category: integration.category,
+    isAvailable: integration.isAvailable
+  });
+
   // Determine which connection flow to render
   const renderConnectionFlow = () => {
-    switch (integration.id) {
+    console.log('[IntegrationConnectModal] Matching against integration.id:', integration.id);
+    
+    // Normalize integration ID to lowercase for consistent matching
+    const integrationId = integration.id.toLowerCase();
+    
+    switch (integrationId) {
       case 'slack':
         return (
           <SlackConnectionFlow
@@ -67,6 +80,7 @@ export function IntegrationConnectModal({
         );
       
       case 'checkmate':
+        console.log('[IntegrationConnectModal] Rendering CheckmateConnectionFlow');
         return (
           <CheckmateConnectionFlow
             onConnect={(data) => {
@@ -138,6 +152,7 @@ export function IntegrationConnectModal({
       
       default:
         // Coming soon / demo mode
+        console.log('[IntegrationConnectModal] FALLBACK: Rendering demo mode for:', integration.id, '(normalized:', integrationId, ')');
         return (
           <div className="space-y-4">
             <Alert color="yellow" title="Demo Mode" icon={<span>🔨</span>}>

@@ -1,9 +1,10 @@
 /**
  * Custom Hook: Slack Connection
- * Handles the complete Slack integration flow:
+ * Handles the Slack integration setup:
  * 1. Verify bot token
- * 2. Fetch channels
- * 3. Save integration
+ * 2. Save integration (without channel selection)
+ * 
+ * Note: Channel configuration is done separately in Release Config
  */
 
 import { useState, useCallback } from 'react';
@@ -32,13 +33,10 @@ export function useSlackConnection() {
 
   const [botToken, setBotToken] = useState('');
   const [workspaceInfo, setWorkspaceInfo] = useState<SlackWorkspaceInfo>({});
-  const [availableChannels, setAvailableChannels] = useState<SlackChannel[]>([]);
-  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   
   const [step, setStep] = useState<'token' | 'channels'>('token');
   
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,10 +85,9 @@ export function useSlackConnection() {
 
       setBotToken(token);
       setIsVerifying(false);
-      setStep('channels');
-
-      // Automatically fetch channels
-      await fetchChannels(token);
+      
+      // Move to next step - user will click "Connect" to save
+      setStep('channels'); // Keep this for UI flow, but we won't show channel selection
 
       return true;
     } catch (error) {
@@ -102,76 +99,28 @@ export function useSlackConnection() {
   }, [tenantId]);
 
   /**
-   * Step 2: Fetch Slack channels
+   * Step 2.5: Save Slack integration WITHOUT channel selection
+   * (Channel selection now happens in Release Config)
    */
-  const fetchChannels = useCallback(async (token: string): Promise<boolean> => {
-    setIsLoadingChannels(true);
-    setError(null);
-
-    try {
-      console.log(`[useSlackConnection] Fetching channels for tenant: ${tenantId}`);
-      
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack/channels`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken: token })
-      });
-
-      const result = await response.json();
-
-      console.log(`[useSlackConnection] Fetched ${result.channels?.length || 0} channels`);
-
-      if (!result.success) {
-        setError(result.message || result.error || 'Failed to fetch channels');
-        setIsLoadingChannels(false);
-        return false;
-      }
-
-      setAvailableChannels(result.channels || []);
-      setIsLoadingChannels(false);
-      return true;
-    } catch (error) {
-      console.error('[useSlackConnection] Fetch channels error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch channels');
-      setIsLoadingChannels(false);
-      return false;
-    }
-  }, [tenantId]);
-
-  /**
-   * Step 3: Save Slack integration
-   */
-  const saveIntegration = useCallback(async (): Promise<boolean> => {
-    if (selectedChannels.length === 0) {
-      setError('Please select at least one channel');
-      return false;
-    }
-
+  const saveIntegrationWithoutChannels = useCallback(async (
+    token: string,
+    workspace: SlackWorkspaceInfo
+  ): Promise<boolean> => {
     setIsSaving(true);
     setError(null);
 
     try {
       console.log(`[useSlackConnection] Saving integration for tenant: ${tenantId}`);
-      console.log(`[useSlackConnection] Selected channels:`, selectedChannels);
       
-      // Map selected channel IDs to full channel objects
-      const channels = selectedChannels.map(id => {
-        const channel = availableChannels.find(c => c.id === id);
-        return {
-          id,
-          name: channel?.name || ''
-        };
-      });
-
       const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          botToken,
-          botUserId: workspaceInfo.botUserId,
-          workspaceId: workspaceInfo.workspaceId,
-          workspaceName: workspaceInfo.workspaceName,
-          channels
+          botToken: token,
+          botUserId: workspace.botUserId,
+          workspaceId: workspace.workspaceId,
+          workspaceName: workspace.workspaceName
+          // No channels array - channels selected in Release Config
         })
       });
 
@@ -193,7 +142,20 @@ export function useSlackConnection() {
       setIsSaving(false);
       return false;
     }
-  }, [tenantId, botToken, workspaceInfo, selectedChannels, availableChannels]);
+  }, [tenantId]);
+
+  /**
+   * Step 3: Save Slack integration (without channel selection)
+   */
+  const saveIntegration = useCallback(async (): Promise<boolean> => {
+    // Validate we have the required info
+    if (!botToken || !workspaceInfo.workspaceId) {
+      setError('Token not verified. Please verify your token first.');
+      return false;
+    }
+
+    return await saveIntegrationWithoutChannels(botToken, workspaceInfo);
+  }, [botToken, workspaceInfo, saveIntegrationWithoutChannels]);
 
   /**
    * Reset the form
@@ -201,8 +163,6 @@ export function useSlackConnection() {
   const reset = useCallback(() => {
     setBotToken('');
     setWorkspaceInfo({});
-    setAvailableChannels([]);
-    setSelectedChannels([]);
     setStep('token');
     setError(null);
   }, []);
@@ -219,21 +179,16 @@ export function useSlackConnection() {
     // State
     botToken,
     workspaceInfo,
-    availableChannels,
-    selectedChannels,
     step,
     error,
     
     // Loading states
     isVerifying,
-    isLoadingChannels,
     isSaving,
     
     // Actions
     setBotToken,
-    setSelectedChannels,
     verifyToken,
-    fetchChannels,
     saveIntegration,
     reset,
     goBack

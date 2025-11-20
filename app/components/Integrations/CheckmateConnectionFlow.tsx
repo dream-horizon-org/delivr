@@ -36,6 +36,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     name: existingData?.name || '',
     baseUrl: existingData?.config?.baseUrl || '',
     authToken: '', // Never pre-populate sensitive data
+    orgId: existingData?.config?.orgId || '',
   });
 
   const [isVerifying, setIsVerifying] = useState(false);
@@ -52,8 +53,10 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       setVerificationResult(null);
 
       try {
+        // Use projectId (which equals tenantId) to match backend's project-level routes
+        const projectId = tenantId;
         const response = await fetch(
-          `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${integrationId}/verify`,
+          `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}/verify`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
@@ -89,15 +92,19 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
 
     try {
       const method = isEditMode && integrationId ? 'PUT' : 'POST';
+      // Use projectId (which equals tenantId) to match backend's project-level routes
+      const projectId = tenantId;
       const url = isEditMode && integrationId 
-        ? `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${integrationId}`
-        : `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate`;
+        ? `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}`
+        : `/api/v1/projects/${projectId}/integrations/test-management`;
 
       const payload: any = {
         name: formData.name || `Checkmate - ${formData.baseUrl}`,
+        providerType: 'CHECKMATE', // Required by API
         config: {
           baseUrl: formData.baseUrl,
-          authToken: formData.authToken
+          authToken: formData.authToken,
+          orgId: parseInt(formData.orgId, 10) || undefined // Convert to number
         }
       };
 
@@ -131,7 +138,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
   };
 
   // For edit mode, authToken is optional. For create mode, it's required
-  const isFormValid = formData.name && formData.baseUrl && (isEditMode || formData.authToken);
+  const isFormValid = formData.name && formData.baseUrl && formData.orgId && (isEditMode || formData.authToken);
 
   return (
     <Stack gap="md">
@@ -152,12 +159,23 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
 
       <TextInput
         label="Base URL"
-        placeholder="https://checkmate.example.com/api"
+        placeholder="https://checkmate.example.com"
         required
         value={formData.baseUrl}
         onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
         error={!formData.baseUrl && 'Base URL is required'}
-        description="Your Checkmate API base URL (e.g., https://checkmate.yourcompany.com/api)"
+        description="Your Checkmate base URL (e.g., https://checkmate.yourcompany.com)"
+      />
+
+      <TextInput
+        label="Organization ID"
+        placeholder="123"
+        required
+        type="number"
+        value={formData.orgId}
+        onChange={(e) => setFormData({ ...formData, orgId: e.target.value })}
+        error={!formData.orgId && 'Organization ID is required'}
+        description="Your Checkmate organization/workspace ID (numeric)"
       />
 
       <PasswordInput

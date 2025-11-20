@@ -12,7 +12,7 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
     const response = await CodepushService.getSystemMetadata(user.user.id);
     return json(response.data);
   } catch (error: any) {
-    console.error('[BFF] Error fetching system metadata:', error);
+    // console.error('[BFF] Error fetching system metadata:', error);
     console.error('[BFF] Error details:', {
       message: error.message,
       response: error.response?.data,

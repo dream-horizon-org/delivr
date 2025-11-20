@@ -16,6 +16,7 @@ export default function IntegrationsPage() {
     getConnectedIntegrations,
     getAvailableIntegrations 
   } = useConfig();
+  console.log('[Integrations] Connected integrations:', getConnectedIntegrations());
 
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
@@ -41,6 +42,10 @@ export default function IntegrationsPage() {
       // Get available integrations for this category
       const availableIntegrations = getAvailableIntegrations(category);
       const connectedIntegrations = getConnectedIntegrations(category);
+
+      console.log('[Integrations]  Available integrations for category:', category, availableIntegrations);
+      console.log('[Integrations] Connected integrations for category:', category, connectedIntegrations);
+      
 
       availableIntegrations.forEach((provider) => {
         // Check if this provider is connected for this tenant
@@ -82,6 +87,8 @@ export default function IntegrationsPage() {
   console.log('[Integrations] Total integrations:', allIntegrations.length);
   console.log('[Integrations] Available integrations:', allIntegrations.filter(i => i.isAvailable).length);
   console.log('[Integrations] Coming soon integrations:', allIntegrations.filter(i => !i.isAvailable).length);
+  console.log('[Integrations] Checkmate integration:', allIntegrations.find(i => i.id === 'checkmate'));
+  console.log('[Integrations] TEST_MANAGEMENT integrations:', allIntegrations.filter(i => i.category === IntegrationCategory.TEST_MANAGEMENT));
 
   const tenantId = params.org!;
 

@@ -40,6 +40,7 @@ export interface FetchSlackChannelsResponse {
   success: boolean;
   channels: SlackChannel[];
   message?: string;
+  error?: string;
 }
 
 export interface CreateSlackIntegrationRequest {
@@ -183,6 +184,24 @@ export class SlackIntegrationServiceClass extends IntegrationService {
       return {
         success: false,
         error: error.message || 'Failed to get Slack integration'
+      };
+    }
+  }
+
+  /**
+   * Fetch ALL Slack channels (live from Slack API using stored token)
+   */
+  async fetchChannelsForIntegration(tenantId: string, userId: string): Promise<FetchSlackChannelsResponse> {
+    try {
+      return await this.get<FetchSlackChannelsResponse>(
+        `/tenants/${tenantId}/integrations/slack/channels`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        channels: [],
+        error: error.message || 'Failed to fetch Slack channels'
       };
     }
   }

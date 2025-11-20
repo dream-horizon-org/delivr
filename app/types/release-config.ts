@@ -76,12 +76,28 @@ export interface CheckmateRules {
   allowOverride: boolean; // Can users override and proceed despite failed rules
 }
 
+export interface CheckmatePlatformConfiguration {
+  platform: 'IOS_APP_STORE' | 'ANDROID_PLAY_STORE' | 'IOS_TESTFLIGHT' | 'ANDROID_INTERNAL_TESTING';
+  sectionIds?: number[];
+  labelIds?: number[];
+  squadIds?: number[];
+}
+
 export interface CheckmateSettings {
   type: 'CHECKMATE';
-  workspaceId: string;
-  projectId: string;
+  integrationId: string; // ID of the connected integration
+  workspaceId: string; // Checkmate workspace ID (orgId)
+  projectId: number; // Checkmate project ID
+  
+  // Platform-specific configurations
+  platformConfigurations: CheckmatePlatformConfiguration[];
+  
+  // Test run settings
   autoCreateRuns: boolean;
   runNameTemplate?: string; // e.g., "v{{version}} - {{platform}} - {{date}}"
+  passThresholdPercent: number; // 0-100
+  filterType: 'AND' | 'OR'; // Default: 'AND'
+  
   rules: CheckmateRules; // Validation rules for test runs
 }
 
@@ -152,16 +168,32 @@ export interface JiraProjectConfig {
 // Communication Configuration
 // ============================================================================
 
+export type SlackChannelConfigMode = 'GLOBAL' | 'STAGE_WISE';
+
+export interface SlackChannel {
+  id: string;
+  name: string;
+}
+
+export interface SlackChannelConfig {
+  releases: string; // Channel ID
+  builds: string;
+  regression: string;
+  critical: string;
+}
+
+export interface StageWiseSlackChannels {
+  preRegression?: SlackChannelConfig;
+  regression?: SlackChannelConfig;
+  testflight?: SlackChannelConfig;
+  production?: SlackChannelConfig;
+}
+
 export interface CommunicationConfig {
   slack?: {
     enabled: boolean;
     integrationId: string;
-    channels: {
-      releases: string; // Channel ID
-      builds: string;
-      regression: string;
-      critical: string;
-    };
+    channels: SlackChannelConfig; // Channel mappings for different notification types
   };
   
   email?: {

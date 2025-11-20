@@ -5,13 +5,12 @@
 
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ConfigurationWizard } from '~/components/ReleaseConfig/Wizard/ConfigurationWizard';
 import { DraftReleaseDialog } from '~/components/ReleaseConfig/DraftReleaseDialog';
 import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storage';
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { getMockTenantInfo } from '~/utils/mock-tenant-data.server';
-import { transformIntegrationsForUI } from '~/utils/integration-helpers';
+import { useConfig } from '~/contexts/ConfigContext';
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { org } = params;
@@ -41,9 +40,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         existingConfig = data.configuration;
         
         // If cloning, modify the config to be a new one
-        if (cloneConfigId) {
+        if (cloneConfigId && existingConfig) {
           existingConfig = {
             ...existingConfig,
+            organizationId: existingConfig.organizationId || org,
             id: '', // Will be generated on save
             name: `${existingConfig.name} (Copy)`,
             isDefault: false, // Clones are never default
@@ -61,31 +61,15 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     }
   }
   
-  // Fetch tenant info (integrations, settings, etc.)
-  // TODO: Replace with real API call to backend
-  const tenantInfo = await getMockTenantInfo(org);
-  
-  // Transform integrations into UI-ready format
-  // Only includes CONNECTED integrations
-  const availableIntegrations = transformIntegrationsForUI(tenantInfo.integrations);
-  
-  console.log('[Configure] Available integrations:', {
-    jenkins: availableIntegrations.jenkins.length,
-    github: availableIntegrations.github.length,
-    slack: availableIntegrations.slack.length,
-    jira: availableIntegrations.jira.length,
-    checkmate: availableIntegrations.checkmate.length,
-  });
-  
+  // Don't fetch tenant data here - it's already available from parent route
+  // Component will use useRouteLoaderData to access it
   return json({
     organizationId: org,
-    availableIntegrations,
     existingConfig,
     isEditMode: !!editConfigId,
     isCloneMode: !!cloneConfigId,
     forceNew,
     returnTo,
-    tenantInfo,
   });
 }
 
@@ -132,8 +116,42 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function ReleasesConfigurePage() {
-  const { organizationId, availableIntegrations, existingConfig, isEditMode, isCloneMode, forceNew, returnTo } = useLoaderData<typeof loader>();
+  const { organizationId, existingConfig, isEditMode, isCloneMode, forceNew, returnTo } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  
+  // Use ConfigContext to get connected integrations (already loaded by parent route!)
+  const { getConnectedIntegrations } = useConfig();
+  
+  // Transform connected integrations into format expected by ConfigurationWizard
+  const availableIntegrations = useMemo(() => {
+    const allConnected = getConnectedIntegrations();
+    
+    return {
+      jenkins: allConnected
+        .filter(i => i.providerId === 'jenkins')
+        .map(i => ({ id: i.id, name: i.name })),
+      github: allConnected
+        .filter(i => i.providerId === 'github')
+        .map(i => ({ id: i.id, name: i.name })),
+      slack: allConnected
+        .filter(i => i.providerId === 'slack')
+        .map(i => ({ id: i.id, name: i.name })),
+      jira: allConnected
+        .filter(i => i.providerId === 'jira')
+        .map(i => ({ id: i.id, name: i.name })),
+      checkmate: allConnected
+        .filter(i => i.providerId === 'checkmate')
+        .map(i => ({
+          id: i.id,
+          name: i.name,
+          workspaceId: i.config?.orgId || i.config?.workspaceId || i.id,
+          baseUrl: i.config?.baseUrl,
+          orgId: i.config?.orgId,
+        })),
+    };
+  }, [getConnectedIntegrations]);
+  
+  console.log('[ReleasesConfigurePage] Available integrations from ConfigContext:', availableIntegrations);
   
   const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [useDraft, setUseDraft] = useState(false);

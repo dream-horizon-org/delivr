@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
 import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
+import { IntegrationIcon } from '../Icons/IntegrationIcon';
 
 // Integration disconnect configuration
 const DISCONNECT_CONFIG: Record<string, { message: string; endpoint: (tenantId: string, config?: any) => string }> = {

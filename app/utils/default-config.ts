@@ -34,7 +34,15 @@ export function createDefaultConfig(organizationId: string): Partial<ReleaseConf
       timezone: 'Asia/Kolkata',
       regressionSlots: [],
     },
-    communication: {},
+    communication: {
+      slack: undefined,
+      email: undefined,
+    },
+    jiraProject: {
+      enabled: false,
+      integrationId: '',
+      projectKey: '',
+    },
     status: 'DRAFT',
   };
 }

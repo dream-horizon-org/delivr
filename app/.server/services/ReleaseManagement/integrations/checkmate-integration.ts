@@ -19,6 +19,7 @@ export enum VerificationStatus {
 export interface CheckmateConfig {
   baseUrl: string;
   authToken: string;
+  orgId: number;
 }
 
 export interface VerifyCheckmateRequest {
@@ -84,7 +85,11 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
         {
           name: data.name,
           providerType: 'CHECKMATE',
-          config: data.config
+          config: {
+            baseUrl: data.config.baseUrl,
+            authToken: data.config.authToken,
+            orgId: data.config.orgId
+          }
         },
         data.userId
       );
@@ -175,7 +180,13 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
     try {
       const payload: any = {};
       if (data.name) payload.name = data.name;
-      if (data.config) payload.config = data.config;
+      if (data.config) {
+        payload.config = {
+          ...(data.config.baseUrl && { baseUrl: data.config.baseUrl }),
+          ...(data.config.authToken && { authToken: data.config.authToken }),
+          ...(data.config.orgId !== undefined && { orgId: data.config.orgId })
+        };
+      }
 
       const result = await this.put<{ success: boolean; data: CheckmateIntegration; error?: string }>(
         `/projects/${data.projectId}/integrations/test-management/${data.integrationId}`,

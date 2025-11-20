@@ -59,20 +59,21 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
 
   try {
     const body = await request.json();
-    const { botToken, botUserId, workspaceId, workspaceName, channels } = body;
+    const { botToken, botUserId, workspaceId, workspaceName } = body;
 
-    if (!botToken || !channels || channels.length === 0) {
+    // Only botToken is required - channels are configured in Release Config
+    if (!botToken) {
       return json(
         {
           success: false,
-          error: 'botToken and channels are required'
+          error: 'botToken is required'
         },
         { status: 400 }
       );
     }
 
     console.log(`[Slack-Create] Creating integration for tenant: ${tenantId}`);
-    console.log(`[Slack-Create] Workspace: ${workspaceName}, Channels: ${channels.length}`);
+    console.log(`[Slack-Create] Workspace: ${workspaceName}`);
 
     const result = await SlackIntegrationService.createOrUpdateIntegration({
       tenantId,
@@ -80,7 +81,7 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
       botUserId,
       workspaceId,
       workspaceName,
-      channels,
+      channels: [], // Empty channels - will be configured in Release Config
       userId: user.user.id
     });
 

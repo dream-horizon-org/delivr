@@ -10,7 +10,13 @@ export interface AvailableIntegrations {
   github: Array<{ id: string; name: string }>;
   slack: Array<{ id: string; name: string }>;
   jira: Array<{ id: string; name: string }>;
-  checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
+  checkmate: Array<{ 
+    id: string; 
+    name: string; 
+    workspaceId?: string;
+    baseUrl?: string;
+    orgId?: string;
+  }>;
 }
 
 /**
@@ -44,7 +50,9 @@ export function transformIntegrationsForUI(
       .map(i => ({
         id: i.id,
         name: i.name,
-        workspaceId: i.metadata?.workspaceId,
+        workspaceId: i.metadata?.workspaceId || i.metadata?.orgId,  // Support both field names
+        baseUrl: i.metadata?.baseUrl,
+        orgId: i.metadata?.orgId,
       })),
   };
 }

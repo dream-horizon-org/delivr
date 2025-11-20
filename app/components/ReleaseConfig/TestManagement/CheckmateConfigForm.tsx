@@ -10,7 +10,13 @@ import { CheckmateRulesConfig } from './CheckmateRulesConfig';
 interface CheckmateConfigFormProps {
   config: Partial<CheckmateSettings>;
   onChange: (config: Partial<CheckmateSettings>) => void;
-  availableIntegrations: Array<{ id: string; name: string; workspaceId?: string }>;
+  availableIntegrations: Array<{ 
+    id: string; 
+    name: string; 
+    workspaceId?: string;
+    baseUrl?: string;
+    orgId?: string;
+  }>;
 }
 
 export function CheckmateConfigForm({
@@ -18,8 +24,9 @@ export function CheckmateConfigForm({
   onChange,
   availableIntegrations,
 }: CheckmateConfigFormProps) {
+  // Find selected integration by ID (most reliable)
   const selectedIntegration = availableIntegrations.find(
-    i => i.workspaceId === config.workspaceId
+    i => i.id === config.workspaceId || i.workspaceId === config.workspaceId || i.orgId === config.workspaceId
   );
   
   return (
@@ -28,11 +35,20 @@ export function CheckmateConfigForm({
         label="Checkmate Integration"
         placeholder="Select Checkmate integration"
         data={availableIntegrations.map(i => ({
-          value: i.workspaceId || i.id,
+          value: i.id,  // Use ID as the value (most stable identifier)
           label: i.name,
         }))}
         value={config.workspaceId}
-        onChange={(val) => onChange({ ...config, workspaceId: val || '' })}
+        onChange={(val) => {
+          // When selecting an integration, populate with its data
+          const selected = availableIntegrations.find(int => int.id === val);
+          onChange({ 
+            ...config, 
+            workspaceId: val || '',
+            // Auto-populate orgId if available
+            ...(selected?.orgId && { orgId: selected.orgId }),
+          });
+        }}
         required
         description="Choose the connected Checkmate workspace"
       />

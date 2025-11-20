@@ -52,6 +52,8 @@ export function ConfigurationWizard({
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  console.log('[ConfigurationWizard] Available integrations:', availableIntegrations);
   
   // Initialize configuration from existing, draft, or create new
   const [config, setConfig] = useState<Partial<ReleaseConfiguration>>(() => {
@@ -243,8 +245,8 @@ export function ConfigurationWizard({
             onChange={(communication) => setConfig({ ...config, communication })}
             availableIntegrations={{
               slack: availableIntegrations.slack,
-              jira: availableIntegrations.jira,
             }}
+            organizationId={organizationId}
           />
         );
         
