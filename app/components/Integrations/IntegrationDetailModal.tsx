@@ -16,7 +16,18 @@ const DISCONNECT_CONFIG: Record<string, { message: string; endpoint: (tenantId: 
   },
   'github-actions': {
     message: 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/github-actions`
+  },
+  github_actions: {
+    message: 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/github-actions`
+  },
+  jira: {
+    message: 'Are you sure you want to disconnect Jira? This will stop all project management integrations.',
+    endpoint: (tenantId, config) => {
+      if (!config?.id) throw new Error('Integration ID required for Jira');
+      return `/api/v1/tenants/${tenantId}/integrations/jira?integrationId=${config.id}`;
+    }
   },
   checkmate: {
     message: 'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.',
@@ -235,6 +246,37 @@ export function IntegrationDetailModal({
               <div className="flex justify-between">
                 <span className="text-gray-600">Username:</span>
                 <span className="font-medium">{integration.config.username}</span>
+              </div>
+            )}
+
+            {/* Jira-specific configuration */}
+            {integration.config?.baseUrl && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Base URL:</span>
+                <a
+                  href={integration.config.baseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  {integration.config.baseUrl}
+                </a>
+              </div>
+            )}
+
+            {integration.config?.email && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Email:</span>
+                <span className="font-medium">{integration.config.email}</span>
+              </div>
+            )}
+
+            {integration.config?.jiraType && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Jira Type:</span>
+                <Badge size="sm" variant="light" color="blue">
+                  {integration.config.jiraType}
+                </Badge>
               </div>
             )}
 

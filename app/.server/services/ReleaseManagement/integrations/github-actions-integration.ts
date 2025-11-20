@@ -1,100 +1,40 @@
 /**
- * GitHub Actions CI/CD Integration Service
- * Handles all GitHub Actions integration API calls from the web panel
+ * BFF Service: GitHub Actions Integration
+ * Handles GitHub Actions CI/CD integration operations
  */
 
 import { IntegrationService } from './base-integration';
+import type {
+  CreateGitHubActionsRequest,
+  UpdateGitHubActionsRequest,
+  VerifyGitHubActionsRequest,
+  GitHubActionsIntegrationResponse,
+  GitHubActionsVerifyResponse,
+} from '~/types/github-actions-integration';
 
-// ============================================================================
-// Types
-// ============================================================================
+export class GitHubActionsIntegrationService extends IntegrationService {
+  constructor() {
+    super();
+  }
 
-export enum VerificationStatus {
-  PENDING = 'PENDING',
-  VALID = 'VALID',
-  INVALID = 'INVALID',
-  EXPIRED = 'EXPIRED'
-}
-
-export interface VerifyGitHubActionsRequest {
-  tenantId: string;
-  apiToken?: string; // Optional - can reuse SCM token
-  userId: string;
-}
-
-export interface VerifyGitHubActionsResponse {
-  verified: boolean;
-  message: string;
-  details?: {
-    canReuseSCMToken?: boolean;
-  };
-}
-
-export interface CreateGitHubActionsIntegrationRequest {
-  tenantId: string;
-  displayName?: string;
-  apiToken?: string; // Optional - reuses SCM token if not provided
-  hostUrl?: string; // Optional - defaults to https://api.github.com
-  userId: string;
-}
-
-export interface UpdateGitHubActionsIntegrationRequest {
-  tenantId: string;
-  displayName?: string;
-  apiToken?: string;
-  hostUrl?: string;
-  userId: string;
-}
-
-export interface GitHubActionsIntegration {
-  id: string;
-  tenantId: string;
-  displayName: string;
-  hostUrl: string;
-  verificationStatus: VerificationStatus;
-  lastVerifiedAt: string | null;
-  verificationError: string | null;
-  isActive: boolean;
-  hasValidToken: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface GitHubActionsIntegrationResponse {
-  success: boolean;
-  integration?: GitHubActionsIntegration;
-  message?: string;
-  error?: string;
-}
-
-// ============================================================================
-// Service Class
-// ============================================================================
-
-export class GitHubActionsIntegrationServiceClass extends IntegrationService {
   /**
-   * Verify GitHub Actions connection
+   * Verify GitHub Actions token/credentials
    */
-  async verifyGitHubActions(data: VerifyGitHubActionsRequest): Promise<VerifyGitHubActionsResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions/verify`);
-    
+  async verifyConnection(
+    tenantId: string,
+    userId: string,
+    data?: VerifyGitHubActionsRequest
+  ): Promise<GitHubActionsVerifyResponse> {
     try {
-      const result = await this.post<VerifyGitHubActionsResponse>(
-        `/tenants/${data.tenantId}/integrations/ci-cd/github-actions/verify`,
-        {
-          apiToken: data.apiToken
-        },
-        data.userId
+      return await this.post<GitHubActionsVerifyResponse>(
+        `/tenants/${tenantId}/integrations/ci-cd/github-actions/verify`,
+        data || {},
+        userId
       );
-
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions/verify`, result.verified);
-      return result;
     } catch (error: any) {
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions/verify`, false);
-      
       return {
         verified: false,
-        message: error.message || 'Failed to verify GitHub Actions connection',
+        message: error.message || 'Failed to verify GitHub Actions credentials',
       };
     }
   }
@@ -102,50 +42,41 @@ export class GitHubActionsIntegrationServiceClass extends IntegrationService {
   /**
    * Create GitHub Actions integration
    */
-  async createIntegration(data: CreateGitHubActionsIntegrationRequest): Promise<GitHubActionsIntegrationResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions`);
-    
+  async createIntegration(
+    tenantId: string,
+    userId: string,
+    data: CreateGitHubActionsRequest
+  ): Promise<GitHubActionsIntegrationResponse> {
     try {
-      const result = await this.post<GitHubActionsIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/ci-cd/github-actions`,
-        {
-          displayName: data.displayName,
-          apiToken: data.apiToken,
-          hostUrl: data.hostUrl
-        },
-        data.userId
+      return await this.post<GitHubActionsIntegrationResponse>(
+        `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        data,
+        userId
       );
-
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions`, result.success);
-      return result;
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to create GitHub Actions integration'
+        error: error.message || 'Failed to create GitHub Actions integration',
       };
     }
   }
 
   /**
-   * Get GitHub Actions integration for tenant
+   * Get GitHub Actions integration
    */
-  async getIntegration(tenantId: string, userId: string): Promise<GitHubActionsIntegrationResponse> {
+  async getIntegration(
+    tenantId: string,
+    userId: string
+  ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.get<GitHubActionsIntegrationResponse>(
         `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
         userId
       );
     } catch (error: any) {
-      if ((error as any).status === 404) {
-        return {
-          success: false,
-          error: 'No GitHub Actions integration found'
-        };
-      }
-      
       return {
         success: false,
-        error: error.message || 'Failed to get GitHub Actions integration'
+        error: error.message || 'Failed to get GitHub Actions integration',
       };
     }
   }
@@ -153,26 +84,21 @@ export class GitHubActionsIntegrationServiceClass extends IntegrationService {
   /**
    * Update GitHub Actions integration
    */
-  async updateIntegration(data: UpdateGitHubActionsIntegrationRequest): Promise<GitHubActionsIntegrationResponse> {
-    this.logRequest('PATCH', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions`);
-    
+  async updateIntegration(
+    tenantId: string,
+    userId: string,
+    data: UpdateGitHubActionsRequest
+  ): Promise<GitHubActionsIntegrationResponse> {
     try {
-      const result = await this.patch<GitHubActionsIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/ci-cd/github-actions`,
-        {
-          displayName: data.displayName,
-          apiToken: data.apiToken,
-          hostUrl: data.hostUrl
-        },
-        data.userId
+      return await this.patch<GitHubActionsIntegrationResponse>(
+        `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        data,
+        userId
       );
-
-      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/ci-cd/github-actions`, result.success);
-      return result;
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to update GitHub Actions integration'
+        error: error.message || 'Failed to update GitHub Actions integration',
       };
     }
   }
@@ -180,21 +106,22 @@ export class GitHubActionsIntegrationServiceClass extends IntegrationService {
   /**
    * Delete GitHub Actions integration
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(
+    tenantId: string,
+    userId: string
+  ): Promise<GitHubActionsIntegrationResponse> {
     try {
-      return await this.delete<{ success: boolean; message?: string }>(
+      return await this.delete<GitHubActionsIntegrationResponse>(
         `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
         userId
       );
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to delete GitHub Actions integration'
+        error: error.message || 'Failed to delete GitHub Actions integration',
       };
     }
   }
 }
 
-// Export singleton instance
-export const GitHubActionsIntegrationService = new GitHubActionsIntegrationServiceClass();
-
+export const githubActionsIntegrationService = new GitHubActionsIntegrationService();

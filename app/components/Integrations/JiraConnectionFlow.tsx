@@ -2,10 +2,8 @@
  * Jira Project Management Connection Flow Component
  * Handles verification and connection of Jira integrations
  * 
- * Supports multiple authentication methods:
- * - BASIC: Username + API Token (recommended for Jira Cloud)
- * - OAUTH2: OAuth 2.0 flow
- * - PAT: Personal Access Token (for Jira Data Center/Server)
+ * Backend API: /projects/:projectId/integrations/project-management
+ * Config: { baseUrl, email, apiToken, jiraType }
  */
 
 import { useState } from 'react';
@@ -15,75 +13,63 @@ import {
   Button,
   Group,
   Alert,
-  Loader,
   PasswordInput,
   Select,
   Stack,
-  Text,
-  Tabs
+  Text
 } from '@mantine/core';
+import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { JIRA_TYPES } from '~/types/jira-integration';
+import type { JiraType } from '~/types/jira-integration';
 
 interface JiraConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
 }
 
-type JiraAuthType = 'BASIC' | 'OAUTH2' | 'PAT';
-
 export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
-  const [authType, setAuthType] = useState<JiraAuthType>('BASIC');
   const [formData, setFormData] = useState({
     displayName: '',
     hostUrl: '',
-    username: '',
+    email: '',
     apiToken: '',
-    personalAccessToken: '',
-    cloudId: '',
-    defaultProjectKey: ''
+    jiraType: 'CLOUD' as JiraType,
   });
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
-    setVerificationResult(null);
+    setIsVerified(false);
 
     try {
-      const queryParams = new URLSearchParams({
-        hostUrl: formData.hostUrl,
-        authType: authType
-      });
-
-      if (authType === 'BASIC') {
-        queryParams.append('username', formData.username);
-        queryParams.append('apiToken', formData.apiToken);
-      } else if (authType === 'PAT') {
-        queryParams.append('personalAccessToken', formData.personalAccessToken);
-      }
-
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/project-management/jira/verify?${queryParams}`
+        `/api/v1/tenants/${tenantId}/integrations/jira/verify`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hostUrl: formData.hostUrl,
+            email: formData.email,
+            apiToken: formData.apiToken,
+            jiraType: formData.jiraType,
+          })
+        }
       );
 
       const data = await response.json();
 
-      if (data.verified) {
-        setVerificationResult({
-          success: true,
-          message: data.message || 'Jira connection verified successfully!'
-        });
+      if (data.verified || data.success) {
+        setIsVerified(true);
       } else {
-        setVerificationResult({
-          success: false,
-          message: data.message || 'Failed to verify Jira connection'
-        });
+        setError(data.message || data.error || 'Failed to verify Jira connection');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to verify Jira connection');
@@ -97,29 +83,16 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
     setError(null);
 
     try {
-      const payload: any = {
-        displayName: formData.displayName || `Jira - ${formData.hostUrl}`,
-        hostUrl: formData.hostUrl,
-        authType: authType,
-        cloudId: formData.cloudId || undefined,
-        defaultProjectKey: formData.defaultProjectKey || undefined,
-        providerConfig: {
-          autoCreateIssues: false,
-          webhookEnabled: false
-        }
-      };
-
-      if (authType === 'BASIC') {
-        payload.username = formData.username;
-        payload.apiToken = formData.apiToken;
-      } else if (authType === 'PAT') {
-        payload.personalAccessToken = formData.personalAccessToken;
-      }
-
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/project-management/jira`, {
+      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/jira`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          name: formData.displayName || `Jira - ${formData.hostUrl}`,
+          hostUrl: formData.hostUrl,
+          email: formData.email,
+          apiToken: formData.apiToken,
+          jiraType: formData.jiraType,
+        })
       });
 
       const data = await response.json();
@@ -137,18 +110,13 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
   };
 
   const isFormValid = () => {
-    if (!formData.hostUrl) return false;
-    if (authType === 'BASIC' && (!formData.username || !formData.apiToken)) return false;
-    if (authType === 'PAT' && !formData.personalAccessToken) return false;
-    return true;
+    return formData.hostUrl && formData.email && formData.apiToken;
   };
 
   return (
-    <Stack gap="md">
-      <Alert color="blue" title="Connect Jira" icon={<span>📋</span>}>
-        Connect your Jira workspace to link releases with issues and track project progress.
-      </Alert>
-
+    <Stack gap="lg">
+      {/* Header removed as it's in the modal title */}
+      
       <TextInput
         label="Display Name (Optional)"
         placeholder="My Jira Workspace"
@@ -156,129 +124,95 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
       />
 
+      <Select
+        label="Jira Type"
+        required
+        value={formData.jiraType}
+        onChange={(value) => setFormData({ ...formData, jiraType: value as JiraType })}
+        data={JIRA_TYPES.map(type => ({
+          value: type.value,
+          label: type.label,
+        }))}
+        description="Select your Jira deployment type"
+      />
+
       <TextInput
-        label="Jira Host URL"
-        placeholder="https://yourcompany.atlassian.net"
+        label="Jira Base URL"
+        placeholder={formData.jiraType === 'CLOUD' ? 'https://yourcompany.atlassian.net' : 'https://jira.yourcompany.com'}
         required
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
-        error={!formData.hostUrl && 'Host URL is required'}
-        description="Your Jira Cloud URL or self-hosted instance URL"
+        error={!formData.hostUrl && 'Base URL is required'}
+        description={formData.jiraType === 'CLOUD' ? 'Your Atlassian Cloud URL' : 'Your self-hosted Jira URL'}
       />
 
-      <Select
-        label="Authentication Method"
+      <TextInput
+        label="Email Address"
+        placeholder="your-email@company.com"
+        type="email"
         required
-        value={authType}
-        onChange={(value) => setAuthType(value as JiraAuthType)}
-        data={[
-          { value: 'BASIC', label: 'Basic Auth (Username + API Token) - Recommended' },
-          { value: 'PAT', label: 'Personal Access Token (PAT)' },
-          { value: 'OAUTH2', label: 'OAuth 2.0 (Coming Soon)', disabled: true }
-        ]}
+        value={formData.email}
+        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        error={!formData.email && 'Email is required'}
+        description="Your Jira account email address"
       />
 
-      {authType === 'BASIC' && (
-        <>
-          <TextInput
-            label="Email / Username"
-            placeholder="your-email@company.com"
-            required
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            error={!formData.username && 'Email/Username is required'}
-            description="Your Jira account email or username"
-          />
-
-          <PasswordInput
-            label="API Token"
-            placeholder="Your Jira API token"
-            required
-            value={formData.apiToken}
-            onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-            error={!formData.apiToken && 'API Token is required'}
-            description="Generate from Jira → Account Settings → Security → API Tokens"
-          />
-        </>
-      )}
-
-      {authType === 'PAT' && (
-        <PasswordInput
-          label="Personal Access Token"
-          placeholder="Your Jira PAT"
-          required
-          value={formData.personalAccessToken}
-          onChange={(e) => setFormData({ ...formData, personalAccessToken: e.target.value })}
-          error={!formData.personalAccessToken && 'Personal Access Token is required'}
-          description="For Jira Data Center or Server instances"
-        />
-      )}
-
-      <TextInput
-        label="Cloud ID (Optional)"
-        placeholder="cloudId-xxxxx"
-        value={formData.cloudId}
-        onChange={(e) => setFormData({ ...formData, cloudId: e.target.value })}
-        description="Jira Cloud ID (auto-detected if not provided)"
-      />
-
-      <TextInput
-        label="Default Project Key (Optional)"
-        placeholder="PROJ"
-        value={formData.defaultProjectKey}
-        onChange={(e) => setFormData({ ...formData, defaultProjectKey: e.target.value })}
-        description="Default Jira project key for creating issues"
+      <PasswordInput
+        label="API Token"
+        placeholder="Your Jira API token"
+        required
+        value={formData.apiToken}
+        onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
+        error={!formData.apiToken && 'API Token is required'}
+        description="Generate from Jira → Account Settings → Security → API Tokens"
       />
 
       {error && (
-        <Alert color="red" title="Error" icon={<span>❌</span>}>
+        <Alert icon={<IconAlertCircle size={16} />} color="red">
           {error}
         </Alert>
       )}
 
-      {verificationResult && (
-        <Alert
-          color={verificationResult.success ? 'green' : 'red'}
-          title={verificationResult.success ? 'Verification Successful' : 'Verification Failed'}
-          icon={<span>{verificationResult.success ? '✅' : '❌'}</span>}
-        >
-          {verificationResult.message}
+      {isVerified && (
+        <Alert icon={<IconCheck size={16} />} color="green">
+          Credentials verified successfully! Click "Connect" to save.
         </Alert>
       )}
 
-      <Group justify="space-between" className="mt-4">
+      <Group justify="flex-end">
         <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
           Cancel
         </Button>
-        
-        <Group>
+        {!isVerified ? (
           <Button
-            variant="light"
             onClick={handleVerify}
-            disabled={!isFormValid() || isVerifying || isConnecting}
-            leftSection={isVerifying ? <Loader size="xs" /> : null}
+            loading={isVerifying}
+            disabled={!isFormValid()}
           >
-            {isVerifying ? 'Verifying...' : 'Verify Connection'}
+            Verify Credentials
           </Button>
-          
+        ) : (
           <Button
             onClick={handleConnect}
-            disabled={!isFormValid() || !verificationResult?.success || isConnecting}
-            leftSection={isConnecting ? <Loader size="xs" /> : null}
-            className="bg-blue-600 hover:bg-blue-700"
+            loading={isConnecting}
+            color="green"
           >
-            {isConnecting ? 'Connecting...' : 'Connect'}
+            Connect
           </Button>
-        </Group>
+        )}
       </Group>
 
-      <Text size="xs" c="dimmed" className="mt-2">
+      <Text size="xs" c="dimmed">
         <strong>For Jira Cloud:</strong> Create an API token at{' '}
-        <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+        <a
+          href="https://id.atlassian.com/manage-profile/security/api-tokens"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+        >
           Atlassian Account Settings
         </a>
       </Text>
     </Stack>
   );
 }
-

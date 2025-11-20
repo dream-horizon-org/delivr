@@ -1,215 +1,107 @@
 /**
- * Jira Project Management Integration Service
- * Handles all Jira integration API calls from the web panel
+ * BFF Service: Jira Integration
+ * Handles Jira project management integration operations
  */
 
 import { IntegrationService } from './base-integration';
+import type {
+  CreateJiraIntegrationRequest,
+  UpdateJiraIntegrationRequest,
+  VerifyJiraRequest,
+  JiraIntegrationResponse,
+  JiraVerifyResponse,
+  JiraListResponse,
+} from '~/types/jira-integration';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export enum VerificationStatus {
-  PENDING = 'PENDING',
-  VALID = 'VALID',
-  INVALID = 'INVALID',
-  EXPIRED = 'EXPIRED'
-}
-
-export enum JiraAuthType {
-  BASIC = 'BASIC',
-  OAUTH2 = 'OAUTH2',
-  PAT = 'PAT'
-}
-
-export interface VerifyJiraRequest {
-  tenantId: string;
-  hostUrl: string;
-  authType: JiraAuthType;
-  username?: string;
-  apiToken?: string;
-  accessToken?: string;
-  personalAccessToken?: string;
-  userId: string;
-}
-
-export interface VerifyJiraResponse {
-  verified: boolean;
-  message: string;
-  details?: {
-    siteName?: string;
-    cloudId?: string;
-    projectCount?: number;
-  };
-}
-
-export interface CreateJiraIntegrationRequest {
-  tenantId: string;
-  displayName?: string;
-  hostUrl: string;
-  authType: JiraAuthType;
-  username?: string;
-  apiToken?: string;
-  accessToken?: string;
-  refreshToken?: string;
-  personalAccessToken?: string;
-  cloudId?: string;
-  defaultProjectKey?: string;
-  providerConfig?: {
-    issueTypeMapping?: Record<string, string>;
-    statusMapping?: Record<string, string>;
-    webhookEnabled?: boolean;
-    autoCreateIssues?: boolean;
-  };
-  userId: string;
-}
-
-export interface UpdateJiraIntegrationRequest {
-  tenantId: string;
-  displayName?: string;
-  hostUrl?: string;
-  authType?: JiraAuthType;
-  username?: string;
-  apiToken?: string;
-  accessToken?: string;
-  refreshToken?: string;
-  personalAccessToken?: string;
-  cloudId?: string;
-  defaultProjectKey?: string;
-  providerConfig?: {
-    issueTypeMapping?: Record<string, string>;
-    statusMapping?: Record<string, string>;
-    webhookEnabled?: boolean;
-    autoCreateIssues?: boolean;
-  };
-  userId: string;
-}
-
-export interface JiraIntegration {
-  id: string;
-  tenantId: string;
-  displayName: string;
-  hostUrl: string;
-  authType: JiraAuthType;
-  username: string | null;
-  cloudId: string | null;
-  defaultProjectKey: string | null;
-  providerConfig: {
-    issueTypeMapping?: Record<string, string>;
-    statusMapping?: Record<string, string>;
-    webhookEnabled?: boolean;
-    autoCreateIssues?: boolean;
-  };
-  verificationStatus: VerificationStatus;
-  lastVerifiedAt: string | null;
-  verificationError: string | null;
-  isActive: boolean;
-  hasValidToken: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface JiraIntegrationResponse {
-  success: boolean;
-  integration?: JiraIntegration;
-  message?: string;
-  error?: string;
-}
-
-// ============================================================================
-// Service Class
-// ============================================================================
-
-export class JiraIntegrationServiceClass extends IntegrationService {
-  /**
-   * Verify Jira connection
-   */
-  async verifyJira(data: VerifyJiraRequest): Promise<VerifyJiraResponse> {
-    this.logRequest('GET', `/tenants/${data.tenantId}/integrations/project-management/jira/verify`);
-    
-    try {
-      const result = await this.get<VerifyJiraResponse>(
-        `/tenants/${data.tenantId}/integrations/project-management/jira/verify`,
-        data.userId,
-        {
-          params: {
-            hostUrl: data.hostUrl,
-            authType: data.authType,
-            username: data.username,
-            apiToken: data.apiToken,
-            accessToken: data.accessToken,
-            personalAccessToken: data.personalAccessToken
-          }
-        }
-      );
-
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/project-management/jira/verify`, result.verified);
-      return result;
-    } catch (error: any) {
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/project-management/jira/verify`, false);
-      
-      return {
-        verified: false,
-        message: error.message || 'Failed to verify Jira connection',
-      };
-    }
+export class JiraIntegrationService extends IntegrationService {
+  constructor() {
+    super();
   }
 
   /**
-   * Create Jira integration
+   * Verify Jira credentials without saving
    */
-  async createIntegration(data: CreateJiraIntegrationRequest): Promise<JiraIntegrationResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/project-management/jira`);
-    
+  async verifyCredentials(
+    data: VerifyJiraRequest,
+    userId: string
+  ): Promise<JiraVerifyResponse> {
     try {
-      const result = await this.post<JiraIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/project-management/jira`,
+      return await this.post<JiraVerifyResponse>(
+        `/integrations/project-management/verify`,
         {
-          displayName: data.displayName,
-          hostUrl: data.hostUrl,
-          authType: data.authType,
-          username: data.username,
-          apiToken: data.apiToken,
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          personalAccessToken: data.personalAccessToken,
-          cloudId: data.cloudId,
-          defaultProjectKey: data.defaultProjectKey,
-          providerConfig: data.providerConfig
+          providerType: 'jira',
+          ...data,
         },
-        data.userId
-      );
-
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/project-management/jira`, result.success);
-      return result;
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to create Jira integration'
-      };
-    }
-  }
-
-  /**
-   * Get Jira integration for tenant
-   */
-  async getIntegration(tenantId: string, userId: string): Promise<JiraIntegrationResponse> {
-    try {
-      return await this.get<JiraIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/project-management/jira`,
         userId
       );
     } catch (error: any) {
-      if ((error as any).status === 404) {
-        return {
-          success: false,
-          error: 'No Jira integration found'
-        };
-      }
-      
       return {
         success: false,
-        error: error.message || 'Failed to get Jira integration'
+        verified: false,
+        error: error.message || 'Failed to verify Jira credentials',
+      };
+    }
+  }
+
+  /**
+   * Create Jira integration for a project
+   */
+  async createIntegration(
+    projectId: string,
+    userId: string,
+    data: CreateJiraIntegrationRequest
+  ): Promise<JiraIntegrationResponse> {
+    try {
+      return await this.post<JiraIntegrationResponse>(
+        `/projects/${projectId}/integrations/project-management`,
+        data,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to create Jira integration',
+      };
+    }
+  }
+
+  /**
+   * List Jira integrations for a project
+   */
+  async listIntegrations(
+    projectId: string,
+    userId: string
+  ): Promise<JiraListResponse> {
+    try {
+      return await this.get<JiraListResponse>(
+        `/projects/${projectId}/integrations/project-management`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to list Jira integrations',
+      };
+    }
+  }
+
+  /**
+   * Get specific Jira integration
+   */
+  async getIntegration(
+    projectId: string,
+    integrationId: string,
+    userId: string
+  ): Promise<JiraIntegrationResponse> {
+    try {
+      return await this.get<JiraIntegrationResponse>(
+        `/projects/${projectId}/integrations/project-management/${integrationId}`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to get Jira integration',
       };
     }
   }
@@ -217,34 +109,22 @@ export class JiraIntegrationServiceClass extends IntegrationService {
   /**
    * Update Jira integration
    */
-  async updateIntegration(data: UpdateJiraIntegrationRequest): Promise<JiraIntegrationResponse> {
-    this.logRequest('PATCH', `/tenants/${data.tenantId}/integrations/project-management/jira`);
-    
+  async updateIntegration(
+    projectId: string,
+    integrationId: string,
+    userId: string,
+    data: UpdateJiraIntegrationRequest
+  ): Promise<JiraIntegrationResponse> {
     try {
-      const result = await this.patch<JiraIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/project-management/jira`,
-        {
-          displayName: data.displayName,
-          hostUrl: data.hostUrl,
-          authType: data.authType,
-          username: data.username,
-          apiToken: data.apiToken,
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          personalAccessToken: data.personalAccessToken,
-          cloudId: data.cloudId,
-          defaultProjectKey: data.defaultProjectKey,
-          providerConfig: data.providerConfig
-        },
-        data.userId
+      return await this.put<JiraIntegrationResponse>(
+        `/projects/${projectId}/integrations/project-management/${integrationId}`,
+        data,
+        userId
       );
-
-      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/project-management/jira`, result.success);
-      return result;
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to update Jira integration'
+        error: error.message || 'Failed to update Jira integration',
       };
     }
   }
@@ -252,21 +132,46 @@ export class JiraIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Jira integration
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(
+    projectId: string,
+    integrationId: string,
+    userId: string
+  ): Promise<JiraIntegrationResponse> {
     try {
-      return await this.delete<{ success: boolean; message?: string }>(
-        `/tenants/${tenantId}/integrations/project-management/jira`,
+      return await this.delete<JiraIntegrationResponse>(
+        `/projects/${projectId}/integrations/project-management/${integrationId}`,
         userId
       );
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to delete Jira integration'
+        error: error.message || 'Failed to delete Jira integration',
+      };
+    }
+  }
+
+  /**
+   * Verify existing Jira integration
+   */
+  async verifyIntegration(
+    projectId: string,
+    integrationId: string,
+    userId: string
+  ): Promise<JiraVerifyResponse> {
+    try {
+      return await this.post<JiraVerifyResponse>(
+        `/projects/${projectId}/integrations/project-management/${integrationId}/verify`,
+        {},
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        verified: false,
+        error: error.message || 'Failed to verify Jira integration',
       };
     }
   }
 }
 
-// Export singleton instance
-export const JiraIntegrationService = new JiraIntegrationServiceClass();
-
+export const jiraIntegrationService = new JiraIntegrationService();
