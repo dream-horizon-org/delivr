@@ -1,69 +1,28 @@
+/**
+ * SCM Integration Routes
+ * Composes provider-specific SCM integration routes (GitHub, GitLab, Bitbucket)
+ * Follows the same pattern as CI/CD integrations
+ */
+
 import { Router } from "express";
 import { Storage } from "../storage/storage";
-import * as tenantPermissions from "../middleware/tenant-permissions";
-import * as scmControllers from "../controllers/integrations/scm-controllers";
+import { createGitHubConnectionRoutes } from "./integrations/scm/connections/github.routes";
+// import { createGitLabConnectionRoutes } from "./integrations/scm/connections/gitlab.routes";
+// import { createBitbucketConnectionRoutes } from "./integrations/scm/connections/bitbucket.routes";
 
 /**
  * Create SCM Integration Routes
- * All business logic is delegated to controllers in scm-controllers.ts
- * Controllers use storage singleton, no need to pass storage explicitly
+ * Composes provider-specific subrouters for each SCM provider
  */
 export function createSCMIntegrationRoutes(storage: Storage): Router {
   const router = Router();
 
-  // ============================================================================
-  // VERIFY SCM Connection
-  // ============================================================================
-  router.post(
-    "/tenants/:tenantId/integrations/scm/verify",
-    tenantPermissions.requireOwner({ storage }),
-    scmControllers.verifySCMConnection
-  );
-
-  // ============================================================================
-  // CREATE or UPDATE SCM Integration (save after verification)
-  // ============================================================================
-  router.post(
-    "/tenants/:tenantId/integrations/scm",
-    tenantPermissions.requireOwner({ storage }),
-    scmControllers.createOrUpdateSCMIntegration
-  );
-
-  // ============================================================================
-  // GET SCM Integration for Tenant
-  // ============================================================================
-  router.get(
-    "/tenants/:tenantId/integrations/scm",
-    tenantPermissions.requireOwner({ storage }),
-    scmControllers.getSCMIntegration
-  );
-
-  // ============================================================================
-  // UPDATE SCM Integration
-  // ============================================================================
-  router.patch(
-    "/tenants/:tenantId/integrations/scm",
-    tenantPermissions.requireOwner({ storage }),
-    scmControllers.updateSCMIntegration
-  );
-
-  // ============================================================================
-  // DELETE SCM Integration
-  // ============================================================================
-  router.delete(
-    "/tenants/:tenantId/integrations/scm",
-    tenantPermissions.requireOwner({ storage }),
-    scmControllers.deleteSCMIntegration
-  );
-
-  // ============================================================================
-  // FETCH Branches from SCM Repository
-  // ============================================================================
-  router.get(
-    "/tenants/:tenantId/integrations/scm/branches",
-    tenantPermissions.requireOwner({ storage }),
-    scmControllers.fetchSCMBranches
-  );
+  // Compose provider-specific subrouters
+  router.use(createGitHubConnectionRoutes(storage));
+  
+  // TODO: Uncomment when GitLab and Bitbucket implementations are ready
+  // router.use(createGitLabConnectionRoutes(storage));
+  // router.use(createBitbucketConnectionRoutes(storage));
 
   return router;
 }
