@@ -12,9 +12,12 @@ import {
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
 import { createMetadataRoutes } from "./integrations/test-management/metadata";
+import {
+  createIntegrationRoutes as createPMIntegrationRoutes,
+  createConfigurationRoutes as createPMConfigurationRoutes,
+  createTicketRoutes as createPMTicketRoutes
+} from "./integrations/project-management";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createJiraIntegrationRoutes } from "./jira-integrations";
-import { generateReleaseJiraLinks } from "../utils/jira-utils";
 import { createSlackIntegrationRoutes } from "./slack-integrations";
 
 export interface ReleaseManagementConfig {
@@ -87,6 +90,37 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   }
 
   // ============================================================================
+  // PROJECT MANAGEMENT INTEGRATIONS (JIRA, Linear, Asana, etc.)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if services are initialized
+    if (s3Storage.projectManagementIntegrationService && 
+        s3Storage.projectManagementConfigService && 
+        s3Storage.projectManagementTicketService) {
+      
+      // Project Management Integration Management (Credentials)
+      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService);
+      router.use(pmIntegrationRoutes);
+      
+      // Project Management Configuration Management (Reusable configurations)
+      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService);
+      router.use(pmConfigurationRoutes);
+      
+      // Project Management Ticket Operations (Stateless - Create, Check Status)
+      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService);
+      router.use(pmTicketRoutes);
+      
+      console.log('[Release Management] Project Management routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Project Management services not yet initialized, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Project Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
   // TODO: Implement target platform integration routes
@@ -104,12 +138,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const slackRoutes = createSlackIntegrationRoutes(storage);
   router.use(slackRoutes);
   // router.use(createCommunicationRoutes(storage));
-
-  // ============================================================================
-  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
-  // ============================================================================
-  const jiraRoutes = createJiraIntegrationRoutes(storage);
-  router.use(jiraRoutes);
 
   // ============================================================================
   // SETUP MANAGEMENT
@@ -161,33 +189,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       // - Filter by status (KICKOFF_PENDING, STARTED, RELEASED, etc.)
       // - Pagination
       // - Sort by date
-      // 
-      // Example of how to add JIRA links to each release:
-      // 
-      // const tenantId = req.params.tenantId;
-      // const releases = await storage.getReleases(tenantId);
-      // 
-      // // Add JIRA links to each release
-      // const releasesWithJiraLinks = await Promise.all(
-      //   releases.map(async (release) => {
-      //     const jiraLinks = await generateReleaseJiraLinks(
-      //       tenantId,
-      //       release.webEpicId,
-      //       release.iOSEpicId,
-      //       release.playStoreEpicId
-      //     );
-      //     return {
-      //       ...release,
-      //       jiraLinks: {
-      //         web: jiraLinks.webEpicUrl,
-      //         ios: jiraLinks.iOSEpicUrl,
-      //         playStore: jiraLinks.playStoreEpicUrl
-      //       }
-      //     };
-      //   })
-      // );
-      // 
-      // return res.status(200).json({ releases: releasesWithJiraLinks });
       
       res.status(501).json({
         error: "Not implemented yet",
@@ -201,40 +202,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      try {
-        const { tenantId, releaseId } = req.params;
-        
-        // TODO: Implement full release details retrieval from database
-        // const release = await storage.getRelease(releaseId);
-        
-        // For now, return placeholder with Jira epic integration
-        // Once release management is fully implemented, uncomment the code below
-        
-        // Fetch Jira epics for the release (from release_jira_epics table)
-        const { getEpicsForRelease, generateReleaseJiraLinksFromEpics } = require('../utils/jira-utils');
-        const jiraEpics = await getEpicsForRelease(releaseId);
-        const jiraLinks = await generateReleaseJiraLinksFromEpics(releaseId);
-        
-        // Return placeholder response with Jira data
-        res.status(200).json({
-          id: releaseId,
-          tenantId,
-          // ...release data will go here once implemented
-          jiraEpics: jiraEpics,
-          jiraLinks: {
-            web: jiraLinks.webEpicUrl,
-            ios: jiraLinks.iOSEpicUrl,
-            playStore: jiraLinks.playStoreEpicUrl
-          },
-          message: "Release details coming soon - Jira integration ready"
-        });
-      } catch (error: any) {
-        console.error('[Release] Error fetching release details:', error);
-        res.status(500).json({
-          error: "Failed to fetch release details",
-          message: error.message
-        });
-      }
+      const { tenantId, releaseId } = req.params;
+      
+      // TODO: Implement full release details retrieval from database
+      // const release = await storage.getRelease(releaseId);
+      
+      res.status(501).json({
+        error: "Not implemented yet",
+        message: "Release details endpoint coming soon"
+      });
     }
   );
 
@@ -249,9 +225,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
           version,
           type,
           platforms,
-          jiraProjectKey,
-          jiraEpics,
-          autoCreateJiraEpics,
           description,
           ...releaseData
         } = req.body;
@@ -273,42 +246,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         // Placeholder: Create a mock release ID
         const releaseId = `rel_${Date.now()}`;
         
-        // If Jira epics are requested, create them
-        // NOTE: This code uses the old API (jiraProjectKey) and needs to be updated to use jiraConfigId
-        if (autoCreateJiraEpics && jiraProjectKey && platforms && Array.isArray(platforms)) {
-          const jiraIntegrationController = (storage as any).jiraIntegrationController;
-          
-          if (jiraIntegrationController && jiraIntegrationController.epicService) {
-            try {
-              console.warn('[Release] DEPRECATED: This code uses old jiraProjectKey API. Please update to use jiraConfigId instead.');
-              // TODO: Update this to use jiraConfigId from jira_configurations table
-              // For now, this will fail gracefully since createEpicsForRelease signature changed
-              
-              // Create epic records in database (OLD API - needs jiraConfigId now)
-              // const epics = await jiraIntegrationController.epicService.createEpicsForRelease(
-              //   releaseId,
-              //   jiraConfigId,  // Changed: was jiraProjectKey
-              //   version,
-              //   platforms,
-              //   description
-              // );
-              
-              // Trigger background job to create epics in Jira
-              // const { JiraEpicService } = require('../storage/integrations/jira/jira-epic-service');
-              // for (const epic of epics) {
-              //   jiraIntegrationController.epicService.createEpicInJira(tenantId, epic).catch((err: any) => {
-              //     console.error('[Release] Failed to create epic in Jira:', err);
-              //   });
-              // }
-              
-              console.log(`[Release] Jira epic creation initiated for release ${releaseId}`);
-            } catch (error: any) {
-              console.error('[Release] Error creating Jira epics:', error);
-              // Don't fail release creation if Jira epic creation fails
-            }
-          }
-        }
-        
         // Return placeholder response
         res.status(201).json({
           success: true,
@@ -319,11 +256,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
             version,
             type,
             platforms,
-            jiraProjectKey,
-            autoCreateJiraEpics,
             ...releaseData
-          },
-          note: "Jira epic integration is ready. Complete release management will be implemented separately."
+          }
         });
       } catch (error: any) {
         console.error('[Release] Error creating release:', error);

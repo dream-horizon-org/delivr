@@ -500,8 +500,6 @@ export class S3Storage implements storage.Storage {
     private sequelize:Sequelize;
     private setupPromise: Promise<void>;
     public scmController!: SCMIntegrationController;  // SCM integration controller
-    public jiraIntegrationController!: any;  // JIRA integration controller (credentials)
-    public jiraConfigurationController!: any;  // JIRA configuration controller (reusable configs)
     
     // Test Management Integration - Repositories and Services
     public projectIntegrationRepository!: ProjectTestManagementIntegrationRepository;
@@ -510,6 +508,14 @@ export class S3Storage implements storage.Storage {
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
     public testManagementMetadataService!: TestManagementMetadataService;
+    
+    // Project Management Integration - Repositories and Services
+    public projectManagementIntegrationRepository!: any;
+    public projectManagementConfigRepository!: any;
+    public projectManagementIntegrationService!: any;
+    public projectManagementConfigService!: any;
+    public projectManagementTicketService!: any;
+    
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public constructor() {
         const s3Config = {
@@ -615,41 +621,6 @@ export class S3Storage implements storage.Storage {
           this.scmController = new SCMIntegrationController(models.SCMIntegrations);
           console.log("SCM Integration Controller initialized");
           
-          // Initialize JIRA Integration (new architecture with separate tables)
-          // Create models for jira_integrations, jira_configurations, and release_jira_epics
-          const { 
-            createJiraIntegrationsModel,
-            createJiraConfigurationsModel,
-            createReleaseJiraEpicsModel 
-          } = require('./integrations/jira/jira-integration-models');
-          
-          const JiraIntegrationsModel = createJiraIntegrationsModel(this.sequelize);
-          const JiraConfigurationsModel = createJiraConfigurationsModel(this.sequelize);
-          const ReleaseJiraEpicsModel = createReleaseJiraEpicsModel(this.sequelize);
-          console.log("JIRA models created (integrations, configurations, epics)");
-          
-          // Create JIRA Integration Controller (for credentials)
-          const { JiraIntegrationController, JiraConfigurationController } = require('./integrations/jira/jira-controller');
-          this.jiraIntegrationController = new JiraIntegrationController(JiraIntegrationsModel);
-          
-          // Create JIRA Configuration Controller (for reusable configs)
-          this.jiraConfigurationController = new JiraConfigurationController(JiraConfigurationsModel);
-          
-          console.log("JIRA Integration and Configuration Controllers initialized");
-          
-          // Create and attach epic service to JIRA integration controller
-          const { JiraEpicService } = require('./integrations/jira/jira-epic-service');
-          const ReleasesModel = this.sequelize.models['releases'] || models.Release;
-          this.jiraIntegrationController.epicService = new JiraEpicService(ReleaseJiraEpicsModel, ReleasesModel);
-          
-          // Inject configuration controller into epic service
-          this.jiraIntegrationController.epicService.setConfigController(this.jiraConfigurationController);
-          
-          // Inject Jira client factory to avoid circular dependency
-          const { createJiraClientForTenant } = require('../utils/jira-utils');
-          this.jiraIntegrationController.epicService.setJiraClientFactory(createJiraClientForTenant);
-          
-          console.log("JIRA Epic Service initialized with Configuration Controller and Client Factory");
           // Initialize Test Management Integration
           const projectIntegrationModel = createProjectTestManagementIntegrationModel(this.sequelize);
           this.projectIntegrationRepository = new ProjectTestManagementIntegrationRepository(projectIntegrationModel);
@@ -680,6 +651,46 @@ export class S3Storage implements storage.Storage {
           );
           
           console.log("Test Management Integration initialized");
+          
+          // Initialize Project Management Integration
+          const {
+            createProjectManagementIntegrationModel,
+            ProjectManagementIntegrationRepository,
+            createProjectManagementConfigModel,
+            ProjectManagementConfigRepository
+          } = require('../models/integrations/project-management');
+          
+          const {
+            ProjectManagementIntegrationService,
+            ProjectManagementConfigService,
+            ProjectManagementTicketService
+          } = require('../services/integrations/project-management');
+          
+          const projectManagementIntegrationModel = createProjectManagementIntegrationModel(this.sequelize);
+          this.projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
+          
+          const projectManagementConfigModel = createProjectManagementConfigModel(this.sequelize);
+          this.projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
+          
+          // Service 1: Project Management Integration Service (manages credentials)
+          this.projectManagementIntegrationService = new ProjectManagementIntegrationService(
+            this.projectManagementIntegrationRepository
+          );
+          
+          // Service 2: Project Management Config Service (manages configurations)
+          this.projectManagementConfigService = new ProjectManagementConfigService(
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          // Service 3: Project Management Ticket Service (stateless ticket operations)
+          this.projectManagementTicketService = new ProjectManagementTicketService(
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          console.log("Project Management Integration initialized");
+          
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");

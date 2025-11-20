@@ -54,6 +54,8 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       if (!useJsonStorage) {
         //storage = new JsonStorage();
         storage = new S3Storage();
+        // Wait for S3Storage to complete initialization
+        await (storage as any).setupPromise;
       } else {
         storage = new JsonStorage();
       }
