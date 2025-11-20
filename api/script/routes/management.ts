@@ -68,36 +68,48 @@ export function getManagementRouter(config: ManagementConfig): Router {
   router.get("/system/metadata", async (req: Request, res: Response): Promise<any> => {
     try {
       // Build integrations from provider constants
-      // Only return enabled providers (status: 'available')
+      // Return all providers with isAvailable flag
       const SOURCE_CONTROL = SCM_PROVIDERS
-        .filter(p => p.enabled)
-        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+        .map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          requiresOAuth: p.requiresOAuth,
+          isAvailable: p.enabled 
+        }));
       
       const CI_CD = CICD_PROVIDERS
-        .filter(p => p.enabled)
-        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+        .map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          requiresOAuth: p.requiresOAuth,
+          isAvailable: p.enabled 
+        }));
       
       const TEST_MANAGEMENT = TEST_MANAGEMENT_PROVIDERS
-        .filter(p => p.enabled)
-        .map(p => ({ id: p.type, name: p.name, requiresOAuth: false }));
+        .map(p => ({ 
+          id: p.type, 
+          name: p.name, 
+          requiresOAuth: false,
+          isAvailable: p.enabled 
+        }));
       
       // Hardcoded for unimplemented services
       const COMMUNICATION = [
-        { id: "slack", name: "Slack", requiresOAuth: true },
-        { id: "teams", name: "Microsoft Teams", requiresOAuth: true },
-        { id: "discord", name: "Discord", requiresOAuth: true },
+        { id: "slack", name: "Slack", requiresOAuth: true, isAvailable: true },
+        { id: "teams", name: "Microsoft Teams", requiresOAuth: true, isAvailable: false },
+        { id: "discord", name: "Discord", requiresOAuth: true, isAvailable: false },
       ];
       
       const PROJECT_MANAGEMENT = [
-        { id: "jira", name: "Jira", requiresOAuth: true },
-        { id: "linear", name: "Linear", requiresOAuth: true },
-        { id: "asana", name: "Asana", requiresOAuth: true },
+        { id: "jira", name: "Jira", requiresOAuth: true, isAvailable: false },
+        { id: "linear", name: "Linear", requiresOAuth: true, isAvailable: false },
+        { id: "asana", name: "Asana", requiresOAuth: true, isAvailable: false },
       ];
       
       const APP_DISTRIBUTION = [
-        { id: "appstore", name: "App Store", requiresOAuth: false },
-        { id: "playstore", name: "Play Store", requiresOAuth: false },
-        { id: "firebase", name: "Firebase App Distribution", requiresOAuth: true },
+        { id: "appstore", name: "App Store", requiresOAuth: false, isAvailable: false },
+        { id: "playstore", name: "Play Store", requiresOAuth: false, isAvailable: false },
+        { id: "firebase", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
       ];
 
       const metadata = {
