@@ -6,7 +6,6 @@
 import { json, redirect } from '@remix-run/node';
 import { useNavigate, useRouteLoaderData } from '@remix-run/react';
 import { authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
-import { CodepushService } from '~/.server/services/Codepush';
 import type { SetupWizardData } from '~/components/ReleaseManagement/SetupWizard/types';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
 
@@ -21,8 +20,9 @@ import {
   SlackIntegrationStep,
 } from '~/components/ReleaseManagement/SetupWizard/steps';
 import OnboardingFlow from '~/components/ReleaseManagement/SetupWizard/components/OnboardingFlow';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Organization } from '~/.server/services/Codepush/types';
+import { useConfig } from '~/contexts/ConfigContext';
 
 export const action = authenticateActionRequest({
   [ActionMethods.POST]: async ({ request, params, user }) => {
@@ -39,12 +39,20 @@ export const action = authenticateActionRequest({
       // Note: Setup data is saved via individual API calls (SCM integration, etc.)
       // This action just checks if setup is complete and redirects
       
-      // Fetch latest tenant info to check completion
-      const response = await CodepushService.getTenantInfo({ 
-        tenantId: org,
-        userId: user.user.id 
+      // Fetch latest tenant info via BFF API route
+      const apiUrl = new URL(request.url);
+      const response = await fetch(`${apiUrl.origin}/api/v1/tenants/${org}`, {
+        headers: {
+          'Cookie': request.headers.get('Cookie') || '',
+        },
       });
-      const organisation = response.data.organisation;
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch tenant info: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const organisation = data.organisation;
       
       if (organisation.releaseManagement?.setupComplete) {
         return redirect(`/dashboard/${org}/releases`);
@@ -61,13 +69,44 @@ export default function ReleaseSetupFlowPage() {
   // Get shared tenant data from parent layout (no redundant API call!)
   const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const navigate = useNavigate();
+  const { tenantConfig } = useConfig();
 
   if (!orgData) {
     throw new Error('Organization data not loaded');
   }
 
   const { tenantId: projectId, organisation } : {tenantId: string, organisation: Organization}= orgData;
-  const integrations = organisation?.releaseManagement?.integrations || [];
+  
+  // Convert new config format to legacy Integration[] format for the setup wizard
+  const integrations = useMemo(() => {
+    if (!tenantConfig?.releaseManagement?.connectedIntegrations) return [];
+    
+    const legacyIntegrations: any[] = [];
+    const config = tenantConfig.releaseManagement.connectedIntegrations;
+    
+    // Convert SOURCE_CONTROL integrations
+    config.SOURCE_CONTROL.forEach(i => {
+      legacyIntegrations.push({
+        ...i,
+        type: 'scm',
+        provider: i.providerId,
+        isActive: i.status === 'CONNECTED',
+      });
+    });
+    
+    // Convert COMMUNICATION integrations
+    config.COMMUNICATION.forEach(i => {
+      legacyIntegrations.push({
+        ...i,
+        type: 'communication',
+        provider: i.providerId,
+        isActive: i.status === 'CONNECTED',
+      });
+    });
+    
+    return legacyIntegrations;
+  }, [tenantConfig]);
+  
   const setupSteps = organisation?.releaseManagement?.setupSteps || {
     scmIntegration: false,
     targetPlatforms: false,

@@ -1,5 +1,6 @@
 import { Modal, Button, Group, Alert } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
+import { GitHubConnectionFlow } from './GitHubConnectionFlow';
 import { SlackConnectionFlow } from './SlackConnectionFlow';
 import { JenkinsConnectionFlow } from './JenkinsConnectionFlow';
 import { GitHubActionsConnectionFlow } from './GitHubActionsConnectionFlow';
@@ -90,37 +91,16 @@ export function IntegrationConnectModal({
         );
       
       case 'github':
-        // GitHub redirects to setup page, so show simple info
         return (
-          <div className="space-y-4">
-            <Alert color="green" title="Ready to Connect" icon={<span>✓</span>}>
-              Click below to connect your GitHub repository and enable release management features.
-            </Alert>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">What you'll get:</h3>
-              <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                <li>Create and manage release branches</li>
-                <li>Trigger GitHub Actions workflows</li>
-                <li>Auto-generate release notes</li>
-                <li>Manage tags and releases</li>
-                <li>Real-time webhook updates</li>
-              </ul>
-            </div>
-            <Group justify="flex-end" className="mt-6">
-              <Button variant="subtle" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  onConnect(integration.id);
-                  onClose();
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Connect GitHub
-              </Button>
-            </Group>
-          </div>
+          <GitHubConnectionFlow
+            onConnect={(data) => {
+              onConnect(integration.id, data);
+              onClose();
+            }}
+            onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
+          />
         );
       
       case 'appstore':
@@ -204,7 +184,7 @@ export function IntegrationConnectModal({
           </h2>
         </div>
       }
-      size={integration.id === 'slack' ? 'lg' : 'md'}
+      size={['slack', 'github'].includes(integration.id) ? 'lg' : 'md'}
     >
       {renderConnectionFlow()}
     </Modal>

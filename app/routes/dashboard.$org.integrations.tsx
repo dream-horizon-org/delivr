@@ -1,170 +1,73 @@
-import { useState, useEffect } from 'react';
-import { useParams, useRouteLoaderData } from '@remix-run/react';
+import { useState } from 'react';
+import { useParams } from '@remix-run/react';
 import { Container, Title, Text, Tabs, Loader as MantineLoader } from '@mantine/core';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
-import type { OrgLayoutLoaderData } from './dashboard.$org';
-import { INTEGRATION_TYPES } from '~/constants/integrations';
+import { useConfig } from '~/contexts/ConfigContext';
 
 export default function IntegrationsPage() {
-  // Get shared tenant data from parent layout (no redundant API call!)
-  const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
   const params = useParams();
+  const { 
+    isLoadingMetadata,
+    isLoadingTenantConfig,
+    getConnectedIntegrations,
+    getAvailableIntegrations 
+  } = useConfig();
 
-  const [allIntegrations, setAllIntegrations] = useState<Integration[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
   const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
   const [detailModalOpened, setDetailModalOpened] = useState(false);
   const [connectModalOpened, setConnectModalOpened] = useState(false);
 
-  // Get user display name for "Connected By"
-  const userDisplayName = orgData?.user?.user?.email || 
-                          orgData?.user?.user?.name || 
-                          orgData?.user?.user?.id || 
-                          'Unknown User';
+  // Build integrations list using ConfigContext helpers
+  const buildIntegrationsList = (): Integration[] => {
+    const allIntegrations: Integration[] = [];
+    
+    // Get all integration categories
+    const categories: IntegrationCategory[] = [
+      IntegrationCategory.SOURCE_CONTROL,
+      IntegrationCategory.COMMUNICATION,
+      IntegrationCategory.CI_CD,
+      IntegrationCategory.TEST_MANAGEMENT,
+      IntegrationCategory.PROJECT_MANAGEMENT,
+      IntegrationCategory.APP_DISTRIBUTION,
+    ];
 
-  console.log('orgData', orgData);
-  console.log("allIntegrations", allIntegrations);
+    categories.forEach(category => {
+      // Get available integrations for this category
+      const availableIntegrations = getAvailableIntegrations(category);
+      const connectedIntegrations = getConnectedIntegrations(category);
 
-  useEffect(() => {
-    const fetchIntegrations = async () => {
-      try {
-        // Fetch system-wide available integrations
-        const response = await fetch('/api/v1/integrations/available');
-        const data = await response.json();
-        
-        if (!orgData) {
-          // If no org data, just show available integrations
-          setAllIntegrations(data.integrations);
-          setIsLoading(false);
-          return;
-        }
+      availableIntegrations.forEach((provider) => {
+        // Check if this provider is connected for this tenant
+        const connected = connectedIntegrations.find(
+          (c) => c.providerId === provider.id
+        );
 
-        // Extract tenant-specific connected integrations
-        const connectedIntegrations = orgData.organisation?.releaseManagement?.integrations || [];
-        const githubIntegration = connectedIntegrations.find((i: any) => i.type === INTEGRATION_TYPES.SCM) as any;
-        const slackIntegration = connectedIntegrations.find(
-          (i: any) => i.type === 'communication' && i.communicationType === 'SLACK'
-        ) as any;
-        const jenkinsIntegration = connectedIntegrations.find(
-          (i: any) => i.type === 'cicd' && i.providerType === 'JENKINS'
-        ) as any;
-        const githubActionsIntegration = connectedIntegrations.find(
-          (i: any) => i.type === 'cicd' && i.providerType === 'GITHUB_ACTIONS'
-        ) as any;
-        const checkmateIntegration = connectedIntegrations.find(
-          (i: any) => i.type === 'testManagement' && i.providerType === 'CHECKMATE'
-        ) as any;
-        
-        // Merge: Update connection status for tenant-connected integrations
-        const integrationsWithStatus = data.integrations.map((integration: Integration) => {
-          // Check if GitHub is connected for this tenant
-          if (integration.id === 'github' && githubIntegration) {
-            return {
-              ...integration,
-              status: IntegrationStatus.CONNECTED,
-              config: {
-                owner: githubIntegration.owner,
-                repo: githubIntegration.repo,
-                repositoryUrl: `https://github.com/${githubIntegration.owner}/${githubIntegration.repo}`,
-                defaultBranch: githubIntegration.defaultBranch || 'main'
-              },
-              connectedAt: new Date(githubIntegration.createdAt),
-              connectedBy: userDisplayName
-            };
-          }
-          
-          // Check if Slack is connected for this tenant
-          if (integration.id === 'slack' && slackIntegration) {
-            return {
-              ...integration,
-              status: IntegrationStatus.CONNECTED,
-              config: {
-                workspaceName: slackIntegration.workspaceName,
-                workspaceId: slackIntegration.workspaceId,
-                botUserId: slackIntegration.botUserId,
-                channels: slackIntegration.slackChannels || [],
-                channelsCount: slackIntegration.channelsCount || 0,
-                verificationStatus: slackIntegration.verificationStatus,
-                hasValidToken: slackIntegration.hasValidToken
-              },
-              connectedAt: new Date(slackIntegration.createdAt),
-              connectedBy: userDisplayName
-            };
-          }
-          
-          // Check if Jenkins is connected for this tenant
-          if (integration.id === 'jenkins' && jenkinsIntegration) {
-            return {
-              ...integration,
-              status: IntegrationStatus.CONNECTED,
-              config: {
-                displayName: jenkinsIntegration.displayName,
-                hostUrl: jenkinsIntegration.hostUrl,
-                username: jenkinsIntegration.username,
-                verificationStatus: jenkinsIntegration.verificationStatus,
-                hasValidToken: jenkinsIntegration.hasValidToken,
-                isActive: jenkinsIntegration.isActive
-              },
-              connectedAt: new Date(jenkinsIntegration.createdAt),
-              connectedBy: userDisplayName
-            };
-          }
-          
-          // Check if GitHub Actions is connected for this tenant
-          if (integration.id === 'github-actions' && githubActionsIntegration) {
-            return {
-              ...integration,
-              status: IntegrationStatus.CONNECTED,
-              config: {
-                displayName: githubActionsIntegration.displayName,
-                hostUrl: githubActionsIntegration.hostUrl,
-                verificationStatus: githubActionsIntegration.verificationStatus,
-                hasValidToken: githubActionsIntegration.hasValidToken,
-                isActive: githubActionsIntegration.isActive
-              },
-              connectedAt: new Date(githubActionsIntegration.createdAt),
-              connectedBy: userDisplayName
-            };
-          }
-
-          // Check if Checkmate is connected for this tenant
-          if (integration.id === 'checkmate' && checkmateIntegration) {
-            return {
-              ...integration,
-              status: IntegrationStatus.CONNECTED,
-              config: {
-                id: checkmateIntegration.id,  // Needed for delete operations
-                name: checkmateIntegration.name,
-                baseUrl: checkmateIntegration.config?.baseUrl,
-                providerType: checkmateIntegration.providerType,
-                projectId: checkmateIntegration.projectId
-              },
-              connectedAt: new Date(checkmateIntegration.createdAt),
-              connectedBy: userDisplayName
-            };
-          }
-          
-          return integration;
+        allIntegrations.push({
+          id: provider.id,
+          name: provider.name,
+          description: provider.description || '',
+          category: category,
+          icon: provider.icon || '',
+          status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
+          isAvailable: true,
+          config: connected?.config,
+          connectedAt: connected?.connectedAt ? new Date(connected.connectedAt) : undefined,
+          connectedBy: connected?.connectedBy || undefined,
         });
+      });
+    });
+          
+    return allIntegrations;
+  };
 
-        setAllIntegrations(integrationsWithStatus);
-      } catch (error) {
-        console.error('Failed to fetch integrations:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchIntegrations();
-  }, [orgData]);
-
-  if (!orgData || isLoading) {
+  // Loading state
+  if (isLoadingMetadata || isLoadingTenantConfig) {
     return (
       <Container size="xl" className="py-8">
         <div className="flex justify-center items-center min-h-[400px]">
@@ -174,8 +77,12 @@ export default function IntegrationsPage() {
     );
   }
 
+  const allIntegrations = buildIntegrationsList();
+  
+  console.log('[Integrations] Total integrations:', allIntegrations.length);
+  console.log('[Integrations] All integrations:', allIntegrations);
 
-  const { tenantId } = orgData;
+  const tenantId = params.org!;
 
   // Group integrations by category
   const integrationsByCategory = allIntegrations.reduce((acc, integration) => {
@@ -209,8 +116,11 @@ export default function IntegrationsPage() {
 
   const handleConnect = (integrationId: string, data?: any) => {
     if (integrationId === 'github') {
-      // Navigate to GitHub setup in release management wizard
-      window.location.href = `/dashboard/${params.org}/releases/setup`;
+      // GitHub connection is handled by the modal with real API calls
+      console.log('[GitHub] Operation successful:', data);
+      // Show success message and reload to update the integration status
+      alert(editingIntegration ? 'GitHub integration updated successfully!' : 'GitHub integration connected successfully!');
+      window.location.reload();
     } else if (integrationId === 'slack') {
       // Navigate to Slack setup in release management wizard
       console.log('[Slack] Navigating to setup wizard for Slack integration');

@@ -88,6 +88,14 @@ class Codepush {
     });
   }
 
+  async getSystemMetadata(userId: string) {
+    return this.__client.get("/system/metadata", {
+      headers: {
+        userId,
+      },
+    });
+  }
+
   async getAppsForTenants(data: AppsRequest) {
     const headers: AppsRequest = data;
 

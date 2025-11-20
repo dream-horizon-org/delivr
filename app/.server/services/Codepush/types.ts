@@ -90,8 +90,21 @@ export type Organization = {
   role: "Owner" | "Collaborator";
   releaseManagement?: {
     setupComplete: boolean;
-    setupSteps: SetupStepsInfo
-    integrations: Integration[];  // Array of all integration objects
+    setupSteps: SetupStepsInfo;
+    config?: {
+      connectedIntegrations: {
+        SOURCE_CONTROL: any[];
+        COMMUNICATION: any[];
+        CI_CD: any[];
+        TEST_MANAGEMENT: any[];
+        PROJECT_MANAGEMENT: any[];
+        APP_DISTRIBUTION: any[];
+      };
+      enabledPlatforms: string[];
+      enabledTargets: string[];
+      allowedReleaseTypes: string[];
+      customSettings: Record<string, any>;
+    };
   };
 };
 

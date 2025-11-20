@@ -4,12 +4,12 @@
  */
 
 export enum IntegrationCategory {
-  SOURCE_CONTROL = 'Source Control',
-  COMMUNICATION = 'Communication',
-  CI_CD = 'CI/CD',
-  TEST_MANAGEMENT = 'Test Management',
-  PROJECT_MANAGEMENT = 'Project Management',
-  APP_DISTRIBUTION = 'App Distribution'
+  SOURCE_CONTROL = 'SOURCE_CONTROL',
+  COMMUNICATION = 'COMMUNICATION',
+  CI_CD = 'CI_CD',
+  TEST_MANAGEMENT = 'TEST_MANAGEMENT',
+  PROJECT_MANAGEMENT = 'PROJECT_MANAGEMENT',
+  APP_DISTRIBUTION = 'APP_DISTRIBUTION'
 }
 
 export enum IntegrationStatus {

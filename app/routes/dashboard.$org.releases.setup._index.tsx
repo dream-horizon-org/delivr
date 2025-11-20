@@ -4,7 +4,7 @@
  */
 
 import { useNavigate, useRouteLoaderData } from '@remix-run/react';
-import type { OrgLayoutLoaderData } from '../dashboard.$org';
+import type { OrgLayoutLoaderData } from './dashboard.$org';
 import { Organization } from '~/.server/services/Codepush/types';
 import { useEffect } from 'react';
 

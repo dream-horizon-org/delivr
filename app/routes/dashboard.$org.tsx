@@ -9,11 +9,11 @@
 
 import { json } from '@remix-run/node';
 import { Outlet, useLoaderData } from '@remix-run/react';
+import { ConfigProvider } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { CodepushService } from '~/.server/services/Codepush';
 import type { Organization } from '~/.server/services/Codepush/types';
 
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ request, params, user }) => {
   const { org: tenantId } = params;
 
   if (!tenantId) {
@@ -21,16 +21,22 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   }
 
   try {
-    // Fetch tenant info once at the layout level
-    // This includes release management setup status and integrations
-    const response = await CodepushService.getTenantInfo({
-      userId: user.user.id,
-      tenantId
+    // Fetch tenant info via BFF API route
+    const apiUrl = new URL(request.url);
+    const response = await fetch(`${apiUrl.origin}/api/v1/tenants/${tenantId}`, {
+      headers: {
+        'Cookie': request.headers.get('Cookie') || '',
+      },
     });
 
-    console.log('response', response.data?.organisation?.releaseManagement?.integrations);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch tenant info: ${response.statusText}`);
+    }
 
-    const organisation = response.data.organisation;
+    const data = await response.json();
+    console.log('response', data?.organisation?.releaseManagement?.config);
+
+    const organisation = data.organisation;
 
     // 🔧 HARDCODED: Override setupComplete to always be true for development
     if (organisation?.releaseManagement) {
@@ -67,7 +73,13 @@ export type OrgLayoutLoaderData = {
  * const { organisation } = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
  */
 export default function OrgLayout() {
-  // Just render child routes - data is available via useRouteLoaderData
-  return <Outlet />;
+  // Wrap child routes with ConfigProvider to fetch and provide system metadata
+  const { tenantId } = useLoaderData<OrgLayoutLoaderData>();
+  
+  return (
+    <ConfigProvider tenantId={tenantId}>
+      <Outlet />
+    </ConfigProvider>
+  );
 }
 

@@ -7,8 +7,6 @@ import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
 
-const scmService = new SCMIntegrationService();
-
 /**
  * GET - Fetch branches from SCM repository
  */
@@ -21,7 +19,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const result = await scmService.fetchBranches(tenantId, userId);
+    const result = await SCMIntegrationService.fetchBranches(tenantId, userId);
 
     if (result.success) {
       return json(result, { status: 200 });
