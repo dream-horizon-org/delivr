@@ -16,7 +16,8 @@ import {
   VerificationStatus,
   CommunicationType,
   TenantCommChannel,
-  StageChannelMapping
+  StageChannelMapping,
+  SlackChannel
 } from './slack-types';
 
 // Create nanoid generator with custom alphabet (alphanumeric + underscore + hyphen)
@@ -319,31 +320,33 @@ export class ChannelController {
    * @param id - Channel config ID
    * @param stage - Stage name (e.g., "development", "production")
    * @param action - "add" or "remove"
-   * @param channels - Array of channel IDs to add or remove
+   * @param channels - Array of channel objects {id, name} to add or remove
    * @returns Updated channel configuration or null if not found
    */
   async updateStageChannels(
     id: string,
     stage: string,
     action: 'add' | 'remove',
-    channels: string[]
+    channels: SlackChannel[]
   ): Promise<TenantCommChannel | null> {
     const channelConfig = await this.model.findByPk(id);
     
     if (!channelConfig) return null;
     
     const currentData: StageChannelMapping = channelConfig.get('channelData') as StageChannelMapping ?? {};
-    const currentChannels: string[] = currentData[stage] ?? [];
+    const currentChannels: SlackChannel[] = currentData[stage] ?? [];
     
-    let updatedChannels: string[];
+    let updatedChannels: SlackChannel[];
     
     if (action === 'add') {
-      // Add channels (avoid duplicates)
-      const newChannels = channels.filter(ch => !currentChannels.includes(ch));
+      // Add channels (avoid duplicates by ID)
+      const currentIds = currentChannels.map(ch => ch.id);
+      const newChannels = channels.filter(ch => !currentIds.includes(ch.id));
       updatedChannels = [...currentChannels, ...newChannels];
     } else {
-      // Remove channels
-      updatedChannels = currentChannels.filter(ch => !channels.includes(ch));
+      // Remove channels (by ID)
+      const removeIds = channels.map(ch => ch.id);
+      updatedChannels = currentChannels.filter(ch => !removeIds.includes(ch.id));
     }
     
     // Update channelData with new channels for this stage
