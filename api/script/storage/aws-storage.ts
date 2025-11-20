@@ -17,7 +17,7 @@ import {
   TestManagementIntegrationService,
   TestManagementRunService
 } from "../services/integrations/test-management";
-import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
+import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
@@ -512,7 +512,7 @@ export class S3Storage implements storage.Storage {
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
-    public testManagementMetadataService!: TestManagementMetadataService;
+    public checkmateMetadataService!: CheckmateMetadataService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public constructor() {
         const s3Config = {
@@ -642,8 +642,8 @@ export class S3Storage implements storage.Storage {
             this.projectIntegrationRepository
           );
           
-          // Service 4: Metadata Service (fetches metadata from providers)
-          this.testManagementMetadataService = new TestManagementMetadataService(
+          // Service 4: Checkmate Metadata Service (fetches Checkmate-specific metadata)
+          this.checkmateMetadataService = new CheckmateMetadataService(
             this.projectIntegrationRepository
           );
           

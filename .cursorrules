@@ -1210,37 +1210,346 @@ export const NEW_CONSTANT = { ... };
 export const NEW_CONSTANT = { ... };
 ```
 
+## RESTful API Design & Routing
+
+### CRITICAL RULE: Clean, Scalable API Structure
+
+**All APIs must follow RESTful principles with clear resource hierarchy and consistent patterns.**
+
+### API Path Structure Rules
+
+#### 1. Category-Scoped Endpoints
+
+**ALL endpoints for a feature category MUST be prefixed with the category name.**
+
+```typescript
+// ✅ GOOD: All test-management endpoints under /test-management/
+GET    /test-management/providers
+POST   /test-management/projects/:projectId/integrations
+GET    /test-management/integrations/:integrationId
+POST   /test-management/test-runs
+GET    /test-management/test-runs/:runId
+
+// ❌ BAD: Mixed, inconsistent paths
+GET    /providers                    // No category context
+POST   /integrations                 // Could be ANY integration
+GET    /test-status                  // Unclear what this is for
+```
+
+**Why this matters:**
+- ✅ Clear separation between integration categories (test-management vs slack vs jira)
+- ✅ No conflicts when adding new integration types
+- ✅ Easy to understand API scope at a glance
+- ✅ Frontend can organize API calls by category
+- ✅ Middleware can be applied category-wide
+
+#### 2. RESTful Resource Identification
+
+**Resource IDs belong in URL paths, NOT query parameters or request bodies.**
+
+```typescript
+// ✅ GOOD: Resource ID in URL path
+GET    /test-management/test-runs/:runId
+POST   /test-management/test-runs/:runId/reset
+DELETE /test-management/integrations/:integrationId
+
+// ❌ BAD: Resource ID in query or body
+GET    /test-management/test-status?runId=123        // ❌ ID in query
+POST   /test-management/test-runs/reset              // ❌ ID in body
+         Body: { runId: "123" }
+DELETE /test-management/integrations?id=456          // ❌ ID in query
+```
+
+**Standard REST Verbs:**
+- `GET` - Read/Retrieve
+- `POST` - Create or Action
+- `PUT` - Full Update
+- `PATCH` - Partial Update (use sparingly)
+- `DELETE` - Remove
+
+#### 3. Collection vs Single Resource Pattern
+
+**Use `projectId` (or parent resource ID) ONLY for collection-level operations (CREATE, LIST).**
+
+For single-resource operations (GET, PUT, DELETE), the resource's own ID is sufficient.
+
+```typescript
+// ✅ GOOD: Collection operations use parent ID
+POST   /test-management/projects/:projectId/integrations    // Create in project
+GET    /test-management/projects/:projectId/integrations    // List project's integrations
+POST   /test-management/projects/:projectId/configs         // Create in project
+GET    /test-management/projects/:projectId/configs         // List project's configs
+
+// ✅ GOOD: Single-resource operations use resource ID only
+GET    /test-management/integrations/:integrationId         // ID is enough
+PUT    /test-management/integrations/:integrationId         // ID is enough
+DELETE /test-management/integrations/:integrationId         // ID is enough
+GET    /test-management/configs/:configId                   // ID is enough
+PUT    /test-management/configs/:configId                   // ID is enough
+
+// ❌ BAD: Redundant projectId in single-resource operations
+GET    /test-management/projects/:projectId/integrations/:integrationId  // ❌ Redundant
+PUT    /test-management/projects/:projectId/configs/:configId            // ❌ Redundant
+```
+
+**Why:**
+- Each resource ID (integrationId, configId) is globally unique
+- Backend can look up the project from the resource ID if needed
+- Cleaner, shorter URLs
+- Standard REST pattern
+
+#### 4. Provider-Specific Endpoints
+
+**Provider-specific operations MUST include the provider type in the URL.**
+
+```typescript
+// ✅ GOOD: Provider type explicit in URL
+GET    /test-management/integrations/:integrationId/checkmate/metadata/projects
+GET    /test-management/integrations/:integrationId/checkmate/metadata/squads
+GET    /test-management/integrations/:integrationId/testrail/metadata/suites
+
+// ❌ BAD: Generic metadata endpoints
+GET    /test-management/integrations/:integrationId/metadata/projects    // ❌ Which provider?
+GET    /test-management/integrations/:integrationId/metadata/squads      // ❌ Not all providers have squads
+```
+
+**Why:**
+- Different providers have different metadata structures
+- Prevents runtime errors from calling unsupported endpoints
+- Self-documenting (URL tells you what data to expect)
+- Frontend can build provider-specific UI
+
+#### 5. Action Endpoints
+
+**For operations that aren't standard CRUD, use descriptive action names.**
+
+```typescript
+// ✅ GOOD: Clear action names
+POST   /test-management/integrations/:integrationId/verify
+POST   /test-management/test-runs/:runId/reset
+POST   /test-management/test-runs/:runId/cancel
+
+// ❌ BAD: Unclear or non-standard
+POST   /test-management/integrations/:integrationId/check     // ❌ Vague
+POST   /test-management/test-runs/reset?runId=123            // ❌ ID not in URL
+GET    /test-management/test-runs/:runId/cancel              // ❌ Wrong verb (should be POST)
+```
+
+**Action Naming:**
+- Use verbs: `verify`, `reset`, `cancel`, `activate`, `retry`
+- Always use `POST` for actions (they cause side effects)
+- Keep action names short and clear
+
+#### 6. Query Parameters
+
+**Use query parameters for filtering, pagination, sorting - NOT for resource identification.**
+
+```typescript
+// ✅ GOOD: Query params for filtering/options
+GET    /test-management/projects/:projectId/configs?providerType=CHECKMATE
+GET    /test-management/test-runs/:runId/report?groupBy=section
+GET    /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId=100
+
+// ❌ BAD: Query params for resource ID
+GET    /test-management/configs?id=123                      // ❌ Should be path param
+GET    /test-management/test-runs?runId=456                 // ❌ Should be path param
+```
+
+**Valid query param uses:**
+- Filtering: `?providerType=CHECKMATE`, `?status=active`
+- Pagination: `?page=2&limit=50`
+- Sorting: `?sortBy=createdAt&order=desc`
+- Options: `?groupBy=section`, `?includeArchived=true`
+- Secondary resources: `?projectId=100` (when the primary resource is integrationId)
+
+### Complete Example: Test Management APIs
+
+**Correct, production-ready API structure:**
+
+```typescript
+// 1. PROVIDERS (Discovery)
+GET    /test-management/providers
+
+// 2. PROJECT INTEGRATIONS (Credentials)
+POST   /test-management/projects/:projectId/integrations      // Create
+GET    /test-management/projects/:projectId/integrations      // List
+GET    /test-management/integrations/:integrationId           // Get
+PUT    /test-management/integrations/:integrationId           // Update
+DELETE /test-management/integrations/:integrationId           // Delete
+POST   /test-management/integrations/:integrationId/verify    // Action
+
+// 3. CONFIGS (Test configurations)
+POST   /test-management/projects/:projectId/configs           // Create
+GET    /test-management/projects/:projectId/configs           // List
+GET    /test-management/configs/:configId                     // Get
+PUT    /test-management/configs/:configId                     // Update
+DELETE /test-management/configs/:configId                     // Delete
+
+// 4. METADATA (Provider-specific)
+GET    /test-management/integrations/:integrationId/checkmate/metadata/projects
+GET    /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId=100
+GET    /test-management/integrations/:integrationId/checkmate/metadata/labels?projectId=100
+GET    /test-management/integrations/:integrationId/checkmate/metadata/squads?projectId=100
+
+// 5. TEST RUN OPERATIONS (Stateless)
+POST   /test-management/test-runs                             // Create
+GET    /test-management/test-runs/:runId                      // Status
+POST   /test-management/test-runs/:runId/reset                // Action
+POST   /test-management/test-runs/:runId/cancel               // Action
+GET    /test-management/test-runs/:runId/report?groupBy=section
+```
+
+### Route Definition Best Practices
+
+```typescript
+// ✅ GOOD: Clean route definitions
+router.post('/test-management/projects/:projectId/configs', handler);
+router.get('/test-management/configs/:configId', handler);
+router.post('/test-management/test-runs/:runId/reset', handler);
+
+// ❌ BAD: Inconsistent or unclear
+router.post('/projects/:projectId/test-management/configs', handler);  // ❌ Category not first
+router.get('/configs/:id', handler);                                   // ❌ No category scope
+router.post('/test-runs/reset/:runId', handler);                       // ❌ Action before ID
+```
+
+### Controller Parameter Extraction
+
+```typescript
+// ✅ GOOD: Extract from correct location
+const configId = req.params.configId;           // Resource ID from path
+const projectId = req.params.projectId;         // Parent ID from path
+const groupBy = req.query.groupBy;              // Filter from query
+const data = req.body;                          // Create/update data from body
+
+// ❌ BAD: Wrong location
+const configId = req.query.id;                  // ❌ Should be path param
+const runId = req.body.runId;                   // ❌ Should be path param
+const projectId = req.body.projectId;           // ❌ Should be path param (for CREATE/LIST)
+```
+
+### Quick Decision Tree
+
+**When designing a new endpoint, ask:**
+
+1. **What category is this?** → Use as prefix (`/test-management/`, `/releases/`, `/projects/`)
+2. **Is this a collection or single resource?** 
+   - Collection → Include parent ID (`/projects/:projectId/configs`)
+   - Single → Just resource ID (`/configs/:configId`)
+3. **Is this CRUD or an action?**
+   - CRUD → Use standard verbs (GET, POST, PUT, DELETE)
+   - Action → Use POST with action name (`/test-runs/:runId/reset`)
+4. **Is this provider-specific?** → Include provider in path (`/checkmate/metadata/`)
+5. **What goes where?**
+   - Resource IDs → Path params (`:id`, `:runId`)
+   - Filters/options → Query params (`?status=active`)
+   - Create/update data → Body
+
+### Checklist Before Committing API Routes
+
+- [ ] Category prefix is first in path (`/test-management/`)
+- [ ] Resource IDs are in path params, not query/body
+- [ ] Collection operations have parent ID, single-resource don't
+- [ ] Provider-specific endpoints include provider type
+- [ ] Actions use POST verb with descriptive names
+- [ ] Query params used only for filtering/options
+- [ ] Routes are consistent with existing patterns
+- [ ] No redundant path segments (projectId when ID is enough)
+
+## Explicit Exports
+
+### CRITICAL RULE: NO Wildcard or Default Exports
+
+**ALWAYS use explicit named exports. NEVER use `export *` or `export default`.**
+
+```typescript
+// ❌ BAD: Wildcard export
+export * from './checkmate';
+export * from './providers';
+
+// ❌ BAD: Default export
+export default CheckmateProvider;
+export default function createController() { ... }
+
+// ✅ GOOD: Explicit named exports
+export { CheckmateProvider } from './checkmate-provider';
+export { createCheckmateMetadataController, validateProjectId } from './checkmate';
+export { 
+  TestRunService,
+  TestManagementConfigService,
+  ProjectIntegrationService 
+} from './services';
+```
+
+**Why this matters:**
+- ✅ Clear what's being exported at a glance
+- ✅ Easy to track what's used where
+- ✅ Better IDE autocomplete and refactoring
+- ✅ Prevents accidental exports
+- ✅ Self-documenting code
+
+**index.ts Pattern:**
+
+```typescript
+// ❌ BAD: Barrel export with wildcard
+export * from './controller';
+export * from './service';
+export * from './types';
+
+// ✅ GOOD: Explicit re-exports
+export { createTestRunController } from './test-run.controller';
+export { TestRunService } from './test-run.service';
+export { 
+  CreateTestRunsRequest,
+  CreateTestRunsResponse,
+  TestRunStatus 
+} from './test-run.interface';
+```
+
 ## Before Committing
 
-- [ ] **NO MAGIC STRINGS** - All error/success messages use constants from `constants.ts`
-- [ ] **NO MAGIC NUMBERS** - All numeric values extracted to named constants (except obvious values like `0`, `1`)
-- [ ] **NO HARDCODED HTTP STATUS CODES** - Use `HTTP_STATUS` from `~constants/http` everywhere (controllers, utilities, services)
-- [ ] **Use pure functions** - All response building uses pure functions from `response.utils.ts`
-- [ ] **NEVER use `as` or `!`** - All type assertions replaced with proper type guards
-- [ ] **ALWAYS use `??` instead of `||`** - For default values (check all `||` usages)
-- [ ] Constants are in the correct scope (global/domain/provider)
-- [ ] **Constant names include domain/feature prefix** (e.g., `TEST_MANAGEMENT_ERROR_MESSAGES`)
-- [ ] **Message strings include domain context** (e.g., "Test management integration not found")
+### Code Organization & Structure
+- [ ] **NO WILDCARD EXPORTS** - All exports are explicit named exports (no `export *`, no `export default`)
+- [ ] **API PATHS FOLLOW REST PRINCIPLES** - Category prefix, resource IDs in path, consistent structure
 - [ ] **File names follow `[category].[type].ts` convention** (e.g., `http.constants.ts`, `auth.service.ts`)
 - [ ] **No generic file names** (no `common.ts`, `utils.ts`, `helpers.ts`, `constants.ts`)
-- [ ] **Use dot separator, not dash** (`http.constants.ts`, not `http-constants.ts`, not `test-platform.interface.ts`)
-- [ ] **Enums go in `.interface.ts` files, NOT `.enum.ts`** - Utilities go in `.utils.ts` files
+- [ ] **Use dot separator, not dash** (`http.constants.ts`, not `http-constants.ts`)
 - [ ] **Consistent naming across layers** - service/controller/types/routes use same base name
 - [ ] **Types in subfolders with `index.ts`** - Not flat files (e.g., `test-run/test-run.interface.ts`)
-- [ ] **Consolidate duplicate types** - No identical type definitions
 - [ ] **Avoid redundancy in folder structure** (`utils/error.ts`, not `utils/error-utils.ts`)
 - [ ] **No copyright headers on NEW files** (only keep on original cloned files)
+
+### Constants & Magic Values
+- [ ] **NO MAGIC STRINGS** - All error/success messages use constants from domain `constants.ts`
+- [ ] **NO MAGIC NUMBERS** - All numeric values extracted to named constants (except obvious values like `0`, `1`)
+- [ ] **NO HARDCODED HTTP STATUS CODES** - Use `HTTP_STATUS` from `~constants/http` everywhere
+- [ ] **Constant names include domain/feature prefix** (e.g., `TEST_MANAGEMENT_ERROR_MESSAGES`)
+- [ ] **Message strings include domain context** (e.g., "Test management integration not found")
+- [ ] Constants are in the correct scope (global/domain/provider)
+- [ ] Constants are documented if complex
+- [ ] No duplicate constants across different scopes
+
+### TypeScript Best Practices
+- [ ] **NEVER use `as` or `!`** - All type assertions replaced with proper type guards
+- [ ] **ALWAYS use `??` instead of `||`** - For default values (check all `||` usages)
+- [ ] **Use `type` instead of `interface`** - Unless declaration merging needed
+- [ ] **Enums go in `.interface.ts` files, NOT `.enum.ts`** - Utilities go in `.utils.ts` files
+- [ ] **Use ENUM for fixed sets of values** - Platform/target combinations, statuses (DB enum + TS enum + validation)
+- [ ] **Consolidate duplicate types** - No identical type definitions
+- [ ] TypeScript types are correct (`as const` for constants)
+- [ ] Imports use proper module aliases (`~utils`, `~types`, etc.)
+
+### Code Quality & Patterns
+- [ ] **Use pure functions** - All response building uses pure functions from `response.utils.ts`
 - [ ] **Handlers defined at top level, not nested** (factory only composes)
 - [ ] **Factory functions are simple composition** (no business logic inside)
 - [ ] **No over-engineering** - Don't abstract obvious values or wrap built-in methods
-- [ ] Imports use proper module aliases (`~utils`, `~types`, etc.)
-- [ ] TypeScript types are correct (`as const`, use `type` not `interface`)
-- [ ] **Use ENUM for fixed sets of values** - Platform/target combinations, statuses, categories (DB enum + TS enum + validation)
-- [ ] Constants are documented if complex
-- [ ] No duplicate constants across different scopes
 - [ ] Each file has a single, clear purpose
-- [ ] Linter passes without errors
+
+### Build & Lint
+- [ ] Linter passes without errors (`npm run lint`)
 - [ ] Build passes without errors (`npm run build`)
+- [ ] No TypeScript errors
 
 
 ## ESLint Configuration

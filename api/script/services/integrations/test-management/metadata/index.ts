@@ -1,2 +1,1 @@
-export { TestManagementMetadataService } from './metadata.service';
-
+export { CheckmateMetadataService } from './checkmate';

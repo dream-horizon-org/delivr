@@ -4,39 +4,39 @@ import type { TestManagementRunService } from '~services/integrations/test-manag
 
 /**
  * Test Run Operations Routes
- * Clean stateless APIs - no runId storage
+ * RESTful design - runId in URL path
  */
 export const createTestRunOperationsRoutes = (service: TestManagementRunService): Router => {
   const router = Router();
   const controller = createTestManagementRunController(service);
 
-  // Create test runs
+  // Create test runs (returns runId)
   router.post(
-    '/test-runs/create',
+    '/test-runs',
     controller.createTestRuns
   );
 
-  // Get test status
+  // Get test run status
   router.get(
-    '/test-status',
+    '/test-runs/:runId',
     controller.getTestStatus
   );
 
-  // Reset test run
+  // Reset specific test run
   router.post(
-    '/test-runs/reset',
+    '/test-runs/:runId/reset',
     controller.resetTestRun
   );
 
-  // Cancel test run
+  // Cancel specific test run
   router.post(
-    '/test-runs/cancel',
+    '/test-runs/:runId/cancel',
     controller.cancelTestRun
   );
 
-  // Get test report
+  // Get test run report
   router.get(
-    '/test-report',
+    '/test-runs/:runId/report',
     controller.getTestReport
   );
 

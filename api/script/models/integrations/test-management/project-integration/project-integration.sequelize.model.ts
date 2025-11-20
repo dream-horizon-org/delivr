@@ -43,7 +43,7 @@ export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize
         type: DataTypes.STRING(50),
         allowNull: false,
         validate: {
-          isIn: [['CHECKMATE', 'TESTRAIL', 'XRAY', 'ZEPHYR']]
+          isIn: [['checkmate', 'testrail', 'xray', 'zephyr']]
         },
         comment: 'Test management provider type'
       },

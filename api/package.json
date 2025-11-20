@@ -103,6 +103,7 @@
     "~controllers": "./bin/script/controllers",
     "~routes": "./bin/script/routes",
     "~utils": "./bin/script/utils",
+    "~constants": "./bin/script/constants",
     "~middleware": "./bin/script/middleware",
     "~storage": "./bin/script/storage"
   }

@@ -1,17 +1,20 @@
 /**
- * Test Management Metadata Controller
+ * Checkmate Metadata Controller
  * 
- * Handles HTTP requests for fetching metadata from test management providers
+ * Handles HTTP requests for fetching metadata from Checkmate
  * Acts as a secure proxy to avoid exposing credentials to frontend
+ * 
+ * Note: These endpoints are Checkmate-specific and will validate that the
+ * integration is of type CHECKMATE before fetching metadata
  */
 
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
-import type { TestManagementMetadataService } from '~services/integrations/test-management/metadata';
+import type { CheckmateMetadataService } from '~services/integrations/test-management/metadata/checkmate';
 import { errorResponse, successResponse } from '~utils/response.utils';
-import { validateProjectId } from './metadata.validation';
+import { validateProjectId } from './checkmate-metadata.validation';
 
-export const createMetadataController = (metadataService: TestManagementMetadataService) => {
+export const createCheckmateMetadataController = (metadataService: CheckmateMetadataService) => {
   return {
     getProjects: getProjectsHandler(metadataService),
     getSections: getSectionsHandler(metadataService),
@@ -21,10 +24,10 @@ export const createMetadataController = (metadataService: TestManagementMetadata
 };
 
 /**
- * Get all projects for organization
- * GET /api/v1/integrations/:integrationId/metadata/projects
+ * Get all Checkmate projects for organization
+ * GET /integrations/test-management/:integrationId/checkmate/metadata/projects
  */
-const getProjectsHandler = (metadataService: TestManagementMetadataService) => async (req: Request, res: Response): Promise<void> => {
+const getProjectsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
   try {
     const integrationId = req.params.integrationId;
 
@@ -49,13 +52,13 @@ const getProjectsHandler = (metadataService: TestManagementMetadataService) => a
 };
 
 /**
- * Get all sections for a project
- * GET /api/v1/integrations/:integrationId/metadata/sections?projectId=100
+ * Get all Checkmate sections for a project
+ * GET /integrations/test-management/:integrationId/checkmate/metadata/sections?projectId=100
  */
-const getSectionsHandler = (metadataService: TestManagementMetadataService) => async (req: Request, res: Response): Promise<void> => {
+const getSectionsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
   try {
     const integrationId = req.params.integrationId;
-    const projectIdParam = req.query.projectId as string;
+    const projectIdParam = req.query.projectId;
 
     if (!integrationId) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -72,7 +75,7 @@ const getSectionsHandler = (metadataService: TestManagementMetadataService) => a
       return;
     }
 
-    const projectId = parseInt(projectIdParam, 10);
+    const projectId = parseInt(String(projectIdParam), 10);
     const response = await metadataService.getSections(integrationId, projectId);
     
     res.status(HTTP_STATUS.OK).json(
@@ -87,13 +90,13 @@ const getSectionsHandler = (metadataService: TestManagementMetadataService) => a
 };
 
 /**
- * Get all labels for a project
- * GET /api/v1/integrations/:integrationId/metadata/labels?projectId=100
+ * Get all Checkmate labels for a project
+ * GET /integrations/test-management/:integrationId/checkmate/metadata/labels?projectId=100
  */
-const getLabelsHandler = (metadataService: TestManagementMetadataService) => async (req: Request, res: Response): Promise<void> => {
+const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
   try {
     const integrationId = req.params.integrationId;
-    const projectIdParam = req.query.projectId as string;
+    const projectIdParam = req.query.projectId;
 
     if (!integrationId) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -110,7 +113,7 @@ const getLabelsHandler = (metadataService: TestManagementMetadataService) => asy
       return;
     }
 
-    const projectId = parseInt(projectIdParam, 10);
+    const projectId = parseInt(String(projectIdParam), 10);
     const response = await metadataService.getLabels(integrationId, projectId);
     
     res.status(HTTP_STATUS.OK).json(
@@ -125,13 +128,13 @@ const getLabelsHandler = (metadataService: TestManagementMetadataService) => asy
 };
 
 /**
- * Get all squads for a project
- * GET /api/v1/integrations/:integrationId/metadata/squads?projectId=100
+ * Get all Checkmate squads for a project (Checkmate-specific feature)
+ * GET /integrations/test-management/:integrationId/checkmate/metadata/squads?projectId=100
  */
-const getSquadsHandler = (metadataService: TestManagementMetadataService) => async (req: Request, res: Response): Promise<void> => {
+const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (req: Request, res: Response): Promise<void> => {
   try {
     const integrationId = req.params.integrationId;
-    const projectIdParam = req.query.projectId as string;
+    const projectIdParam = req.query.projectId;
 
     if (!integrationId) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -148,7 +151,7 @@ const getSquadsHandler = (metadataService: TestManagementMetadataService) => asy
       return;
     }
 
-    const projectId = parseInt(projectIdParam, 10);
+    const projectId = parseInt(String(projectIdParam), 10);
     const response = await metadataService.getSquads(integrationId, projectId);
     
     res.status(HTTP_STATUS.OK).json(
