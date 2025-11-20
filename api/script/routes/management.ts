@@ -327,12 +327,16 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // Get all integrations for this tenant
       const scmController = (storage as any).scmController;
       const slackController = (storage as any).slackController;
+      const cicdController = (storage as any).cicdController;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
       
       // Slack integrations
       const slackIntegration = await slackController.findByTenant(tenantId);
+
+      // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
+      const cicdIntegrations = await cicdController.findAll({ tenantId });
       
       // TODO: Get other integrations when implemented
       // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
@@ -379,6 +383,27 @@ export function getManagementRouter(config: ManagementConfig): Router {
           // Note: slackBotToken is intentionally excluded (never sent to client)
         });
       }
+
+      // Add CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
+      cicdIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'cicd',
+          id: integration.id,
+          providerType: integration.providerType,
+          displayName: integration.displayName,
+          hostUrl: integration.hostUrl,
+          authType: integration.authType,
+          username: integration.username,
+          headerName: integration.headerName,
+          providerConfig: integration.providerConfig,
+          verificationStatus: integration.verificationStatus,
+          verificationError: integration.verificationError,
+          lastVerifiedAt: integration.lastVerifiedAt,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: apiToken, headerValue are intentionally excluded (never sent to client)
+        });
+      });
       
       // TODO: Add other integration types when implemented
 

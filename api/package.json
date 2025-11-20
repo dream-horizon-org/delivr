@@ -105,6 +105,7 @@
     "~utils": "./bin/script/utils",
     "~constants": "./bin/script/constants",
     "~middleware": "./bin/script/middleware",
-    "~storage": "./bin/script/storage"
+    "~storage": "./bin/script/storage",
+    "~constants": "./bin/script/constants"
   }
 }
