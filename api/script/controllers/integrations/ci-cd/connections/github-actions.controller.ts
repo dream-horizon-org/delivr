@@ -35,7 +35,7 @@ export const verifyGitHubActionsConnection = async (req: Request, res: Response)
 export const createGitHubActionsConnection = async (req: Request, res: Response): Promise<any> => {
   try {
     const tenantId = req.params.tenantId;
-    const accountId = 'id_0';
+    const accountId = req.user?.id;
     const { displayName, apiToken } = req.body || {};
 
     const tokenInvalid = !apiToken || typeof apiToken !== 'string' || apiToken.trim().length === 0;

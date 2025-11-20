@@ -27,7 +27,7 @@ export const verifyJenkinsConnection = async (req: Request, res: Response): Prom
 export const createJenkinsConnection = async (req: Request, res: Response): Promise<any> => {
   try {
     const tenantId: string = req.params.tenantId;
-    const accountId: string = req.user?.id ?? 'id_0';
+    const accountId: string = req.user?.id;
     const {
       displayName,
       hostUrl,
