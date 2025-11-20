@@ -322,8 +322,9 @@ async function verifyGitHubConnection(
     // 1. Verify token by getting authenticated user
     const userResponse = await fetch('https://api.github.com/user', {
       headers: {
-        'Authorization': `token ${accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'Delivr-App'
       }
     });
@@ -342,8 +343,9 @@ async function verifyGitHubConnection(
     // 2. Verify repository access
     const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
       headers: {
-        'Authorization': `token ${accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'Delivr-App'
       }
     });
@@ -430,10 +432,28 @@ export async function fetchSCMBranches(
 
     // Fetch branches from GitHub API
     // Note: integration object from DB has accessToken (not sanitized yet)
+    const accessToken = (integration as any).accessToken;
+    
+    // Debug logging
+    console.log('[SCM] fetchSCMBranches - integration:', {
+      id: integration.id,
+      owner: integration.owner,
+      repo: integration.repo,
+      hasAccessToken: !!accessToken,
+      tokenPreview: accessToken ? `${accessToken.substring(0, 4)}...${accessToken.substring(accessToken.length - 4)}` : 'MISSING'
+    });
+    
+    if (!accessToken) {
+      return res.status(500).json({
+        success: false,
+        error: "SCM integration is missing access token"
+      });
+    }
+    
     const branches = await fetchGitHubBranches(
       integration.owner,
       integration.repo,
-      (integration as any).accessToken
+      accessToken
     );
 
     return res.status(200).json({
@@ -470,14 +490,21 @@ async function fetchGitHubBranches(
         `https://api.github.com/repos/${owner}/${repo}/branches?per_page=${perPage}&page=${page}`,
         {
           headers: {
-            'Authorization': `token ${accessToken}`,
-            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
             'User-Agent': 'Delivr-App'
           }
         }
       );
 
       if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[SCM] GitHub API error (branches):`, {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorBody
+        });
         throw new Error(`Failed to fetch branches: ${response.status} ${response.statusText}`);
       }
 
@@ -493,11 +520,21 @@ async function fetchGitHubBranches(
     // Get repository info for default branch
     const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
       headers: {
-        'Authorization': `token ${accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
         'User-Agent': 'Delivr-App'
       }
     });
+
+    if (!repoResponse.ok) {
+      const errorBody = await repoResponse.text();
+      console.error(`[SCM] GitHub API error (repo info):`, {
+        status: repoResponse.status,
+        statusText: repoResponse.statusText,
+        body: errorBody
+      });
+    }
 
     const repoData = await repoResponse.json() as GitHubRepo;
     const defaultBranch = repoData.default_branch;
