@@ -89,6 +89,7 @@ export interface CreateSCMIntegrationDto {
   webhookEnabled?: boolean;
   senderLogin?: string;
   providerConfig?: any;
+  verificationStatus?: VerificationStatus;  // Defaults to PENDING
   
   // Creator
   createdByAccountId: string;
@@ -107,6 +108,7 @@ export interface UpdateSCMIntegrationDto {
   senderLogin?: string;
   providerConfig?: any;
   isActive?: boolean;
+  verificationStatus?: VerificationStatus;
 }
 
 /**

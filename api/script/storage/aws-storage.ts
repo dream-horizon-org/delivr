@@ -21,6 +21,8 @@ import { TestManagementMetadataService } from "../services/integrations/test-man
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { SlackIntegrationController } from "./integrations/slack/slack-controller";
+import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
 import { createRelease } from "./release-models";
 
 //Creating Access Key
@@ -375,6 +377,7 @@ export function createModelss(sequelize: Sequelize) {
   const Release = createRelease(sequelize);  // Release management from Delivr
 
   // ============================================
+  const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
   // Define associations
   // ============================================
 
@@ -445,6 +448,11 @@ export function createModelss(sequelize: Sequelize) {
   // Account (creator) reference for SCM
   SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
+  // Slack Integration associations
+  // Tenant has ONE Slack integration (set up during onboarding)
+  Tenant.hasOne(SlackIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
+  SlackIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
   return {
     Account,
     AccountChannel,
@@ -456,6 +464,7 @@ export function createModelss(sequelize: Sequelize) {
     Collaborator,  // UNIFIED: supports both app-level AND tenant-level
     App,
     SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
+    SlackIntegrations,  // Slack integrations
   };
 }
 
@@ -504,6 +513,7 @@ export class S3Storage implements storage.Storage {
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
     public testManagementMetadataService!: TestManagementMetadataService;
+    public slackController!: SlackIntegrationController;  // Slack integration controller
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -638,6 +648,9 @@ export class S3Storage implements storage.Storage {
           );
           
           console.log("Test Management Integration initialized");
+          // Initialize Slack Integration Controller
+          this.slackController = new SlackIntegrationController(models.SlackIntegrations);
+          console.log("Slack Integration Controller initialized");
           
           // return this.sequelize.sync();
         })

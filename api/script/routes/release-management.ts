@@ -13,6 +13,7 @@ import {
 } from "./integrations/test-management";
 import { createMetadataRoutes } from "./integrations/test-management/metadata";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
+import { createSlackIntegrationRoutes } from "./slack-integrations";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -98,7 +99,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  // TODO: Implement communication integration routes
+  const slackRoutes = createSlackIntegrationRoutes(storage);
+  router.use(slackRoutes);
   // router.use(createCommunicationRoutes(storage));
 
   // ============================================================================
@@ -106,6 +108,43 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // TODO: Implement ticket management integration routes
   // router.use(createTicketManagementRoutes(storage));
+
+  // ============================================================================
+  // SETUP MANAGEMENT
+  // ============================================================================
+  
+  // Mark setup as complete
+  router.post(
+    "/tenants/:tenantId/release-management/complete-setup",
+    tenantPermissions.requireOwner({ storage }),
+    async (req: Request, res: Response): Promise<any> => {
+      const tenantId: string = req.params.tenantId;
+      
+      try {
+        // The setup completion is actually determined automatically by the backend
+        // based on whether required integrations (SCM) are configured
+        // This endpoint is just for optimistic UI updates
+        
+        console.log(`[Setup] Marking setup as complete for tenant: ${tenantId}`);
+        
+        // You could optionally store a flag in the database if needed
+        // For now, we just return success as the backend already handles this logic
+        
+        return res.status(200).json({
+          success: true,
+          message: "Setup marked as complete",
+          setupComplete: true,
+          tenantId
+        });
+      } catch (error: any) {
+        console.error(`[Setup] Error marking setup as complete for tenant ${tenantId}:`, error);
+        return res.status(500).json({
+          error: "Failed to mark setup as complete",
+          message: error.message
+        });
+      }
+    }
+  );
 
   // ============================================================================
   // RELEASE OPERATIONS
@@ -325,10 +364,13 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         const scmController = (storage as any).scmController;
         const scmIntegration = await scmController.findActiveByTenant(tenantId);
 
+        // Check Slack integration
+        const slackController = (storage as any).slackController;
+        const slackIntegration = await slackController.findByTenant(tenantId);
+
         // TODO: Check other required integrations (targets, pipelines, etc.)
         // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
         // const pipelines = await storage.getTenantPipelines(tenantId);
-        // const communication = await storage.getTenantCommunicationIntegrations(tenantId);
         
         const setupSteps = {
           scm: {
@@ -355,10 +397,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
             description: "Set up build pipelines (optional)"
           },
           communication: {
-            completed: false,  // TODO: Implement
+            completed: !!slackIntegration,
             required: false,  // Optional
             label: "Slack Integration",
-            description: "Connect Slack for notifications (optional)"
+            description: "Connect Slack for notifications (optional)",
+            data: slackIntegration ? {
+              workspaceName: slackIntegration.slackWorkspaceName,
+              workspaceId: slackIntegration.slackWorkspaceId,
+              verificationStatus: slackIntegration.verificationStatus
+            } : null
           }
         };
 

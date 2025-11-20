@@ -1,34 +1,34 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
-import { getIpAddress } from "../utils/rest-headers";
-import { isUnfinishedRollout } from "../utils/rollout-selector";
-import * as packageDiffing from "../utils/package-diffing";
-import * as converterUtils from "../utils/converter";
-import * as diffErrorUtils from "../utils/diff-error-handling";
-import * as error from "../error";
-import * as errorUtils from "../utils/rest-error-handling";
 import { Request, Response, Router } from "express";
+import rateLimit from "express-rate-limit";
 import * as fs from "fs";
-import * as hashUtils from "../utils/hash-utils";
-import * as redis from "../redis-manager";
-import * as restTypes from "../types/rest-definitions";
-import * as security from "../utils/security";
 import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
-import * as storageTypes from "../storage/storage";
+import * as error from "../error";
+import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
+import * as appPermissions from "../middleware/app-permissions";
+import * as tenantPermissions from "../middleware/tenant-permissions";
+import * as redis from "../redis-manager";
 import { S3Storage } from "../storage/aws-storage";
+import * as storageTypes from "../storage/storage";
+import { isPrototypePollutionKey } from "../storage/storage";
+import * as restTypes from "../types/rest-definitions";
+import * as converterUtils from "../utils/converter";
+import * as diffErrorUtils from "../utils/diff-error-handling";
+import * as hashUtils from "../utils/hash-utils";
+import * as packageDiffing from "../utils/package-diffing";
+import * as errorUtils from "../utils/rest-error-handling";
+import { getIpAddress } from "../utils/rest-headers";
+import { isUnfinishedRollout } from "../utils/rollout-selector";
+import * as security from "../utils/security";
 import * as validationUtils from "../utils/validation";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
 import tryJSON = require("try-json");
-import rateLimit from "express-rate-limit";
-import { isPrototypePollutionKey } from "../storage/storage";
-import * as tenantPermissions from "../middleware/tenant-permissions";
-import * as appPermissions from "../middleware/app-permissions";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -144,7 +144,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }
 
         const storageAccessKey: storageTypes.AccessKey = converterUtils.toStorageAccessKey(accessKey);
-        return storage.addAccessKey(accountId, storageAccessKey).then((id: string): void => {
+        return storage.addAccessKey(accountId, storageAccessKey).then((): void => {
           res.setHeader("Location", urlEncode([`/accessKeys/${accessKey.friendlyName}`]));
           res.status(201).send({ accessKey: accessKey });
         });
@@ -306,8 +306,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   // Get tenant info with release setup status and integrations
+  // IMPORTANT: No caching - always returns fresh data for release management
   router.get("/tenants/:tenantId", tenantPermissions.requireOwner({ storage }), async (req: Request, res: Response, next: (err?: any) => void): Promise<any> => {
     const tenantId: string = req.params.tenantId;
+    
+    // Set no-cache headers to prevent stale data issues
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
     try {
       // Get tenant details
@@ -321,6 +327,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       // Get all integrations for this tenant
       const scmController = (storage as any).scmController;
+      const slackController = (storage as any).slackController;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
@@ -339,11 +346,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
           console.warn('[Tenant] Failed to fetch test management integrations:', error);
         }
       }
+      // Slack integrations
+      const slackIntegration = await slackController.findByTenant(tenantId);
       
       // TODO: Get other integrations when implemented
       // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
       // const pipelines = await storage.getTenantPipelines(tenantId);
-      // const communicationIntegrations = await storage.getTenantCommunicationIntegrations(tenantId);
       
       // Build unified integrations array with type field
       const integrations: any[] = [];
@@ -385,11 +393,29 @@ export function getManagementRouter(config: ManagementConfig): Router {
           createdByAccountId: integration.createdByAccountId
         });
       });
+      // Add Slack integration (already sanitized by controller)
+      if (slackIntegration) {
+        integrations.push({
+          type: 'communication',
+          communicationType: 'SLACK',
+          id: slackIntegration.id,
+          workspaceName: slackIntegration.slackWorkspaceName,
+          workspaceId: slackIntegration.slackWorkspaceId,
+          botUserId: slackIntegration.slackBotUserId,
+          verificationStatus: slackIntegration.verificationStatus,
+          hasValidToken: slackIntegration.verificationStatus === 'VALID',
+          slackChannels: slackIntegration.slackChannels || [],
+          channelsCount: slackIntegration.slackChannels ? slackIntegration.slackChannels.length : 0,
+          createdAt: slackIntegration.createdAt,
+          updatedAt: slackIntegration.updatedAt
+          // Note: slackBotToken is intentionally excluded (never sent to client)
+        });
+      }
       
       // TODO: Add other integration types when implemented
+
       // targetPlatforms.forEach(tp => integrations.push({ type: 'targetPlatform', ...tp }));
       // pipelines.forEach(p => integrations.push({ type: 'pipeline', ...p }));
-      // communicationIntegrations.forEach(c => integrations.push({ type: 'communication', ...c }));
       
       // Calculate setup completion
       // Setup is complete when ALL REQUIRED steps are done:
@@ -415,7 +441,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
               scmIntegration: scmIntegrations.length > 0,
               targetPlatforms: false,  // TODO: Implement target platforms
               pipelines: false,        // TODO: Implement (optional)
-              communication: false     // TODO: Implement (optional)
+              communication: !!slackIntegration
             },
             integrations: integrations  // Single array with all integrations
           }
@@ -859,7 +885,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         // Allow the deployment key to be specified on creation, if desired
         storageDeployment.key = restDeployment.key || security.generateSecureKey(accountId);
 
-        return storage.addDeployment(accountId, appId, storageDeployment).then((deploymentId: string): void => {
+        return storage.addDeployment(accountId, appId, storageDeployment).then((_deploymentId: string): void => {
           restDeployment = converterUtils.toRestDeployment(storageDeployment);
           res.setHeader("Location", urlEncode([`/apps/${appName}/deployments/${restDeployment.name}`]));
           res.status(201).send({ deployment: restDeployment });
@@ -937,7 +963,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const accountId: string = req.user.id;
       const app: storageTypes.App = (req as any).app;
       const appId: string = app.id;
-      const appName: string = req.params.appName;
+      const _appName: string = req.params.appName;
       const deploymentName: string = req.params.deploymentName;
       let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
 
@@ -1065,7 +1091,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  const releaseRateLimiter = rateLimit({
+  const _releaseRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
   });
