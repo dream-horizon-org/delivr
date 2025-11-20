@@ -429,10 +429,11 @@ export async function fetchSCMBranches(
     }
 
     // Fetch branches from GitHub API
+    // Note: integration object from DB has accessToken (not sanitized yet)
     const branches = await fetchGitHubBranches(
       integration.owner,
       integration.repo,
-      integration.accessToken
+      (integration as any).accessToken
     );
 
     return res.status(200).json({
