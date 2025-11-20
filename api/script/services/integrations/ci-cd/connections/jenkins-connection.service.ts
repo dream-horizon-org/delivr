@@ -3,6 +3,7 @@ import { CICDProviderType, AuthType, VerificationStatus, type SafeCICDIntegratio
 import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../constants/cicd';
+import * as shortid from 'shortid';
 
 type CreateInput = {
   displayName?: string;
@@ -34,7 +35,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       crumbPath
     });
 
-    const createData: CreateCICDIntegrationDto = {
+    const createData: CreateCICDIntegrationDto & { id: string } = {
+      id: shortid.generate(),
       tenantId,
       providerType: CICDProviderType.JENKINS,
       displayName: input.displayName ?? 'Jenkins',

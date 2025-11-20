@@ -14,8 +14,9 @@ export class CICDIntegrationRepository {
     return instance.toJSON() as TenantCICDIntegration;
   };
 
-  create = async (data: CreateCICDIntegrationDto): Promise<TenantCICDIntegration> => {
+  create = async (data: CreateCICDIntegrationDto & { id: string }): Promise<TenantCICDIntegration> => {
     const record = await this.model.create({
+      id: data.id,
       tenantId: data.tenantId,
       providerType: data.providerType,
       displayName: data.displayName,

@@ -39,7 +39,6 @@ export interface TenantCICDIntegration {
 }
 
 export interface SafeCICDIntegration extends Omit<TenantCICDIntegration, 'apiToken' | 'headerValue'> {
-  hasSecret?: boolean;
 }
 
 export interface CreateCICDIntegrationDto {

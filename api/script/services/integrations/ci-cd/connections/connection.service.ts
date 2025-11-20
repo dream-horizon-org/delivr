@@ -19,8 +19,7 @@ export abstract class ConnectionService<TCreateInput> {
 
   protected toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
     const { apiToken, headerValue, ...rest } = integration;
-    const hasSecret = !!apiToken || !!headerValue;
-    return { ...rest, hasSecret };
+    return { ...rest };
   };
 
   abstract create(tenantId: string, accountId: string, input: TCreateInput): Promise<SafeCICDIntegration>;

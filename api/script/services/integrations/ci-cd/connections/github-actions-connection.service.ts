@@ -3,6 +3,7 @@ import { CICDProviderType, AuthType, VerificationStatus, type SafeCICDIntegratio
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAVerifyParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../constants/cicd';
+import * as shortid from 'shortid';
 
 type CreateInput = {
   displayName?: string;
@@ -28,7 +29,8 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
     });
-    const created = await this.repository.create({
+    const createData: CreateCICDIntegrationDto & { id: string } = {
+      id: shortid.generate(),
       tenantId,
       providerType: CICDProviderType.GITHUB_ACTIONS,
       displayName: input.displayName ?? 'GitHub Actions',
@@ -40,7 +42,8 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       verificationStatus: verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
       lastVerifiedAt: new Date(),
       verificationError: verify.isValid ? null : verify.message
-    } as CreateCICDIntegrationDto);
+    };
+    const created = await this.repository.create(createData);
     return this.toSafe(created);
   };
 

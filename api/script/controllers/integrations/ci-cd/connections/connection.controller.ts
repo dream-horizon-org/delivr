@@ -10,8 +10,7 @@ import { getConnectionAdapter } from "./connection-adapter.utils";
 
 const toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
   const { apiToken, headerValue, ...rest } = integration;
-  const hasSecret = !!integration.apiToken || !!integration.headerValue;
-  return { ...rest, hasSecret };
+  return { ...rest };
 };
 
 export const getIntegrationById = async (req: Request, res: Response): Promise<any> => {
