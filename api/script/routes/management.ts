@@ -31,6 +31,7 @@ import * as appPermissions from "../middleware/app-permissions";
 import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
 import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
 import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/project-integration/project-integration.constants";
+import { COMM_PROVIDERS } from "../controllers/integrations/comm/providers.constants";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -93,12 +94,13 @@ export function getManagementRouter(config: ManagementConfig): Router {
           isAvailable: p.enabled 
         }));
       
-      // Hardcoded for unimplemented services
-      const COMMUNICATION = [
-        { id: "slack", name: "Slack", requiresOAuth: true, isAvailable: true },
-        { id: "teams", name: "Microsoft Teams", requiresOAuth: true, isAvailable: false },
-        { id: "discord", name: "Discord", requiresOAuth: true, isAvailable: false },
-      ];
+      const COMMUNICATION = COMM_PROVIDERS
+        .map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          requiresOAuth: false,
+          isAvailable: p.enabled 
+        }));
       
       const PROJECT_MANAGEMENT = [
         { id: "jira", name: "Jira", requiresOAuth: true, isAvailable: false },
