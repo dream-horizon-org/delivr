@@ -7,6 +7,7 @@
 import { Router } from "express";
 import { Storage } from "../storage/storage";
 import { createGitHubConnectionRoutes } from "./integrations/scm/connections/github.routes";
+import { getAvailableSCMProviders } from "../controllers/integrations/scm/providers.controller";
 // import { createGitLabConnectionRoutes } from "./integrations/scm/connections/gitlab.routes";
 // import { createBitbucketConnectionRoutes } from "./integrations/scm/connections/bitbucket.routes";
 
@@ -16,6 +17,12 @@ import { createGitHubConnectionRoutes } from "./integrations/scm/connections/git
  */
 export function createSCMIntegrationRoutes(storage: Storage): Router {
   const router = Router();
+
+  // Get available SCM providers (public endpoint)
+  router.get(
+    "/integrations/scm/providers",
+    getAvailableSCMProviders
+  );
 
   // Compose provider-specific subrouters
   router.use(createGitHubConnectionRoutes(storage));
