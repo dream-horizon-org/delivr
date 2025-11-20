@@ -49,7 +49,6 @@ export interface TenantCommunicationIntegration {
   slackBotUserId?: string | null;        // Bot User ID
   slackWorkspaceId?: string | null;      // Workspace/Team ID
   slackWorkspaceName?: string | null;    // Workspace Name
-  slackChannels?: SlackChannel[] | null; // Available channels (JSON)
   
   // Verification status
   verificationStatus: VerificationStatus;
@@ -78,7 +77,6 @@ export interface CreateSlackIntegrationDto {
   slackBotUserId?: string;
   slackWorkspaceId?: string;
   slackWorkspaceName?: string;
-  slackChannels?: SlackChannel[];
 }
 
 /**
@@ -89,7 +87,6 @@ export interface UpdateSlackIntegrationDto {
   slackBotUserId?: string;
   slackWorkspaceId?: string;
   slackWorkspaceName?: string;
-  slackChannels?: SlackChannel[];
   verificationStatus?: VerificationStatus;
 }
 
@@ -142,3 +139,34 @@ export interface SlackClientConfig {
   workspaceId?: string;       // Workspace ID
   botUserId?: string;         // Bot User ID
 }
+
+// ============================================================================
+// Channel Configuration Types (tenant_comm_channels table)
+// ============================================================================
+
+/**
+ * Stage-to-channels mapping structure
+ * 
+ * Example:
+ * {
+ *   "development": ["C01234ABCDE", "C11111AAAAA"],
+ *   "staging": ["C22222BBBBB"],
+ *   "production": ["C33333CCCCC", "C44444DDDDD"]
+ * }
+ */
+export interface StageChannelMapping {
+  [stageName: string]: string[];  // stage name -> array of channel IDs
+}
+
+/**
+ * Tenant Communication Channels (matches slack_configuration table)
+ */
+export interface TenantCommChannel {
+  id: string;                         // nanoid (21 chars)
+  integrationId: string;              // FK to tenant_comm_integrations
+  tenantId: string;                   // FK to tenants (denormalized)
+  channelData: StageChannelMapping;   // Stage-based channel mapping
+  createdAt: Date;
+  updatedAt: Date;
+}
+

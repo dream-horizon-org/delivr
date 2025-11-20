@@ -12,36 +12,27 @@ export enum CommType {
   // EMAIL = 'EMAIL'   // Future
 }
 
-export enum MessagePriority {
-  LOW = 'low',
-  NORMAL = 'normal',
-  HIGH = 'high',
-  URGENT = 'urgent'
-}
-
-export enum NotificationType {
-  RELEASE_CREATED = 'release_created',
-  RELEASE_DEPLOYED = 'release_deployed',
-  BUILD_STARTED = 'build_started',
-  BUILD_SUCCESS = 'build_success',
-  BUILD_FAILED = 'build_failed',
-  DEPLOYMENT_STARTED = 'deployment_started',
-  DEPLOYMENT_SUCCESS = 'deployment_success',
-  DEPLOYMENT_FAILED = 'deployment_failed',
-  ROLLBACK_INITIATED = 'rollback_initiated',
-  ROLLBACK_COMPLETED = 'rollback_completed'
+/**
+ * File attachment for messages
+ */
+export interface MessageFile {
+  buffer: Buffer;
+  filename: string;
+  contentType?: string;
+  title?: string;
+  initialComment?: string;
 }
 
 /**
  * Message Operations
  */
 export interface SendMessageArgs {
-  channelId: string;
+  channelId: string | string[]; // Single channel or array of channels
   text: string;
   blocks?: any[]; // Slack Block Kit or equivalent
   attachments?: MessageAttachment[];
+  files?: MessageFile[]; // Files to upload with message
   threadTs?: string; // For threaded messages
-  priority?: MessagePriority;
 }
 
 export interface MessageAttachment {
@@ -65,41 +56,11 @@ export interface MessageResponse {
   ts: string; // Message timestamp (unique ID)
   message?: any;
   error?: string;
-}
-
-/**
- * Release Notification Operations
- */
-export interface ReleaseNotificationArgs {
-  releaseName: string;
-  version: string;
-  environment?: string;
-  changes?: string[];
-  url?: string;
-  author?: string;
-  status?: 'created' | 'deployed' | 'failed';
-  channels: string[]; // Multiple channels
-}
-
-export interface BuildNotificationArgs {
-  buildId: string;
-  status: 'started' | 'success' | 'failed';
-  branch?: string;
-  commit?: string;
-  duration?: number; // in seconds
-  url?: string;
-  error?: string;
-  channels: string[];
-}
-
-export interface DeploymentNotificationArgs {
-  deploymentId: string;
-  environment: string;
-  status: 'started' | 'success' | 'failed' | 'rollback';
-  version?: string;
-  url?: string;
-  error?: string;
-  channels: string[];
+  file?: {
+    id: string;
+    name: string;
+    url?: string;
+  };
 }
 
 /**
@@ -118,29 +79,14 @@ export interface ListChannelsResponse {
 }
 
 /**
- * User/Member Operations
- */
-export interface User {
-  id: string;
-  name: string;
-  realName?: string;
-  email?: string;
-}
-
-export interface MentionUser {
-  userId: string;
-  text?: string;
-}
-
-/**
  * Comm Configuration
+ * Note: Channels will be managed separately via slack_configuration table
  */
 export interface CommConfig {
   commType: CommType;
   botToken?: string; // For Slack
   workspaceId?: string;
   webhookUrl?: string; // For Teams/Discord
-  channels?: Channel[];
 }
 
 /**
@@ -160,17 +106,3 @@ export interface HealthCheckResult {
   latency?: number; // in ms
   error?: string;
 }
-
-/**
- * Formatted Message Templates
- */
-export interface ReleaseMessageTemplate {
-  type: NotificationType;
-  title: string;
-  description: string;
-  color: string;
-  fields: AttachmentField[];
-  footer?: string;
-}
-
-

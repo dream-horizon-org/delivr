@@ -508,8 +508,6 @@ export function getManagementRouter(config: ManagementConfig): Router {
           botUserId: slackIntegration.slackBotUserId,
           verificationStatus: slackIntegration.verificationStatus,
           hasValidToken: slackIntegration.verificationStatus === 'VALID',
-          slackChannels: slackIntegration.slackChannels || [],
-          channelsCount: slackIntegration.slackChannels ? slackIntegration.slackChannels.length : 0,
           createdAt: slackIntegration.createdAt,
           updatedAt: slackIntegration.updatedAt
           // Note: slackBotToken is intentionally excluded (never sent to client)

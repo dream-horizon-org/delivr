@@ -9,16 +9,13 @@
 
 import type {
   MessageResponse,
+  MessageFile,
   SendMessageArgs,
-  ReleaseNotificationArgs,
-  BuildNotificationArgs,
-  DeploymentNotificationArgs,
   ListChannelsResponse,
   Channel,
   VerificationResult,
   HealthCheckResult
 } from './comm-types';
-import { MessageTemplate } from './templates';
 
 /**
  * ICommService - Interface for communication services
@@ -31,64 +28,30 @@ export interface ICommService {
   // ============================================================================
 
   /**
-   * Send message using predefined template
-   * This is the main method for template-based messaging
+   * Send a plain text message to channels configured for a specific stage
+   * Fetches channels based on configId and stageEnum, then sends the message
    * 
-   * @param tenantId - Tenant ID (for context/logging)
-   * @param templateEnum - Template type from MessageTemplate enum
-   * @param templateParameters - Array of parameters to fill template
-   * @param sendOnThread - Whether to send as thread
+   * @param configId - Slack configuration ID (from slack_configuration table)
+   * @param stageEnum - Stage name (e.g., "development", "production")
+   * @param message - Plain text message to send
+   * @param files - Optional: files to attach to the message
    * @returns Map of channel IDs to message responses
    */
-  sendTemplateMessage(
-    tenantId: string,
-    templateEnum: MessageTemplate,
-    templateParameters: string[],
-    sendOnThread?: boolean
+  sendSlackMessage(
+    configId: string,
+    stageEnum: string,
+    message: string,
+    files?: MessageFile[]
   ): Promise<Map<string, MessageResponse>>;
 
   /**
-   * Send a basic text message to a channel
+   * Send a basic text message to one or more channels
+   * Internal method - use sendSlackMessage for standard messaging
    * 
-   * @param args - Message arguments
-   * @returns Message response
-   */
-  sendBasicMessage(args: SendMessageArgs): Promise<MessageResponse>;
-
-
-  // ============================================================================
-  // RELEASE NOTIFICATIONS
-  // ============================================================================
-
-  /**
-   * Send release notification to multiple channels
-   * 
-   * @param args - Release notification arguments
+   * @param args - Message arguments (channelId can be string or string[])
    * @returns Map of channel IDs to message responses
    */
-  sendReleaseNotification(
-    args: ReleaseNotificationArgs
-  ): Promise<Map<string, MessageResponse>>;
-
-  /**
-   * Send build status notification
-   * 
-   * @param args - Build notification arguments
-   * @returns Map of channel IDs to message responses
-   */
-  sendBuildNotification(
-    args: BuildNotificationArgs
-  ): Promise<Map<string, MessageResponse>>;
-
-  /**
-   * Send deployment status notification
-   * 
-   * @param args - Deployment notification arguments
-   * @returns Map of channel IDs to message responses
-   */
-  sendDeploymentNotification(
-    args: DeploymentNotificationArgs
-  ): Promise<Map<string, MessageResponse>>;
+  sendBasicMessage(args: SendMessageArgs): Promise<Map<string, MessageResponse>>;
 
   // ============================================================================
   // CHANNEL OPERATIONS
@@ -109,6 +72,15 @@ export interface ICommService {
    */
   getChannel(channelId: string): Promise<Channel | null>;
 
+  /**
+   * Get the timestamp of the last message in a channel
+   * Used for auto-threading to the most recent message
+   * 
+   * @param channelId - Channel ID
+   * @returns Message timestamp or undefined if channel has no messages
+   */
+  getLastMessageTs(channelId: string): Promise<string | undefined>;
+
   // ============================================================================
   // VERIFICATION & HEALTH
   // ============================================================================
@@ -126,35 +98,4 @@ export interface ICommService {
    * @returns Health status with latency
    */
   healthCheck(): Promise<HealthCheckResult>;
-
-  // ============================================================================
-  // FORMATTING HELPERS (Optional - platform specific)
-  // ============================================================================
-
-  /**
-   * Format mention for user (optional)
-   * 
-   * @param userId - User ID
-   * @returns Formatted mention string
-   */
-  formatMention?(userId: string): string;
-
-  /**
-   * Format channel mention (optional)
-   * 
-   * @param channelId - Channel ID
-   * @returns Formatted channel mention string
-   */
-  formatChannelMention?(channelId: string): string;
-
-  /**
-   * Format link (optional)
-   * 
-   * @param url - URL to format
-   * @param text - Optional link text
-   * @returns Formatted link string
-   */
-  formatLink?(url: string, text?: string): string;
 }
-
-

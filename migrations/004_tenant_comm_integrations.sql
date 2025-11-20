@@ -11,13 +11,13 @@
 --   - workspaceId: Slack Workspace/Team ID (e.g., T01234ABCDE)
 --   - workspaceName: Human-readable workspace name
 --   - botUserId: Bot User ID (e.g., U01234ABCDE)
---   - channels: Array of channels to post notifications
+-- 
+-- Note: Channels will be stored in separate tenant_communication_channels table
 -- 
 -- These fields enable:
 --   ✅ Post release notifications
 --   ✅ Send deployment updates
 --   ✅ Alert on build failures
---   ✅ Channel-specific messaging
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS tenant_comm_integrations (
@@ -41,9 +41,6 @@ CREATE TABLE IF NOT EXISTS tenant_comm_integrations (
   slackBotUserId VARCHAR(255) NULL COMMENT 'Slack Bot User ID (e.g., U01234ABCDE)',
   slackWorkspaceId VARCHAR(255) NULL COMMENT 'Slack Workspace/Team ID (e.g., T01234ABCDE)',
   slackWorkspaceName VARCHAR(255) NULL COMMENT 'Slack Workspace Name (e.g., "Acme Corp")',
-  
-  -- Channels configuration
-  slackChannels JSON NULL COMMENT 'Array of Slack channels: [{id, name}]',
   
   -- ========================================================================
   -- STATUS & VERIFICATION
@@ -106,7 +103,7 @@ DESCRIBE tenant_comm_integrations;
 --   id, tenantId, communicationType,
 --   slackBotToken, slackBotUserId, 
 --   slackWorkspaceId, slackWorkspaceName,
---   slackChannels, verificationStatus
+--   verificationStatus
 -- ) VALUES (
 --   'comm_abc123',
 --   'NJEG6wOk7e',
@@ -115,15 +112,10 @@ DESCRIBE tenant_comm_integrations;
 --   'U01234ABCDE',
 --   'T01234ABCDE',
 --   'Acme Corp',
---   '[{"id": "C12345", "name": "releases"}, {"id": "C67890", "name": "general"}]',
 --   'VALID'
 -- );
 -- 
--- This enables:
---   - Post release announcements to #releases
---   - Send deployment status to #general
---   - Alert on build failures
---   - Custom notifications per channel
+-- Note: Channels will be configured separately in tenant_communication_channels table
 
 -- ============================================================================
 -- SECURITY NOTES
