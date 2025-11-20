@@ -1,6 +1,7 @@
 export {
   verifySlackToken,
   fetchSlackChannels,
+  fetchSlackChannelsForIntegration,
   createOrUpdateSlackIntegration,
   getSlackIntegration,
   updateSlackIntegration,

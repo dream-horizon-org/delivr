@@ -214,7 +214,7 @@ export const verifySlackToken = async (
 };
 
 /**
- * Fetch Slack Channels
+ * Fetch Slack Channels (with botToken in body - used during integration setup)
  * POST /tenants/:tenantId/integrations/slack/channels
  */
 export const fetchSlackChannels = async (
@@ -244,6 +244,72 @@ export const fetchSlackChannels = async (
     return res.status(500).json({
       success: false,
       error: error.message || COMM_ERROR_MESSAGES.FETCH_CHANNELS_FAILED
+    });
+  }
+};
+
+/**
+ * Fetch Slack Channels for Connected Integration (uses stored token)
+ * GET /tenants/:tenantId/integrations/slack/channels
+ * 
+ * This endpoint:
+ * - Gets the stored Slack integration for the tenant
+ * - Uses the stored botToken to fetch ALL channels from Slack API
+ * - Used in Release Config to show all available channels
+ */
+export const fetchSlackChannelsForIntegration = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  const tenantId: string = req.params.tenantId;
+
+  try {
+    const slackController = getSlackController();
+    
+    // Get the stored integration WITH botToken (includeToken = true)
+    const integration = await slackController.findByTenant(
+      tenantId, 
+      CommunicationType.SLACK,
+      true  // includeToken = true to get the decrypted botToken
+    );
+
+    if (!integration) {
+      return res.status(404).json({
+        success: false,
+        error: 'No Slack integration found for this tenant'
+      });
+    }
+
+    // Type guard: integration should have slackBotToken when includeToken=true
+    if (!('slackBotToken' in integration) || !integration.slackBotToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Slack integration exists but botToken is missing'
+      });
+    }
+
+    // Fetch channels from Slack API using stored token
+    const channelsResult = await fetchSlackChannelsAPI(integration.slackBotToken);
+
+    if (!channelsResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: channelsResult.message || 'Failed to fetch channels from Slack',
+        channels: []
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      channels: channelsResult.channels ?? [],
+      metadata: channelsResult.metadata
+    });
+  } catch (error: any) {
+    console.error('[Slack] Error fetching channels for integration:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || COMM_ERROR_MESSAGES.FETCH_CHANNELS_FAILED,
+      channels: []
     });
   }
 };

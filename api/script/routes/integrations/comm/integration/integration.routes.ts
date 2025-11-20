@@ -17,11 +17,18 @@ export const createIntegrationRoutes = (storage: Storage): Router => {
     integrationController.verifySlackToken
   );
 
-  // Fetch Slack Channels
+  // Fetch Slack Channels (with botToken in body - used during setup)
   router.post(
     '/tenants/:tenantId/integrations/slack/channels',
     tenantPermissions.requireOwner({ storage }),
     integrationController.fetchSlackChannels
+  );
+
+  // Fetch Slack Channels for Connected Integration (uses stored token - used in release config)
+  router.get(
+    '/tenants/:tenantId/integrations/slack/channels',
+    tenantPermissions.requireOwner({ storage }),
+    integrationController.fetchSlackChannelsForIntegration
   );
 
   // CREATE Slack Integration (save after verification)
