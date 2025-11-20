@@ -59,6 +59,9 @@ export const validatePlatformConfigurations = (
     return 'platformConfigurations must contain at least one configuration';
   }
 
+  // Check for duplicate platforms
+  const seenPlatforms = new Set<string>();
+  
   for (let i = 0; i < platformConfigurations.length; i++) {
     const config = platformConfigurations[i];
     const configIsValid = isPlatformConfiguration(config);
@@ -67,6 +70,13 @@ export const validatePlatformConfigurations = (
       const validPlatforms = TEST_PLATFORMS.join(', ');
       return `Invalid configuration at index ${i}: must have 'platform' (one of: ${validPlatforms}) and 'parameters' (object)`;
     }
+    
+    // Check for duplicate platform
+    const platform = config.platform;
+    if (seenPlatforms.has(platform)) {
+      return `Duplicate platform '${platform}' found at index ${i}. Each platform can only be configured once.`;
+    }
+    seenPlatforms.add(platform);
   }
 
   return null;

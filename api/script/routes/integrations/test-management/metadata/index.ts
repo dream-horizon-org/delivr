@@ -1,2 +1,1 @@
-export { createMetadataRoutes } from './metadata.routes';
-
+export { createCheckmateMetadataRoutes } from './checkmate';

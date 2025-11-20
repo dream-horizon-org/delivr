@@ -238,6 +238,45 @@ const verifyIntegrationHandler = (service: TestManagementIntegrationService) =>
   };
 
 /**
+ * Verify credentials without saving (stateless verification)
+ * POST /integrations/test-management/verify
+ */
+const verifyCredentialsHandler = (service: TestManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { providerType, config } = req.body;
+
+      // Validate providerType
+      const providerTypeError = validateProviderType(providerType);
+      if (providerTypeError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('providerType', providerTypeError)
+        );
+        return;
+      }
+
+      // Validate config structure
+      const configError = validateConfigStructure(config, providerType);
+      if (configError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+        return;
+      }
+
+      const result = await service.verifyCredentials(providerType, config);
+      
+      const isVerificationSuccessful = result.success;
+      const statusCode = isVerificationSuccessful ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
+
+      res.status(statusCode).json(successResponse(result));
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED)
+      );
+    }
+  };
+
+/**
  * Get list of available test management providers
  * GET /integrations/test-management/providers
  */
@@ -260,6 +299,7 @@ export const createTestManagementIntegrationController = (service: TestManagemen
   updateIntegration: updateIntegrationHandler(service),
   deleteIntegration: deleteIntegrationHandler(service),
   verifyIntegration: verifyIntegrationHandler(service),
+  verifyCredentials: verifyCredentialsHandler(service),
   getAvailableProviders: getAvailableProvidersHandler()
 });
 
