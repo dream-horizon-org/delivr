@@ -11,6 +11,7 @@ import type { ProjectTestManagementIntegrationConfig } from '~types/integrations
 export type CheckmateConfig = ProjectTestManagementIntegrationConfig & {
   baseUrl: string;
   authToken: string;
+  orgId: number;
 };
 
 /**
@@ -48,6 +49,72 @@ export type CheckmateRunStateData = {
 
 export type CheckmateRunStateResponse = {
   data: CheckmateRunStateData;
+  status: number;
+};
+
+/**
+ * Checkmate Metadata API Response Types
+ */
+export type CheckmateProject = {
+  projectId: number;
+  projectName: string;
+  projectDescription: string | null;
+  orgId: number;
+  createdByName: string | null;
+  createdOn: number;
+};
+
+export type CheckmateProjectsResponse = {
+  data: {
+    projectsList: CheckmateProject[];
+    projectCount: Array<{ count: number }>;
+  };
+  status: number;
+};
+
+export type CheckmateSection = {
+  sectionId: number;
+  sectionName: string;
+  projectId: number;
+  parentSectionId: number | null;
+  sectionDepth: number;
+  createdOn: string;
+  createdBy: number | null;
+  updatedOn: string;
+  updatedBy: number | null;
+};
+
+export type CheckmateSectionsResponse = {
+  data: CheckmateSection[];
+  status: number;
+};
+
+export type CheckmateLabel = {
+  labelId: number;
+  labelName: string;
+  labelType: 'System' | 'Custom';
+  projectId: number;
+  createdOn: string | null;
+  createdBy: number | null;
+  updatedOn: string;
+  updatedBy: number | null;
+};
+
+export type CheckmateLabelsResponse = {
+  data: CheckmateLabel[];
+  status: number;
+};
+
+export type CheckmateSquad = {
+  squadId: number;
+  squadName: string;
+  projectId: number;
+  createdOn: string | null;
+  createdBy: number | null;
+};
+
+export type CheckmateSquadsResponse = {
+  data: CheckmateSquad[];
   status: number;
 };
 

@@ -5,6 +5,9 @@
 
 export const CHECKMATE_API_ENDPOINTS = {
   PROJECTS: '/api/v1/projects',
+  SECTIONS: '/api/v1/project/sections',
+  LABELS: '/api/v1/labels',
+  SQUADS: '/api/v1/project/squads',
   CREATE_RUN: '/api/v1/run/create',
   RUN_STATE_DETAIL: '/api/v1/run/state-detail',
   RUN_RESET: '/api/v1/run/:runId/reset',
@@ -33,7 +36,11 @@ export const CHECKMATE_URL_PARAMS = {
 
 export const CHECKMATE_QUERY_PARAMS = {
   RUN_ID: 'runId',
-  GROUP_BY: 'groupBy'
+  GROUP_BY: 'groupBy',
+  ORG_ID: 'orgId',
+  PROJECT_ID: 'projectId',
+  PAGE: 'page',
+  PAGE_SIZE: 'pageSize'
 } as const;
 
 export const CHECKMATE_DEFAULTS = {

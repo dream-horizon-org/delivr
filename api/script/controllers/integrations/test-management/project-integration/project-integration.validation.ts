@@ -118,6 +118,26 @@ const validateCheckmateConfig = (config: unknown): string | null => {
     return 'Checkmate config authToken cannot be empty';
   }
 
+  // Validate orgId
+  const hasOrgIdProperty = hasProperty(config, 'orgId');
+
+  if (!hasOrgIdProperty) {
+    return 'Checkmate config requires orgId field';
+  }
+
+  const orgIdValue = config.orgId;
+  const orgIdIsNumber = typeof orgIdValue === 'number';
+
+  if (!orgIdIsNumber) {
+    return 'Checkmate config orgId must be a number';
+  }
+
+  const orgIdIsValid = orgIdValue > 0;
+
+  if (!orgIdIsValid) {
+    return 'Checkmate config orgId must be a positive number';
+  }
+
   return null;
 };
 

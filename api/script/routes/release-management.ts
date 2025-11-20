@@ -11,6 +11,7 @@ import {
   createTestManagementConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
+import { createMetadataRoutes } from "./integrations/test-management/metadata";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 
 export interface ReleaseManagementConfig {
@@ -72,6 +73,10 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
     const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
     router.use('/test-management', testRunRoutes);
+
+    // Metadata Proxy Routes (Projects, Sections, Labels, Squads)
+    const metadataRoutes = createMetadataRoutes(s3Storage.testManagementMetadataService);
+    router.use('/integrations', metadataRoutes);
     
     console.log('[Release Management] Test Management routes mounted successfully');
   } else {

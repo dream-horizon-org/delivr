@@ -24,8 +24,12 @@ import type {
   CheckmateConfig,
   CheckmateCreateRunRequest,
   CheckmateCreateRunResponse,
+  CheckmateLabelsResponse,
+  CheckmateProjectsResponse,
   CheckmateRunStateData,
-  CheckmateRunStateResponse
+  CheckmateRunStateResponse,
+  CheckmateSectionsResponse,
+  CheckmateSquadsResponse
 } from './checkmate.interface';
 
 /**
@@ -47,7 +51,11 @@ export class CheckmateProvider implements ITestManagementProvider {
     const authTokenIsString = typeof config.authToken === 'string';
     const hasAuthToken = authTokenExists && authTokenIsString;
     
-    const configIsValid = hasBaseUrl && hasAuthToken;
+    const orgIdExists = 'orgId' in config;
+    const orgIdIsNumber = typeof config.orgId === 'number';
+    const hasOrgId = orgIdExists && orgIdIsNumber;
+    
+    const configIsValid = hasBaseUrl && hasAuthToken && hasOrgId;
     return configIsValid;
   };
 
@@ -217,18 +225,18 @@ export class CheckmateProvider implements ITestManagementProvider {
     const labelIds = parameters.labelIds;
     const squadIds = parameters.squadIds;
     const platformIds = parameters.platformIds;
-    const filterType = parameters.filterType;
+    const filterType = parameters.filterType ?? 'and';
     const createdBy = parameters.createdBy;
 
     const requestBody: CheckmateCreateRunRequest = {
       projectId,
       runName,
+      filterType,
       ...(runDescription && { runDescription }),
       ...(sectionIds && { sectionIds }),
       ...(labelIds && { labelIds }),
       ...(squadIds && { squadIds }),
       ...(platformIds && { platformIds }),
-      ...(filterType && { filterType }),
       ...(createdBy && { createdBy })
     };
 
@@ -363,5 +371,100 @@ export class CheckmateProvider implements ITestManagementProvider {
     );
 
     return response.data;
+  };
+
+  /**
+   * Get all projects for an organization
+   */
+  getProjects = async (config: ProjectTestManagementIntegrationConfig): Promise<CheckmateProjectsResponse> => {
+    const checkmateConfig = this.getCheckmateConfig(config);
+    
+    const params = new URLSearchParams();
+    params.append(CHECKMATE_QUERY_PARAMS.ORG_ID, checkmateConfig.orgId.toString());
+    params.append(CHECKMATE_QUERY_PARAMS.PAGE, '1');
+    params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, '1000');
+    
+    const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
+    const response = await this.makeRequest<CheckmateProjectsResponse>(
+      checkmateConfig,
+      endpoint,
+      {
+        method: HTTP_METHODS.GET
+      }
+    );
+
+    return response;
+  };
+
+  /**
+   * Get all sections for a project
+   */
+  getSections = async (
+    config: ProjectTestManagementIntegrationConfig,
+    projectId: number
+  ): Promise<CheckmateSectionsResponse> => {
+    const checkmateConfig = this.getCheckmateConfig(config);
+    
+    const params = new URLSearchParams();
+    params.append(CHECKMATE_QUERY_PARAMS.PROJECT_ID, projectId.toString());
+    
+    const endpoint = `${CHECKMATE_API_ENDPOINTS.SECTIONS}?${params.toString()}`;
+    const response = await this.makeRequest<CheckmateSectionsResponse>(
+      checkmateConfig,
+      endpoint,
+      {
+        method: HTTP_METHODS.GET
+      }
+    );
+
+    return response;
+  };
+
+  /**
+   * Get all labels for a project
+   */
+  getLabels = async (
+    config: ProjectTestManagementIntegrationConfig,
+    projectId: number
+  ): Promise<CheckmateLabelsResponse> => {
+    const checkmateConfig = this.getCheckmateConfig(config);
+    
+    const params = new URLSearchParams();
+    params.append(CHECKMATE_QUERY_PARAMS.PROJECT_ID, projectId.toString());
+    
+    const endpoint = `${CHECKMATE_API_ENDPOINTS.LABELS}?${params.toString()}`;
+    const response = await this.makeRequest<CheckmateLabelsResponse>(
+      checkmateConfig,
+      endpoint,
+      {
+        method: HTTP_METHODS.GET
+      }
+    );
+
+    return response;
+  };
+
+  /**
+   * Get all squads for a project
+   */
+  getSquads = async (
+    config: ProjectTestManagementIntegrationConfig,
+    projectId: number
+  ): Promise<CheckmateSquadsResponse> => {
+    const checkmateConfig = this.getCheckmateConfig(config);
+    
+    const params = new URLSearchParams();
+    params.append(CHECKMATE_QUERY_PARAMS.PROJECT_ID, projectId.toString());
+    
+    const endpoint = `${CHECKMATE_API_ENDPOINTS.SQUADS}?${params.toString()}`;
+    const response = await this.makeRequest<CheckmateSquadsResponse>(
+      checkmateConfig,
+      endpoint,
+      {
+        method: HTTP_METHODS.GET
+      }
+    );
+
+    return response;
   };
 }
