@@ -106,15 +106,6 @@ export const INTEGRATION_UI_METADATA: Record<string, {
     description: 'Publish Android apps to Google Play Console',
     icon: 'android',
   },
-  // Temporary aliases for old backend IDs (remove after backend restart)
-  appstore: {
-    description: 'Deploy iOS apps to TestFlight and the App Store',
-    icon: 'apple',
-  },
-  playstore: {
-    description: 'Publish Android apps to Google Play Console',
-    icon: 'android',
-  },
   firebase: {
     description: 'Distribute app builds to testers via Firebase App Distribution',
     icon: 'firebase',
