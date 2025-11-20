@@ -2,11 +2,12 @@
 // Strict typing - no 'any' types, explicit type definitions
 
 // Enum-like const object pattern - provides both type AND value
+// Values are lowercase to match URL paths (e.g., /integrations/:id/checkmate/metadata/...)
 const TestManagementProviderTypeValues = {
-  CHECKMATE: 'CHECKMATE',
-  TESTRAIL: 'TESTRAIL',
-  XRAY: 'XRAY',
-  ZEPHYR: 'ZEPHYR'
+  CHECKMATE: 'checkmate',
+  TESTRAIL: 'testrail',
+  XRAY: 'xray',
+  ZEPHYR: 'zephyr'
 } as const;
 
 export type TestManagementProviderType = typeof TestManagementProviderTypeValues[keyof typeof TestManagementProviderTypeValues];
@@ -23,15 +24,15 @@ const VerificationStatusValues = {
 export type VerificationStatus = typeof VerificationStatusValues[keyof typeof VerificationStatusValues];
 export const VerificationStatus = VerificationStatusValues;
 
-// Base configuration interface - provider-specific
-export interface ProjectTestManagementIntegrationConfig {
+// Base configuration type - provider-specific
+export type ProjectTestManagementIntegrationConfig = {
   baseUrl: string;
   authToken: string;
   [key: string]: unknown; // Allow provider-specific additional fields
-}
+};
 
-// Main entity interface
-export interface ProjectTestManagementIntegration {
+// Main entity type
+export type ProjectTestManagementIntegration = {
   id: string;
   projectId: string;
   name: string;
@@ -40,32 +41,32 @@ export interface ProjectTestManagementIntegration {
   createdByAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
-}
+};
 
 // DTOs for API operations
-export interface CreateProjectTestManagementIntegrationDto {
+export type CreateProjectTestManagementIntegrationDto = {
   projectId: string;
   name: string;
   providerType: TestManagementProviderType;
   config: ProjectTestManagementIntegrationConfig;
   createdByAccountId?: string;
-}
+};
 
-export interface UpdateProjectTestManagementIntegrationDto {
+export type UpdateProjectTestManagementIntegrationDto = {
   name?: string;
   config?: Partial<ProjectTestManagementIntegrationConfig>;
-}
+};
 
-export interface VerifyProjectTestManagementIntegrationResult {
+export type VerifyProjectTestManagementIntegrationResult = {
   success: boolean;
   status: VerificationStatus;
   message: string;
   error?: string;
-}
+};
 
 // Query filters
-export interface FindProjectIntegrationsFilter {
+export type FindProjectIntegrationsFilter = {
   projectId: string;
   providerType?: TestManagementProviderType;
-}
+};
 

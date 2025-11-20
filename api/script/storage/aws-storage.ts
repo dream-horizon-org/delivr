@@ -17,13 +17,13 @@ import {
   TestManagementIntegrationService,
   TestManagementRunService
 } from "../services/integrations/test-management";
-import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
+import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
 import * as utils from "../utils/common";
-import { SCMIntegrationController } from "./integrations/scm/scm-controller";
-import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
 import { CICDIntegrationController } from "./integrations/ci-cd/ci-cd-controller";
-import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
+import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
 import { CICDWorkflowController } from "./integrations/ci-cd/workflows-controller";
+import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
+import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { SlackIntegrationController } from "./integrations/slack/slack-controller";
 import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
@@ -521,7 +521,7 @@ export class S3Storage implements storage.Storage {
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
-    public testManagementMetadataService!: TestManagementMetadataService;
+    public checkmateMetadataService!: CheckmateMetadataService;
     public cicdController!: CICDIntegrationController;  // CI/CD integration controller
     public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
     public slackController!: SlackIntegrationController;  // Slack integration controller
@@ -663,8 +663,8 @@ export class S3Storage implements storage.Storage {
             this.projectIntegrationRepository
           );
           
-          // Service 4: Metadata Service (fetches metadata from providers)
-          this.testManagementMetadataService = new TestManagementMetadataService(
+          // Service 4: Checkmate Metadata Service (fetches Checkmate-specific metadata)
+          this.checkmateMetadataService = new CheckmateMetadataService(
             this.projectIntegrationRepository
           );
           

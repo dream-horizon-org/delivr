@@ -12,7 +12,7 @@ import { validatePlatforms } from './test-run.validation';
 
 /**
  * Create test runs for platforms in a test management config
- * POST /test-runs/create
+ * POST /test-management/test-runs
  * 
  * Body: {
  *   testManagementConfigId: string,
@@ -23,17 +23,20 @@ import { validatePlatforms } from './test-run.validation';
  * If platforms is provided, only creates runs for those specific platforms.
  * 
  * Returns: {
- *   IOS: { runId, url, status },
- *   ANDROID_WEB: { runId, url, status }
+ *   IOS: { runId, url, status },              // Success
+ *   ANDROID_WEB: { error: "Network timeout" },  // Failure
+ *   ANDROID_PLAYSTORE: { runId, url, status }   // Success
  * }
+ * 
+ * Note: Supports partial success - some platforms may succeed while others fail.
+ * Check for presence of 'error' field to determine if a platform failed.
  */
 const createTestRunsHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { testManagementConfigId, platforms } = req.body;
 
-      const testManagementConfigIdMissing = !testManagementConfigId;
-      if (testManagementConfigIdMissing) {
+      if (!testManagementConfigId || typeof testManagementConfigId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
         );
@@ -65,7 +68,7 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
 
 /**
  * Get test status with threshold evaluation
- * GET /test-status?runId=xxx&testManagementConfigId=yyy
+ * GET /test-management/test-runs/:runId?testManagementConfigId=yyy
  * 
  * Returns: {
  *   runId, status, passPercentage, threshold,
@@ -75,11 +78,12 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
 const getTestStatusHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, testManagementConfigId } = req.query;
+      const { runId } = req.params;
+      const { testManagementConfigId } = req.query;
 
-      if (!runId || typeof runId !== 'string') {
+      if (!runId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runId', 'runId query parameter is required')
+          validationErrorResponse('runId', 'runId path parameter is required')
         );
         return;
       }
@@ -102,26 +106,26 @@ const getTestStatusHandler = (service: TestManagementRunService) =>
 
 /**
  * Reset test run in provider
- * POST /test-runs/reset
+ * POST /test-management/test-runs/:runId/reset
  * 
  * Body: {
- *   runId: string,
  *   testManagementConfigId: string
  * }
  */
 const resetTestRunHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, testManagementConfigId } = req.body;
+      const { runId } = req.params;
+      const { testManagementConfigId } = req.body;
 
       if (!runId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runId', 'runId is required')
+          validationErrorResponse('runId', 'runId path parameter is required')
         );
         return;
       }
 
-      if (!testManagementConfigId) {
+      if (!testManagementConfigId || typeof testManagementConfigId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
         );
@@ -141,26 +145,26 @@ const resetTestRunHandler = (service: TestManagementRunService) =>
 
 /**
  * Cancel test run
- * POST /test-runs/cancel
+ * POST /test-management/test-runs/:runId/cancel
  * 
  * Body: {
- *   runId: string,
  *   testManagementConfigId: string
  * }
  */
 const cancelTestRunHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, testManagementConfigId } = req.body;
+      const { runId } = req.params;
+      const { testManagementConfigId } = req.body;
 
       if (!runId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runId', 'runId is required')
+          validationErrorResponse('runId', 'runId path parameter is required')
         );
         return;
       }
 
-      if (!testManagementConfigId) {
+      if (!testManagementConfigId || typeof testManagementConfigId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
         );
@@ -180,16 +184,17 @@ const cancelTestRunHandler = (service: TestManagementRunService) =>
 
 /**
  * Get detailed test report
- * GET /test-report?runId=xxx&testManagementConfigId=yyy&groupBy=section
+ * GET /test-management/test-runs/:runId/report?testManagementConfigId=yyy&groupBy=section
  */
 const getTestReportHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { runId, testManagementConfigId, groupBy } = req.query;
+      const { runId } = req.params;
+      const { testManagementConfigId, groupBy } = req.query;
 
-      if (!runId || typeof runId !== 'string') {
+      if (!runId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runId', 'runId query parameter is required')
+          validationErrorResponse('runId', 'runId path parameter is required')
         );
         return;
       }

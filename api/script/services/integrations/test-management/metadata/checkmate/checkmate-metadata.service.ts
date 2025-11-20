@@ -1,8 +1,8 @@
 /**
- * Test Management Metadata Service
+ * Checkmate Metadata Service
  * 
- * Service for fetching metadata (projects, sections, labels, squads)
- * from test management providers through project integrations
+ * Service for fetching Checkmate-specific metadata
+ * (projects, sections, labels, squads) through project integrations
  */
 
 import type { ProjectTestManagementIntegrationRepository } from '~models/integrations/test-management/project-integration/project-integration.repository';
@@ -12,24 +12,24 @@ import type {
     CheckmateProjectsResponse,
     CheckmateSectionsResponse,
     CheckmateSquadsResponse
-} from '../providers/checkmate/checkmate.interface';
-import { CheckmateProvider } from '../providers/checkmate/checkmate.provider';
+} from '../../providers/checkmate/checkmate.interface';
+import { CheckmateProvider } from '../../providers/checkmate/checkmate.provider';
 
-export class TestManagementMetadataService {
+export class CheckmateMetadataService {
   constructor(
     private readonly integrationRepo: ProjectTestManagementIntegrationRepository
   ) {}
 
   /**
    * Validate that integration is Checkmate
-   * Metadata APIs are currently Checkmate-specific
+   * Metadata APIs are Checkmate-specific
    */
   private validateCheckmateIntegration(providerType: string, integrationId: string): void {
     const isCheckmate = providerType === TestManagementProviderType.CHECKMATE;
     
     if (!isCheckmate) {
       throw new Error(
-        `Metadata APIs are only supported for Checkmate integrations. Integration ${integrationId} is ${providerType}`
+        `Checkmate metadata APIs are only supported for Checkmate integrations. Integration ${integrationId} is ${providerType}`
       );
     }
   }

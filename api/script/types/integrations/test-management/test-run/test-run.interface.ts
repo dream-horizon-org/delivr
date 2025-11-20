@@ -32,15 +32,31 @@ export type PlatformTestRun = {
 };
 
 /**
+ * Successful test run creation result
+ */
+export type PlatformRunSuccess = {
+  runId: string;
+  url: string;
+  status: TestRunStatus;
+};
+
+/**
+ * Failed test run creation result
+ */
+export type PlatformRunError = {
+  error: string;
+};
+
+/**
  * Response from creating test runs
  * Keys are TestPlatform enum values (IOS, ANDROID_WEB, ANDROID_PLAYSTORE)
+ * Each platform can be either successful (with runId, url, status) or failed (with error)
+ * 
+ * This allows partial success - some platforms may succeed while others fail.
+ * Frontend/caller should check for presence of 'error' field to determine success.
  */
 export type CreateTestRunsResponse = {
-  [K in TestPlatform]?: {
-    runId: string;
-    url: string;
-    status: TestRunStatus;
-  };
+  [K in TestPlatform]?: PlatformRunSuccess | PlatformRunError;
 };
 
 /**
