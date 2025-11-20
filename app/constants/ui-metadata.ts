@@ -64,21 +64,6 @@ export const INTEGRATION_UI_METADATA: Record<string, {
     icon: '🦊',
     comingSoon: true,
   },
-  'circle-ci': {
-    description: 'Integrate with CircleCI for continuous integration',
-    icon: '🔄',
-    comingSoon: true,
-  },
-  'travis-ci': {
-    description: 'Integrate with Travis CI for continuous integration',
-    icon: '🔧',
-    comingSoon: true,
-  },
-  'azure-devops': {
-    description: 'Integrate with Azure DevOps pipelines',
-    icon: '☁️',
-    comingSoon: true,
-  },
   
   // TEST_MANAGEMENT
   checkmate: {
