@@ -109,8 +109,8 @@ export function getManagementRouter(config: ManagementConfig): Router {
       ];
       
       const APP_DISTRIBUTION = [
-        { id: "appstore", name: "App Store", requiresOAuth: false, isAvailable: false },
-        { id: "playstore", name: "Play Store", requiresOAuth: false, isAvailable: false },
+        { id: "app_store", name: "App Store", requiresOAuth: false, isAvailable: true },
+        { id: "play_store", name: "Play Store", requiresOAuth: false, isAvailable: true },
         { id: "firebase", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
       ];
 
