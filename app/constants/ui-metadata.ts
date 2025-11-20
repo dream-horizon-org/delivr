@@ -28,6 +28,11 @@ export const INTEGRATION_UI_METADATA: Record<string, {
     icon: '🪣',
     comingSoon: true,
   },
+  'azure-repos': {
+    description: 'Integrate with Azure Repos for version control',
+    icon: '☁️',
+    comingSoon: true,
+  },
   
   // COMMUNICATION
   slack: {
@@ -37,6 +42,11 @@ export const INTEGRATION_UI_METADATA: Record<string, {
   teams: {
     description: 'Integrate with Microsoft Teams for notifications',
     icon: '💼',
+    comingSoon: true,
+  },
+  discord: {
+    description: 'Send notifications to Discord channels',
+    icon: '💬',
     comingSoon: true,
   },
   
@@ -49,9 +59,24 @@ export const INTEGRATION_UI_METADATA: Record<string, {
     description: 'Trigger GitHub Actions workflows and automate your CI/CD pipeline',
     icon: '⚡',
   },
-  circleci: {
+  'gitlab-ci': {
+    description: 'Integrate with GitLab CI/CD pipelines',
+    icon: '🦊',
+    comingSoon: true,
+  },
+  'circle-ci': {
     description: 'Integrate with CircleCI for continuous integration',
     icon: '🔄',
+    comingSoon: true,
+  },
+  'travis-ci': {
+    description: 'Integrate with Travis CI for continuous integration',
+    icon: '🔧',
+    comingSoon: true,
+  },
+  'azure-devops': {
+    description: 'Integrate with Azure DevOps pipelines',
+    icon: '☁️',
     comingSoon: true,
   },
   
@@ -81,6 +106,11 @@ export const INTEGRATION_UI_METADATA: Record<string, {
     icon: '📐',
     comingSoon: true,
   },
+  asana: {
+    description: 'Integrate with Asana for work management',
+    icon: '✓',
+    comingSoon: true,
+  },
   
   // APP_DISTRIBUTION
   appstore: {
@@ -91,6 +121,11 @@ export const INTEGRATION_UI_METADATA: Record<string, {
   playstore: {
     description: 'Publish Android apps to Google Play Console',
     icon: '🤖',
+    comingSoon: true,
+  },
+  firebase: {
+    description: 'Distribute app builds to testers via Firebase App Distribution',
+    icon: '🔥',
     comingSoon: true,
   },
 };
