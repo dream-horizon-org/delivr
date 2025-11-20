@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { Storage } from "../storage/storage";
-import * as tenantPermissions from "../middleware/tenant-permissions";
+// import * as tenantPermissions from "../middleware/tenant-permissions";
 import { createJenkinsConnectionRoutes } from "./integrations/ci-cd/connections/jenkins.routes";
 import { createGitHubActionsConnectionRoutes } from "./integrations/ci-cd/connections/github-actions.routes";
 import { createJenkinsWorkflowRoutes } from "./integrations/ci-cd/workflows/jenkins.routes";
