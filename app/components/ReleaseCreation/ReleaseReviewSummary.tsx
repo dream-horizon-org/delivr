@@ -50,21 +50,21 @@ export function ReleaseReviewSummary({
           </div>
           
           <div>
-            <Text size="xs" c="dimmed">Kickoff Date</Text>
-            <Text fw={500}>{details.kickoffDate || 'Not set'}</Text>
+            <Text size="xs" c="dimmed">Base Branch</Text>
+            <Text fw={500}>{details.baseBranch || 'Not set'}</Text>
           </div>
           
           <div>
-            <Text size="xs" c="dimmed">Release Date</Text>
-            <Text fw={500}>{details.releaseDate || 'Not set'}</Text>
+            <Text size="xs" c="dimmed">Release Targets</Text>
+            <Group gap="xs">
+              {details.releaseTargets?.web && <Badge size="xs">Web</Badge>}
+              {details.releaseTargets?.playStore && <Badge size="xs">Play Store</Badge>}
+              {details.releaseTargets?.appStore && <Badge size="xs">App Store</Badge>}
+              {!details.releaseTargets?.web && !details.releaseTargets?.playStore && !details.releaseTargets?.appStore && (
+                <Text size="xs" c="dimmed">None selected</Text>
+              )}
+            </Group>
           </div>
-          
-          {details.baseVersion && (
-            <div>
-              <Text size="xs" c="dimmed">Base Version</Text>
-              <Text fw={500}>{details.baseVersion}</Text>
-            </div>
-          )}
         </div>
         
         {details.description && (
@@ -76,6 +76,61 @@ export function ReleaseReviewSummary({
             </div>
           </>
         )}
+      </Card>
+      
+      {/* Scheduling Details */}
+      <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Group gap="sm" className="mb-3">
+          <IconCalendar size={20} className="text-blue-600" />
+          <Text fw={600} size="sm">
+            Schedule
+          </Text>
+        </Group>
+        
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <Text size="xs" c="dimmed">Release Date</Text>
+            <Text fw={500}>
+              {details.releaseDate ? new Date(details.releaseDate).toLocaleDateString() : 'Not set'}
+              {details.releaseTime && ` at ${details.releaseTime}`}
+            </Text>
+          </div>
+          
+          <div>
+            <Text size="xs" c="dimmed">Kickoff Date</Text>
+            <Text fw={500}>
+              {details.kickoffDate ? new Date(details.kickoffDate).toLocaleDateString() : 'Not set'}
+              {details.kickoffTime && ` at ${details.kickoffTime}`}
+            </Text>
+          </div>
+          
+          <div className="col-span-2">
+            <Text size="xs" c="dimmed" className="mb-2">Regression Builds</Text>
+            {details.hasRegressionBuilds ? (
+              <div className="space-y-2">
+                <Badge variant="light" color="green">Scheduled</Badge>
+                {details.regressionBuildSlots && details.regressionBuildSlots.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {details.regressionBuildSlots.map((slot) => {
+                      const slotDate = new Date(details.releaseDate!);
+                      slotDate.setDate(slotDate.getDate() - slot.offsetDays);
+                      return (
+                        <div key={slot.id} className="text-xs bg-gray-50 p-2 rounded">
+                          <Text size="xs" fw={500}>{slot.name}</Text>
+                          <Text size="xs" c="dimmed">
+                            {slotDate.toLocaleDateString()} at {slot.time} (RD-{slot.offsetDays} days)
+                          </Text>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Badge variant="light" color="orange">Manual Upload</Badge>
+            )}
+          </div>
+        </div>
       </Card>
       
       {/* Configuration Info */}
@@ -115,89 +170,57 @@ export function ReleaseReviewSummary({
       {config && (
         <Card shadow="sm" padding="md" radius="md" withBorder>
           <Text fw={600} size="sm" className="mb-3">
-            Customizations for This Release
+            Configuration Overrides
           </Text>
           
           <Stack gap="sm">
-            {/* Pre-Regression Builds */}
-            {customizations.buildPipelines?.enablePreRegression !== undefined && (
+            {/* Check if config has pre-regression builds */}
+            {config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') && (
               <Group gap="xs">
-                {customizations.buildPipelines.enablePreRegression ? (
+                {customizations.enablePreRegressionBuilds !== false ? (
                   <IconCheck size={16} className="text-green-600" />
                 ) : (
                   <IconX size={16} className="text-red-600" />
                 )}
                 <Text size="sm">
                   Pre-Regression Builds: {
-                    customizations.buildPipelines.enablePreRegression ? 'Enabled' : 'Disabled'
+                    customizations.enablePreRegressionBuilds !== false ? 'Enabled' : 'Disabled'
                   }
                 </Text>
               </Group>
             )}
             
-            {/* Test Management */}
-            {customizations.testManagement?.enabled !== undefined && (
+            {/* Check if config has Checkmate */}
+            {config.testManagement.enabled && config.testManagement.provider === 'CHECKMATE' && (
               <Group gap="xs">
-                {customizations.testManagement.enabled ? (
+                {customizations.enableCheckmate !== false ? (
                   <IconCheck size={16} className="text-green-600" />
                 ) : (
                   <IconX size={16} className="text-red-600" />
                 )}
                 <Text size="sm">
-                  Test Management: {
-                    customizations.testManagement.enabled ? 'Enabled' : 'Disabled'
+                  Checkmate Integration: {
+                    customizations.enableCheckmate !== false ? 'Enabled' : 'Disabled'
                   }
                 </Text>
-                {customizations.testManagement.enabled && customizations.testManagement.createTestRuns !== undefined && (
-                  <Text size="xs" c="dimmed">
-                    ({customizations.testManagement.createTestRuns ? 'Auto-create runs' : 'Manual runs'})
-                  </Text>
-                )}
               </Group>
             )}
             
-            {/* Communication */}
-            {(customizations.communication?.enableSlack !== undefined || 
-              customizations.communication?.enableEmail !== undefined) && (
-              <>
-                {customizations.communication.enableSlack !== undefined && (
-                  <Group gap="xs">
-                    {customizations.communication.enableSlack ? (
-                      <IconCheck size={16} className="text-green-600" />
-                    ) : (
-                      <IconX size={16} className="text-red-600" />
-                    )}
-                    <Text size="sm">
-                      Slack Notifications: {
-                        customizations.communication.enableSlack ? 'Enabled' : 'Disabled'
-                      }
-                    </Text>
-                  </Group>
-                )}
-                
-                {customizations.communication.enableEmail !== undefined && (
-                  <Group gap="xs">
-                    {customizations.communication.enableEmail ? (
-                      <IconCheck size={16} className="text-green-600" />
-                    ) : (
-                      <IconX size={16} className="text-red-600" />
-                    )}
-                    <Text size="sm">
-                      Email Notifications: {
-                        customizations.communication.enableEmail ? 'Enabled' : 'Disabled'
-                      }
-                    </Text>
-                  </Group>
-                )}
-              </>
+            {/* If no customizations available */}
+            {!config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') &&
+             !(config.testManagement.enabled && config.testManagement.provider === 'CHECKMATE') && (
+              <Text size="sm" c="dimmed" className="italic">
+                No configuration overrides available for this release configuration
+              </Text>
             )}
             
-            {/* If no customizations */}
-            {!customizations.buildPipelines?.enablePreRegression &&
-             !customizations.testManagement?.enabled &&
-             !customizations.communication && (
-              <Text size="sm" c="dimmed" className="italic">
-                Using all defaults from configuration
+            {/* Show defaults if everything is enabled */}
+            {customizations.enablePreRegressionBuilds !== false && 
+             customizations.enableCheckmate !== false &&
+             (config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') ||
+              (config.testManagement.enabled && config.testManagement.provider === 'CHECKMATE')) && (
+              <Text size="xs" c="dimmed" className="mt-2">
+                All features from configuration are enabled for this release
               </Text>
             )}
           </Stack>

@@ -15,29 +15,35 @@ import { createRelease } from '~/.server/services/ReleaseManagement';
 import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper';
 import { ConfigurationSelector } from '~/components/ReleaseCreation/ConfigurationSelector';
 import { ReleaseDetailsForm } from '~/components/ReleaseCreation/ReleaseDetailsForm';
-import { ReleaseCustomizationPanel } from '~/components/ReleaseCreation/ReleaseCustomizationPanel';
-import { ManualConfigurationPanel } from '~/components/ReleaseCreation/ManualConfigurationPanel';
+import { ReleaseSchedulingPanel } from '~/components/ReleaseCreation/ReleaseSchedulingPanel';
+import { ReleaseConfigurePanel } from '~/components/ReleaseCreation/ReleaseConfigurePanel';
 import { ReleaseReviewSummary } from '~/components/ReleaseCreation/ReleaseReviewSummary';
 import type { ReleaseBasicDetails, ReleaseCustomizations } from '~/types/release-creation';
 import type { ReleaseConfiguration } from '~/types/release-config';
 
 const steps: Step[] = [
   {
-    id: 'mode',
-    title: 'Choose Mode',
-    description: 'Config or Manual',
-    icon: IconRocket as any,
+    id: 'config',
+    title: 'Select Configuration',
+    description: 'Choose template',
+    icon: IconSettings as any,
   },
   {
     id: 'details',
     title: 'Release Details',
-    description: 'Version & dates',
+    description: 'Version, type & targets',
+    icon: IconRocket as any,
+  },
+  {
+    id: 'scheduling',
+    title: 'Scheduling',
+    description: 'Timeline & slots',
     icon: IconArrowRight as any,
   },
   {
     id: 'configure',
     title: 'Configure',
-    description: 'Settings & options',
+    description: 'Optional settings',
     icon: IconSettings as any,
   },
   {
@@ -129,12 +135,20 @@ export default function CreateReleasePage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Release creation state - always WITH_CONFIG now
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
   const [selectedConfig, setSelectedConfig] = useState<ReleaseConfiguration | undefined>();
-  const [details, setDetails] = useState<Partial<ReleaseBasicDetails>>({});
-  const [customizations, setCustomizations] = useState<Partial<ReleaseCustomizations>>({});
+  const [details, setDetails] = useState<Partial<ReleaseBasicDetails>>({
+    releaseTargets: { web: false, playStore: false, appStore: false },
+    hasRegressionBuilds: false,
+    regressionBuildSlots: [],
+  });
+  const [customizations, setCustomizations] = useState<Partial<ReleaseCustomizations>>({
+    enablePreRegressionBuilds: true,
+    enableCheckmate: true,
+  });
   
   // Select default configuration on load
   useEffect(() => {
@@ -161,9 +175,14 @@ export default function CreateReleasePage() {
   // Pre-populate details from selected config
   useEffect(() => {
     if (selectedConfig) {
+      // Map config release type to form release type (EMERGENCY -> HOTFIX for now)
+      const mappedReleaseType = selectedConfig.releaseType === 'EMERGENCY' 
+        ? 'HOTFIX' as const
+        : selectedConfig.releaseType as 'PLANNED' | 'HOTFIX' | 'PATCH';
+      
       setDetails((prevDetails) => ({
         ...prevDetails,
-        releaseType: selectedConfig.releaseType,
+        releaseType: mappedReleaseType,
       }));
     }
   }, [selectedConfig]);
@@ -180,33 +199,97 @@ export default function CreateReleasePage() {
     navigate(`/dashboard/${org}/releases/configure?clone=${configId}&returnTo=create`);
   };
   
-  const canProceedFromStep = (stepIndex: number): boolean => {
+  const validateStep = (stepIndex: number): { valid: boolean; errors: Record<string, string> } => {
+    const newErrors: Record<string, string> = {};
+    
     switch (stepIndex) {
       case 0: // Configuration selection
-        return !!selectedConfigId;
+        if (!selectedConfigId) {
+          newErrors.config = 'Please select a configuration';
+        }
+        break;
         
       case 1: // Release details
-        return !!(
-          details.version &&
-          details.kickoffDate &&
-          details.releaseDate
-        );
+        if (!details.version) {
+          newErrors.version = 'Version is required';
+        } else if (!/^v?\d+\.\d+\.\d+$/.test(details.version)) {
+          newErrors.version = 'Version must be in format: v1.2.3';
+        }
         
-      case 2: // Customization
-        return true; // Customization is optional
+        if (!details.releaseType) {
+          newErrors.releaseType = 'Release type is required';
+        }
         
-      case 3: // Review
-        return true;
+        if (!details.baseBranch) {
+          newErrors.baseBranch = 'Base branch is required';
+        }
         
-      default:
-        return false;
+        // Check if at least one target is selected
+        const hasTarget = details.releaseTargets?.web || 
+                          details.releaseTargets?.playStore || 
+                          details.releaseTargets?.appStore;
+        if (!hasTarget) {
+          newErrors.releaseTargets = 'At least one release target must be selected';
+        }
+        break;
+        
+      case 2: // Scheduling
+        if (!details.releaseDate) {
+          newErrors.releaseDate = 'Release date is required';
+        } else {
+          const rd = new Date(details.releaseDate);
+          if (rd < new Date()) {
+            newErrors.releaseDate = 'Release date must be in the future';
+          }
+        }
+        
+        if (!details.kickoffDate) {
+          newErrors.kickoffDate = 'Kickoff date is required';
+        } else if (details.releaseDate) {
+          const kd = new Date(details.kickoffDate);
+          const rd = new Date(details.releaseDate);
+          if (kd >= rd) {
+            newErrors.kickoffDate = 'Kickoff date must be before release date';
+          }
+        }
+        
+        // Validate regression slots if enabled
+        if (details.hasRegressionBuilds && (!details.regressionBuildSlots || details.regressionBuildSlots.length === 0)) {
+          newErrors.regressionSlots = 'At least one regression slot is required when regression builds are enabled';
+        }
+        break;
+        
+      case 3: // Configure
+        // Optional step, no validation needed
+        break;
+        
+      case 4: // Review
+        // Final validation before submit
+        break;
     }
+    
+    return { valid: Object.keys(newErrors).length === 0, errors: newErrors };
+  };
+  
+  const canProceedFromStep = (stepIndex: number): boolean => {
+    const validation = validateStep(stepIndex);
+    return validation.valid;
   };
   
   const handleNext = () => {
-    if (canProceedFromStep(currentStep)) {
+    const validation = validateStep(currentStep);
+    
+    if (validation.valid) {
+      setErrors({});
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       setCurrentStep(currentStep + 1);
+    } else {
+      setErrors(validation.errors);
+      // Show first error
+      const firstError = Object.values(validation.errors)[0];
+      if (firstError) {
+        alert(firstError);
+      }
     }
   };
   
@@ -217,21 +300,47 @@ export default function CreateReleasePage() {
   };
   
   const handleSubmit = async () => {
+    // Final validation
+    const validation = validateStep(currentStep);
+    if (!validation.valid) {
+      setErrors(validation.errors);
+      alert('Please fix validation errors before submitting');
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
-      // Prepare release data with required configuration
+      // Prepare complete release data
       const releaseData = {
-        configId: selectedConfigId, // Always required now
-        version: details.version,
-        releaseType: details.releaseType || 'PLANNED',
-        baseVersion: details.baseVersion,
-        kickoffDate: details.kickoffDate,
-        releaseDate: details.releaseDate,
-        description: details.description,
-        platforms: customizations.platforms || { web: false, playStore: false, appStore: false },
-        customizations,
-        createdBy: 'current-user', // TODO: Get from auth context
+        tenantId: org,
+        configId: selectedConfigId, // Configuration ID (or null for manual)
+        
+        // Basic details
+        basicDetails: {
+          version: details.version!,
+          releaseType: details.releaseType!,
+          baseBranch: details.baseBranch!,
+          
+          releaseDate: details.releaseDate!,
+          releaseTime: details.releaseTime,
+          
+          kickoffDate: details.kickoffDate!,
+          kickoffTime: details.kickoffTime,
+          
+          hasRegressionBuilds: details.hasRegressionBuilds,
+          regressionBuildSlots: details.regressionBuildSlots || [],
+          
+          releaseTargets: details.releaseTargets!,
+          
+          description: details.description,
+        },
+        
+        // Customizations (2 toggles)
+        customizations: {
+          enablePreRegressionBuilds: customizations.enablePreRegressionBuilds ?? true,
+          enableCheckmate: customizations.enableCheckmate ?? true,
+        },
       };
       
       console.log('[CreateRelease] Submitting release:', releaseData);
@@ -242,7 +351,7 @@ export default function CreateReleasePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ release: releaseData }),
+        body: JSON.stringify(releaseData),
       });
       
       if (!response.ok) {
@@ -251,10 +360,14 @@ export default function CreateReleasePage() {
       }
       
       const result = await response.json();
-      console.log('[CreateRelease] Release created:', result.releaseId);
+      console.log('[CreateRelease] Release created:', result);
       
-      // Navigate to the release or releases list
-      navigate(`/dashboard/${org}/releases`);
+      // Navigate to the release detail page
+      if (result.releaseId) {
+        navigate(`/dashboard/${org}/releases/${result.releaseId}`);
+      } else {
+        navigate(`/dashboard/${org}/releases`);
+      }
     } catch (error) {
       console.error('[CreateRelease] Failed to create release:', error);
       alert(`Failed to create release: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -277,25 +390,43 @@ export default function CreateReleasePage() {
           />
         );
         
-      case 1: // Release details
+      case 1: // Release details (version, type, targets, branch)
         return (
           <ReleaseDetailsForm
             details={details}
             onChange={setDetails}
-            prePopulated={true}
+            config={selectedConfig}
+            latestVersion="v1.0.0" // TODO: Fetch from API
+            tenantId={org}
+            errors={errors}
           />
         );
         
-      case 2: // Customization
+      case 2: // Scheduling (dates, times, regression slots)
         return (
-          <ReleaseCustomizationPanel
+          <ReleaseSchedulingPanel
+            releaseDate={details.releaseDate || ''}
+            releaseTime={details.releaseTime}
+            kickoffDate={details.kickoffDate || ''}
+            kickoffTime={details.kickoffTime}
+            hasRegressionBuilds={details.hasRegressionBuilds || false}
+            regressionBuildSlots={details.regressionBuildSlots}
+            config={selectedConfig}
+            onChange={(schedulingData) => setDetails({ ...details, ...schedulingData })}
+            errors={errors}
+          />
+        );
+        
+      case 3: // Configure (2 toggles)
+        return (
+          <ReleaseConfigurePanel
             config={selectedConfig}
             customizations={customizations}
             onChange={setCustomizations}
           />
         );
         
-      case 3: // Review
+      case 4: // Review
         return (
           <ReleaseReviewSummary
             config={selectedConfig}

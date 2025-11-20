@@ -1,114 +1,45 @@
-import { IntegrationService } from './base-integration';
-import type { 
-  SCMIntegration, 
-  VerifySCMRequest, 
-  VerifySCMResponse 
-} from './types';
-
 /**
- * SCM Integration Service
- * Handles Source Control Management integrations for Release Management
+ * SCM Integration Service (BFF Layer)
+ * Handles all SCM-related API calls to the backend
  */
-class SCMIntegrationServiceClass extends IntegrationService {
-  /**
-   * Verify SCM connection before saving
-   */
-  async verifySCM(request: VerifySCMRequest, userId: string): Promise<VerifySCMResponse> {
-    this.logRequest('POST', `/tenants/${request.tenantId}/integrations/scm/verify`, { 
-      scmType: request.scmType, 
-      owner: request.owner, 
-      repo: request.repo 
-    });
-    
-    const data = await this.post<VerifySCMResponse>(
-      `/tenants/${request.tenantId}/integrations/scm/verify`,
-      {
-        scmType: request.scmType,
-        owner: request.owner,
-        repo: request.repo,
-        accessToken: request.accessToken,
-      },
-      userId
-    );
-    
-    this.logResponse('POST', `/tenants/${request.tenantId}/integrations/scm/verify`, true);
-    return data;
-  }
 
-  /**
-   * Get current SCM integration for tenant
-   */
-  async getSCMIntegration(tenantId: string, userId: string): Promise<SCMIntegration | null> {
-    try {
-      return await this.get<SCMIntegration>(
-        `/tenants/${tenantId}/integrations/scm`,
-        userId
-      );
-    } catch (error: any) {
-      if ((error as any).status === 404) {
-        return null;
-      }
-      throw error;
-    }
-  }
+import { IntegrationService } from '../base-integration';
 
-  /**
-   * Create new SCM integration
-   */
-  async createSCMIntegration(
-    tenantId: string,
-    userId: string,
-    data: Omit<SCMIntegration, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<SCMIntegration> {
-    this.logRequest('POST', `/tenants/${tenantId}/integrations/scm`, { 
-      scmType: (data as any).scmType, 
-      owner: (data as any).owner, 
-      repo: (data as any).repo 
-    });
-    
-    const result = await this.post<SCMIntegration>(
-      `/tenants/${tenantId}/integrations/scm`,
-      data,
-      userId
-    );
-    
-    this.logResponse('POST', `/tenants/${tenantId}/integrations/scm`, true);
-    return result;
-  }
-
-  /**
-   * Update existing SCM integration
-   */
-  async updateSCMIntegration(
-    tenantId: string,
-    userId: string,
-    integrationId: string,
-    updateData: Partial<SCMIntegration>
-  ): Promise<SCMIntegration> {
-    return await this.patch<SCMIntegration>(
-      `/tenants/${tenantId}/integrations/scm`,
-      { integrationId, ...updateData },
-      userId
-    );
-  }
-
-  /**
-   * Delete SCM integration
-   */
-  async deleteSCMIntegration(
-    tenantId: string,
-    userId: string,
-    integrationId: string
-  ): Promise<void> {
-    await this.delete<void>(
-      `/tenants/${tenantId}/integrations/scm`,
-      userId,
-      {
-        data: { integrationId },
-      }
-    );
-  }
+export interface Branch {
+  name: string;
+  protected: boolean;
+  default: boolean;
 }
 
-// Export singleton instance
-export const SCMIntegrationService = new SCMIntegrationServiceClass();
+export interface FetchBranchesResponse {
+  success: boolean;
+  branches: Branch[];
+  defaultBranch: string;
+  error?: string;
+}
+
+export class SCMIntegrationService extends IntegrationService {
+  constructor() {
+    super();
+  }
+
+  /**
+   * Fetch branches from SCM repository
+   */
+  async fetchBranches(tenantId: string, userId: string): Promise<FetchBranchesResponse> {
+    this.logRequest('GET', `/tenants/${tenantId}/integrations/scm/branches`);
+    
+    try {
+      const result = await this.get<FetchBranchesResponse>(
+        `/tenants/${tenantId}/integrations/scm/branches`,
+        userId
+      );
+      
+      this.logResponse('GET', `/tenants/${tenantId}/integrations/scm/branches`, result.success);
+      return result;
+    } catch (error: any) {
+      this.logResponse('GET', `/tenants/${tenantId}/integrations/scm/branches`, false);
+      throw this.handleError(error);
+    }
+  }
+}
