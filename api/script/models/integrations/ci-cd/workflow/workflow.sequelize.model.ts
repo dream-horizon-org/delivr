@@ -1,13 +1,12 @@
-import { DataTypes, Model, Sequelize } from 'sequelize';
-import { 
-  TenantCICDWorkflow, 
-  CICDProviderType, 
-  Platform, 
-  WorkflowType 
-} from './workflows-types';
+import type { Sequelize } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
+import type { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
 
-export function createCICDWorkflowModel(sequelize: Sequelize) {
-  class CICDWorkflowModel extends Model<TenantCICDWorkflow> implements TenantCICDWorkflow {
+export const createCICDWorkflowModel = (sequelize: Sequelize) => {
+  class CICDWorkflowModel
+    extends Model<TenantCICDWorkflow>
+    implements TenantCICDWorkflow
+  {
     declare id: string;
     declare tenantId: string;
     declare providerType: CICDProviderType;
@@ -29,70 +28,70 @@ export function createCICDWorkflowModel(sequelize: Sequelize) {
         type: DataTypes.STRING(255),
         primaryKey: true,
         allowNull: false,
-        comment: 'Unique identifier (nanoid)',
+        comment: 'Unique identifier (nanoid)'
       },
       tenantId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: { model: 'tenants', key: 'id' },
         onDelete: 'CASCADE',
-        onUpdate: 'CASCADE',
+        onUpdate: 'CASCADE'
       },
       providerType: {
-        type: DataTypes.ENUM(...Object.values(CICDProviderType)),
-        allowNull: false,
+        type: DataTypes.ENUM('JENKINS','GITHUB_ACTIONS','CIRCLE_CI','GITLAB_CI'),
+        allowNull: false
       },
       integrationId: {
         type: DataTypes.STRING(255),
         allowNull: false,
         references: { model: 'tenant_ci_cd_integrations', key: 'id' },
         onDelete: 'RESTRICT',
-        onUpdate: 'CASCADE',
+        onUpdate: 'CASCADE'
       },
       displayName: {
         type: DataTypes.STRING(255),
-        allowNull: false,
+        allowNull: false
       },
       workflowUrl: {
         type: DataTypes.STRING(1024),
-        allowNull: false,
+        allowNull: false
       },
       providerIdentifiers: {
         type: DataTypes.JSON,
-        allowNull: true,
+        allowNull: true
       },
       platform: {
         type: DataTypes.STRING(100),
         allowNull: false,
         defaultValue: 'other',
-        comment: 'Normalized lowercase platform identifier',
+        comment: 'Normalized lowercase platform identifier'
       },
       workflowType: {
-        type: DataTypes.ENUM(...Object.values(WorkflowType)),
+        type: DataTypes.ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','CUSTOM'),
         allowNull: false,
-        defaultValue: WorkflowType.CUSTOM,
+        defaultValue: 'CUSTOM'
       },
       parameters: {
         type: DataTypes.JSON,
-        allowNull: true,
+        allowNull: true
       },
       createdByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
         references: { model: 'accounts', key: 'id' },
         onDelete: 'RESTRICT',
-        onUpdate: 'CASCADE',
+        onUpdate: 'CASCADE'
       },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
+        defaultValue: DataTypes.NOW
       },
       updatedAt: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
-      },
+        defaultValue: DataTypes.NOW
+      }
     },
     {
       sequelize,
@@ -103,12 +102,14 @@ export function createCICDWorkflowModel(sequelize: Sequelize) {
         { name: 'idx_wf_provider', fields: ['providerType'] },
         { name: 'idx_wf_integration', fields: ['integrationId'] },
         { name: 'idx_wf_platform', fields: ['platform'] },
-        { name: 'idx_wf_type', fields: ['workflowType'] },
-      ],
+        { name: 'idx_wf_type', fields: ['workflowType'] }
+      ]
     }
   );
 
   return CICDWorkflowModel;
-}
+};
+
+export type CICDWorkflowModelType = ReturnType<typeof createCICDWorkflowModel>;
 
 

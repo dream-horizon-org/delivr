@@ -10,6 +10,14 @@ export const ERROR_MESSAGES = {
   GHA_ALREADY_EXISTS: 'GitHub Actions connection already exists',
   GHA_CREATE_REQUIRED: 'apiToken is required',
 
+  // CI/CD Config errors
+  CONFIG_CREATE_FAILED: 'Failed to create CI/CD config',
+  CONFIG_LIST_FAILED: 'Failed to list CI/CD configs',
+  CONFIG_FETCH_FAILED: 'Failed to fetch CI/CD config',
+  CONFIG_NOT_FOUND: 'CI/CD config not found',
+  CONFIG_UPDATE_FAILED: 'Failed to update CI/CD config',
+  CONFIG_DELETE_FAILED: 'Failed to delete CI/CD config',
+
   JENKINS_JOB_URL_REQUIRED: 'jobUrl is required',
   JENKINS_INVALID_JOB_URL: 'Invalid jobUrl',
   JENKINS_CONNECTION_NOT_FOUND: 'No Jenkins connection found for this tenant',
@@ -51,7 +59,10 @@ export const ERROR_MESSAGES = {
   GHA_REPOSITORY_URL_REQUIRED: 'repositoryUrl is required',
   GHA_INVALID_REPOSITORY_URL: 'Invalid repositoryUrl',
   GHA_REPO_ACCESS_FAILED: 'Failed to access repository with provided token',
-  GHA_ACTIONS_ACCESS_FAILED: 'Failed to access GitHub Actions for repository'
+  GHA_ACTIONS_ACCESS_FAILED: 'Failed to access GitHub Actions for repository',
+
+  INTEGRATION_NOT_FOUND: 'CI/CD integration not found',
+  OPERATION_NOT_SUPPORTED: 'Operation not supported for this CI/CD provider'
 } as const;
 
 export const SUCCESS_MESSAGES = {

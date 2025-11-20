@@ -1,13 +1,3 @@
-/**
- * CI/CD Integration TypeScript Definitions
- * 
- * Defines interfaces and enums for CI/CD (Continuous Integration/Continuous Delivery) integrations
- * Matches the tenant_ci_cd_integrations table schema
- */
-
-// ============================================================================
-// Enums
-// ============================================================================
 export enum CICDProviderType {
   JENKINS = 'JENKINS',
   GITHUB_ACTIONS = 'GITHUB_ACTIONS',
@@ -28,31 +18,21 @@ export enum VerificationStatus {
   EXPIRED = 'EXPIRED',
 }
 
-// ============================================================================
-// Main Interface (matches DB schema)
-// ============================================================================
-
 export interface TenantCICDIntegration {
   id: string;
   tenantId: string;
-
   providerType: CICDProviderType;
   displayName: string;
-
   hostUrl: string;
   authType: AuthType;
   username?: string | null;
-
   apiToken?: string | null;
   headerName?: string | null;
   headerValue?: string | null;
-
-  providerConfig?: any | null;
-
+  providerConfig?: Record<string, unknown> | null;
   verificationStatus: VerificationStatus;
   lastVerifiedAt?: Date | null;
   verificationError?: string | null;
-
   createdByAccountId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -61,10 +41,6 @@ export interface TenantCICDIntegration {
 export interface SafeCICDIntegration extends Omit<TenantCICDIntegration, 'apiToken' | 'headerValue'> {
   hasSecret?: boolean;
 }
-
-// ============================================================================
-// DTOs (Data Transfer Objects)
-// ============================================================================
 
 export interface CreateCICDIntegrationDto {
   tenantId: string;
@@ -76,7 +52,7 @@ export interface CreateCICDIntegrationDto {
   apiToken?: string | null;
   headerName?: string | null;
   headerValue?: string | null;
-  providerConfig?: any | null;
+  providerConfig?: Record<string, unknown> | null;
   createdByAccountId: string;
   verificationStatus?: VerificationStatus;
   lastVerifiedAt?: Date | null;
@@ -91,7 +67,7 @@ export interface UpdateCICDIntegrationDto {
   apiToken?: string | null;
   headerName?: string | null;
   headerValue?: string | null;
-  providerConfig?: any | null;
+  providerConfig?: Record<string, unknown> | null;
   verificationStatus?: VerificationStatus;
   lastVerifiedAt?: Date | null;
   verificationError?: string | null;

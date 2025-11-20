@@ -1,5 +1,5 @@
 import { WorkflowService } from './workflow.service';
-import { CICDProviderType } from '../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS } from '../../../../constants/cicd';
@@ -7,16 +7,9 @@ import { parseGitHubRunUrl } from '../../../../utils/cicd';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
   private getGithubTokenForTenant = async (tenantId: string): Promise<string | null> => {
-    const gha = await (this.cicd as any).findByTenantAndProviderWithSecrets?.(tenantId, CICDProviderType.GITHUB_ACTIONS);
+    const gha = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (gha?.apiToken) return gha.apiToken as string;
-    const storage = (this as any).workflows ? (this as any) : null;
-    const s = (storage as any);
-    const scmController = (s?.cicd as any)?.storage?.scmController ?? (s?.workflows as any)?.storage?.scmController;
-    const scmModel = scmController?.model;
-    if (scmModel) {
-      const scm = await scmModel.findOne({ where: { tenantId, isActive: true, scmType: 'GITHUB' } });
-      if (scm) return (scm.toJSON().accessToken as string) || null;
-    }
+    // TODO: consider retrieving token from SCM integration repository if needed
     return null;
   };
 

@@ -2,19 +2,17 @@ import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
 import { ERROR_MESSAGES } from "../../../../constants/cicd";
 import { getStorage } from "../../../../storage/storage-instance";
-import type { CICDIntegrationController } from "../../../../storage/integrations/ci-cd/ci-cd-controller";
-import type { CICDWorkflowController } from "../../../../storage/integrations/ci-cd/workflows-controller";
 import { normalizePlatform, getErrorMessage } from "../../../../utils/cicd";
-import type { CreateWorkflowDto, UpdateWorkflowDto } from "../../../../storage/integrations/ci-cd/workflows-types";
+import type { CreateWorkflowDto, UpdateWorkflowDto } from "~types/integrations/ci-cd/workflow.interface";
 
-const getCICDController = (): CICDIntegrationController => {
+const getCICDIntegrationRepository = () => {
   const storage = getStorage();
-  return (storage as any).cicdController;
+  return (storage as any).cicdIntegrationRepository;
 };
 
-const getWorkflowController = (): CICDWorkflowController => {
+const getWorkflowRepository = () => {
   const storage = getStorage();
-  return (storage as any).cicdWorkflowController;
+  return (storage as any).cicdWorkflowRepository;
 };
 
 export const createWorkflow = async (req: Request, res: Response): Promise<any> => {
@@ -28,15 +26,15 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
   }
 
   try {
-    const cicd = getCICDController();
-    const integration = await cicd.findById(body.integrationId, true);
+    const cicd = getCICDIntegrationRepository();
+    const integration = await cicd.findById(body.integrationId);
     const invalidIntegration = !integration || integration.id !== body.integrationId;
     if (invalidIntegration) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID });
     }
 
-    const wfController = getWorkflowController();
-    await wfController.create({
+    const wfRepository = getWorkflowRepository();
+    await wfRepository.create({
       tenantId,
       providerType: body.providerType as any,
       integrationId: body.integrationId,
@@ -61,8 +59,8 @@ export const listWorkflows = async (req: Request, res: Response): Promise<any> =
   const { providerType, integrationId, platform, workflowType } = req.query as any;
 
   try {
-    const wfController = getWorkflowController();
-    const items = await wfController.findAll({
+    const wfRepository = getWorkflowRepository();
+    const items = await wfRepository.findAll({
       tenantId,
       providerType: providerType as any,
       integrationId: integrationId as string | undefined,
@@ -80,8 +78,8 @@ export const getWorkflowById = async (req: Request, res: Response): Promise<any>
   const tenantId = req.params.tenantId;
   const id = req.params.workflowId;
   try {
-    const wfController = getWorkflowController();
-    const item = await wfController.findById(id);
+    const wfRepository = getWorkflowRepository();
+    const item = await wfRepository.findById(id);
     const notFound = !item || item.tenantId !== tenantId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
@@ -98,13 +96,13 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
   const id = req.params.workflowId;
   const body = req.body as UpdateWorkflowDto;
   try {
-    const wfController = getWorkflowController();
-    const existing = await wfController.findById(id);
+    const wfRepository = getWorkflowRepository();
+    const existing = await wfRepository.findById(id);
     const notFound = !existing || existing.tenantId !== tenantId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
-    const updated = await wfController.update(id, body);
+    const updated = await wfRepository.update(id, body);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflow: updated });
   } catch (e: any) {
     const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_UPDATE_FAILED);
@@ -116,13 +114,13 @@ export const deleteWorkflow = async (req: Request, res: Response): Promise<any> 
   const tenantId = req.params.tenantId;
   const id = req.params.workflowId;
   try {
-    const wfController = getWorkflowController();
-    const existing = await wfController.findById(id);
+    const wfRepository = getWorkflowRepository();
+    const existing = await wfRepository.findById(id);
     const notFound = !existing || existing.tenantId !== tenantId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
-    await wfController.delete(id);
+    await wfRepository.delete(id);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, message: 'Workflow deleted' });
   } catch (e: any) {
     const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_DELETE_FAILED);

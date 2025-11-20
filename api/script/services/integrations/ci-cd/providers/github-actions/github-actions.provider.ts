@@ -1,4 +1,4 @@
-import { CICDProviderType } from '../../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { GitHubActionsProviderContract, GHAVerifyParams, GHAVerifyResult, GHAWorkflowInputsParams, GHAWorkflowInputsResult, GHARunStatusParams, GHARunStatus } from './github-actions.interface';
 import { fetchWithTimeout, parseGitHubWorkflowUrl, extractWorkflowDispatchInputs, mapGitHubRunStatus } from '../../../../../utils/cicd';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../../../../constants/cicd';

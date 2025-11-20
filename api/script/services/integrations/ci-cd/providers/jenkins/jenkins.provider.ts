@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import { CICDProviderType } from '../../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { JenkinsProviderContract, JenkinsVerifyParams, JenkinsVerifyResult, JenkinsJobParamsRequest, JenkinsJobParamsResult } from './jenkins.interface';
 import { fetchWithTimeout, sanitizeJoin, appendApiJson, extractJenkinsParameters } from '../../../../../utils/cicd';
 import { HEADERS, PROVIDER_DEFAULTS, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../../../../constants/cicd';

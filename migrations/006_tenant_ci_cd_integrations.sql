@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS tenant_ci_cd_integrations (
   -- Primary key
-  id VARCHAR(255) NOT NULL PRIMARY KEY COMMENT 'Unique identifier (nanoid)',
+  id VARCHAR(255) NOT NULL PRIMARY KEY COMMENT 'Unique identifier (shortid)',
 
   -- Tenant reference (matches tenants.id exactly)
   tenantId CHAR(36) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL COMMENT 'FK -> tenants.id',

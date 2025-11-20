@@ -19,12 +19,12 @@ import {
 } from "../services/integrations/test-management";
 import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
 import * as utils from "../utils/common";
-import { CICDIntegrationController } from "./integrations/ci-cd/ci-cd-controller";
-import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
-import { CICDWorkflowController } from "./integrations/ci-cd/workflows-controller";
-import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
-
+import { createCICDIntegrationModel } from "../models/integrations/ci-cd";
+import { createCICDWorkflowModel } from "../models/integrations/ci-cd";
+import { createCICDConfigModel } from "../models/integrations/ci-cd";
+import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
+import { CICDConfigRepository, CICDWorkflowRepository, CICDIntegrationRepository } from "../models/integrations/ci-cd";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/slack/slack-models";
@@ -373,6 +373,7 @@ export function createModelss(sequelize: Sequelize) {
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
   const CICDIntegrations = createCICDIntegrationModel(sequelize);  // CI/CD integrations (Jenkins, etc.)
   const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
+  const CICDConfigs = createCICDConfigModel(sequelize);  // CI/CD configs (stores workflow IDs)
   const Release = createRelease(sequelize);  // Release management from Delivr
 
   // ============================================
@@ -471,6 +472,7 @@ export function createModelss(sequelize: Sequelize) {
     SCMIntegrations,       // SCM integrations (GitHub, GitLab, Bitbucket)
     CICDIntegrations,      // CI/CD connections (Jenkins, etc.)
     CICDWorkflows,         // CI/CD workflows/jobs across providers
+    CICDConfigs,           // CI/CD configs mapping to workflow IDs
     Release,
     SlackIntegrations,  // Slack integrations
     ChannelConfig,  // Channel configurations for communication integrations
@@ -522,8 +524,9 @@ export class S3Storage implements storage.Storage {
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
     public checkmateMetadataService!: CheckmateMetadataService;
-    public cicdController!: CICDIntegrationController;  // CI/CD integration controller
-    public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
+    public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
+    public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
+    public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public channelController!: ChannelController;  // Channel configuration controller
     public constructor() {
@@ -629,14 +632,20 @@ export class S3Storage implements storage.Storage {
           // Initialize SCM Integration Controller
           this.scmController = new SCMIntegrationController(models.SCMIntegrations);
           console.log("SCM Integration Controller initialized");
-          
-          // Initialize CI/CD Integration Controller
-          this.cicdController = new CICDIntegrationController(models.CICDIntegrations);
-          console.log("CI/CD Integration Controller initialized");
 
-          // Initialize CI/CD Workflow Controller
-          this.cicdWorkflowController = new CICDWorkflowController(models.CICDWorkflows);
-          console.log("CI/CD Workflow Controller initialized");
+          // Initialize CI/CD Integration Repository
+          this.cicdIntegrationRepository = new CICDIntegrationRepository(models.CICDIntegrations);
+          console.log("CI/CD Integration Repository initialized");
+
+          // Initialize CI/CD Workflow Repository
+          this.cicdWorkflowRepository = new CICDWorkflowRepository(models.CICDWorkflows);
+          console.log("CI/CD Workflow Repository initialized");
+          
+          // Initialize CI/CD Config Service (uses repositories)
+          const cicdConfigRepository = new CICDConfigRepository(models.CICDConfigs);
+          const cicdWorkflowRepository = new CICDWorkflowRepository(models.CICDWorkflows);
+          this.cicdConfigService = new CICDConfigService(cicdConfigRepository, cicdWorkflowRepository);
+          console.log("CI/CD Config Service initialized");
                     
           
           

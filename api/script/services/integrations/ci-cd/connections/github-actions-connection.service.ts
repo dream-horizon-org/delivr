@@ -1,6 +1,5 @@
 import { ConnectionService } from './connection.service';
-import { CICDProviderType, AuthType, VerificationStatus } from '../../../../storage/integrations/ci-cd/ci-cd-types';
-import type { SafeCICDIntegration, CreateCICDIntegrationDto, UpdateCICDIntegrationDto } from '../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType, AuthType, VerificationStatus, type SafeCICDIntegration, type CreateCICDIntegrationDto, type UpdateCICDIntegrationDto } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAVerifyParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../constants/cicd';
@@ -18,7 +17,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
   };
 
   create = async (tenantId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
-    const existing = await this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (existing) {
       throw new Error(ERROR_MESSAGES.GHA_ALREADY_EXISTS);
     }
@@ -29,7 +28,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
     });
-    const created = await this.cicd.create({
+    const created = await this.repository.create({
       tenantId,
       providerType: CICDProviderType.GITHUB_ACTIONS,
       displayName: input.displayName ?? 'GitHub Actions',
@@ -42,23 +41,24 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       lastVerifiedAt: new Date(),
       verificationError: verify.isValid ? null : verify.message
     } as CreateCICDIntegrationDto);
-    return created as SafeCICDIntegration;
+    return this.toSafe(created);
   };
 
   get = async (tenantId: string): Promise<SafeCICDIntegration | null> => {
-    return this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+    const found = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+    return found ? this.toSafe(found) : null;
   };
 
   update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
-    const existing = await this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }
 
     const requiresVerification = (!!updateData.apiToken) && !updateData.verificationStatus;
     if (requiresVerification) {
-      const withSecrets = await this.cicd.findById(existing.id, true);
-      const tokenToCheck: string | undefined = updateData.apiToken ?? (withSecrets as any)?.apiToken;
+      const withSecrets = await this.repository.findById(existing.id);
+      const tokenToCheck: string | undefined = updateData.apiToken ?? (withSecrets as any)?.apiToken as (string | undefined);
 
       if (!tokenToCheck) {
         updateData.verificationStatus = VerificationStatus.INVALID;
@@ -78,16 +78,16 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       }
     }
 
-    const updated: SafeCICDIntegration = await this.cicd.update(existing.id, updateData);
-    return updated;
+    const updated = await this.repository.update(existing.id, updateData);
+    return this.toSafe(updated as any);
   };
 
   delete = async (tenantId: string): Promise<void> => {
-    const existing = await this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
+    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }
-    await this.cicd.delete(existing.id);
+    await this.repository.delete(existing.id);
   };
 }
 

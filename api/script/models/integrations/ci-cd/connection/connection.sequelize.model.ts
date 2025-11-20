@@ -1,24 +1,12 @@
-/**
- * CI/CD Integration Sequelize Models
- * 
- * Defines Sequelize models for CI/CD (Continuous Integration/Continuous Delivery) integrations
- * Matches the tenant_ci_cd_integrations table schema
- */
-import { DataTypes, Model, Sequelize } from 'sequelize';
-import { 
-  TenantCICDIntegration, 
-  CICDProviderType, 
-  AuthType, 
-  VerificationStatus 
-} from './ci-cd-types';
+import type { Sequelize } from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
+import type { TenantCICDIntegration, CICDProviderType, AuthType, VerificationStatus } from '~types/integrations/ci-cd/connection.interface';
 
-// ============================================================================
-// Main Model (matches DB schema)
-// ============================================================================
-
-export function createCICDIntegrationModel(sequelize: Sequelize) {
-  class CICDIntegrationModel extends Model<TenantCICDIntegration> 
-    implements TenantCICDIntegration {
+export const createCICDIntegrationModel = (sequelize: Sequelize) => {
+  class CICDIntegrationModel
+    extends Model<TenantCICDIntegration>
+    implements TenantCICDIntegration
+  {
     declare id: string;
     declare tenantId: string;
     declare providerType: CICDProviderType;
@@ -44,121 +32,111 @@ export function createCICDIntegrationModel(sequelize: Sequelize) {
         type: DataTypes.STRING(255),
         primaryKey: true,
         allowNull: false,
-        comment: 'Unique identifier (nanoid)',
+        comment: 'Unique identifier (shortid)'
       },
       tenantId: {
         type: DataTypes.UUID,
         allowNull: false,
-        references: {
-          model: 'tenants',
-          key: 'id',
-        },
+        references: { model: 'tenants', key: 'id' },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
-        comment: 'Reference to tenants table',
+        comment: 'Reference to tenants table'
       },
       providerType: {
-        type: DataTypes.ENUM(...Object.values(CICDProviderType)),
+        type: DataTypes.ENUM('JENKINS','GITHUB_ACTIONS','CIRCLE_CI','GITLAB_CI'),
         allowNull: false,
-        comment: 'CI/CD provider type',
+        comment: 'CI/CD provider type'
       },
       displayName: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        comment: 'User-friendly name',
+        comment: 'User-friendly name'
       },
       hostUrl: {
         type: DataTypes.STRING(512),
         allowNull: false,
-        comment: 'Base API URL',
+        comment: 'Base API URL'
       },
       authType: {
-        type: DataTypes.ENUM(...Object.values(AuthType)),
+        type: DataTypes.ENUM('BASIC','BEARER','HEADER'),
         allowNull: false,
-        defaultValue: AuthType.BEARER,
-        comment: 'Authentication mode',
+        defaultValue: 'BEARER',
+        comment: 'Authentication mode'
       },
       username: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        comment: 'Username for BASIC auth',
+        comment: 'Username for BASIC auth'
       },
       apiToken: {
         type: DataTypes.TEXT,
         allowNull: true,
-        comment: 'Encrypted API token / PAT',
+        comment: 'Encrypted API token / PAT'
       },
       headerName: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        comment: 'Header name for HEADER auth (e.g., Circle-Token)',
+        comment: 'Header name for HEADER auth (e.g., Circle-Token)'
       },
       headerValue: {
         type: DataTypes.TEXT,
         allowNull: true,
-        comment: 'Encrypted header value for HEADER auth',
+        comment: 'Encrypted header value for HEADER auth'
       },
       providerConfig: {
         type: DataTypes.JSON,
         allowNull: true,
-        comment: 'Provider-specific configuration JSON',
+        comment: 'Provider-specific configuration JSON'
       },
       verificationStatus: {
-        type: DataTypes.ENUM(...Object.values(VerificationStatus)),
+        type: DataTypes.ENUM('PENDING','VALID','INVALID','EXPIRED'),
         allowNull: false,
-        defaultValue: VerificationStatus.PENDING,
-        comment: 'Connection verification status',
+        defaultValue: 'PENDING',
+        comment: 'Connection verification status'
       },
       lastVerifiedAt: {
         type: DataTypes.DATE,
         allowNull: true,
-        comment: 'Last successful verification time',
+        comment: 'Last successful verification time'
       },
       verificationError: {
         type: DataTypes.TEXT,
         allowNull: true,
-        comment: 'Verification error details',
+        comment: 'Verification error details'
       },
       createdByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        references: {
-          model: 'accounts',
-          key: 'id',
-        },
+        references: { model: 'accounts', key: 'id' },
         onDelete: 'RESTRICT',
         onUpdate: 'CASCADE',
-        comment: 'Account who created this',
+        comment: 'Account who created this'
       },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
+        defaultValue: DataTypes.NOW
       },
       updatedAt: {
         type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: DataTypes.NOW,
-      },
+        defaultValue: DataTypes.NOW
+      }
     },
     {
       sequelize,
       tableName: 'tenant_ci_cd_integrations',
       timestamps: true,
       indexes: [
-        {
-          name: 'idx_ci_cd_provider',
-          fields: ['providerType'],
-        },
-        {
-          name: 'idx_ci_cd_verification',
-          fields: ['verificationStatus'],
-        },
-      ],
+        { name: 'idx_ci_cd_provider', fields: ['providerType'] },
+        { name: 'idx_ci_cd_verification', fields: ['verificationStatus'] }
+      ]
     }
   );
 
   return CICDIntegrationModel;
-}
+};
+
+export type CICDIntegrationModelType = ReturnType<typeof createCICDIntegrationModel>;
 
 

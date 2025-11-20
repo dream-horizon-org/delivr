@@ -1,10 +1,9 @@
 import { Router } from "express";
 import { Storage } from "../storage/storage";
 // import * as tenantPermissions from "../middleware/tenant-permissions";
-import { createJenkinsConnectionRoutes } from "./integrations/ci-cd/connections/jenkins.routes";
-import { createGitHubActionsConnectionRoutes } from "./integrations/ci-cd/connections/github-actions.routes";
-import { createJenkinsWorkflowRoutes } from "./integrations/ci-cd/workflows/jenkins.routes";
-import { createGitHubActionsWorkflowRoutes } from "./integrations/ci-cd/workflows/github-actions.routes";
+import { createCICDConfigRoutes } from "./integrations/ci-cd/config.routes";
+import { createCICDConnectionsRoutes } from "./integrations/ci-cd/connections/connections.routes";
+import { createCICDWorkflowsRoutes } from "./integrations/ci-cd/workflows/workflows.routes";
 import * as workflowControllers from "../controllers/integrations/ci-cd/workflows/workflows.controller";
 import * as validateCICD from "../middleware/validate-cicd";
 import { getAvailableCICDProviders } from "../controllers/integrations/ci-cd/providers.controller";
@@ -19,10 +18,9 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
   );
 
   // Compose provider-specific subrouters
-  router.use(createJenkinsConnectionRoutes(storage));
-  router.use(createGitHubActionsConnectionRoutes(storage));
-  router.use(createJenkinsWorkflowRoutes(storage));
-  router.use(createGitHubActionsWorkflowRoutes(storage));
+  router.use(createCICDConfigRoutes(storage));
+  router.use(createCICDConnectionsRoutes(storage));
+  router.use(createCICDWorkflowsRoutes(storage));
 
   // Provider-agnostic workflows CRUD stays here
   router.post(

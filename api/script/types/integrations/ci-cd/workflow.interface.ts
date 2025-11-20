@@ -1,8 +1,4 @@
-import { CICDProviderType } from './ci-cd-types';
-export { CICDProviderType };
-
-// Platform must be a generic string (platform-agnostic), never an enum
-export type Platform = string;
+export type Platform = string; // platform-agnostic
 
 export enum WorkflowType {
   PRE_REGRESSION_BUILD = 'PRE_REGRESSION_BUILD',
@@ -12,21 +8,24 @@ export enum WorkflowType {
   CUSTOM = 'CUSTOM',
 }
 
+export enum CICDProviderType {
+  JENKINS = 'JENKINS',
+  GITHUB_ACTIONS = 'GITHUB_ACTIONS',
+  CIRCLE_CI = 'CIRCLE_CI',
+  GITLAB_CI = 'GITLAB_CI',
+}
+
 export interface TenantCICDWorkflow {
   id: string;
   tenantId: string;
   providerType: CICDProviderType;
   integrationId: string;
-
   displayName: string;
   workflowUrl: string;
-  providerIdentifiers?: any | null;
-
+  providerIdentifiers?: Record<string, unknown> | null;
   platform: Platform;
   workflowType: WorkflowType;
-
-  parameters?: any | null; // array of parameter definitions
-
+  parameters?: Record<string, unknown> | null;
   createdByAccountId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -38,20 +37,20 @@ export interface CreateWorkflowDto {
   integrationId: string;
   displayName: string;
   workflowUrl: string;
-  providerIdentifiers?: any | null;
+  providerIdentifiers?: Record<string, unknown> | null;
   platform: Platform;
   workflowType: WorkflowType;
-  parameters?: any | null;
+  parameters?: Record<string, unknown> | null;
   createdByAccountId: string;
 }
 
 export interface UpdateWorkflowDto {
   displayName?: string;
   workflowUrl?: string;
-  providerIdentifiers?: any | null;
+  providerIdentifiers?: Record<string, unknown> | null;
   platform?: Platform;
   workflowType?: WorkflowType;
-  parameters?: any | null;
+  parameters?: Record<string, unknown> | null;
 }
 
 export interface WorkflowFilters {
@@ -61,4 +60,5 @@ export interface WorkflowFilters {
   platform?: Platform;
   workflowType?: WorkflowType;
 }
+
 

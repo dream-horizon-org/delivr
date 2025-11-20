@@ -1,5 +1,5 @@
 import type { CICDProvider } from '../provider.interface';
-import { CICDProviderType } from '../../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
 export type GHAVerifyParams = {
   apiToken: string;
