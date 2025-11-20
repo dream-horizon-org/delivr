@@ -48,8 +48,7 @@ export class CommServiceFactory {
     const commConfig: CommConfig = {
       commType: CommType.SLACK,
       botToken: integration.slackBotToken,
-      workspaceId: integration.slackWorkspaceId,
-      channels: integration.slackChannels || []
+      workspaceId: integration.slackWorkspaceId
     };
 
     // Validate token exists
@@ -103,35 +102,6 @@ export class CommServiceFactory {
     } catch (error) {
       console.error(`Error checking comm integration for tenant ${tenantId}:`, error);
       return false;
-    }
-  }
-
-  /**
-   * Get tenant's configured channels
-   */
-  static async getTenantChannels(tenantId: string): Promise<string[]> {
-    try {
-      const storage = getStorage();
-      const slackController = (storage as any).slackController;
-      
-      if (!slackController) {
-        return [];
-      }
-
-      const integration = await slackController.findByTenant(
-        tenantId,
-        CommunicationType.SLACK,
-        false  // Don't need token for getting channels
-      );
-
-      if (!integration || !integration.slackChannels) {
-        return [];
-      }
-
-      return integration.slackChannels.map((ch: any) => ch.id);
-    } catch (error) {
-      console.error(`Error getting channels for tenant ${tenantId}:`, error);
-      return [];
     }
   }
 }

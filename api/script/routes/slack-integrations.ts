@@ -66,12 +66,34 @@ export function createSlackIntegrationRoutes(storage: Storage): Router {
   );
 
   // ============================================================================
-  // SEND Message to Slack
+  // CHANNEL CONFIGURATION ENDPOINTS
   // ============================================================================
+  // CREATE channel configuration
   router.post(
-    "/tenants/:tenantId/integrations/slack/send-message",
+    "/tenants/:tenantId/integrations/slack/channel-config",
     tenantPermissions.requireOwner({ storage }),
-    slackControllers.sendSlackMessage
+    slackControllers.createChannelConfig
+  );
+
+  // GET channel configuration by ID (id in body)
+  router.post(
+    "/tenants/:tenantId/integrations/slack/channel-config/get",
+    tenantPermissions.requireOwner({ storage }),
+    slackControllers.getChannelConfig
+  );
+
+  // DELETE channel configuration by ID (id in body)
+  router.post(
+    "/tenants/:tenantId/integrations/slack/channel-config/delete",
+    tenantPermissions.requireOwner({ storage }),
+    slackControllers.deleteChannelConfig
+  );
+
+  // UPDATE channel configuration - add/remove channels from stage
+  router.post(
+    "/tenants/:tenantId/integrations/slack/channel-config/update",
+    tenantPermissions.requireOwner({ storage }),
+    slackControllers.updateChannelConfig
   );
 
   return router;

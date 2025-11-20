@@ -2,22 +2,19 @@
 // Licensed under the MIT License.
 
 import { WebClient } from '@slack/web-api';
+import fetch from 'node-fetch';
 import type {
   CommConfig,
   SendMessageArgs,
   MessageResponse,
-  ReleaseNotificationArgs,
-  BuildNotificationArgs,
-  DeploymentNotificationArgs,
+  MessageFile,
   ListChannelsResponse,
   Channel,
   VerificationResult,
-  HealthCheckResult,
-  MessageAttachment,
-  NotificationType
+  HealthCheckResult
 } from './comm-types';
-import { MessageTemplate, buildSlackMessage } from './templates';
 import { ICommService } from './comm-service.interface';
+import { getStorage } from '../../storage/storage-instance';
 
 /**
  * Slack Service
@@ -26,10 +23,6 @@ import { ICommService } from './comm-service.interface';
  */
 export class SlackService implements ICommService {
   private client: WebClient;
-  private config: {
-    workspaceId?: string;
-    channels?: Channel[];
-  };
 
   constructor(private commConfig: CommConfig) {
     if (!commConfig.botToken) {
@@ -37,81 +30,222 @@ export class SlackService implements ICommService {
     }
 
     this.client = new WebClient(commConfig.botToken);
-
-    this.config = {
-      workspaceId: commConfig.workspaceId,
-      channels: commConfig.channels || []
-    };
   }
 
   // ============================================================================
   // MESSAGING OPERATIONS - Send Messages & Notifications
   // ============================================================================
 
+
+
   /**
-   * Send message using predefined template
-   * This is the main method for template-based messaging
+   * Send a plain text message to channels configured for a specific stage
+   * Fetches channels based on configId and stageEnum, then sends the message
    * 
-   * @param tenantId - Tenant ID (for context/logging)
-   * @param templateEnum - Template type from MessageTemplate enum
-   * @param templateParameters - Array of parameters to fill template
-   * @param sendOnThread - Whether to send as thread (uses first configured channel)
+   * @param configId - Slack configuration ID (from slack_configuration table)
+   * @param stageEnum - Stage name (e.g., "development", "production")
+   * @param message - Plain text message to send
+   * @param files - Optional: files to attach to the message
+   * 
+   * @returns Map of channel IDs to their send responses
    */
-  async sendTemplateMessage(
-    tenantId: string,
-    templateEnum: MessageTemplate,
-    templateParameters: string[],
-    sendOnThread: boolean = false
+  async sendSlackMessage(
+    configId: string,
+    stageEnum: string,
+    message: string,
+    files?: MessageFile[]
   ): Promise<Map<string, MessageResponse>> {
     const responses = new Map<string, MessageResponse>();
     
     try {
-      // Build message from template
-      const { text, attachments } = buildSlackMessage(templateEnum, templateParameters);
+      // Get channel controller from storage
+      const storage = getStorage();
+      const channelController = (storage as any).channelController;
       
-      // Get channels to send to (use configured channels)
-      const channels = this.config.channels || [];
+      // Fetch channel configuration by configId
+      const channelConfig = await channelController.findById(configId);
       
-      if (channels.length === 0) {
-        console.warn(`[Tenant ${tenantId}] No channels configured for Slack notifications`);
+      if (!channelConfig) {
+        console.error(`[ConfigId ${configId}] Channel configuration not found`);
+        throw new Error('Channel configuration not found');
+      }
+      
+      // Get channel IDs for the specified stage
+      const channelIds: string[] = channelConfig.channelData?.[stageEnum] ?? [];
+      
+      if (channelIds.length === 0) {
+        console.warn(`[ConfigId ${configId}] No channels configured for stage "${stageEnum}"`);
         return responses;
       }
 
-      // Send to all configured channels
-      for (const channel of channels) {
-        const response = await this.sendBasicMessage({
-          channelId: channel.id,
-          text,
-          attachments,
-          threadTs: sendOnThread ? undefined : undefined // TODO: Implement thread support
+      // Send message to all channels for this stage
+      for (const channelId of channelIds) {
+        const responseMap = await this.sendBasicMessage({
+          channelId,
+          text: message,
+          files
         });
         
-        responses.set(channel.id, response);
+        // Extract single response from map
+        const response = responseMap.get(channelId);
+        if (response) {
+          responses.set(channelId, response);
+        }
       }
 
-      console.log(`[Tenant ${tenantId}] Sent ${templateEnum} to ${channels.length} channel(s)`);
+      const fileInfo = files && files.length > 0 ? ` with ${files.length} file(s)` : '';
+      console.log(`[ConfigId ${configId}] Sent message to ${channelIds.length} channel(s) in stage "${stageEnum}"${fileInfo}`);
       return responses;
     } catch (error: any) {
-      console.error(`[Tenant ${tenantId}] Failed to send template message:`, error);
+      console.error(`[ConfigId ${configId}] Failed to send message to stage "${stageEnum}":`, error);
       return responses;
     }
   }
 
   /**
-   * Send a basic text message to a channel
-   * Internal method - use sendTemplateMessage for standard messaging
+   * Send a basic text message to one or more channels
+   * Internal method - use sendSlackMessage or sendSimpleMessage for standard messaging
+   * Supports file uploads via files parameter
    */
   async sendBasicMessage({
     channelId,
     text,
     blocks,
     attachments,
-    threadTs,
-    priority
-  }: SendMessageArgs): Promise<MessageResponse> {
+    files,
+    threadTs
+  }: SendMessageArgs): Promise<Map<string, MessageResponse>> {
+    const responses = new Map<string, MessageResponse>();
+    
+    // Normalize channelId to array for uniform processing
+    const channelIds = Array.isArray(channelId) ? channelId : [channelId];
+    
+    // Send to each channel
+    for (const currentChannelId of channelIds) {
     try {
+      // First, upload files if provided
+      let uploadedFiles: Array<{ id: string; name: string; url?: string }> = [];
+      
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            // ========================================================================
+            // SLACK 3-STEP FILE UPLOAD PROCESS (2025+)
+            // ========================================================================
+            
+            // Step 1: Get upload URL using Slack's new external upload API
+              // Note: Slack API requires form-urlencoded data for this endpoint
+            const formData = new URLSearchParams();
+            formData.append('filename', file.filename);
+            formData.append('length', file.buffer.length.toString());
+
+            const getUploadUrlResponse = await fetch('https://slack.com/api/files.getUploadURLExternal', {
+              method: 'POST',
+              headers: {
+                  'Authorization': `Bearer ${this.commConfig.botToken}`,
+                  'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: formData
+            });
+
+            const uploadUrlResult: any = await getUploadUrlResponse.json();
+
+            if (!uploadUrlResult.ok || !uploadUrlResult.upload_url || !uploadUrlResult.file_id) {
+                console.error(`[Slack] Step 1 failed:`, uploadUrlResult);
+              throw new Error(`Failed to get upload URL: ${uploadUrlResult.error || 'Unknown error'}`);
+            }
+
+            const { upload_url, file_id } = uploadUrlResult;
+
+              // Step 2: Upload file to the presigned URL using POST (per Slack API docs)
+            // Use appropriate content type based on file extension
+            const contentType = file.contentType || 
+              (file.filename.endsWith('.txt') ? 'text/plain' : 
+               file.filename.endsWith('.json') ? 'application/json' :
+               file.filename.endsWith('.pdf') ? 'application/pdf' :
+               'application/octet-stream');
+            
+              // Explicitly set Content-Length header - required for proper file upload
+              // According to Slack API docs, use POST method for upload step
+            const uploadResponse = await fetch(upload_url, {
+                method: 'POST',
+              body: file.buffer,
+              headers: {
+                  'Content-Type': contentType,
+                  'Content-Length': file.buffer.length.toString()
+              }
+            });
+
+              // 200 OK is expected for successful uploads (POST method)
+              // 302 redirect may also occur, both indicate success
+              if (!uploadResponse.ok && uploadResponse.status !== 302) {
+                const errorText = await uploadResponse.text().catch(() => 'Unable to read error response');
+                console.error(`[Slack] Step 2 failed: Status ${uploadResponse.status}, Response:`, errorText);
+              throw new Error(`Failed to upload file to presigned URL: ${uploadResponse.status} ${uploadResponse.statusText}`);
+            }
+
+            // Step 3: Complete the upload and post to channel
+            // The initial_comment will create a message in the channel with the file attached
+            const completePayload: any = {
+              files: [{
+                id: file_id,
+                title: file.title || file.filename
+              }],
+                channel_id: currentChannelId,
+              initial_comment: file.initialComment || text || `File: ${file.filename}`
+            };
+
+            if (threadTs) {
+              completePayload.thread_ts = threadTs;
+            }
+
+            const completeResponse = await fetch('https://slack.com/api/files.completeUploadExternal', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${this.commConfig.botToken}`,
+                'Content-Type': 'application/json; charset=utf-8'
+              },
+              body: JSON.stringify(completePayload)
+            });
+
+            const completeResult: any = await completeResponse.json();
+
+              if (!completeResult.ok) {
+                console.error(`[Slack] Step 3 failed:`, completeResult);
+              }
+
+            if (completeResult.ok && completeResult.files && completeResult.files.length > 0) {
+              const uploadedFile = completeResult.files[0];
+              
+              uploadedFiles.push({
+                id: uploadedFile.id || file_id,
+                name: file.filename,
+                url: uploadedFile.permalink || uploadedFile.url_private
+              });
+              
+                // files.completeUploadExternal with initial_comment already posts the message
+                // No additional message needed - the file is automatically shared to the channel
+            } else {
+              throw new Error(`Failed to complete upload: ${completeResult.error || 'Unknown error'}`);
+            }
+          } catch (fileError: any) {
+              console.error(`[Slack] Failed to upload file ${file.filename}:`, {
+                error: fileError.message,
+                stack: fileError.stack,
+                filename: file.filename,
+                fileSize: file.buffer.length,
+                channelId: currentChannelId
+              });
+            // Continue with message even if file upload fails
+          }
+        }
+      }
+
+        // Only send a separate message if no files were uploaded
+        // (files.completeUploadExternal already creates a message with the file)
+        if (uploadedFiles.length === 0) {
       const result = await this.client.chat.postMessage({
-        channel: channelId,
+            channel: currentChannelId,
         text,
         blocks,
         attachments: attachments as any,
@@ -120,259 +254,31 @@ export class SlackService implements ICommService {
         unfurl_media: false
       });
 
-      return {
+          responses.set(currentChannelId, {
         ok: result.ok,
         channel: result.channel!,
         ts: result.ts!,
-        message: result.message
-      };
-    } catch (error: any) {
-      console.error(`Failed to send message to channel ${channelId}:`, error);
-      return {
-        ok: false,
-        channel: channelId,
-        ts: '',
-        error: error.message
-      };
-    }
-  }
-
-
-
-  // ============================================================================
-  // RELEASE NOTIFICATIONS - Formatted release updates
-  // ============================================================================
-
-  /**
-   * Send release notification to multiple channels
-   */
-  async sendReleaseNotification({
-    releaseName,
-    version,
-    environment,
-    changes,
-    url,
-    author,
-    status = 'created',
-    channels
-  }: ReleaseNotificationArgs): Promise<Map<string, MessageResponse>> {
-    const responses = new Map<string, MessageResponse>();
-
-    // Build formatted message
-    const color = this.getStatusColor(status);
-    const emoji = this.getStatusEmoji(status);
-    
-    const attachments: MessageAttachment[] = [{
-      color,
-      title: `${emoji} Release ${status === 'created' ? 'Created' : status === 'deployed' ? 'Deployed' : 'Failed'}`,
-      fields: [
-        {
-          title: 'Release',
-          value: releaseName,
-          short: true
-        },
-        {
-          title: 'Version',
-          value: version,
-          short: true
-        }
-      ],
-      footer: author ? `By ${author}` : undefined,
-      timestamp: Math.floor(Date.now() / 1000)
-    }];
-
-    if (environment) {
-      attachments[0].fields?.push({
-        title: 'Environment',
-        value: environment,
-        short: true
+            message: result.message
+          });
+        } else {
+          // File was uploaded successfully with message
+          // Return success response with file info
+          responses.set(currentChannelId, {
+            ok: true,
+            channel: currentChannelId,
+            ts: '', // Timestamp from completeUploadExternal is not easily accessible
+            file: uploadedFiles[0]
       });
     }
-
-    if (url) {
-      attachments[0].fields?.push({
-        title: 'Release URL',
-        value: `<${url}|View Release>`,
-        short: true
-      });
-    }
-
-    if (changes && changes.length > 0) {
-      const changesText = changes.map(c => `• ${c}`).join('\n');
-      attachments[0].fields?.push({
-        title: 'Changes',
-        value: changesText,
-        short: false
-      });
-    }
-
-    // Send to all channels
-    for (const channelId of channels) {
-      const response = await this.sendBasicMessage({
-        channelId,
-        text: `${emoji} Release ${releaseName} ${version} ${status}`,
-        attachments
-      });
-      responses.set(channelId, response);
-    }
-
-    return responses;
-  }
-
-  /**
-   * Send build status notification
-   */
-  async sendBuildNotification({
-    buildId,
-    status,
-    branch,
-    commit,
-    duration,
-    url,
-    error,
-    channels
-  }: BuildNotificationArgs): Promise<Map<string, MessageResponse>> {
-    const responses = new Map<string, MessageResponse>();
-
-    const color = status === 'success' ? 'good' : status === 'failed' ? 'danger' : '#808080';
-    const emoji = status === 'success' ? '✅' : status === 'failed' ? '❌' : '🔨';
-
-    const attachments: MessageAttachment[] = [{
-      color,
-      title: `${emoji} Build ${status === 'success' ? 'Succeeded' : status === 'failed' ? 'Failed' : 'Started'}`,
-      fields: [
-        {
-          title: 'Build ID',
-          value: buildId,
-          short: true
-        }
-      ],
-      timestamp: Math.floor(Date.now() / 1000)
-    }];
-
-    if (branch) {
-      attachments[0].fields?.push({
-        title: 'Branch',
-        value: branch,
-        short: true
-      });
-    }
-
-    if (commit) {
-      attachments[0].fields?.push({
-        title: 'Commit',
-        value: commit.substring(0, 7),
-        short: true
-      });
-    }
-
-    if (duration) {
-      attachments[0].fields?.push({
-        title: 'Duration',
-        value: `${Math.floor(duration / 60)}m ${duration % 60}s`,
-        short: true
-      });
-    }
-
-    if (url) {
-      attachments[0].fields?.push({
-        title: 'Build URL',
-        value: `<${url}|View Build>`,
-        short: true
-      });
-    }
-
-    if (error) {
-      attachments[0].fields?.push({
-        title: 'Error',
-        value: error,
-        short: false
-      });
-    }
-
-    for (const channelId of channels) {
-      const response = await this.sendBasicMessage({
-        channelId,
-        text: `${emoji} Build ${buildId} ${status}`,
-        attachments
-      });
-      responses.set(channelId, response);
-    }
-
-    return responses;
-  }
-
-  /**
-   * Send deployment status notification
-   */
-  async sendDeploymentNotification({
-    deploymentId,
-    environment,
-    status,
-    version,
-    url,
-    error,
-    channels
-  }: DeploymentNotificationArgs): Promise<Map<string, MessageResponse>> {
-    const responses = new Map<string, MessageResponse>();
-
-    const color = status === 'success' ? 'good' : status === 'failed' ? 'danger' : status === 'rollback' ? 'warning' : '#808080';
-    const emoji = status === 'success' ? '🚀' : status === 'failed' ? '❌' : status === 'rollback' ? '⏮️' : '⏳';
-
-    const statusText = status === 'success' ? 'Deployed Successfully' : 
-                       status === 'failed' ? 'Deployment Failed' : 
-                       status === 'rollback' ? 'Rollback Initiated' : 
-                       'Deployment Started';
-
-    const attachments: MessageAttachment[] = [{
-      color,
-      title: `${emoji} ${statusText}`,
-      fields: [
-        {
-          title: 'Environment',
-          value: environment,
-          short: true
-        },
-        {
-          title: 'Deployment ID',
-          value: deploymentId,
-          short: true
-        }
-      ],
-      timestamp: Math.floor(Date.now() / 1000)
-    }];
-
-    if (version) {
-      attachments[0].fields?.push({
-        title: 'Version',
-        value: version,
-        short: true
-      });
-    }
-
-    if (url) {
-      attachments[0].fields?.push({
-        title: 'Deployment URL',
-        value: `<${url}|View Deployment>`,
-        short: true
-      });
-    }
-
-    if (error) {
-      attachments[0].fields?.push({
-        title: 'Error',
-        value: error,
-        short: false
-      });
-    }
-
-    for (const channelId of channels) {
-      const response = await this.sendBasicMessage({
-        channelId,
-        text: `${emoji} Deployment to ${environment} ${status}`,
-        attachments
-      });
-      responses.set(channelId, response);
+      } catch (error: any) {
+        console.error(`Failed to send message to channel ${currentChannelId}:`, error);
+        responses.set(currentChannelId, {
+          ok: false,
+          channel: currentChannelId,
+          ts: '',
+          error: error.message
+        });
+      }
     }
 
     return responses;
@@ -515,67 +421,26 @@ export class SlackService implements ICommService {
   // ============================================================================
 
   /**
-   * Get color for status
+   * Get the timestamp of the last message in a channel
+   * Used for auto-threading to the most recent message
    */
-  private getStatusColor(status: string): string {
-    switch (status) {
-      case 'created':
-      case 'success':
-      case 'deployed':
-        return 'good'; // Green
-      case 'failed':
-        return 'danger'; // Red
-      case 'started':
-      case 'pending':
-        return '#808080'; // Gray
-      case 'rollback':
-        return 'warning'; // Yellow
-      default:
-        return '#808080';
+  async getLastMessageTs(channelId: string): Promise<string | undefined> {
+    try {
+      const result = await this.client.conversations.history({
+        channel: channelId,
+        limit: 1,
+        inclusive: true
+      });
+
+      if (result.messages && result.messages.length > 0) {
+        return result.messages[0].ts;
+      }
+
+      return undefined;
+    } catch (error: any) {
+      console.error(`[Slack] Failed to get last message in channel ${channelId}:`, error.message);
+      return undefined;
     }
-  }
-
-  /**
-   * Get emoji for status
-   */
-  private getStatusEmoji(status: string): string {
-    switch (status) {
-      case 'created':
-        return '🎉';
-      case 'deployed':
-      case 'success':
-        return '✅';
-      case 'failed':
-        return '❌';
-      case 'started':
-      case 'pending':
-        return '⏳';
-      case 'rollback':
-        return '⏮️';
-      default:
-        return '📢';
-    }
-  }
-
-  /**
-   * Format mention for user
-   */
-  formatMention(userId: string): string {
-    return `<@${userId}>`;
-  }
-
-  /**
-   * Format channel mention
-   */
-  formatChannelMention(channelId: string): string {
-    return `<#${channelId}>`;
-  }
-
-  /**
-   * Format link
-   */
-  formatLink(url: string, text?: string): string {
-    return text ? `<${url}|${text}>` : `<${url}>`;
   }
 }
 

@@ -10,8 +10,8 @@ import * as utils from "../utils/common";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
-import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
-import { SlackIntegrationController } from "./integrations/slack/slack-controller";
+import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/slack/slack-models";
+import { SlackIntegrationController, ChannelController } from "./integrations/slack/slack-controller";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -58,21 +58,13 @@ export function createAccount(sequelize: Sequelize) {
       type: DataTypes.STRING, 
       allowNull: true 
     },
-    metadata: { 
-      type: DataTypes.JSON, 
-      allowNull: true 
-    },
-    // Note: createdTime kept for backward compatibility, but createdAt/updatedAt are now primary
+
     createdTime: { 
       type: DataTypes.FLOAT, 
-      allowNull: true,  // Made optional since we're using createdAt now
       defaultValue: () => new Date().getTime() 
     },
   }, {
     tableName: 'accounts',
-    timestamps: true,  // Now uses createdAt/updatedAt (DATETIME) instead of createdTime (FLOAT)
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
   });
 }
 
@@ -366,6 +358,7 @@ export function createModelss(sequelize: Sequelize) {
 
   // ============================================
   const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
+  const ChannelConfig = createChannelConfigModel(sequelize);  // Channel configurations for communication integrations
   // Define associations
   // ============================================
 
@@ -441,6 +434,11 @@ export function createModelss(sequelize: Sequelize) {
   Tenant.hasOne(SlackIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
   SlackIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
+  // Channel Configuration associations
+  // Slack integration has ONE channel configuration
+  SlackIntegrations.hasOne(ChannelConfig, { foreignKey: 'integrationId', as: 'channelConfig' });
+  ChannelConfig.belongsTo(SlackIntegrations, { foreignKey: 'integrationId' });
+
   return {
     Account,
     AccountChannel,
@@ -453,6 +451,7 @@ export function createModelss(sequelize: Sequelize) {
     App,
     SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
     SlackIntegrations,  // Slack integrations
+    ChannelConfig,  // Channel configurations for communication integrations
   };
 }
 
@@ -494,6 +493,7 @@ export class S3Storage implements storage.Storage {
     private setupPromise: Promise<void>;
     public scmController!: SCMIntegrationController;  // SCM integration controller
     public slackController!: SlackIntegrationController;  // Slack integration controller
+    public channelController!: ChannelController;  // Channel configuration controller
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -601,6 +601,10 @@ export class S3Storage implements storage.Storage {
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
+          
+          // Initialize Channel Configuration Controller
+          this.channelController = new ChannelController(models.ChannelConfig);
+          console.log("Channel Configuration Controller initialized");
           
           // return this.sequelize.sync();
         })

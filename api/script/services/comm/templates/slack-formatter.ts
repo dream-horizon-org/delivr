@@ -15,6 +15,8 @@ export interface SlackMessage {
   text: string;
   attachments?: any[];
   blocks?: any[];
+  unfurl_links?: boolean;
+  unfurl_media?: boolean;
 }
 
 /**
@@ -25,27 +27,41 @@ export class SlackFormatter {
    * Convert generic message data to Slack format
    */
   format(data: GenericMessageData): SlackMessage {
-    const attachment: any = {
-      color: this.convertColor(data.color),
-      title: `${data.emoji} ${data.title}`,
-      fields: data.fields.map(field => this.formatField(field)),
-      footer: data.footer,
-      ts: data.timestamp ? Math.floor(data.timestamp.getTime() / 1000) : undefined
-    };
-
-    // Add description as text if present
-    if (data.description) {
-      attachment.text = data.description;
+    // Always send as plain text message without attachment sidebar
+    // Build the message text with title and fields
+    let messageText = `<!channel>\n`;
+    
+    // Add title if not explicitly hidden
+    if (data.metadata?.showTitle !== false) {
+      messageText += `${data.emoji} *${data.title}*\n`;
     }
 
-    // Add URL as title link if present
-    if (data.url) {
-      attachment.title_link = data.url;
+    // Add description if present
+    if (data.description) {
+      messageText += `\n${data.description}\n`;
+    }
+
+    // Add fields as plain text (no attachment format)
+    if (data.fields && data.fields.length > 0) {
+      messageText += '\n';
+      for (const field of data.fields) {
+        let value = field.value;
+        
+        // Format URLs as Slack links
+        if (field.type === 'url' && this.isValidUrl(value)) {
+          value = `<${value}|${field.label}>`;
+          messageText += `${value}\n`;
+        } else {
+          messageText += `*${field.label}*\n${value}\n`;
+        }
+        messageText += '\n';
+      }
     }
 
     return {
-      text: `${data.emoji} ${data.title}`,
-      attachments: [attachment]
+      text: messageText.trim(),
+      unfurl_links: false,
+      unfurl_media: false
     };
   }
 

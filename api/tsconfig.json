@@ -4,7 +4,8 @@
     "noImplicitAny": false,
     "target": "ES2022",
     "outDir": "./bin",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "exclude": [
     "./bin",
