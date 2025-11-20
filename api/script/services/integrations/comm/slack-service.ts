@@ -14,7 +14,7 @@ import type {
   HealthCheckResult
 } from './comm-types';
 import { ICommService } from './comm-service.interface';
-import { getStorage } from '../../storage/storage-instance';
+import { getStorage } from '../../../storage/storage-instance';
 
 /**
  * Slack Service
@@ -70,16 +70,17 @@ export class SlackService implements ICommService {
         throw new Error('Channel configuration not found');
       }
       
-      // Get channel IDs for the specified stage
-      const channelIds: string[] = channelConfig.channelData?.[stageEnum] ?? [];
+      // Get channels for the specified stage
+      const channels = channelConfig.channelData?.[stageEnum] ?? [];
       
-      if (channelIds.length === 0) {
+      if (channels.length === 0) {
         console.warn(`[ConfigId ${configId}] No channels configured for stage "${stageEnum}"`);
         return responses;
       }
 
       // Send message to all channels for this stage
-      for (const channelId of channelIds) {
+      for (const channel of channels) {
+        const channelId = channel.id;
         const responseMap = await this.sendBasicMessage({
           channelId,
           text: message,
@@ -94,7 +95,7 @@ export class SlackService implements ICommService {
       }
 
       const fileInfo = files && files.length > 0 ? ` with ${files.length} file(s)` : '';
-      console.log(`[ConfigId ${configId}] Sent message to ${channelIds.length} channel(s) in stage "${stageEnum}"${fileInfo}`);
+      console.log(`[ConfigId ${configId}] Sent message to ${channels.length} channel(s) in stage "${stageEnum}"${fileInfo}`);
       return responses;
     } catch (error: any) {
       console.error(`[ConfigId ${configId}] Failed to send message to stage "${stageEnum}":`, error);

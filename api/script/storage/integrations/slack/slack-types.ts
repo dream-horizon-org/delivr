@@ -149,13 +149,21 @@ export interface SlackClientConfig {
  * 
  * Example:
  * {
- *   "development": ["C01234ABCDE", "C11111AAAAA"],
- *   "staging": ["C22222BBBBB"],
- *   "production": ["C33333CCCCC", "C44444DDDDD"]
+ *   "development": [
+ *     { "id": "C01234ABCDE", "name": "dev-releases" },
+ *     { "id": "C11111AAAAA", "name": "dev-notifications" }
+ *   ],
+ *   "staging": [
+ *     { "id": "C22222BBBBB", "name": "staging-releases" }
+ *   ],
+ *   "production": [
+ *     { "id": "C33333CCCCC", "name": "prod-releases" },
+ *     { "id": "C44444DDDDD", "name": "prod-notifications" }
+ *   ]
  * }
  */
 export interface StageChannelMapping {
-  [stageName: string]: string[];  // stage name -> array of channel IDs
+  [stageName: string]: SlackChannel[];  // stage name -> array of channel objects
 }
 
 /**

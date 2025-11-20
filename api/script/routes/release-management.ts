@@ -14,7 +14,7 @@ import {
 import { createMetadataRoutes } from "./integrations/test-management/metadata";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createCICDIntegrationRoutes } from "./ci-cd-integrations";
-import { createSlackIntegrationRoutes } from "./slack-integrations";
+import { createCommIntegrationRoutes } from "./integrations/comm";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -100,8 +100,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  const slackRoutes = createSlackIntegrationRoutes(storage);
-  router.use(slackRoutes);
+  const commRoutes = createCommIntegrationRoutes(storage);
+  router.use(commRoutes);
   // router.use(createCommunicationRoutes(storage));
 
   // ============================================================================

@@ -224,7 +224,7 @@ export function createChannelConfigModel(sequelize: Sequelize) {
       channelData: {
         type: DataTypes.JSON,
         allowNull: true,
-        comment: 'Stage-to-channels mapping: {"stage1": ["C123"], "stage2": ["C456"]}',
+        comment: 'Stage-to-channels mapping: {"stageName": [{"id":"C123","name":"dev-releases"}], "stageName": [{"id":"C456","name":"prod-releases"}]}',
       },
       
       // ========================================================================
