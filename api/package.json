@@ -32,6 +32,7 @@
     "applicationinsights": "^2.7.0",
     "aws-cloudfront-sign": "^3.0.2",
     "aws-sdk": "2.1691.0",
+    "axios": "^1.13.2",
     "blocked-at": "^1.2.0",
     "body-parser": "^1.20.2",
     "cookie-session": "^2.0.0",

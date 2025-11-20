@@ -35,6 +35,12 @@ services:
       - "3010:3010"
     env_file:
       - .env
+    environment:
+      - DEBUG_DISABLE_AUTH=true
+      - DEBUG_USER_ID=id_0
+      - NODE_ENV=dev
+      - DISABLE_MANAGEMENT=false
+      - DISABLE_ACQUISITION=false
     volumes:
       - ../api:/app/api
       - ../pm2:/app/pm2

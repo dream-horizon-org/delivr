@@ -38,39 +38,33 @@ export function createAccessKey(sequelize: Sequelize) {
 //Creating Account Type
 export function createAccount(sequelize: Sequelize) {
   return sequelize.define("account", {
-    id: { 
-      type: DataTypes.STRING, 
-      allowNull: false, 
-      primaryKey: true 
+    id: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      primaryKey: true
     },
-    email: { 
-      type: DataTypes.STRING, 
-      allowNull: false, 
-      unique: true 
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
     },
-    name: { 
-      type: DataTypes.STRING, 
-      allowNull: false 
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false
     },
-    picture: { 
-      type: DataTypes.STRING, 
-      allowNull: true 
+    picture: {
+      type: DataTypes.STRING,
+      allowNull: true
     },
-    metadata: { 
-      type: DataTypes.JSON, 
-      allowNull: true 
-    },
-    // Note: createdTime kept for backward compatibility, but createdAt/updatedAt are now primary
-    createdTime: { 
-      type: DataTypes.FLOAT, 
-      allowNull: true,  // Made optional since we're using createdAt now
-      defaultValue: () => new Date().getTime() 
+    // Note: createdTime is the timestamp field used by the database
+    createdTime: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+      defaultValue: () => new Date().getTime()
     },
   }, {
     tableName: 'accounts',
-    timestamps: true,  // Now uses createdAt/updatedAt (DATETIME) instead of createdTime (FLOAT)
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    timestamps: false,  // Database uses createdTime (FLOAT), not createdAt/updatedAt
   });
 }
 
@@ -444,6 +438,7 @@ export function createModelss(sequelize: Sequelize) {
     Collaborator,  // UNIFIED: supports both app-level AND tenant-level
     App,
     SCMIntegrations,  // SCM integrations (GitHub, GitLab, Bitbucket)
+    Release,  // Release management
   };
 }
 
@@ -484,6 +479,8 @@ export class S3Storage implements storage.Storage {
     private sequelize:Sequelize;
     private setupPromise: Promise<void>;
     public scmController!: SCMIntegrationController;  // SCM integration controller
+    public jiraIntegrationController!: any;  // JIRA integration controller (credentials)
+    public jiraConfigurationController!: any;  // JIRA configuration controller (reusable configs)
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -587,6 +584,42 @@ export class S3Storage implements storage.Storage {
           // Initialize SCM Integration Controller
           this.scmController = new SCMIntegrationController(models.SCMIntegrations);
           console.log("SCM Integration Controller initialized");
+          
+          // Initialize JIRA Integration (new architecture with separate tables)
+          // Create models for jira_integrations, jira_configurations, and release_jira_epics
+          const { 
+            createJiraIntegrationsModel,
+            createJiraConfigurationsModel,
+            createReleaseJiraEpicsModel 
+          } = require('./integrations/jira/jira-integration-models');
+          
+          const JiraIntegrationsModel = createJiraIntegrationsModel(this.sequelize);
+          const JiraConfigurationsModel = createJiraConfigurationsModel(this.sequelize);
+          const ReleaseJiraEpicsModel = createReleaseJiraEpicsModel(this.sequelize);
+          console.log("JIRA models created (integrations, configurations, epics)");
+          
+          // Create JIRA Integration Controller (for credentials)
+          const { JiraIntegrationController, JiraConfigurationController } = require('./integrations/jira/jira-controller');
+          this.jiraIntegrationController = new JiraIntegrationController(JiraIntegrationsModel);
+          
+          // Create JIRA Configuration Controller (for reusable configs)
+          this.jiraConfigurationController = new JiraConfigurationController(JiraConfigurationsModel);
+          
+          console.log("JIRA Integration and Configuration Controllers initialized");
+          
+          // Create and attach epic service to JIRA integration controller
+          const { JiraEpicService } = require('./integrations/jira/jira-epic-service');
+          const ReleasesModel = this.sequelize.models['releases'] || models.Release;
+          this.jiraIntegrationController.epicService = new JiraEpicService(ReleaseJiraEpicsModel, ReleasesModel);
+          
+          // Inject configuration controller into epic service
+          this.jiraIntegrationController.epicService.setConfigController(this.jiraConfigurationController);
+          
+          // Inject Jira client factory to avoid circular dependency
+          const { createJiraClientForTenant } = require('../utils/jira-utils');
+          this.jiraIntegrationController.epicService.setJiraClientFactory(createJiraClientForTenant);
+          
+          console.log("JIRA Epic Service initialized with Configuration Controller and Client Factory");
           
           // return this.sequelize.sync();
         })
