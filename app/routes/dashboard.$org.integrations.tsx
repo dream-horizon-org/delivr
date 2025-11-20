@@ -55,7 +55,7 @@ export default function IntegrationsPage() {
           category: category,
           icon: provider.icon || '',
           status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
-          isAvailable: true,
+          isAvailable: provider.isAvailable, // Use actual value from backend
           config: connected?.config,
           connectedAt: connected?.connectedAt ? new Date(connected.connectedAt) : undefined,
           connectedBy: connected?.connectedBy || undefined,
@@ -80,7 +80,8 @@ export default function IntegrationsPage() {
   const allIntegrations = buildIntegrationsList();
   
   console.log('[Integrations] Total integrations:', allIntegrations.length);
-  console.log('[Integrations] All integrations:', allIntegrations);
+  console.log('[Integrations] Available integrations:', allIntegrations.filter(i => i.isAvailable).length);
+  console.log('[Integrations] Coming soon integrations:', allIntegrations.filter(i => !i.isAvailable).length);
 
   const tenantId = params.org!;
 
