@@ -16,101 +16,101 @@ export const INTEGRATION_UI_METADATA: Record<string, {
   // SOURCE_CONTROL
   github: {
     description: 'Connect your GitHub repository to manage releases, trigger workflows, and automate deployments',
-    icon: '🐙',
+    icon: 'github',
   },
   gitlab: {
     description: 'Integrate with GitLab for CI/CD pipelines and release management',
-    icon: '🦊',
+    icon: 'gitlab',
     comingSoon: true,
   },
   bitbucket: {
     description: 'Connect Bitbucket repositories for code management and deployments',
-    icon: '🪣',
+    icon: 'bitbucket',
     comingSoon: true,
   },
   'azure-repos': {
     description: 'Integrate with Azure Repos for version control',
-    icon: '☁️',
+    icon: 'azure',
     comingSoon: true,
   },
   
   // COMMUNICATION
   slack: {
     description: 'Send release notifications and updates to your Slack workspace',
-    icon: '💬',
+    icon: 'slack',
   },
   teams: {
     description: 'Integrate with Microsoft Teams for notifications',
-    icon: '💼',
+    icon: 'teams',
     comingSoon: true,
   },
   discord: {
     description: 'Send notifications to Discord channels',
-    icon: '💬',
+    icon: 'discord',
     comingSoon: true,
   },
   
   // CI_CD
   jenkins: {
     description: 'Trigger Jenkins builds and track deployment pipelines',
-    icon: '🔨',
+    icon: 'jenkins',
   },
   'github-actions': {
     description: 'Trigger GitHub Actions workflows and automate your CI/CD pipeline',
-    icon: '⚡',
+    icon: 'github-actions',
   },
   'gitlab-ci': {
     description: 'Integrate with GitLab CI/CD pipelines',
-    icon: '🦊',
+    icon: 'gitlab',
     comingSoon: true,
   },
   
   // TEST_MANAGEMENT
   checkmate: {
     description: 'Manage test cases, track test runs, and integrate QA workflows',
-    icon: '✅',
+    icon: 'checkmate',
   },
   testrail: {
     description: 'TestRail test management integration',
-    icon: '📊',
+    icon: 'testrail',
     comingSoon: true,
   },
   zephyr: {
     description: 'Zephyr test management integration',
-    icon: '⚡',
+    icon: 'zephyr',
     comingSoon: true,
   },
   
   // PROJECT_MANAGEMENT
   jira: {
     description: 'Link releases to Jira issues and track project progress',
-    icon: '📋',
+    icon: 'jira',
   },
   linear: {
     description: 'Integrate with Linear for project management',
-    icon: '📐',
+    icon: 'linear',
     comingSoon: true,
   },
   asana: {
     description: 'Integrate with Asana for work management',
-    icon: '✓',
+    icon: 'asana',
     comingSoon: true,
   },
   
   // APP_DISTRIBUTION
   appstore: {
     description: 'Deploy iOS apps to TestFlight and the App Store',
-    icon: '🍎',
+    icon: 'apple',
     comingSoon: true,
   },
   playstore: {
     description: 'Publish Android apps to Google Play Console',
-    icon: '🤖',
+    icon: 'android',
     comingSoon: true,
   },
   firebase: {
     description: 'Distribute app builds to testers via Firebase App Distribution',
-    icon: '🔥',
+    icon: 'firebase',
     comingSoon: true,
   },
 };
@@ -126,22 +126,22 @@ export const PLATFORM_UI_METADATA: Record<string, {
 }> = {
   ANDROID: {
     description: 'Build and distribute for Android devices',
-    icon: '🤖',
+    icon: 'android',
     color: '#3DDC84',
   },
   IOS: {
     description: 'Build and distribute for iOS devices',
-    icon: '🍎',
+    icon: 'apple',
     color: '#000000',
   },
   WEB: {
     description: 'Web application platform',
-    icon: '🌐',
+    icon: 'globe',
     color: '#4A90E2',
   },
   FLUTTER: {
     description: 'Flutter cross-platform framework',
-    icon: '🦋',
+    icon: 'flutter',
     color: '#02569B',
   },
 };
@@ -157,22 +157,22 @@ export const TARGET_UI_METADATA: Record<string, {
 }> = {
   APP_STORE: {
     description: 'Distribute to Apple App Store',
-    icon: '🍎',
+    icon: 'apple',
     requiresCredentials: true,
   },
   PLAY_STORE: {
     description: 'Distribute to Google Play Store',
-    icon: '🤖',
+    icon: 'android',
     requiresCredentials: true,
   },
   WEB: {
     description: 'Deploy to web hosting',
-    icon: '🌐',
+    icon: 'globe',
     requiresCredentials: false,
   },
   TESTFLIGHT: {
     description: 'Internal testing via TestFlight',
-    icon: '✈️',
+    icon: 'plane',
     requiresCredentials: true,
   },
 };
@@ -192,7 +192,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
 }> = {
   PLANNED: {
     description: 'Regular scheduled release',
-    icon: '📅',
+    icon: 'calendar',
     color: 'blue',
     defaultScheduling: {
       kickoffLeadDays: 2,
@@ -201,7 +201,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
   },
   HOTFIX: {
     description: 'Urgent bug fix release',
-    icon: '🔥',
+    icon: 'flame',
     color: 'orange',
     defaultScheduling: {
       kickoffLeadDays: 0,
@@ -210,7 +210,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
   },
   EMERGENCY: {
     description: 'Critical production issue',
-    icon: '🚨',
+    icon: 'alert-triangle',
     color: 'red',
     defaultScheduling: {
       kickoffLeadDays: 0,
@@ -219,7 +219,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
   },
   PATCH: {
     description: 'Minor patch release',
-    icon: '🩹',
+    icon: 'bandage',
     color: 'green',
     defaultScheduling: {
       kickoffLeadDays: 1,
@@ -240,31 +240,31 @@ export const RELEASE_STAGE_UI_METADATA: Record<string, {
 }> = {
   PRE_KICKOFF: {
     description: 'Before branch fork-off',
-    icon: '📋',
+    icon: 'clipboard-list',
     color: 'gray',
     allowedActions: ['SCHEDULE', 'PLAN'],
   },
   KICKOFF: {
     description: 'Branch fork-off and initial setup',
-    icon: '🚀',
+    icon: 'rocket',
     color: 'blue',
     allowedActions: ['FORK_BRANCH', 'SETUP_PIPELINES'],
   },
   REGRESSION: {
     description: 'Build and test phase',
-    icon: '🧪',
+    icon: 'flask',
     color: 'yellow',
     allowedActions: ['TRIGGER_BUILDS', 'RUN_TESTS', 'CHERRY_PICK'],
   },
   READY_FOR_RELEASE: {
     description: 'Builds approved, ready to release',
-    icon: '✅',
+    icon: 'check-circle',
     color: 'green',
     allowedActions: ['APPROVE', 'SUBMIT_BUILDS'],
   },
   RELEASED: {
     description: 'Live to production',
-    icon: '🎉',
+    icon: 'party-popper',
     color: 'green',
     allowedActions: ['MONITOR', 'ROLLBACK'],
   },
@@ -329,22 +329,22 @@ export const BUILD_ENVIRONMENT_UI_METADATA: Record<string, {
 }> = {
   PRE_REGRESSION: {
     description: 'Optional pre-testing build',
-    icon: '🔨',
+    icon: 'hammer',
     isRequired: false,
   },
   REGRESSION: {
     description: 'Main testing build',
-    icon: '🧪',
+    icon: 'flask',
     isRequired: true,
   },
   TESTFLIGHT: {
     description: 'TestFlight distribution build',
-    icon: '✈️',
+    icon: 'plane',
     isRequired: true,
   },
   PRODUCTION: {
     description: 'Production build',
-    icon: '🚀',
+    icon: 'rocket',
     isRequired: false,
   },
 };
@@ -356,7 +356,7 @@ export const BUILD_ENVIRONMENT_UI_METADATA: Record<string, {
 export function enrichIntegration(backendData: { id: string; name: string; requiresOAuth?: boolean; isAvailable: boolean }) {
   const uiMetadata = INTEGRATION_UI_METADATA[backendData.id] || {
     description: backendData.name,
-    icon: '🔌',
+    icon: 'integration-default',
   };
   
   return {
@@ -368,7 +368,7 @@ export function enrichIntegration(backendData: { id: string; name: string; requi
 export function enrichPlatform(backendData: { id: string; name: string; applicableTargets: string[] }) {
   const uiMetadata = PLATFORM_UI_METADATA[backendData.id] || {
     description: backendData.name,
-    icon: '📱',
+    icon: 'device-mobile',
     color: '#000000',
   };
   
@@ -381,7 +381,7 @@ export function enrichPlatform(backendData: { id: string; name: string; applicab
 export function enrichTarget(backendData: { id: string; name: string }) {
   const uiMetadata = TARGET_UI_METADATA[backendData.id] || {
     description: backendData.name,
-    icon: '🎯',
+    icon: 'target',
     requiresCredentials: false,
   };
   
@@ -394,7 +394,7 @@ export function enrichTarget(backendData: { id: string; name: string }) {
 export function enrichReleaseType(backendData: { id: string; name: string }) {
   const uiMetadata = RELEASE_TYPE_UI_METADATA[backendData.id] || {
     description: backendData.name,
-    icon: '📦',
+    icon: 'package',
     color: 'gray',
     defaultScheduling: {
       kickoffLeadDays: 2,
@@ -411,7 +411,7 @@ export function enrichReleaseType(backendData: { id: string; name: string }) {
 export function enrichReleaseStage(backendData: { id: string; name: string; order: number }) {
   const uiMetadata = RELEASE_STAGE_UI_METADATA[backendData.id] || {
     description: backendData.name,
-    icon: '📍',
+    icon: 'map-pin',
     color: 'gray',
     allowedActions: [],
   };
@@ -442,7 +442,7 @@ export function enrichBuildEnvironment(backendData: {
 }) {
   const uiMetadata = BUILD_ENVIRONMENT_UI_METADATA[backendData.id] || {
     description: backendData.name,
-    icon: '⚙️',
+    icon: 'settings',
     isRequired: false,
   };
   
