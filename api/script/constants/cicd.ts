@@ -7,6 +7,8 @@ export const ERROR_MESSAGES = {
   FAILED_UPDATE_GHA: 'Failed to update GitHub Actions connection',
   FAILED_DELETE_GHA: 'Failed to delete GitHub Actions connection',
   GHA_NOT_FOUND: 'No GitHub Actions connection found',
+  GHA_ALREADY_EXISTS: 'GitHub Actions connection already exists',
+  GHA_CREATE_REQUIRED: 'apiToken is required',
 
   JENKINS_JOB_URL_REQUIRED: 'jobUrl is required',
   JENKINS_INVALID_JOB_URL: 'Invalid jobUrl',
@@ -19,6 +21,7 @@ export const ERROR_MESSAGES = {
   JENKINS_CREATE_REQUIRED: 'hostUrl, username and apiToken are required',
   JENKINS_SAVE_FAILED: 'Failed to save Jenkins connection',
   JENKINS_NOT_FOUND: 'No Jenkins connection found',
+  JENKINS_ALREADY_EXISTS: 'Jenkins connection already exists',
   JENKINS_UPDATE_FAILED: 'Failed to update Jenkins connection',
   JENKINS_DELETE_FAILED: 'Failed to delete Jenkins connection',
   JENKINS_NO_QUEUE_URL: 'queueUrl is required',
@@ -44,7 +47,11 @@ export const ERROR_MESSAGES = {
   GHA_RUN_IDENTIFIERS_REQUIRED: 'Provide runUrl or owner/repo/runId',
   GHA_FETCH_RUN_FAILED: 'Failed to fetch run',
   GHA_FETCH_INPUTS_FAILED: 'Failed to fetch workflow inputs',
-  GHA_INVALID_WORKFLOW_URL: 'Invalid workflowUrl'
+  GHA_INVALID_WORKFLOW_URL: 'Invalid workflowUrl',
+  GHA_REPOSITORY_URL_REQUIRED: 'repositoryUrl is required',
+  GHA_INVALID_REPOSITORY_URL: 'Invalid repositoryUrl',
+  GHA_REPO_ACCESS_FAILED: 'Failed to access repository with provided token',
+  GHA_ACTIONS_ACCESS_FAILED: 'Failed to access GitHub Actions for repository'
 } as const;
 
 export const SUCCESS_MESSAGES = {

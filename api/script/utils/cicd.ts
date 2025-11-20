@@ -215,4 +215,22 @@ export const mapGitHubRunStatus = (status: string, conclusion?: string): 'pendin
   return 'completed';
 };
 
+export const parseGitHubRepoUrl = (url: string): { owner: string; repo: string } | null => {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== 'github.com') return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    const hasOwnerRepo = parts.length >= 2;
+    if (!hasOwnerRepo) return null;
+    const owner = parts[0];
+    let repo = parts[1];
+    if (repo.endsWith('.git')) {
+      repo = repo.slice(0, -4);
+    }
+    return { owner, repo };
+  } catch {
+    return null;
+  }
+};
+
 

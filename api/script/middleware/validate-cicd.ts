@@ -77,4 +77,24 @@ export const validateCreateWorkflowBody = (req: Request, res: Response, next: Ne
   next();
 };
 
+export const validateGHAVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
+  const { apiToken } = req.body || {};
+  const tokenInvalid = !isNonEmptyString(apiToken);
+  if (tokenInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: ERROR_MESSAGES.MISSING_TOKEN_AND_SCM });
+    return;
+  }
+  next();
+};
+
+export const validateCreateGHABody = (req: Request, res: Response, next: NextFunction): void => {
+  const { apiToken } = req.body || {};
+  const tokenInvalid = !isNonEmptyString(apiToken);
+  if (tokenInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_CREATE_REQUIRED });
+    return;
+  }
+  next();
+};
+
 
