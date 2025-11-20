@@ -30,10 +30,7 @@ import * as tenantPermissions from "../middleware/tenant-permissions";
 import * as appPermissions from "../middleware/app-permissions";
 import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
 import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
-import { COMMUNICATION_PROVIDERS } from "../controllers/integrations/communication/providers.constants";
 import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/project-integration/project-integration.constants";
-import { PROJECT_MANAGEMENT_PROVIDERS } from "../controllers/integrations/project-management/providers.constants";
-import { APP_DISTRIBUTION_PROVIDERS } from "../controllers/integrations/app-distribution/providers.constants";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -76,10 +73,6 @@ export function getManagementRouter(config: ManagementConfig): Router {
         .filter(p => p.enabled)
         .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
       
-      const COMMUNICATION = COMMUNICATION_PROVIDERS
-        .filter(p => p.enabled)
-        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
-      
       const CI_CD = CICD_PROVIDERS
         .filter(p => p.enabled)
         .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
@@ -88,13 +81,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
         .filter(p => p.enabled)
         .map(p => ({ id: p.type, name: p.name, requiresOAuth: false }));
       
-      const PROJECT_MANAGEMENT = PROJECT_MANAGEMENT_PROVIDERS
-        .filter(p => p.enabled)
-        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+      // Hardcoded for unimplemented services
+      const COMMUNICATION = [
+        { id: "slack", name: "Slack", requiresOAuth: true },
+      ];
       
-      const APP_DISTRIBUTION = APP_DISTRIBUTION_PROVIDERS
-        .filter(p => p.enabled)
-        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+      const PROJECT_MANAGEMENT: any[] = [];
+      
+      const APP_DISTRIBUTION: any[] = [];
 
       const metadata = {
         releaseManagement: {
