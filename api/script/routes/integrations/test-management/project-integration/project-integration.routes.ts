@@ -6,6 +6,12 @@ export const createProjectIntegrationRoutes = (service: TestManagementIntegratio
   const router = Router();
   const controller = createTestManagementIntegrationController(service);
 
+  // List available providers (no authentication needed - public info)
+  router.get(
+    '/integrations/test-management/providers',
+    controller.getAvailableProviders
+  );
+
   router.post(
     '/projects/:projectId/integrations/test-management',
     controller.createIntegration

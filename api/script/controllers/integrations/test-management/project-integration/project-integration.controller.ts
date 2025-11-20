@@ -14,6 +14,7 @@ import {
   validationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
+import { TEST_MANAGEMENT_PROVIDERS } from './project-integration.constants';
 import {
   validateConfigStructure,
   validateIntegrationName,
@@ -236,12 +237,29 @@ const verifyIntegrationHandler = (service: TestManagementIntegrationService) =>
     }
   };
 
+/**
+ * Get list of available test management providers
+ * GET /integrations/test-management/providers
+ */
+const getAvailableProvidersHandler = () =>
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      res.status(HTTP_STATUS.OK).json(successResponse(TEST_MANAGEMENT_PROVIDERS));
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, TEST_MANAGEMENT_ERROR_MESSAGES.FETCH_PROVIDERS_FAILED)
+      );
+    }
+  };
+
 export const createTestManagementIntegrationController = (service: TestManagementIntegrationService) => ({
   createIntegration: createIntegrationHandler(service),
   listIntegrations: listIntegrationsHandler(service),
   getIntegration: getIntegrationHandler(service),
   updateIntegration: updateIntegrationHandler(service),
   deleteIntegration: deleteIntegrationHandler(service),
-  verifyIntegration: verifyIntegrationHandler(service)
+  verifyIntegration: verifyIntegrationHandler(service),
+  getAvailableProviders: getAvailableProvidersHandler()
 });
 

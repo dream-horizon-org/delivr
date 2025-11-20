@@ -8,6 +8,7 @@ export const TEST_MANAGEMENT_ERROR_MESSAGES = {
   UPDATE_INTEGRATION_FAILED: 'Failed to update test management integration',
   DELETE_INTEGRATION_FAILED: 'Failed to delete test management integration',
   VERIFY_INTEGRATION_FAILED: 'Failed to verify test management integration',
+  FETCH_PROVIDERS_FAILED: 'Failed to fetch available test management providers',
   INTEGRATION_NOT_FOUND: 'Test management integration not found',
   INVALID_CONFIG: 'Invalid configuration: Missing or invalid required fields (baseUrl, authToken)',
   

@@ -17,6 +17,7 @@ import {
   TestManagementIntegrationService,
   TestManagementRunService
 } from "../services/integrations/test-management";
+import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
@@ -502,6 +503,7 @@ export class S3Storage implements storage.Storage {
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
+    public testManagementMetadataService!: TestManagementMetadataService;
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -627,6 +629,11 @@ export class S3Storage implements storage.Storage {
           // Service 3: Run Service (stateless test operations)
           this.testManagementRunService = new TestManagementRunService(
             this.testManagementConfigRepository,
+            this.projectIntegrationRepository
+          );
+          
+          // Service 4: Metadata Service (fetches metadata from providers)
+          this.testManagementMetadataService = new TestManagementMetadataService(
             this.projectIntegrationRepository
           );
           
