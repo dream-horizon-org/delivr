@@ -61,6 +61,11 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       // Initialize storage singleton for global access
       initializeStorage(storage);
       console.log('[Storage] Storage singleton initialized');
+      
+      // Wait for storage setup to complete (especially for S3Storage services)
+      console.log('[Storage] Waiting for storage setup to complete...');
+      await storage.checkHealth();
+      console.log('[Storage] Storage setup completed successfully');
     })
     .then(() => {
       const app = express();
