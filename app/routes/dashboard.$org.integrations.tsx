@@ -183,11 +183,23 @@ export default function IntegrationsPage() {
 
       <Tabs defaultValue={IntegrationCategory.SOURCE_CONTROL}>
         <Tabs.List className="mb-6">
-          {Object.keys(integrationsByCategory).map((category) => (
-            <Tabs.Tab key={category} value={category}>
-              {category}
-            </Tabs.Tab>
-          ))}
+          {Object.keys(integrationsByCategory).map((category) => {
+            // Convert enum values to human-readable labels
+            const categoryLabels: Record<string, string> = {
+              SOURCE_CONTROL: 'Source Control',
+              COMMUNICATION: 'Communication',
+              CI_CD: 'CI/CD',
+              TEST_MANAGEMENT: 'Test Management',
+              PROJECT_MANAGEMENT: 'Project Management',
+              APP_DISTRIBUTION: 'App Distribution',
+            };
+            
+            return (
+              <Tabs.Tab key={category} value={category}>
+                {categoryLabels[category] || category}
+              </Tabs.Tab>
+            );
+          })}
         </Tabs.List>
 
         {Object.entries(integrationsByCategory).map(([category, integrations]) => (

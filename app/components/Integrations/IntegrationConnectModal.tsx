@@ -7,6 +7,7 @@ import { GitHubActionsConnectionFlow } from './GitHubActionsConnectionFlow';
 import { CheckmateConnectionFlow } from './CheckmateConnectionFlow';
 import { JiraConnectionFlow } from './JiraConnectionFlow';
 import { AppDistributionConnectionFlow } from './AppDistributionConnectionFlow';
+import { IntegrationIcon } from '~/components/Icons/IntegrationIcon';
 import { useParams } from '@remix-run/react';
 import { useSystemMetadata } from '~/hooks/useSystemMetadata';
 
@@ -199,7 +200,7 @@ export function IntegrationConnectModal({
       onClose={onClose}
       title={
         <div className="flex items-center gap-3">
-          <span className="text-3xl">{integration.icon}</span>
+          <IntegrationIcon name={integration.icon} size={32} className="text-blue-600 dark:text-blue-400" />
           <h2 className="text-xl font-semibold">
             {isEditMode ? `Edit ${integration.name}` : `Connect ${integration.name}`}
           </h2>

@@ -43,7 +43,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <IntegrationIcon name={integration.icon} size={40} className="text-gray-700" />
+          <IntegrationIcon name={integration.icon} size={40} className="text-blue-600 dark:text-blue-400" />
           <div>
             <h3 className="font-semibold text-lg flex items-center gap-2">
               {integration.name}

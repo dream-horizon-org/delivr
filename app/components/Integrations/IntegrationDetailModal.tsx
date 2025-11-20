@@ -117,7 +117,7 @@ export function IntegrationDetailModal({
       onClose={onClose}
       title={
         <div className="flex items-center gap-3">
-          <IntegrationIcon name={integration.icon} size={32} className="text-gray-700" />
+          <IntegrationIcon name={integration.icon} size={32} className="text-blue-600 dark:text-blue-400" />
           <div>
             <h2 className="text-xl font-semibold">{integration.name}</h2>
             <Badge
