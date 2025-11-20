@@ -322,15 +322,6 @@ export function AppDistributionConnectionFlow({
 
   return (
     <Stack gap="lg">
-      <div>
-        <Text fw={600} size="lg">
-          Connect {storeType === 'play_store' ? 'Play Store' : 'App Store'}
-        </Text>
-        <Text size="sm" c="dimmed">
-          Enter your credentials to connect your store
-        </Text>
-      </div>
-
       {/* Platform Selection */}
       {allowedPlatforms.length > 1 && (
         <div>
