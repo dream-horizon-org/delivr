@@ -28,6 +28,12 @@ import rateLimit from "express-rate-limit";
 import { isPrototypePollutionKey } from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
 import * as appPermissions from "../middleware/app-permissions";
+import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
+import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
+import { COMMUNICATION_PROVIDERS } from "../controllers/integrations/communication/providers.constants";
+import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/project-integration/project-integration.constants";
+import { PROJECT_MANAGEMENT_PROVIDERS } from "../controllers/integrations/project-management/providers.constants";
+import { APP_DISTRIBUTION_PROVIDERS } from "../controllers/integrations/app-distribution/providers.constants";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -64,36 +70,41 @@ export function getManagementRouter(config: ManagementConfig): Router {
   // ============================================================================
   router.get("/system/metadata", async (req: Request, res: Response): Promise<any> => {
     try {
-      // Static system metadata
+      // Build integrations from provider constants
+      // Only return enabled providers (status: 'available')
+      const SOURCE_CONTROL = SCM_PROVIDERS
+        .filter(p => p.enabled)
+        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+      
+      const COMMUNICATION = COMMUNICATION_PROVIDERS
+        .filter(p => p.enabled)
+        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+      
+      const CI_CD = CICD_PROVIDERS
+        .filter(p => p.enabled)
+        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+      
+      const TEST_MANAGEMENT = TEST_MANAGEMENT_PROVIDERS
+        .filter(p => p.enabled)
+        .map(p => ({ id: p.type, name: p.name, requiresOAuth: false }));
+      
+      const PROJECT_MANAGEMENT = PROJECT_MANAGEMENT_PROVIDERS
+        .filter(p => p.enabled)
+        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+      
+      const APP_DISTRIBUTION = APP_DISTRIBUTION_PROVIDERS
+        .filter(p => p.enabled)
+        .map(p => ({ id: p.id, name: p.name, requiresOAuth: p.requiresOAuth }));
+
       const metadata = {
         releaseManagement: {
           integrations: {
-            SOURCE_CONTROL: [
-              { id: "github", name: "GitHub", requiresOAuth: false },
-              { id: "gitlab", name: "GitLab", requiresOAuth: false },
-              { id: "bitbucket", name: "Bitbucket", requiresOAuth: false },
-            ],
-            COMMUNICATION: [
-              { id: "slack", name: "Slack", requiresOAuth: true },
-              { id: "teams", name: "Microsoft Teams", requiresOAuth: true },
-            ],
-            CI_CD: [
-              { id: "jenkins", name: "Jenkins", requiresOAuth: false },
-              { id: "github-actions", name: "GitHub Actions", requiresOAuth: false },
-              { id: "gitlab-ci", name: "GitLab CI", requiresOAuth: false },
-            ],
-            TEST_MANAGEMENT: [
-              { id: "checkmate", name: "Checkmate", requiresOAuth: false },
-              { id: "browserstack", name: "BrowserStack", requiresOAuth: true },
-            ],
-            PROJECT_MANAGEMENT: [
-              { id: "jira", name: "Jira", requiresOAuth: true },
-              { id: "linear", name: "Linear", requiresOAuth: true },
-            ],
-            APP_DISTRIBUTION: [
-              { id: "appstore", name: "App Store", requiresOAuth: false },
-              { id: "playstore", name: "Play Store", requiresOAuth: false },
-            ],
+            SOURCE_CONTROL,
+            COMMUNICATION,
+            CI_CD,
+            TEST_MANAGEMENT,
+            PROJECT_MANAGEMENT,
+            APP_DISTRIBUTION,
           },
           platforms: [
             { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"] },

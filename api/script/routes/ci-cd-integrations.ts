@@ -7,9 +7,16 @@ import { createJenkinsWorkflowRoutes } from "./integrations/ci-cd/workflows/jenk
 import { createGitHubActionsWorkflowRoutes } from "./integrations/ci-cd/workflows/github-actions.routes";
 import * as workflowControllers from "../controllers/integrations/ci-cd/workflows/workflows.controller";
 import * as validateCICD from "../middleware/validate-cicd";
+import { getAvailableCICDProviders } from "../controllers/integrations/ci-cd/providers.controller";
 
 export function createCICDIntegrationRoutes(storage: Storage): Router {
   const router = Router();
+
+  // Get available CI/CD providers (public endpoint)
+  router.get(
+    "/integrations/ci-cd/providers",
+    getAvailableCICDProviders
+  );
 
   // Compose provider-specific subrouters
   router.use(createJenkinsConnectionRoutes(storage));
