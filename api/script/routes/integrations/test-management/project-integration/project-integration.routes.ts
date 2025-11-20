@@ -12,6 +12,12 @@ export const createProjectIntegrationRoutes = (service: TestManagementIntegratio
     controller.getAvailableProviders
   );
 
+  // Verify credentials without saving (stateless - no projectId or integrationId needed)
+  router.post(
+    '/integrations/verify',
+    controller.verifyCredentials
+  );
+
   // Create integration for a project (need projectId)
   router.post(
     '/projects/:projectId/integrations',
