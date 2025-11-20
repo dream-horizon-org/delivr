@@ -11,6 +11,7 @@ export interface IntegrationProviderBackend {
   id: string;
   name: string;
   requiresOAuth?: boolean;
+  isAvailable: boolean;
 }
 
 // Enriched with frontend UI metadata
@@ -18,6 +19,7 @@ export interface IntegrationProvider extends IntegrationProviderBackend {
   description: string;
   icon: string;
   comingSoon?: boolean;
+  // isAvailable inherited from IntegrationProviderBackend
 }
 
 export interface ConnectedIntegration {

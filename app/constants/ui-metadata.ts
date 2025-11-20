@@ -353,7 +353,7 @@ export const BUILD_ENVIRONMENT_UI_METADATA: Record<string, {
 // Helper Functions to Merge Backend + Frontend Data
 // ============================================================================
 
-export function enrichIntegration(backendData: { id: string; name: string; requiresOAuth?: boolean }) {
+export function enrichIntegration(backendData: { id: string; name: string; requiresOAuth?: boolean; isAvailable: boolean }) {
   const uiMetadata = INTEGRATION_UI_METADATA[backendData.id] || {
     description: backendData.name,
     icon: '🔌',
