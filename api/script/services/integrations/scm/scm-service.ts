@@ -79,7 +79,7 @@ export class SCMService implements SCMIntegration {
     // Create the tag
     await provider.createTag({
       tagName: finalTagName,
-      targetBranch: releaseBranch,
+      branchName: releaseBranch,
       message: `Release ${finalTagName}`
     });
     
@@ -116,19 +116,19 @@ export class SCMService implements SCMIntegration {
     }
     
     // Generate release notes
-    const notes = await provider.generateReleaseNotes({
+    const notes = await provider.generateReleaseNotes(
       currentTag,
-      previousTag: finalPreviousTag
-    });
+      finalPreviousTag || '' // Provide empty string if undefined
+    );
     
     // Format release body
-    const releaseBody = this.formatReleaseBody(notes, releaseDate);
+    const releaseBody = this.formatReleaseBody(notes.markdown, releaseDate);
     
     // Create release
     const release = await provider.createRelease({
       tagName: currentTag,
-      name: currentTag,
-      body: releaseBody,
+      releaseName: currentTag,
+      releaseBody: releaseBody,
       draft: false,
       prerelease: currentTag.includes('_rc_')
     });
@@ -161,12 +161,12 @@ export class SCMService implements SCMIntegration {
       finalPreviousTag = undefined;
     }
     
-    const notes = await provider.generateReleaseNotes({
+    const notes = await provider.generateReleaseNotes(
       currentTag,
-      previousTag: finalPreviousTag
-    });
+      finalPreviousTag || '' // Provide empty string if undefined
+    );
     
-    return this.formatReleaseBody(notes, new Date());
+    return this.formatReleaseBody(notes.markdown, new Date());
   }
 
   /**
@@ -181,12 +181,12 @@ export class SCMService implements SCMIntegration {
   ): Promise<number> {
     const provider = await this.getProvider(tenantId, customConfig);
     
-    const comparison = await provider.compareCommits({
-      base: tag,
-      head: branch
-    });
+    const comparison = await provider.compareCommits(
+      tag,    // base
+      branch  // head
+    );
     
-    return comparison.aheadBy;
+    return comparison.total_commits;
   }
 
   // ============================================================================
