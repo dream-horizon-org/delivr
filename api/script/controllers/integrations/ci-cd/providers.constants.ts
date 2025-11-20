@@ -30,33 +30,6 @@ export const CICD_PROVIDERS = [
     status: 'coming_soon',
     requiresOAuth: false,
     features: ['Pipelines', 'Auto DevOps', 'Environments', 'Feature Flags']
-  },
-  {
-    id: 'circle-ci',
-    name: 'Circle CI',
-    description: 'Cloud-native continuous integration and delivery platform',
-    enabled: false,
-    status: 'coming_soon',
-    requiresOAuth: true,
-    features: ['Workflows', 'Orbs', 'Contexts', 'Insights']
-  },
-  {
-    id: 'travis-ci',
-    name: 'Travis CI',
-    description: 'Hosted CI/CD service for building and testing software',
-    enabled: false,
-    status: 'coming_soon',
-    requiresOAuth: true,
-    features: ['Build Matrix', 'Caching', 'Deployment', 'Notifications']
-  },
-  {
-    id: 'azure-devops',
-    name: 'Azure DevOps',
-    description: 'Microsoft\'s DevOps solution with CI/CD pipelines',
-    enabled: false,
-    status: 'coming_soon',
-    requiresOAuth: true,
-    features: ['Pipelines', 'Artifacts', 'Test Plans', 'Deployment Groups']
   }
 ] as const;
 
