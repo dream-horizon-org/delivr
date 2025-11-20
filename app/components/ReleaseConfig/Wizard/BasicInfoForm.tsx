@@ -3,15 +3,58 @@
  * First step of the Configuration Wizard
  */
 
-import { TextInput, Textarea, Select, Switch } from '@mantine/core';
+import { useEffect, useState } from 'react';
+import { TextInput, Textarea, Select, Switch, Loader } from '@mantine/core';
 import type { ReleaseConfiguration } from '~/types/release-config';
 
 interface BasicInfoFormProps {
   config: Partial<ReleaseConfiguration>;
   onChange: (config: Partial<ReleaseConfiguration>) => void;
+  tenantId: string; // For fetching branches from SCM
 }
 
-export function BasicInfoForm({ config, onChange }: BasicInfoFormProps) {
+export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps) {
+  const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [defaultBranch, setDefaultBranch] = useState<string>('main');
+
+  // Fetch branches from SCM integration
+  useEffect(() => {
+    const fetchBranches = async () => {
+      setLoadingBranches(true);
+      try {
+        const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/scm/branches`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.branches) {
+            const branchOptions = data.branches.map((branch: any) => ({
+              value: branch.name,
+              label: branch.default ? `${branch.name} (default)` : branch.name,
+            }));
+            setBranches(branchOptions);
+            if (data.defaultBranch) {
+              setDefaultBranch(data.defaultBranch);
+              // Auto-select default branch if not already set
+              if (!config.baseBranch) {
+                onChange({ ...config, baseBranch: data.defaultBranch });
+              }
+            }
+          }
+        } else {
+          console.warn('[BasicInfoForm] Failed to fetch branches, SCM may not be configured');
+        }
+      } catch (error) {
+        console.error('[BasicInfoForm] Error fetching branches:', error);
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+
+    if (tenantId) {
+      fetchBranches();
+    }
+  }, [tenantId]);
+
   return (
     <div className="space-y-4">
       <TextInput
@@ -43,6 +86,19 @@ export function BasicInfoForm({ config, onChange }: BasicInfoFormProps) {
         onChange={(val) => onChange({ ...config, releaseType: val as any })}
         required
         description="Type of releases this configuration is for"
+      />
+
+      <Select
+        label="Default Base Branch"
+        placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
+        data={branches}
+        value={config.baseBranch || ''}
+        onChange={(val) => onChange({ ...config, baseBranch: val || '' })}
+        searchable
+        clearable
+        disabled={loadingBranches}
+        rightSection={loadingBranches ? <Loader size="xs" /> : null}
+        description="Default branch to fork from for releases (from SCM integration)"
       />
       
       <Switch

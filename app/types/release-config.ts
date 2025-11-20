@@ -184,6 +184,9 @@ export interface ReleaseConfiguration {
   releaseType: 'PLANNED' | 'HOTFIX' | 'EMERGENCY';
   isDefault: boolean;
   
+  // Default base branch (from SCM integration)
+  baseBranch?: string; // e.g., 'main', 'develop', 'master'
+  
   // Default target platforms
   defaultTargets: TargetPlatform[];
   

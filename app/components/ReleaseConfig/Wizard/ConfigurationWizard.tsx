@@ -200,6 +200,7 @@ export function ConfigurationWizard({
           <BasicInfoForm
             config={config}
             onChange={setConfig}
+            tenantId={organizationId}
           />
         );
         
