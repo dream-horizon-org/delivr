@@ -84,11 +84,21 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // Hardcoded for unimplemented services
       const COMMUNICATION = [
         { id: "slack", name: "Slack", requiresOAuth: true },
+        { id: "teams", name: "Microsoft Teams", requiresOAuth: true },
+        { id: "discord", name: "Discord", requiresOAuth: true },
       ];
       
-      const PROJECT_MANAGEMENT: any[] = [];
+      const PROJECT_MANAGEMENT = [
+        { id: "jira", name: "Jira", requiresOAuth: true },
+        { id: "linear", name: "Linear", requiresOAuth: true },
+        { id: "asana", name: "Asana", requiresOAuth: true },
+      ];
       
-      const APP_DISTRIBUTION: any[] = [];
+      const APP_DISTRIBUTION = [
+        { id: "appstore", name: "App Store", requiresOAuth: false },
+        { id: "playstore", name: "Play Store", requiresOAuth: false },
+        { id: "firebase", name: "Firebase App Distribution", requiresOAuth: true },
+      ];
 
       const metadata = {
         releaseManagement: {
