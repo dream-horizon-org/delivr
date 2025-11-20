@@ -154,6 +154,17 @@ export interface SystemMetadataBackend {
     releaseStatuses: ReleaseStatusOptionBackend[];
     buildEnvironments: BuildEnvironmentOptionBackend[];
   };
+  appDistribution?: {
+    availableStoreTypes: Array<{
+      id: string;
+      name: string;
+      description: string;
+      icon: string;
+      allowedPlatforms: string[];
+      requiresCredentials: boolean;
+    }>;
+    allowedPlatforms: Record<string, string[]>;
+  };
   system: {
     version: string;
     features: Record<string, boolean>;

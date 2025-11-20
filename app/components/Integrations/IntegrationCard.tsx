@@ -93,36 +93,77 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
       {integration.status === IntegrationStatus.CONNECTED && integration.config && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="text-xs text-gray-500 space-y-1">
+            {/* GitHub/SCM */}
             {integration.config.owner && integration.config.repo && (
               <div>
                 <span className="font-medium">Repository:</span>{' '}
                 {integration.config.owner}/{integration.config.repo}
               </div>
             )}
+            
+            {/* Slack */}
             {integration.config.workspace && (
               <div>
                 <span className="font-medium">Workspace:</span>{' '}
                 {integration.config.workspace}
               </div>
             )}
+            
+            {/* Jenkins */}
             {integration.config.accountName && (
               <div>
                 <span className="font-medium">Account:</span>{' '}
                 {integration.config.accountName}
               </div>
             )}
+            
+            {/* General */}
             {integration.config.displayName && (
               <div>
                 <span className="font-medium">Name:</span>{' '}
                 {integration.config.displayName}
               </div>
             )}
+            
+            {/* Checkmate/Others */}
             {integration.config.hostUrl && (
               <div>
                 <span className="font-medium">Host:</span>{' '}
                 <span className="truncate inline-block max-w-[180px]" title={integration.config.hostUrl}>
                   {integration.config.hostUrl}
                 </span>
+              </div>
+            )}
+            
+            {/* App Distribution - App Identifier */}
+            {integration.config.appIdentifier && (
+              <div>
+                <span className="font-medium">App ID:</span>{' '}
+                <span className="truncate inline-block max-w-[180px]" title={integration.config.appIdentifier}>
+                  {integration.config.appIdentifier}
+                </span>
+              </div>
+            )}
+            
+            {/* App Distribution - Platforms */}
+            {integration.config.platforms && Array.isArray(integration.config.platforms) && (
+              <div>
+                <span className="font-medium">Platforms:</span>{' '}
+                <span className="inline-flex gap-1 flex-wrap">
+                  {integration.config.platforms.map((p: string) => (
+                    <Badge key={p} size="xs" variant="light">
+                      {p}
+                    </Badge>
+                  ))}
+                </span>
+              </div>
+            )}
+            
+            {/* App Distribution - Store Type */}
+            {integration.config.storeType && (
+              <div>
+                <span className="font-medium">Store:</span>{' '}
+                {integration.config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
               </div>
             )}
           </div>

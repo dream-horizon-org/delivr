@@ -98,15 +98,13 @@ export const INTEGRATION_UI_METADATA: Record<string, {
   },
   
   // APP_DISTRIBUTION
-  appstore: {
+  app_store: {
     description: 'Deploy iOS apps to TestFlight and the App Store',
     icon: 'apple',
-    comingSoon: true,
   },
-  playstore: {
+  play_store: {
     description: 'Publish Android apps to Google Play Console',
     icon: 'android',
-    comingSoon: true,
   },
   firebase: {
     description: 'Distribute app builds to testers via Firebase App Distribution',

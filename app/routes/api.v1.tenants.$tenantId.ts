@@ -9,6 +9,7 @@ import {
   type AuthenticatedLoaderFunction,
 } from '~/utils/authenticate';
 import { CodepushService } from '~/.server/services/Codepush';
+import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
 
 const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
   const tenantId = params.tenantId;
@@ -26,15 +27,25 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
   try {
     console.log(`[BFF-TenantInfo] Fetching tenant info for: ${tenantId}, userId: ${user.user.id}`);
     
+    // Fetch base tenant info
     const response = await CodepushService.getTenantInfo({
       userId: user.user.id,
       tenantId,
     });
 
-    console.log(`[BFF-TenantInfo] Successfully fetched tenant info`);
-    console.log(`[BFF-TenantInfo] Response data:`, JSON.stringify(response.data, null, 2));
+    // Fetch app distribution integrations
+    const distributionsResponse = await AppDistributionService.listIntegrations(tenantId, user.user.id);
+    const distributions = distributionsResponse.success ? distributionsResponse.integrations || [] : [];
+
+    console.log(`[BFF-TenantInfo] Successfully fetched tenant info with ${distributions.length} distributions`);
     
-    return json(response.data, {
+    // Append distributions to response
+    const enrichedData = {
+      ...response.data,
+      appDistributions: distributions, // NEW: App distribution integrations
+    };
+    
+    return json(enrichedData, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',

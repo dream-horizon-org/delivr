@@ -46,7 +46,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
         { status: 500 }
       );
     }
-    
+
     const channels = result.channels || [];
     
     console.log(`[Slack Channels API] Successfully fetched ${channels.length} channels from Slack API`);

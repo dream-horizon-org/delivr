@@ -24,6 +24,20 @@ const DISCONNECT_CONFIG: Record<string, { message: string; endpoint: (tenantId: 
       if (!config?.id) throw new Error('Integration ID required for Checkmate');
       return `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${config.id}`;
     }
+  },
+  play_store: {
+    message: 'Are you sure you want to disconnect Play Store? This will stop all app distribution integrations.',
+    endpoint: (tenantId, config) => {
+      if (!config?.integrationId) throw new Error('Integration ID required for Play Store');
+      return `/api/v1/tenants/${tenantId}/distributions?action=delete&integrationId=${config.integrationId}`;
+    }
+  },
+  app_store: {
+    message: 'Are you sure you want to disconnect App Store? This will stop all app distribution integrations.',
+    endpoint: (tenantId, config) => {
+      if (!config?.integrationId) throw new Error('Integration ID required for App Store');
+      return `/api/v1/tenants/${tenantId}/distributions?action=delete&integrationId=${config.integrationId}`;
+    }
   }
 };
 
@@ -240,6 +254,66 @@ export function IntegrationDetailModal({
               <div className="flex justify-between">
                 <span className="text-gray-600">Account:</span>
                 <span className="font-medium">{integration.config.accountName}</span>
+              </div>
+            )}
+
+            {/* App Distribution specific configuration */}
+            {integration.config?.appIdentifier && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">App Identifier:</span>
+                <span className="font-mono text-xs">{integration.config.appIdentifier}</span>
+              </div>
+            )}
+
+            {integration.config?.storeType && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Store Type:</span>
+                <Badge size="sm" variant="light">
+                  {integration.config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
+                </Badge>
+              </div>
+            )}
+
+            {integration.config?.platforms && Array.isArray(integration.config.platforms) && (
+              <div className="flex flex-col gap-1">
+                <span className="text-gray-600">Platforms:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {integration.config.platforms.map((platform: string) => (
+                    <Badge key={platform} size="sm" variant="filled" color="blue">
+                      {platform}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {integration.config?.defaultTrack && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Default Track:</span>
+                <Badge size="sm" variant="light" color="cyan">
+                  {integration.config.defaultTrack}
+                </Badge>
+              </div>
+            )}
+
+            {integration.config?.defaultLocale && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Default Locale:</span>
+                <span className="font-medium">{integration.config.defaultLocale}</span>
+              </div>
+            )}
+
+            {integration.config?.teamName && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Team Name:</span>
+                <span className="font-medium">{integration.config.teamName}</span>
+              </div>
+            )}
+
+            {integration.config?.targetAppId && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Target App ID:</span>
+                <span className="font-mono text-xs">{integration.config.targetAppId}</span>
               </div>
             )}
 

@@ -112,22 +112,26 @@ export interface TestRailSettings {
 // Scheduling Configuration
 // ============================================================================
 
+export type ReleaseFrequency = 'WEEKLY' | 'BIWEEKLY' | 'TRIWEEKLY' | 'MONTHLY' | 'CUSTOM';
+
 export interface SchedulingConfig {
   // Release frequency
-  releaseFrequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM';
+  releaseFrequency: ReleaseFrequency;
   customFrequencyDays?: number; // For CUSTOM frequency
   
-  // Default timings
-  defaultReleaseTime: string; // HH:MM format (24-hour)
-  defaultKickoffTime: string; // HH:MM format
-  kickoffLeadDays: number; // Days before release
+  // First release date (kickoff date)
+  firstReleaseKickoffDate: string; // ISO date string
   
-  // Kickoff reminder
+  // Kickoff settings
+  kickoffTime: string; // HH:MM format (24-hour)
   kickoffReminderEnabled: boolean;
-  kickoffReminderTime: string; // HH:MM format
-  kickoffReminderLeadDays: number;
+  kickoffReminderTime: string; // HH:MM format (must be <= kickoffTime)
   
-  // Working days (0 = Sunday, 6 = Saturday)
+  // Target release settings
+  targetReleaseTime: string; // HH:MM format (24-hour)
+  targetReleaseDateOffsetFromKickoff: number; // Days from kickoff (must be >= 0)
+  
+  // Working days (1 = Monday, 7 = Sunday)
   workingDays: number[]; // e.g., [1, 2, 3, 4, 5] for Mon-Fri
   timezone: string; // e.g., "Asia/Kolkata", "America/New_York"
   
@@ -137,16 +141,13 @@ export interface SchedulingConfig {
 
 export interface RegressionSlot {
   id: string;
-  name: string; // e.g., "Slot 1", "Evening Regression"
-  offsetDays: number; // Days offset from kickoff
-  time: string; // HH:MM format
+  name?: string; // Optional custom name
+  regressionSlotOffsetFromKickoff: number; // Days from kickoff (must be <= targetReleaseDateOffsetFromKickoff)
+  time: string; // HH:MM format (must be <= targetReleaseTime if offsets match)
   
   // What happens in this slot
   config: {
-    regressionBuilds: boolean;
-    postReleaseNotes: boolean;
-    automationBuilds: boolean;
-    automationRuns: boolean;
+    regressionBuilds: boolean; // Only regression builds are valid for regression slots
   };
 }
 
@@ -218,6 +219,9 @@ export interface ReleaseConfiguration {
   
   // Default base branch (from SCM integration)
   baseBranch?: string; // e.g., 'main', 'develop', 'master'
+  
+  // Platforms configured in this release
+  platforms: Platform[]; // e.g., ['ANDROID', 'IOS']
   
   // Default target platforms
   defaultTargets: TargetPlatform[];

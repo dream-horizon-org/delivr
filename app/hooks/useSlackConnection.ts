@@ -85,7 +85,7 @@ export function useSlackConnection() {
 
       setBotToken(token);
       setIsVerifying(false);
-      
+
       // Move to next step - user will click "Connect" to save
       setStep('channels'); // Keep this for UI flow, but we won't show channel selection
 
@@ -111,7 +111,7 @@ export function useSlackConnection() {
 
     try {
       console.log(`[useSlackConnection] Saving integration for tenant: ${tenantId}`);
-      
+
       const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

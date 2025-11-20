@@ -5,18 +5,20 @@
 
 import { Stack, Select, NumberInput, Text, Group, Card } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
+import type { ReleaseFrequency } from '~/types/release-config';
 
 interface ReleaseFrequencySelectorProps {
-  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM';
+  frequency: ReleaseFrequency;
   customDays?: number;
-  onChange: (frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM', customDays?: number) => void;
+  onChange: (frequency: ReleaseFrequency, customDays?: number) => void;
 }
 
 const frequencyOptions = [
-  { value: 'WEEKLY', label: 'Weekly', description: 'Release every 7 days' },
-  { value: 'BIWEEKLY', label: 'Biweekly', description: 'Release every 14 days' },
-  { value: 'MONTHLY', label: 'Monthly', description: 'Release every 30 days' },
-  { value: 'CUSTOM', label: 'Custom', description: 'Define custom frequency' },
+  { value: 'WEEKLY', label: 'Weekly', description: 'Release every 7 days', days: 7 },
+  { value: 'BIWEEKLY', label: 'Biweekly', description: 'Release every 14 days', days: 14 },
+  { value: 'TRIWEEKLY', label: 'Triweekly', description: 'Release every 21 days', days: 21 },
+  { value: 'MONTHLY', label: 'Monthly', description: 'Release every 30 days', days: 30 },
+  { value: 'CUSTOM', label: 'Custom', description: 'Define custom frequency', days: 0 },
 ];
 
 export function ReleaseFrequencySelector({
@@ -71,11 +73,7 @@ export function ReleaseFrequencySelector({
         {frequency !== 'CUSTOM' && (
           <div className="bg-blue-50 p-3 rounded-lg">
             <Text size="sm" fw={500} className="text-blue-900">
-              Estimated Days: {
-                frequency === 'WEEKLY' ? '7' :
-                frequency === 'BIWEEKLY' ? '14' :
-                frequency === 'MONTHLY' ? '30' : ''
-              }
+              Estimated Days: {selectedOption?.days || 0}
             </Text>
           </div>
         )}

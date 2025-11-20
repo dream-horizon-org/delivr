@@ -16,6 +16,7 @@ export function createDefaultConfig(organizationId: string): Partial<ReleaseConf
     name: '',
     releaseType: 'PLANNED',
     isDefault: true,
+    platforms: [],
     defaultTargets: [],
     buildPipelines: [],
     testManagement: {
@@ -24,12 +25,13 @@ export function createDefaultConfig(organizationId: string): Partial<ReleaseConf
     },
     scheduling: {
       releaseFrequency: 'WEEKLY',
-      defaultReleaseTime: '18:00',
-      defaultKickoffTime: '10:00',
-      kickoffLeadDays: 7,
+      customFrequencyDays: undefined,
+      firstReleaseKickoffDate: '', // To be set by user
+      kickoffTime: '10:00',
       kickoffReminderEnabled: true,
       kickoffReminderTime: '09:00',
-      kickoffReminderLeadDays: 1,
+      targetReleaseTime: '18:00',
+      targetReleaseDateOffsetFromKickoff: 5,
       workingDays: [1, 2, 3, 4, 5], // Monday to Friday
       timezone: 'Asia/Kolkata',
       regressionSlots: [],

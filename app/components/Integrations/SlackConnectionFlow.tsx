@@ -112,7 +112,7 @@ export function SlackConnectionFlow({
               <p className="text-blue-800">
                 Channel selection will be done later in <strong>Release Configuration</strong> when you set up your release workflow.
               </p>
-            </div>
+              </div>
 
             {error && (
               <Alert color="red">

@@ -210,7 +210,24 @@ export function ConfigurationWizard({
         return (
           <PlatformSelector
             selectedPlatforms={config.defaultTargets || []}
-            onChange={(platforms) => setConfig({ ...config, defaultTargets: platforms })}
+            onChange={(targets) => {
+              // Derive platforms from selected targets
+              const platforms: Array<'ANDROID' | 'IOS'> = [];
+              
+              if (targets.includes('PLAY_STORE')) {
+                platforms.push('ANDROID');
+              }
+              if (targets.includes('APP_STORE')) {
+                platforms.push('IOS');
+              }
+              // WEB doesn't map to a mobile platform
+              
+              setConfig({ 
+                ...config, 
+                defaultTargets: targets,
+                platforms: platforms as any, // Update platforms based on targets
+              });
+            }}
           />
         );
         

@@ -6,6 +6,9 @@ import { JenkinsConnectionFlow } from './JenkinsConnectionFlow';
 import { GitHubActionsConnectionFlow } from './GitHubActionsConnectionFlow';
 import { CheckmateConnectionFlow } from './CheckmateConnectionFlow';
 import { JiraConnectionFlow } from './JiraConnectionFlow';
+import { AppDistributionConnectionFlow } from './AppDistributionConnectionFlow';
+import { useParams } from '@remix-run/react';
+import { useSystemMetadata } from '~/hooks/useSystemMetadata';
 
 interface IntegrationConnectModalProps {
   integration: Integration | null;
@@ -24,6 +27,10 @@ export function IntegrationConnectModal({
   isEditMode = false,
   existingData
 }: IntegrationConnectModalProps) {
+  const params = useParams();
+  const tenantId = params.org!;
+  const { data: systemMetadata } = useSystemMetadata();
+  
   if (!integration) return null;
 
   // Debug: Log integration details
@@ -117,37 +124,36 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'appstore':
+      case 'play_store':
       case 'playstore':
-        // App distribution integrations - connection flow coming soon
+        const playStoreAllowedPlatforms = systemMetadata?.appDistribution?.allowedPlatforms?.play_store || ['ANDROID'];
         return (
-          <div className="space-y-4">
-            <Alert color="blue" title="Connect Integration" icon={<span>🔗</span>}>
-              Connect {integration.name} to enable {integration.description}
-            </Alert>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Setup Instructions:</h3>
-              <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                <li>Connection flow is available via API routes</li>
-                <li>Backend integration is ready</li>
-                <li>Full UI implementation coming soon</li>
-              </ul>
-            </div>
-            <Group justify="flex-end" className="mt-6">
-              <Button variant="subtle" onClick={onClose}>
-                Close
-              </Button>
-              <Button
-                onClick={() => {
-                  // This will trigger the connection - for now returns 500 as backend isn't ready
-                  onConnect(integration.id);
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Connect {integration.name}
-              </Button>
-            </Group>
-          </div>
+          <AppDistributionConnectionFlow
+            storeType="play_store"
+            tenantId={tenantId}
+            allowedPlatforms={playStoreAllowedPlatforms as any}
+            onConnect={(data) => {
+              onConnect(integration.id, data);
+              onClose();
+            }}
+            onCancel={onClose}
+          />
+        );
+      
+      case 'app_store':
+      case 'appstore':
+        const appStoreAllowedPlatforms = systemMetadata?.appDistribution?.allowedPlatforms?.app_store || ['IOS'];
+        return (
+          <AppDistributionConnectionFlow
+            storeType="app_store"
+            tenantId={tenantId}
+            allowedPlatforms={appStoreAllowedPlatforms as any}
+            onConnect={(data) => {
+              onConnect(integration.id, data);
+              onClose();
+            }}
+            onCancel={onClose}
+          />
         );
       
       default:

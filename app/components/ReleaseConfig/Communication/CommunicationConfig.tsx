@@ -65,7 +65,7 @@ export function CommunicationConfig({
         </Alert>
       </Stack>
     );
-  }
+    }
   
   return (
     <Stack gap="lg">
@@ -80,12 +80,12 @@ export function CommunicationConfig({
       
       {/* Only show Slack if connected */}
       {hasSlack && (
-        <SlackChannelConfigEnhanced
-          config={config}
-          onChange={onChange}
-          availableIntegrations={availableIntegrations.slack}
+      <SlackChannelConfigEnhanced
+        config={config}
+        onChange={onChange}
+        availableIntegrations={availableIntegrations.slack}
           organizationId={organizationId}
-        />
+      />
       )}
     </Stack>
   );
