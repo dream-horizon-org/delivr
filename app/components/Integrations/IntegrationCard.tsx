@@ -1,6 +1,7 @@
 import { Badge, Card, Button } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
+import { IntegrationIcon } from '~/components/Icons/IntegrationIcon';
 
 interface IntegrationCardProps {
   integration: Integration;
@@ -42,7 +43,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="text-4xl">{integration.icon}</div>
+          <IntegrationIcon name={integration.icon} size={40} className="text-gray-700" />
           <div>
             <h3 className="font-semibold text-lg flex items-center gap-2">
               {integration.name}
