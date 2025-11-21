@@ -13,7 +13,7 @@ import {
 } from "./integrations/test-management";
 import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createCICDIntegrationRoutes } from "./ci-cd-integrations";
+import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
 import { createCommIntegrationRoutes } from "./integrations/comm";
 
 export interface ReleaseManagementConfig {

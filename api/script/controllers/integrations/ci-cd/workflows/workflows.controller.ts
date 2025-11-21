@@ -4,7 +4,9 @@ import { ERROR_MESSAGES } from "../constants";
 import { getStorage } from "../../../../storage/storage-instance";
 import { normalizePlatform } from "../../../../services/integrations/ci-cd/utils/cicd.utils";
 import { formatErrorMessage } from "~utils/error.utils";
-import type { CreateWorkflowDto, UpdateWorkflowDto } from "~types/integrations/ci-cd/workflow.interface";
+import type { CreateWorkflowDto, UpdateWorkflowDto, WorkflowType } from "~types/integrations/ci-cd/workflow.interface";
+import shortid = require("shortid");
+import { CICDProviderType } from "~types/integrations/ci-cd";
 
 const getCICDIntegrationRepository = () => {
   const storage = getStorage();
@@ -34,20 +36,22 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
     const cicd = getCICDIntegrationRepository();
     const integration = await cicd.findById(body.integrationId);
     const invalidIntegration = !integration || integration.id !== body.integrationId;
-    if (invalidIntegration) {
+    if (invalidIntegration || integration.tenantId !== tenantId || integration.providerType !== body.providerType) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_INTEGRATION_INVALID });
     }
 
     const wfRepository = getWorkflowRepository();
+
     await wfRepository.create({
+      id: shortid.generate(),
       tenantId,
-      providerType: body.providerType as any,
+      providerType: integration.providerType as CICDProviderType,
       integrationId: body.integrationId,
       displayName: body.displayName,
       workflowUrl: body.workflowUrl,
       providerIdentifiers: body.providerIdentifiers ?? null,
       platform: normalizePlatform(body.platform),
-      workflowType: body.workflowType as any,
+      workflowType: body.workflowType as WorkflowType,
       parameters: body.parameters ?? null,
       createdByAccountId: accountId,
     });

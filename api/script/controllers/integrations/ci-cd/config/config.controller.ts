@@ -10,7 +10,7 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
   const accountId = req.user?.id;
   const missingUser = !accountId || typeof accountId !== 'string';
   if (missingUser) {
-    // Auth guard: config creation requires authenticated user context
+    // Route: POST /tenants/:tenantId/integrations/ci-cd/configs
     return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       success: RESPONSE_STATUS.FAILURE,
       error: 'Unauthorized'

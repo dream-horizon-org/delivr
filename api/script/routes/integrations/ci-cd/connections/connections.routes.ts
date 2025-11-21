@@ -8,7 +8,7 @@ export const createCICDConnectionsRoutes = (_storage: Storage): Router => {
 
   // Create/Verify by provider type
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/:providerType/verify",
+    "/tenants/:tenantId/integrations/ci-cd/connections/:providerType/verify",
     validateCICD.validateTenantId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionVerifyBody,
@@ -16,7 +16,7 @@ export const createCICDConnectionsRoutes = (_storage: Storage): Router => {
   );
 
   router.post(
-    "/tenants/:tenantId/integrations/ci-cd/:providerType",
+    "/tenants/:tenantId/integrations/ci-cd/connections/:providerType",
     validateCICD.validateTenantId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionCreateBody,
