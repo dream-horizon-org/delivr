@@ -23,6 +23,7 @@ import type {
   SchedulingConfig as SchedulingConfigType,
   RegressionSlot,
   ReleaseFrequency,
+  Platform,
 } from '~/types/release-config';
 import { ReleaseFrequencySelector } from './ReleaseFrequencySelector';
 import { WorkingDaysSelector } from './WorkingDaysSelector';
@@ -31,9 +32,22 @@ import { TimezonePicker } from './TimezonePicker';
 interface SchedulingConfigProps {
   config: SchedulingConfigType;
   onChange: (config: SchedulingConfigType) => void;
+  selectedPlatforms: Platform[]; // Platforms configured in the release
 }
 
-export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
+// Platform enum constants
+const PLATFORMS: Record<Platform, Platform> = {
+  ANDROID: 'ANDROID',
+  IOS: 'IOS',
+} as const;
+
+// Platform display metadata
+const PLATFORM_METADATA: Record<Platform, { label: string; color: string }> = {
+  ANDROID: { label: 'Android', color: 'green' },
+  IOS: { label: 'iOS', color: 'blue' },
+};
+
+export function SchedulingConfig({ config, onChange, selectedPlatforms }: SchedulingConfigProps) {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
   // Validation logic
@@ -226,6 +240,61 @@ export function SchedulingConfig({ config, onChange }: SchedulingConfigProps) {
           />
         </Stack>
       </Card>
+
+      {/* Initial Release Versions - Only for selected platforms */}
+      {selectedPlatforms.length > 0 && (
+        <Card shadow="sm" padding="md" radius="md" withBorder>
+          <Stack gap="md">
+            <div>
+              <Text fw={600} size="sm" className="mb-1">
+                Initial Release Versions
+              </Text>
+              <Text size="xs" c="dimmed">
+                Starting version numbers for configured platforms (e.g., 1.0.0)
+              </Text>
+            </div>
+
+            <Group grow={selectedPlatforms.length === 2}>
+              {selectedPlatforms.map((platform) => {
+                const metadata = PLATFORM_METADATA[platform];
+                return (
+                  <TextInput
+                    key={platform}
+                    label={
+                      <Group gap="xs">
+                        <Badge color={metadata.color} size="sm" variant="filled">
+                          {metadata.label}
+                        </Badge>
+                        <Text size="sm">Initial Version</Text>
+                      </Group>
+                    }
+                    placeholder="1.0.0"
+                    value={config.initialVersions?.[platform] || ''}
+                    onChange={(e) =>
+                      onChange({
+                        ...config,
+                        initialVersions: {
+                          ...config.initialVersions,
+                          [platform]: e.target.value,
+                        },
+                      })
+                    }
+                    required
+                    description={`Semantic version for ${metadata.label} (e.g., 1.0.0)`}
+                  />
+                );
+              })}
+            </Group>
+
+            <Alert color="blue" variant="light" icon={<IconInfoCircle size={16} />}>
+              <Text size="xs">
+                These versions will be used as the starting point for auto-incrementing release versions.
+                Use semantic versioning format (MAJOR.MINOR.PATCH).
+              </Text>
+            </Alert>
+          </Stack>
+        </Card>
+      )}
       
       {/* Timezone */}
       <TimezonePicker timezone={config.timezone} onChange={(tz) => onChange({ ...config, timezone: tz })} />

@@ -21,12 +21,13 @@ export function createDefaultConfig(organizationId: string): Partial<ReleaseConf
     buildPipelines: [],
     testManagement: {
       enabled: false,
-      provider: 'NONE',
+      provider: 'none',
     },
     scheduling: {
       releaseFrequency: 'WEEKLY',
       customFrequencyDays: undefined,
       firstReleaseKickoffDate: '', // To be set by user
+      initialVersions: {}, // Will be populated based on selected platforms
       kickoffTime: '10:00',
       kickoffReminderEnabled: true,
       kickoffReminderTime: '09:00',

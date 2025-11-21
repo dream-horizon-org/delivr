@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { getDummyCheckmateProjects, getDummyCheckmateMetadata } from './checkmate-dummy-data';
 import {
   Stack,
   Text,
@@ -19,11 +20,10 @@ import {
   Radio,
   Badge,
 } from '@mantine/core';
-import { IconTestPipe, IconTrash, IconPlus, IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import type {
   CheckmateSettings,
   CheckmatePlatformConfiguration,
-  CheckmateRules,
 } from '~/types/release-config';
 
 interface CheckmateProject {
@@ -51,7 +51,7 @@ interface CheckmateSquad {
 }
 
 interface CheckmateConfigFormEnhancedProps {
-  config: CheckmateSettings;
+  config: Partial<CheckmateSettings>;
   onChange: (config: CheckmateSettings) => void;
   availableIntegrations: Array<{ 
     id: string; 
@@ -77,12 +77,25 @@ export function CheckmateConfigFormEnhanced({
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const platformOptions = [
-    { value: 'IOS_APP_STORE', label: 'iOS App Store' },
-    { value: 'ANDROID_PLAY_STORE', label: 'Android Play Store' },
-    { value: 'IOS_TESTFLIGHT', label: 'iOS TestFlight' },
-    { value: 'ANDROID_INTERNAL_TESTING', label: 'Android Internal Testing' },
-  ];
+  // Helper to ensure we always have a complete CheckmateSettings object
+  const createCompleteConfig = (updates: Partial<CheckmateSettings>): CheckmateSettings => {
+    return {
+      type: 'checkmate',
+      integrationId: config.integrationId || '',
+      projectId: config.projectId || 0,
+      platformConfigurations: config.platformConfigurations || [],
+      autoCreateRuns: config.autoCreateRuns ?? false,
+      passThresholdPercent: config.passThresholdPercent ?? 100,
+      filterType: config.filterType || 'AND',
+      ...updates,
+    };
+  };
+
+  // Platforms are HARDCODED - these are global system constants, not Checkmate metadata
+  const PLATFORMS = {
+    ANDROID: 'ANDROID',
+    IOS: 'IOS',
+  } as const;
 
   // Define fetch functions BEFORE useEffect hooks that use them
   const fetchProjects = useCallback(async (integrationId: string) => {
@@ -90,19 +103,35 @@ export function CheckmateConfigFormEnhanced({
     setError(null);
 
     try {
-      const response = await fetch(`/api/v1/integrations/${integrationId}/metadata/projects`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch projects');
-      }
-
-      const result = await response.json();
+      // ====================================================================
+      // 🔧 USING DUMMY DATA (See: checkmate-dummy-data.ts)
+      // 🗑️ DELETE when backend API is ready
+      // ====================================================================
+      const result = await getDummyCheckmateProjects(integrationId);
       
       if (result.success && result.data?.data) {
         setProjects(result.data.data);
       } else {
-        throw new Error(result.error || 'Failed to fetch projects');
+        throw new Error('Failed to load projects');
       }
+      
+      // ====================================================================
+      // 🚫 ORIGINAL API CALL (Restore when backend is ready)
+      // ====================================================================
+      // const response = await fetch(`/api/v1/integrations/${integrationId}/metadata/projects`);
+      // 
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch projects');
+      // }
+      //
+      // const result = await response.json();
+      // 
+      // if (result.success && result.data?.data) {
+      //   setProjects(result.data.data);
+      // } else {
+      //   throw new Error(result.error || 'Failed to fetch projects');
+      // }
+      // ====================================================================
     } catch (error) {
       console.error('[Checkmate] Error fetching projects:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch projects');
@@ -116,26 +145,39 @@ export function CheckmateConfigFormEnhanced({
     setError(null);
 
     try {
-      // Fetch sections, labels, and squads in parallel
-      const [sectionsRes, labelsRes, squadsRes] = await Promise.all([
-        fetch(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
-        fetch(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
-        fetch(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
-      ]);
+      // ====================================================================
+      // 🔧 USING DUMMY DATA (See: checkmate-dummy-data.ts)
+      // 🗑️ DELETE when backend API is ready
+      // ====================================================================
+      const result = await getDummyCheckmateMetadata(integrationId, projectId);
 
-      if (!sectionsRes.ok || !labelsRes.ok || !squadsRes.ok) {
-        throw new Error('Failed to fetch metadata');
-      }
-
-      const [sectionsData, labelsData, squadsData] = await Promise.all([
-        sectionsRes.json(),
-        labelsRes.json(),
-        squadsRes.json(),
-      ]);
-
-      setSections(sectionsData.data?.data || []);
-      setLabels(labelsData.data?.data || []);
-      setSquads(squadsData.data?.data || []);
+      setSections(result.sections.data?.data || []);
+      setLabels(result.labels.data?.data || []);
+      setSquads(result.squads.data?.data || []);
+      
+      // ====================================================================
+      // 🚫 ORIGINAL API CALLS (Restore when backend is ready)
+      // ====================================================================
+      // const [sectionsRes, labelsRes, squadsRes] = await Promise.all([
+      //   fetch(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
+      //   fetch(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
+      //   fetch(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
+      // ]);
+      //
+      // if (!sectionsRes.ok || !labelsRes.ok || !squadsRes.ok) {
+      //   throw new Error('Failed to fetch metadata');
+      // }
+      //
+      // const [sectionsData, labelsData, squadsData] = await Promise.all([
+      //   sectionsRes.json(),
+      //   labelsRes.json(),
+      //   squadsRes.json(),
+      // ]);
+      //
+      // setSections(sectionsData.data?.data || []);
+      // setLabels(labelsData.data?.data || []);
+      // setSquads(squadsData.data?.data || []);
+      // ====================================================================
     } catch (error) {
       console.error('[Checkmate] Error fetching metadata:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch metadata');
@@ -167,73 +209,62 @@ export function CheckmateConfigFormEnhanced({
 
   const handleIntegrationChange = (integrationId: string) => {
     setSelectedIntegrationId(integrationId);
-    const integration = availableIntegrations.find(i => i.id === integrationId);
     
-    onChange({
-      ...config,
+    onChange(createCompleteConfig({
       integrationId: integrationId, // Store the integration ID
-      workspaceId: integration?.workspaceId || '', // Store the workspaceId from integration metadata
       projectId: 0,
       platformConfigurations: [],
-    });
+    }));
   };
 
   const handleProjectChange = (projectId: string) => {
-    onChange({
-      ...config,
+    onChange(createCompleteConfig({
       projectId: parseInt(projectId, 10),
       platformConfigurations: [],
-    });
+    }));
   };
 
-  const handleAddPlatform = () => {
-    onChange({
-      ...config,
-      platformConfigurations: [
-        ...config.platformConfigurations,
-        {
-          platform: 'IOS_APP_STORE',
-          sectionIds: [],
-          labelIds: [],
-          squadIds: [],
-        },
-      ],
-    });
-  };
-
-  const handleRemovePlatform = (index: number) => {
-    const newPlatforms = [...config.platformConfigurations];
-    newPlatforms.splice(index, 1);
-    onChange({
-      ...config,
-      platformConfigurations: newPlatforms,
-    });
-  };
-
-  const handlePlatformConfigChange = (
-    index: number,
-    field: keyof CheckmatePlatformConfiguration,
-    value: any
-  ) => {
-    const newPlatforms = [...config.platformConfigurations];
-    newPlatforms[index] = {
-      ...newPlatforms[index],
-      [field]: value,
+  // Get or initialize platform config for a specific platform
+  const getPlatformConfig = (platform: 'ANDROID' | 'IOS'): CheckmatePlatformConfiguration => {
+    const platformConfigs = config.platformConfigurations || [];
+    return platformConfigs.find(pc => pc.platform === platform) || {
+      platform,
+      sectionIds: [],
+      labelIds: [],
+      squadIds: [],
     };
-    onChange({
-      ...config,
-      platformConfigurations: newPlatforms,
-    });
   };
 
-  const handleRulesChange = (field: keyof CheckmateRules, value: any) => {
-    onChange({
-      ...config,
-      rules: {
-        ...config.rules,
+  // Update platform-specific configuration
+  const handlePlatformConfigChange = (
+    platform: 'ANDROID' | 'IOS',
+    field: keyof Omit<CheckmatePlatformConfiguration, 'platform'>,
+    value: number[]
+  ) => {
+    const platformConfigs = config.platformConfigurations || [];
+    const existingIndex = platformConfigs.findIndex(pc => pc.platform === platform);
+    const newPlatforms = [...platformConfigs];
+
+    if (existingIndex >= 0) {
+      // Update existing platform config
+      newPlatforms[existingIndex] = {
+        ...newPlatforms[existingIndex],
         [field]: value,
-      },
-    });
+      };
+    } else {
+      // Add new platform config
+      newPlatforms.push({
+        platform,
+        sectionIds: [],
+        labelIds: [],
+        squadIds: [],
+        [field]: value,
+      });
+    }
+
+    onChange(createCompleteConfig({
+      platformConfigurations: newPlatforms,
+    }));
   };
 
   return (
@@ -276,7 +307,7 @@ export function CheckmateConfigFormEnhanced({
                 searchable
               />
 
-              {config.projectId && (
+              {config.projectId? (
                 <>
                   {isLoadingMetadata ? (
                     <div className="flex items-center justify-center py-4">
@@ -287,128 +318,160 @@ export function CheckmateConfigFormEnhanced({
                     </div>
                   ) : (
                     <>
-                      {/* Platform Configurations */}
+                      {/* Platform Configurations - FIXED (Android & iOS only) */}
                       <div className="mt-4">
-                        <Group justify="space-between" className="mb-3">
-                          <div>
-                            <Text fw={600} size="sm">
-                              Platform Configurations
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              Configure test filters for each platform
-                            </Text>
-                          </div>
-                          <Button
-                            leftSection={<IconPlus size={16} />}
-                            size="xs"
-                            onClick={handleAddPlatform}
-                          >
-                            Add Platform
-                          </Button>
-                        </Group>
+                        <div className="mb-3">
+                          <Text fw={600} size="sm">
+                            Platform Configurations
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            Configure test filters for Android and iOS platforms
+                          </Text>
+                        </div>
 
-                        {config.platformConfigurations.length === 0 ? (
-                          <Alert color="blue" className="mb-4">
-                            No platform configurations added. Click "Add Platform" to configure test filters.
-                          </Alert>
-                        ) : (
-                          <Stack gap="md">
-                            {config.platformConfigurations.map((platformConfig, index) => (
-                              <Card
-                                key={index}
-                                shadow="sm"
-                                padding="md"
-                                radius="md"
-                                withBorder
-                              >
-                                <Group justify="space-between" className="mb-3">
-                                  <Badge color="blue" size="lg">
-                                    Platform {index + 1}
-                                  </Badge>
-                                  <Button
-                                    color="red"
-                                    size="xs"
-                                    variant="subtle"
-                                    leftSection={<IconTrash size={14} />}
-                                    onClick={() => handleRemovePlatform(index)}
-                                  >
-                                    Remove
-                                  </Button>
-                                </Group>
+                        <Stack gap="md">
+                          {/* ANDROID Configuration */}
+                          <Card shadow="sm" padding="md" radius="md" withBorder>
+                            <Group gap="xs" className="mb-3">
+                              <Badge color="green" size="lg" variant="filled">
+                                Android
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                (Global platform)
+                              </Text>
+                            </Group>
 
-                                <Stack gap="sm">
-                                  <Select
-                                    label="Platform"
-                                    placeholder="Select platform"
-                                    data={platformOptions}
-                                    value={platformConfig.platform}
-                                    onChange={(val) =>
-                                      handlePlatformConfigChange(index, 'platform', val)
-                                    }
-                                    required
-                                  />
+                            <Stack gap="sm">
+                              <MultiSelect
+                                label="Sections"
+                                placeholder="Select sections for Android"
+                                data={sections.map(s => ({ 
+                                  value: s.id.toString(), 
+                                  label: s.name 
+                                }))}
+                                value={getPlatformConfig('ANDROID').sectionIds?.map(id => id.toString()) || []}
+                                onChange={(val) =>
+                                  handlePlatformConfigChange(
+                                    'ANDROID',
+                                    'sectionIds',
+                                    val.map(v => parseInt(v, 10))
+                                  )
+                                }
+                                searchable
+                                description="Filter tests by sections (optional)"
+                              />
 
-                                  <MultiSelect
-                                    label="Sections"
-                                    placeholder="Select sections"
-                                    data={sections.map(s => ({ 
-                                      value: s.id.toString(), 
-                                      label: s.name 
-                                    }))}
-                                    value={platformConfig.sectionIds?.map(id => id.toString()) || []}
-                                    onChange={(val) =>
-                                      handlePlatformConfigChange(
-                                        index,
-                                        'sectionIds',
-                                        val.map(v => parseInt(v, 10))
-                                      )
-                                    }
-                                    searchable
-                                    description="Filter tests by sections (optional)"
-                                  />
+                              <MultiSelect
+                                label="Labels"
+                                placeholder="Select labels for Android"
+                                data={labels.map(l => ({ 
+                                  value: l.id.toString(), 
+                                  label: l.name 
+                                }))}
+                                value={getPlatformConfig('ANDROID').labelIds?.map(id => id.toString()) || []}
+                                onChange={(val) =>
+                                  handlePlatformConfigChange(
+                                    'ANDROID',
+                                    'labelIds',
+                                    val.map(v => parseInt(v, 10))
+                                  )
+                                }
+                                searchable
+                                description="Filter tests by labels (optional)"
+                              />
 
-                                  <MultiSelect
-                                    label="Labels"
-                                    placeholder="Select labels"
-                                    data={labels.map(l => ({ 
-                                      value: l.id.toString(), 
-                                      label: l.name 
-                                    }))}
-                                    value={platformConfig.labelIds?.map(id => id.toString()) || []}
-                                    onChange={(val) =>
-                                      handlePlatformConfigChange(
-                                        index,
-                                        'labelIds',
-                                        val.map(v => parseInt(v, 10))
-                                      )
-                                    }
-                                    searchable
-                                    description="Filter tests by labels (optional)"
-                                  />
+                              <MultiSelect
+                                label="Squads"
+                                placeholder="Select squads for Android"
+                                data={squads.map(s => ({ 
+                                  value: s.id.toString(), 
+                                  label: s.name 
+                                }))}
+                                value={getPlatformConfig('ANDROID').squadIds?.map(id => id.toString()) || []}
+                                onChange={(val) =>
+                                  handlePlatformConfigChange(
+                                    'ANDROID',
+                                    'squadIds',
+                                    val.map(v => parseInt(v, 10))
+                                  )
+                                }
+                                searchable
+                                description="Filter tests by squads (optional)"
+                              />
+                            </Stack>
+                          </Card>
 
-                                  <MultiSelect
-                                    label="Squads"
-                                    placeholder="Select squads"
-                                    data={squads.map(s => ({ 
-                                      value: s.id.toString(), 
-                                      label: s.name 
-                                    }))}
-                                    value={platformConfig.squadIds?.map(id => id.toString()) || []}
-                                    onChange={(val) =>
-                                      handlePlatformConfigChange(
-                                        index,
-                                        'squadIds',
-                                        val.map(v => parseInt(v, 10))
-                                      )
-                                    }
-                                    searchable
-                                    description="Filter tests by squads (optional)"
-                                  />
-                                </Stack>
-                              </Card>
-                            ))}
-                          </Stack>
-                        )}
+                          {/* iOS Configuration */}
+                          <Card shadow="sm" padding="md" radius="md" withBorder>
+                            <Group gap="xs" className="mb-3">
+                              <Badge color="blue" size="lg" variant="filled">
+                                iOS
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                (Global platform)
+                              </Text>
+                            </Group>
+
+                            <Stack gap="sm">
+                              <MultiSelect
+                                label="Sections"
+                                placeholder="Select sections for iOS"
+                                data={sections.map(s => ({ 
+                                  value: s.id.toString(), 
+                                  label: s.name 
+                                }))}
+                                value={getPlatformConfig('IOS').sectionIds?.map(id => id.toString()) || []}
+                                onChange={(val) =>
+                                  handlePlatformConfigChange(
+                                    'IOS',
+                                    'sectionIds',
+                                    val.map(v => parseInt(v, 10))
+                                  )
+                                }
+                                searchable
+                                description="Filter tests by sections (optional)"
+                              />
+
+                              <MultiSelect
+                                label="Labels"
+                                placeholder="Select labels for iOS"
+                                data={labels.map(l => ({ 
+                                  value: l.id.toString(), 
+                                  label: l.name 
+                                }))}
+                                value={getPlatformConfig('IOS').labelIds?.map(id => id.toString()) || []}
+                                onChange={(val) =>
+                                  handlePlatformConfigChange(
+                                    'IOS',
+                                    'labelIds',
+                                    val.map(v => parseInt(v, 10))
+                                  )
+                                }
+                                searchable
+                                description="Filter tests by labels (optional)"
+                              />
+
+                              <MultiSelect
+                                label="Squads"
+                                placeholder="Select squads for iOS"
+                                data={squads.map(s => ({ 
+                                  value: s.id.toString(), 
+                                  label: s.name 
+                                }))}
+                                value={getPlatformConfig('IOS').squadIds?.map(id => id.toString()) || []}
+                                onChange={(val) =>
+                                  handlePlatformConfigChange(
+                                    'IOS',
+                                    'squadIds',
+                                    val.map(v => parseInt(v, 10))
+                                  )
+                                }
+                                searchable
+                                description="Filter tests by squads (optional)"
+                              />
+                            </Stack>
+                          </Card>
+                        </Stack>
                       </div>
 
                       {/* Test Configuration Settings */}
@@ -421,9 +484,9 @@ export function CheckmateConfigFormEnhanced({
                           <NumberInput
                             label="Pass Threshold (%)"
                             placeholder="95"
-                            value={config.passThresholdPercent}
+                            value={config.passThresholdPercent ?? 100}
                             onChange={(val) =>
-                              onChange({ ...config, passThresholdPercent: Number(val) })
+                              onChange(createCompleteConfig({ passThresholdPercent: Number(val) }))
                             }
                             min={0}
                             max={100}
@@ -434,9 +497,9 @@ export function CheckmateConfigFormEnhanced({
                           <Radio.Group
                             label="Filter Type"
                             description="How to combine section, label, and squad filters"
-                            value={config.filterType}
+                            value={config.filterType || 'AND'}
                             onChange={(val) =>
-                              onChange({ ...config, filterType: val as 'AND' | 'OR' })
+                              onChange(createCompleteConfig({ filterType: val as 'AND' | 'OR' }))
                             }
                           >
                             <Stack gap="xs" className="mt-2">
@@ -456,65 +519,18 @@ export function CheckmateConfigFormEnhanced({
                           <Switch
                             label="Auto-create Test Runs"
                             description="Automatically create test runs for each release"
-                            checked={config.autoCreateRuns}
+                            checked={config.autoCreateRuns ?? false}
                             onChange={(e) =>
-                              onChange({ ...config, autoCreateRuns: e.currentTarget.checked })
+                              onChange(createCompleteConfig({ autoCreateRuns: e.currentTarget.checked }))
                             }
                           />
                         </Stack>
                       </Card>
 
-                      {/* Validation Rules */}
-                      <Card shadow="sm" padding="md" radius="md" withBorder>
-                        <Group gap="sm" className="mb-3">
-                          <IconTestPipe size={20} className="text-purple-600" />
-                          <Text fw={600} size="sm">
-                            Validation Rules
-                          </Text>
-                        </Group>
-
-                        <Stack gap="md">
-                          <NumberInput
-                            label="Maximum Failed Tests"
-                            placeholder="0"
-                            value={config.rules.maxFailedTests}
-                            onChange={(val) => handleRulesChange('maxFailedTests', Number(val))}
-                            min={0}
-                            description="Maximum number of failed tests allowed (0 = none)"
-                          />
-
-                          <NumberInput
-                            label="Maximum Untested Cases"
-                            placeholder="0"
-                            value={config.rules.maxUntestedCases}
-                            onChange={(val) => handleRulesChange('maxUntestedCases', Number(val))}
-                            min={0}
-                            description="Maximum number of untested cases allowed (0 = none)"
-                          />
-
-                          <Switch
-                            label="Require All Platforms"
-                            description="All configured platforms must pass validation"
-                            checked={config.rules.requireAllPlatforms}
-                            onChange={(e) =>
-                              handleRulesChange('requireAllPlatforms', e.currentTarget.checked)
-                            }
-                          />
-
-                          <Switch
-                            label="Allow Override"
-                            description="Allow users to proceed despite failed validation rules"
-                            checked={config.rules.allowOverride}
-                            onChange={(e) =>
-                              handleRulesChange('allowOverride', e.currentTarget.checked)
-                            }
-                          />
-                        </Stack>
-                      </Card>
                     </>
                   )}
                 </>
-              )}
+              ): null}
             </>
           ) : (
             <Alert color="blue">

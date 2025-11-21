@@ -5,7 +5,12 @@
 
 import { Stack, Text, Switch, Select, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import type { TestManagementConfig, TestManagementProvider } from '~/types/release-config';
+import type { 
+  TestManagementConfig, 
+  TestManagementProvider,
+  CheckmateSettings,
+  TestRailSettings
+} from '~/types/release-config';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
 
 interface TestManagementSelectorProps {
@@ -16,11 +21,20 @@ interface TestManagementSelectorProps {
   };
 }
 
+// Type guards for provider settings
+const isCheckmateSettings = (settings: unknown): settings is CheckmateSettings => {
+  return typeof settings === 'object' && settings !== null && 'type' in settings && settings.type === 'checkmate';
+};
+
+const isTestRailSettings = (settings: unknown): settings is TestRailSettings => {
+  return typeof settings === 'object' && settings !== null && 'type' in settings && settings.type === 'testrail';
+};
+
 const providerOptions = [
-  { value: 'NONE', label: 'No Test Management', disabled: false },
-  { value: 'CHECKMATE', label: 'Checkmate', disabled: false },
-  { value: 'TESTRAIL', label: 'TestRail (Coming Soon)', disabled: true },
-  { value: 'ZEPHYR', label: 'Zephyr (Coming Soon)', disabled: true },
+  { value: 'none', label: 'No Test Management', disabled: false },
+  { value: 'checkmate', label: 'Checkmate', disabled: false },
+  { value: 'testrail', label: 'TestRail (Coming Soon)', disabled: true },
+  { value: 'zephyr', label: 'Zephyr (Coming Soon)', disabled: true },
 ];
 
 export function TestManagementSelector({
@@ -32,7 +46,7 @@ export function TestManagementSelector({
     onChange({
       ...config,
       enabled,
-      provider: enabled ? (config.provider === 'NONE' ? 'CHECKMATE' : config.provider) : 'NONE',
+      provider: enabled ? (config.provider === 'none' ? 'checkmate' : config.provider) : 'none',
     });
   };
   
@@ -40,15 +54,15 @@ export function TestManagementSelector({
     onChange({
       ...config,
       provider,
-      enabled: provider !== 'NONE',
-      providerSettings: undefined,
+      enabled: provider !== 'none',
+      providerConfig: undefined,
     });
   };
   
-  const handleProviderSettingsChange = (settings: any) => {
+  const handleProviderSettingsChange = (settings: CheckmateSettings | TestRailSettings) => {
     onChange({
       ...config,
-      providerSettings: settings,
+      providerConfig: settings,
     });
   };
   
@@ -92,7 +106,7 @@ export function TestManagementSelector({
               className="mb-4"
             />
             
-            {config.provider === 'CHECKMATE' && (
+            {config.provider === 'checkmate' && (
               <div className="bg-white p-4 rounded-lg border border-gray-200 mt-4">
                 <Text fw={500} size="sm" className="mb-3">
                   Checkmate Configuration
@@ -100,7 +114,11 @@ export function TestManagementSelector({
                 
                 {availableIntegrations.checkmate.length > 0 ? (
                   <CheckmateConfigFormEnhanced
-                    config={config.providerSettings as any || {}}
+                    config={
+                      (config.providerConfig && isCheckmateSettings(config.providerConfig))
+                        ? config.providerConfig
+                        : {}
+                    }
                     onChange={handleProviderSettingsChange}
                     availableIntegrations={availableIntegrations.checkmate}
                   />
@@ -115,7 +133,7 @@ export function TestManagementSelector({
               </div>
             )}
             
-            {config.provider === 'TESTRAIL' && (
+            {config.provider === 'testrail' && (
               <Alert color="blue" variant="light">
                 <Text size="sm">
                   TestRail integration coming soon. Stay tuned!
@@ -123,7 +141,7 @@ export function TestManagementSelector({
               </Alert>
             )}
             
-            {config.provider === 'ZEPHYR' && (
+            {config.provider === 'zephyr' && (
               <Alert color="blue" variant="light">
                 <Text size="sm">
                   Zephyr integration coming soon. Stay tuned!

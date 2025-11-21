@@ -191,7 +191,7 @@ export function ReleaseReviewSummary({
             )}
             
             {/* Check if config has Checkmate */}
-            {config.testManagement.enabled && config.testManagement.provider === 'CHECKMATE' && (
+            {config.testManagement.enabled && config.testManagement.provider === 'checkmate' && (
               <Group gap="xs">
                 {customizations.enableCheckmate !== false ? (
                   <IconCheck size={16} className="text-green-600" />
@@ -208,7 +208,7 @@ export function ReleaseReviewSummary({
             
             {/* If no customizations available */}
             {!config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') &&
-             !(config.testManagement.enabled && config.testManagement.provider === 'CHECKMATE') && (
+             !(config.testManagement.enabled && config.testManagement.provider === 'checkmate') && (
               <Text size="sm" c="dimmed" className="italic">
                 No configuration overrides available for this release configuration
               </Text>
@@ -218,7 +218,7 @@ export function ReleaseReviewSummary({
             {customizations.enablePreRegressionBuilds !== false && 
              customizations.enableCheckmate !== false &&
              (config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') ||
-              (config.testManagement.enabled && config.testManagement.provider === 'CHECKMATE')) && (
+              (config.testManagement.enabled && config.testManagement.provider === 'checkmate')) && (
               <Text size="xs" c="dimmed" className="mt-2">
                 All features from configuration are enabled for this release
               </Text>

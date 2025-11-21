@@ -57,7 +57,7 @@ export interface ManualUploadConfig {
 // Test Management Configuration
 // ============================================================================
 
-export type TestManagementProvider = 'CHECKMATE' | 'TESTRAIL' | 'ZEPHYR' | 'NONE';
+export type TestManagementProvider = 'checkmate' | 'testrail' | 'zephyr' | 'none';
 
 export interface TestManagementConfig {
   enabled: boolean;
@@ -65,28 +65,21 @@ export interface TestManagementConfig {
   integrationId?: string; // Reference to connected integration
   projectId?: string;
   
-  // Provider-specific settings
-  providerSettings?: CheckmateSettings | TestRailSettings;
-}
-
-export interface CheckmateRules {
-  maxFailedTests: number; // e.g., 0 means no failed tests allowed
-  maxUntestedCases: number; // e.g., 0 means all cases must be tested
-  requireAllPlatforms: boolean; // All selected platforms must pass
-  allowOverride: boolean; // Can users override and proceed despite failed rules
+  // Provider-specific configuration
+  providerConfig?: CheckmateSettings | TestRailSettings;
 }
 
 export interface CheckmatePlatformConfiguration {
-  platform: 'IOS_APP_STORE' | 'ANDROID_PLAY_STORE' | 'IOS_TESTFLIGHT' | 'ANDROID_INTERNAL_TESTING';
+  // Platform is a global system constant (not distribution-specific)
+  platform: 'ANDROID' | 'IOS';
   sectionIds?: number[];
   labelIds?: number[];
   squadIds?: number[];
 }
 
 export interface CheckmateSettings {
-  type: 'CHECKMATE';
+  type: 'checkmate';
   integrationId: string; // ID of the connected integration
-  workspaceId: string; // Checkmate workspace ID (orgId)
   projectId: number; // Checkmate project ID
   
   // Platform-specific configurations
@@ -97,12 +90,10 @@ export interface CheckmateSettings {
   runNameTemplate?: string; // e.g., "v{{version}} - {{platform}} - {{date}}"
   passThresholdPercent: number; // 0-100
   filterType: 'AND' | 'OR'; // Default: 'AND'
-  
-  rules: CheckmateRules; // Validation rules for test runs
 }
 
 export interface TestRailSettings {
-  type: 'TESTRAIL';
+  type: 'testrail';
   projectId: string;
   suiteId: string;
   autoCreateRuns: boolean;
@@ -121,6 +112,9 @@ export interface SchedulingConfig {
   
   // First release date (kickoff date)
   firstReleaseKickoffDate: string; // ISO date string
+  
+  // Platform-specific initial release versions (only for configured platforms)
+  initialVersions: Partial<Record<Platform, string>>; // e.g., { ANDROID: "1.0.0", IOS: "1.0.0" }
   
   // Kickoff settings
   kickoffTime: string; // HH:MM format (24-hour)
@@ -177,10 +171,10 @@ export interface SlackChannel {
 }
 
 export interface SlackChannelConfig {
-  releases: string; // Channel ID
-  builds: string;
-  regression: string;
-  critical: string;
+  releases: string[]; // Channel IDs - supports multiple channels
+  builds: string[];
+  regression: string[];
+  critical: string[];
 }
 
 export interface StageWiseSlackChannels {

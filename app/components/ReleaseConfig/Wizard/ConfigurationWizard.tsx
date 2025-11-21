@@ -283,6 +283,7 @@ export function ConfigurationWizard({
           <SchedulingConfig
             config={config.scheduling!}
             onChange={(scheduling) => setConfig({ ...config, scheduling })}
+            selectedPlatforms={config.platforms || []}
           />
         );
         

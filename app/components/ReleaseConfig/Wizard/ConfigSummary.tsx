@@ -157,7 +157,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               </Badge>
             </Group>
             
-            {config.testManagement.providerSettings && (
+            {config.testManagement.providerConfig && (
               <div className="text-sm">
                 <Text c="dimmed">Settings configured</Text>
               </div>

@@ -8,6 +8,7 @@ import {
   Stack, 
   Text, 
   Select, 
+  MultiSelect,
   Card, 
   Group, 
   Switch, 
@@ -83,10 +84,10 @@ export function SlackChannelConfigEnhanced({
             enabled: true,
             integrationId: '',
             channels: {
-              releases: '',
-              builds: '',
-              regression: '',
-              critical: '',
+              releases: [],
+              builds: [],
+              regression: [],
+              critical: [],
             },
           }
         : undefined,
@@ -105,7 +106,7 @@ export function SlackChannelConfigEnhanced({
     }
   };
 
-  const handleChannelChange = (channelType: keyof SlackChannelConfig, channelId: string) => {
+  const handleChannelChange = (channelType: keyof SlackChannelConfig, channelIds: string[]) => {
     if (slackConfig && slackConfig.channels) {
       onChange({
         ...config,
@@ -113,7 +114,7 @@ export function SlackChannelConfigEnhanced({
           ...slackConfig,
           channels: {
             ...slackConfig.channels,
-            [channelType]: channelId,
+            [channelType]: channelIds,
           },
         },
       });
@@ -127,44 +128,48 @@ export function SlackChannelConfigEnhanced({
 
   const renderChannelSelects = (
     channels: SlackChannelConfig,
-    onChannelChange: (type: keyof SlackChannelConfig, value: string) => void
+    onChannelChange: (type: keyof SlackChannelConfig, value: string[]) => void
   ) => (
     <Stack gap="sm">
-      <Select
-        label="Releases Channel"
-        placeholder="Select channel"
+      <MultiSelect
+        label="Releases Channels"
+        placeholder="Select channels"
         data={channelOptions}
-        value={channels.releases}
-        onChange={(val) => onChannelChange('releases', val || '')}
+        value={channels.releases || []}
+        onChange={(val) => onChannelChange('releases', val)}
         searchable
-        description="Release announcements and status updates"
+        clearable
+        description="Release announcements and status updates (supports multiple channels)"
       />
-      <Select
-        label="Builds Channel"
-        placeholder="Select channel"
+      <MultiSelect
+        label="Builds Channels"
+        placeholder="Select channels"
         data={channelOptions}
-        value={channels.builds}
-        onChange={(val) => onChannelChange('builds', val || '')}
+        value={channels.builds || []}
+        onChange={(val) => onChannelChange('builds', val)}
         searchable
-        description="Build status and completion notifications"
+        clearable
+        description="Build status and completion notifications (supports multiple channels)"
       />
-      <Select
-        label="Regression Channel"
-        placeholder="Select channel"
+      <MultiSelect
+        label="Regression Channels"
+        placeholder="Select channels"
         data={channelOptions}
-        value={channels.regression}
-        onChange={(val) => onChannelChange('regression', val || '')}
+        value={channels.regression || []}
+        onChange={(val) => onChannelChange('regression', val)}
         searchable
-        description="Regression test updates"
+        clearable
+        description="Regression test updates (supports multiple channels)"
       />
-      <Select
-        label="Critical Alerts Channel"
-        placeholder="Select channel"
+      <MultiSelect
+        label="Critical Alerts Channels"
+        placeholder="Select channels"
         data={channelOptions}
-        value={channels.critical}
-        onChange={(val) => onChannelChange('critical', val || '')}
+        value={channels.critical || []}
+        onChange={(val) => onChannelChange('critical', val)}
         searchable
-        description="Critical issues and urgent notifications"
+        clearable
+        description="Critical issues and urgent notifications (supports multiple channels)"
       />
     </Stack>
   );

@@ -27,7 +27,7 @@ export function ReleaseConfigurePanel({
   // Check if config has Checkmate enabled
   const hasCheckmateEnabled = config
     ? config.testManagement.enabled &&
-      config.testManagement.provider === 'CHECKMATE'
+      config.testManagement.provider === 'checkmate'
     : false;
 
   // Manual mode - no configuration
@@ -195,9 +195,9 @@ export function ReleaseConfigurePanel({
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
                 ✓ Test runs will be automatically created in Checkmate. Project:{' '}
-                {config.testManagement.providerSettings &&
-                  'projectId' in config.testManagement.providerSettings &&
-                  config.testManagement.providerSettings.projectId}
+                {config.testManagement.providerConfig &&
+                  'projectId' in config.testManagement.providerConfig &&
+                  config.testManagement.providerConfig.projectId}
               </Text>
             </Alert>
           )}

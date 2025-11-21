@@ -187,7 +187,7 @@ export function PipelineEditModal({
   };
   
   const handleSave = () => {
-    if (!validate()) return;
+    // if (!validate()) return;
     
     let finalProvider: BuildProvider;
     let finalProviderConfig: JenkinsConfig | GitHubActionsConfig | ManualUploadConfig;

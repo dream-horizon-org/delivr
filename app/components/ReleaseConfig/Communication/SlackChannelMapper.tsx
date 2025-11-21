@@ -3,22 +3,23 @@
  * Map Slack channels for different notification types
  */
 
-import { Stack, Text, TextInput, Select, Card, Group, Switch } from '@mantine/core';
+import { Stack, Text, Select, Card, Group, Switch, MultiSelect } from '@mantine/core';
 import { IconBrandSlack } from '@tabler/icons-react';
 
 interface SlackChannelMapperProps {
   enabled: boolean;
   integrationId: string;
   channels: {
-    releases: string;
-    builds: string;
-    regression: string;
-    critical: string;
+    releases: string[];
+    builds: string[];
+    regression: string[];
+    critical: string[];
   };
   onToggle: (enabled: boolean) => void;
   onChange: (channels: any) => void;
   onIntegrationChange: (integrationId: string) => void;
   availableIntegrations: Array<{ id: string; name: string }>;
+  availableChannels?: Array<{ id: string; name: string }>; // Available Slack channels
 }
 
 export function SlackChannelMapper({
@@ -29,7 +30,13 @@ export function SlackChannelMapper({
   onChange,
   onIntegrationChange,
   availableIntegrations,
+  availableChannels = [],
 }: SlackChannelMapperProps) {
+  // Channel options for MultiSelect
+  const channelOptions = availableChannels.map(ch => ({
+    value: ch.id,
+    label: ch.name,
+  }));
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
@@ -71,48 +78,56 @@ export function SlackChannelMapper({
                   </Text>
                   
                   <Stack gap="sm">
-                    <TextInput
-                      label="Releases Channel"
-                      placeholder="#releases"
-                      value={channels.releases}
-                      onChange={(e) =>
-                        onChange({ ...channels, releases: e.target.value })
+                    <MultiSelect
+                      label="Releases Channels"
+                      placeholder="Select channels for release notifications"
+                      data={channelOptions}
+                      value={channels.releases || []}
+                      onChange={(val) =>
+                        onChange({ ...channels, releases: val })
                       }
-                      required
-                      description="Release announcements and status updates"
+                      searchable
+                      clearable
+                      description="Release announcements and status updates (supports multiple channels)"
                     />
                     
-                    <TextInput
-                      label="Builds Channel"
-                      placeholder="#builds"
-                      value={channels.builds}
-                      onChange={(e) =>
-                        onChange({ ...channels, builds: e.target.value })
+                    <MultiSelect
+                      label="Builds Channels"
+                      placeholder="Select channels for build notifications"
+                      data={channelOptions}
+                      value={channels.builds || []}
+                      onChange={(val) =>
+                        onChange({ ...channels, builds: val })
                       }
-                      required
-                      description="Build status and completion notifications"
+                      searchable
+                      clearable
+                      description="Build status and completion notifications (supports multiple channels)"
                     />
                     
-                    <TextInput
-                      label="Regression Channel"
-                      placeholder="#regression"
-                      value={channels.regression}
-                      onChange={(e) =>
-                        onChange({ ...channels, regression: e.target.value })
+                    <MultiSelect
+                      label="Regression Channels"
+                      placeholder="Select channels for regression updates"
+                      data={channelOptions}
+                      value={channels.regression || []}
+                      onChange={(val) =>
+                        onChange({ ...channels, regression: val })
                       }
-                      required
-                      description="Regression test updates"
+                      searchable
+                      clearable
+                      description="Regression test updates (supports multiple channels)"
                     />
                     
-                    <TextInput
-                      label="Critical Alerts Channel"
-                      placeholder="#critical-alerts"
-                      value={channels.critical}
-                      onChange={(e) =>
-                        onChange({ ...channels, critical: e.target.value })
+                    <MultiSelect
+                      label="Critical Alerts Channels"
+                      placeholder="Select channels for critical alerts"
+                      data={channelOptions}
+                      value={channels.critical || []}
+                      onChange={(val) =>
+                        onChange({ ...channels, critical: val })
                       }
-                      required
-                      description="Critical issues and urgent notifications"
+                      searchable
+                      clearable
+                      description="Critical issues and urgent notifications (supports multiple channels)"
                     />
                   </Stack>
                 </div>
