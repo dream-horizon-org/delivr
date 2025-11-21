@@ -1,6 +1,6 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
-import type { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
+import type { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd';
 
 export const createCICDWorkflowModel = (sequelize: Sequelize) => {
   class CICDWorkflowModel

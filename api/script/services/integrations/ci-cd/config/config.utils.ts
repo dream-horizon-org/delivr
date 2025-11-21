@@ -1,5 +1,5 @@
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
-import { CICDProviderType, WorkflowType, type CreateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
+import { CICDProviderType, WorkflowType, type CreateWorkflowDto } from '~types/integrations/ci-cd';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
