@@ -67,3 +67,14 @@ export type VerifyProjectManagementConfigResult = {
   >;
 };
 
+export type ValidationError = {
+  field: string;
+  message: string;
+};
+
+export type ValidateProjectManagementConfigResult = {
+  integration: 'projectManagement';
+  isValid: boolean;
+  errors: ValidationError[];
+};
+

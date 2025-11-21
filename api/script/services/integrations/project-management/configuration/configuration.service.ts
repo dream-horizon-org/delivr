@@ -11,6 +11,8 @@ import type {
   CreateProjectManagementConfigDto,
   ProjectManagementConfig,
   UpdateProjectManagementConfigDto,
+  ValidateProjectManagementConfigResult,
+  ValidationError,
   VerifyProjectManagementConfigResult
 } from '~types/integrations/project-management';
 import { Platform, PLATFORMS } from '~types/integrations/project-management';
@@ -25,40 +27,64 @@ export class ProjectManagementConfigService {
 
   /**
    * Validate project management config data
-   * @throws Error if validation fails
+   * @returns Validation result with isValid flag and error details
    */
-  validateConfig(data: CreateProjectManagementConfigDto): void {
-    const errors: string[] = [];
+  validateConfig(data: CreateProjectManagementConfigDto): ValidateProjectManagementConfigResult {
+    const errors: ValidationError[] = [];
 
     // Validate projectId
     if (!data.projectId || data.projectId.trim() === '') {
-      errors.push('projectId is required and cannot be empty');
+      errors.push({
+        field: 'projectId',
+        message: 'Project ID is required and cannot be empty'
+      });
     }
 
     // Validate integrationId
     if (!data.integrationId || data.integrationId.trim() === '') {
-      errors.push('integrationId is required and cannot be empty');
+      errors.push({
+        field: 'integrationId',
+        message: 'Integration ID is required and cannot be empty'
+      });
     }
 
     // Validate name
     if (!data.name || data.name.trim() === '') {
-      errors.push('name is required and cannot be empty');
+      errors.push({
+        field: 'name',
+        message: 'Name is required and cannot be empty'
+      });
     } else if (data.name.length > 255) {
-      errors.push('name must not exceed 255 characters');
+      errors.push({
+        field: 'name',
+        message: 'Name must not exceed 255 characters'
+      });
     } else if (data.name.length < 3) {
-      errors.push('name must be at least 3 characters long');
+      errors.push({
+        field: 'name',
+        message: 'Name must be at least 3 characters long'
+      });
     }
 
     // Validate description length if provided
     if (data.description && data.description.length > 10000) {
-      errors.push('description must not exceed 10000 characters');
+      errors.push({
+        field: 'description',
+        message: 'Description must not exceed 10000 characters'
+      });
     }
 
     // Validate platformConfigurations array
     if (!data.platformConfigurations || !Array.isArray(data.platformConfigurations)) {
-      errors.push('platformConfigurations must be a non-empty array');
+      errors.push({
+        field: 'platformConfigurations',
+        message: 'Platform configurations must be a non-empty array'
+      });
     } else if (data.platformConfigurations.length === 0) {
-      errors.push('platformConfigurations must contain at least one configuration');
+      errors.push({
+        field: 'platformConfigurations',
+        message: 'Platform configurations must contain at least one configuration'
+      });
     } else {
       // Validate each platform configuration
       const seenPlatforms = new Set<string>();
@@ -66,30 +92,39 @@ export class ProjectManagementConfigService {
       data.platformConfigurations.forEach((config, index) => {
         // Validate platform
         if (!config.platform || config.platform.trim() === '') {
-          errors.push(`platformConfigurations[${index}]: platform is required and cannot be empty`);
+          errors.push({
+            field: `platformConfigurations[${index}].platform`,
+            message: 'Platform is required and cannot be empty'
+          });
         } else if (!PLATFORMS.includes(config.platform as Platform)) {
-          errors.push(
-            `platformConfigurations[${index}]: platform "${config.platform}" is not valid. Must be one of: ${PLATFORMS.join(', ')}`
-          );
+          errors.push({
+            field: `platformConfigurations[${index}].platform`,
+            message: `Platform "${config.platform}" is not valid. Must be one of: ${PLATFORMS.join(', ')}`
+          });
         } else {
           // Check for duplicate platforms
           if (seenPlatforms.has(config.platform)) {
-            errors.push(
-              `platformConfigurations[${index}]: duplicate platform "${config.platform}". Each platform must be unique`
-            );
+            errors.push({
+              field: `platformConfigurations[${index}].platform`,
+              message: `Duplicate platform "${config.platform}". Each platform must be unique`
+            });
           }
           seenPlatforms.add(config.platform);
         }
 
         // Validate parameters
         if (!config.parameters) {
-          errors.push(`platformConfigurations[${index}]: parameters object is required`);
+          errors.push({
+            field: `platformConfigurations[${index}].parameters`,
+            message: 'Parameters object is required'
+          });
         } else {
           // Validate projectKey
           if (!config.parameters.projectKey || config.parameters.projectKey.trim() === '') {
-            errors.push(
-              `platformConfigurations[${index}]: parameters.projectKey is required and cannot be empty`
-            );
+            errors.push({
+              field: `platformConfigurations[${index}].parameters.projectKey`,
+              message: 'Project key is required and cannot be empty'
+            });
           } else {
             const projectKey = config.parameters.projectKey.trim();
 
@@ -101,66 +136,73 @@ export class ProjectManagementConfigService {
             const projectKeyRegex = /^[A-Z][A-Z0-9_]{1,9}$/;
 
             if (!projectKeyRegex.test(projectKey)) {
-              errors.push(
-                `platformConfigurations[${index}]: parameters.projectKey "${projectKey}" is invalid. ` +
-                  'Project key must be 2-10 characters, start with an uppercase letter, and contain only uppercase letters, numbers, and underscores'
-              );
+              errors.push({
+                field: `platformConfigurations[${index}].parameters.projectKey`,
+                message: `Project key "${projectKey}" is invalid. Must be 2-10 characters, start with an uppercase letter, and contain only uppercase letters, numbers, and underscores`
+              });
             }
           }
 
           // Validate completedStatus
           if (!config.parameters.completedStatus || config.parameters.completedStatus.trim() === '') {
-            errors.push(
-              `platformConfigurations[${index}]: parameters.completedStatus is required and cannot be empty`
-            );
+            errors.push({
+              field: `platformConfigurations[${index}].parameters.completedStatus`,
+              message: 'Completed status is required and cannot be empty'
+            });
           }
 
           // Validate issueType if provided
           if (config.parameters.issueType && config.parameters.issueType.trim() === '') {
-            errors.push(
-              `platformConfigurations[${index}]: parameters.issueType cannot be an empty string if provided`
-            );
+            errors.push({
+              field: `platformConfigurations[${index}].parameters.issueType`,
+              message: 'Issue type cannot be an empty string if provided'
+            });
           }
           /*
           // Validate priority if provided
           if (config.parameters.priority && config.parameters.priority.trim() === '') {
-            errors.push(
-              `platformConfigurations[${index}]: parameters.priority cannot be an empty string if provided`
-            );
+            errors.push({
+              field: `platformConfigurations[${index}].parameters.priority`,
+              message: 'Priority cannot be an empty string if provided'
+            });
           }
 
           // Validate assignee if provided
           if (config.parameters.assignee && config.parameters.assignee.trim() === '') {
-            errors.push(
-              `platformConfigurations[${index}]: parameters.assignee cannot be an empty string if provided`
-            );
+            errors.push({
+              field: `platformConfigurations[${index}].parameters.assignee`,
+              message: 'Assignee cannot be an empty string if provided'
+            });
           }
 
           // Validate labels array if provided
           if (config.parameters.labels) {
             if (!Array.isArray(config.parameters.labels)) {
-              errors.push(
-                `platformConfigurations[${index}]: parameters.labels must be an array if provided`
-              );
+              errors.push({
+                field: `platformConfigurations[${index}].parameters.labels`,
+                message: 'Labels must be an array if provided'
+              });
             } else {
               config.parameters.labels.forEach((label, labelIndex) => {
                 if (typeof label !== 'string' || label.trim() === '') {
-                  errors.push(
-                    `platformConfigurations[${index}]: parameters.labels[${labelIndex}] must be a non-empty string`
-                  );
+                  errors.push({
+                    field: `platformConfigurations[${index}].parameters.labels[${labelIndex}]`,
+                    message: 'Label must be a non-empty string'
+                  });
                 }
               });
             }
           }
-            */
+          */
         }
       });
     }
 
-    // Throw error if any validation errors exist
-    if (errors.length > 0) {
-      throw new Error(`Validation failed:\n${errors.join('\n')}`);
-    }
+    return {
+      integration: 'projectManagement',
+      isValid: errors.length === 0,
+      errors
+    };
   }
 
   /**
@@ -168,7 +210,12 @@ export class ProjectManagementConfigService {
    */
   async createConfig(data: CreateProjectManagementConfigDto): Promise<ProjectManagementConfig> {
     // Validate input data
-    this.validateConfig(data);
+    const validationResult = this.validateConfig(data);
+
+    if (!validationResult.isValid) {
+      const errorMessages = validationResult.errors.map(e => `${e.field}: ${e.message}`).join('; ');
+      throw new Error(`Validation failed: ${errorMessages}`);
+    }
 
     const integration = await this.integrationRepo.findById(data.integrationId);
 

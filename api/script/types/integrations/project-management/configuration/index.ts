@@ -3,6 +3,8 @@ export type {
   ProjectManagementConfig,
   CreateProjectManagementConfigDto,
   UpdateProjectManagementConfigDto,
+  ValidateProjectManagementConfigResult,
+  ValidationError,
   VerifyProjectManagementConfigResult
 } from './configuration.interface';
 
