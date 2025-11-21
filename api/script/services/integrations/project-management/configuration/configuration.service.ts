@@ -32,11 +32,11 @@ export class ProjectManagementConfigService {
   validateConfig(data: CreateProjectManagementConfigDto): ValidateProjectManagementConfigResult {
     const errors: ValidationError[] = [];
 
-    // Validate projectId
-    if (!data.projectId || data.projectId.trim() === '') {
+    // Validate tenantId
+    if (!data.tenantId || data.tenantId.trim() === '') {
       errors.push({
-        field: 'projectId',
-        message: 'Project ID is required and cannot be empty'
+        field: 'tenantId',
+        message: 'Tenant ID is required and cannot be empty'
       });
     }
 
@@ -225,10 +225,10 @@ export class ProjectManagementConfigService {
       );
     }
 
-    const projectMatches = integration.projectId === data.projectId;
+    const tenantMatches = integration.tenantId === data.tenantId;
 
-    if (!projectMatches) {
-      throw new Error('Integration does not belong to the specified project');
+    if (!tenantMatches) {
+      throw new Error('Integration does not belong to the specified tenant');
     }
 
     return this.configRepo.create(data);
@@ -242,10 +242,10 @@ export class ProjectManagementConfigService {
   }
 
   /**
-   * List configs by project ID
+   * List configs by tenant ID
    */
-  async listConfigsByProject(projectId: string): Promise<ProjectManagementConfig[]> {
-    return this.configRepo.findByProjectId(projectId);
+  async listConfigsByProject(tenantId: string): Promise<ProjectManagementConfig[]> {
+    return this.configRepo.findByTenantId(tenantId);
   }
 
   /**

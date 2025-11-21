@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES } from "../constants";
-import { GitHubActionsWorkflowService } from "../../../../services/integrations/ci-cd/workflows/github-actions-workflow.service";
+import { GitHubActionsWorkflowService } from "~services/integrations/ci-cd";
 import type { ParametersResult, RunStatus, WorkflowAdapter } from "./workflow-adapter.utils";
 
 export const createGitHubActionsAdapter = (): WorkflowAdapter => {

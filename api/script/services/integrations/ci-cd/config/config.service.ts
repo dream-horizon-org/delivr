@@ -1,10 +1,10 @@
-import type { CICDConfigRepository } from '../../../../models/integrations/ci-cd/config/config.repository';
-import type { CICDWorkflowRepository } from '../../../../models/integrations/ci-cd/workflow/workflow.repository';
-import type { CreateCICDConfigDto, TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
+import type { CICDConfigRepository, CICDWorkflowRepository } from '~models/integrations/ci-cd';
+import type { CreateCICDConfigDto, FieldError, TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
 import type { TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
 import { validateAndNormalizeWorkflowsForConfig } from './config.utils';
+import { validateWorkflowsForCreateConfig } from './config.validation';
 
 export class CICDConfigService {
   private readonly configRepository: CICDConfigRepository;
@@ -13,6 +13,21 @@ export class CICDConfigService {
   constructor(configRepository: CICDConfigRepository, workflowRepository: CICDWorkflowRepository) {
     this.configRepository = configRepository;
     this.workflowRepository = workflowRepository;
+  }
+
+  async validateConfig(dto: CreateCICDConfigDto): Promise<{ isValid: boolean; errors: FieldError[]; integration: 'ci' }> {
+    const tenantId = dto.tenantId;
+    const workflows = Array.isArray(dto.workflows) ? dto.workflows : [];
+    const noWorkflowsProvided = workflows.length === 0;
+    if (noWorkflowsProvided) {
+      return { "isValid": false, "errors": [{ field: 'workflows', message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED }], "integration": "ci" };
+    }
+    const validation = await validateWorkflowsForCreateConfig(workflows as unknown[], tenantId);
+    const hasValidationErrors = validation.errors.length > 0;
+    if (hasValidationErrors) {
+      return { "isValid": false, "errors": validation.errors, "integration": "ci" };
+    }
+    return { "isValid": true, "errors": [], "integration": "ci" };
   }
 
   async createConfig(dto: CreateCICDConfigDto): Promise<{ configId: string; workflowIds: string[] }> {

@@ -14,12 +14,13 @@ import {
   createTicketRoutes as createPMTicketRoutes
 } from "./integrations/project-management";
 import {
-  createTenantIntegrationRoutes,
   createTestManagementConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
 import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
+import { createTestManagementIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
+import { createStoreIntegrationRoutes } from "./store-integrations";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -73,7 +74,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     const testManagementRouter = Router();
     
     // Tenant-Level Integration Management (Credentials)
-    const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    const tenantIntegrationRoutes = createTestManagementIntegrationRoutes(s3Storage.testManagementIntegrationService);
     testManagementRouter.use(tenantIntegrationRoutes);
 
     // Test Management Config Management (Reusable test configurations)
@@ -130,8 +131,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
-  // TODO: Implement target platform integration routes
-  // router.use(createTargetPlatformRoutes(storage));
+  const storeRoutes = createStoreIntegrationRoutes();
+  router.use(storeRoutes);
 
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)
