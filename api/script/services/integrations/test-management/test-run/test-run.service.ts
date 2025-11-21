@@ -226,11 +226,17 @@ export class TestManagementRunService {
       throw new Error(`Integration not found: ${config.integrationId}`);
     }
 
+    // Get projectId from first platform configuration
+    const projectId = config.platformConfigurations[0]?.parameters?.projectId;
+    if (!projectId || typeof projectId !== 'number') {
+      throw new Error('No valid projectId found in config platform parameters');
+    }
+
     // Get provider
     const provider = ProviderFactory.getProvider(integration.providerType);
 
     // Call provider to cancel
-    await provider.cancelTestRun(integration.config, runId);
+    await provider.cancelTestRun(integration.config, runId, projectId);
   }
 
   /**

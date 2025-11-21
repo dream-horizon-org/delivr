@@ -10,8 +10,10 @@ export const CHECKMATE_API_ENDPOINTS = {
   SQUADS: '/api/v1/project/squads',
   CREATE_RUN: '/api/v1/run/create',
   RUN_STATE_DETAIL: '/api/v1/run/state-detail',
-  RUN_RESET: '/api/v1/run/:runId/reset',
-  RUN_CANCEL: '/api/v1/run/:runId/cancel'
+  RUN_RESET: '/api/v1/run/reset', // Reset Passed tests to Retest status
+  RUN_DELETE: '/api/v1/run/delete',
+  RUN_EDIT: '/api/v1/run/edit',
+  RUN_LOCK: '/api/v1/run/lock'
 } as const;
 
 export const CHECKMATE_ERROR_MESSAGES = {

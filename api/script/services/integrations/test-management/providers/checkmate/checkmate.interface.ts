@@ -30,7 +30,13 @@ export type CheckmateCreateRunRequest = {
 };
 
 export type CheckmateCreateRunResponse = {
-  runId: number;
+  data: {
+    runId: number;
+    runName: string;
+    testsAdded: number;
+    message: string;
+  };
+  error: string | null;
   status: number;
 };
 

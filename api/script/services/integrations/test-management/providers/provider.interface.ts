@@ -92,7 +92,8 @@ export interface ITestManagementProvider {
    */
   cancelTestRun(
     config: TenantTestManagementIntegrationConfig,
-    runId: string
+    runId: string,
+    projectId?: number
   ): Promise<void>;
   
   /**

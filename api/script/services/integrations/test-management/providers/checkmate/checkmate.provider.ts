@@ -254,7 +254,13 @@ export class CheckmateProvider implements ITestManagementProvider {
       }
     );
 
-    const runId = response.runId.toString();
+    // Validate response has runId
+    const isValidRunId = response?.data?.runId ?? false;
+    if (!isValidRunId) {
+      throw new Error('Checkmate API returned success but no runId in response');
+    }
+
+    const runId = response.data.runId.toString();
     const runUrl = this.buildRunUrl(checkmateConfig.baseUrl, projectId, runId);
     
     return {
@@ -302,48 +308,61 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Reset a test run in Checkmate
+   * Calls Checkmate's /api/v1/run/reset which marks all Passed tests as Retest
    */
   resetTestRun = async (
     config: TenantTestManagementIntegrationConfig,
     runId: string
   ): Promise<TestRunResult> => {
     const checkmateConfig = this.getCheckmateConfig(config);
-    const endpoint = this.buildRunActionEndpoint(CHECKMATE_API_ENDPOINTS.RUN_RESET, runId);
     
+    // Call Checkmate's reset endpoint (only requires runId)
     await this.makeRequest(
       checkmateConfig,
-      endpoint,
+      CHECKMATE_API_ENDPOINTS.RUN_RESET,
       {
-        method: HTTP_METHODS.POST,
-        body: '{}'
+        method: HTTP_METHODS.PUT,
+        body: JSON.stringify({
+          runId: parseInt(runId)
+        })
       }
     );
-
+    
     const runUrl = this.buildSimpleRunUrl(checkmateConfig.baseUrl, runId);
-
+    
     return {
       runId,
       url: runUrl,
-      status: TestRunStatus.PENDING
+      status: TestRunStatus.PENDING // Reset makes tests available for re-execution
     };
   };
 
   /**
    * Cancel a test run in Checkmate
+   * Calls Checkmate's /api/v1/run/delete which soft-deletes the run (sets status to 'Deleted')
    */
   cancelTestRun = async (
     config: TenantTestManagementIntegrationConfig,
-    runId: string
+    runId: string,
+    projectId: number
   ): Promise<void> => {
     const checkmateConfig = this.getCheckmateConfig(config);
-    const endpoint = this.buildRunActionEndpoint(CHECKMATE_API_ENDPOINTS.RUN_CANCEL, runId);
     
+    if (!projectId) {
+      throw new Error('projectId is required for Checkmate cancel operation');
+    }
+    
+    // Call Checkmate's delete endpoint (soft delete)
+    // Note: userId is added server-side by Checkmate from authenticated user
     await this.makeRequest(
       checkmateConfig,
-      endpoint,
+      CHECKMATE_API_ENDPOINTS.RUN_DELETE,
       {
-        method: HTTP_METHODS.POST,
-        body: '{}'
+        method: HTTP_METHODS.DELETE,
+        body: JSON.stringify({
+          runId: parseInt(runId),
+          projectId: projectId
+        })
       }
     );
   };
