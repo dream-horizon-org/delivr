@@ -1,0 +1,274 @@
+import type { Request, Response } from 'express';
+import { HTTP_STATUS } from '~constants/http';
+import type { ProjectManagementIntegrationService } from '~services/integrations/project-management';
+import { PROJECT_MANAGEMENT_ERROR_MESSAGES, PROJECT_MANAGEMENT_SUCCESS_MESSAGES } from '~services/integrations/project-management';
+import type {
+  CreateProjectManagementIntegrationDto,
+  UpdateProjectManagementIntegrationDto
+} from '~types/integrations/project-management';
+import {
+  errorResponse,
+  getErrorStatusCode,
+  notFoundResponse,
+  successMessageResponse,
+  successResponse,
+  validationErrorResponse
+} from '~utils/response.utils';
+import { PROJECT_MANAGEMENT_PROVIDERS } from './integration.constants';
+import {
+  validateConfigStructure,
+  validateIntegrationName,
+  validateProviderType
+} from './integration.validation';
+
+interface AuthenticatedRequest extends Request {
+  accountId?: string;
+}
+
+/**
+ * Get available providers
+ * GET /integrations/project-management/providers
+ */
+const getAvailableProvidersHandler = () =>
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      res.status(HTTP_STATUS.OK).json(
+        successResponse({
+          providers: PROJECT_MANAGEMENT_PROVIDERS
+        })
+      );
+    } catch (error) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        errorResponse(error, 'Failed to get available providers')
+      );
+    }
+  };
+
+/**
+ * Create new project management integration for a project
+ * POST /projects/:projectId/integrations/project-management
+ */
+const createIntegrationHandler = (service: ProjectManagementIntegrationService) =>
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+      const { name, providerType, config } = req.body;
+
+      // Validate name
+      const nameError = validateIntegrationName(name);
+      if (nameError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('name', nameError));
+        return;
+      }
+
+      // Validate providerType
+      const providerTypeError = validateProviderType(providerType);
+      if (providerTypeError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('providerType', providerTypeError)
+        );
+        return;
+      }
+
+      // Validate config structure
+      const configError = validateConfigStructure(config, providerType);
+      if (configError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+        return;
+      }
+
+      const data: CreateProjectManagementIntegrationDto = {
+        projectId,
+        name,
+        providerType,
+        config,
+        createdByAccountId: req.accountId ?? 'test_account_123'
+      };
+
+      const integration = await service.createIntegration(data);
+
+      res.status(HTTP_STATUS.CREATED).json(successResponse(integration));
+    } catch (error) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED)
+      );
+    }
+  };
+
+/**
+ * List all integrations for a project
+ * GET /projects/:projectId/integrations/project-management
+ */
+const listIntegrationsHandler = (service: ProjectManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+
+      const integrations = await service.listIntegrations(projectId);
+
+      res.status(HTTP_STATUS.OK).json(successResponse(integrations));
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, 'Failed to list project management integrations')
+      );
+    }
+  };
+
+/**
+ * Get single integration by ID
+ * GET /projects/:projectId/integrations/project-management/:integrationId
+ */
+const getIntegrationHandler = (service: ProjectManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { integrationId } = req.params;
+
+      const integration = await service.getIntegration(integrationId);
+      const integrationNotFound = !integration;
+
+      if (integrationNotFound) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Project management integration')
+        );
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json(successResponse(integration));
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, 'Failed to get project management integration')
+      );
+    }
+  };
+
+/**
+ * Update integration
+ * PUT /projects/:projectId/integrations/project-management/:integrationId
+ */
+const updateIntegrationHandler = (service: ProjectManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { integrationId } = req.params;
+      const { name, config, isEnabled } = req.body;
+
+      // Validate name if provided
+      if (name !== undefined) {
+        const nameError = validateIntegrationName(name);
+        if (nameError) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('name', nameError));
+          return;
+        }
+      }
+
+      // Validate config if provided
+      if (config !== undefined) {
+        const existing = await service.getIntegration(integrationId);
+
+        if (!existing) {
+          res.status(HTTP_STATUS.NOT_FOUND).json(
+            notFoundResponse('Project management integration')
+          );
+          return;
+        }
+
+        const configError = validateConfigStructure(config, existing.providerType);
+        if (configError) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+          return;
+        }
+      }
+
+      const data: UpdateProjectManagementIntegrationDto = {
+        name,
+        config,
+        isEnabled
+      };
+
+      const integration = await service.updateIntegration(integrationId, data);
+
+      if (!integration) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Project management integration')
+        );
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json(successResponse(integration));
+    } catch (error) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json(
+        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED)
+      );
+    }
+  };
+
+/**
+ * Delete integration
+ * DELETE /projects/:projectId/integrations/project-management/:integrationId
+ */
+const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { integrationId } = req.params;
+
+      const deleted = await service.deleteIntegration(integrationId);
+      const integrationNotFound = !deleted;
+
+      if (integrationNotFound) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Project management integration')
+        );
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json(
+        successMessageResponse(PROJECT_MANAGEMENT_SUCCESS_MESSAGES.INTEGRATION_DELETED)
+      );
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.DELETE_INTEGRATION_FAILED)
+      );
+    }
+  };
+
+/**
+ * Verify integration
+ * POST /projects/:projectId/integrations/project-management/:integrationId/verify
+ */
+const verifyIntegrationHandler = (service: ProjectManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { integrationId } = req.params;
+
+      const result = await service.verifyIntegration(integrationId);
+
+      if (result.success) {
+        res.status(HTTP_STATUS.OK).json(successResponse(result));
+      } else {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(errorResponse(result.message, result.message));
+      }
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED)
+      );
+    }
+  };
+
+/**
+ * Create and export controller
+ */
+export const createProjectManagementIntegrationController = (
+  service: ProjectManagementIntegrationService
+) => ({
+  getAvailableProviders: getAvailableProvidersHandler(),
+  createIntegration: createIntegrationHandler(service),
+  listIntegrations: listIntegrationsHandler(service),
+  getIntegration: getIntegrationHandler(service),
+  updateIntegration: updateIntegrationHandler(service),
+  deleteIntegration: deleteIntegrationHandler(service),
+  verifyIntegration: verifyIntegrationHandler(service)
+});
+

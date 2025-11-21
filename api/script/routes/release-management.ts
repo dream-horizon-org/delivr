@@ -3,12 +3,24 @@
 // Separate from DOTA (Over-The-Air) management routes
 
 import { Request, Response, Router } from "express";
-import * as storageTypes from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
+import { S3Storage } from "../storage/aws-storage";
+import * as storageTypes from "../storage/storage";
+import {
+  createProjectIntegrationRoutes,
+  createTestManagementConfigRoutes,
+  createTestRunOperationsRoutes
+} from "./integrations/test-management";
+import {
+  createIntegrationRoutes as createPMIntegrationRoutes,
+  createConfigurationRoutes as createPMConfigurationRoutes,
+  createTicketRoutes as createPMTicketRoutes
+} from "./integrations/project-management";
+import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createCICDIntegrationRoutes } from "./ci-cd-integrations";
-import { createSlackIntegrationRoutes } from "./slack-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
+import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
+import { createCommIntegrationRoutes } from "./integrations/comm";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -51,6 +63,72 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.use(scmRoutes);
 
   // ============================================================================
+  // TEST MANAGEMENT INTEGRATIONS (Checkmate, TestRail, etc.)
+  // ============================================================================
+  // Only mount test management routes if using S3Storage (which has test management)
+  const isS3Storage = storage instanceof S3Storage;
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // All test management routes under /test-management/ prefix
+    const testManagementRouter = Router();
+    
+    // Project-Level Integration Management (Credentials)
+    const projectIntegrationRoutes = createProjectIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    testManagementRouter.use(projectIntegrationRoutes);
+
+    // Test Management Config Management (Reusable test configurations)
+    const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
+    testManagementRouter.use(testManagementConfigRoutes);
+
+    // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
+    const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
+    testManagementRouter.use(testRunRoutes);
+
+    // Checkmate Metadata Proxy Routes (Projects, Sections, Labels, Squads)
+    const checkmateMetadataRoutes = createCheckmateMetadataRoutes(s3Storage.checkmateMetadataService);
+    testManagementRouter.use(checkmateMetadataRoutes);
+    
+    // Mount all test management routes under /test-management
+    router.use('/test-management', testManagementRouter);
+    
+    console.log('[Release Management] Test Management routes mounted successfully under /test-management');
+  } else {
+    console.warn('[Release Management] Test Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
+  // PROJECT MANAGEMENT INTEGRATIONS (JIRA, Linear, Asana, etc.)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if services are initialized
+    if (s3Storage.projectManagementIntegrationService && 
+        s3Storage.projectManagementConfigService && 
+        s3Storage.projectManagementTicketService) {
+      
+      // Project Management Integration Management (Credentials)
+      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService);
+      router.use(pmIntegrationRoutes);
+      
+      // Project Management Configuration Management (Reusable configurations)
+      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService);
+      router.use(pmConfigurationRoutes);
+      
+      // Project Management Ticket Operations (Stateless - Create, Check Status)
+      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService);
+      router.use(pmTicketRoutes);
+      
+      console.log('[Release Management] Project Management routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Project Management services not yet initialized, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Project Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
   const storeRoutes = createStoreIntegrationRoutes();
@@ -65,15 +143,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  const slackRoutes = createSlackIntegrationRoutes(storage);
-  router.use(slackRoutes);
+  const commRoutes = createCommIntegrationRoutes(storage);
+  router.use(commRoutes);
   // router.use(createCommunicationRoutes(storage));
-
-  // ============================================================================
-  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
-  // ============================================================================
-  // TODO: Implement ticket management integration routes
-  // router.use(createTicketManagementRoutes(storage));
 
   // ============================================================================
   // SETUP MANAGEMENT
@@ -125,6 +197,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       // - Filter by status (KICKOFF_PENDING, STARTED, RELEASED, etc.)
       // - Pagination
       // - Sort by date
+      
       res.status(501).json({
         error: "Not implemented yet",
         message: "Release listing endpoint coming soon"
@@ -137,7 +210,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      // TODO: Implement release details
+      const { tenantId, releaseId } = req.params;
+      
+      // TODO: Implement full release details retrieval from database
+      // const release = await storage.getRelease(releaseId);
+      
       res.status(501).json({
         error: "Not implemented yet",
         message: "Release details endpoint coming soon"
@@ -150,15 +227,53 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      // TODO: Implement release creation
-      // - Validate release metadata
-      // - Create release record
-      // - Initialize state history
-      // - Trigger kickoff if needed
-      res.status(501).json({
-        error: "Not implemented yet",
-        message: "Release creation endpoint coming soon"
-      });
+      try {
+        const { tenantId } = req.params;
+        const {
+          version,
+          type,
+          platforms,
+          description,
+          ...releaseData
+        } = req.body;
+        
+        // Validate required fields
+        if (!version) {
+          return res.status(400).json({
+            error: "Missing required field",
+            details: "version is required"
+          });
+        }
+        
+        // TODO: Implement full release creation logic
+        // 1. Validate release metadata
+        // 2. Create release record in database
+        // 3. Initialize state history
+        // 4. Trigger kickoff if needed
+        
+        // Placeholder: Create a mock release ID
+        const releaseId = `rel_${Date.now()}`;
+        
+        // Return placeholder response
+        res.status(201).json({
+          success: true,
+          message: "Release creation placeholder - full implementation coming soon",
+          release: {
+            id: releaseId,
+            tenantId,
+            version,
+            type,
+            platforms,
+            ...releaseData
+          }
+        });
+      } catch (error: any) {
+        console.error('[Release] Error creating release:', error);
+        res.status(500).json({
+          error: "Failed to create release",
+          message: error.message
+        });
+      }
     }
   );
 

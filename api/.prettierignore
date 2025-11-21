@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+bin/
+dist/
+build/
+
+# Ignore old files (only format new test-management files)
+!script/types/integrations/test-management/**
+!script/models/integrations/test-management/**
+!script/services/integrations/test-management/**
+!script/controllers/integrations/test-management/**
+!script/routes/integrations/test-management/**
+!script/middleware/integrations/test-management/**
+!script/utils/integrations/test-management/**
+
+# Package files
+package-lock.json
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+

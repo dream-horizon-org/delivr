@@ -141,6 +141,27 @@ export class SCMIntegrationController {
     return this.toSafeObject(integration.toJSON());
   }
 
+  /**
+   * Find active integration for tenant WITH TOKENS (for internal use only)
+   * ⚠️ WARNING: Returns full integration including accessToken
+   * Only use this for server-side operations that need to make API calls
+   * 
+   * @param tenantId - Tenant ID
+   * @returns First active integration with tokens or null
+   */
+  async findActiveByTenantWithTokens(tenantId: string): Promise<TenantSCMIntegration | null> {
+    const integration = await this.model.findOne({
+      where: { 
+        tenantId, 
+        isActive: true 
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    if (!integration) return null;
+    return integration.toJSON() as TenantSCMIntegration;
+  }
+
   // ==========================================================================
   // UPDATE
   // ==========================================================================
