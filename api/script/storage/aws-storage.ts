@@ -16,6 +16,9 @@ import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
 import { CICDWorkflowController } from "./integrations/ci-cd/workflows-controller";
 import { createSlackIntegrationModel } from "./integrations/slack/slack-models";
 import { SlackIntegrationController } from "./integrations/slack/slack-controller";
+import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
+import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
+import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -62,9 +65,9 @@ export function createAccount(sequelize: Sequelize) {
       type: DataTypes.STRING, 
       allowNull: true 
     },
-    metadata: { 
-      type: DataTypes.JSON, 
-      allowNull: true 
+    metadata: {
+      type: DataTypes.JSON,
+      allowNull: true
     },
     // Note: createdTime kept for backward compatibility, but createdAt/updatedAt are now primary
     createdTime: { 
@@ -372,6 +375,9 @@ export function createModelss(sequelize: Sequelize) {
 
   // ============================================
   const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
+  const StoreIntegrations = createStoreIntegrationModel(sequelize);  // Store integrations (App Store, Play Store, etc.)
+  const StoreCredentials = createStoreCredentialModel(sequelize);  // Store credentials (encrypted)
+  const PlatformStoreMapping = createPlatformStoreMappingModel(sequelize);  // Platform to store type mapping (static data)
   // Define associations
   // ============================================
 
@@ -462,6 +468,9 @@ export function createModelss(sequelize: Sequelize) {
     CICDWorkflows,         // CI/CD workflows/jobs across providers
     Release,
     SlackIntegrations,  // Slack integrations
+    StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
+    StoreCredentials,   // Store credentials (encrypted)
+    PlatformStoreMapping,   // Platform to store type mapping (static data)
   };
 }
 
@@ -505,6 +514,8 @@ export class S3Storage implements storage.Storage {
     public cicdController!: CICDIntegrationController;  // CI/CD integration controller
     public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
     public slackController!: SlackIntegrationController;  // Slack integration controller
+    public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
+    public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -620,6 +631,14 @@ export class S3Storage implements storage.Storage {
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
+
+          // Initialize Store Integration Controllers
+          this.storeIntegrationController = new StoreIntegrationController(
+            models.StoreIntegrations,
+            models.StoreCredentials
+          );
+          this.storeCredentialController = new StoreCredentialController(models.StoreCredentials);
+          console.log("Store Integration Controllers initialized");
           
           // return this.sequelize.sync();
         })

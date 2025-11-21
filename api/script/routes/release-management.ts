@@ -8,6 +8,7 @@ import * as tenantPermissions from "../middleware/tenant-permissions";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createCICDIntegrationRoutes } from "./ci-cd-integrations";
 import { createSlackIntegrationRoutes } from "./slack-integrations";
+import { createStoreIntegrationRoutes } from "./store-integrations";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -52,8 +53,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
-  // TODO: Implement target platform integration routes
-  // router.use(createTargetPlatformRoutes(storage));
+  const storeRoutes = createStoreIntegrationRoutes();
+  router.use(storeRoutes);
 
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)

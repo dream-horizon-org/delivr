@@ -1,0 +1,66 @@
+erDiagram
+    ACCOUNTS ||--o{ ACCESS_KEYS : "has"
+    ACCOUNTS ||--o{ APPS : "owns (legacy)"
+    ACCOUNTS ||--o{ TENANTS : "creates"
+    ACCOUNTS ||--o{ COLLABORATORS : "is"
+
+    TENANTS ||--o{ APPS : "has (new flow)"
+    TENANTS ||--o{ COLLABORATORS : "has (tenant-level)"
+    TENANTS ||--o{ TENANT_SCM_INTEGRATIONS : "has one"
+
+    APPS ||--o{ DEPLOYMENTS : "has"
+    APPS ||--o{ COLLABORATORS : "has (app-level)"
+    DEPLOYMENTS ||--o{ PACKAGES : "history"
+    DEPLOYMENTS }o--|| PACKAGES : "current package (packageId)"
+
+    ACCOUNTS {
+      string id PK
+      string email
+      string name
+    }
+    TENANTS {
+      string id PK
+      string createdBy
+      string displayName
+    }
+    APPS {
+      string id PK
+      string accountId
+      string tenantId
+      string name
+    }
+    COLLABORATORS {
+      string email
+      string accountId
+      string appId
+      string tenantId
+      string permission
+      boolean isCreator
+    }
+    DEPLOYMENTS {
+      string id PK
+      string appId
+      string key
+      string packageId
+    }
+    PACKAGES {
+      string id PK
+      string deploymentId
+      string label
+      string packageHash
+    }
+    ACCESS_KEYS {
+      string id PK
+      string accountId
+      string name
+      number expires
+    }
+    TENANT_SCM_INTEGRATIONS {
+      string id PK
+      string tenantId
+      string createdByAccountId
+      string scmType
+      string repositoryUrl
+      boolean isActive
+    }
+

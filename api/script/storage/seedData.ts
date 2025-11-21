@@ -168,6 +168,18 @@ const seedData = {
       scope: "All",  // Fixed: Must match ENUM value 'All' (capital A)
     },
   ],
+  platformStoreMappings: [
+    {
+      id: "platform_android_001",
+      platform: "ANDROID" as const,
+      allowedStoreTypes: ["PLAY_STORE", "MICROSOFT_STORE", "FIREBASE"],
+    },
+    {
+      id: "platform_ios_001",
+      platform: "IOS" as const,
+      allowedStoreTypes: ["APP_STORE", "TESTFLIGHT", "FIREBASE"],
+    },
+  ],
 };
 
 // Seed function
@@ -232,6 +244,23 @@ async function seed() {
       }
     }));
     await models.AccessKey.bulkCreate(seedData.accessKeys);
+    
+    // Insert platform store mappings (static reference data)
+    // Use INSERT IGNORE or ON DUPLICATE KEY UPDATE to handle existing data
+    await Promise.all(seedData.platformStoreMappings.map(async (mapping) => {
+      const existing = await models.PlatformStoreMapping.findOne({
+        where: { platform: mapping.platform }
+      });
+      
+      if (!existing) {
+        await models.PlatformStoreMapping.create(mapping);
+      } else {
+        await models.PlatformStoreMapping.update(
+          { allowedStoreTypes: mapping.allowedStoreTypes },
+          { where: { platform: mapping.platform } }
+        );
+      }
+    }));
 
     console.log("✅ Seed data has been inserted successfully.");
   } catch (error) {
