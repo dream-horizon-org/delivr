@@ -5,13 +5,13 @@
 
 CREATE TABLE IF NOT EXISTS tenant_ci_cd_workflows (
   -- Primary key
-  id VARCHAR(255) NOT NULL PRIMARY KEY COMMENT 'Unique identifier (nanoid)',
+  id VARCHAR(255) NOT NULL PRIMARY KEY COMMENT 'Unique identifier (shortid)',
 
   -- Tenant reference
   tenantId CHAR(36) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL COMMENT 'FK -> tenants.id',
 
   -- Provider & linkage
-  providerType ENUM('JENKINS','GITHUB_ACTIONS','CIRCLECI','GITLAB_CI') NOT NULL COMMENT 'Provider type',
+  providerType ENUM('JENKINS','GITHUB_ACTIONS','CIRCLE_CI','GITLAB_CI') NOT NULL COMMENT 'Provider type',
   integrationId VARCHAR(255) NOT NULL COMMENT 'FK -> tenant_ci_cd_integrations.id',
 
   -- Display and identity
@@ -57,5 +57,10 @@ ALTER TABLE tenant_ci_cd_workflows
 
 -- Verification helpers
 DESCRIBE tenant_ci_cd_workflows;
+
+-- Normalize legacy providerType values if any rows used CIRCLECI before enum standardization
+UPDATE tenant_ci_cd_workflows
+SET providerType = 'CIRCLE_CI'
+WHERE providerType = 'CIRCLECI';
 
 

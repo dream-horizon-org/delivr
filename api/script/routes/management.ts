@@ -449,7 +449,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // Get all integrations for this tenant
       const scmController = (storage as any).scmController;
       const slackController = (storage as any).slackController;
-      const cicdController = (storage as any).cicdController;
+      const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
@@ -458,7 +458,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const slackIntegration = await slackController.findByTenant(tenantId);
 
       // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
-      const cicdIntegrations = await cicdController.findAll({ tenantId });
+      const cicdIntegrations = await cicdIntegrationRepository.findAll({ tenantId });
       
       // Test Management integrations (Checkmate, TestRail, etc.) - project-level
       // Note: Using tenantId as projectId (tenant = project in our system)

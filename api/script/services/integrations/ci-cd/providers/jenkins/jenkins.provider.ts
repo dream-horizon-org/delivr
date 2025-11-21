@@ -1,12 +1,15 @@
 import fetch from 'node-fetch';
-import { CICDProviderType } from '../../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { JenkinsProviderContract, JenkinsVerifyParams, JenkinsVerifyResult, JenkinsJobParamsRequest, JenkinsJobParamsResult } from './jenkins.interface';
-import { fetchWithTimeout, sanitizeJoin, appendApiJson, extractJenkinsParameters } from '../../../../../utils/cicd';
-import { HEADERS, PROVIDER_DEFAULTS, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../../../../constants/cicd';
+import { fetchWithTimeout, sanitizeJoin, appendApiJson, extractJenkinsParameters } from '../../utils/cicd.utils';
+import { HEADERS, PROVIDER_DEFAULTS, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../../../../controllers/integrations/ci-cd/constants';
 
 export class JenkinsProvider implements JenkinsProviderContract {
   readonly type = CICDProviderType.JENKINS;
 
+  /**
+   * Verify Jenkins connectivity (optionally fetches crumb) and probe /api/json.
+   */
   verifyConnection = async (params: JenkinsVerifyParams): Promise<JenkinsVerifyResult> => {
     const { hostUrl, username, apiToken, useCrumb, crumbPath } = params;
 
@@ -46,8 +49,12 @@ export class JenkinsProvider implements JenkinsProviderContract {
     }
   };
 
+  /**
+   * Discover job parameter definitions from a Jenkins job URL.
+   * Attempts crumb retrieval when configured; ignores crumb failures for GET.
+   */
   fetchJobParameters = async (req: JenkinsJobParamsRequest): Promise<JenkinsJobParamsResult> => {
-    const { jobUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback } = req;
+    const { workflowUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback } = req;
 
     const headers: Record<string, string> = {
       'Authorization': authHeader,
@@ -72,7 +79,7 @@ export class JenkinsProvider implements JenkinsProviderContract {
     }
 
     const jobApiUrl = appendApiJson(
-      jobUrl,
+      workflowUrl,
       'property[parameterDefinitions[name,type,description,defaultParameterValue[value],choices[*]]]'
     );
     const resp = await fetch(jobApiUrl, { headers });
@@ -98,8 +105,11 @@ export class JenkinsProvider implements JenkinsProviderContract {
     return { parameters };
   };
 
+  /**
+   * Trigger Jenkins job with parameters. Returns queue location on success.
+   */
   triggerJob = async (req) => {
-    const { jobUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback, formParams } = req;
+    const { workflowUrl, authHeader, useCrumb, crumbUrl, crumbHeaderFallback, formParams } = req;
     const headers: Record<string, string> = {
       'Authorization': authHeader,
       'Accept': HEADERS.ACCEPT_JSON,
@@ -126,7 +136,7 @@ export class JenkinsProvider implements JenkinsProviderContract {
       if (v !== undefined && v !== null) form.append(k, String(v));
     });
 
-    const triggerUrl = (jobUrl.endsWith('/') ? jobUrl : jobUrl + '/') + 'buildWithParameters';
+    const triggerUrl = (workflowUrl.endsWith('/') ? workflowUrl : workflowUrl + '/') + 'buildWithParameters';
     const triggerResp = await fetch(triggerUrl, { method: 'POST', headers, body: form });
     const accepted = triggerResp.status === 201 || triggerResp.status === 200;
     if (accepted) {
@@ -137,6 +147,9 @@ export class JenkinsProvider implements JenkinsProviderContract {
     return { accepted: false, status: triggerResp.status, statusText: triggerResp.statusText, errorText };
   };
 
+  /**
+   * Poll queue item and infer build status when executable URL is available.
+   */
   getQueueStatus = async (req) => {
     const { queueUrl, authHeader, timeoutMs } = req;
     const headers: Record<string, string> = {

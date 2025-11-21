@@ -1,12 +1,26 @@
+import type { CICDIntegrationRepository } from '~models/integrations/ci-cd/connection/connection.repository';
 import { getStorage } from '../../../../storage/storage-instance';
-import type { CICDIntegrationController } from '../../../../storage/integrations/ci-cd/ci-cd-controller';
-import type { SafeCICDIntegration, UpdateCICDIntegrationDto } from '../../../../storage/integrations/ci-cd/ci-cd-types';
+import type { SafeCICDIntegration, UpdateCICDIntegrationDto, TenantCICDIntegration } from '~types/integrations/ci-cd/connection.interface';
 
 export abstract class ConnectionService<TCreateInput> {
-  protected get cicd(): CICDIntegrationController {
-    const storage = getStorage();
-    return (storage as any).cicdController;
+  private readonly repositoryInstance?: CICDIntegrationRepository;
+
+  constructor(repository?: CICDIntegrationRepository) {
+    this.repositoryInstance = repository;
   }
+
+  protected get repository(): CICDIntegrationRepository {
+    if (this.repositoryInstance) {
+      return this.repositoryInstance;
+    }
+    const storage = getStorage();
+    return (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
+  }
+
+  protected toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
+    const { apiToken, headerValue, ...rest } = integration;
+    return { ...rest };
+  };
 
   abstract create(tenantId: string, accountId: string, input: TCreateInput): Promise<SafeCICDIntegration>;
   abstract get(tenantId: string): Promise<SafeCICDIntegration | null>;

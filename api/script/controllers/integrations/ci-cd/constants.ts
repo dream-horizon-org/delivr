@@ -1,3 +1,7 @@
+/**
+ * CI/CD domain error messages.
+ * Keep messages contextual to aid debugging and UI display.
+ */
 export const ERROR_MESSAGES = {
   MISSING_TOKEN_AND_SCM: 'Missing apiToken and no GitHub SCM integration found',
   INVALID_GITHUB_TOKEN: 'Invalid GitHub token',
@@ -10,8 +14,18 @@ export const ERROR_MESSAGES = {
   GHA_ALREADY_EXISTS: 'GitHub Actions connection already exists',
   GHA_CREATE_REQUIRED: 'apiToken is required',
 
-  JENKINS_JOB_URL_REQUIRED: 'jobUrl is required',
-  JENKINS_INVALID_JOB_URL: 'Invalid jobUrl',
+  // CI/CD Config errors
+  CONFIG_CREATE_FAILED: 'Failed to create CI/CD config',
+  CONFIG_LIST_FAILED: 'Failed to list CI/CD configs',
+  CONFIG_FETCH_FAILED: 'Failed to fetch CI/CD config',
+  CONFIG_NOT_FOUND: 'CI/CD config not found',
+  CONFIG_UPDATE_FAILED: 'Failed to update CI/CD config',
+  CONFIG_DELETE_FAILED: 'Failed to delete CI/CD config',
+  CONFIG_TRIGGER_FAILED: 'Failed to trigger workflow from CI/CD config',
+  CONFIG_WORKFLOW_NOT_FOUND: 'No matching workflow found in CI/CD config',
+
+  JENKINS_WORKFLOW_URL_REQUIRED: 'workflowUrl is required',
+  JENKINS_INVALID_WORKFLOW_URL: 'Invalid workflowUrl',
   JENKINS_CONNECTION_NOT_FOUND: 'No Jenkins connection found for this tenant',
   JENKINS_BASIC_REQUIRED: 'Jenkins connection is not configured for BASIC auth with credentials',
   JENKINS_HOST_MISMATCH: 'Provided URL host does not match configured Jenkins host',
@@ -41,6 +55,7 @@ export const ERROR_MESSAGES = {
   WORKFLOW_SELECTION_REQUIRED: 'Provide workflowId or both workflowType and platform',
   WORKFLOW_UPDATE_FAILED: 'Failed to update workflow',
   WORKFLOW_DELETE_FAILED: 'Failed to delete workflow',
+  WORKFLOW_MIN_PARAMS_REQUIRED: 'workflowUrl is required',
 
   GHA_NO_TOKEN_AVAILABLE: 'No GitHub token available',
   GHA_INVALID_RUN_URL: 'Invalid runUrl',
@@ -51,9 +66,19 @@ export const ERROR_MESSAGES = {
   GHA_REPOSITORY_URL_REQUIRED: 'repositoryUrl is required',
   GHA_INVALID_REPOSITORY_URL: 'Invalid repositoryUrl',
   GHA_REPO_ACCESS_FAILED: 'Failed to access repository with provided token',
-  GHA_ACTIONS_ACCESS_FAILED: 'Failed to access GitHub Actions for repository'
+  GHA_ACTIONS_ACCESS_FAILED: 'Failed to access GitHub Actions for repository',
+  GHA_DISPATCH_FAILED: 'Failed to trigger GitHub Actions workflow',
+
+  INTEGRATION_NOT_FOUND: 'CI/CD integration not found',
+  INTEGRATION_FETCH_FAILED: 'Failed to fetch CI/CD integration',
+  INTEGRATION_UPDATE_FAILED: 'Failed to update CI/CD integration',
+  INTEGRATION_DELETE_FAILED: 'Failed to delete CI/CD integration',
+  OPERATION_NOT_SUPPORTED: 'Operation not supported for this CI/CD provider'
 } as const;
 
+/**
+ * CI/CD domain success messages.
+ */
 export const SUCCESS_MESSAGES = {
   VERIFIED: 'Connection verified successfully',
   JENKINS_CREATED: 'Jenkins connection created',
@@ -62,20 +87,29 @@ export const SUCCESS_MESSAGES = {
   WORKFLOW_DELETED: 'Workflow deleted'
 } as const;
 
+/**
+ * Provider defaults and timeouts used across services and providers.
+ */
 export const PROVIDER_DEFAULTS = {
   GITHUB_API: 'https://api.github.com',
-  JENKINS_CRUMB_PATH: '/crumbIssuer/api/json'
+  JENKINS_CRUMB_PATH: '/crumbIssuer/api/json',
+  GHA_DEFAULT_REF: 'main',
+  GHA_NO_QUEUE_LOCATION: 'N/A',
+  GHA_RUN_POLL_ATTEMPTS: 6,
+  GHA_RUN_POLL_DELAY_MS: 1000
 } as const;
 
 export const PLATFORM = {
   OTHER: 'other'
 } as const;
 
+/**
+ * Shared header constants for provider requests.
+ */
 export const HEADERS = {
   ACCEPT_JSON: 'application/json',
   ACCEPT_GITHUB_JSON: 'application/vnd.github+json',
   USER_AGENT: 'Delivr-App',
   JENKINS_CRUMB_HEADER_FALLBACK: 'Jenkins-Crumb'
 } as const;
-
 
