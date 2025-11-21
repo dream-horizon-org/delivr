@@ -1,10 +1,10 @@
-import type { CICDConfigRepository } from '../../../../models/integrations/ci-cd/config/config.repository';
-import type { CICDWorkflowRepository } from '../../../../models/integrations/ci-cd/workflow/workflow.repository';
+import type { CICDConfigRepository, CICDWorkflowRepository } from '~models/integrations/ci-cd';
 import type { CreateCICDConfigDto, TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
 import type { TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
 import { validateAndNormalizeWorkflowsForConfig } from './config.utils';
+import { CICDConfigValidationError, validateWorkflowsForCreateConfig } from './config.validation';
 
 export class CICDConfigService {
   private readonly configRepository: CICDConfigRepository;
@@ -24,6 +24,13 @@ export class CICDConfigService {
 
     if (noWorkflowsProvided) {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED);
+    }
+
+    // Aggregate validation across workflows (including provider-specific checks)
+    const validation = await validateWorkflowsForCreateConfig(workflows, tenantId);
+    const hasValidationErrors = validation.errors.length > 0;
+    if (hasValidationErrors) {
+      throw new CICDConfigValidationError(validation.errors);
     }
 
     // Validate and normalize all workflows before creating any
