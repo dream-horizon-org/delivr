@@ -22,8 +22,8 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
     // Backend server runs on port 3010 in development
     const backendBaseUrl = process.env.BACKEND_API_URL || 'http://localhost:3010';
     
-    // Forward request to backend API (no /api/v1 prefix in backend)
-    const backendUrl = `${backendBaseUrl}/integrations/${integrationId}/metadata/projects`;
+    // Forward request to backend API (Checkmate-specific metadata route)
+    const backendUrl = `${backendBaseUrl}/test-management/integrations/${integrationId}/checkmate/metadata/projects`;
     
     console.log(`[Checkmate Projects API] Fetching from: ${backendUrl}`);
     
@@ -33,6 +33,7 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
         'Content-Type': 'application/json',
       },
     });
+    console.log('response checkmate projects', response);
 
     if (!response.ok) {
       const errorText = await response.text();
