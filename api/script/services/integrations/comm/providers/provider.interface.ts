@@ -15,7 +15,7 @@ import type {
   Channel,
   VerificationResult,
   HealthCheckResult
-} from './comm-types';
+} from '../comm-types';
 
 /**
  * ICommService - Interface for communication services

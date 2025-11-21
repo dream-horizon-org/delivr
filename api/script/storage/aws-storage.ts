@@ -18,10 +18,12 @@ import {
   TestManagementRunService
 } from "../services/integrations/test-management";
 import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
+import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
+import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
-import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/slack/slack-models";
-import { SlackIntegrationController, ChannelController } from "./integrations/slack/slack-controller";
+import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
+import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
 import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
 import { CICDIntegrationController } from "./integrations/ci-cd/ci-cd-controller";
 import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
@@ -525,6 +527,8 @@ export class S3Storage implements storage.Storage {
     public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public channelController!: ChannelController;  // Channel configuration controller
+    public slackIntegrationService!: SlackIntegrationService;  // Slack integration service
+    public slackChannelConfigService!: SlackChannelConfigService;  // Slack channel config service
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -669,6 +673,7 @@ export class S3Storage implements storage.Storage {
           );
           
           console.log("Test Management Integration initialized");
+          
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
@@ -676,6 +681,16 @@ export class S3Storage implements storage.Storage {
           // Initialize Channel Configuration Controller
           this.channelController = new ChannelController(models.ChannelConfig);
           console.log("Channel Configuration Controller initialized");
+          
+          // Initialize Slack Services (similar to test-management services)
+          this.slackIntegrationService = new SlackIntegrationService(this.slackController);
+          console.log("Slack Integration Service initialized");
+          
+          this.slackChannelConfigService = new SlackChannelConfigService(
+            this.channelController,
+            this.slackController
+          );
+          console.log("Slack Channel Config Service initialized");
           
           // return this.sequelize.sync();
         })

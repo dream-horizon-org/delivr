@@ -12,9 +12,9 @@ import type {
   Channel,
   VerificationResult,
   HealthCheckResult
-} from './comm-types';
-import { ICommService } from './comm-service.interface';
-import { getStorage } from '../../../storage/storage-instance';
+} from '../comm-types';
+import { ICommService } from '../providers/provider.interface';
+import { getStorage } from '../../../../storage/storage-instance';
 
 /**
  * Slack Service
