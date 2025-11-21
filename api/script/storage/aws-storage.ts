@@ -543,6 +543,10 @@ export class S3Storage implements storage.Storage {
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
     public checkmateMetadataService!: CheckmateMetadataService;
+    
+    // Project Management Integration - Repositories and Services
+    public projectManagementIntegrationRepository!: ProjectManagementIntegrationRepository;
+    public projectManagementConfigRepository!: ProjectManagementConfigRepository;
     public projectManagementIntegrationService!: ProjectManagementIntegrationService;
     public projectManagementConfigService!: ProjectManagementConfigService;
     public projectManagementTicketService!: ProjectManagementTicketService;
@@ -704,23 +708,23 @@ export class S3Storage implements storage.Storage {
           
           // Initialize Project Management Integration
           const projectManagementIntegrationModel = createProjectManagementIntegrationModel(this.sequelize);
-          const projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
+          this.projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
           
           const projectManagementConfigModel = createProjectManagementConfigModel(this.sequelize);
-          const projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
+          this.projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
           
           this.projectManagementIntegrationService = new ProjectManagementIntegrationService(
-            projectManagementIntegrationRepository
+            this.projectManagementIntegrationRepository
           );
           
           this.projectManagementConfigService = new ProjectManagementConfigService(
-            projectManagementConfigRepository,
-            projectManagementIntegrationRepository
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
           );
           
           this.projectManagementTicketService = new ProjectManagementTicketService(
-            projectManagementConfigRepository,
-            projectManagementIntegrationRepository
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
           );
           
           console.log("Project Management Integration initialized");

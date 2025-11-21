@@ -103,9 +103,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }));
       
       const PROJECT_MANAGEMENT = [
-        { id: "jira", name: "Jira", requiresOAuth: true, isAvailable: false },
-        { id: "linear", name: "Linear", requiresOAuth: true, isAvailable: false },
-        { id: "asana", name: "Asana", requiresOAuth: true, isAvailable: false },
+        { id: "jira", name: "Jira", requiresOAuth: false, isAvailable: true },
+        { id: "linear", name: "Linear", requiresOAuth: false, isAvailable: false },
+        { id: "asana", name: "Asana", requiresOAuth: false, isAvailable: false },
       ];
       
       const APP_DISTRIBUTION = [
@@ -460,6 +460,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const scmController = (storage as any).scmController;
       const slackController = (storage as any).slackController;
       const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
+      const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
@@ -479,6 +480,19 @@ export function getManagementRouter(config: ManagementConfig): Router {
           console.log(`[TenantInfo] Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching test management integrations:', error);
+        }
+      }
+
+      // Project Management integrations (JIRA, Linear, Asana, etc.)
+      let projectManagementIntegrations: any[] = [];
+      if (projectManagementIntegrationRepository) {
+        try {
+          projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ 
+            projectId: tenantId
+          });
+          console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching project management integrations:', error);
         }
       }
 
@@ -572,6 +586,23 @@ export function getManagementRouter(config: ManagementConfig): Router {
           createdAt: integration.createdAt,
           updatedAt: integration.updatedAt
           // Note: config (including authToken) is intentionally excluded (never sent to client)
+        });
+      });
+
+      // Add Project Management integrations (JIRA, Linear, Asana, etc.)
+      projectManagementIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'project_management',
+          id: integration.id,
+          providerType: integration.providerType,
+          name: integration.name,
+          projectId: integration.projectId,
+          isEnabled: integration.isEnabled,
+          verificationStatus: integration.verificationStatus,
+          lastVerifiedAt: integration.lastVerifiedAt,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: config (including apiToken, email) is intentionally excluded (never sent to client)
         });
       });
 
@@ -680,7 +711,23 @@ export function getManagementRouter(config: ManagementConfig): Router {
             connectedAt: i.createdAt,
             connectedBy: i.createdByAccountId || 'System',
           })),
-          PROJECT_MANAGEMENT: [], // TODO: Add project management integrations when implemented
+          PROJECT_MANAGEMENT: projectManagementIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.providerType.toLowerCase(),
+            name: i.name,
+            status: i.isEnabled ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              providerType: i.providerType,
+              projectId: i.projectId,
+              // Include non-sensitive config fields
+              baseUrl: i.config?.baseUrl,
+              jiraType: i.config?.jiraType, // JIRA-specific: CLOUD, SERVER, DATA_CENTER
+              // Don't expose sensitive config data (like apiToken, email)
+            },
+            verificationStatus: i.verificationStatus || 'NOT_VERIFIED',
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
           APP_DISTRIBUTION: storeIntegrations.map((i: any) => ({
             id: i.id,
             providerId: i.storeType.toLowerCase(), // e.g., 'play_store', 'app_store'

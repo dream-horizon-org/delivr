@@ -234,6 +234,51 @@ const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) 
   };
 
 /**
+ * Verify credentials without saving (stateless verification)
+ * POST /projects/:projectId/integrations/project-management/verify
+ */
+const verifyCredentialsHandler = (_service: ProjectManagementIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { providerType, config } = req.body;
+
+      // Validate providerType
+      const providerTypeError = validateProviderType(providerType);
+      if (providerTypeError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('providerType', providerTypeError)
+        );
+        return;
+      }
+
+      // Validate config structure
+      const configError = validateConfigStructure(config, providerType);
+      if (configError) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
+        return;
+      }
+
+      // Use ProviderFactory to validate config
+      const { ProviderFactory } = await import('~services/integrations/project-management/providers');
+      const provider = ProviderFactory.getProvider(providerType);
+      const isValid = await provider.validateConfig(config);
+
+      res.status(HTTP_STATUS.OK).json(
+        successResponse({
+          success: isValid,
+          verified: isValid,
+          message: isValid ? 'Credentials are valid' : 'Credentials are invalid'
+        })
+      );
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.VERIFY_INTEGRATION_FAILED)
+      );
+    }
+  };
+
+/**
  * Verify integration
  * POST /projects/:projectId/integrations/project-management/:integrationId/verify
  */
@@ -269,6 +314,7 @@ export const createProjectManagementIntegrationController = (
   getIntegration: getIntegrationHandler(service),
   updateIntegration: updateIntegrationHandler(service),
   deleteIntegration: deleteIntegrationHandler(service),
+  verifyCredentials: verifyCredentialsHandler(service),
   verifyIntegration: verifyIntegrationHandler(service)
 });
 
