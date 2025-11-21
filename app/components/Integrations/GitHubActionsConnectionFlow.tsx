@@ -4,6 +4,7 @@
  * 
  * Backend API: /tenants/:tenantId/integrations/ci-cd/github-actions
  * Falls back to SCM GitHub token if no token provided
+ * Supports both create and edit modes
  */
 
 import { useState } from 'react';
@@ -22,16 +23,23 @@ import { IconCheck, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react'
 interface GitHubActionsConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
+  isEditMode?: boolean;
+  existingData?: any;
 }
 
-export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActionsConnectionFlowProps) {
+export function GitHubActionsConnectionFlow({ 
+  onConnect, 
+  onCancel, 
+  isEditMode = false, 
+  existingData 
+}: GitHubActionsConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
   const [formData, setFormData] = useState({
-    displayName: '',
-    hostUrl: 'https://api.github.com',
-    apiToken: '',
+    displayName: existingData?.displayName || '',
+    hostUrl: existingData?.hostUrl || 'https://api.github.com',
+    apiToken: '', // Never pre-populate token for security
   });
 
   const [isVerifying, setIsVerifying] = useState(false);
@@ -86,7 +94,7 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActio
       }
 
       const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/github-actions`, {
-        method: 'POST',
+        method: isEditMode ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -96,10 +104,10 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActio
       if (data.success) {
         onConnect(data);
       } else {
-        setError(data.error || 'Failed to connect GitHub Actions integration');
+        setError(data.error || `Failed to ${isEditMode ? 'update' : 'connect'} GitHub Actions integration`);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to connect GitHub Actions integration');
+      setError(err.message || `Failed to ${isEditMode ? 'update' : 'connect'} GitHub Actions integration`);
     } finally {
       setIsConnecting(false);
     }
@@ -111,12 +119,14 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActio
 
   return (
     <Stack gap="lg">
-      {/* Info alert about token fallback */}
-      <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-        <Text size="sm">
-          <strong>Tip:</strong> If you have GitHub SCM integration connected, you can leave the token field empty and we'll use your existing GitHub token.
-        </Text>
-      </Alert>
+      {/* Info alert about token fallback (only for new connections) */}
+      {!isEditMode && (
+        <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+          <Text size="sm">
+            <strong>Tip:</strong> If you have GitHub SCM integration connected, you can leave the token field empty and we'll use your existing GitHub token.
+          </Text>
+        </Alert>
+      )}
 
       <TextInput
         label="Display Name (Optional)"
@@ -136,11 +146,11 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActio
       />
 
       <PasswordInput
-        label="Personal Access Token (Optional)"
-        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+        label={isEditMode ? "Personal Access Token (leave blank to keep existing)" : "Personal Access Token (Optional)"}
+        placeholder={isEditMode ? "Leave blank to keep existing token" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-        description="Leave empty to use your connected GitHub SCM token"
+        description={isEditMode ? "Only provide if you want to update the token" : "Leave empty to use your connected GitHub SCM token"}
       />
 
       {error && (
@@ -159,7 +169,7 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActio
         <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
           Cancel
         </Button>
-        {!isVerified ? (
+        {!isEditMode && !isVerified ? (
           <Button
             onClick={handleVerify}
             loading={isVerifying}
@@ -171,9 +181,10 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActio
           <Button
             onClick={handleConnect}
             loading={isConnecting}
-            color="green"
+            color={isEditMode ? 'blue' : 'green'}
+            disabled={!isEditMode && !isVerified}
           >
-            Connect
+            {isEditMode ? 'Update' : 'Connect'}
           </Button>
         )}
       </Group>
