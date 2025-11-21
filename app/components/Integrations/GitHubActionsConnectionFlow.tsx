@@ -24,7 +24,12 @@ interface GitHubActionsConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
   isEditMode?: boolean;
-  existingData?: any;
+  existingData?: {
+    id: string; // integrationId - required for updates
+    displayName?: string;
+    verificationStatus?: string;
+    lastVerifiedAt?: string;
+  };
 }
 
 export function GitHubActionsConnectionFlow({ 
@@ -38,7 +43,6 @@ export function GitHubActionsConnectionFlow({
 
   const [formData, setFormData] = useState({
     displayName: existingData?.displayName || '',
-    hostUrl: existingData?.hostUrl || 'https://api.github.com',
     apiToken: '', // Never pre-populate token for security
   });
 
@@ -54,11 +58,12 @@ export function GitHubActionsConnectionFlow({
 
     try {
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/github-actions/verify`,
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS/verify`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            displayName: formData.displayName || undefined,
             apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
           })
         }
@@ -85,7 +90,6 @@ export function GitHubActionsConnectionFlow({
     try {
       const payload: any = {
         displayName: formData.displayName || 'GitHub Actions',
-        hostUrl: formData.hostUrl,
       };
 
       // Only include apiToken if provided
@@ -93,7 +97,12 @@ export function GitHubActionsConnectionFlow({
         payload.apiToken = formData.apiToken;
       }
 
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/github-actions`, {
+      // Different URLs for create vs update
+      const url = isEditMode
+        ? `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${existingData?.id}`
+        : `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS`;
+
+      const response = await fetch(url, {
         method: isEditMode ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -114,7 +123,7 @@ export function GitHubActionsConnectionFlow({
   };
 
   const isFormValid = () => {
-    return formData.hostUrl; // Token is optional (falls back to SCM)
+    return true; // Token is optional (falls back to SCM), no other required fields
   };
 
   return (
@@ -133,16 +142,7 @@ export function GitHubActionsConnectionFlow({
         placeholder="GitHub Actions"
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-      />
-
-      <TextInput
-        label="GitHub API URL"
-        placeholder="https://api.github.com"
-        required
-        value={formData.hostUrl}
-        onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
-        error={!formData.hostUrl && 'API URL is required'}
-        description="For GitHub Enterprise, use your custom API endpoint"
+        description="A friendly name for this integration"
       />
 
       <PasswordInput

@@ -21,7 +21,17 @@ interface JenkinsConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
   isEditMode?: boolean;
-  existingData?: any;
+  existingData?: {
+    id: string; // integrationId - required for updates
+    displayName?: string;
+    hostUrl?: string;
+    username?: string;
+    verificationStatus?: string;
+    providerConfig?: {
+      useCrumb?: boolean;
+      crumbPath?: string;
+    };
+  };
 }
 
 export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JenkinsConnectionFlowProps) {
@@ -33,8 +43,8 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     hostUrl: existingData?.hostUrl || '',
     username: existingData?.username || '',
     apiToken: '', // Never pre-populate sensitive data
-    useCrumb: true,
-    crumbPath: '/crumbIssuer/api/json'
+    useCrumb: existingData?.providerConfig?.useCrumb ?? true,
+    crumbPath: existingData?.providerConfig?.crumbPath || '/crumbIssuer/api/json'
   });
 
   const [isVerifying, setIsVerifying] = useState(false);
@@ -50,16 +60,19 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     try {
       // Send data in request body with POST method (backend expects req.body)
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins/verify`,
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/JENKINS/verify`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            displayName: formData.displayName || undefined,
             hostUrl: formData.hostUrl,
             username: formData.username,
             apiToken: formData.apiToken,
-            useCrumb: formData.useCrumb,
-            crumbPath: formData.crumbPath
+            providerConfig: {
+              useCrumb: formData.useCrumb,
+              crumbPath: formData.crumbPath
+            }
           })
         }
       );
@@ -109,7 +122,12 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         return;
       }
 
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`, {
+      // Different URLs for create vs update
+      const url = isEditMode
+        ? `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${existingData?.id}`
+        : `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/JENKINS`;
+
+      const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
