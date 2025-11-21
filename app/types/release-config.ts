@@ -7,6 +7,8 @@
 // Build Pipeline Configuration
 // ============================================================================
 
+export type BuildUploadStep = 'MANUAL' | 'CI_CD';
+
 export type BuildProvider = 'JENKINS' | 'GITHUB_ACTIONS' | 'MANUAL_UPLOAD';
 
 export type BuildEnvironment = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT' | 'PRODUCTION';
@@ -239,7 +241,10 @@ export interface ReleaseConfiguration {
   // Default target platforms
   defaultTargets: TargetPlatform[];
   
-  // Build pipelines
+  // Build upload method
+  buildUploadStep: BuildUploadStep; // 'MANUAL' (default) or 'CI_CD' (when pipelines configured)
+  
+  // Build pipelines (optional - only used when buildUploadStep = 'CI_CD')
   buildPipelines: BuildPipelineJob[];
   
   // Test management

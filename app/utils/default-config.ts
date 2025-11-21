@@ -18,6 +18,7 @@ export function createDefaultConfig(organizationId: string): Partial<ReleaseConf
     isDefault: true,
     platforms: [],
     defaultTargets: [],
+    buildUploadStep: 'MANUAL', // Default to manual upload
     buildPipelines: [],
     testManagement: {
       enabled: false,

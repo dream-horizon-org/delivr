@@ -27,10 +27,21 @@ export const WIZARD_STEPS: Step[] = [
     description: 'Select platforms',
     icon: (props: { size?: number; className?: string }) => <IconTarget size={props.size} className={props.className} />,
   },
+  // ==================== COMMENTED OUT: CI/CD PIPELINE STEP ====================
+  // TODO: Uncomment this step when CI/CD pipeline integration is ready
+  // This was commented out to show manual upload flow only
+  // When uncommenting, also update STEP_INDEX below (PIPELINES = 2, adjust all subsequent indices)
+  // { 
+  //   id: 'pipelines', 
+  //   title: 'Build Pipelines', 
+  //   description: 'Configure builds',
+  //   icon: (props: { size?: number; className?: string }) => <IconSettings size={props.size} className={props.className} />,
+  // },
+  // ============================================================================
   { 
-    id: 'pipelines', 
-    title: 'Build Pipelines', 
-    description: 'Configure builds',
+    id: 'build-upload', 
+    title: 'Build Upload', 
+    description: 'Manual upload',
     icon: (props: { size?: number; className?: string }) => <IconSettings size={props.size} className={props.className} />,
   },
   { 
@@ -66,10 +77,12 @@ export const WIZARD_STEPS: Step[] = [
 ];
 
 // Step indices for easier reference
+// NOTE: When uncommenting PIPELINES step, adjust all indices below it (+1)
 export const STEP_INDEX = {
   BASIC: 0,
   PLATFORMS: 1,
-  PIPELINES: 2,
+  // PIPELINES: 2, // Commented out - restore when CI/CD is ready
+  BUILD_UPLOAD: 2, // Manual upload step (replaces PIPELINES temporarily)
   TESTING: 3,
   COMMUNICATION: 4,
   PROJECT_MANAGEMENT: 5,

@@ -19,6 +19,7 @@ import { BasicInfoForm } from './BasicInfoForm';
 import { WIZARD_STEPS, STEP_INDEX } from './wizard-steps.constants';
 import { VerticalStepper } from '~/components/Common/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
+import { ManualUploadStep } from '../BuildUpload/ManualUploadStep';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
 import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
@@ -89,31 +90,38 @@ export function ConfigurationWizard({
       case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP)
         return !!config.defaultTargets && config.defaultTargets.length > 0;
         
-      case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN)
-        if (!config.buildPipelines || config.buildPipelines.length === 0) {
-          return false;
-        }
-        // Validate required pipelines based on selected distribution targets
-        const needsAndroid = config.defaultTargets?.includes('PLAY_STORE');
-        const needsIOS = config.defaultTargets?.includes('APP_STORE');
+      // ==================== COMMENTED OUT: CI/CD PIPELINE VALIDATION ====================
+      // TODO: Uncomment when CI/CD pipeline integration is ready
+      // case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN)
+      //   if (!config.buildPipelines || config.buildPipelines.length === 0) {
+      //     return false;
+      //   }
+      //   // Validate required pipelines based on selected distribution targets
+      //   const needsAndroid = config.defaultTargets?.includes('PLAY_STORE');
+      //   const needsIOS = config.defaultTargets?.includes('APP_STORE');
+      //   
+      //   if (needsAndroid) {
+      //     const hasAndroidRegression = config.buildPipelines.some(
+      //       p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
+      //     );
+      //     if (!hasAndroidRegression) return false;
+      //   }
+      //   
+      //   if (needsIOS) {
+      //     const hasIOSRegression = config.buildPipelines.some(
+      //       p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
+      //     );
+      //     const hasTestFlight = config.buildPipelines.some(
+      //       p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
+      //     );
+      //     if (!hasIOSRegression || !hasTestFlight) return false;
+      //   }
+      //   
+      //   return true;
+      // =================================================================================
         
-        if (needsAndroid) {
-          const hasAndroidRegression = config.buildPipelines.some(
-            p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
-          );
-          if (!hasAndroidRegression) return false;
-        }
-        
-        if (needsIOS) {
-          const hasIOSRegression = config.buildPipelines.some(
-            p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
-          );
-          const hasTestFlight = config.buildPipelines.some(
-            p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
-          );
-          if (!hasIOSRegression || !hasTestFlight) return false;
-        }
-        
+      case STEP_INDEX.BUILD_UPLOAD: // Build Upload (Manual for now)
+        // Always valid - manual upload doesn't require configuration
         return true;
         
       case STEP_INDEX.TESTING: // Test Management
@@ -283,19 +291,25 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
-        return (
-          <FixedPipelineCategories
-            pipelines={config.buildPipelines || []}
-            onChange={(pipelines) => setConfig({ ...config, buildPipelines: pipelines })}
-            availableIntegrations={{
-              jenkins: availableIntegrations.jenkins,
-              github: availableIntegrations.github,
-            }}
-            selectedPlatforms={config.defaultTargets || []}
-            tenantId={organizationId}
-          />
-        );
+      // ==================== COMMENTED OUT: CI/CD PIPELINE STEP ====================
+      // TODO: Uncomment when CI/CD pipeline integration is ready
+      // case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
+      //   return (
+      //     <FixedPipelineCategories
+      //       pipelines={config.buildPipelines || []}
+      //       onChange={(pipelines) => setConfig({ ...config, buildPipelines: pipelines })}
+      //       availableIntegrations={{
+      //         jenkins: availableIntegrations.jenkins,
+      //         github: availableIntegrations.github,
+      //       }}
+      //       selectedPlatforms={config.defaultTargets || []}
+      //       tenantId={organizationId}
+      //     />
+      //   );
+      // =================================================================================
+        
+      case STEP_INDEX.BUILD_UPLOAD: // Build Upload (Manual for now)
+        return <ManualUploadStep />;
         
       case STEP_INDEX.TESTING: // Test Management
         return (
@@ -354,23 +368,25 @@ export function ConfigurationWizard({
       <div className="grid grid-cols-12 gap-6">
         {/* Vertical Stepper - Left Side */}
         <div className="col-span-3">
-          <Paper shadow="sm" p="lg" radius="md" className="sticky top-8" style={{ minHeight: '700px' }}>
-            {isEditMode && (
-              <Badge color="blue" size="lg" className="mb-4">
-                Editing: {config.name || 'Configuration'}
-              </Badge>
-            )}
-            <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">
-              Configuration Steps
-            </Text>
-            
-            <VerticalStepper
-              steps={WIZARD_STEPS}
-              currentStep={currentStep}
-              completedSteps={completedSteps}
-              allowNavigation={false}
-            />
-          </Paper>
+          <div className="sticky top-4" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+            <Paper shadow="sm" p="lg" radius="md" className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+              {isEditMode && (
+                <Badge color="blue" size="lg" className="mb-4">
+                  Editing: {config.name || 'Configuration'}
+                </Badge>
+              )}
+              <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">
+                Configuration Steps
+              </Text>
+              
+              <VerticalStepper
+                steps={WIZARD_STEPS}
+                currentStep={currentStep}
+                completedSteps={completedSteps}
+                allowNavigation={false}
+              />
+            </Paper>
+          </div>
         </div>
         
         {/* Main Content - Right Side */}
