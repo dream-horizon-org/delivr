@@ -19,4 +19,5 @@ export interface CICDConfigFilters {
   tenantId?: string;
 }
 
+export type FieldError = { field: string; message: string };
 
