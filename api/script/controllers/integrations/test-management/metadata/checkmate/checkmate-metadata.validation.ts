@@ -1,5 +1,5 @@
 /**
- * Metadata Validation Utilities
+ * Checkmate Metadata Validation Utilities
  */
 
 export const validateProjectId = (projectId: unknown): string | null => {

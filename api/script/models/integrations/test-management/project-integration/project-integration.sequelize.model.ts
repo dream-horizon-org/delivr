@@ -1,9 +1,9 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
 import type {
-    ProjectTestManagementIntegration,
-    ProjectTestManagementIntegrationConfig,
-    TestManagementProviderType
+  ProjectTestManagementIntegration,
+  ProjectTestManagementIntegrationConfig,
+  TestManagementProviderType
 } from '~types/integrations/test-management/project-integration';
 
 export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize) => {
@@ -43,7 +43,7 @@ export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize
         type: DataTypes.STRING(50),
         allowNull: false,
         validate: {
-          isIn: [['CHECKMATE', 'TESTRAIL', 'XRAY', 'ZEPHYR']]
+          isIn: [['checkmate', 'testrail', 'xray', 'zephyr']]
         },
         comment: 'Test management provider type'
       },
@@ -101,7 +101,4 @@ export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize
   return ProjectTestManagementIntegrationModel;
 };
 
-export type ProjectTestManagementIntegrationModelType = ReturnType<
-  typeof createProjectTestManagementIntegrationModel
->;
-
+export type ProjectTestManagementIntegrationModelType = ReturnType<typeof createProjectTestManagementIntegrationModel>;

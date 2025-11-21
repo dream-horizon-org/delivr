@@ -68,7 +68,7 @@ export class TestManagementRunService {
     // 4. Get provider
     const provider = ProviderFactory.getProvider(integration.providerType);
 
-    // 5. Create test run for each platform
+    // 5. Create test run for each platform (collect all results, don't throw on first error)
     const results: CreateTestRunsResponse = {};
 
     for (const platformConfig of platformConfigs) {
@@ -85,8 +85,14 @@ export class TestManagementRunService {
           status: TestRunStatus.PENDING
         };
       } catch (error) {
+        // Log error but continue with other platforms
         console.error(`Failed to create test run for platform ${platformConfig.platform}:`, error);
-        throw new Error(`Failed to create test run for ${platformConfig.platform}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
+        // Store error result for this platform
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results[platformConfig.platform] = {
+          error: `Failed to create test run: ${errorMessage}`
+        };
       }
     }
 

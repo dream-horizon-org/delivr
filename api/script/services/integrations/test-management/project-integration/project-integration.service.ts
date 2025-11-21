@@ -3,9 +3,12 @@ import type { ProjectTestManagementIntegrationRepository } from '~models/integra
 import type {
   CreateProjectTestManagementIntegrationDto,
   ProjectTestManagementIntegration,
+  ProjectTestManagementIntegrationConfig,
+  TestManagementProviderType,
   UpdateProjectTestManagementIntegrationDto,
   VerifyProjectTestManagementIntegrationResult
 } from '~types/integrations/test-management/project-integration';
+import { VerificationStatus } from '~types/integrations/test-management/project-integration';
 import { ProviderFactory } from '../providers/provider.factory';
 
 /**
@@ -107,7 +110,7 @@ export class TestManagementIntegrationService {
     if (!integration) {
       return {
         success: false,
-        status: 'ERROR',
+        status: VerificationStatus.ERROR,
         message: 'Integration not found'
       };
     }
@@ -118,7 +121,7 @@ export class TestManagementIntegrationService {
       
       return {
         success: isValid,
-        status: isValid ? 'VALID' : 'INVALID',
+        status: isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
         message: isValid 
           ? 'Integration verified successfully'
           : 'Failed to verify integration'
@@ -126,7 +129,35 @@ export class TestManagementIntegrationService {
     } catch (error) {
       return {
         success: false,
-        status: 'ERROR',
+        status: VerificationStatus.ERROR,
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Verify credentials without saving (stateless verification)
+   * Used before creating an integration to test credentials
+   */
+  async verifyCredentials(
+    providerType: TestManagementProviderType,
+    config: ProjectTestManagementIntegrationConfig
+  ): Promise<VerifyProjectTestManagementIntegrationResult> {
+    try {
+      const provider = ProviderFactory.getProvider(providerType);
+      const isValid = await provider.validateConfig(config);
+      
+      return {
+        success: isValid,
+        status: isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
+        message: isValid 
+          ? 'Credentials verified successfully'
+          : 'Failed to verify credentials'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        status: VerificationStatus.ERROR,
         message: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }

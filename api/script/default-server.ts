@@ -6,7 +6,7 @@ import { S3 } from "aws-sdk"; // Amazon S3
 import { SecretsManager } from "aws-sdk";
 import * as awsRDS from "aws-sdk/clients/rds";
 import { AzureStorage } from "./storage/azure-storage";
-import { fileUploadMiddleware } from "./file-upload-manager";
+import { fileUploadMiddleware, initializeFileUploadManager } from "./file-upload-manager";
 import { JsonStorage } from "./storage/json-storage";
 import { RedisManager } from "./redis-manager";
 import { MemcachedManager } from "./memcached-manager";
@@ -62,7 +62,13 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       
       // Initialize storage singleton for global access
       initializeStorage(storage);
-      console.log('[Storage] Storage singleton initialized');
+      console.log('[Storage] Storage singleton initialized');    // Wait for storage setup to complete (especially for S3Storage services)
+      console.log('[Storage] Waiting for storage setup to complete...');
+      await storage.checkHealth();
+      console.log('[Storage] Storage setup completed successfully');
+
+      // Initialize file upload manager (multer) at server startup
+      initializeFileUploadManager();
     })
     .then(() => {
       const app = express();
@@ -187,6 +193,12 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
           // Release Management Routes (releases, builds, integrations)
           app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
         }
+        // Release Management Routes (releases, builds, integrations)
+        app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
+        // DOTA Management Routes (deployments, apps, packages)
+        // to do :move the fileupload middleware to the routes that are using file upload
+        app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+        
       } else {
         app.use(auth.router());
       }

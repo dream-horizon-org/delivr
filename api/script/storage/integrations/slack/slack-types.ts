@@ -49,7 +49,6 @@ export interface TenantCommunicationIntegration {
   slackBotUserId?: string | null;        // Bot User ID
   slackWorkspaceId?: string | null;      // Workspace/Team ID
   slackWorkspaceName?: string | null;    // Workspace Name
-  slackChannels?: SlackChannel[] | null; // Available channels (JSON)
   
   // Verification status
   verificationStatus: VerificationStatus;
@@ -78,7 +77,6 @@ export interface CreateSlackIntegrationDto {
   slackBotUserId?: string;
   slackWorkspaceId?: string;
   slackWorkspaceName?: string;
-  slackChannels?: SlackChannel[];
 }
 
 /**
@@ -89,7 +87,6 @@ export interface UpdateSlackIntegrationDto {
   slackBotUserId?: string;
   slackWorkspaceId?: string;
   slackWorkspaceName?: string;
-  slackChannels?: SlackChannel[];
   verificationStatus?: VerificationStatus;
 }
 
@@ -142,3 +139,42 @@ export interface SlackClientConfig {
   workspaceId?: string;       // Workspace ID
   botUserId?: string;         // Bot User ID
 }
+
+// ============================================================================
+// Channel Configuration Types (tenant_comm_channels table)
+// ============================================================================
+
+/**
+ * Stage-to-channels mapping structure
+ * 
+ * Example:
+ * {
+ *   "development": [
+ *     { "id": "C01234ABCDE", "name": "dev-releases" },
+ *     { "id": "C11111AAAAA", "name": "dev-notifications" }
+ *   ],
+ *   "staging": [
+ *     { "id": "C22222BBBBB", "name": "staging-releases" }
+ *   ],
+ *   "production": [
+ *     { "id": "C33333CCCCC", "name": "prod-releases" },
+ *     { "id": "C44444DDDDD", "name": "prod-notifications" }
+ *   ]
+ * }
+ */
+export interface StageChannelMapping {
+  [stageName: string]: SlackChannel[];  // stage name -> array of channel objects
+}
+
+/**
+ * Tenant Communication Channels (matches slack_configuration table)
+ */
+export interface TenantCommChannel {
+  id: string;                         // nanoid (21 chars)
+  integrationId: string;              // FK to tenant_comm_integrations
+  tenantId: string;                   // FK to tenants (denormalized)
+  channelData: StageChannelMapping;   // Stage-based channel mapping
+  createdAt: Date;
+  updatedAt: Date;
+}
+

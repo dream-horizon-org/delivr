@@ -11,14 +11,15 @@ import {
   createTestManagementConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
-import { createMetadataRoutes } from "./integrations/test-management/metadata";
 import {
   createIntegrationRoutes as createPMIntegrationRoutes,
   createConfigurationRoutes as createPMConfigurationRoutes,
   createTicketRoutes as createPMTicketRoutes
 } from "./integrations/project-management";
+import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createSlackIntegrationRoutes } from "./slack-integrations";
+import { createCICDIntegrationRoutes } from "./ci-cd-integrations";
+import { createCommIntegrationRoutes } from "./integrations/comm";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -68,23 +69,29 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   if (isS3Storage) {
     const s3Storage = storage;
     
+    // All test management routes under /test-management/ prefix
+    const testManagementRouter = Router();
+    
     // Project-Level Integration Management (Credentials)
     const projectIntegrationRoutes = createProjectIntegrationRoutes(s3Storage.testManagementIntegrationService);
-    router.use(projectIntegrationRoutes);
+    testManagementRouter.use(projectIntegrationRoutes);
 
     // Test Management Config Management (Reusable test configurations)
     const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
-    router.use('/test-management-configs', testManagementConfigRoutes);
+    testManagementRouter.use(testManagementConfigRoutes);
 
     // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
     const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
-    router.use('/test-management', testRunRoutes);
+    testManagementRouter.use(testRunRoutes);
 
-    // Metadata Proxy Routes (Projects, Sections, Labels, Squads)
-    const metadataRoutes = createMetadataRoutes(s3Storage.testManagementMetadataService);
-    router.use('/integrations', metadataRoutes);
+    // Checkmate Metadata Proxy Routes (Projects, Sections, Labels, Squads)
+    const checkmateMetadataRoutes = createCheckmateMetadataRoutes(s3Storage.checkmateMetadataService);
+    testManagementRouter.use(checkmateMetadataRoutes);
     
-    console.log('[Release Management] Test Management routes mounted successfully');
+    // Mount all test management routes under /test-management
+    router.use('/test-management', testManagementRouter);
+    
+    console.log('[Release Management] Test Management routes mounted successfully under /test-management');
   } else {
     console.warn('[Release Management] Test Management services not available (S3Storage required), routes not mounted');
   }
@@ -129,14 +136,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)
   // ============================================================================
-  // TODO: Implement pipeline integration routes
-  // router.use(createPipelineRoutes(storage));
+  const cicdRoutes = createCICDIntegrationRoutes(storage);
+  router.use(cicdRoutes);
 
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  const slackRoutes = createSlackIntegrationRoutes(storage);
-  router.use(slackRoutes);
+  const commRoutes = createCommIntegrationRoutes(storage);
+  router.use(commRoutes);
   // router.use(createCommunicationRoutes(storage));
 
   // ============================================================================

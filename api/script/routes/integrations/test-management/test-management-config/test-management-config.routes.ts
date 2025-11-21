@@ -9,6 +9,7 @@ import type { TestManagementConfigService } from '~services/integrations/test-ma
 
 /**
  * Create test management config routes
+ * Clean REST pattern: projectId only for CREATE and LIST
  */
 export const createTestManagementConfigRoutes = (
   service: TestManagementConfigService
@@ -16,20 +17,20 @@ export const createTestManagementConfigRoutes = (
   const router = Router();
   const controller = createTestManagementConfigController(service);
 
-  // Create config
-  router.post('/', controller.createConfig);
+  // Create config for a project (need projectId)
+  router.post('/projects/:projectId/configs', controller.createConfig);
 
-  // List configs by project
-  router.get('/', controller.listConfigsByProject);
+  // List all configs for a project (need projectId)
+  router.get('/projects/:projectId/configs', controller.listConfigsByProject);
 
-  // Get config by ID
-  router.get('/:id', controller.getConfigById);
+  // Get specific config (configId is enough)
+  router.get('/configs/:id', controller.getConfigById);
 
-  // Update config
-  router.put('/:id', controller.updateConfig);
+  // Update specific config (configId is enough)
+  router.put('/configs/:id', controller.updateConfig);
 
-  // Delete config
-  router.delete('/:id', controller.deleteConfig);
+  // Delete specific config (configId is enough)
+  router.delete('/configs/:id', controller.deleteConfig);
 
   return router;
 };
