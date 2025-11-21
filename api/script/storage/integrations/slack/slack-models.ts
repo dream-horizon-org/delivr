@@ -8,6 +8,8 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
 import { 
   TenantCommunicationIntegration,
+  TenantCommChannel,
+  StageChannelMapping,
   CommunicationType, 
   VerificationStatus
 } from './slack-types';
@@ -30,7 +32,6 @@ export function createSlackIntegrationModel(sequelize: Sequelize) {
     declare slackBotUserId: string | null;
     declare slackWorkspaceId: string | null;
     declare slackWorkspaceName: string | null;
-    declare slackChannels: any | null;
     
     // Verification status
     declare verificationStatus: VerificationStatus;
@@ -104,12 +105,6 @@ export function createSlackIntegrationModel(sequelize: Sequelize) {
         comment: 'Slack Workspace Name (e.g., "Acme Corp")',
       },
       
-      slackChannels: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        comment: 'Array of available Slack channels: [{id, name}]',
-      },
-      
       // ========================================================================
       // VERIFICATION STATUS
       // ========================================================================
@@ -160,4 +155,111 @@ export function createSlackIntegrationModel(sequelize: Sequelize) {
   );
 
   return SlackIntegrationModel;
+}
+
+// ============================================================================
+// Channel Configuration Model (tenant_comm_channels table)
+// ============================================================================
+
+export function createChannelConfigModel(sequelize: Sequelize) {
+  class ChannelConfigModel extends Model<TenantCommChannel> 
+    implements TenantCommChannel {
+    
+    // Primary fields
+    declare id: string;
+    declare integrationId: string;
+    declare tenantId: string;
+    declare channelData: StageChannelMapping;
+    
+    // Metadata
+    declare createdAt: Date;
+    declare updatedAt: Date;
+  }
+
+  ChannelConfigModel.init(
+    {
+      // ========================================================================
+      // PRIMARY KEY
+      // ========================================================================
+      id: {
+        type: DataTypes.STRING(21),
+        primaryKey: true,
+        allowNull: false,
+        comment: 'Unique identifier (nanoid - 21 chars)',
+      },
+      
+      // ========================================================================
+      // FOREIGN KEY - INTEGRATION
+      // ========================================================================
+      integrationId: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        references: {
+          model: 'tenant_comm_integrations',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to tenant_comm_integrations table',
+      },
+      
+      // ========================================================================
+      // FOREIGN KEY - TENANT (Denormalized)
+      // ========================================================================
+      tenantId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: {
+          model: 'tenants',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Reference to tenants table (denormalized for easier queries)',
+      },
+      
+      // ========================================================================
+      // CHANNEL CONFIGURATION
+      // ========================================================================
+      channelData: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: 'Stage-to-channels mapping: {"stageName": [{"id":"C123","name":"dev-releases"}], "stageName": [{"id":"C456","name":"prod-releases"}]}',
+      },
+      
+      // ========================================================================
+      // METADATA
+      // ========================================================================
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      },
+      {
+        sequelize,
+        tableName: 'slack_configuration',
+        timestamps: true,
+        indexes: [
+        // Query channels by integration (non-unique - multiple releases per integration)
+        {
+          name: 'idx_channels_integration',
+          fields: ['integrationId'],
+        },
+        // Query channels by tenant (non-unique - multiple releases per tenant)
+        {
+          name: 'idx_channels_tenant',
+          fields: ['tenantId'],
+        },
+      ],
+    }
+  );
+
+  return ChannelConfigModel;
 }

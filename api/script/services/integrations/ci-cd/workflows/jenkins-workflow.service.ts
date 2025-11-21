@@ -1,32 +1,38 @@
 import { WorkflowService } from './workflow.service';
-import { CICDProviderType, AuthType } from '../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType, AuthType } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsJobParamsRequest, JenkinsTriggerRequest, JenkinsQueueStatusRequest } from '../providers/jenkins/jenkins.interface';
-import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../constants/cicd';
-import { normalizePlatform, extractDefaultsFromWorkflow } from '../../../../utils/cicd';
+import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
+import { normalizePlatform, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
 
 export class JenkinsWorkflowService extends WorkflowService {
-  fetchJobParameters = async (tenantId: string, jobUrl: string): Promise<{ parameters: Array<{
+  /**
+   * Discover parameter definitions for a Jenkins job URL.
+   * Validates tenant credentials and host match before forwarding to provider.
+   */
+  fetchJobParameters = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; choices?: string[];
   }>}> => {
-    const integration = await this.cicd.findByTenantAndProviderWithSecrets(tenantId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!integration) throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
     if (!hasBasicCreds) throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
     const hostFromIntegration = new URL(integration.hostUrl).host;
-    const jobUrlObj = new URL(jobUrl);
-    if (hostFromIntegration !== jobUrlObj.host) {
-      const msg = `${ERROR_MESSAGES.JENKINS_HOST_MISMATCH}: ${jobUrlObj.host} != ${hostFromIntegration}`;
+    const workflowUrlObj = new URL(workflowUrl);
+    if (hostFromIntegration !== workflowUrlObj.host) {
+      const msg = `${ERROR_MESSAGES.JENKINS_HOST_MISMATCH}: ${workflowUrlObj.host} != ${hostFromIntegration}`;
       throw new Error(msg);
     }
     const authHeader = 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64');
-    const useCrumb = integration.providerConfig?.useCrumb ?? true;
-    const crumbPath = integration.providerConfig?.crumbPath ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
+    const providerConfig = integration.providerConfig as Record<string, unknown> | null | undefined;
+    const useCrumb = typeof providerConfig?.useCrumb === 'boolean' ? (providerConfig.useCrumb as boolean) : true;
+    const crumbPathValue = providerConfig?.crumbPath;
+    const crumbPath = typeof crumbPathValue === 'string' ? crumbPathValue : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
     const crumbUrl = `${integration.hostUrl.endsWith('/') ? integration.hostUrl.slice(0, -1) : integration.hostUrl}${crumbPath}`;
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
     const req: JenkinsJobParamsRequest = {
-      jobUrl,
+      workflowUrl,
       authHeader,
       useCrumb,
       crumbUrl,
@@ -36,6 +42,11 @@ export class JenkinsWorkflowService extends WorkflowService {
     return { parameters: result.parameters };
   };
 
+  /**
+   * Trigger a Jenkins job with parameters.
+   * Accepts either workflowId or (workflowType + platform) to resolve the workflow.
+   * Validates Jenkins BASIC credentials and host alignment.
+   */
   trigger = async (tenantId: string, input: {
     workflowId?: string;
     workflowType?: string;
@@ -48,12 +59,12 @@ export class JenkinsWorkflowService extends WorkflowService {
 
     let workflow: any;
     if (hasWorkflowId) {
-      const item = await this.workflows.findById(input.workflowId as string);
+      const item = await this.workflowRepository.findById(input.workflowId as string);
       const invalid = !item || item.tenantId !== tenantId || item.providerType !== CICDProviderType.JENKINS;
       if (invalid) throw new Error(ERROR_MESSAGES.WORKFLOW_NOT_FOUND);
       workflow = item;
     } else {
-      const items = await this.workflows.findAll({
+      const items = await this.workflowRepository.findAll({
         tenantId,
         providerType: CICDProviderType.JENKINS as any,
         workflowType: input.workflowType as any,
@@ -64,7 +75,7 @@ export class JenkinsWorkflowService extends WorkflowService {
       workflow = items[0];
     }
 
-    const integration = await this.cicd.findById(workflow.integrationId, true) as any;
+    const integration = await this.integrationRepository.findById(workflow.integrationId) as any;
     if (!integration) throw new Error('Jenkins credentials not found');
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
     if (!hasBasicCreds) throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
@@ -87,11 +98,13 @@ export class JenkinsWorkflowService extends WorkflowService {
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
     const authHeader = 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64');
-    const useCrumb = integration.providerConfig?.useCrumb ?? true;
-    const crumbPath = integration.providerConfig?.crumbPath ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
+    const providerConfig2 = integration.providerConfig as Record<string, unknown> | null | undefined;
+    const useCrumb = typeof providerConfig2?.useCrumb === 'boolean' ? (providerConfig2.useCrumb as boolean) : true;
+    const crumbPathValue2 = providerConfig2?.crumbPath;
+    const crumbPath = typeof crumbPathValue2 === 'string' ? crumbPathValue2 : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
     const crumbUrl = `${integration.hostUrl.endsWith('/') ? integration.hostUrl.slice(0, -1) : integration.hostUrl}${crumbPath}`;
     const req: JenkinsTriggerRequest = {
-      jobUrl: workflow.workflowUrl,
+      workflowUrl: workflow.workflowUrl,
       authHeader,
       useCrumb,
       crumbUrl,
@@ -103,9 +116,12 @@ export class JenkinsWorkflowService extends WorkflowService {
     return { queueLocation: result.queueLocation };
   };
 
+  /**
+   * Poll Jenkins queue status and infer build state when executable URL exists.
+   */
   getQueueStatus = async (tenantId: string, queueUrl: string): Promise<'pending'|'running'|'completed'|'cancelled'> => {
     const urlObj = new URL(queueUrl);
-    const integration = await this.cicd.findByTenantAndProviderWithSecrets(tenantId, CICDProviderType.JENKINS);
+    const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!integration) throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
 
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;

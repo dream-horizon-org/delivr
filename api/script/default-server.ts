@@ -5,7 +5,7 @@
 import { S3, SecretsManager } from "aws-sdk"; // Amazon S3
 import { Response } from "express";
 import * as api from "./api";
-import { fileUploadMiddleware } from "./file-upload-manager";
+import { fileUploadMiddleware, initializeFileUploadManager } from "./file-upload-manager";
 import { MemcachedManager } from "./memcached-manager";
 import { RedisManager } from "./redis-manager";
 import { JsonStorage } from "./storage/json-storage";
@@ -65,7 +65,13 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       
       // Initialize storage singleton for global access
       initializeStorage(storage);
-      console.log('[Storage] Storage singleton initialized');
+      console.log('[Storage] Storage singleton initialized');    // Wait for storage setup to complete (especially for S3Storage services)
+      console.log('[Storage] Waiting for storage setup to complete...');
+      await storage.checkHealth();
+      console.log('[Storage] Storage setup completed successfully');
+
+      // Initialize file upload manager (multer) at server startup
+      initializeFileUploadManager();
     })
     .then(() => {
       const app = express();
@@ -175,15 +181,27 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
 
             next();
           });
+          
+          // DOTA Management Routes (deployments, apps, packages) - NO AUTH in debug mode
+          app.use(fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+          
+          // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
+          app.use(api.releaseManagement({ storage: storage }));
         } else {
           app.use(auth.router());
+          
+          // DOTA Management Routes (deployments, apps, packages)
+          app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+          
+          // Release Management Routes (releases, builds, integrations)
+          app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
         }
-        
-        // DOTA Management Routes (deployments, apps, packages)
-        app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
-        
         // Release Management Routes (releases, builds, integrations)
         app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
+        // DOTA Management Routes (deployments, apps, packages)
+        // to do :move the fileupload middleware to the routes that are using file upload
+        app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+        
       } else {
         app.use(auth.router());
       }

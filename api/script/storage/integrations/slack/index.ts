@@ -7,9 +7,15 @@
 // Export all types
 export * from './slack-types';
 
-// Export model factory
-export { createSlackIntegrationModel } from './slack-models';
+// Export model factories
+export { 
+  createSlackIntegrationModel,
+  createChannelConfigModel 
+} from './slack-models';
 
-// Export controller
-export { SlackIntegrationController } from './slack-controller';
+// Export controllers
+export { 
+  SlackIntegrationController,
+  ChannelController 
+} from './slack-controller';
 

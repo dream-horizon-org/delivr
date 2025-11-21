@@ -14,7 +14,10 @@ import {
   TenantCommunicationIntegration,
   SafeSlackIntegration,
   VerificationStatus,
-  CommunicationType
+  CommunicationType,
+  TenantCommChannel,
+  StageChannelMapping,
+  SlackChannel
 } from './slack-types';
 
 // Create nanoid generator with custom alphabet (alphanumeric + underscore + hyphen)
@@ -106,8 +109,9 @@ export class SlackIntegrationController {
    */
   async findByTenant(
     tenantId: string,
-    communicationType: CommunicationType = CommunicationType.SLACK
-  ): Promise<SafeSlackIntegration | null> {
+    communicationType: CommunicationType = CommunicationType.SLACK,
+    includeToken: boolean = false
+  ): Promise<TenantCommunicationIntegration | SafeSlackIntegration | null> {
     const integration = await this.model.findOne({
       where: { 
         tenantId, 
@@ -117,7 +121,9 @@ export class SlackIntegrationController {
     });
 
     if (!integration) return null;
-    return this.toSafeObject(integration.toJSON());
+    
+    const data = integration.toJSON();
+    return includeToken ? data : this.toSafeObject(data);
   }
 
   /**
@@ -184,28 +190,6 @@ export class SlackIntegrationController {
     return this.toSafeObject(integration.toJSON());
   }
 
-  /**
-   * Update channels list
-   * 
-   * @param id - Integration ID
-   * @param channels - Array of Slack channels
-   * @returns Updated integration
-   */
-  async updateChannels(
-    id: string,
-    channels: any[]
-  ): Promise<SafeSlackIntegration | null> {
-    const integration = await this.model.findByPk(id);
-    
-    if (!integration) return null;
-
-    await integration.update({
-      slackChannels: channels,
-    });
-
-    return this.toSafeObject(integration.toJSON());
-  }
-
   // ==========================================================================
   // DELETE
   // ==========================================================================
@@ -266,5 +250,132 @@ export class SlackIntegrationController {
     // Return all fields except the sensitive token
     return safe;
   }
+}
+
+// ============================================================================
+// Channel Configuration Controller (tenant_comm_channels table)
+// ============================================================================
+
+export class ChannelController {
+  private model: ModelStatic<Model<any, any>>;
+
+  constructor(model: ModelStatic<Model<any, any>>) {
+    this.model = model;
+  }
+
+  // ==========================================================================
+  // CREATE
+  // ==========================================================================
+
+  /**
+   * Create channel configuration
+   * 
+   * @param id - Channel config ID (e.g., releaseId)
+   * @param integrationId - Integration ID
+   * @param tenantId - Tenant ID
+   * @param channelData - Stage-to-channels mapping
+   * @returns Created channel configuration
+   */
+  async create(
+    id: string,
+    integrationId: string,
+    tenantId: string,
+    channelData: StageChannelMapping
+  ): Promise<TenantCommChannel> {
+    const channelConfig = await this.model.create({
+      id,
+      integrationId,
+      tenantId,
+      channelData
+    });
+
+    return channelConfig.toJSON();
+  }
+
+  // ==========================================================================
+  // READ
+  // ==========================================================================
+
+  /**
+   * Find channel configuration by ID
+   * 
+   * @param id - Channel config ID
+   * @returns Channel configuration or null
+   */
+  async findById(id: string): Promise<TenantCommChannel | null> {
+    const channelConfig = await this.model.findByPk(id);
+    
+    if (!channelConfig) return null;
+    
+    return channelConfig.toJSON();
+  }
+
+  // ==========================================================================
+  // UPDATE
+  // ==========================================================================
+
+  /**
+   * Update stage channels - add or remove channels from a specific stage
+   * 
+   * @param id - Channel config ID
+   * @param stage - Stage name (e.g., "development", "production")
+   * @param action - "add" or "remove"
+   * @param channels - Array of channel objects {id, name} to add or remove
+   * @returns Updated channel configuration or null if not found
+   */
+  async updateStageChannels(
+    id: string,
+    stage: string,
+    action: 'add' | 'remove',
+    channels: SlackChannel[]
+  ): Promise<TenantCommChannel | null> {
+    const channelConfig = await this.model.findByPk(id);
+    
+    if (!channelConfig) return null;
+    
+    const currentData: StageChannelMapping = channelConfig.get('channelData') as StageChannelMapping ?? {};
+    const currentChannels: SlackChannel[] = currentData[stage] ?? [];
+    
+    let updatedChannels: SlackChannel[];
+    
+    if (action === 'add') {
+      // Add channels (avoid duplicates by ID)
+      const currentIds = currentChannels.map(ch => ch.id);
+      const newChannels = channels.filter(ch => !currentIds.includes(ch.id));
+      updatedChannels = [...currentChannels, ...newChannels];
+    } else {
+      // Remove channels (by ID)
+      const removeIds = channels.map(ch => ch.id);
+      updatedChannels = currentChannels.filter(ch => !removeIds.includes(ch.id));
+    }
+    
+    // Update channelData with new channels for this stage
+    const updatedData: StageChannelMapping = {
+      ...currentData,
+      [stage]: updatedChannels
+    };
+    
+    await channelConfig.update({ channelData: updatedData });
+    
+    return channelConfig.toJSON();
+  }
+
+  // ==========================================================================
+  // DELETE
+  // ==========================================================================
+
+  /**
+   * Delete channel configuration by ID (hard delete)
+   * 
+   * @param id - Channel config ID
+   * @returns True if deleted, false if not found
+   */
+  async delete(id: string): Promise<boolean> {
+    const result = await this.model.destroy({ 
+      where: { id } 
+    });
+    return result > 0;
+  }
+
 }
 
