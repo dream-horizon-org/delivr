@@ -32,20 +32,30 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
     }
   };
 
+  const isDisabled = !integration.isAvailable;
+
   return (
     <Card
       shadow="sm"
       padding="lg"
       radius="md"
       withBorder
-      className="cursor-pointer hover:shadow-md transition-shadow"
-      onClick={() => onClick(integration)}
+      className={`transition-all ${
+        isDisabled
+          ? 'opacity-50 cursor-not-allowed grayscale'
+          : 'cursor-pointer hover:shadow-md'
+      }`}
+      onClick={() => !isDisabled && onClick(integration)}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <IntegrationIcon name={integration.icon} size={40} className="text-blue-600 dark:text-blue-400" />
+          <IntegrationIcon 
+            name={integration.icon} 
+            size={40} 
+            className={isDisabled ? 'text-gray-400' : 'text-blue-600 dark:text-blue-400'} 
+          />
           <div>
-            <h3 className="font-semibold text-lg flex items-center gap-2">
+            <h3 className={`font-semibold text-lg flex items-center gap-2 ${isDisabled ? 'text-gray-500' : ''}`}>
               {integration.name}
               {integration.isPremium && (
                 <Badge size="xs" color="yellow" variant="filled">
@@ -64,7 +74,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
         </div>
       </div>
 
-      <p className="text-sm text-gray-600 mb-3">
+      <p className={`text-sm mb-3 ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
         {integration.description}
       </p>
 
@@ -82,8 +92,10 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           color="blue"
           onClick={(e) => {
             e.stopPropagation();
-            const handler = onConnect || onClick;
-            handler(integration);
+            if (!isDisabled) {
+              const handler = onConnect || onClick;
+              handler(integration);
+            }
           }}
         >
           Connect
