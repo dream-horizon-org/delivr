@@ -3,19 +3,19 @@ import { HTTP_STATUS } from '~constants/http';
 import type { TestManagementIntegrationService } from '~services/integrations/test-management/tenant-integration';
 import { CreateTenantTestManagementIntegrationDto, UpdateTenantTestManagementIntegrationDto } from '~types/integrations/test-management/tenant-integration';
 import {
-    errorResponse,
-    getErrorStatusCode,
-    notFoundResponse,
-    successMessageResponse,
-    successResponse,
-    validationErrorResponse
+  errorResponse,
+  getErrorStatusCode,
+  notFoundResponse,
+  successMessageResponse,
+  successResponse,
+  validationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
 import { TEST_MANAGEMENT_PROVIDERS } from './tenant-integration.constants';
 import {
-    validateConfigStructure,
-    validateIntegrationName,
-    validateProviderType
+  validateConfigStructure,
+  validateIntegrationName,
+  validateProviderType
 } from './tenant-integration.validation';
 
 interface AuthenticatedRequest extends Request {
