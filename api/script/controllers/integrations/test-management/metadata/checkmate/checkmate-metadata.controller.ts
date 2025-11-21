@@ -40,13 +40,16 @@ const getProjectsHandler = (metadataService: CheckmateMetadataService) => async 
 
     const response = await metadataService.getProjects(integrationId);
     
+    // Extract just the projects list from Checkmate's response structure
+    const projects = response.data.projectsList || [];
+    
     res.status(HTTP_STATUS.OK).json(
-      successResponse(response.data)
+      successResponse(projects)
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch projects';
+    console.error('[Checkmate Metadata] Failed to fetch projects:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(errorMessage)
+      errorResponse(error, 'Failed to fetch projects')
     );
   }
 };
@@ -78,13 +81,16 @@ const getSectionsHandler = (metadataService: CheckmateMetadataService) => async 
     const projectId = parseInt(String(projectIdParam), 10);
     const response = await metadataService.getSections(integrationId, projectId);
     
+    // Extract sections array from Checkmate's response structure
+    const sections = response.data || [];
+    
     res.status(HTTP_STATUS.OK).json(
-      successResponse(response.data)
+      successResponse(sections)
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch sections';
+    console.error('[Checkmate Metadata] Failed to fetch sections:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(errorMessage)
+      errorResponse(error, 'Failed to fetch sections')
     );
   }
 };
@@ -116,13 +122,16 @@ const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (r
     const projectId = parseInt(String(projectIdParam), 10);
     const response = await metadataService.getLabels(integrationId, projectId);
     
+    // Extract labels array from Checkmate's response structure
+    const labels = response.data || [];
+    
     res.status(HTTP_STATUS.OK).json(
-      successResponse(response.data)
+      successResponse(labels)
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch labels';
+    console.error('[Checkmate Metadata] Failed to fetch labels:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(errorMessage)
+      errorResponse(error, 'Failed to fetch labels')
     );
   }
 };
@@ -154,13 +163,16 @@ const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (r
     const projectId = parseInt(String(projectIdParam), 10);
     const response = await metadataService.getSquads(integrationId, projectId);
     
+    // Extract squads array from Checkmate's response structure
+    const squads = response.data || [];
+    
     res.status(HTTP_STATUS.OK).json(
-      successResponse(response.data)
+      successResponse(squads)
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch squads';
+    console.error('[Checkmate Metadata] Failed to fetch squads:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-      errorResponse(errorMessage)
+      errorResponse(error, 'Failed to fetch squads')
     );
   }
 };
