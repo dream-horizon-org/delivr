@@ -141,7 +141,6 @@ export class Auth {
   async isAuthenticated(
     request: AuthRequest
   ): Promise<User | TypedResponse<never>> {
-    console.log("headers:", request.headers.entries());
     const apiKey = request.headers.get("api-key") ?? "";
 
     if (apiKey.length) {
@@ -150,7 +149,6 @@ export class Auth {
     }
 
     try {
-      console.log("Trying to authenticate:")
       return await Auth.authenticator.authenticate(
         SocialsProvider.GOOGLE,
         request,
@@ -159,7 +157,14 @@ export class Auth {
         }
       );
     } catch (e) {
-      console.log("error", e);
+      // OAuth redirects (302) are normal flow, not errors - don't log them
+      // Only log actual authentication errors
+      if (e instanceof Response && e.status !== 302) {
+        console.error("[Auth] Authentication failed:", e.status, e.statusText);
+      } else if (!(e instanceof Response)) {
+        console.error("[Auth] Authentication error:", e);
+      }
+      
       return redirect(AuthenticatorRoutes.LOGIN, {
         headers: {
           "Set-Cookie": await redirectTo.serialize(

@@ -6,7 +6,20 @@ export { SlackIntegrationService } from './slack-integration';
 
 // CI/CD Integrations
 export { JenkinsIntegrationService } from './jenkins-integration';
-export { GitHubActionsIntegrationService } from './github-actions-integration';
+export { githubActionsIntegrationService as GitHubActionsIntegrationService } from './github-actions-integration';
+export { CICDIntegrationService } from './cicd-integration';
+export type {
+  CICDProviderType,
+  WorkflowType,
+  PlatformType,
+  JobParameter,
+  CICDWorkflow,
+  WorkflowFilters,
+  CreateWorkflowRequest,
+  WorkflowListResponse,
+  JobParametersResponse,
+  WorkflowResponse
+} from './cicd-integration';
 
 // Test Management Integrations
 export { CheckmateIntegrationService } from './checkmate-integration';

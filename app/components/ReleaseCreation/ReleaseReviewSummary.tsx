@@ -113,12 +113,12 @@ export function ReleaseReviewSummary({
                   <div className="mt-2 space-y-1">
                     {details.regressionBuildSlots.map((slot) => {
                       const slotDate = new Date(details.releaseDate!);
-                      slotDate.setDate(slotDate.getDate() - slot.offsetDays);
+                      slotDate.setDate(slotDate.getDate() - slot.regressionSlotOffsetFromKickoff);
                       return (
                         <div key={slot.id} className="text-xs bg-gray-50 p-2 rounded">
                           <Text size="xs" fw={500}>{slot.name}</Text>
                           <Text size="xs" c="dimmed">
-                            {slotDate.toLocaleDateString()} at {slot.time} (RD-{slot.offsetDays} days)
+                            {slotDate.toLocaleDateString()} at {slot.time} (RD-{slot.regressionSlotOffsetFromKickoff} days)
                           </Text>
                         </div>
                       );

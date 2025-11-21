@@ -381,38 +381,9 @@ export async function verifySlackConnection(
 /**
  * Add CI/CD pipeline
  */
-export async function addCICDPipeline(
-  tenantId: string,
-  pipeline: Omit<SetupData['cicdPipelines'][0], 'id' | 'createdAt'>
-): Promise<SetupData['cicdPipelines'][0]> {
-  const setupData = mockSetupData.get(tenantId) || { tenantId };
-  
-  const newPipeline = {
-    ...pipeline,
-    id: `pipeline-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  
-  const pipelines = setupData.cicdPipelines || [];
-  pipelines.push(newPipeline);
-  
-  setupData.cicdPipelines = pipelines;
-  mockSetupData.set(tenantId, setupData);
-  
-  return newPipeline;
-}
 
 /**
  * Remove CI/CD pipeline
  */
-export async function removeCICDPipeline(
-  tenantId: string,
-  pipelineId: string
-): Promise<void> {
-  const setupData = mockSetupData.get(tenantId);
-  if (!setupData || !setupData.cicdPipelines) return;
-  
-  setupData.cicdPipelines = setupData.cicdPipelines.filter(p => p.id !== pipelineId);
-  mockSetupData.set(tenantId, setupData);
-}
+
 

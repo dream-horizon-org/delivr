@@ -122,6 +122,105 @@ export class GitHubActionsIntegrationService extends IntegrationService {
       };
     }
   }
+
+  // ============================================================================
+  // Workflow Management
+  // ============================================================================
+
+  /**
+   * Fetch GitHub Actions workflow inputs (job parameters)
+   */
+  async fetchWorkflowInputs(tenantId: string, userId: string, workflowUrl: string): Promise<any> {
+    try {
+      return await this.post(
+        `/tenants/${tenantId}/integrations/ci-cd/github-actions/job-parameters`,
+        { workflowUrl },
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        parameters: [],
+        error: error.message || 'Failed to fetch workflow inputs'
+      };
+    }
+  }
+
+  /**
+   * List GitHub Actions workflows for tenant
+   */
+  async listWorkflows(tenantId: string, userId: string, filters?: any): Promise<any> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('providerType', 'GITHUB_ACTIONS');
+      if (filters?.platform) queryParams.append('platform', filters.platform);
+      if (filters?.workflowType) queryParams.append('workflowType', filters.workflowType);
+
+      return await this.get(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows?${queryParams.toString()}`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        workflows: [],
+        error: error.message || 'Failed to list workflows'
+      };
+    }
+  }
+
+  /**
+   * Create GitHub Actions workflow configuration
+   */
+  async createWorkflow(tenantId: string, userId: string, data: any): Promise<any> {
+    try {
+      return await this.post(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows`,
+        { ...data, providerType: 'GITHUB_ACTIONS' },
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to create workflow'
+      };
+    }
+  }
+
+  /**
+   * Update GitHub Actions workflow configuration
+   */
+  async updateWorkflow(tenantId: string, workflowId: string, userId: string, data: any): Promise<any> {
+    try {
+      return await this.patch(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        data,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to update workflow'
+      };
+    }
+  }
+
+  /**
+   * Delete GitHub Actions workflow configuration
+   */
+  async deleteWorkflow(tenantId: string, workflowId: string, userId: string): Promise<any> {
+    try {
+      return await this.delete(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to delete workflow'
+      };
+    }
+  }
 }
 
 export const githubActionsIntegrationService = new GitHubActionsIntegrationService();

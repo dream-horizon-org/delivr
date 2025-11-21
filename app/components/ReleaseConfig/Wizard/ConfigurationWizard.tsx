@@ -21,6 +21,7 @@ import { VerticalStepper } from '~/components/Common/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
+import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
 import { SchedulingConfig } from '../Scheduling/SchedulingConfig';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
 
@@ -241,6 +242,7 @@ export function ConfigurationWizard({
               github: availableIntegrations.github,
             }}
             selectedPlatforms={config.defaultTargets || []}
+            tenantId={organizationId}
           />
         );
         
@@ -252,6 +254,15 @@ export function ConfigurationWizard({
             availableIntegrations={{
               checkmate: availableIntegrations.checkmate,
             }}
+          />
+        );
+        
+      case STEP_INDEX.PROJECT_MANAGEMENT: // Jira Project Management
+        return (
+          <JiraProjectStep
+            config={config.jiraProject!}
+            onChange={(jiraProject) => setConfig({ ...config, jiraProject })}
+            availableIntegrations={availableIntegrations.jira}
           />
         );
         
@@ -312,14 +323,6 @@ export function ConfigurationWizard({
         {/* Main Content - Right Side */}
         <div className="col-span-9">
           <Paper shadow="sm" p="xl" radius="md">
-            <div className="mb-6 px-4 py-4">
-              <Text size="xl" fw={700} className="mb-2">
-                {WIZARD_STEPS[currentStep].title}
-              </Text>
-              <Text size="sm" c="dimmed">
-                {WIZARD_STEPS[currentStep].description}
-              </Text>
-            </div>
             
             <div className="min-h-[600px] mb-6 px-4">{renderStepContent()}</div>
             

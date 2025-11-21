@@ -1,11 +1,11 @@
 /**
- * Jira Project Step Component
- * Standalone step for configuring Jira project integration
+ * Jira Project Configuration Step
+ * Step in the Release Configuration wizard for Jira project management setup
  */
 
 import { Stack, Text } from '@mantine/core';
 import type { JiraProjectConfig } from '~/types/release-config';
-import { JiraProjectConfig as JiraProjectConfigCard } from '../Communication/JiraProjectConfig';
+import { JiraProjectConfigCard } from '../Communication/JiraProjectConfigCard';
 
 interface JiraProjectStepProps {
   config: JiraProjectConfig;
@@ -38,10 +38,10 @@ export function JiraProjectStep({
     <Stack gap="lg">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Jira Project Management (Optional)
+          Jira Project Management
         </Text>
         <Text size="sm" c="dimmed">
-          Connect your Jira project to track releases and link builds to issues
+          Connect your Jira project to track releases and link builds to issues (Optional)
         </Text>
       </div>
 
@@ -65,4 +65,3 @@ export function JiraProjectStep({
     </Stack>
   );
 }
-

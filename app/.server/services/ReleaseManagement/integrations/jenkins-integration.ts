@@ -222,6 +222,105 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
       };
     }
   }
+
+  // ============================================================================
+  // Workflow Management
+  // ============================================================================
+
+  /**
+   * Fetch Jenkins job parameters
+   */
+  async fetchJobParameters(tenantId: string, userId: string, jobUrl: string): Promise<any> {
+    try {
+      return await this.post(
+        `/tenants/${tenantId}/integrations/ci-cd/jenkins/job-parameters`,
+        { jobUrl },
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        parameters: [],
+        error: error.message || 'Failed to fetch job parameters'
+      };
+    }
+  }
+
+  /**
+   * List Jenkins workflows for tenant
+   */
+  async listWorkflows(tenantId: string, userId: string, filters?: any): Promise<any> {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('providerType', 'JENKINS');
+      if (filters?.platform) queryParams.append('platform', filters.platform);
+      if (filters?.workflowType) queryParams.append('workflowType', filters.workflowType);
+
+      return await this.get(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows?${queryParams.toString()}`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        workflows: [],
+        error: error.message || 'Failed to list workflows'
+      };
+    }
+  }
+
+  /**
+   * Create Jenkins workflow configuration
+   */
+  async createWorkflow(tenantId: string, userId: string, data: any): Promise<any> {
+    try {
+      return await this.post(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows`,
+        { ...data, providerType: 'JENKINS' },
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to create workflow'
+      };
+    }
+  }
+
+  /**
+   * Update Jenkins workflow configuration
+   */
+  async updateWorkflow(tenantId: string, workflowId: string, userId: string, data: any): Promise<any> {
+    try {
+      return await this.patch(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        data,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to update workflow'
+      };
+    }
+  }
+
+  /**
+   * Delete Jenkins workflow configuration
+   */
+  async deleteWorkflow(tenantId: string, workflowId: string, userId: string): Promise<any> {
+    try {
+      return await this.delete(
+        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        userId
+      );
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to delete workflow'
+      };
+    }
+  }
 }
 
 // Export singleton instance

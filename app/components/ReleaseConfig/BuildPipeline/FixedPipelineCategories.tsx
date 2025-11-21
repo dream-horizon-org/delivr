@@ -3,10 +3,11 @@
  * Shows fixed pipeline categories based on selected platforms
  */
 
-import { useState } from 'react';
-import { Stack, Card, Text, Button, Badge, Group } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Stack, Card, Text, Button, Badge, Group, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import type { BuildPipelineJob, TargetPlatform } from '~/types/release-config';
+import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
 
 interface FixedPipelineCategoriesProps {
@@ -17,6 +18,7 @@ interface FixedPipelineCategoriesProps {
     github: Array<{ id: string; name: string }>;
   };
   selectedPlatforms: TargetPlatform[];
+  tenantId: string; // Add tenant ID prop
 }
 
 interface PipelineCategory {
@@ -33,14 +35,47 @@ export function FixedPipelineCategories({
   onChange,
   availableIntegrations,
   selectedPlatforms,
+  tenantId,
 }: FixedPipelineCategoriesProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [editingCategory, setEditingCategory] = useState<PipelineCategory | null>(null);
   const [editingPipeline, setEditingPipeline] = useState<BuildPipelineJob | undefined>();
+  
+  // Workflows state
+  const [workflows, setWorkflows] = useState<CICDWorkflow[]>([]);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
 
   // Determine which platforms are needed
   const needsAndroid = selectedPlatforms.includes('PLAY_STORE');
   const needsIOS = selectedPlatforms.includes('APP_STORE');
+  
+  // Fetch workflows when component mounts
+  useEffect(() => {
+    if (tenantId) {
+      fetchWorkflows();
+    }
+  }, [tenantId]);
+  
+  const fetchWorkflows = async () => {
+    if (!tenantId) return;
+    
+    setLoadingWorkflows(true);
+    
+    try {
+      const response = await fetch(`/api/v1/tenants/${tenantId}/workflows`);
+      const result = await response.json();
+      
+      if (result.success && result.workflows) {
+        setWorkflows(result.workflows);
+      } else {
+        console.error('Failed to fetch workflows:', result.error);
+      }
+    } catch (error) {
+      console.error('Error fetching workflows:', error);
+    } finally {
+      setLoadingWorkflows(false);
+    }
+  };
 
   // Define all possible pipeline categories
   const androidCategories: PipelineCategory[] = [
@@ -155,7 +190,10 @@ export function FixedPipelineCategories({
   }
 
   return (
-    <Stack gap="md">
+    <div className="relative">
+      <LoadingOverlay visible={loadingWorkflows} />
+      
+      <Stack gap="md">
       {/* Header with validation status */}
       <div>
         <Text fw={600} size="lg" className="mb-1">
@@ -320,8 +358,11 @@ export function FixedPipelineCategories({
         existingPipelines={pipelines}
         fixedPlatform={editingCategory?.platform}
         fixedEnvironment={editingCategory?.environment}
+        workflows={workflows}
+        tenantId={tenantId}
       />
-    </Stack>
+      </Stack>
+    </div>
   );
 }
 

@@ -4,7 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Modal, Button, TextInput, Select, Stack, Group } from '@mantine/core';
+import { Modal, Button, TextInput, Select, Stack, Group, SegmentedControl, Text, Card, Badge } from '@mantine/core';
+import { IconServer, IconBrandGithub } from '@tabler/icons-react';
 import type { 
   BuildPipelineJob, 
   BuildProvider, 
@@ -14,6 +15,7 @@ import type {
   GitHubActionsConfig,
   ManualUploadConfig,
 } from '~/types/release-config';
+import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineProviderSelect } from './PipelineProviderSelect';
 import { JenkinsConfigForm } from './JenkinsConfigForm';
 import { GitHubActionsConfigForm } from './GitHubActionsConfigForm';
@@ -32,6 +34,8 @@ interface PipelineEditModalProps {
   existingPipelines: BuildPipelineJob[]; // For validation
   fixedPlatform?: 'ANDROID' | 'IOS'; // Fixed platform (cannot be changed)
   fixedEnvironment?: BuildEnvironment; // Fixed environment (cannot be changed)
+  workflows?: CICDWorkflow[]; // Available workflows to select from
+  tenantId: string; // Tenant ID for API calls
 }
 
 const platformOptions = [
@@ -55,9 +59,14 @@ export function PipelineEditModal({
   existingPipelines,
   fixedPlatform,
   fixedEnvironment,
+  workflows = [],
+  tenantId,
 }: PipelineEditModalProps) {
   const isEditing = !!pipeline;
-  console.log('fixedPlatform', fixedPlatform, 'fixedEnvironment', fixedEnvironment);
+  
+  // Configuration mode: 'existing' or 'new'
+  const [configMode, setConfigMode] = useState<'existing' | 'new'>('existing');
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>();
   
   const [name, setName] = useState(pipeline?.name || '');
   const [platform, setPlatform] = useState<Platform>(
@@ -75,6 +84,15 @@ export function PipelineEditModal({
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   
+  // Filter workflows by platform and environment
+  const relevantWorkflows = workflows.filter(w => {
+    if (fixedPlatform && w.platform !== fixedPlatform) return false;
+    if (fixedEnvironment && w.workflowType !== fixedEnvironment) return false;
+    return true;
+  });
+  
+  const selectedWorkflow = relevantWorkflows.find(w => w.id === selectedWorkflowId);
+  
   // Determine available providers based on integrations
   const availableProviders: BuildProvider[] = [];
   if (availableIntegrations.jenkins.length > 0) availableProviders.push('JENKINS');
@@ -90,8 +108,11 @@ export function PipelineEditModal({
       setProvider(pipeline?.provider || 'JENKINS');
       setProviderConfig(pipeline?.providerConfig || { type: 'JENKINS' });
       setErrors({});
+      setSelectedWorkflowId(undefined);
+      // Default to 'existing' if workflows available, otherwise 'new'
+      setConfigMode(relevantWorkflows.length > 0 ? 'existing' : 'new');
     }
-  }, [opened, pipeline, fixedPlatform, fixedEnvironment]);
+  }, [opened, pipeline, fixedPlatform, fixedEnvironment, relevantWorkflows.length]);
   
   // Reset provider config when provider changes
   useEffect(() => {
@@ -132,24 +153,32 @@ export function PipelineEditModal({
       newErrors.environment = `A pipeline for ${platform} ${environment} already exists`;
     }
     
-    if (provider === 'JENKINS') {
-      const config = providerConfig as Partial<JenkinsConfig>;
-      if (!config.integrationId) {
-        newErrors.integration = 'Jenkins instance is required';
+    // Validate based on config mode
+    if (configMode === 'existing') {
+      if (!selectedWorkflowId) {
+        newErrors.workflow = 'Please select a workflow';
       }
-      if (!config.jobUrl) {
-        newErrors.jobUrl = 'Job URL is required';
-      }
-      if (!config.jobName) {
-        newErrors.jobName = 'Job name is required';
-      }
-    } else if (provider === 'GITHUB_ACTIONS') {
-      const config = providerConfig as Partial<GitHubActionsConfig>;
-      if (!config.integrationId) {
-        newErrors.integration = 'GitHub repository is required';
-      }
-      if (!config.workflowPath) {
-        newErrors.workflowPath = 'Workflow path is required';
+    } else {
+      // Validate new configuration
+      if (provider === 'JENKINS') {
+        const config = providerConfig as Partial<JenkinsConfig>;
+        if (!config.integrationId) {
+          newErrors.integration = 'Jenkins instance is required';
+        }
+        if (!config.jobUrl) {
+          newErrors.jobUrl = 'Job URL is required';
+        }
+        if (!config.jobName) {
+          newErrors.jobName = 'Job name is required';
+        }
+      } else if (provider === 'GITHUB_ACTIONS') {
+        const config = providerConfig as Partial<GitHubActionsConfig>;
+        if (!config.integrationId) {
+          newErrors.integration = 'GitHub repository is required';
+        }
+        if (!config.workflowPath) {
+          newErrors.workflowPath = 'Workflow path is required';
+        }
       }
     }
     
@@ -160,13 +189,44 @@ export function PipelineEditModal({
   const handleSave = () => {
     if (!validate()) return;
     
+    let finalProvider: BuildProvider;
+    let finalProviderConfig: JenkinsConfig | GitHubActionsConfig | ManualUploadConfig;
+    
+    if (configMode === 'existing' && selectedWorkflow) {
+      // Use workflow configuration
+      finalProvider = selectedWorkflow.providerType === 'JENKINS' ? 'JENKINS' : 'GITHUB_ACTIONS';
+      
+      if (selectedWorkflow.providerType === 'JENKINS') {
+        finalProviderConfig = {
+          type: 'JENKINS',
+          integrationId: selectedWorkflow.integrationId,
+          jobUrl: selectedWorkflow.workflowUrl,
+          jobName: selectedWorkflow.displayName,
+          parameters: selectedWorkflow.parameters || {},
+        };
+      } else {
+        finalProviderConfig = {
+          type: 'GITHUB_ACTIONS',
+          integrationId: selectedWorkflow.integrationId,
+          workflowId: selectedWorkflow.id,
+          workflowPath: selectedWorkflow.workflowUrl,
+          branch: 'main',
+          inputs: selectedWorkflow.parameters || {},
+        };
+      }
+    } else {
+      // Use new configuration
+      finalProvider = provider;
+      finalProviderConfig = providerConfig as any;
+    }
+    
     const pipelineData: BuildPipelineJob = {
       id: pipeline?.id || generateConfigId(),
       name: name.trim(),
       platform,
       environment,
-      provider,
-      providerConfig: providerConfig as any,
+      provider: finalProvider,
+      providerConfig: finalProviderConfig,
       enabled: pipeline?.enabled ?? true,
       timeout: pipeline?.timeout || 3600,
       retryAttempts: pipeline?.retryAttempts || 3,
@@ -223,38 +283,143 @@ export function PipelineEditModal({
           />
         </Group>
         
-        <PipelineProviderSelect
-          value={provider}
-          onChange={setProvider}
-          availableProviders={availableProviders}
-        />
-        
-        {errors.integration && (
-          <div className="text-sm text-red-600">{errors.integration}</div>
+        {/* Configuration Mode Selection */}
+        {relevantWorkflows.length > 0 && (
+          <div>
+            <Text size="sm" fw={500} className="mb-2">
+              Pipeline Configuration
+            </Text>
+            <SegmentedControl
+              value={configMode}
+              onChange={(val) => setConfigMode(val as 'existing' | 'new')}
+              data={[
+                { value: 'existing', label: `Use Existing (${relevantWorkflows.length})` },
+                { value: 'new', label: 'Create New' },
+              ]}
+              fullWidth
+            />
+          </div>
         )}
         
-        {/* Provider-specific configuration forms */}
-        {provider === 'JENKINS' && (
-          <JenkinsConfigForm
-            config={providerConfig as Partial<JenkinsConfig>}
-            onChange={setProviderConfig}
-            availableIntegrations={availableIntegrations.jenkins}
-          />
+        {/* Existing Workflow Selection */}
+        {configMode === 'existing' && relevantWorkflows.length > 0 && (
+          <Stack gap="sm">
+            <Select
+              label="Select Workflow"
+              placeholder="Choose a pre-configured workflow"
+              data={relevantWorkflows.map(w => ({
+                value: w.id,
+                label: w.displayName,
+              }))}
+              value={selectedWorkflowId}
+              onChange={(val) => {
+                setSelectedWorkflowId(val || undefined);
+                // Auto-fill pipeline name if empty
+                const workflow = relevantWorkflows.find(w => w.id === val);
+                if (workflow && !name) {
+                  setName(workflow.displayName);
+                }
+              }}
+              required
+              error={errors.workflow}
+              searchable
+            />
+            
+            {/* Workflow Preview */}
+            {selectedWorkflow && (
+              <Card withBorder className="bg-gray-50">
+                <Stack gap="xs">
+                  <Group gap="xs">
+                    {selectedWorkflow.providerType === 'JENKINS' ? (
+                      <IconServer size={18} className="text-red-600" />
+                    ) : (
+                      <IconBrandGithub size={18} />
+                    )}
+                    <Text size="sm" fw={600}>
+                      {selectedWorkflow.displayName}
+                    </Text>
+                  </Group>
+                  
+                  <Group gap="xs">
+                    <Badge size="sm" color={selectedWorkflow.providerType === 'JENKINS' ? 'red' : 'dark'}>
+                      {selectedWorkflow.providerType.replace('_', ' ')}
+                    </Badge>
+                    <Badge size="sm" color="blue">
+                      {selectedWorkflow.platform}
+                    </Badge>
+                  </Group>
+                  
+                  <div className="bg-white rounded p-2 border border-gray-200">
+                    <Text size="xs" c="dimmed" className="font-mono break-all">
+                      {selectedWorkflow.workflowUrl}
+                    </Text>
+                  </div>
+                  
+                  {selectedWorkflow.parameters && Object.keys(selectedWorkflow.parameters).length > 0 && (
+                    <div>
+                      <Text size="xs" fw={500} c="dimmed" className="mb-1">
+                        Parameters:
+                      </Text>
+                      <div className="bg-white rounded p-2 border border-gray-200 space-y-1">
+                        {Object.entries(selectedWorkflow.parameters).slice(0, 3).map(([key, value]) => (
+                          <Text key={key} size="xs" className="font-mono">
+                            <span className="text-gray-600">{key}:</span>{' '}
+                            <span className="text-blue-600">{String(value)}</span>
+                          </Text>
+                        ))}
+                        {Object.keys(selectedWorkflow.parameters).length > 3 && (
+                          <Text size="xs" c="dimmed">
+                            +{Object.keys(selectedWorkflow.parameters).length - 3} more...
+                          </Text>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Stack>
+              </Card>
+            )}
+          </Stack>
         )}
         
-        {provider === 'GITHUB_ACTIONS' && (
-          <GitHubActionsConfigForm
-            config={providerConfig as Partial<GitHubActionsConfig>}
-            onChange={setProviderConfig}
-            availableIntegrations={availableIntegrations.github}
-          />
-        )}
-        
-        {provider === 'MANUAL_UPLOAD' && (
-          <ManualUploadConfigForm
-            config={providerConfig as Partial<ManualUploadConfig>}
-            onChange={setProviderConfig}
-          />
+        {/* New Configuration Form */}
+        {configMode === 'new' && (
+          <Stack gap="md">
+            <PipelineProviderSelect
+              value={provider}
+              onChange={setProvider}
+              availableProviders={availableProviders}
+            />
+            
+            {errors.integration && (
+              <div className="text-sm text-red-600">{errors.integration}</div>
+            )}
+            
+            {/* Provider-specific configuration forms */}
+            {provider === 'JENKINS' && (
+              <JenkinsConfigForm
+                config={providerConfig as Partial<JenkinsConfig>}
+                onChange={setProviderConfig}
+                availableIntegrations={availableIntegrations.jenkins}
+                tenantId={tenantId}
+              />
+            )}
+            
+            {provider === 'GITHUB_ACTIONS' && (
+              <GitHubActionsConfigForm
+                config={providerConfig as Partial<GitHubActionsConfig>}
+                onChange={setProviderConfig}
+                availableIntegrations={availableIntegrations.github}
+                tenantId={tenantId}
+              />
+            )}
+            
+            {provider === 'MANUAL_UPLOAD' && (
+              <ManualUploadConfigForm
+                config={providerConfig as Partial<ManualUploadConfig>}
+                onChange={setProviderConfig}
+              />
+            )}
+          </Stack>
         )}
         
         <Group justify="flex-end" className="mt-4">
