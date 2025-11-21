@@ -6,21 +6,21 @@ export const createConfigurationRoutes = (service: ProjectManagementConfigServic
   const router = Router();
   const controller = createProjectManagementConfigController(service);
 
-  router.post('/projects/:projectId/project-management/configs', controller.createConfig);
+  router.post('/tenants/:tenantId/project-management/configs', controller.createConfig);
 
-  router.get('/projects/:projectId/project-management/configs', controller.listConfigs);
+  router.get('/tenants/:tenantId/project-management/configs', controller.listConfigs);
 
-  router.get('/projects/:projectId/project-management/configs/:configId', controller.getConfig);
+  router.get('/tenants/:tenantId/project-management/configs/:configId', controller.getConfig);
 
-  router.put('/projects/:projectId/project-management/configs/:configId', controller.updateConfig);
+  router.put('/tenants/:tenantId/project-management/configs/:configId', controller.updateConfig);
 
   router.delete(
-    '/projects/:projectId/project-management/configs/:configId',
+    '/tenants/:tenantId/project-management/configs/:configId',
     controller.deleteConfig
   );
 
   router.post(
-    '/projects/:projectId/project-management/configs/:configId/verify',
+    '/tenants/:tenantId/project-management/configs/:configId/verify',
     controller.verifyConfig
   );
 

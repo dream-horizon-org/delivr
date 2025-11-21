@@ -26,6 +26,24 @@ interface AuthenticatedRequest extends Request {
 }
 
 /**
+ * Mask sensitive data in config for API responses
+ * Replaces apiToken with masked version
+ */
+function maskSensitiveConfig(integration: any): any {
+  if (!integration?.config?.apiToken) {
+    return integration;
+  }
+  
+  return {
+    ...integration,
+    config: {
+      ...integration.config,
+      apiToken: '***' + integration.config.apiToken.slice(-4) // Show last 4 chars only
+    }
+  };
+}
+
+/**
  * Get available providers
  * GET /integrations/project-management/providers
  */
@@ -45,13 +63,13 @@ const getAvailableProvidersHandler = () =>
   };
 
 /**
- * Create new project management integration for a project
- * POST /projects/:projectId/integrations/project-management
+ * Create new project management integration for a tenant
+ * POST /tenants/:tenantId/integrations/project-management
  */
 const createIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { projectId } = req.params;
+      const { tenantId } = req.params;
       const { name, providerType, config } = req.body;
 
       // Validate name
@@ -78,7 +96,7 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
       }
 
       const data: CreateProjectManagementIntegrationDto = {
-        projectId,
+        tenantId,
         name,
         providerType,
         config,
@@ -87,7 +105,8 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
       const integration = await service.createIntegration(data);
 
-      res.status(HTTP_STATUS.CREATED).json(successResponse(integration));
+      // Mask sensitive data in response
+      res.status(HTTP_STATUS.CREATED).json(successResponse(maskSensitiveConfig(integration)));
     } catch (error) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
         errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.CREATE_INTEGRATION_FAILED)
@@ -96,17 +115,19 @@ const createIntegrationHandler = (service: ProjectManagementIntegrationService) 
   };
 
 /**
- * List all integrations for a project
- * GET /projects/:projectId/integrations/project-management
+ * List all integrations for a tenant
+ * GET /tenants/:tenantId/integrations/project-management
  */
 const listIntegrationsHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { projectId } = req.params;
+      const { tenantId } = req.params;
 
-      const integrations = await service.listIntegrations(projectId);
+      const integrations = await service.listIntegrations(tenantId);
 
-      res.status(HTTP_STATUS.OK).json(successResponse(integrations));
+      // Mask sensitive data in all integrations
+      const maskedIntegrations = integrations.map(maskSensitiveConfig);
+      res.status(HTTP_STATUS.OK).json(successResponse(maskedIntegrations));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
@@ -117,7 +138,7 @@ const listIntegrationsHandler = (service: ProjectManagementIntegrationService) =
 
 /**
  * Get single integration by ID
- * GET /projects/:projectId/integrations/project-management/:integrationId
+ * GET /tenants/:tenantId/integrations/project-management/:integrationId
  */
 const getIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -134,7 +155,8 @@ const getIntegrationHandler = (service: ProjectManagementIntegrationService) =>
         return;
       }
 
-      res.status(HTTP_STATUS.OK).json(successResponse(integration));
+      // Mask sensitive data in response
+      res.status(HTTP_STATUS.OK).json(successResponse(maskSensitiveConfig(integration)));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
@@ -145,7 +167,7 @@ const getIntegrationHandler = (service: ProjectManagementIntegrationService) =>
 
 /**
  * Update integration
- * PUT /projects/:projectId/integrations/project-management/:integrationId
+ * PUT /tenants/:tenantId/integrations/project-management/:integrationId
  */
 const updateIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -195,7 +217,8 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
         return;
       }
 
-      res.status(HTTP_STATUS.OK).json(successResponse(integration));
+      // Mask sensitive data in response
+      res.status(HTTP_STATUS.OK).json(successResponse(maskSensitiveConfig(integration)));
     } catch (error) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
         errorResponse(error, PROJECT_MANAGEMENT_ERROR_MESSAGES.UPDATE_INTEGRATION_FAILED)
@@ -205,7 +228,7 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * Delete integration
- * DELETE /projects/:projectId/integrations/project-management/:integrationId
+ * DELETE /tenants/:tenantId/integrations/project-management/:integrationId
  */
 const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -235,7 +258,7 @@ const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * Verify integration
- * POST /projects/:projectId/integrations/project-management/:integrationId/verify
+ * POST /tenants/:tenantId/integrations/project-management/:integrationId/verify
  */
 const verifyIntegrationHandler = (service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {

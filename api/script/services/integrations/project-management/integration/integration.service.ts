@@ -35,10 +35,10 @@ export class ProjectManagementIntegrationService {
   }
 
   /**
-   * List all integrations for a project
+   * List all integrations for a tenant
    */
-  async listIntegrations(projectId: string): Promise<ProjectManagementIntegration[]> {
-    return await this.repository.findAll({ projectId });
+  async listIntegrations(tenantId: string): Promise<ProjectManagementIntegration[]> {
+    return await this.repository.findAll({ tenantId });
   }
 
   /**
