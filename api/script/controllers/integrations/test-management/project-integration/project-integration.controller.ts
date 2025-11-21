@@ -225,10 +225,9 @@ const verifyIntegrationHandler = (service: TestManagementIntegrationService) =>
 
       const result = await service.verifyProjectIntegration(integrationId);
       
-      const isVerificationSuccessful = result.success;
-      const statusCode = isVerificationSuccessful ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
-
-      res.status(statusCode).json(successResponse(result));
+      // Always return 200 OK - the HTTP status indicates the API call succeeded,
+      // not whether credentials are valid. Credential validity is in result.success.
+      res.status(HTTP_STATUS.OK).json(successResponse(result));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
@@ -264,10 +263,9 @@ const verifyCredentialsHandler = (service: TestManagementIntegrationService) =>
 
       const result = await service.verifyCredentials(providerType, config);
       
-      const isVerificationSuccessful = result.success;
-      const statusCode = isVerificationSuccessful ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST;
-
-      res.status(statusCode).json(successResponse(result));
+      // Always return 200 OK - the HTTP status indicates the API call succeeded,
+      // not whether credentials are valid. Credential validity is in result.success.
+      res.status(HTTP_STATUS.OK).json(successResponse(result));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
