@@ -16,8 +16,10 @@ import {
   Select,
   Checkbox,
   Divider,
+  Badge,
+  Card,
 } from '@mantine/core';
-import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { IconAlertCircle, IconCheck, IconDeviceMobile } from '@tabler/icons-react';
 import type {
   StoreType,
   Platform,
@@ -44,9 +46,13 @@ export function AppDistributionConnectionFlow({
   const [isSaving, setIsSaving] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(
-    allowedPlatforms.length === 1 ? allowedPlatforms : []
-  );
+  // Platforms are fixed based on store type (from system metadata)
+  // Validate that we have at least one platform from metadata
+  const selectedPlatforms = allowedPlatforms;
+  
+  if (allowedPlatforms.length === 0) {
+    console.error('[AppDistribution] No platforms provided from system metadata');
+  }
 
   // Play Store form state
   const [playStoreData, setPlayStoreData] = useState<Partial<PlayStorePayload>>({
@@ -322,29 +328,40 @@ export function AppDistributionConnectionFlow({
 
   return (
     <Stack gap="lg">
-      {/* Platform Selection */}
-      {allowedPlatforms.length > 1 && (
-        <div>
-          <Text fw={500} size="sm" className="mb-2">
-            Select Platforms
-          </Text>
-          <Group gap="sm">
-            {allowedPlatforms.map((platform) => (
-              <Checkbox
-                key={platform}
-                label={platform}
-                checked={selectedPlatforms.includes(platform)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedPlatforms([...selectedPlatforms, platform]);
-                  } else {
-                    setSelectedPlatforms(selectedPlatforms.filter((p) => p !== platform));
-                  }
-                }}
-              />
-            ))}
+      {/* Platform Information */}
+      {allowedPlatforms.length === 0 ? (
+        <Alert icon={<IconAlertCircle size={16} />} color="red">
+          No platforms configured for this store type. Please contact support.
+        </Alert>
+      ) : (
+        <Card padding="md" radius="md" withBorder className="bg-blue-50 dark:bg-blue-950/20">
+          <Group gap="md" align="center">
+            <IconDeviceMobile size={24} className="text-blue-600" />
+            <div className="flex-1">
+              <Text size="sm" fw={500} className="mb-1">
+                Target Platform{allowedPlatforms.length > 1 ? 's' : ''}
+              </Text>
+              <Group gap="xs">
+                {allowedPlatforms.map((platform) => (
+                  <Badge
+                    key={platform}
+                    size="lg"
+                    variant="filled"
+                    color="blue"
+                    leftSection={<span>📱</span>}
+                  >
+                    {platform}
+                  </Badge>
+                ))}
+              </Group>
+            </div>
           </Group>
-        </div>
+          <Text size="xs" c="dimmed" mt="xs">
+            {storeType === 'play_store' 
+              ? 'This integration will be used for Android app distribution via Google Play Store'
+              : 'This integration will be used for iOS app distribution via Apple App Store'}
+          </Text>
+        </Card>
       )}
 
       {/* Form */}
