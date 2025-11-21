@@ -24,5 +24,6 @@ CREATE TABLE IF NOT EXISTS test_management_configs (
   
   -- Indexes
   KEY idx_tmc_tenant_id (tenant_id),
-  KEY idx_tmc_integration_id (integration_id)
+  KEY idx_tmc_integration_id (integration_id),
+  KEY idx_tmc_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

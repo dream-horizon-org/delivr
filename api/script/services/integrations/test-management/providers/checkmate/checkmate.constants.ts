@@ -44,5 +44,6 @@ export const CHECKMATE_QUERY_PARAMS = {
 } as const;
 
 export const CHECKMATE_DEFAULTS = {
-  RUN_NAME: 'Test Run'
+  RUN_NAME: 'Test Run',
+  METADATA_PAGE_SIZE: 1000  // Default page size for fetching metadata (projects, sections, etc.)
 } as const;

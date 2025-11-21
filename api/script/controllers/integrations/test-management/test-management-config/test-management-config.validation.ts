@@ -85,6 +85,8 @@ export const validatePlatformConfigurations = (
 /**
  * Validate pass threshold percent
  * Returns error message if invalid, null if valid
+ * 
+ * Note: Must be an integer (0-100) to match database INT type
  */
 export const validatePassThresholdPercent = (value: unknown): string | null => {
   const isNumber = typeof value === 'number';
@@ -97,6 +99,12 @@ export const validatePassThresholdPercent = (value: unknown): string | null => {
 
   if (isNaN) {
     return 'passThresholdPercent must be a valid number';
+  }
+
+  const isInteger = Number.isInteger(value);
+
+  if (!isInteger) {
+    return 'passThresholdPercent must be an integer (decimals not supported)';
   }
 
   const isBelowZero = value < 0;

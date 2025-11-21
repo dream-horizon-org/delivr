@@ -189,12 +189,6 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
           app.use(api.releaseManagement({ storage: storage }));
         } else {
           app.use(auth.router());
-          
-          // DOTA Management Routes (deployments, apps, packages)
-          app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
-          
-          // Release Management Routes (releases, builds, integrations)
-          app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
         }
         // Release Management Routes (releases, builds, integrations)
         app.use(auth.authenticate, api.releaseManagement({ storage: storage }));

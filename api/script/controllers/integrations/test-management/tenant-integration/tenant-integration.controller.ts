@@ -3,19 +3,19 @@ import { HTTP_STATUS } from '~constants/http';
 import type { TestManagementIntegrationService } from '~services/integrations/test-management/tenant-integration';
 import { CreateTenantTestManagementIntegrationDto, UpdateTenantTestManagementIntegrationDto } from '~types/integrations/test-management/tenant-integration';
 import {
-  errorResponse,
-  getErrorStatusCode,
-  notFoundResponse,
-  successMessageResponse,
-  successResponse,
-  validationErrorResponse
+    errorResponse,
+    getErrorStatusCode,
+    notFoundResponse,
+    successMessageResponse,
+    successResponse,
+    validationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
 import { TEST_MANAGEMENT_PROVIDERS } from './tenant-integration.constants';
 import {
-  validateConfigStructure,
-  validateIntegrationName,
-  validateProviderType
+    validateConfigStructure,
+    validateIntegrationName,
+    validateProviderType
 } from './tenant-integration.validation';
 
 interface AuthenticatedRequest extends Request {
@@ -24,7 +24,14 @@ interface AuthenticatedRequest extends Request {
 
 /**
  * Create new test management integration for a tenant
- * POST /tenants/:tenantId/integrations/test-management
+ * 
+ * @route POST /tenants/:tenantId/integrations/test-management
+ * @param {string} req.params.tenantId - Tenant identifier
+ * @param {string} req.body.name - Integration name (e.g., "Checkmate Production")
+ * @param {string} req.body.providerType - Provider type (checkmate, testrail, etc.)
+ * @param {object} req.body.config - Provider-specific configuration (baseUrl, authToken, etc.)
+ * @returns {201} Success - Integration created
+ * @returns {400} Bad Request - Validation error or creation failure
  */
 const createIntegrationHandler = (service: TestManagementIntegrationService) => 
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -75,7 +82,11 @@ const createIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * List all integrations for a tenant
- * GET /tenants/:tenantId/integrations/test-management
+ * 
+ * @route GET /tenants/:tenantId/integrations/test-management
+ * @param {string} req.params.tenantId - Tenant identifier
+ * @returns {200} Success - Array of integrations (credentials redacted)
+ * @returns {500} Server Error - Failed to fetch integrations
  */
 const listIntegrationsHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -95,7 +106,12 @@ const listIntegrationsHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Get single integration by ID
- * GET /tenants/:tenantId/integrations/test-management/:integrationId
+ * 
+ * @route GET /tenants/:tenantId/integrations/test-management/:integrationId
+ * @param {string} req.params.integrationId - Integration identifier
+ * @returns {200} Success - Integration details (credentials redacted)
+ * @returns {404} Not Found - Integration doesn't exist
+ * @returns {500} Server Error - Failed to fetch integration
  */
 const getIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -123,7 +139,14 @@ const getIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Update integration
- * PUT /tenants/:tenantId/integrations/test-management/:integrationId
+ * 
+ * @route PUT /tenants/:tenantId/integrations/test-management/:integrationId
+ * @param {string} req.params.integrationId - Integration identifier
+ * @param {string} [req.body.name] - Updated integration name (optional)
+ * @param {object} [req.body.config] - Updated configuration (optional, merged with existing)
+ * @returns {200} Success - Updated integration
+ * @returns {400} Bad Request - Validation error
+ * @returns {404} Not Found - Integration doesn't exist
  */
 const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -182,8 +205,13 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
   };
 
 /**
- * Delete integration (soft delete)
- * DELETE /tenants/:tenantId/integrations/test-management/:integrationId
+ * Delete integration
+ * 
+ * @route DELETE /tenants/:tenantId/integrations/test-management/:integrationId
+ * @param {string} req.params.integrationId - Integration identifier
+ * @returns {200} Success - Integration deleted
+ * @returns {404} Not Found - Integration doesn't exist
+ * @returns {500} Server Error - Failed to delete integration
  */
 const deleteIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -213,7 +241,12 @@ const deleteIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Verify integration by testing connection
- * POST /tenants/:tenantId/integrations/test-management/:integrationId/verify
+ * 
+ * @route POST /tenants/:tenantId/integrations/test-management/:integrationId/verify
+ * @param {string} req.params.integrationId - Integration identifier
+ * @returns {200} Success - { success: boolean, message: string } (always 200, check success field)
+ * @returns {500} Server Error - Failed to verify (network/system error)
+ * @description Returns 200 OK even if credentials are invalid. Check result.success for actual verification status.
  */
 const verifyIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -235,7 +268,14 @@ const verifyIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Verify credentials without saving (stateless verification)
- * POST /integrations/test-management/verify
+ * 
+ * @route POST /integrations/test-management/verify
+ * @param {string} req.body.providerType - Provider type to verify
+ * @param {object} req.body.config - Provider configuration to test
+ * @returns {200} Success - { success: boolean, message: string } (always 200, check success field)
+ * @returns {400} Bad Request - Invalid provider type or config structure
+ * @returns {500} Server Error - Failed to verify (network/system error)
+ * @description Tests credentials before saving. Useful for "Test Connection" button in UI.
  */
 const verifyCredentialsHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -273,7 +313,11 @@ const verifyCredentialsHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Get list of available test management providers
- * GET /integrations/test-management/providers
+ * 
+ * @route GET /integrations/test-management/providers
+ * @returns {200} Success - Array of providers with type, name, description, enabled, status, features
+ * @returns {500} Server Error - Failed to fetch providers
+ * @description Returns all available providers including those not yet implemented (status: "coming_soon")
  */
 const getAvailableProvidersHandler = () =>
   async (_req: Request, res: Response): Promise<void> => {

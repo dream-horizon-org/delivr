@@ -41,22 +41,14 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Type guard to validate Checkmate configuration
+   * Checks for required fields: baseUrl (string), authToken (string), orgId (number)
    */
   private isCheckmateConfig = (config: TenantTestManagementIntegrationConfig): config is CheckmateConfig => {
-    const baseUrlExists = 'baseUrl' in config;
-    const baseUrlIsString = typeof config.baseUrl === 'string';
-    const hasBaseUrl = baseUrlExists && baseUrlIsString;
+    const hasValidBaseUrl = 'baseUrl' in config && typeof config.baseUrl === 'string';
+    const hasValidAuthToken = 'authToken' in config && typeof config.authToken === 'string';
+    const hasValidOrgId = 'orgId' in config && typeof config.orgId === 'number';
     
-    const authTokenExists = 'authToken' in config;
-    const authTokenIsString = typeof config.authToken === 'string';
-    const hasAuthToken = authTokenExists && authTokenIsString;
-    
-    const orgIdExists = 'orgId' in config;
-    const orgIdIsNumber = typeof config.orgId === 'number';
-    const hasOrgId = orgIdExists && orgIdIsNumber;
-    
-    const configIsValid = hasBaseUrl && hasAuthToken && hasOrgId;
-    return configIsValid;
+    return hasValidBaseUrl && hasValidAuthToken && hasValidOrgId;
   };
 
   /**
@@ -105,21 +97,34 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Map Checkmate run status to our TestRunStatus
+   * 
+   * Status meanings:
+   * - PENDING: Test run created but not yet started
+   * - IN_PROGRESS: Tests are currently being executed
+   * - COMPLETED: Test run finished execution (regardless of pass/fail)
+   * - FAILED: Test run failed to execute (system error, not test failures)
+   * 
+   * Note: Pass/fail evaluation based on test results happens at the service layer
+   * using passThresholdPercent. This method only indicates execution status.
    */
   private mapRunStatus = (checkmateData: CheckmateRunStateData): TestRunStatus => {
     const inProgressCount = checkmateData.inProgress ?? 0;
     const allTestsCompleted = checkmateData.untested === 0 && inProgressCount === 0;
     
+    // If all tests are completed (no untested, no in-progress), mark as COMPLETED
+    // The service layer will evaluate pass/fail using the threshold
     if (allTestsCompleted) {
-      return checkmateData.failed > 0 ? TestRunStatus.FAILED : TestRunStatus.COMPLETED;
+      return TestRunStatus.COMPLETED;
     }
     
+    // If any tests have been executed, mark as IN_PROGRESS
     const testingHasStarted = checkmateData.passed > 0 || checkmateData.failed > 0;
     
     if (testingHasStarted) {
       return TestRunStatus.IN_PROGRESS;
     }
     
+    // No tests executed yet
     return TestRunStatus.PENDING;
   };
 
@@ -382,7 +387,7 @@ export class CheckmateProvider implements ITestManagementProvider {
     const params = new URLSearchParams();
     params.append(CHECKMATE_QUERY_PARAMS.ORG_ID, checkmateConfig.orgId.toString());
     params.append(CHECKMATE_QUERY_PARAMS.PAGE, '1');
-    params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, '1000');
+    params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, CHECKMATE_DEFAULTS.METADATA_PAGE_SIZE.toString());
     
     const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
     const response = await this.makeRequest<CheckmateProjectsResponse>(

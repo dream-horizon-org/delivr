@@ -18,6 +18,13 @@ import { ProviderFactory } from '../providers/provider.factory';
  * 
  * This service provides clean operations for test management without storing runIds.
  * Release Management owns the runId data and passes it when needed.
+ * 
+ * Error Handling Strategy:
+ * - createTestRuns: Catches errors per platform, returns partial success (multi-platform operation)
+ * - Other methods: Throw immediately on error (single run operations)
+ * 
+ * This intentional difference allows creating runs for multiple platforms where some
+ * may succeed and others fail, while maintaining fail-fast behavior for single-run operations.
  */
 export class TestManagementRunService {
   constructor(
@@ -68,7 +75,9 @@ export class TestManagementRunService {
     // 4. Get provider
     const provider = ProviderFactory.getProvider(integration.providerType);
 
-    // 5. Create test run for each platform (collect all results, don't throw on first error)
+    // 5. Create test run for each platform
+    // Special error handling: Catch errors per platform to allow partial success
+    // This allows some platforms to succeed even if others fail (e.g., network issues)
     const results: CreateTestRunsResponse = {};
 
     for (const platformConfig of platformConfigs) {
@@ -85,7 +94,7 @@ export class TestManagementRunService {
           status: TestRunStatus.PENDING
         };
       } catch (error) {
-        // Log error but continue with other platforms
+        // Log error but continue with other platforms (partial success pattern)
         console.error(`Failed to create test run for platform ${platformConfig.platform}:`, error);
         
         // Store error result for this platform
@@ -128,10 +137,10 @@ export class TestManagementRunService {
     // 4. Query test status from provider
     const providerStatus = await provider.getTestStatus(integration.config, runId);
 
-    // 5. Calculate pass percentage
+    // 5. Calculate pass percentage (rounded to whole number to match integer threshold)
     const total = providerStatus.total ?? 0;
     const passed = providerStatus.passed ?? 0;
-    const passPercentage = total > 0 ? Math.round((passed / total) * 100 * 100) / 100 : 0;
+    const passPercentage = total > 0 ? Math.round((passed / total) * 100) : 0;
 
     // 6. Evaluate against threshold
     const threshold = config.passThresholdPercent;
