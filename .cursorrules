@@ -225,7 +225,7 @@ Before creating a new constant file or adding constants, ask:
 
 ```typescript
 // ❌ BAD: Using 'as' operator
-const projectId = parameters.projectId as number;
+const tenantId = parameters.tenantId as number;
 const config = baseConfig as CheckmateConfig;
 const value = obj.prop as string | undefined;
 
@@ -254,7 +254,7 @@ private getCheckmateConfig = (config: ProjectTestManagementIntegrationConfig): C
 const checkmateConfig = this.getCheckmateConfig(config); // No 'as' needed!
 
 // ✅ GOOD: Use already-typed properties
-const projectId = parameters.projectId; // Already typed as number | undefined
+const tenantId = parameters.tenantId; // Already typed as number | undefined
 const runName = parameters.runName || 'Test Run'; // Already typed as string | undefined
 ```
 
@@ -309,7 +309,7 @@ interface CheckmateConfig extends ProjectTestManagementIntegrationConfig {
 }
 
 interface CheckmateCreateRunRequest {
-  projectId: number;
+  tenantId: number;
   runName: string;
 }
 
@@ -320,7 +320,7 @@ type CheckmateConfig = ProjectTestManagementIntegrationConfig & {
 };
 
 type CheckmateCreateRunRequest = {
-  projectId: number;
+  tenantId: number;
   runName: string;
 };
 ```
@@ -1225,7 +1225,7 @@ export const NEW_CONSTANT = { ... };
 ```typescript
 // ✅ GOOD: All test-management endpoints under /test-management/
 GET    /test-management/providers
-POST   /test-management/projects/:projectId/integrations
+POST   /test-management/tenants/:tenantId/integrations
 GET    /test-management/integrations/:integrationId
 POST   /test-management/test-runs
 GET    /test-management/test-runs/:runId
@@ -1269,16 +1269,16 @@ DELETE /test-management/integrations?id=456          // ❌ ID in query
 
 #### 3. Collection vs Single Resource Pattern
 
-**Use `projectId` (or parent resource ID) ONLY for collection-level operations (CREATE, LIST).**
+**Use `tenantId` (or parent resource ID) ONLY for collection-level operations (CREATE, LIST).**
 
 For single-resource operations (GET, PUT, DELETE), the resource's own ID is sufficient.
 
 ```typescript
 // ✅ GOOD: Collection operations use parent ID
-POST   /test-management/projects/:projectId/integrations    // Create in project
-GET    /test-management/projects/:projectId/integrations    // List project's integrations
-POST   /test-management/projects/:projectId/configs         // Create in project
-GET    /test-management/projects/:projectId/configs         // List project's configs
+POST   /test-management/tenants/:tenantId/integrations    // Create in tenant
+GET    /test-management/tenants/:tenantId/integrations    // List tenant's integrations
+POST   /test-management/tenants/:tenantId/configs         // Create in tenant
+GET    /test-management/tenants/:tenantId/configs         // List tenant's configs
 
 // ✅ GOOD: Single-resource operations use resource ID only
 GET    /test-management/integrations/:integrationId         // ID is enough
@@ -1287,14 +1287,14 @@ DELETE /test-management/integrations/:integrationId         // ID is enough
 GET    /test-management/configs/:configId                   // ID is enough
 PUT    /test-management/configs/:configId                   // ID is enough
 
-// ❌ BAD: Redundant projectId in single-resource operations
-GET    /test-management/projects/:projectId/integrations/:integrationId  // ❌ Redundant
-PUT    /test-management/projects/:projectId/configs/:configId            // ❌ Redundant
+// ❌ BAD: Redundant tenantId in single-resource operations
+GET    /test-management/tenants/:tenantId/integrations/:integrationId  // ❌ Redundant
+PUT    /test-management/tenants/:tenantId/configs/:configId            // ❌ Redundant
 ```
 
 **Why:**
 - Each resource ID (integrationId, configId) is globally unique
-- Backend can look up the project from the resource ID if needed
+- Backend can look up the tenant from the resource ID if needed
 - Cleaner, shorter URLs
 - Standard REST pattern
 
@@ -1346,7 +1346,7 @@ GET    /test-management/test-runs/:runId/cancel              // ❌ Wrong verb (
 
 ```typescript
 // ✅ GOOD: Query params for filtering/options
-GET    /test-management/projects/:projectId/configs?providerType=CHECKMATE
+GET    /test-management/tenants/:tenantId/configs?providerType=CHECKMATE
 GET    /test-management/test-runs/:runId/report?groupBy=section
 GET    /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId=100
 
@@ -1360,9 +1360,11 @@ GET    /test-management/test-runs?runId=456                 // ❌ Should be pat
 - Pagination: `?page=2&limit=50`
 - Sorting: `?sortBy=createdAt&order=desc`
 - Options: `?groupBy=section`, `?includeArchived=true`
-- Secondary resources: `?projectId=100` (when the primary resource is integrationId)
+- Secondary resources: `?projectId=100` (when fetching provider-specific metadata like Checkmate projects)
 
-### Complete Example: Test Management APIs
+### Complete Example: Integration APIs (Test Management)
+
+**Note**: Test Management is ONE example of many integrations (Slack, Jira, SCM, etc.). All integrations follow this pattern.
 
 **Correct, production-ready API structure:**
 
@@ -1370,47 +1372,53 @@ GET    /test-management/test-runs?runId=456                 // ❌ Should be pat
 // 1. PROVIDERS (Discovery)
 GET    /test-management/providers
 
-// 2. PROJECT INTEGRATIONS (Credentials)
-POST   /test-management/projects/:projectId/integrations      // Create
-GET    /test-management/projects/:projectId/integrations      // List
-GET    /test-management/integrations/:integrationId           // Get
-PUT    /test-management/integrations/:integrationId           // Update
-DELETE /test-management/integrations/:integrationId           // Delete
-POST   /test-management/integrations/:integrationId/verify    // Action
+// 2. TENANT INTEGRATIONS (Credentials - tenant-level setup)
+POST   /test-management/tenants/:tenantId/integrations      // Create
+GET    /test-management/tenants/:tenantId/integrations      // List
+GET    /test-management/integrations/:integrationId          // Get
+PUT    /test-management/integrations/:integrationId          // Update
+DELETE /test-management/integrations/:integrationId          // Delete
+POST   /test-management/integrations/:integrationId/verify   // Action
 
-// 3. CONFIGS (Test configurations)
-POST   /test-management/projects/:projectId/configs           // Create
-GET    /test-management/projects/:projectId/configs           // List
-GET    /test-management/configs/:configId                     // Get
-PUT    /test-management/configs/:configId                     // Update
-DELETE /test-management/configs/:configId                     // Delete
+// 3. CONFIGS (Reusable configurations for release process)
+POST   /test-management/tenants/:tenantId/configs           // Create
+GET    /test-management/tenants/:tenantId/configs           // List
+GET    /test-management/configs/:configId                    // Get
+PUT    /test-management/configs/:configId                    // Update
+DELETE /test-management/configs/:configId                    // Delete
 
-// 4. METADATA (Provider-specific)
+// 4. METADATA (Provider-specific - e.g., Checkmate projects)
 GET    /test-management/integrations/:integrationId/checkmate/metadata/projects
 GET    /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId=100
 GET    /test-management/integrations/:integrationId/checkmate/metadata/labels?projectId=100
 GET    /test-management/integrations/:integrationId/checkmate/metadata/squads?projectId=100
 
-// 5. TEST RUN OPERATIONS (Stateless)
-POST   /test-management/test-runs                             // Create
-GET    /test-management/test-runs/:runId                      // Status
-POST   /test-management/test-runs/:runId/reset                // Action
-POST   /test-management/test-runs/:runId/cancel               // Action
+// 5. TEST RUN OPERATIONS (Stateless - used during release)
+POST   /test-management/test-runs                            // Create
+GET    /test-management/test-runs/:runId                     // Status
+POST   /test-management/test-runs/:runId/reset               // Action
+POST   /test-management/test-runs/:runId/cancel              // Action
 GET    /test-management/test-runs/:runId/report?groupBy=section
 ```
+
+**Key Patterns for ALL Integrations:**
+- **Layer 1**: Tenant-level integration setup (`/tenants/:tenantId/integrations`)
+- **Layer 2**: Reusable configs for release process (`/tenants/:tenantId/configs`)
+- **Layer 3**: Runtime operations during release (stateless APIs)
+- **Metadata**: Provider-specific data (use provider's terminology, e.g., Checkmate's `projectId`)
 
 ### Route Definition Best Practices
 
 ```typescript
 // ✅ GOOD: Clean route definitions
-router.post('/test-management/projects/:projectId/configs', handler);
+router.post('/test-management/tenants/:tenantId/configs', handler);
 router.get('/test-management/configs/:configId', handler);
 router.post('/test-management/test-runs/:runId/reset', handler);
 
 // ❌ BAD: Inconsistent or unclear
-router.post('/projects/:projectId/test-management/configs', handler);  // ❌ Category not first
-router.get('/configs/:id', handler);                                   // ❌ No category scope
-router.post('/test-runs/reset/:runId', handler);                       // ❌ Action before ID
+router.post('/tenants/:tenantId/test-management/configs', handler);  // ❌ Category not first
+router.get('/configs/:id', handler);                                  // ❌ No category scope
+router.post('/test-runs/reset/:runId', handler);                      // ❌ Action before ID
 ```
 
 ### Controller Parameter Extraction
@@ -1418,31 +1426,32 @@ router.post('/test-runs/reset/:runId', handler);                       // ❌ Ac
 ```typescript
 // ✅ GOOD: Extract from correct location
 const configId = req.params.configId;           // Resource ID from path
-const projectId = req.params.projectId;         // Parent ID from path
+const tenantId = req.params.tenantId;         // Parent ID from path
 const groupBy = req.query.groupBy;              // Filter from query
 const data = req.body;                          // Create/update data from body
 
 // ❌ BAD: Wrong location
 const configId = req.query.id;                  // ❌ Should be path param
 const runId = req.body.runId;                   // ❌ Should be path param
-const projectId = req.body.projectId;           // ❌ Should be path param (for CREATE/LIST)
+const tenantId = req.body.tenantId;           // ❌ Should be path param (for CREATE/LIST)
 ```
 
 ### Quick Decision Tree
 
 **When designing a new endpoint, ask:**
 
-1. **What category is this?** → Use as prefix (`/test-management/`, `/releases/`, `/projects/`)
+1. **What category is this?** → Use as prefix (`/test-management/`, `/slack-integration/`, `/scm-integration/`)
 2. **Is this a collection or single resource?** 
-   - Collection → Include parent ID (`/projects/:projectId/configs`)
-   - Single → Just resource ID (`/configs/:configId`)
+   - Collection → Include parent ID (`/tenants/:tenantId/integrations`, `/tenants/:tenantId/configs`)
+   - Single → Just resource ID (`/integrations/:integrationId`, `/configs/:configId`)
 3. **Is this CRUD or an action?**
    - CRUD → Use standard verbs (GET, POST, PUT, DELETE)
-   - Action → Use POST with action name (`/test-runs/:runId/reset`)
-4. **Is this provider-specific?** → Include provider in path (`/checkmate/metadata/`)
+   - Action → Use POST with action name (`/test-runs/:runId/reset`, `/integrations/:id/verify`)
+4. **Is this provider-specific?** → Include provider in path (`/checkmate/metadata/`, `/github/repos/`)
 5. **What goes where?**
-   - Resource IDs → Path params (`:id`, `:runId`)
-   - Filters/options → Query params (`?status=active`)
+   - Resource IDs → Path params (`:integrationId`, `:configId`, `:runId`)
+   - Filters/options → Query params (`?status=active`, `?providerType=CHECKMATE`)
+   - Provider-specific IDs → Query params (`?projectId=100` for Checkmate projects)
    - Create/update data → Body
 
 ### Checklist Before Committing API Routes
@@ -1454,7 +1463,7 @@ const projectId = req.body.projectId;           // ❌ Should be path param (for
 - [ ] Actions use POST verb with descriptive names
 - [ ] Query params used only for filtering/options
 - [ ] Routes are consistent with existing patterns
-- [ ] No redundant path segments (projectId when ID is enough)
+- [ ] No redundant path segments (tenantId when ID is enough)
 
 ## Explicit Exports
 
@@ -1473,7 +1482,7 @@ export default function createController() { ... }
 
 // ✅ GOOD: Explicit named exports
 export { CheckmateProvider } from './checkmate-provider';
-export { createCheckmateMetadataController, validateProjectId } from './checkmate';
+export { createCheckmateMetadataController, validatetenantId } from './checkmate';
 export { 
   TestRunService,
   TestManagementConfigService,
