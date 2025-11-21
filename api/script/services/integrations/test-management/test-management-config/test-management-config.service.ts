@@ -3,8 +3,8 @@
  * Business logic for test management configurations
  */
 
+import { TenantTestManagementIntegrationRepository } from '~models/integrations/test-management/tenant-integration';
 import { TestManagementConfigRepository } from '~models/integrations/test-management/test-management-config';
-import { ProjectTestManagementIntegrationRepository } from '~models/integrations/test-management/project-integration';
 import type {
   CreateTestManagementConfigDto,
   TestManagementConfig,
@@ -14,7 +14,7 @@ import type {
 export class TestManagementConfigService {
   constructor(
     private readonly configRepo: TestManagementConfigRepository,
-    private readonly integrationRepo: ProjectTestManagementIntegrationRepository
+    private readonly integrationRepo: TenantTestManagementIntegrationRepository
   ) {}
 
   /**
@@ -27,10 +27,10 @@ export class TestManagementConfigService {
       throw new Error(`Test management integration not found: ${data.integrationId}`);
     }
 
-    const projectMatches = integration.projectId === data.projectId;
+    const tenantMatches = integration.tenantId === data.tenantId;
 
-    if (!projectMatches) {
-      throw new Error('Integration does not belong to the specified project');
+    if (!tenantMatches) {
+      throw new Error('Integration does not belong to the specified tenant');
     }
 
     return this.configRepo.create(data);
@@ -44,10 +44,10 @@ export class TestManagementConfigService {
   }
 
   /**
-   * List configs by project ID
+   * List configs by tenant ID
    */
-  async listConfigsByProject(projectId: string): Promise<TestManagementConfig[]> {
-    return this.configRepo.findByProjectId(projectId);
+  async listConfigsByTenant(tenantId: string): Promise<TestManagementConfig[]> {
+    return this.configRepo.findByTenantId(tenantId);
   }
 
   /**

@@ -1,6 +1,6 @@
 /**
  * Test Management Config Type Definitions
- * Reusable test configurations for projects
+ * Reusable test configurations for tenants
  */
 
 import type { TestPlatform } from '../platform.interface';
@@ -18,7 +18,7 @@ export type PlatformConfiguration = {
  */
 export type TestManagementConfig = {
   id: string;
-  projectId: string;
+  tenantId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;
@@ -32,7 +32,7 @@ export type TestManagementConfig = {
  * DTO for creating test management config
  */
 export type CreateTestManagementConfigDto = {
-  projectId: string;
+  tenantId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;

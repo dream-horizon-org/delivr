@@ -139,21 +139,21 @@ export const validateConfigName = (value: unknown): string | null => {
 };
 
 /**
- * Validate project ID
+ * Validate tenant ID
  * Returns error message if invalid, null if valid
  */
-export const validateProjectId = (value: unknown): string | null => {
+export const validateTenantId = (value: unknown): string | null => {
   const isString = typeof value === 'string';
 
   if (!isString) {
-    return 'projectId must be a string';
+    return 'tenantId must be a string';
   }
 
   const idLength = value.length;
   const idEmpty = idLength === 0;
 
   if (idEmpty) {
-    return 'projectId cannot be empty';
+    return 'tenantId cannot be empty';
   }
 
   return null;

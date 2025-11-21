@@ -1,4 +1,4 @@
-import type { ProjectTestManagementIntegrationRepository } from '~models/integrations/test-management/project-integration/project-integration.repository';
+import { TenantTestManagementIntegrationRepository } from '~models/integrations/test-management';
 import type { TestManagementConfigRepository } from '~models/integrations/test-management/test-management-config/test-management-config.repository';
 import type {
   CreateTestRunsRequest,
@@ -22,7 +22,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 export class TestManagementRunService {
   constructor(
     private readonly configRepo: TestManagementConfigRepository,
-    private readonly integrationRepo: ProjectTestManagementIntegrationRepository
+    private readonly integrationRepo: TenantTestManagementIntegrationRepository
   ) {}
 
   /**

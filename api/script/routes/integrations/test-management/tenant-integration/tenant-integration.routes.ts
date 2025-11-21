@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { createTestManagementIntegrationController } from '~controllers/integrations/test-management/project-integration';
-import type { TestManagementIntegrationService } from '~services/integrations/test-management/project-integration';
+import { createTestManagementIntegrationController } from '~controllers/integrations/test-management/tenant-integration';
+import type { TestManagementIntegrationService } from '~services/integrations/test-management/tenant-integration';
 
-export const createProjectIntegrationRoutes = (service: TestManagementIntegrationService): Router => {
+export const createTenantIntegrationRoutes = (service: TestManagementIntegrationService): Router => {
   const router = Router();
   const controller = createTestManagementIntegrationController(service);
 
@@ -12,21 +12,21 @@ export const createProjectIntegrationRoutes = (service: TestManagementIntegratio
     controller.getAvailableProviders
   );
 
-  // Verify credentials without saving (stateless - no projectId or integrationId needed)
+  // Verify credentials without saving (stateless - no tenantId or integrationId needed)
   router.post(
     '/integrations/verify',
     controller.verifyCredentials
   );
 
-  // Create integration for a project (need projectId)
+  // Create integration for a tenant (need tenantId)
   router.post(
-    '/projects/:projectId/integrations',
+    '/tenants/:tenantId/integrations',
     controller.createIntegration
   );
 
-  // List all integrations for a project (need projectId)
+  // List all integrations for a tenant (need tenantId)
   router.get(
-    '/projects/:projectId/integrations',
+    '/tenants/:tenantId/integrations',
     controller.listIntegrations
   );
 

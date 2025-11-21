@@ -1,37 +1,37 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
-import { getIpAddress } from "../utils/rest-headers";
-import { isUnfinishedRollout } from "../utils/rollout-selector";
-import * as packageDiffing from "../utils/package-diffing";
-import * as converterUtils from "../utils/converter";
-import * as diffErrorUtils from "../utils/diff-error-handling";
-import * as error from "../error";
-import * as errorUtils from "../utils/rest-error-handling";
 import { Request, Response, Router } from "express";
+import rateLimit from "express-rate-limit";
 import * as fs from "fs";
-import * as hashUtils from "../utils/hash-utils";
-import * as redis from "../redis-manager";
-import * as restTypes from "../types/rest-definitions";
-import * as security from "../utils/security";
 import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
+import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
+import { COMM_PROVIDERS } from "../controllers/integrations/comm/providers.constants";
+import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
+import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/tenant-integration/tenant-integration.constants";
+import * as error from "../error";
+import { createTempFileFromBuffer, getFileWithField } from "../file-upload-manager";
+import * as appPermissions from "../middleware/app-permissions";
+import * as tenantPermissions from "../middleware/tenant-permissions";
+import * as redis from "../redis-manager";
 import * as storageTypes from "../storage/storage";
+import { isPrototypePollutionKey } from "../storage/storage";
+import * as restTypes from "../types/rest-definitions";
+import * as converterUtils from "../utils/converter";
+import * as diffErrorUtils from "../utils/diff-error-handling";
+import * as hashUtils from "../utils/hash-utils";
+import * as packageDiffing from "../utils/package-diffing";
+import * as errorUtils from "../utils/rest-error-handling";
+import { getIpAddress } from "../utils/rest-headers";
+import { isUnfinishedRollout } from "../utils/rollout-selector";
+import * as security from "../utils/security";
 import * as validationUtils from "../utils/validation";
 import PackageDiffer = packageDiffing.PackageDiffer;
 import NameResolver = storageTypes.NameResolver;
 import PackageManifest = hashUtils.PackageManifest;
 import tryJSON = require("try-json");
-import rateLimit from "express-rate-limit";
-import { isPrototypePollutionKey } from "../storage/storage";
-import * as tenantPermissions from "../middleware/tenant-permissions";
-import * as appPermissions from "../middleware/app-permissions";
-import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
-import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
-import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/project-integration/project-integration.constants";
-import { COMM_PROVIDERS } from "../controllers/integrations/comm/providers.constants";
 
 const DEFAULT_ACCESS_KEY_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 const ACCESS_KEY_MASKING_STRING = "(hidden)";
@@ -265,7 +265,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }
 
         const storageAccessKey: storageTypes.AccessKey = converterUtils.toStorageAccessKey(accessKey);
-        return storage.addAccessKey(accountId, storageAccessKey).then((id: string): void => {
+        return storage.addAccessKey(accountId, storageAccessKey).then((): void => {
           res.setHeader("Location", urlEncode([`/accessKeys/${accessKey.friendlyName}`]));
           res.status(201).send({ accessKey: accessKey });
         });
@@ -460,12 +460,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
       const cicdIntegrations = await cicdIntegrationRepository.findAll({ tenantId });
       
-      // Test Management integrations (Checkmate, TestRail, etc.) - project-level
-      // Note: Using tenantId as projectId (tenant = project in our system)
+      // Test Management integrations (Checkmate, TestRail, etc.) - tenant-level
+      // Note: Using tenantId as tenantId (tenant = project in our system)
       let testManagementIntegrations: any[] = [];
       if ((storage as any).testManagementIntegrationService) {
         try {
-          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listProjectIntegrations(tenantId);
+          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(tenantId);
           console.log(`[TenantInfo] Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching test management integrations:', error);
@@ -544,7 +544,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
           id: integration.id,
           providerType: integration.providerType,
           name: integration.name,
-          projectId: integration.projectId,
+          tenantId: integration.tenantId,
           createdAt: integration.createdAt,
           updatedAt: integration.updatedAt
           // Note: config (including authToken) is intentionally excluded (never sent to client)
@@ -630,7 +630,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             status: 'CONNECTED',  // If it exists in DB, it's connected
             config: {
               providerType: i.providerType,
-              projectId: i.projectId,
+              tenantId: i.tenantId,
               // Include non-sensitive config fields
               baseUrl: i.config?.baseUrl,
               orgId: i.config?.orgId,
@@ -1106,7 +1106,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         // Allow the deployment key to be specified on creation, if desired
         storageDeployment.key = restDeployment.key || security.generateSecureKey(accountId);
 
-        return storage.addDeployment(accountId, appId, storageDeployment).then((deploymentId: string): void => {
+        return storage.addDeployment(accountId, appId, storageDeployment).then((): void => {
           restDeployment = converterUtils.toRestDeployment(storageDeployment);
           res.setHeader("Location", urlEncode([`/apps/${appName}/deployments/${restDeployment.name}`]));
           res.status(201).send({ deployment: restDeployment });
@@ -1184,7 +1184,6 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const accountId: string = req.user.id;
       const app: storageTypes.App = (req as any).app;
       const appId: string = app.id;
-      const appName: string = req.params.appName;
       const deploymentName: string = req.params.deploymentName;
       let restDeployment: restTypes.Deployment = converterUtils.deploymentFromBody(req.body);
 
@@ -1312,7 +1311,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       .catch((error: error.CodePushError) => errorUtils.restErrorHandler(res, error, next))
   });
 
-  const releaseRateLimiter = rateLimit({
+  const _releaseRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
   });

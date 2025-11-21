@@ -3,12 +3,12 @@
  * All Checkmate-specific types and interfaces
  */
 
-import type { ProjectTestManagementIntegrationConfig } from '~types/integrations/test-management/project-integration';
+import type { TenantTestManagementIntegrationConfig } from '~types/integrations/test-management/tenant-integration';
 
 /**
  * Checkmate-specific configuration
  */
-export type CheckmateConfig = ProjectTestManagementIntegrationConfig & {
+export type CheckmateConfig = TenantTestManagementIntegrationConfig & {
   baseUrl: string;
   authToken: string;
   orgId: number;
@@ -18,7 +18,7 @@ export type CheckmateConfig = ProjectTestManagementIntegrationConfig & {
  * Checkmate API request/response types
  */
 export type CheckmateCreateRunRequest = {
-  projectId: number;
+  projectId: number;  // Checkmate's project ID (not Delivr's tenantId)
   runName: string;
   runDescription?: string;
   sectionIds?: number[];

@@ -5,19 +5,19 @@
  * (projects, sections, labels, squads) through project integrations
  */
 
-import type { ProjectTestManagementIntegrationRepository } from '~models/integrations/test-management/project-integration/project-integration.repository';
+import type { TenantTestManagementIntegrationRepository } from '~models/integrations/test-management/tenant-integration';
 import { TestManagementProviderType } from '~types/integrations/test-management';
 import type {
-    CheckmateLabelsResponse,
-    CheckmateProjectsResponse,
-    CheckmateSectionsResponse,
-    CheckmateSquadsResponse
+  CheckmateLabelsResponse,
+  CheckmateProjectsResponse,
+  CheckmateSectionsResponse,
+  CheckmateSquadsResponse
 } from '../../providers/checkmate/checkmate.interface';
 import { CheckmateProvider } from '../../providers/checkmate/checkmate.provider';
 
 export class CheckmateMetadataService {
   constructor(
-    private readonly integrationRepo: ProjectTestManagementIntegrationRepository
+    private readonly integrationRepo: TenantTestManagementIntegrationRepository
   ) {}
 
   /**

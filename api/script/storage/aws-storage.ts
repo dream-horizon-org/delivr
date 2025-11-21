@@ -6,12 +6,14 @@ import * as storage from "./storage";
 //import * from nanoid;
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
+import { CICDConfigRepository, CICDIntegrationRepository, CICDWorkflowRepository, createCICDConfigModel, createCICDIntegrationModel, createCICDWorkflowModel } from "../models/integrations/ci-cd";
 import {
-  createProjectTestManagementIntegrationModel,
+  createTenantTestManagementIntegrationModel,
   createTestManagementConfigModel,
-  ProjectTestManagementIntegrationRepository,
+  TenantTestManagementIntegrationRepository,
   TestManagementConfigRepository
 } from "../models/integrations/test-management";
+import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
 import {
   TestManagementConfigService,
   TestManagementIntegrationService,
@@ -20,15 +22,10 @@ import {
 import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
-import { createCICDIntegrationModel } from "../models/integrations/ci-cd";
-import { createCICDWorkflowModel } from "../models/integrations/ci-cd";
-import { createCICDConfigModel } from "../models/integrations/ci-cd";
-import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
-import { CICDConfigRepository, CICDWorkflowRepository, CICDIntegrationRepository } from "../models/integrations/ci-cd";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
+import { ChannelController, SlackIntegrationController } from "./integrations/slack/slack-controller";
+import { createChannelConfigModel, createSlackIntegrationModel } from "./integrations/slack/slack-models";
 import { createRelease } from "./release-models";
-import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/slack/slack-models";
-import { SlackIntegrationController, ChannelController } from "./integrations/slack/slack-controller";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -379,6 +376,11 @@ export function createModelss(sequelize: Sequelize) {
   // ============================================
   const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
   const ChannelConfig = createChannelConfigModel(sequelize);  // Channel configurations for communication integrations
+  
+  // Test Management integrations
+  const TenantTestManagementIntegration = createTenantTestManagementIntegrationModel(sequelize);
+  const TestManagementConfig = createTestManagementConfigModel(sequelize);
+  
   // Define associations
   // ============================================
 
@@ -459,6 +461,27 @@ export function createModelss(sequelize: Sequelize) {
   SlackIntegrations.hasOne(ChannelConfig, { foreignKey: 'integrationId', as: 'channelConfig' });
   ChannelConfig.belongsTo(SlackIntegrations, { foreignKey: 'integrationId' });
 
+  // Test Management associations
+  // Tenant has many Test Management Integrations
+  Tenant.hasMany(TenantTestManagementIntegration, { 
+    foreignKey: 'tenantId',
+    as: 'testManagementIntegrations' 
+  });
+  TenantTestManagementIntegration.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Tenant has many Test Management Configs
+  Tenant.hasMany(TestManagementConfig, { 
+    foreignKey: 'tenantId',
+    as: 'testManagementConfigs' 
+  });
+  TestManagementConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+
   return {
     Account,
     AccountChannel,
@@ -476,6 +499,8 @@ export function createModelss(sequelize: Sequelize) {
     Release,
     SlackIntegrations,  // Slack integrations
     ChannelConfig,  // Channel configurations for communication integrations
+    TenantTestManagementIntegration,  // Test management integrations
+    TestManagementConfig,  // Test management configurations
   };
 }
 
@@ -518,7 +543,7 @@ export class S3Storage implements storage.Storage {
     public scmController!: SCMIntegrationController;  // SCM integration controller
     
     // Test Management Integration - Repositories and Services
-    public projectIntegrationRepository!: ProjectTestManagementIntegrationRepository;
+    public tenantIntegrationRepository!: TenantTestManagementIntegrationRepository;
     public testManagementConfigRepository!: TestManagementConfigRepository;
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
@@ -658,32 +683,32 @@ export class S3Storage implements storage.Storage {
           
           
           // Initialize Test Management Integration
-          const projectIntegrationModel = createProjectTestManagementIntegrationModel(this.sequelize);
-          this.projectIntegrationRepository = new ProjectTestManagementIntegrationRepository(projectIntegrationModel);
+          const tenantIntegrationModel = createTenantTestManagementIntegrationModel(this.sequelize);
+          this.tenantIntegrationRepository = new TenantTestManagementIntegrationRepository(tenantIntegrationModel);
           
           const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
           this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
           
-          // Service 1: Project Integration Service (manages credentials)
+          // Service 1: Tenant Integration Service (manages credentials)
           this.testManagementIntegrationService = new TestManagementIntegrationService(
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           // Service 2: Config Service (manages test management configs)
           this.testManagementConfigService = new TestManagementConfigService(
             this.testManagementConfigRepository,
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           // Service 3: Run Service (stateless test operations)
           this.testManagementRunService = new TestManagementRunService(
             this.testManagementConfigRepository,
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           // Service 4: Checkmate Metadata Service (fetches Checkmate-specific metadata)
           this.checkmateMetadataService = new CheckmateMetadataService(
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           console.log("Test Management Integration initialized");

@@ -12,7 +12,7 @@ import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { CheckmateMetadataService } from '~services/integrations/test-management/metadata/checkmate';
 import { errorResponse, successResponse } from '~utils/response.utils';
-import { validateProjectId } from './checkmate-metadata.validation';
+import { validateCheckmateProjectId } from './checkmate-metadata.validation';
 
 export const createCheckmateMetadataController = (metadataService: CheckmateMetadataService) => {
   return {
@@ -70,7 +70,7 @@ const getSectionsHandler = (metadataService: CheckmateMetadataService) => async 
       return;
     }
 
-    const projectIdError = validateProjectId(projectIdParam);
+    const projectIdError = validateCheckmateProjectId(projectIdParam);
     if (projectIdError) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
         errorResponse(projectIdError)
@@ -111,7 +111,7 @@ const getLabelsHandler = (metadataService: CheckmateMetadataService) => async (r
       return;
     }
 
-    const projectIdError = validateProjectId(projectIdParam);
+    const projectIdError = validateCheckmateProjectId(projectIdParam);
     if (projectIdError) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
         errorResponse(projectIdError)
@@ -152,7 +152,7 @@ const getSquadsHandler = (metadataService: CheckmateMetadataService) => async (r
       return;
     }
 
-    const projectIdError = validateProjectId(projectIdParam);
+    const projectIdError = validateCheckmateProjectId(projectIdParam);
     if (projectIdError) {
       res.status(HTTP_STATUS.BAD_REQUEST).json(
         errorResponse(projectIdError)

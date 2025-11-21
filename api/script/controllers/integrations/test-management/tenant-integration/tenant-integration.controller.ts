@@ -1,10 +1,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
-import type { TestManagementIntegrationService } from '~services/integrations/test-management/project-integration';
-import type {
-  CreateProjectTestManagementIntegrationDto,
-  UpdateProjectTestManagementIntegrationDto
-} from '~types/integrations/test-management/project-integration';
+import type { TestManagementIntegrationService } from '~services/integrations/test-management/tenant-integration';
+import { CreateTenantTestManagementIntegrationDto, UpdateTenantTestManagementIntegrationDto } from '~types/integrations/test-management/tenant-integration';
 import {
   errorResponse,
   getErrorStatusCode,
@@ -14,25 +11,25 @@ import {
   validationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
-import { TEST_MANAGEMENT_PROVIDERS } from './project-integration.constants';
+import { TEST_MANAGEMENT_PROVIDERS } from './tenant-integration.constants';
 import {
   validateConfigStructure,
   validateIntegrationName,
   validateProviderType
-} from './project-integration.validation';
+} from './tenant-integration.validation';
 
 interface AuthenticatedRequest extends Request {
   accountId?: string;
 }
 
 /**
- * Create new test management integration for a project
- * POST /projects/:projectId/integrations/test-management
+ * Create new test management integration for a tenant
+ * POST /tenants/:tenantId/integrations/test-management
  */
 const createIntegrationHandler = (service: TestManagementIntegrationService) => 
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { projectId } = req.params;
+      const { tenantId } = req.params;
       const { name, providerType, config } = req.body;
 
       // Validate name
@@ -58,15 +55,15 @@ const createIntegrationHandler = (service: TestManagementIntegrationService) =>
         return;
       }
 
-      const data: CreateProjectTestManagementIntegrationDto = {
-        projectId,
+      const data: CreateTenantTestManagementIntegrationDto = {
+        tenantId,
         name,
         providerType,
         config,
         createdByAccountId: req.accountId
       };
 
-      const integration = await service.createProjectIntegration(data);
+      const integration = await service.createTenantIntegration(data);
 
       res.status(HTTP_STATUS.CREATED).json(successResponse(integration));
     } catch (error) {
@@ -77,15 +74,15 @@ const createIntegrationHandler = (service: TestManagementIntegrationService) =>
   };
 
 /**
- * List all integrations for a project
- * GET /projects/:projectId/integrations/test-management
+ * List all integrations for a tenant
+ * GET /tenants/:tenantId/integrations/test-management
  */
 const listIntegrationsHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { projectId } = req.params;
+      const { tenantId } = req.params;
 
-      const integrations = await service.listProjectIntegrations(projectId);
+      const integrations = await service.listTenantIntegrations(tenantId);
 
       res.status(HTTP_STATUS.OK).json(successResponse(integrations));
     } catch (error) {
@@ -98,14 +95,14 @@ const listIntegrationsHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Get single integration by ID
- * GET /projects/:projectId/integrations/test-management/:integrationId
+ * GET /tenants/:tenantId/integrations/test-management/:integrationId
  */
 const getIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { integrationId } = req.params;
 
-      const integration = await service.getProjectIntegration(integrationId);
+      const integration = await service.getTenantIntegration(integrationId);
       const integrationNotFound = !integration;
 
       if (integrationNotFound) {
@@ -126,7 +123,7 @@ const getIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Update integration
- * PUT /projects/:projectId/integrations/test-management/:integrationId
+ * PUT /tenants/:tenantId/integrations/test-management/:integrationId
  */
 const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -146,7 +143,7 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
       // Validate config if provided
       if (config !== undefined) {
         // Need to get existing integration to know the providerType
-        const existing = await service.getProjectIntegration(integrationId);
+        const existing = await service.getTenantIntegration(integrationId);
         
         if (!existing) {
           res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -162,12 +159,12 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
         }
       }
 
-      const data: UpdateProjectTestManagementIntegrationDto = {
+      const data: UpdateTenantTestManagementIntegrationDto = {
         name,
         config
       };
 
-      const integration = await service.updateProjectIntegration(integrationId, data);
+      const integration = await service.updateTenantIntegration(integrationId, data);
       
       if (!integration) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -186,14 +183,14 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Delete integration (soft delete)
- * DELETE /projects/:projectId/integrations/test-management/:integrationId
+ * DELETE /tenants/:tenantId/integrations/test-management/:integrationId
  */
 const deleteIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { integrationId } = req.params;
 
-      const deleted = await service.deleteProjectIntegration(integrationId);
+      const deleted = await service.deleteTenantIntegration(integrationId);
       const integrationNotFound = !deleted;
 
       if (integrationNotFound) {
@@ -216,14 +213,14 @@ const deleteIntegrationHandler = (service: TestManagementIntegrationService) =>
 
 /**
  * Verify integration by testing connection
- * POST /projects/:projectId/integrations/test-management/:integrationId/verify
+ * POST /tenants/:tenantId/integrations/test-management/:integrationId/verify
  */
 const verifyIntegrationHandler = (service: TestManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { integrationId } = req.params;
 
-      const result = await service.verifyProjectIntegration(integrationId);
+      const result = await service.verifyTenantIntegration(integrationId);
       
       // Always return 200 OK - the HTTP status indicates the API call succeeded,
       // not whether credentials are valid. Credential validity is in result.success.

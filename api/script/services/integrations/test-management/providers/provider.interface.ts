@@ -4,7 +4,7 @@
  */
 
 import { TestManagementProviderType, TestRunStatus } from '~types/integrations/test-management';
-import type { ProjectTestManagementIntegrationConfig } from '~types/integrations/test-management/project-integration';
+import type { TenantTestManagementIntegrationConfig } from '~types/integrations/test-management/tenant-integration';
 
 /**
  * Platform-specific test parameters
@@ -12,7 +12,7 @@ import type { ProjectTestManagementIntegrationConfig } from '~types/integrations
  */
 export interface PlatformTestParameters {
   // Common parameters
-  projectId?: number;
+  projectId?: number;  // External test management system's project ID (e.g., Checkmate projectId)
   runName?: string;
   runDescription?: string;
   
@@ -61,13 +61,13 @@ export interface ITestManagementProvider {
   /**
    * Validate provider configuration (credentials, connectivity)
    */
-  validateConfig(config: ProjectTestManagementIntegrationConfig): Promise<boolean>;
+  validateConfig(config: TenantTestManagementIntegrationConfig): Promise<boolean>;
   
   /**
    * Create a new test run
    */
   createTestRun(
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     parameters: PlatformTestParameters
   ): Promise<TestRunResult>;
   
@@ -75,7 +75,7 @@ export interface ITestManagementProvider {
    * Get test status for a run
    */
   getTestStatus(
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string
   ): Promise<TestStatusResult>;
   
@@ -83,7 +83,7 @@ export interface ITestManagementProvider {
    * Reset a test run (optional)
    */
   resetTestRun?(
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string
   ): Promise<TestRunResult>;
   
@@ -91,7 +91,7 @@ export interface ITestManagementProvider {
    * Cancel a test run
    */
   cancelTestRun(
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string
   ): Promise<void>;
   
@@ -99,7 +99,7 @@ export interface ITestManagementProvider {
    * Get detailed test report (optional)
    */
   getTestReport?(
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string,
     groupBy?: string
   ): Promise<unknown>;
