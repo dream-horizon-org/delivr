@@ -18,7 +18,7 @@ import {
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
 import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
-import { createTestManagementIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
+import { createTenantIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
 
@@ -74,7 +74,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     const testManagementRouter = Router();
     
     // Tenant-Level Integration Management (Credentials)
-    const tenantIntegrationRoutes = createTestManagementIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService);
     testManagementRouter.use(tenantIntegrationRoutes);
 
     // Test Management Config Management (Reusable test configurations)
