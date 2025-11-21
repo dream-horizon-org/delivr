@@ -6,6 +6,9 @@ import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controll
 import { parseGitHubRunUrl, parseGitHubWorkflowUrl, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
+  /**
+   * Resolve a GitHub token for the tenant if available from CI/CD integration.
+   */
   private getGithubTokenForTenant = async (tenantId: string): Promise<string | null> => {
     const gha = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.GITHUB_ACTIONS);
     if (gha?.apiToken) return gha.apiToken as string;
@@ -13,6 +16,9 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     return null;
   };
 
+  /**
+   * Read workflow file and extract workflow_dispatch inputs as parameters.
+   */
   fetchWorkflowInputs = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: string; description?: string; defaultValue?: unknown; options?: string[]; required?: boolean;
   }>}> => {
@@ -30,6 +36,11 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     return { parameters: result.inputs };
   };
 
+  /**
+   * Trigger a GitHub Actions workflow via workflow_dispatch.
+   * Accepts either workflowId or (workflowType + platform) to resolve the workflow.
+   * Attempts to find a human URL to the dispatched run for convenience.
+   */
   trigger = async (tenantId: string, input: {
     workflowId?: string;
     workflowType?: string;
@@ -119,6 +130,9 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     return { queueLocation };
   };
 
+  /**
+   * Get normalized run status for a GitHub Actions workflow run.
+   */
   getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<'pending'|'running'|'completed'> => {
     let parsed = { owner: input.owner, repo: input.repo, runId: input.runId };
     if (input.runUrl) {

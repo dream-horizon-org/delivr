@@ -6,6 +6,11 @@ import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../../../../controllers/int
 export class GitHubActionsProvider implements GitHubActionsProviderContract {
   readonly type = CICDProviderType.GITHUB_ACTIONS;
 
+  /**
+   * Verify a GitHub token by probing the /user endpoint.
+   *
+   * @returns Verification result with human-readable message.
+   */
   verifyConnection = async (params: GHAVerifyParams): Promise<GHAVerifyResult> => {
     const { apiToken, githubApiBase, userAgent, acceptHeader, timeoutMs } = params;
 
@@ -28,6 +33,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
     return { isValid: true, message: SUCCESS_MESSAGES.VERIFIED };
   };
 
+  /**
+   * Fetch workflow_dispatch inputs by reading workflow file contents and extracting inputs.
+   */
   fetchWorkflowInputs = async (params: GHAWorkflowInputsParams): Promise<GHAWorkflowInputsResult> => {
     const { token, workflowUrl, acceptHeader, userAgent, timeoutMs } = params;
     const parsed = parseGitHubWorkflowUrl(workflowUrl);
@@ -49,6 +57,9 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
     return { inputs };
   };
 
+  /**
+   * Get normalized run status for a workflow run.
+   */
   getRunStatus = async (params: GHARunStatusParams): Promise<GHARunStatus> => {
     const { token, owner, repo, runId, acceptHeader, userAgent, timeoutMs } = params;
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': acceptHeader, 'User-Agent': userAgent };
@@ -62,6 +73,10 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
     return mapped;
   };
 
+  /**
+   * Trigger workflow_dispatch for a workflow path on a ref with optional inputs.
+   * Returns accepted=true only if GitHub responds with 204 No Content.
+   */
   triggerWorkflowDispatch = async (params: GHAWorkflowDispatchParams): Promise<GHAWorkflowDispatchResult> => {
     const { token, owner, repo, workflow, ref, inputs, acceptHeader, userAgent, timeoutMs } = params;
     const headers = {
@@ -80,6 +95,10 @@ export class GitHubActionsProvider implements GitHubActionsProviderContract {
     throw new Error(errorMessage);
   };
 
+  /**
+   * Find latest workflow_dispatch run created since a timestamp.
+   * Used to surface an HTML URL to the run after dispatch.
+   */
   findLatestWorkflowDispatchRun = async (params: GHAFindDispatchedRunParams): Promise<GHAFindDispatchedRunResult> => {
     const { token, owner, repo, workflow, ref, createdSinceIso, acceptHeader, userAgent, timeoutMs } = params;
     const headers = {

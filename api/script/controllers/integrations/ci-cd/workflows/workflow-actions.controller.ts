@@ -9,6 +9,11 @@ export const getJobParameters = async (req: Request, res: Response): Promise<any
   const integrationId = req.params.integrationId;
 
   try {
+    /**
+     * Resolve integration and forward to provider adapter.
+     * For GitHub Actions: returns workflow_dispatch inputs.
+     * For Jenkins: returns job parameter definitions.
+     */
     const integration = await getIntegrationForTenant(tenantId, integrationId);
     if (!integration) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
@@ -24,6 +29,10 @@ export const getJobParameters = async (req: Request, res: Response): Promise<any
   }
 };
 
+/**
+ * Trigger a workflow using either explicit workflowId or (workflowType + platform).
+ * Provider adapters translate this into dispatch/build operations.
+ */
 export const triggerWorkflow = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
@@ -48,6 +57,9 @@ export const triggerWorkflow = async (req: Request, res: Response): Promise<any>
   }
 };
 
+/**
+ * Poll Jenkins queue status using queueUrl.
+ */
 export const getQueueStatus = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
@@ -76,6 +88,9 @@ export const getQueueStatus = async (req: Request, res: Response): Promise<any> 
   }
 };
 
+/**
+ * Fetch run status for GHA using either runUrl or owner/repo/runId.
+ */
 export const getRunStatus = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;

@@ -13,6 +13,13 @@ const toSafe = (integration: TenantCICDIntegration): SafeCICDIntegration => {
   return { ...rest };
 };
 
+/**
+ * Get a CI/CD integration by id for a tenant.
+ *
+ * @param req Express request (expects params.tenantId, params.integrationId)
+ * @param res Express response
+ * @returns 200 with safe integration data or 404 if not found/mismatched tenant
+ */
 export const getIntegrationById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
@@ -31,6 +38,13 @@ export const getIntegrationById = async (req: Request, res: Response): Promise<a
   }
 };
 
+/**
+ * Update a CI/CD integration by id via provider adapter.
+ *
+ * @param req Express request (expects params.tenantId, params.integrationId; body partial update)
+ * @param res Express response
+ * @returns 200 with updated safe integration or 404 if not found/mismatched tenant
+ */
 export const updateIntegrationById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
@@ -57,6 +71,13 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
   }
 };
 
+/**
+ * Delete a CI/CD integration by id.
+ *
+ * @param req Express request (expects params.tenantId, params.integrationId)
+ * @param res Express response
+ * @returns 200 on success or 404 if not found/mismatched tenant
+ */
 export const deleteIntegrationById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
@@ -76,6 +97,13 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
   }
 };
 
+/**
+ * Verify provider credentials/body for the given providerType.
+ *
+ * @param req Express request (expects params.providerType; body varies per provider)
+ * @param res Express response
+ * @returns 200 if valid, 401 if invalid, 400 if unsupported/malformed
+ */
 export const verifyConnectionByProvider = async (req: Request, res: Response): Promise<any> => {
   try {
     const providerType = String(req.params.providerType || '').toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
@@ -93,6 +121,13 @@ export const verifyConnectionByProvider = async (req: Request, res: Response): P
   }
 };
 
+/**
+ * Create a CI/CD integration for a providerType.
+ *
+ * @param req Express request (expects params.tenantId, params.providerType; body varies per provider)
+ * @param res Express response
+ * @returns 201 with created integration shape or 400/500 on error
+ */
 export const createConnectionByProvider = async (req: Request, res: Response): Promise<any> => {
   try {
     const tenantId = req.params.tenantId;

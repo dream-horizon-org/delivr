@@ -17,6 +17,7 @@ export const triggerWorkflowByConfig = async (req: Request, res: Response): Prom
   const normalizedWorkflowType = normalizeWorkflowType(workflowTypeRaw);
   const missingInputs = !platform || !normalizedWorkflowType;
   if (missingInputs) {
+    // Requires platform and workflowType to resolve a unique workflow in the config
     return res.status(HTTP_STATUS.BAD_REQUEST).json({
       success: RESPONSE_STATUS.FAILURE,
       error: ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED
@@ -45,6 +46,7 @@ export const triggerWorkflowByConfig = async (req: Request, res: Response): Prom
     );
     const workflows = loadedWorkflows.filter((w: any) => !!w);
 
+    // Narrow to tenant + matching platform and workflowType
     const matches = workflows.filter((w: any) => {
       const tenantMatches = w.tenantId === tenantId;
       const platformMatches = typeof w.platform === 'string' && normalizePlatform(w.platform) === platform;

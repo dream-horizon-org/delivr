@@ -21,6 +21,10 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
   const accountId: string = req.user.id;
 
   const body = req.body as Partial<CreateWorkflowDto>;
+  /**
+   * Required attributes for provider-agnostic workflow metadata.
+   * Keep validation minimal here; domain-specific checks live in services.
+   */
   const missingRequired = !body.providerType || !body.integrationId || !body.workflowUrl || !body.displayName || !body.platform || !body.workflowType;
   if (missingRequired) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_CREATE_REQUIRED });
@@ -55,6 +59,9 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
   }
 };
 
+/**
+ * List workflows for a tenant, optionally filtered by providerType, integrationId, platform, workflowType.
+ */
 export const listWorkflows = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const { providerType, integrationId, platform, workflowType } = req.query as any;
@@ -75,6 +82,9 @@ export const listWorkflows = async (req: Request, res: Response): Promise<any> =
   }
 };
 
+/**
+ * Get a workflow by id within tenant scope.
+ */
 export const getWorkflowById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const id = req.params.workflowId;
@@ -92,6 +102,9 @@ export const getWorkflowById = async (req: Request, res: Response): Promise<any>
   }
 };
 
+/**
+ * Update a workflow by id.
+ */
 export const updateWorkflow = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const id = req.params.workflowId;
@@ -111,6 +124,9 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
   }
 };
 
+/**
+ * Delete a workflow by id.
+ */
 export const deleteWorkflow = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const id = req.params.workflowId;

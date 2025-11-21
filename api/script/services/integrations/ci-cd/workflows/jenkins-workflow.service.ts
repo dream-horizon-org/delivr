@@ -6,6 +6,10 @@ import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controll
 import { normalizePlatform, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
 
 export class JenkinsWorkflowService extends WorkflowService {
+  /**
+   * Discover parameter definitions for a Jenkins job URL.
+   * Validates tenant credentials and host match before forwarding to provider.
+   */
   fetchJobParameters = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{
     name: string; type: 'boolean' | 'string' | 'choice'; description?: string; defaultValue?: unknown; choices?: string[];
   }>}> => {
@@ -38,6 +42,11 @@ export class JenkinsWorkflowService extends WorkflowService {
     return { parameters: result.parameters };
   };
 
+  /**
+   * Trigger a Jenkins job with parameters.
+   * Accepts either workflowId or (workflowType + platform) to resolve the workflow.
+   * Validates Jenkins BASIC credentials and host alignment.
+   */
   trigger = async (tenantId: string, input: {
     workflowId?: string;
     workflowType?: string;
@@ -107,6 +116,9 @@ export class JenkinsWorkflowService extends WorkflowService {
     return { queueLocation: result.queueLocation };
   };
 
+  /**
+   * Poll Jenkins queue status and infer build state when executable URL exists.
+   */
   getQueueStatus = async (tenantId: string, queueUrl: string): Promise<'pending'|'running'|'completed'|'cancelled'> => {
     const urlObj = new URL(queueUrl);
     const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);

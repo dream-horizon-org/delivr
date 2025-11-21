@@ -10,6 +10,7 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
   const accountId = req.user?.id;
   const missingUser = !accountId || typeof accountId !== 'string';
   if (missingUser) {
+    // Auth guard: config creation requires authenticated user context
     return res.status(HTTP_STATUS.UNAUTHORIZED).json({
       success: RESPONSE_STATUS.FAILURE,
       error: 'Unauthorized'
@@ -40,6 +41,9 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
   }
 };
 
+/**
+ * List all CI/CD configs for a tenant.
+ */
 export const listConfigsByTenant = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   try {
@@ -59,6 +63,9 @@ export const listConfigsByTenant = async (req: Request, res: Response): Promise<
   }
 };
 
+/**
+ * Fetch a CI/CD config by id (tenant-scoped).
+ */
 export const getConfigById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const configId = req.params.configId;
@@ -86,6 +93,9 @@ export const getConfigById = async (req: Request, res: Response): Promise<any> =
   }
 };
 
+/**
+ * Update a CI/CD config by id. Supports updating workflowIds.
+ */
 export const updateConfigById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const configId = req.params.configId;
@@ -116,6 +126,9 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
   }
 };
 
+/**
+ * Delete a CI/CD config by id.
+ */
 export const deleteConfigById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const configId = req.params.configId;

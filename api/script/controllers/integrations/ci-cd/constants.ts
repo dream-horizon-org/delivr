@@ -1,3 +1,7 @@
+/**
+ * CI/CD domain error messages.
+ * Keep messages contextual to aid debugging and UI display.
+ */
 export const ERROR_MESSAGES = {
   MISSING_TOKEN_AND_SCM: 'Missing apiToken and no GitHub SCM integration found',
   INVALID_GITHUB_TOKEN: 'Invalid GitHub token',
@@ -72,6 +76,9 @@ export const ERROR_MESSAGES = {
   OPERATION_NOT_SUPPORTED: 'Operation not supported for this CI/CD provider'
 } as const;
 
+/**
+ * CI/CD domain success messages.
+ */
 export const SUCCESS_MESSAGES = {
   VERIFIED: 'Connection verified successfully',
   JENKINS_CREATED: 'Jenkins connection created',
@@ -80,6 +87,9 @@ export const SUCCESS_MESSAGES = {
   WORKFLOW_DELETED: 'Workflow deleted'
 } as const;
 
+/**
+ * Provider defaults and timeouts used across services and providers.
+ */
 export const PROVIDER_DEFAULTS = {
   GITHUB_API: 'https://api.github.com',
   JENKINS_CRUMB_PATH: '/crumbIssuer/api/json',
@@ -93,11 +103,13 @@ export const PLATFORM = {
   OTHER: 'other'
 } as const;
 
+/**
+ * Shared header constants for provider requests.
+ */
 export const HEADERS = {
   ACCEPT_JSON: 'application/json',
   ACCEPT_GITHUB_JSON: 'application/vnd.github+json',
   USER_AGENT: 'Delivr-App',
   JENKINS_CRUMB_HEADER_FALLBACK: 'Jenkins-Crumb'
 } as const;
-
 

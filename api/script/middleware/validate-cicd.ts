@@ -3,6 +3,14 @@ import { HTTP_STATUS } from '~constants/http';
 import { ERROR_MESSAGES } from '../controllers/integrations/ci-cd/constants';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
+/**
+ * CI/CD validation middleware
+ *
+ * Contains small, focused validators for CI/CD routes. Each validator:
+ * - Validates only its own scope (params or body)
+ * - Returns early with an HTTP 400 and domain-specific error message
+ * - Delegates provider-specific validation where applicable
+ */
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
   const trimmed = isString ? value.trim() : '';
@@ -10,6 +18,9 @@ const isNonEmptyString = (value: unknown): value is string => {
   return isString && isNonEmpty;
 };
 
+/**
+ * Validate presence of :tenantId path parameter.
+ */
 export const validateTenantId = (req: Request, res: Response, next: NextFunction): void => {
   const tenantId = req.params.tenantId;
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
@@ -20,6 +31,9 @@ export const validateTenantId = (req: Request, res: Response, next: NextFunction
   next();
 };
 
+/**
+ * Jenkins verify body: hostUrl, username and apiToken must be present.
+ */
 export const validateJenkinsVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
   const { hostUrl, username, apiToken } = req.body || {};
   const isHostInvalid = !isNonEmptyString(hostUrl);
@@ -33,6 +47,9 @@ export const validateJenkinsVerifyBody = (req: Request, res: Response, next: Nex
   next();
 };
 
+/**
+ * Jenkins job-parameters body: workflowUrl must be present.
+ */
 export const validateJenkinsJobParamsBody = (req: Request, res: Response, next: NextFunction): void => {
   const { workflowUrl } = req.body || {};
   const isWorkflowUrlMissing = !isNonEmptyString(workflowUrl);
@@ -43,6 +60,9 @@ export const validateJenkinsJobParamsBody = (req: Request, res: Response, next: 
   next();
 };
 
+/**
+ * Jenkins queue-status body: queueUrl must be present.
+ */
 export const validateJenkinsQueueBody = (req: Request, res: Response, next: NextFunction): void => {
   const { queueUrl } = req.body || {};
   const isQueueUrlMissing = !isNonEmptyString(queueUrl);
@@ -53,6 +73,9 @@ export const validateJenkinsQueueBody = (req: Request, res: Response, next: Next
   next();
 };
 
+/**
+ * Jenkins queue-status query: queueUrl must be present.
+ */
 export const validateJenkinsQueueQuery = (req: Request, res: Response, next: NextFunction): void => {
   const queueUrl = req.query.queueUrl;
   const isQueueUrlMissing = !isNonEmptyString(typeof queueUrl === 'string' ? queueUrl : '');
@@ -63,6 +86,9 @@ export const validateJenkinsQueueQuery = (req: Request, res: Response, next: Nex
   next();
 };
 
+/**
+ * Jenkins create body: hostUrl, username and apiToken must be present.
+ */
 export const validateCreateJenkinsBody = (req: Request, res: Response, next: NextFunction): void => {
   const { hostUrl, username, apiToken } = req.body || {};
   const isHostInvalid = !isNonEmptyString(hostUrl);
@@ -76,6 +102,9 @@ export const validateCreateJenkinsBody = (req: Request, res: Response, next: Nex
   next();
 };
 
+/**
+ * Create workflow body: required fields must be present for provider-agnostic workflow metadata.
+ */
 export const validateCreateWorkflowBody = (req: Request, res: Response, next: NextFunction): void => {
   const body = req.body || {};
   const required = ['providerType', 'integrationId', 'displayName', 'platform', 'workflowType', 'workflowUrl'] as const;
@@ -88,6 +117,9 @@ export const validateCreateWorkflowBody = (req: Request, res: Response, next: Ne
   next();
 };
 
+/**
+ * GitHub Actions verify body: apiToken must be present.
+ */
 export const validateGHAVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
   const { apiToken } = req.body || {};
   const tokenInvalid = !isNonEmptyString(apiToken);
@@ -98,6 +130,9 @@ export const validateGHAVerifyBody = (req: Request, res: Response, next: NextFun
   next();
 };
 
+/**
+ * GitHub Actions create body: apiToken must be present.
+ */
 export const validateCreateGHABody = (req: Request, res: Response, next: NextFunction): void => {
   const { apiToken } = req.body || {};
   const tokenInvalid = !isNonEmptyString(apiToken);
@@ -108,6 +143,9 @@ export const validateCreateGHABody = (req: Request, res: Response, next: NextFun
   next();
 };
 
+/**
+ * Validate :providerType path parameter and allow only supported providers.
+ */
 export const validateProviderTypeParam = (req: Request, res: Response, next: NextFunction): void => {
   const raw = String(req.params.providerType || '');
   const providerKey = raw.toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
@@ -122,6 +160,9 @@ export const validateProviderTypeParam = (req: Request, res: Response, next: Nex
   next();
 };
 
+/**
+ * Validate verify body for the resolved provider.
+ */
 export const validateConnectionVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
   const raw = String(req.params.providerType || '');
   const providerKey = raw.toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
@@ -137,6 +178,9 @@ export const validateConnectionVerifyBody = (req: Request, res: Response, next: 
   res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
 };
 
+/**
+ * Validate create body for the resolved provider.
+ */
 export const validateConnectionCreateBody = (req: Request, res: Response, next: NextFunction): void => {
   const raw = String(req.params.providerType || '');
   const providerKey = raw.toUpperCase().replace('-', '_') as keyof typeof CICDProviderType;
@@ -152,6 +196,9 @@ export const validateConnectionCreateBody = (req: Request, res: Response, next: 
   res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.OPERATION_NOT_SUPPORTED });
 };
 
+/**
+ * Validate presence of :integrationId path parameter.
+ */
 export const validateIntegrationIdParam = (req: Request, res: Response, next: NextFunction): void => {
   const integrationId = req.params.integrationId;
   const invalid = !isNonEmptyString(integrationId);
@@ -162,6 +209,9 @@ export const validateIntegrationIdParam = (req: Request, res: Response, next: Ne
   next();
 };
 
+/**
+ * Validate presence of :configId path parameter.
+ */
 export const validateConfigIdParam = (req: Request, res: Response, next: NextFunction): void => {
   const configId = req.params.configId;
   const invalid = !isNonEmptyString(configId);
@@ -172,6 +222,9 @@ export const validateConfigIdParam = (req: Request, res: Response, next: NextFun
   next();
 };
 
+/**
+ * Validate minimal inputs for workflow parameter discovery.
+ */
 export const validateWorkflowParamFetchBody = (req: Request, res: Response, next: NextFunction): void => {
   const { workflowUrl } = req.body || {};
   const hasWorkflowUrl = isNonEmptyString(workflowUrl);
@@ -183,6 +236,10 @@ export const validateWorkflowParamFetchBody = (req: Request, res: Response, next
   next();
 };
 
+/**
+ * Validate selection inputs for triggering a workflow by integrationId.
+ * Requires either a workflowId OR (workflowType AND platform).
+ */
 export const validateWorkflowTriggerBody = (req: Request, res: Response, next: NextFunction): void => {
   const { workflowId, workflowType, platform } = req.body || {};
   const hasWorkflowId = isNonEmptyString(workflowId);
@@ -195,6 +252,9 @@ export const validateWorkflowTriggerBody = (req: Request, res: Response, next: N
   next();
 };
 
+/**
+ * Validate inputs for run-status: runUrl OR (owner/repo/runId).
+ */
 export const validateWorkflowRunStatusBody = (req: Request, res: Response, next: NextFunction): void => {
   const { runUrl, owner, repo, runId } = req.body || {};
   const hasRunUrl = isNonEmptyString(runUrl);
@@ -207,6 +267,9 @@ export const validateWorkflowRunStatusBody = (req: Request, res: Response, next:
   next();
 };
 
+/**
+ * Validate query inputs for run-status: runUrl OR (owner/repo/runId) via query string.
+ */
 export const validateWorkflowRunStatusQuery = (req: Request, res: Response, next: NextFunction): void => {
   const runUrl = req.query.runUrl;
   const owner = req.query.owner;
@@ -225,6 +288,9 @@ export const validateWorkflowRunStatusQuery = (req: Request, res: Response, next
   next();
 };
 
+/**
+ * Validate inputs for config-level trigger: platform/platformType AND workflowType required.
+ */
 export const validateConfigWorkflowTriggerBody = (req: Request, res: Response, next: NextFunction): void => {
   const body = req.body || {};
   const platform = body.platform;
