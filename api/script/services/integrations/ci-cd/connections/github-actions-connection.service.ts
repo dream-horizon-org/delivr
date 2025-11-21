@@ -58,30 +58,33 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       throw new Error(ERROR_MESSAGES.GHA_NOT_FOUND);
     }
 
-    const requiresVerification = (!!updateData.apiToken) && !updateData.verificationStatus;
-    if (requiresVerification) {
-      const withSecrets = await this.repository.findById(existing.id);
-      const tokenToCheck: string | undefined = updateData.apiToken ?? (withSecrets as any)?.apiToken as (string | undefined);
-
-      if (!tokenToCheck) {
-        updateData.verificationStatus = VerificationStatus.INVALID;
-        updateData.lastVerifiedAt = new Date();
-        updateData.verificationError = ERROR_MESSAGES.MISSING_TOKEN_AND_SCM;
-      } else {
-        const verify = await this.verifyConnection({
-          apiToken: tokenToCheck,
-          githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
-          userAgent: HEADERS.USER_AGENT,
-          acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
-          timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
-        });
-        updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
-        updateData.lastVerifiedAt = new Date();
-        updateData.verificationError = verify.isValid ? null : verify.message;
-      }
+    // Always verify on update
+    const withSecrets = await this.repository.findById(existing.id);
+    const tokenToCheck: string | undefined = updateData.apiToken ?? (withSecrets as any)?.apiToken as (string | undefined);
+    const tokenMissing = !tokenToCheck;
+    if (tokenMissing) {
+      updateData.verificationStatus = VerificationStatus.INVALID;
+      updateData.lastVerifiedAt = new Date();
+      updateData.verificationError = ERROR_MESSAGES.MISSING_TOKEN_AND_SCM;
+    } else {
+      const verify = await this.verifyConnection({
+        apiToken: tokenToCheck,
+        githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
+        userAgent: HEADERS.USER_AGENT,
+        acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
+        timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
+      });
+      updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+      updateData.lastVerifiedAt = new Date();
+      updateData.verificationError = verify.isValid ? null : verify.message;
     }
 
     const updated = await this.repository.update(existing.id, updateData);
+    const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
+    if (wasInvalid) {
+      const errorMessage = updateData.verificationError ?? ERROR_MESSAGES.FAILED_VERIFY_GHA;
+      throw new Error(errorMessage);
+    }
     return this.toSafe(updated as any);
   };
 

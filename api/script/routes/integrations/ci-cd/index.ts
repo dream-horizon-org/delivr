@@ -3,9 +3,15 @@ import { Storage } from "../../../storage/storage";
 import { createCICDConfigRoutes } from "./config/config.routes";
 import { createCICDConnectionsRoutes } from "./connections/connections.routes";
 import { createCICDWorkflowsRoutes } from "./workflows/workflows.routes";
-import * as workflowControllers from "../../../controllers/integrations/ci-cd/workflows/workflows.controller";
 import * as validateCICD from "../../../middleware/validate-cicd";
-import { getAvailableCICDProviders } from "../../../controllers/integrations/ci-cd/providers.controller";
+import {
+  createWorkflow,
+  listWorkflows,
+  getWorkflowById,
+  updateWorkflow,
+  deleteWorkflow,
+  getAvailableCICDProviders
+} from "~controllers/integrations/ci-cd";
 
 export function createCICDIntegrationRoutes(storage: Storage): Router {
   const router = Router();
@@ -27,35 +33,35 @@ export function createCICDIntegrationRoutes(storage: Storage): Router {
     validateCICD.validateTenantId,
     // tenantPermissions.requireOwner({ storage }),
     validateCICD.validateCreateWorkflowBody,
-    workflowControllers.createWorkflow
+    createWorkflow
   );
 
   router.get(
     "/tenants/:tenantId/integrations/ci-cd/workflows",
     validateCICD.validateTenantId,
     // tenantPermissions.requireOwner({ storage }),
-    workflowControllers.listWorkflows
+    listWorkflows
   );
 
   router.get(
     "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
     // tenantPermissions.requireOwner({ storage }),
-    workflowControllers.getWorkflowById
+    getWorkflowById
   );
 
   router.patch(
     "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
     // tenantPermissions.requireOwner({ storage }),
-    workflowControllers.updateWorkflow
+    updateWorkflow
   );
 
   router.delete(
     "/tenants/:tenantId/integrations/ci-cd/workflows/:workflowId",
     validateCICD.validateTenantId,
     // tenantPermissions.requireOwner({ storage }),
-    workflowControllers.deleteWorkflow
+    deleteWorkflow
   );
 
   return router;

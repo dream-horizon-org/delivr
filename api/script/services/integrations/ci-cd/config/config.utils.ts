@@ -1,3 +1,4 @@
+import shortid = require('shortid');
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import { CICDProviderType, WorkflowType, type CreateWorkflowDto } from '~types/integrations/ci-cd';
 
@@ -67,6 +68,7 @@ export const validateAndNormalizeWorkflowsForConfig = (
     }
 
     const normalizedItem: CreateWorkflowDto = {
+      id: shortid.generate(),
       tenantId,
       providerType: providerType as CICDProviderType,
       integrationId: (integrationId as string).trim(),

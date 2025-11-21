@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { Storage } from "../../../../storage/storage";
 import * as validateCICD from "../../../../middleware/validate-cicd";
-import * as connection from "../../../../controllers/integrations/ci-cd/connections/connection.controller";
+import {
+  verifyConnectionByProvider,
+  createConnectionByProvider,
+  getIntegrationById,
+  updateIntegrationById,
+  deleteIntegrationById
+} from "~controllers/integrations/ci-cd";
 
 export const createCICDConnectionsRoutes = (_storage: Storage): Router => {
   const router = Router();
@@ -12,7 +18,7 @@ export const createCICDConnectionsRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionVerifyBody,
-    connection.verifyConnectionByProvider
+    verifyConnectionByProvider
   );
 
   router.post(
@@ -20,7 +26,7 @@ export const createCICDConnectionsRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateProviderTypeParam,
     validateCICD.validateConnectionCreateBody,
-    connection.createConnectionByProvider
+    createConnectionByProvider
   );
 
   // CRUD by integrationId
@@ -28,21 +34,21 @@ export const createCICDConnectionsRoutes = (_storage: Storage): Router => {
     "/tenants/:tenantId/integrations/ci-cd/connections/:integrationId",
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
-    connection.getIntegrationById
+    getIntegrationById
   );
 
   router.patch(
     "/tenants/:tenantId/integrations/ci-cd/connections/:integrationId",
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
-    connection.updateIntegrationById
+    updateIntegrationById
   );
 
   router.delete(
     "/tenants/:tenantId/integrations/ci-cd/connections/:integrationId",
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
-    connection.deleteIntegrationById
+    deleteIntegrationById
   );
 
   return router;

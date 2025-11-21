@@ -1,4 +1,4 @@
-import type { CICDIntegrationRepository } from '~models/integrations/ci-cd/connection/connection.repository';
+import type { CICDIntegrationRepository } from '~models/integrations/ci-cd';
 import { getStorage } from '../../../../storage/storage-instance';
 import type { SafeCICDIntegration, UpdateCICDIntegrationDto, TenantCICDIntegration } from '~types/integrations/ci-cd/connection.interface';
 

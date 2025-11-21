@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES } from "../constants";
-import { JenkinsWorkflowService } from "../../../../services/integrations/ci-cd/workflows/jenkins-workflow.service";
+import { JenkinsWorkflowService } from "~services/integrations/ci-cd";
 import type { ParametersResult, QueueStatus, WorkflowAdapter } from "./workflow-adapter.utils";
 
 export const createJenkinsAdapter = (): WorkflowAdapter => {
