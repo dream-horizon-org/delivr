@@ -5,6 +5,7 @@
     "target": "ES2022",
     "outDir": "./bin",
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "baseUrl": "./script",
     "paths": {
       "~types/*": ["types/*"],
