@@ -1,0 +1,47 @@
+import { Router } from 'express';
+import { createProjectManagementIntegrationController } from '~controllers/integrations/project-management/integration/integration.controller';
+import type { ProjectManagementIntegrationService } from '~services/integrations/project-management';
+
+export const createIntegrationRoutes = (
+  service: ProjectManagementIntegrationService
+): Router => {
+  const router = Router();
+  const controller = createProjectManagementIntegrationController(service);
+
+  // List available providers (public info)
+  router.get('/integrations/project-management/providers', controller.getAvailableProviders);
+
+  // CRUD operations for integrations
+  router.post(
+    '/projects/:projectId/integrations/project-management',
+    controller.createIntegration
+  );
+
+  router.get(
+    '/projects/:projectId/integrations/project-management',
+    controller.listIntegrations
+  );
+
+  router.get(
+    '/projects/:projectId/integrations/project-management/:integrationId',
+    controller.getIntegration
+  );
+
+  router.put(
+    '/projects/:projectId/integrations/project-management/:integrationId',
+    controller.updateIntegration
+  );
+
+  router.delete(
+    '/projects/:projectId/integrations/project-management/:integrationId',
+    controller.deleteIntegration
+  );
+
+  router.post(
+    '/projects/:projectId/integrations/project-management/:integrationId/verify',
+    controller.verifyIntegration
+  );
+
+  return router;
+};
+

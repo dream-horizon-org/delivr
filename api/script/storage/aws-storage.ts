@@ -57,23 +57,23 @@ export function createAccessKey(sequelize: Sequelize) {
 //Creating Account Type
 export function createAccount(sequelize: Sequelize) {
   return sequelize.define("account", {
-    id: { 
-      type: DataTypes.STRING, 
-      allowNull: false, 
-      primaryKey: true 
+    id: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      primaryKey: true
     },
-    email: { 
-      type: DataTypes.STRING, 
-      allowNull: false, 
-      unique: true 
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
     },
-    name: { 
-      type: DataTypes.STRING, 
-      allowNull: false 
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false
     },
-    picture: { 
-      type: DataTypes.STRING, 
-      allowNull: true 
+    picture: {
+      type: DataTypes.STRING,
+      allowNull: true
     },
 
     createdTime: { 
@@ -523,6 +523,14 @@ export class S3Storage implements storage.Storage {
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
+    
+    // Project Management Integration - Repositories and Services
+    public projectManagementIntegrationRepository!: any;
+    public projectManagementConfigRepository!: any;
+    public projectManagementIntegrationService!: any;
+    public projectManagementConfigService!: any;
+    public projectManagementTicketService!: any;
+    
     public checkmateMetadataService!: CheckmateMetadataService;
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
@@ -679,6 +687,46 @@ export class S3Storage implements storage.Storage {
           );
           
           console.log("Test Management Integration initialized");
+          
+          // Initialize Project Management Integration
+          const {
+            createProjectManagementIntegrationModel,
+            ProjectManagementIntegrationRepository,
+            createProjectManagementConfigModel,
+            ProjectManagementConfigRepository
+          } = require('../models/integrations/project-management');
+          
+          const {
+            ProjectManagementIntegrationService,
+            ProjectManagementConfigService,
+            ProjectManagementTicketService
+          } = require('../services/integrations/project-management');
+          
+          const projectManagementIntegrationModel = createProjectManagementIntegrationModel(this.sequelize);
+          this.projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
+          
+          const projectManagementConfigModel = createProjectManagementConfigModel(this.sequelize);
+          this.projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
+          
+          // Service 1: Project Management Integration Service (manages credentials)
+          this.projectManagementIntegrationService = new ProjectManagementIntegrationService(
+            this.projectManagementIntegrationRepository
+          );
+          
+          // Service 2: Project Management Config Service (manages configurations)
+          this.projectManagementConfigService = new ProjectManagementConfigService(
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          // Service 3: Project Management Ticket Service (stateless ticket operations)
+          this.projectManagementTicketService = new ProjectManagementTicketService(
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          console.log("Project Management Integration initialized");
+          
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");

@@ -11,6 +11,11 @@ import {
   createTestManagementConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
+import {
+  createIntegrationRoutes as createPMIntegrationRoutes,
+  createConfigurationRoutes as createPMConfigurationRoutes,
+  createTicketRoutes as createPMTicketRoutes
+} from "./integrations/project-management";
 import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
@@ -92,6 +97,37 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   }
 
   // ============================================================================
+  // PROJECT MANAGEMENT INTEGRATIONS (JIRA, Linear, Asana, etc.)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if services are initialized
+    if (s3Storage.projectManagementIntegrationService && 
+        s3Storage.projectManagementConfigService && 
+        s3Storage.projectManagementTicketService) {
+      
+      // Project Management Integration Management (Credentials)
+      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService);
+      router.use(pmIntegrationRoutes);
+      
+      // Project Management Configuration Management (Reusable configurations)
+      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService);
+      router.use(pmConfigurationRoutes);
+      
+      // Project Management Ticket Operations (Stateless - Create, Check Status)
+      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService);
+      router.use(pmTicketRoutes);
+      
+      console.log('[Release Management] Project Management routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Project Management services not yet initialized, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Project Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
   // TODO: Implement target platform integration routes
@@ -109,12 +145,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const commRoutes = createCommIntegrationRoutes(storage);
   router.use(commRoutes);
   // router.use(createCommunicationRoutes(storage));
-
-  // ============================================================================
-  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
-  // ============================================================================
-  // TODO: Implement ticket management integration routes
-  // router.use(createTicketManagementRoutes(storage));
 
   // ============================================================================
   // SETUP MANAGEMENT
@@ -166,6 +196,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       // - Filter by status (KICKOFF_PENDING, STARTED, RELEASED, etc.)
       // - Pagination
       // - Sort by date
+      
       res.status(501).json({
         error: "Not implemented yet",
         message: "Release listing endpoint coming soon"
@@ -178,7 +209,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      // TODO: Implement release details
+      const { tenantId, releaseId } = req.params;
+      
+      // TODO: Implement full release details retrieval from database
+      // const release = await storage.getRelease(releaseId);
+      
       res.status(501).json({
         error: "Not implemented yet",
         message: "Release details endpoint coming soon"
@@ -191,15 +226,53 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      // TODO: Implement release creation
-      // - Validate release metadata
-      // - Create release record
-      // - Initialize state history
-      // - Trigger kickoff if needed
-      res.status(501).json({
-        error: "Not implemented yet",
-        message: "Release creation endpoint coming soon"
-      });
+      try {
+        const { tenantId } = req.params;
+        const {
+          version,
+          type,
+          platforms,
+          description,
+          ...releaseData
+        } = req.body;
+        
+        // Validate required fields
+        if (!version) {
+          return res.status(400).json({
+            error: "Missing required field",
+            details: "version is required"
+          });
+        }
+        
+        // TODO: Implement full release creation logic
+        // 1. Validate release metadata
+        // 2. Create release record in database
+        // 3. Initialize state history
+        // 4. Trigger kickoff if needed
+        
+        // Placeholder: Create a mock release ID
+        const releaseId = `rel_${Date.now()}`;
+        
+        // Return placeholder response
+        res.status(201).json({
+          success: true,
+          message: "Release creation placeholder - full implementation coming soon",
+          release: {
+            id: releaseId,
+            tenantId,
+            version,
+            type,
+            platforms,
+            ...releaseData
+          }
+        });
+      } catch (error: any) {
+        console.error('[Release] Error creating release:', error);
+        res.status(500).json({
+          error: "Failed to create release",
+          message: error.message
+        });
+      }
     }
   );
 
