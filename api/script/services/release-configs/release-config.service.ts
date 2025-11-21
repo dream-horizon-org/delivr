@@ -18,110 +18,23 @@ import { hasAtLeastOneIntegration, validateScheduling } from './release-config.v
 import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService as BaseTestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
+import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
+import type { SlackChannelConfigService } from '~services/integrations/comm/slack-channel-config';
+import type { ProjectManagementConfigService as BaseProjectManagementConfigService } from '~services/integrations/project-management/configuration';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
 
 // ============================================================================
-// INTEGRATION SERVICE INTERFACES (Placeholder)
+// INTEGRATION SERVICE INTERFACES
 // ============================================================================
-
-/**
- * Extended TestManagementConfigService interface with validateConfig method
- * The actual integration service will implement this method
- */
-interface TestManagementConfigService extends BaseTestManagementConfigService {
-  validateConfig?(config: any): Promise<IntegrationValidationResult>;
-}
-
-interface CIIntegrationService {
-  validateConfig(config: any): Promise<IntegrationValidationResult>;
-  createConfig(config: any): Promise<string>;
-}
-
-interface CommunicationIntegrationService {
-  validateConfig(config: any): Promise<IntegrationValidationResult>;
-  createConfig(config: any): Promise<string>;
-}
-
-interface SCMIntegrationService {
-  validateConfig(config: any): Promise<IntegrationValidationResult>;
-  createConfig(config: any): Promise<string>;
-}
-
-interface ProjectManagementIntegrationService {
-  validateConfig(config: any): Promise<IntegrationValidationResult>;
-  createConfig(config: any): Promise<string>;
-}
-
-// Placeholder service instances (will be injected)
-const ciService: CIIntegrationService = {
-  validateConfig: async (config: any): Promise<IntegrationValidationResult> => {
-    console.log('Validating CI config:', config);
-    return {
-      integration: 'ci',
-      isValid: true,
-      errors: []
-    };
-  },
-  createConfig: async (config: any): Promise<string> => {
-    console.log('Creating CI config:', config);
-    return `ci_${Date.now()}`;
-  }
-};
-
-const communicationService: CommunicationIntegrationService = {
-  validateConfig: async (config: any): Promise<IntegrationValidationResult> => {
-    console.log('Validating Communication config:', config);
-    return {
-      integration: 'communication',
-      isValid: true,
-      errors: []
-    };
-  },
-  createConfig: async (config: any): Promise<string> => {
-    console.log('Creating Communication config:', config);
-    return `comms_${Date.now()}`;
-  }
-};
-
-const scmService: SCMIntegrationService = {
-  validateConfig: async (config: any): Promise<IntegrationValidationResult> => {
-    console.log('Validating SCM config:', config);
-    return {
-      integration: 'scm',
-      isValid: true,
-      errors: []
-    };
-  },
-  createConfig: async (config: any): Promise<string> => {
-    console.log('Creating SCM config:', config);
-    return `scm_${Date.now()}`;
-  }
-};
-
-const projectManagementService: ProjectManagementIntegrationService = {
-  validateConfig: async (config: any): Promise<IntegrationValidationResult> => {
-    console.log('Validating Project Management config:', config);
-    return {
-      integration: 'projectManagement',
-      isValid: true,
-      errors: []
-    };
-  },
-  createConfig: async (config: any): Promise<string> => {
-    console.log('Creating Project Management config:', config);
-    return `pm_${Date.now()}`;
-  }
-};
 
 export class ReleaseConfigService {
   constructor(
     private readonly configRepo: ReleaseConfigRepository,
-    private readonly testManagementConfigService?: TestManagementConfigService,
-    private readonly ciIntegrationService?: CIIntegrationService,
-    private readonly communicationIntegrationService?: CommunicationIntegrationService,
-    private readonly scmIntegrationService?: SCMIntegrationService,
-    private readonly projectManagementIntegrationService?: ProjectManagementIntegrationService
+    private readonly cicdConfigService?: CICDConfigService,
+    private readonly testManagementConfigService?: BaseTestManagementConfigService,
+    private readonly slackChannelConfigService?: SlackChannelConfigService,
+    private readonly projectManagementConfigService?: BaseProjectManagementConfigService
   ) {}
 
   /**
@@ -137,32 +50,30 @@ export class ReleaseConfigService {
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(requestData, currentUserId);
 
     // Validate CI configuration
-    if (integrationConfigs.ci && this.ciIntegrationService) {
-      const ciValidation = await this.ciIntegrationService.validateConfig(integrationConfigs.ci);
+    if (integrationConfigs.ci && this.cicdConfigService?.validateConfig) {
+      const ciValidation = await this.cicdConfigService.validateConfig({
+        tenantId: requestData.organizationId,
+        workflows: integrationConfigs.ci.workflows || [],
+        createdByAccountId: currentUserId
+      });
       validationResults.push(ciValidation);
     }
 
-    // Validate Test Management configuration
-    if (integrationConfigs.testManagement && this.testManagementConfigService?.validateConfig) {
-      const tcmValidation = await this.testManagementConfigService.validateConfig(integrationConfigs.testManagement);
-      validationResults.push(tcmValidation);
-    }
+    // Test Management validation is done at the provider level during integration creation
+    // No service-level validation needed here
 
     // Validate Communication configuration
-    if (integrationConfigs.communication && this.communicationIntegrationService) {
-      const commsValidation = await this.communicationIntegrationService.validateConfig(integrationConfigs.communication);
-      validationResults.push(commsValidation);
-    }
-
-    // Validate SCM configuration
-    if (integrationConfigs.scm && this.scmIntegrationService) {
-      const scmValidation = await this.scmIntegrationService.validateConfig(integrationConfigs.scm);
-      validationResults.push(scmValidation);
+    if (integrationConfigs.communication && this.slackChannelConfigService?.validateConfig) {
+      const commValidation = this.slackChannelConfigService.validateConfig({
+        tenantId: requestData.organizationId,
+        channelData: integrationConfigs.communication.slack?.channels || {}
+      });
+      validationResults.push(commValidation);
     }
 
     // Validate Project Management configuration
-    if (integrationConfigs.projectManagement && this.projectManagementIntegrationService) {
-      const pmValidation = await this.projectManagementIntegrationService.validateConfig(integrationConfigs.projectManagement);
+    if (integrationConfigs.projectManagement && this.projectManagementConfigService?.validateConfig) {
+      const pmValidation = this.projectManagementConfigService.validateConfig(integrationConfigs.projectManagement);
       validationResults.push(pmValidation);
     }
 
@@ -200,12 +111,17 @@ export class ReleaseConfigService {
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(requestData, currentUserId);
 
     // Create CI config
-    if (integrationConfigs.ci && this.ciIntegrationService) {
+    if (integrationConfigs.ci && this.cicdConfigService) {
       if (requestData.ciConfigId?.trim()) {
         integrationConfigIds.ciConfigId = requestData.ciConfigId;
         console.log('Reusing existing CI config:', integrationConfigIds.ciConfigId);
       } else {
-        integrationConfigIds.ciConfigId = await this.ciIntegrationService.createConfig(integrationConfigs.ci);
+        const ciResult = await this.cicdConfigService.createConfig({
+          tenantId: requestData.organizationId,
+          workflows: integrationConfigs.ci.workflows || [],
+          createdByAccountId: currentUserId
+        });
+        integrationConfigIds.ciConfigId = ciResult.configId;
         console.log('Created new CI config:', integrationConfigIds.ciConfigId);
       }
     }
@@ -228,34 +144,34 @@ export class ReleaseConfigService {
     }
 
     // Create Communication config
-    if (integrationConfigs.communication && this.communicationIntegrationService) {
+    if (integrationConfigs.communication && this.slackChannelConfigService) {
       if (requestData.communication?.id?.trim()) {
         integrationConfigIds.commsConfigId = requestData.communication.id;
         console.log('Reusing existing Communication config:', integrationConfigIds.commsConfigId);
       } else {
-        integrationConfigIds.commsConfigId = await this.communicationIntegrationService.createConfig(integrationConfigs.communication);
+        const commConfig = await this.slackChannelConfigService.createConfig({
+          tenantId: requestData.organizationId,
+          channelData: integrationConfigs.communication.slack?.channels || {}
+        });
+        integrationConfigIds.commsConfigId = commConfig.id;
         console.log('Created new Communication config:', integrationConfigIds.commsConfigId);
       }
     }
 
-    // Create SCM config
-    if (integrationConfigs.scm && this.scmIntegrationService) {
-      if (requestData.scmConfig?.id?.trim()) {
-        integrationConfigIds.sourceCodeManagementConfigId = requestData.scmConfig.id;
-        console.log('Reusing existing SCM config:', integrationConfigIds.sourceCodeManagementConfigId);
-      } else {
-        integrationConfigIds.sourceCodeManagementConfigId = await this.scmIntegrationService.createConfig(integrationConfigs.scm);
-        console.log('Created new SCM config:', integrationConfigIds.sourceCodeManagementConfigId);
-      }
-    }
-
     // Create Project Management config
-    if (integrationConfigs.projectManagement && this.projectManagementIntegrationService) {
+    if (integrationConfigs.projectManagement && this.projectManagementConfigService) {
       if (requestData.jiraConfig?.id?.trim()) {
         integrationConfigIds.projectManagementConfigId = requestData.jiraConfig.id;
         console.log('Reusing existing Project Management config:', integrationConfigIds.projectManagementConfigId);
       } else {
-        integrationConfigIds.projectManagementConfigId = await this.projectManagementIntegrationService.createConfig(integrationConfigs.projectManagement);
+        const pmConfig = await this.projectManagementConfigService.createConfig({
+          projectId: requestData.organizationId,
+          integrationId: integrationConfigs.projectManagement.integrationId || '',
+          name: requestData.jiraConfig?.name || `PM Config for ${requestData.name}`,
+          createdByAccountId: currentUserId,
+          ...integrationConfigs.projectManagement
+        });
+        integrationConfigIds.projectManagementConfigId = pmConfig.id;
         console.log('Created new Project Management config:', integrationConfigIds.projectManagementConfigId);
       }
     }

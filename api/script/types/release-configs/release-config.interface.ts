@@ -19,7 +19,8 @@ export type ReleaseConfiguration = {
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   targets: string[];
-  sourceCodeManagementConfigId: string | null;
+  platforms: string[] | null;
+  baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
   projectManagementConfigId: string | null;
@@ -41,7 +42,8 @@ export type CreateReleaseConfigDto = {
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   targets: string[];
-  sourceCodeManagementConfigId?: string;
+  platforms?: string[];
+  baseBranch?: string;
   ciConfigId?: string;
   testManagementConfigId?: string;
   projectManagementConfigId?: string;
@@ -60,7 +62,8 @@ export type UpdateReleaseConfigDto = {
   description?: string;
   releaseType?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   targets?: string[];
-  sourceCodeManagementConfigId?: string | null;
+  platforms?: string[] | null;
+  baseBranch?: string | null;
   ciConfigId?: string | null;
   testManagementConfigId?: string | null;
   projectManagementConfigId?: string | null;
@@ -79,17 +82,19 @@ export type CreateReleaseConfigRequest = {
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   isDefault?: boolean;
+  platforms?: string[];        // Supported platforms (e.g., ["ANDROID", "IOS"])
   defaultTargets: string[];    // Maps to targets
   
   // Integration configurations (will be processed to generate config IDs)
   ciConfigId?: string;         // Optional: existing CI config ID to reuse
-  buildPipelines?: BuildPipeline[];      // Will be sent to CI integration service if no ciConfigId
+  workflows?: Workflow[];                // Will be sent to CI integration service if no ciConfigId
   testManagement?: TestManagementRequestConfig;        // Will be sent to TCM integration service
   communication?: any;         // TODO: Use proper Communication config type when implemented
-  scmConfig?: any;             // TODO: Use proper SCM config type when implemented
   jiraConfig?: any;            // TODO: Use proper Project Management config type when implemented
+  jiraProject?: any;           // TODO: Use proper Project Management config type when implemented
   
   scheduling?: ReleaseScheduling;            // Stored directly as JSON
+  baseBranch?: string;         // Base branch for releases
   status?: string;             // Not stored in release config
 };
 
@@ -104,6 +109,8 @@ export type SafeReleaseConfiguration = {
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   targets: string[];
+  platforms: string[] | null;
+  baseBranch: string | null;
   isActive: boolean;
   isDefault: boolean;
   createdBy: {
@@ -132,18 +139,17 @@ export interface TestManagementRequestConfig {
   platformConfigurations?: TestManagementPlatformConfiguration[];
 }
 
-// NOTE: Other integration config types (CI, Communication, SCM, Project Management) 
+// NOTE: Other integration config types (CI, Communication, Project Management) 
 // will be imported from their respective integration type files once implemented:
-// - ~types/integrations/ci/ci-config
-// - ~types/integrations/communication/communication-config  
-// - ~types/integrations/scm/scm-config
-// - ~types/integrations/project-management/project-management-config
+// - ~types/integrations/ci-cd/config
+// - ~types/integrations/comm/slack-channel-config
+// - ~types/integrations/project-management/configuration
 
 /**
  * Build Pipeline configuration
  * Uses TestPlatform for consistency with test management
  */
-export interface BuildPipeline {
+export interface Workflow {
   id?: string;
   name: string;
   platform: TestPlatform;
@@ -254,13 +260,14 @@ export interface ReleaseScheduling {
   releaseFrequency: ReleaseFrequency;
   firstReleaseKickoffDate: string; // ISO date string
   nextReleaseKickoffDate?: string; // Optional, may be absent in request body
+  initialVersions: Record<string, string>; // Platform -> Version mapping (e.g., {"ANDROID": "1.0.0", "IOS": "1.0.0"})
   kickoffReminderTime: string; // Format: "HH:mm", should be <= kickoffTime
   kickoffTime: string; // Format: "HH:mm"
   targetReleaseTime: string; // Format: "HH:mm"
   targetReleaseDateOffsetFromKickoff: number; // Should be >= 0
   kickoffReminderEnabled: boolean;
   timezone: string; // e.g., "Asia/Kolkata"
-  regressionSlots: RegressionSlot[];
+  regressionSlots?: RegressionSlot[]; // Optional: can be absent or empty array
   workingDays: WorkingDay[];
 }
 

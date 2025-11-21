@@ -14,14 +14,13 @@ import type {
  * This is a business rule validation that happens after integration processing
  */
 export const hasAtLeastOneIntegration = (config: Partial<CreateReleaseConfigDto>): boolean => {
-  // Check all integration configs
-  const hasScm = config.sourceCodeManagementConfigId !== undefined && config.sourceCodeManagementConfigId !== null;
+  // Check all integration configs (SCM removed as per requirements)
   const hasCi = config.ciConfigId !== undefined && config.ciConfigId !== null;
   const hasTcm = config.testManagementConfigId !== undefined && config.testManagementConfigId !== null;
   const hasProjectMgmt = config.projectManagementConfigId !== undefined && config.projectManagementConfigId !== null;
   const hasComms = config.commsConfigId !== undefined && config.commsConfigId !== null;
   
-  return hasScm || hasCi || hasTcm || hasProjectMgmt || hasComms;
+  return hasCi || hasTcm || hasProjectMgmt || hasComms;
 };
 
 /**
@@ -88,6 +87,33 @@ export const validateScheduling = (scheduling: ReleaseScheduling): FieldValidati
     });
   }
 
+  if (!scheduling.initialVersions || typeof scheduling.initialVersions !== 'object') {
+    errors.push({
+      field: 'scheduling.initialVersions',
+      message: 'Initial versions object is required'
+    });
+  } else {
+    // Validate that initialVersions has at least one platform
+    const platforms = Object.keys(scheduling.initialVersions);
+    if (platforms.length === 0) {
+      errors.push({
+        field: 'scheduling.initialVersions',
+        message: 'At least one platform version must be specified'
+      });
+    } else {
+      // Validate each platform version
+      platforms.forEach(platform => {
+        const version = scheduling.initialVersions[platform];
+        if (!version || typeof version !== 'string' || version.trim() === '') {
+          errors.push({
+            field: `scheduling.initialVersions.${platform}`,
+            message: `Version for platform ${platform} must be a non-empty string`
+          });
+        }
+      });
+    }
+  }
+
   if (!scheduling.workingDays || !Array.isArray(scheduling.workingDays)) {
     errors.push({
       field: 'scheduling.workingDays',
@@ -100,11 +126,15 @@ export const validateScheduling = (scheduling: ReleaseScheduling): FieldValidati
     });
   }
 
-  if (!scheduling.regressionSlots || !Array.isArray(scheduling.regressionSlots)) {
-    errors.push({
-      field: 'scheduling.regressionSlots',
-      message: 'Regression slots array is required'
-    });
+  // Validate regressionSlots if present (optional field)
+  if (scheduling.regressionSlots !== undefined) {
+    if (!Array.isArray(scheduling.regressionSlots)) {
+      errors.push({
+        field: 'scheduling.regressionSlots',
+        message: 'Regression slots must be an array if provided'
+      });
+    }
+    // Note: regressionSlots array can be empty, but if elements exist, they must be valid
   }
 
   // Validate business rules if basic validation passes

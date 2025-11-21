@@ -31,6 +31,8 @@ const toSafeConfig = (config: ReleaseConfiguration): SafeReleaseConfiguration =>
     description: config.description,
     releaseType: config.releaseType,
     targets: config.targets,
+    platforms: config.platforms,
+    baseBranch: config.baseBranch,
     isActive: config.isActive,
     isDefault: config.isDefault,
     createdBy: {

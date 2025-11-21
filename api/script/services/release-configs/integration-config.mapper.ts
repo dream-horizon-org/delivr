@@ -39,12 +39,12 @@ export class IntegrationConfigMapper {
    * TODO: Return proper CreateCIConfigDto when CI integration implements types
    */
   static prepareCIConfig(requestData: CreateReleaseConfigRequest): any | null {
-    if (!requestData.buildPipelines || requestData.buildPipelines.length === 0) {
+    if (!requestData.workflows || requestData.workflows.length === 0) {
       return null;
     }
 
     return {
-      buildPipelines: requestData.buildPipelines
+      workflows: requestData.workflows // Map workflows to workflows for CI service
     };
   }
 
@@ -60,17 +60,6 @@ export class IntegrationConfigMapper {
     return requestData.communication;
   }
 
-  /**
-   * Prepare SCM config from request data
-   * TODO: Return proper CreateSCMConfigDto when SCM integration implements types
-   */
-  static prepareSCMConfig(requestData: CreateReleaseConfigRequest): any | null {
-    if (!requestData.scmConfig) {
-      return null;
-    }
-
-    return requestData.scmConfig;
-  }
 
   /**
    * Prepare project management config from request data
@@ -95,7 +84,6 @@ export class IntegrationConfigMapper {
       ci: this.prepareCIConfig(requestData),
       testManagement: this.prepareTestManagementConfig(requestData, currentUserId),
       communication: this.prepareCommunicationConfig(requestData),
-      scm: this.prepareSCMConfig(requestData),
       projectManagement: this.prepareProjectManagementConfig(requestData)
     };
   }
@@ -109,6 +97,5 @@ export interface IntegrationConfigs {
   ci: any | null; // TODO: CreateCIConfigDto
   testManagement: Omit<CreateTestManagementConfigDto, 'projectId' | 'name'> | null;
   communication: any | null; // TODO: CreateCommunicationConfigDto
-  scm: any | null; // TODO: CreateSCMConfigDto
   projectManagement: any | null; // TODO: CreateProjectManagementConfigDto
 }

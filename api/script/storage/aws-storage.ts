@@ -42,6 +42,7 @@ import { createSlackIntegrationModel, createChannelConfigModel } from "./integra
 import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
 import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigModel } from "../models/integrations/ci-cd";
 import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
+import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
 import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
@@ -554,6 +555,7 @@ export class S3Storage implements storage.Storage {
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
+    public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
@@ -675,7 +677,10 @@ export class S3Storage implements storage.Storage {
           
           this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
           console.log("CI/CD Config Repository initialized");
-                    
+          
+          // Initialize CI/CD Config Service
+          this.cicdConfigService = new CICDConfigService(this.cicdConfigRepository, this.cicdWorkflowRepository);
+          console.log("CI/CD Config Service initialized");
           
           
           // Initialize Test Management Integration
@@ -738,7 +743,10 @@ export class S3Storage implements storage.Storage {
           this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
           this.releaseConfigService = new ReleaseConfigService(
             this.releaseConfigRepository,
-            this.testManagementConfigService
+            this.cicdConfigService,
+            this.testManagementConfigService,
+            this.slackChannelConfigService,
+            this.projectManagementConfigService
           );
           console.log("Release Config Service initialized");
           

@@ -13,7 +13,8 @@ export type ReleaseConfigAttributes = {
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   targets: string[];
-  sourceCodeManagementConfigId: string | null;
+  platforms: string[] | null;
+  baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
   projectManagementConfigId: string | null;
@@ -63,11 +64,16 @@ export const createReleaseConfigModel = (
         type: DataTypes.JSON,
         allowNull: false
       },
-      sourceCodeManagementConfigId: {
+      platforms: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: 'Array of supported platforms (e.g., ["ANDROID", "IOS"])'
+      },
+      baseBranch: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        field: 'source_code_management_config_id',
-        comment: 'Reference to Source Code Management integration config'
+        field: 'base_branch',
+        comment: 'Base branch for releases'
       },
       ciConfigId: {
         type: DataTypes.STRING(255),

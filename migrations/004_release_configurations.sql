@@ -50,15 +50,17 @@ CREATE TABLE IF NOT EXISTS release_configurations (
   targets JSON NOT NULL 
     COMMENT 'Array of target platforms (e.g., ["PLAY_STORE", "APP_STORE"])',
   
+  platforms JSON NULL 
+    COMMENT 'Array of supported platforms (e.g., ["ANDROID", "IOS"])',
+  
+  baseBranch VARCHAR(255) NULL 
+    COMMENT 'Base branch for releases',
+  
   -- ========================================================================
   -- INTEGRATION CONFIGURATION REFERENCES
   -- These are foreign keys to respective integration tables
   -- NULL means that integration is not configured for this profile
   -- ========================================================================
-  
-  -- Source Code Management integration configuration reference
-  sourceCodeManagementConfigId VARCHAR(255) NULL 
-    COMMENT 'Reference to Source Code Management integration config',
   
   -- CI integration configuration reference (contains all build pipelines)
   ciConfigId VARCHAR(255) NULL 
@@ -172,9 +174,8 @@ CREATE TRIGGER validate_release_config_has_integrations
 BEFORE INSERT ON release_configurations
 FOR EACH ROW
 BEGIN
-  -- Check if at least one integration is configured
-  IF NEW.sourceCodeManagementConfigId IS NULL 
-     AND NEW.ciConfigId IS NULL 
+  -- Check if at least one integration is configured (SCM removed)
+  IF NEW.ciConfigId IS NULL 
      AND NEW.testManagementConfigId IS NULL 
      AND NEW.projectManagementConfigId IS NULL 
      AND NEW.commsConfigId IS NULL THEN
