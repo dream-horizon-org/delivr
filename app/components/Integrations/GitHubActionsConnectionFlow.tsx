@@ -1,6 +1,9 @@
 /**
  * GitHub Actions CI/CD Connection Flow Component
- * Handles verification and connection of GitHub Actions integrations
+ * Simplified connection flow aligned with Jira integration pattern
+ * 
+ * Backend API: /tenants/:tenantId/integrations/ci-cd/github-actions
+ * Falls back to SCM GitHub token if no token provided
  */
 
 import { useState } from 'react';
@@ -10,48 +13,45 @@ import {
   Button,
   Group,
   Alert,
-  Loader,
   PasswordInput,
   Stack,
   Text
 } from '@mantine/core';
+import { IconCheck, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 
 interface GitHubActionsConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
-  isEditMode?: boolean;
-  existingData?: any;
 }
 
-export function GitHubActionsConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: GitHubActionsConnectionFlowProps) {
+export function GitHubActionsConnectionFlow({ onConnect, onCancel }: GitHubActionsConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
   const [formData, setFormData] = useState({
-    displayName: existingData?.displayName || '',
-    hostUrl: existingData?.hostUrl || 'https://api.github.com',
-    apiToken: '', // Never pre-populate sensitive data
-    useScmToken: !existingData // Default to true for new connections
+    displayName: '',
+    hostUrl: 'https://api.github.com',
+    apiToken: '',
   });
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
-    setVerificationResult(null);
+    setIsVerified(false);
 
     try {
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions/verify`,
+        `/api/v1/tenants/${tenantId}/integrations/github-actions/verify`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            apiToken: formData.useScmToken ? undefined : formData.apiToken
+            apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
           })
         }
       );
@@ -59,15 +59,9 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel, isEditMode = 
       const data = await response.json();
 
       if (data.verified) {
-        setVerificationResult({
-          success: true,
-          message: data.message || 'GitHub Actions connection verified successfully!'
-        });
+        setIsVerified(true);
       } else {
-        setVerificationResult({
-          success: false,
-          message: data.message || 'Failed to verify GitHub Actions connection'
-        });
+        setError(data.message || 'Failed to verify GitHub Actions connection');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to verify GitHub Actions connection');
@@ -81,19 +75,18 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel, isEditMode = 
     setError(null);
 
     try {
-      const method = isEditMode ? 'PATCH' : 'POST';
       const payload: any = {
         displayName: formData.displayName || 'GitHub Actions',
-        hostUrl: formData.hostUrl
+        hostUrl: formData.hostUrl,
       };
 
-      // Only include apiToken if explicitly provided (not using SCM token)
-      if (!formData.useScmToken && formData.apiToken) {
+      // Only include apiToken if provided
+      if (formData.apiToken) {
         payload.apiToken = formData.apiToken;
       }
 
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`, {
-        method,
+      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/github-actions`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -103,38 +96,25 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel, isEditMode = 
       if (data.success) {
         onConnect(data);
       } else {
-        setError(data.error || `Failed to ${isEditMode ? 'update' : 'connect'} GitHub Actions integration`);
+        setError(data.error || 'Failed to connect GitHub Actions integration');
       }
     } catch (err: any) {
-      setError(err.message || `Failed to ${isEditMode ? 'update' : 'connect'} GitHub Actions integration`);
+      setError(err.message || 'Failed to connect GitHub Actions integration');
     } finally {
       setIsConnecting(false);
     }
   };
 
-  // Form is valid if we have a hostUrl and either:
-  // 1. We're using SCM token, OR
-  // 2. We have an API token provided, OR
-  // 3. We're in edit mode (token is optional for updates)
-  const isFormValid = formData.hostUrl && (formData.useScmToken || formData.apiToken || isEditMode);
+  const isFormValid = () => {
+    return formData.hostUrl; // Token is optional (falls back to SCM)
+  };
 
   return (
-    <Stack gap="md">
-      <Alert color="blue" title={isEditMode ? "Edit GitHub Actions Connection" : "Connect GitHub Actions"} icon={<span>⚡</span>}>
-        {isEditMode 
-          ? 'Update your GitHub Actions integration settings.'
-          : 'Connect GitHub Actions to trigger workflows and automate your CI/CD pipeline.'}
-      </Alert>
-
-      <Alert color="cyan" variant="light" icon={<span>ℹ️</span>}>
+    <Stack gap="lg">
+      {/* Info alert about token fallback */}
+      <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
         <Text size="sm">
-          <strong>Token Options:</strong>
-        </Text>
-        <Text size="xs" c="dimmed">
-          • <strong>Use GitHub SCM Token:</strong> Reuse your existing GitHub SCM integration token (easiest option)
-        </Text>
-        <Text size="xs" c="dimmed">
-          • <strong>Provide New Token:</strong> Use a separate Personal Access Token for GitHub Actions
+          <strong>Tip:</strong> If you have GitHub SCM integration connected, you can leave the token field empty and we'll use your existing GitHub token.
         </Text>
       </Alert>
 
@@ -155,87 +135,61 @@ export function GitHubActionsConnectionFlow({ onConnect, onCancel, isEditMode = 
         description="For GitHub Enterprise, use your custom API endpoint"
       />
 
-      {!isEditMode && (
-        <Group gap="xs">
-          <Button
-            variant={formData.useScmToken ? 'filled' : 'light'}
-            size="xs"
-            onClick={() => setFormData({ ...formData, useScmToken: true, apiToken: '' })}
-          >
-            Use SCM Token
-          </Button>
-          <Button
-            variant={!formData.useScmToken ? 'filled' : 'light'}
-            size="xs"
-            onClick={() => setFormData({ ...formData, useScmToken: false })}
-          >
-            Provide New Token
-          </Button>
-        </Group>
-      )}
-
-      {(!formData.useScmToken || isEditMode) && (
-        <PasswordInput
-          label={isEditMode ? "Personal Access Token (leave blank to keep existing)" : "Personal Access Token"}
-          placeholder={isEditMode ? "Leave blank to keep existing token" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
-          required={!isEditMode && !formData.useScmToken}
-          value={formData.apiToken}
-          onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-          error={!isEditMode && !formData.useScmToken && !formData.apiToken && 'Token is required when not using SCM token'}
-          description={isEditMode ? "Only provide a new token if you want to update it" : "Required if not using SCM token"}
-        />
-      )}
+      <PasswordInput
+        label="Personal Access Token (Optional)"
+        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+        value={formData.apiToken}
+        onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
+        description="Leave empty to use your connected GitHub SCM token"
+      />
 
       {error && (
-        <Alert color="red" title="Error" icon={<span>❌</span>}>
+        <Alert icon={<IconAlertCircle size={16} />} color="red">
           {error}
         </Alert>
       )}
 
-      {verificationResult && (
-        <Alert
-          color={verificationResult.success ? 'green' : 'red'}
-          title={verificationResult.success ? 'Verification Successful' : 'Verification Failed'}
-          icon={<span>{verificationResult.success ? '✅' : '❌'}</span>}
-        >
-          {verificationResult.message}
+      {isVerified && (
+        <Alert icon={<IconCheck size={16} />} color="green">
+          Credentials verified successfully! Click "Connect" to save.
         </Alert>
       )}
 
-      <Group justify="space-between" className="mt-4">
+      <Group justify="flex-end">
         <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
           Cancel
         </Button>
-        
-        <Group>
-          {!isEditMode && (
-            <Button
-              variant="light"
-              onClick={handleVerify}
-              disabled={!isFormValid || isVerifying || isConnecting}
-              leftSection={isVerifying ? <Loader size="xs" /> : null}
-            >
-              {isVerifying ? 'Verifying...' : 'Verify Connection'}
-            </Button>
-          )}
-          
+        {!isVerified ? (
+          <Button
+            onClick={handleVerify}
+            loading={isVerifying}
+            disabled={!isFormValid()}
+          >
+            Verify Connection
+          </Button>
+        ) : (
           <Button
             onClick={handleConnect}
-            disabled={!isFormValid || (isEditMode ? false : !verificationResult?.success) || isConnecting}
-            leftSection={isConnecting ? <Loader size="xs" /> : null}
-            className="bg-blue-600 hover:bg-blue-700"
+            loading={isConnecting}
+            color="green"
           >
-            {isConnecting ? (isEditMode ? 'Updating...' : 'Connecting...') : (isEditMode ? 'Update' : 'Connect')}
+            Connect
           </Button>
-        </Group>
+        )}
       </Group>
 
-      <Text size="xs" c="dimmed" className="mt-2">
-        <strong>How to get your Personal Access Token:</strong> Go to GitHub → Settings → Developer settings → Personal access tokens → Generate new token (classic)
+      <Text size="xs" c="dimmed">
+        <strong>Required token scopes:</strong> <code>repo</code>, <code>workflow</code>, <code>read:org</code>
         <br />
-        <strong>Required scopes:</strong> <code>repo</code>, <code>workflow</code>, <code>read:org</code>
+        <a
+          href="https://github.com/settings/tokens/new"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+        >
+          Generate a new Personal Access Token
+        </a>
       </Text>
     </Stack>
   );
 }
-
