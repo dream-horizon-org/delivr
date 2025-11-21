@@ -39,6 +39,9 @@ import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigMo
 import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
+import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
+import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
+import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -388,6 +391,9 @@ export function createModelss(sequelize: Sequelize) {
 
   // ============================================
   const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
+  const StoreIntegrations = createStoreIntegrationModel(sequelize);  // Store integrations (App Store, Play Store, etc.)
+  const StoreCredentials = createStoreCredentialModel(sequelize);  // Store credentials (encrypted)
+  const PlatformStoreMapping = createPlatformStoreMappingModel(sequelize);  // Platform to store type mapping (static data)
   const ChannelConfig = createChannelConfigModel(sequelize);  // Channel configurations for communication integrations
   // Define associations
   // ============================================
@@ -485,6 +491,9 @@ export function createModelss(sequelize: Sequelize) {
     CICDConfig,            // CI/CD configurations
     Release,
     SlackIntegrations,  // Slack integrations
+    StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
+    StoreCredentials,   // Store credentials (encrypted)
+    PlatformStoreMapping,   // Platform to store type mapping (static data)
     ChannelConfig,  // Channel configurations for communication integrations
   };
 }
@@ -541,6 +550,8 @@ export class S3Storage implements storage.Storage {
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
     public slackController!: SlackIntegrationController;  // Slack integration controller
+    public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
+    public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public channelController!: ChannelController;  // Channel configuration controller
     public slackIntegrationService!: SlackIntegrationService;  // Slack integration service
     public slackChannelConfigService!: SlackChannelConfigService;  // Slack channel config service
@@ -717,6 +728,14 @@ export class S3Storage implements storage.Storage {
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
+
+          // Initialize Store Integration Controllers
+          this.storeIntegrationController = new StoreIntegrationController(
+            models.StoreIntegrations,
+            models.StoreCredentials
+          );
+          this.storeCredentialController = new StoreCredentialController(models.StoreCredentials);
+          console.log("Store Integration Controllers initialized");
           
           // Initialize Channel Configuration Controller
           this.channelController = new ChannelController(models.ChannelConfig);

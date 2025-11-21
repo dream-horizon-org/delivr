@@ -18,6 +18,7 @@ import {
 } from "./integrations/project-management";
 import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
+import { createStoreIntegrationRoutes } from "./store-integrations";
 import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
 import { createCommIntegrationRoutes } from "./integrations/comm";
 
@@ -130,8 +131,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
-  // TODO: Implement target platform integration routes
-  // router.use(createTargetPlatformRoutes(storage));
+  const storeRoutes = createStoreIntegrationRoutes();
+  router.use(storeRoutes);
 
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)
