@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS release_configurations (
   -- ========================================================================
   -- PRIMARY KEY
   -- ========================================================================
-  id VARCHAR(255) NOT NULL PRIMARY KEY COMMENT 'Unique identifier (nanoid)',
+  id VARCHAR(255) NOT NULL PRIMARY KEY COMMENT 'Unique identifier (shortid)',
   
   -- ========================================================================
   -- TENANT/PROJECT REFERENCE

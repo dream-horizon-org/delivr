@@ -81,9 +81,20 @@ const createConfigHandler = (service: ReleaseConfigService, testManagementConfig
       // STEP 1: Create release config with integration orchestration
       // ========================================================================
 
-      const config = await service.createConfig(requestBody, currentUserId);
-      const safeConfig = toSafeConfig(config);
+      const result = await service.createConfig(requestBody, currentUserId);
+      
+      if (!result.success) {
+        const errorResult = result as { success: false; error: any };
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: errorResult.error.message,
+          code: errorResult.error.code,
+          details: errorResult.error.details
+        });
+        return;
+      }
 
+      const safeConfig = toSafeConfig(result.data);
       res.status(HTTP_STATUS.CREATED).json(
         successResponse(safeConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_CREATED)
       );

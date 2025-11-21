@@ -1,0 +1,114 @@
+/**
+ * Integration Config Mapper
+ * Responsible for preparing integration configurations from request data
+ */
+
+import type { 
+  CreateReleaseConfigRequest
+} from '~types/release-configs';
+// TODO: Import actual integration types when implemented:
+// import type { CreateCIConfigDto } from '~types/integrations/ci/ci-config';
+// import type { CreateCommunicationConfigDto } from '~types/integrations/communication/communication-config';
+// import type { CreateSCMConfigDto } from '~types/integrations/scm/scm-config';
+// import type { CreateProjectManagementConfigDto } from '~types/integrations/project-management/project-management-config';
+import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
+
+export class IntegrationConfigMapper {
+  /**
+   * Prepare test management config from request data
+   * Returns CreateTestManagementConfigDto directly from test-management interface
+   */
+  static prepareTestManagementConfig(
+    requestData: CreateReleaseConfigRequest,
+    currentUserId: string
+  ): Omit<CreateTestManagementConfigDto, 'projectId' | 'name'> | null {
+    if (!requestData.testManagement?.enabled) {
+      return null;
+    }
+
+    return {
+      integrationId: requestData.testManagement.integrationId,
+      passThresholdPercent: requestData.testManagement.passThresholdPercent ?? 100,
+      platformConfigurations: requestData.testManagement.platformConfigurations ?? [],
+      createdByAccountId: currentUserId
+    };
+  }
+
+  /**
+   * Prepare CI config from request data
+   * TODO: Return proper CreateCIConfigDto when CI integration implements types
+   */
+  static prepareCIConfig(requestData: CreateReleaseConfigRequest): any | null {
+    if (!requestData.buildPipelines || requestData.buildPipelines.length === 0) {
+      return null;
+    }
+
+    return {
+      buildPipelines: requestData.buildPipelines
+    };
+  }
+
+  /**
+   * Prepare communication config from request data
+   * TODO: Return proper CreateCommunicationConfigDto when Communication integration implements types
+   */
+  static prepareCommunicationConfig(requestData: CreateReleaseConfigRequest): any | null {
+    if (!requestData.communication?.slack?.enabled) {
+      return null;
+    }
+
+    return requestData.communication;
+  }
+
+  /**
+   * Prepare SCM config from request data
+   * TODO: Return proper CreateSCMConfigDto when SCM integration implements types
+   */
+  static prepareSCMConfig(requestData: CreateReleaseConfigRequest): any | null {
+    if (!requestData.scmConfig) {
+      return null;
+    }
+
+    return requestData.scmConfig;
+  }
+
+  /**
+   * Prepare project management config from request data
+   * TODO: Return proper CreateProjectManagementConfigDto when Project Management integration implements types
+   */
+  static prepareProjectManagementConfig(requestData: CreateReleaseConfigRequest): any | null {
+    if (!requestData.jiraConfig) {
+      return null;
+    }
+
+    return requestData.jiraConfig;
+  }
+
+  /**
+   * Prepare all integration configs at once
+   */
+  static prepareAllIntegrationConfigs(
+    requestData: CreateReleaseConfigRequest,
+    currentUserId: string
+  ): IntegrationConfigs {
+    return {
+      ci: this.prepareCIConfig(requestData),
+      testManagement: this.prepareTestManagementConfig(requestData, currentUserId),
+      communication: this.prepareCommunicationConfig(requestData),
+      scm: this.prepareSCMConfig(requestData),
+      projectManagement: this.prepareProjectManagementConfig(requestData)
+    };
+  }
+}
+
+/**
+ * Container for all integration configs
+ * TODO: Replace 'any' with proper DTOs when integrations implement their types
+ */
+export interface IntegrationConfigs {
+  ci: any | null; // TODO: CreateCIConfigDto
+  testManagement: Omit<CreateTestManagementConfigDto, 'projectId' | 'name'> | null;
+  communication: any | null; // TODO: CreateCommunicationConfigDto
+  scm: any | null; // TODO: CreateSCMConfigDto
+  projectManagement: any | null; // TODO: CreateProjectManagementConfigDto
+}
