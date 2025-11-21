@@ -17,17 +17,26 @@ import {
   TestManagementIntegrationService,
   TestManagementRunService
 } from "../services/integrations/test-management";
-import { TestManagementMetadataService } from "../services/integrations/test-management/metadata";
+import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
+import {
+  createProjectManagementIntegrationModel,
+  createProjectManagementConfigModel,
+  ProjectManagementIntegrationRepository,
+  ProjectManagementConfigRepository
+} from "../models/integrations/project-management";
+import {
+  ProjectManagementIntegrationService,
+  ProjectManagementConfigService,
+  ProjectManagementTicketService
+} from "../services/integrations/project-management";
 import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
 import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
 import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
-import { createCICDIntegrationModel } from "./integrations/ci-cd/ci-cd-models";
-import { CICDIntegrationController } from "./integrations/ci-cd/ci-cd-controller";
-import { createCICDWorkflowModel } from "./integrations/ci-cd/workflows-models";
-import { CICDWorkflowController } from "./integrations/ci-cd/workflows-controller";
+import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigModel } from "../models/integrations/ci-cd";
+import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
 
@@ -374,6 +383,7 @@ export function createModelss(sequelize: Sequelize) {
   const SCMIntegrations = createSCMIntegrationModel(sequelize);  // SCM integrations (GitHub, GitLab, etc.)
   const CICDIntegrations = createCICDIntegrationModel(sequelize);  // CI/CD integrations (Jenkins, etc.)
   const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
+  const CICDConfig = createCICDConfigModel(sequelize);  // CI/CD configurations
   const Release = createRelease(sequelize);  // Release management from Delivr
 
   // ============================================
@@ -472,6 +482,7 @@ export function createModelss(sequelize: Sequelize) {
     SCMIntegrations,       // SCM integrations (GitHub, GitLab, Bitbucket)
     CICDIntegrations,      // CI/CD connections (Jenkins, etc.)
     CICDWorkflows,         // CI/CD workflows/jobs across providers
+    CICDConfig,            // CI/CD configurations
     Release,
     SlackIntegrations,  // Slack integrations
     ChannelConfig,  // Channel configurations for communication integrations
@@ -522,9 +533,13 @@ export class S3Storage implements storage.Storage {
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
-    public testManagementMetadataService!: TestManagementMetadataService;
-    public cicdController!: CICDIntegrationController;  // CI/CD integration controller
-    public cicdWorkflowController!: CICDWorkflowController;  // CI/CD workflows controller
+    public checkmateMetadataService!: CheckmateMetadataService;
+    public projectManagementIntegrationService!: ProjectManagementIntegrationService;
+    public projectManagementConfigService!: ProjectManagementConfigService;
+    public projectManagementTicketService!: ProjectManagementTicketService;
+    public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
+    public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
+    public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public channelController!: ChannelController;  // Channel configuration controller
     public slackIntegrationService!: SlackIntegrationService;  // Slack integration service
@@ -633,13 +648,15 @@ export class S3Storage implements storage.Storage {
           this.scmController = new SCMIntegrationController(models.SCMIntegrations);
           console.log("SCM Integration Controller initialized");
           
-          // Initialize CI/CD Integration Controller
-          this.cicdController = new CICDIntegrationController(models.CICDIntegrations);
-          console.log("CI/CD Integration Controller initialized");
+          // Initialize CI/CD Repositories
+          this.cicdIntegrationRepository = new CICDIntegrationRepository(models.CICDIntegrations);
+          console.log("CI/CD Integration Repository initialized");
 
-          // Initialize CI/CD Workflow Controller
-          this.cicdWorkflowController = new CICDWorkflowController(models.CICDWorkflows);
-          console.log("CI/CD Workflow Controller initialized");
+          this.cicdWorkflowRepository = new CICDWorkflowRepository(models.CICDWorkflows);
+          console.log("CI/CD Workflow Repository initialized");
+          
+          this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
+          console.log("CI/CD Config Repository initialized");
                     
           
           
@@ -668,11 +685,34 @@ export class S3Storage implements storage.Storage {
           );
           
           // Service 4: Metadata Service (fetches metadata from providers)
-          this.testManagementMetadataService = new TestManagementMetadataService(
+          this.checkmateMetadataService = new CheckmateMetadataService(
             this.projectIntegrationRepository
           );
           
           console.log("Test Management Integration initialized");
+          
+          // Initialize Project Management Integration
+          const projectManagementIntegrationModel = createProjectManagementIntegrationModel(this.sequelize);
+          const projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
+          
+          const projectManagementConfigModel = createProjectManagementConfigModel(this.sequelize);
+          const projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
+          
+          this.projectManagementIntegrationService = new ProjectManagementIntegrationService(
+            projectManagementIntegrationRepository
+          );
+          
+          this.projectManagementConfigService = new ProjectManagementConfigService(
+            projectManagementConfigRepository,
+            projectManagementIntegrationRepository
+          );
+          
+          this.projectManagementTicketService = new ProjectManagementTicketService(
+            projectManagementConfigRepository,
+            projectManagementIntegrationRepository
+          );
+          
+          console.log("Project Management Integration initialized");
           
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);

@@ -45,7 +45,7 @@ const createConfigHandler = (service: SlackChannelConfigService) =>
       };
 
       // Validate using service method
-      const validationResult = service.validateCreateConfig(data);
+      const validationResult = service.validateConfig(data);
 
       // If validation failed, return structured validation response
       if (!validationResult.isValid) {

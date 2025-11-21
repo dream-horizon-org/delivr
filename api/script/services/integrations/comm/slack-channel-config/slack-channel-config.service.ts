@@ -32,7 +32,7 @@ export class SlackChannelConfigService {
    * Validate channel configuration data
    * Public method for controller to validate before creating
    */
-  validateCreateConfig(data: CreateChannelConfigDto): ChannelConfigValidationResult {
+  validateConfig (data: CreateChannelConfigDto): ChannelConfigValidationResult {
     const errors: ValidationError[] = [];
     const { channelData } = data;
 
@@ -121,7 +121,7 @@ export class SlackChannelConfigService {
     }
 
     // Validate: Check channel data structure
-    const validationResult = this.validateCreateConfig(data);
+    const validationResult = this.validateConfig (data);
     
     if (!validationResult.isValid) {
       const errorMessage = validationResult.errors
