@@ -17,7 +17,8 @@
       "~constants/*": ["constants/*"],
       "~middleware/*": ["middleware/*"],
       "~storage/*": ["storage/*"]
-    }
+    },
+    "resolveJsonModule": true
   },
   "exclude": [
     "./bin",

@@ -1,4 +1,4 @@
-import { CICDProviderType } from '../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import type { CICDProvider } from './provider.interface';
 
 // Lazy imports to avoid circular dependencies during tests/build

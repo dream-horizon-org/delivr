@@ -54,6 +54,8 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       if (!useJsonStorage) {
         //storage = new JsonStorage();
         storage = new S3Storage();
+        // Wait for S3Storage to complete initialization
+        await (storage as any).setupPromise;
       } else {
         storage = new JsonStorage();
       }
@@ -61,6 +63,11 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
       // Initialize storage singleton for global access
       initializeStorage(storage);
       console.log('[Storage] Storage singleton initialized');
+      
+      // Wait for storage setup to complete (especially for S3Storage services)
+      console.log('[Storage] Waiting for storage setup to complete...');
+      await storage.checkHealth();
+      console.log('[Storage] Storage setup completed successfully');
 
       // Initialize file upload manager (multer) at server startup
       initializeFileUploadManager();
@@ -173,8 +180,20 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
 
             next();
           });
+          
+          // DOTA Management Routes (deployments, apps, packages) - NO AUTH in debug mode
+          app.use(fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+          
+          // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
+          app.use(api.releaseManagement({ storage: storage }));
         } else {
           app.use(auth.router());
+          
+          // DOTA Management Routes (deployments, apps, packages)
+          app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
+          
+          // Release Management Routes (releases, builds, integrations)
+          app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
         }
         // Release Management Routes (releases, builds, integrations)
         app.use(auth.authenticate, api.releaseManagement({ storage: storage }));

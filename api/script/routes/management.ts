@@ -449,7 +449,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // Get all integrations for this tenant
       const scmController = (storage as any).scmController;
       const slackController = (storage as any).slackController;
-      const cicdController = (storage as any).cicdController;
+      const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
@@ -458,7 +458,19 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const slackIntegration = await slackController.findByTenant(tenantId);
 
       // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
-      const cicdIntegrations = await cicdController.findAll({ tenantId });
+      const cicdIntegrations = await cicdIntegrationRepository.findAll({ tenantId });
+      
+      // Test Management integrations (Checkmate, TestRail, etc.) - project-level
+      // Note: Using tenantId as projectId (tenant = project in our system)
+      let testManagementIntegrations: any[] = [];
+      if ((storage as any).testManagementIntegrationService) {
+        try {
+          testManagementIntegrations = await (storage as any).testManagementIntegrationService.listProjectIntegrations(tenantId);
+          console.log(`[TenantInfo] Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching test management integrations:', error);
+        }
+      }
       
       // TODO: Get other integrations when implemented
       // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
@@ -524,6 +536,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
           // Note: apiToken, headerValue are intentionally excluded (never sent to client)
         });
       });
+
+      // Add Test Management integrations (Checkmate, TestRail, etc.)
+      testManagementIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'test_management',
+          id: integration.id,
+          providerType: integration.providerType,
+          name: integration.name,
+          projectId: integration.projectId,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: config (including authToken) is intentionally excluded (never sent to client)
+        });
+      });
       
       // TODO: Add other integration types when implemented
 
@@ -567,9 +593,52 @@ export function getManagementRouter(config: ManagementConfig): Router {
             connectedAt: i.createdAt,
             connectedBy: i.createdByAccountId || 'System',
           })),
-          COMMUNICATION: [],  // TODO: Add communication integrations when implemented
-          CI_CD: [],          // TODO: Add CI/CD integrations when implemented
-          TEST_MANAGEMENT: [], // TODO: Add test management integrations when implemented
+          COMMUNICATION: slackIntegration ? [{
+            id: slackIntegration.id,
+            providerId: 'slack',
+            name: slackIntegration.slackWorkspaceName || 'Slack Workspace',
+            status: slackIntegration.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              workspaceId: slackIntegration.slackWorkspaceId,
+              workspaceName: slackIntegration.slackWorkspaceName,
+              botUserId: slackIntegration.slackBotUserId,
+              channels: slackIntegration.slackChannels || [],
+            },
+            verificationStatus: slackIntegration.verificationStatus || 'UNKNOWN',
+            connectedAt: slackIntegration.createdAt,
+            connectedBy: slackIntegration.createdByAccountId || 'System',
+          }] : [],
+          CI_CD: cicdIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.providerType.toLowerCase(),
+            name: i.displayName,
+            status: i.verificationStatus === 'VALID' ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              hostUrl: i.hostUrl,
+              authType: i.authType,
+              username: i.username,
+              providerConfig: i.providerConfig,
+            },
+            verificationStatus: i.verificationStatus || 'UNKNOWN',
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
+          TEST_MANAGEMENT: testManagementIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.providerType.toLowerCase(),
+            name: i.name,
+            status: 'CONNECTED',  // If it exists in DB, it's connected
+            config: {
+              providerType: i.providerType,
+              projectId: i.projectId,
+              // Include non-sensitive config fields
+              baseUrl: i.config?.baseUrl,
+              orgId: i.config?.orgId,
+              // Don't expose sensitive config data (like authToken)
+            },
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
           PROJECT_MANAGEMENT: [], // TODO: Add project management integrations when implemented
           APP_DISTRIBUTION: [],   // TODO: Add app distribution integrations when implemented
         },

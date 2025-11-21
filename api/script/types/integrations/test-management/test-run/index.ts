@@ -3,6 +3,8 @@ export {
   CreateTestRunsResponse,
   GetTestReportRequest,
   GetTestStatusRequest,
+  PlatformRunError,
+  PlatformRunSuccess,
   PlatformTestRun,
   ResetTestRunResponse,
   TestReportResponse,

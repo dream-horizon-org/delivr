@@ -8,37 +8,49 @@ export const createProjectIntegrationRoutes = (service: TestManagementIntegratio
 
   // List available providers (no authentication needed - public info)
   router.get(
-    '/integrations/test-management/providers',
+    '/providers',
     controller.getAvailableProviders
   );
 
+  // Verify credentials without saving (stateless - no projectId or integrationId needed)
   router.post(
-    '/projects/:projectId/integrations/test-management',
+    '/integrations/verify',
+    controller.verifyCredentials
+  );
+
+  // Create integration for a project (need projectId)
+  router.post(
+    '/projects/:projectId/integrations',
     controller.createIntegration
   );
 
+  // List all integrations for a project (need projectId)
   router.get(
-    '/projects/:projectId/integrations/test-management',
+    '/projects/:projectId/integrations',
     controller.listIntegrations
   );
 
+  // Get specific integration (integrationId is enough)
   router.get(
-    '/projects/:projectId/integrations/test-management/:integrationId',
+    '/integrations/:integrationId',
     controller.getIntegration
   );
 
+  // Update specific integration (integrationId is enough)
   router.put(
-    '/projects/:projectId/integrations/test-management/:integrationId',
+    '/integrations/:integrationId',
     controller.updateIntegration
   );
 
+  // Delete specific integration (integrationId is enough)
   router.delete(
-    '/projects/:projectId/integrations/test-management/:integrationId',
+    '/integrations/:integrationId',
     controller.deleteIntegration
   );
 
+  // Verify integration credentials (integrationId is enough)
   router.post(
-    '/projects/:projectId/integrations/test-management/:integrationId/verify',
+    '/integrations/:integrationId/verify',
     controller.verifyIntegration
   );
 

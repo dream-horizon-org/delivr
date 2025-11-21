@@ -23,11 +23,13 @@ type AuthenticatedRequest = Request & {
 
 /**
  * Handler: Create test management config
+ * POST /test-management/projects/:projectId/configs
  */
 const createConfigHandler = (service: TestManagementConfigService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { projectId, integrationId, name, passThresholdPercent, platformConfigurations } = req.body;
+      const { projectId } = req.params;
+      const { integrationId, name, passThresholdPercent, platformConfigurations } = req.body;
 
       const projectIdError = validateProjectId(projectId);
       if (projectIdError) {
@@ -117,15 +119,17 @@ const getConfigByIdHandler = (service: TestManagementConfigService) =>
 
 /**
  * Handler: List configs by project
+ * GET /test-management/projects/:projectId/configs
  */
 const listConfigsByProjectHandler = (service: TestManagementConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { projectId } = req.query;
+      const { projectId } = req.params;
 
-      if (!projectId || typeof projectId !== 'string') {
+      const projectIdError = validateProjectId(projectId);
+      if (projectIdError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('projectId', 'projectId query parameter is required')
+          validationErrorResponse('projectId', projectIdError)
         );
         return;
       }
