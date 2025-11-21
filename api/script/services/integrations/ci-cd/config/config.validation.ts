@@ -50,10 +50,7 @@ const fetchGithubWorkflowContent = async (token: string, workflowUrl: string, ti
   const { owner, repo, path, ref } = parsed;
   const contentUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`;
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': HEADERS.ACCEPT_GITHUB_JSON, 'User-Agent': HEADERS.USER_AGENT };
-  console.log('contentUrl', contentUrl);
-  console.log('headers', headers);
   const resp = await fetchWithTimeout(contentUrl, { headers }, timeoutMs);
-  console.log('resp', resp);
   const ok = !!resp && typeof resp.ok === 'boolean' ? resp.ok : false;
   if (!ok) return null;
   const json: any = await resp.json();
