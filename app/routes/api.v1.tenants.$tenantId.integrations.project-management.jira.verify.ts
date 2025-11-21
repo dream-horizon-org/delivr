@@ -4,7 +4,7 @@
  */
 
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
-import { JiraIntegrationService, JiraAuthType } from '~/.server/services/ReleaseManagement/integrations/jira-integration';
+import { JiraIntegrationService } from '~/.server/services/ReleaseManagement/integrations/jira-integration';
 import { requireUserId } from '~/.server/services/Auth';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -17,30 +17,26 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   try {
     const url = new URL(request.url);
-    const hostUrl = url.searchParams.get('hostUrl');
-    const authType = url.searchParams.get('authType') as JiraAuthType;
-    const username = url.searchParams.get('username');
+    const baseUrl = url.searchParams.get('baseUrl') || url.searchParams.get('hostUrl');
+    const email = url.searchParams.get('email') || url.searchParams.get('username');
     const apiToken = url.searchParams.get('apiToken');
-    const accessToken = url.searchParams.get('accessToken');
-    const personalAccessToken = url.searchParams.get('personalAccessToken');
+    const jiraType = url.searchParams.get('jiraType') || 'CLOUD';
 
-    if (!hostUrl || !authType) {
+    if (!baseUrl || !email || !apiToken) {
       return json(
-        { verified: false, message: 'hostUrl and authType are required' },
+        { verified: false, message: 'baseUrl, email, and apiToken are required' },
         { status: 400 }
       );
     }
 
-    const result = await JiraIntegrationService.verifyJira({
-      tenantId,
-      hostUrl,
-      authType,
-      username: username || undefined,
-      apiToken: apiToken || undefined,
-      accessToken: accessToken || undefined,
-      personalAccessToken: personalAccessToken || undefined,
-      userId,
-    });
+    const result = await JiraIntegrationService.verifyCredentials({
+      config: {
+        baseUrl,
+        email,
+        apiToken,
+        jiraType: jiraType as 'CLOUD' | 'SERVER' | 'DATA_CENTER',
+      }
+    }, userId);
 
     if (result.verified) {
       return json(result, { status: 200 });

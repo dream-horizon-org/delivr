@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { CICD, buildUrlWithQuery } from './api-routes';
 import { JenkinsIntegrationService } from './jenkins-integration';
 import { githubActionsIntegrationService as GitHubActionsIntegrationService } from './github-actions-integration';
 
@@ -107,8 +108,12 @@ export class CICDIntegrationServiceClass extends IntegrationService {
         queryParams.append('integrationId', filters.integrationId);
       }
 
-      const query = queryParams.toString();
-      const url = `/tenants/${tenantId}/integrations/ci-cd/workflows${query ? `?${query}` : ''}`;
+      const url = buildUrlWithQuery(CICD.listWorkflows(tenantId), {
+        providerType: filters?.providerType,
+        platform: filters?.platform,
+        workflowType: filters?.workflowType,
+        integrationId: filters?.integrationId
+      });
 
       return await this.get<WorkflowListResponse>(url, userId);
     } catch (error: any) {
@@ -164,7 +169,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
   ): Promise<WorkflowResponse> {
     try {
       return await this.get<WorkflowResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        CICD.getWorkflow(tenantId, workflowId),
         userId
       );
     } catch (error: any) {
@@ -185,7 +190,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
   ): Promise<WorkflowResponse> {
     try {
       return await this.post<WorkflowResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows`,
+        CICD.createWorkflow(tenantId),
         data,
         userId
       );
@@ -208,7 +213,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
   ): Promise<WorkflowResponse> {
     try {
       return await this.patch<WorkflowResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        CICD.updateWorkflow(tenantId, workflowId),
         data,
         userId
       );
@@ -230,7 +235,7 @@ export class CICDIntegrationServiceClass extends IntegrationService {
   ): Promise<{ success: boolean; error?: string }> {
     try {
       return await this.delete(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        CICD.deleteWorkflow(tenantId, workflowId),
         userId
       );
     } catch (error: any) {

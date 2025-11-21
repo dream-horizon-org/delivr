@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { APP_DISTRIBUTION } from './api-routes';
 import type {
   ConnectStoreRequest,
   ConnectStoreResponse,
@@ -25,7 +26,7 @@ class AppDistributionIntegrationService extends IntegrationService {
   ): Promise<VerifyStoreResponse> {
     try {
       return await this.post<VerifyStoreResponse>(
-        '/integrations/store/verify',
+        APP_DISTRIBUTION.verify,
         {
           ...request,
           tenantId,
@@ -53,7 +54,7 @@ class AppDistributionIntegrationService extends IntegrationService {
   ): Promise<ConnectStoreResponse> {
     try {
       const response = await this.put<ConnectStoreResponse>(
-        '/integrations/store/connect',
+        APP_DISTRIBUTION.connect,
         {
           ...request,
           tenantId,
@@ -77,7 +78,7 @@ class AppDistributionIntegrationService extends IntegrationService {
   async listIntegrations(tenantId: string, userId: string): Promise<ListDistributionsResponse> {
     try {
       const response = await this.get<ListDistributionsResponse>(
-        `/integrations/store/tenant/${tenantId}`,
+        APP_DISTRIBUTION.list(tenantId),
         userId
       );
       return response;
@@ -99,7 +100,7 @@ class AppDistributionIntegrationService extends IntegrationService {
   ): Promise<{ success: boolean; data?: AppDistributionIntegration; error?: string }> {
     try {
       const response = await this.get<{ success: boolean; data?: AppDistributionIntegration }>(
-        `/integrations/store/${integrationId}`,
+        APP_DISTRIBUTION.get(integrationId),
         userId
       );
       return response;
@@ -123,7 +124,7 @@ class AppDistributionIntegrationService extends IntegrationService {
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const response = await this.patch<{ success: boolean; message?: string }>(
-        `/integrations/store/tenant/${tenantId}/revoke?storeType=${storeType}&platform=${platform}`,
+        APP_DISTRIBUTION.revoke(tenantId, storeType, platform),
         {},
         userId
       );

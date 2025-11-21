@@ -1,0 +1,489 @@
+/**
+ * Centralized API Routes Configuration
+ * 
+ * This file contains all backend API endpoint mappings used by the BFF layer.
+ * If any backend route changes, update it here in a single place.
+ * 
+ * Convention:
+ * - Static routes: Use constants (e.g., SYSTEM_METADATA)
+ * - Dynamic routes: Use arrow functions (e.g., projectManagementVerify)
+ */
+
+// ============================================================================
+// Project Management Integrations (JIRA, Linear, Asana, etc.)
+// ============================================================================
+
+export const PROJECT_MANAGEMENT = {
+  /**
+   * Verify credentials (stateless - no save)
+   * POST /projects/:projectId/integrations/project-management/verify
+   */
+  verify: (projectId: string) => 
+    `/projects/${projectId}/integrations/project-management/verify`,
+  
+  /**
+   * List all project management integrations
+   * GET /projects/:projectId/integrations/project-management
+   */
+  list: (projectId: string) => 
+    `/projects/${projectId}/integrations/project-management`,
+  
+  /**
+   * Create project management integration
+   * POST /projects/:projectId/integrations/project-management
+   */
+  create: (projectId: string) => 
+    `/projects/${projectId}/integrations/project-management`,
+  
+  /**
+   * Get single integration
+   * GET /projects/:projectId/integrations/project-management/:integrationId
+   */
+  get: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/project-management/${integrationId}`,
+  
+  /**
+   * Update integration
+   * PUT /projects/:projectId/integrations/project-management/:integrationId
+   */
+  update: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/project-management/${integrationId}`,
+  
+  /**
+   * Delete integration
+   * DELETE /projects/:projectId/integrations/project-management/:integrationId
+   */
+  delete: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/project-management/${integrationId}`,
+  
+  /**
+   * Verify existing integration
+   * POST /projects/:projectId/integrations/project-management/:integrationId/verify
+   */
+  verifyExisting: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/project-management/${integrationId}/verify`,
+  
+  /**
+   * Project Management Config Routes
+   * For managing platform-specific PM configurations
+   */
+  config: {
+    /**
+     * Create PM configuration
+     * POST /projects/:projectId/integrations/project-management/config
+     */
+    create: (projectId: string) => 
+      `/projects/${projectId}/integrations/project-management/config`,
+    
+    /**
+     * Get PM configuration
+     * GET /projects/:projectId/integrations/project-management/config/:configId
+     */
+    get: (projectId: string, configId: string) => 
+      `/projects/${projectId}/integrations/project-management/config/${configId}`,
+    
+    /**
+     * Update PM configuration
+     * PUT /projects/:projectId/integrations/project-management/config/:configId
+     */
+    update: (projectId: string, configId: string) => 
+      `/projects/${projectId}/integrations/project-management/config/${configId}`,
+    
+    /**
+     * Delete PM configuration
+     * DELETE /projects/:projectId/integrations/project-management/config/:configId
+     */
+    delete: (projectId: string, configId: string) => 
+      `/projects/${projectId}/integrations/project-management/config/${configId}`,
+  },
+} as const;
+
+// ============================================================================
+// CI/CD Integrations (Jenkins, GitHub Actions, CircleCI, etc.)
+// ============================================================================
+
+export const CICD = {
+  /**
+   * Verify provider credentials
+   * POST /tenants/:tenantId/integrations/ci-cd/connections/:providerType/verify
+   */
+  verifyConnection: (tenantId: string, providerType: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/connections/${providerType}/verify`,
+  
+  /**
+   * Create CI/CD connection
+   * POST /tenants/:tenantId/integrations/ci-cd/connections/:providerType
+   */
+  createConnection: (tenantId: string, providerType: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/connections/${providerType}`,
+  
+  /**
+   * Get provider integration
+   * GET /tenants/:tenantId/integrations/ci-cd/:provider
+   */
+  getProvider: (tenantId: string, provider: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/${provider}`,
+  
+  /**
+   * Update connection
+   * PATCH /tenants/:tenantId/integrations/ci-cd/connections/:integrationId
+   */
+  updateConnection: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
+  
+  /**
+   * Delete connection
+   * DELETE /tenants/:tenantId/integrations/ci-cd/connections/:integrationId
+   */
+  deleteConnection: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
+  
+  /**
+   * Fetch job parameters (Jenkins/GitHub Actions)
+   * POST /tenants/:tenantId/integrations/ci-cd/:provider/job-parameters
+   */
+  jobParameters: (tenantId: string, provider: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/${provider}/job-parameters`,
+  
+  /**
+   * List all workflows (with optional filters)
+   * GET /tenants/:tenantId/integrations/ci-cd/workflows
+   */
+  listWorkflows: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/workflows`,
+  
+  /**
+   * Get single workflow
+   * GET /tenants/:tenantId/integrations/ci-cd/workflows/:workflowId
+   */
+  getWorkflow: (tenantId: string, workflowId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+  
+  /**
+   * Create workflow
+   * POST /tenants/:tenantId/integrations/ci-cd/workflows
+   */
+  createWorkflow: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/workflows`,
+  
+  /**
+   * Update workflow
+   * PATCH /tenants/:tenantId/integrations/ci-cd/workflows/:workflowId
+   */
+  updateWorkflow: (tenantId: string, workflowId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+  
+  /**
+   * Delete workflow
+   * DELETE /tenants/:tenantId/integrations/ci-cd/workflows/:workflowId
+   */
+  deleteWorkflow: (tenantId: string, workflowId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+} as const;
+
+// ============================================================================
+// Communication Integrations (Slack, Teams, Discord)
+// ============================================================================
+
+export const COMMUNICATION = {
+  slack: {
+    /**
+     * Verify Slack bot token
+     * POST /tenants/:tenantId/integrations/slack/verify
+     */
+    verify: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack/verify`,
+    
+    /**
+     * Fetch Slack channels (with token in body)
+     * POST /tenants/:tenantId/integrations/slack/channels
+     */
+    fetchChannels: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack/channels`,
+    
+    /**
+     * Get Slack channels (using stored integration)
+     * GET /tenants/:tenantId/integrations/slack/channels
+     */
+    getChannels: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack/channels`,
+    
+    /**
+     * Create/Update Slack integration
+     * POST /tenants/:tenantId/integrations/slack
+     */
+    create: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack`,
+    
+    /**
+     * Get Slack integration
+     * GET /tenants/:tenantId/integrations/slack
+     */
+    get: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack`,
+    
+    /**
+     * Update Slack integration
+     * PATCH /tenants/:tenantId/integrations/slack
+     */
+    update: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack`,
+    
+    /**
+     * Delete Slack integration
+     * DELETE /tenants/:tenantId/integrations/slack
+     */
+    delete: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/slack`,
+  },
+} as const;
+
+// ============================================================================
+// Source Control Management (GitHub, GitLab, Bitbucket)
+// ============================================================================
+
+export const SCM = {
+  /**
+   * Verify SCM connection
+   * POST /tenants/:tenantId/integrations/scm/verify
+   */
+  verify: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/scm/verify`,
+  
+  /**
+   * Create SCM integration
+   * POST /tenants/:tenantId/integrations/scm
+   */
+  create: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/scm`,
+  
+  /**
+   * Get SCM integration
+   * GET /tenants/:tenantId/integrations/scm
+   */
+  get: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/scm`,
+  
+  /**
+   * Update SCM integration
+   * PATCH /tenants/:tenantId/integrations/scm/:integrationId
+   */
+  update: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/scm/${integrationId}`,
+  
+  /**
+   * Delete SCM integration
+   * DELETE /tenants/:tenantId/integrations/scm/:integrationId
+   */
+  delete: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/scm/${integrationId}`,
+  
+  /**
+   * Fetch branches from repository
+   * GET /tenants/:tenantId/integrations/scm/branches
+   */
+  branches: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/scm/branches`,
+} as const;
+
+// ============================================================================
+// Test Management (Checkmate, TestRail, etc.)
+// ============================================================================
+
+export const TEST_MANAGEMENT = {
+  /**
+   * List all test management integrations
+   * GET /projects/:projectId/integrations/test-management
+   */
+  list: (projectId: string) => 
+    `/projects/${projectId}/integrations/test-management`,
+  
+  /**
+   * Create test management integration
+   * POST /projects/:projectId/integrations/test-management
+   */
+  create: (projectId: string) => 
+    `/projects/${projectId}/integrations/test-management`,
+  
+  /**
+   * Get single integration
+   * GET /projects/:projectId/integrations/test-management/:integrationId
+   */
+  get: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/test-management/${integrationId}`,
+  
+  /**
+   * Update integration
+   * PUT /projects/:projectId/integrations/test-management/:integrationId
+   */
+  update: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/test-management/${integrationId}`,
+  
+  /**
+   * Delete integration
+   * DELETE /projects/:projectId/integrations/test-management/:integrationId
+   */
+  delete: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/test-management/${integrationId}`,
+  
+  /**
+   * Verify integration connection
+   * POST /projects/:projectId/integrations/test-management/:integrationId/verify
+   */
+  verify: (projectId: string, integrationId: string) => 
+    `/projects/${projectId}/integrations/test-management/${integrationId}/verify`,
+} as const;
+
+// ============================================================================
+// App Distribution (Play Store, App Store, etc.)
+// ============================================================================
+
+export const APP_DISTRIBUTION = {
+  /**
+   * Verify store credentials
+   * POST /integrations/store/verify
+   */
+  verify: '/integrations/store/verify',
+  
+  /**
+   * Connect/Create store integration
+   * PUT /integrations/store/connect
+   */
+  connect: '/integrations/store/connect',
+  
+  /**
+   * List all store integrations for tenant
+   * GET /integrations/store/tenant/:tenantId
+   */
+  list: (tenantId: string) => 
+    `/integrations/store/tenant/${tenantId}`,
+  
+  /**
+   * Get single store integration
+   * GET /integrations/store/:integrationId
+   */
+  get: (integrationId: string) => 
+    `/integrations/store/${integrationId}`,
+  
+  /**
+   * Revoke store integration
+   * PATCH /integrations/store/tenant/:tenantId/revoke
+   */
+  revoke: (tenantId: string, storeType: string, platform: string) => 
+    `/integrations/store/tenant/${tenantId}/revoke?storeType=${storeType}&platform=${platform}`,
+} as const;
+
+// ============================================================================
+// App Store Connect Integrations (Tenant-scoped)
+// ============================================================================
+
+export const APPSTORE = {
+  /**
+   * Verify App Store Connect credentials
+   * GET /tenants/:tenantId/integrations/app-distribution/appstore/verify
+   */
+  verify: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/app-distribution/appstore/verify`,
+  
+  /**
+   * Create App Store Connect integration
+   * POST /tenants/:tenantId/integrations/app-distribution/appstore
+   */
+  create: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  
+  /**
+   * Get App Store Connect integration
+   * GET /tenants/:tenantId/integrations/app-distribution/appstore
+   */
+  get: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  
+  /**
+   * Update App Store Connect integration
+   * PATCH /tenants/:tenantId/integrations/app-distribution/appstore
+   */
+  update: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/app-distribution/appstore`,
+  
+  /**
+   * Delete App Store Connect integration
+   * DELETE /tenants/:tenantId/integrations/app-distribution/appstore
+   */
+  delete: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/app-distribution/appstore`,
+} as const;
+
+// ============================================================================
+// General Management Routes
+// ============================================================================
+
+export const MANAGEMENT = {
+  /**
+   * Get system metadata (available integrations, etc.)
+   * GET /metadata
+   */
+  metadata: '/metadata',
+  
+  /**
+   * List user's tenants
+   * GET /tenants
+   */
+  tenants: '/tenants',
+  
+  /**
+   * Get single tenant with integrations
+   * GET /tenants/:tenantId
+   */
+  tenant: (tenantId: string) => 
+    `/tenants/${tenantId}`,
+  
+  /**
+   * Create tenant
+   * POST /tenants
+   */
+  createTenant: '/tenants',
+  
+  /**
+   * Delete tenant
+   * DELETE /tenants/:tenantId
+   */
+  deleteTenant: (tenantId: string) => 
+    `/tenants/${tenantId}`,
+} as const;
+
+// ============================================================================
+// Helper: Build URL with Query Parameters
+// ============================================================================
+
+/**
+ * Helper function to build URLs with query parameters
+ * 
+ * @example
+ * buildUrl('/api/workflows', { platform: 'ANDROID', type: 'REGRESSION' })
+ * // Returns: '/api/workflows?platform=ANDROID&type=REGRESSION'
+ */
+export function buildUrlWithQuery(
+  baseUrl: string, 
+  params?: Record<string, string | number | boolean | undefined | null>
+): string {
+  if (!params) return baseUrl;
+  
+  const queryParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      queryParams.append(key, String(value));
+    }
+  });
+  
+  const query = queryParams.toString();
+  return query ? `${baseUrl}?${query}` : baseUrl;
+}
+
+// ============================================================================
+// Export All Routes (Individual Exports)
+// ============================================================================
+
+// All route objects are already exported above with their const declarations
+// Services should import directly: import { PROJECT_MANAGEMENT, CICD } from './api-routes';
+

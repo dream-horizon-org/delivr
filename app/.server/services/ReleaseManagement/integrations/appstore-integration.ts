@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { APPSTORE } from './api-routes';
 
 // ============================================================================
 // Types
@@ -129,11 +130,12 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
    * Verify App Store connection
    */
   async verifyAppStore(data: VerifyAppStoreRequest): Promise<VerifyAppStoreResponse> {
-    this.logRequest('GET', `/tenants/${data.tenantId}/integrations/app-distribution/appstore/verify`);
+    const endpoint = APPSTORE.verify(data.tenantId);
+    this.logRequest('GET', endpoint);
     
     try {
       const result = await this.get<VerifyAppStoreResponse>(
-        `/tenants/${data.tenantId}/integrations/app-distribution/appstore/verify`,
+        endpoint,
         data.userId,
         {
           params: {
@@ -146,10 +148,10 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
         }
       );
 
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/app-distribution/appstore/verify`, result.verified);
+      this.logResponse('GET', endpoint, result.verified);
       return result;
     } catch (error: any) {
-      this.logResponse('GET', `/tenants/${data.tenantId}/integrations/app-distribution/appstore/verify`, false);
+      this.logResponse('GET', endpoint, false);
       
       return {
         verified: false,
@@ -162,11 +164,12 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
    * Create App Store integration
    */
   async createIntegration(data: CreateAppStoreIntegrationRequest): Promise<AppStoreIntegrationResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/app-distribution/appstore`);
+    const endpoint = APPSTORE.create(data.tenantId);
+    this.logRequest('POST', endpoint);
     
     try {
       const result = await this.post<AppStoreIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/app-distribution/appstore`,
+        endpoint,
         {
           displayName: data.displayName,
           authType: data.authType,
@@ -181,7 +184,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/app-distribution/appstore`, result.success);
+      this.logResponse('POST', endpoint, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -197,7 +200,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
   async getIntegration(tenantId: string, userId: string): Promise<AppStoreIntegrationResponse> {
     try {
       return await this.get<AppStoreIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/app-distribution/appstore`,
+        APPSTORE.get(tenantId),
         userId
       );
     } catch (error: any) {
@@ -219,11 +222,12 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
    * Update App Store integration
    */
   async updateIntegration(data: UpdateAppStoreIntegrationRequest): Promise<AppStoreIntegrationResponse> {
-    this.logRequest('PATCH', `/tenants/${data.tenantId}/integrations/app-distribution/appstore`);
+    const endpoint = APPSTORE.update(data.tenantId);
+    this.logRequest('PATCH', endpoint);
     
     try {
       const result = await this.patch<AppStoreIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/app-distribution/appstore`,
+        endpoint,
         {
           displayName: data.displayName,
           authType: data.authType,
@@ -238,7 +242,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
         data.userId
       );
 
-      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/app-distribution/appstore`, result.success);
+      this.logResponse('PATCH', endpoint, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -254,7 +258,7 @@ export class AppStoreIntegrationServiceClass extends IntegrationService {
   async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        `/tenants/${tenantId}/integrations/app-distribution/appstore`,
+        APPSTORE.delete(tenantId),
         userId
       );
     } catch (error: any) {

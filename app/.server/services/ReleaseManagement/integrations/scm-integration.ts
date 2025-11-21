@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { SCM } from './api-routes';
 
 export interface Branch {
   name: string;
@@ -42,11 +43,12 @@ class SCMIntegrationServiceClass extends IntegrationService {
    */
   async verifySCM(data: VerifySCMRequest, userId: string): Promise<VerifySCMResponse> {
     const { tenantId, scmType, owner, repo, accessToken } = data;
-    this.logRequest('POST', `/tenants/${tenantId}/integrations/scm/verify`, { scmType, owner, repo });
+    const endpoint = SCM.verify(tenantId);
+    this.logRequest('POST', endpoint, { scmType, owner, repo });
     
     try {
       const result = await this.post<VerifySCMResponse>(
-        `/tenants/${tenantId}/integrations/scm/verify`,
+        endpoint,
         {
           scmType,
           owner,
@@ -56,10 +58,10 @@ class SCMIntegrationServiceClass extends IntegrationService {
         userId
       );
       
-      this.logResponse('POST', `/tenants/${tenantId}/integrations/scm/verify`, result.success);
+      this.logResponse('POST', endpoint, result.success);
       return result;
     } catch (error: any) {
-      this.logResponse('POST', `/tenants/${tenantId}/integrations/scm/verify`, false);
+      this.logResponse('POST', endpoint, false);
       throw this.handleError(error);
     }
   }
@@ -68,19 +70,20 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Create SCM integration
    */
   async createSCMIntegration(tenantId: string, userId: string, data: any): Promise<any> {
-    this.logRequest('POST', `/tenants/${tenantId}/integrations/scm`, { ...data, accessToken: '[REDACTED]' });
+    const endpoint = SCM.create(tenantId);
+    this.logRequest('POST', endpoint, { ...data, accessToken: '[REDACTED]' });
     
     try {
       const result = await this.post<any>(
-        `/tenants/${tenantId}/integrations/scm`,
+        endpoint,
         data,
         userId
       );
       
-      this.logResponse('POST', `/tenants/${tenantId}/integrations/scm`, true);
+      this.logResponse('POST', endpoint, true);
       return result;
     } catch (error: any) {
-      this.logResponse('POST', `/tenants/${tenantId}/integrations/scm`, false);
+      this.logResponse('POST', endpoint, false);
       throw this.handleError(error);
     }
   }
@@ -89,18 +92,19 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Get SCM integration
    */
   async getSCMIntegration(tenantId: string, userId: string): Promise<any> {
-    this.logRequest('GET', `/tenants/${tenantId}/integrations/scm`);
+    const endpoint = SCM.get(tenantId);
+    this.logRequest('GET', endpoint);
     
     try {
       const result = await this.get<any>(
-        `/tenants/${tenantId}/integrations/scm`,
+        endpoint,
         userId
       );
       
-      this.logResponse('GET', `/tenants/${tenantId}/integrations/scm`, true);
+      this.logResponse('GET', endpoint, true);
       return result;
     } catch (error: any) {
-      this.logResponse('GET', `/tenants/${tenantId}/integrations/scm`, false);
+      this.logResponse('GET', endpoint, false);
       throw this.handleError(error);
     }
   }
@@ -109,19 +113,20 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Update SCM integration
    */
   async updateSCMIntegration(tenantId: string, userId: string, integrationId: string, data: any): Promise<any> {
-    this.logRequest('PATCH', `/tenants/${tenantId}/integrations/scm/${integrationId}`, data);
+    const endpoint = SCM.update(tenantId, integrationId);
+    this.logRequest('PATCH', endpoint, data);
     
     try {
       const result = await this.patch<any>(
-        `/tenants/${tenantId}/integrations/scm/${integrationId}`,
+        endpoint,
         data,
         userId
       );
       
-      this.logResponse('PATCH', `/tenants/${tenantId}/integrations/scm/${integrationId}`, true);
+      this.logResponse('PATCH', endpoint, true);
       return result;
     } catch (error: any) {
-      this.logResponse('PATCH', `/tenants/${tenantId}/integrations/scm/${integrationId}`, false);
+      this.logResponse('PATCH', endpoint, false);
       throw this.handleError(error);
     }
   }
@@ -130,18 +135,19 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Delete SCM integration
    */
   async deleteSCMIntegration(tenantId: string, userId: string, integrationId: string): Promise<any> {
-    this.logRequest('DELETE', `/tenants/${tenantId}/integrations/scm/${integrationId}`);
+    const endpoint = SCM.delete(tenantId, integrationId);
+    this.logRequest('DELETE', endpoint);
     
     try {
       const result = await this.delete<any>(
-        `/tenants/${tenantId}/integrations/scm/${integrationId}`,
+        endpoint,
         userId
       );
       
-      this.logResponse('DELETE', `/tenants/${tenantId}/integrations/scm/${integrationId}`, true);
+      this.logResponse('DELETE', endpoint, true);
       return result;
     } catch (error: any) {
-      this.logResponse('DELETE', `/tenants/${tenantId}/integrations/scm/${integrationId}`, false);
+      this.logResponse('DELETE', endpoint, false);
       throw this.handleError(error);
     }
   }
@@ -150,18 +156,19 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Fetch branches from SCM repository
    */
   async fetchBranches(tenantId: string, userId: string): Promise<FetchBranchesResponse> {
-    this.logRequest('GET', `/tenants/${tenantId}/integrations/scm/branches`);
+    const endpoint = SCM.branches(tenantId);
+    this.logRequest('GET', endpoint);
     
     try {
       const result = await this.get<FetchBranchesResponse>(
-        `/tenants/${tenantId}/integrations/scm/branches`,
+        endpoint,
         userId
       );
       
-      this.logResponse('GET', `/tenants/${tenantId}/integrations/scm/branches`, result.success);
+      this.logResponse('GET', endpoint, result.success);
       return result;
     } catch (error: any) {
-      this.logResponse('GET', `/tenants/${tenantId}/integrations/scm/branches`, false);
+      this.logResponse('GET', endpoint, false);
       throw this.handleError(error);
     }
   }

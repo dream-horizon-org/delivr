@@ -149,12 +149,31 @@ export interface RegressionSlot {
 // Jira Project Configuration
 // ============================================================================
 
+/**
+ * Platform-specific JIRA configuration
+ * Each platform can have different project settings
+ */
+export interface JiraPlatformConfig {
+  platform: 'WEB' | 'IOS' | 'ANDROID'; // Platform identifier
+  projectKey: string; // JIRA project key (e.g., "FE", "APP", "MOBILE")
+  issueType?: string; // Issue type (e.g., "Epic", "Story", "Task", "Bug")
+  completedStatus: string; // Status indicating completion (e.g., "Done", "Released", "Closed")
+  priority?: string; // Default priority (e.g., "High", "Medium", "Low")
+}
+
+/**
+ * JIRA Project Management Configuration
+ * Supports platform-level configuration for different release targets
+ */
 export interface JiraProjectConfig {
   enabled: boolean;
-  integrationId: string;
-  projectKey: string; // e.g., "PROJ", "APP" 
-  projectId?: string;
-  issueTypeForRelease?: string; // Issue type ID for release tickets
+  integrationId: string; // Reference to connected JIRA integration
+  pmConfigId?: string; // Backend project management config ID (set after creation)
+  
+  // Platform-specific configurations
+  platformConfigurations: JiraPlatformConfig[]; // One config per platform
+  
+  // Global settings
   createReleaseTicket?: boolean; // Auto-create release tickets
   linkBuildsToIssues?: boolean; // Link build info to Jira issues
 }

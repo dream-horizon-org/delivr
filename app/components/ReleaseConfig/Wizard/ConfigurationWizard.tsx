@@ -155,12 +155,63 @@ export function ConfigurationWizard({
     setIsSubmitting(true);
     
     try {
+      let updatedConfig = { ...config };
+
+      // Step 1: Create PM config if JIRA is enabled
+      if (updatedConfig.jiraProject?.enabled && updatedConfig.jiraProject.integrationId) {
+        console.log('[ConfigWizard] Creating JIRA PM config...');
+        
+        // Import transformer dynamically
+        const { transformJiraConfigToBackendDTO } = await import('~/utils/jira-config-transformer');
+        
+        const pmConfigDTO = transformJiraConfigToBackendDTO(
+          updatedConfig.jiraProject,
+          organizationId,
+          updatedConfig.name || 'Release Configuration'
+        );
+
+        if (pmConfigDTO) {
+          try {
+            const pmResponse = await fetch(
+              `/api/v1/tenants/${organizationId}/integrations/project-management/config`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pmConfigDTO),
+              }
+            );
+
+            if (pmResponse.ok) {
+              const pmResult = await pmResponse.json();
+              console.log('[ConfigWizard] PM config created:', pmResult.data?.id);
+              
+              // Update jiraProject with pmConfigId
+              if (pmResult.success && pmResult.data?.id) {
+                updatedConfig = {
+                  ...updatedConfig,
+                  jiraProject: {
+                    ...updatedConfig.jiraProject,
+                    pmConfigId: pmResult.data.id,
+                  },
+                };
+              }
+            } else {
+              console.warn('[ConfigWizard] Failed to create PM config, continuing anyway');
+            }
+          } catch (pmError) {
+            console.warn('[ConfigWizard] Error creating PM config:', pmError);
+            // Continue with release config creation even if PM config fails
+          }
+        }
+      }
+
+      // Step 2: Create/Update Release Configuration
       const completeConfig: ReleaseConfiguration = {
-        ...config,
+        ...updatedConfig,
         status: 'ACTIVE',
         updatedAt: new Date().toISOString(),
         // Keep existing createdAt if editing, otherwise set new
-        createdAt: isEditMode ? config.createdAt! : new Date().toISOString(),
+        createdAt: isEditMode ? updatedConfig.createdAt! : new Date().toISOString(),
       } as ReleaseConfiguration;
       
       // Submit to API (POST for create, PUT for update)
@@ -263,6 +314,7 @@ export function ConfigurationWizard({
             config={config.jiraProject!}
             onChange={(jiraProject) => setConfig({ ...config, jiraProject })}
             availableIntegrations={availableIntegrations.jira}
+            selectedPlatforms={config.platforms || []}
           />
         );
         

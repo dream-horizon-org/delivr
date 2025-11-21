@@ -44,7 +44,9 @@ export function createDefaultConfig(organizationId: string): Partial<ReleaseConf
     jiraProject: {
       enabled: false,
       integrationId: '',
-      projectKey: '',
+      platformConfigurations: [], // Will be populated when user enables JIRA and selects platforms
+      createReleaseTicket: true,
+      linkBuildsToIssues: true,
     },
     status: 'DRAFT',
   };

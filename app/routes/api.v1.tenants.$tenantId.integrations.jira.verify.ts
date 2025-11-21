@@ -22,7 +22,7 @@ const verifyJiraCredentials = async ({
 
   try {
     const body = await request.json();
-    const service = new JiraIntegrationService();
+    const service = JiraIntegrationService;
 
     const result = await service.verifyCredentials(
       {

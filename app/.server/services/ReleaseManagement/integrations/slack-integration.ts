@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { COMMUNICATION } from './api-routes';
 
 // ============================================================================
 // Types
@@ -92,19 +93,20 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    * Verify Slack bot token
    */
   async verifySlack(data: VerifySlackRequest): Promise<VerifySlackResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/slack/verify`);
+    const endpoint = COMMUNICATION.slack.verify(data.tenantId);
+    this.logRequest('POST', endpoint);
     
     try {
       const result = await this.post<VerifySlackResponse>(
-        `/tenants/${data.tenantId}/integrations/slack/verify`,
+        endpoint,
         { botToken: data.botToken },
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/slack/verify`, result.success);
+      this.logResponse('POST', endpoint, result.success);
       return result;
     } catch (error: any) {
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/slack/verify`, false);
+      this.logResponse('POST', endpoint, false);
       
       return {
         success: false,
@@ -120,13 +122,14 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    */
   async fetchChannels(data: FetchSlackChannelsRequest): Promise<FetchSlackChannelsResponse> {
     try {
+      const endpoint = COMMUNICATION.slack.fetchChannels(data.tenantId);
       const result = await this.post<FetchSlackChannelsResponse>(
-        `/tenants/${data.tenantId}/integrations/slack/channels`,
+        endpoint,
         { botToken: data.botToken },
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/slack/channels`, result.success);
+      this.logResponse('POST', endpoint, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -142,8 +145,9 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    */
   async createOrUpdateIntegration(data: CreateSlackIntegrationRequest): Promise<SlackIntegrationResponse> {
     try {
+      const endpoint = COMMUNICATION.slack.create(data.tenantId);
       const result = await this.post<SlackIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/slack`,
+        endpoint,
         {
           botToken: data.botToken,
           botUserId: data.botUserId,
@@ -154,7 +158,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/slack`, result.success);
+      this.logResponse('POST', endpoint, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -170,7 +174,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
   async getIntegration(tenantId: string, userId: string): Promise<SlackIntegrationResponse> {
     try {
       return await this.get<SlackIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/slack`,
+        COMMUNICATION.slack.get(tenantId),
         userId
       );
     } catch (error: any) {
@@ -194,7 +198,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
   async fetchChannelsForIntegration(tenantId: string, userId: string): Promise<FetchSlackChannelsResponse> {
     try {
       return await this.get<FetchSlackChannelsResponse>(
-        `/tenants/${tenantId}/integrations/slack/channels`,
+        COMMUNICATION.slack.getChannels(tenantId),
         userId
       );
     } catch (error: any) {
@@ -211,8 +215,9 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    */
   async updateIntegration(data: UpdateSlackIntegrationRequest): Promise<SlackIntegrationResponse> {
     try {
+      const endpoint = COMMUNICATION.slack.update(data.tenantId);
       const result = await this.patch<SlackIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/slack`,
+        endpoint,
         {
           botToken: data.botToken,
           botUserId: data.botUserId,
@@ -223,7 +228,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
         data.userId
       );
 
-      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/slack`, result.success);
+      this.logResponse('PATCH', endpoint, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -239,7 +244,7 @@ export class SlackIntegrationServiceClass extends IntegrationService {
   async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        `/tenants/${tenantId}/integrations/slack`,
+        COMMUNICATION.slack.delete(tenantId),
         userId
       );
     } catch (error: any) {

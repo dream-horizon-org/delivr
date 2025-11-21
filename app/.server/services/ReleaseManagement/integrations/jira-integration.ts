@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { PROJECT_MANAGEMENT } from './api-routes';
 import type {
   CreateJiraIntegrationRequest,
   UpdateJiraIntegrationRequest,
@@ -26,11 +27,14 @@ class JiraIntegrationServiceClass extends IntegrationService {
     userId: string
   ): Promise<JiraVerifyResponse> {
     try {
+      // Use projectId from data or default
+      const projectId = data.projectId || 'default-project';
+      
       return await this.post<JiraVerifyResponse>(
-        `/integrations/project-management/verify`,
+        PROJECT_MANAGEMENT.verify(projectId),
         {
-          providerType: 'jira',
-          ...data,
+          providerType: 'JIRA',
+          config: data.config,
         },
         userId
       );
@@ -44,22 +48,56 @@ class JiraIntegrationServiceClass extends IntegrationService {
   }
 
   /**
+   * List all integrations and filter for JIRA
+   */
+  async listIntegrations(
+    projectId: string,
+    userId: string
+  ): Promise<JiraListResponse> {
+    try {
+      const response = await this.get<{ success: boolean; data: any[] }>(
+        PROJECT_MANAGEMENT.list(projectId),
+        userId
+      );
+      
+      // Filter for JIRA integrations only
+      const jiraIntegrations = response.data?.filter(
+        (integration) => integration.providerType === 'JIRA'
+      ) || [];
+      
+      return {
+        success: response.success,
+        data: jiraIntegrations,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        data: [],
+        error: error.message || 'Failed to list Jira integrations'
+      };
+    }
+  }
+
+  /**
    * Get Jira integration for tenant/project (tenant = project in our system)
    */
   async getIntegration(tenantId: string, userId: string): Promise<JiraIntegrationResponse> {
     try {
-      return await this.get<JiraIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/project-management/jira`,
-        userId
-      );
-    } catch (error: any) {
-      if ((error as any).status === 404) {
+      const list = await this.listIntegrations(tenantId, userId);
+      
+      if (!list.success || !list.data || list.data.length === 0) {
         return {
           success: false,
           error: 'No Jira integration found'
         };
       }
       
+      // Return the first JIRA integration
+      return {
+        success: true,
+        data: list.data[0]
+      };
+    } catch (error: any) {
       return {
         success: false,
         error: error.message || 'Failed to get Jira integration'
@@ -70,12 +108,29 @@ class JiraIntegrationServiceClass extends IntegrationService {
   /**
    * Create Jira integration for tenant/project
    */
-  async createIntegration(data: any): Promise<JiraIntegrationResponse> {
+  async createIntegration(
+    projectId: string,
+    userId: string,
+    data: {
+      name: string;
+      providerType: 'jira';
+      config: {
+        baseUrl: string;
+        email: string;
+        apiToken: string;
+        jiraType: 'CLOUD' | 'SERVER' | 'DATA_CENTER';
+      };
+    }
+  ): Promise<JiraIntegrationResponse> {
     try {
       return await this.post<JiraIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/project-management/jira`,
-        data,
-        data.userId
+        PROJECT_MANAGEMENT.create(projectId),
+        {
+          name: data.name,
+          providerType: 'JIRA',
+          config: data.config,
+        },
+        userId
       );
     } catch (error: any) {
       return {
@@ -88,12 +143,25 @@ class JiraIntegrationServiceClass extends IntegrationService {
   /**
    * Update Jira integration for tenant/project
    */
-  async updateIntegration(data: any): Promise<JiraIntegrationResponse> {
+  async updateIntegration(
+    projectId: string,
+    integrationId: string,
+    userId: string,
+    data: {
+      name?: string;
+      config?: Partial<{
+        baseUrl: string;
+        email: string;
+        apiToken: string;
+        jiraType: 'CLOUD' | 'SERVER' | 'DATA_CENTER';
+      }>;
+    }
+  ): Promise<JiraIntegrationResponse> {
     try {
-      return await this.patch<JiraIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/project-management/jira`,
+      return await this.put<JiraIntegrationResponse>(
+        PROJECT_MANAGEMENT.update(projectId, integrationId),
         data,
-        data.userId
+        userId
       );
     } catch (error: any) {
       return {
@@ -106,10 +174,14 @@ class JiraIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Jira integration for tenant/project
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(
+    projectId: string,
+    integrationId: string,
+    userId: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        `/tenants/${tenantId}/integrations/project-management/jira`,
+        PROJECT_MANAGEMENT.delete(projectId, integrationId),
         userId
       );
     } catch (error: any) {

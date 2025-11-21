@@ -36,6 +36,7 @@ export interface UpdateJiraIntegrationRequest {
 }
 
 export interface VerifyJiraRequest {
+  projectId?: string;
   config: JiraIntegrationConfig;
 }
 

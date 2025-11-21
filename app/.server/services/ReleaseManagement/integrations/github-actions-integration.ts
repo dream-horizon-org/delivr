@@ -4,6 +4,7 @@
  */
 
 import { IntegrationService } from './base-integration';
+import { CICD, buildUrlWithQuery } from './api-routes';
 import type {
   CreateGitHubActionsRequest,
   UpdateGitHubActionsRequest,
@@ -27,7 +28,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsVerifyResponse> {
     try {
       return await this.post<GitHubActionsVerifyResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS/verify`,
+        CICD.verifyConnection(tenantId, 'GITHUB_ACTIONS'),
         data || {},
         userId
       );
@@ -49,7 +50,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.post<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS`,
+        CICD.createConnection(tenantId, 'GITHUB_ACTIONS'),
         data,
         userId
       );
@@ -70,7 +71,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.get<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        CICD.getProvider(tenantId, 'github-actions'),
         userId
       );
     } catch (error: any) {
@@ -92,7 +93,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.patch<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
+        CICD.updateConnection(tenantId, integrationId),
         data,
         userId
       );
@@ -114,7 +115,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.delete<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
+        CICD.deleteConnection(tenantId, integrationId),
         userId
       );
     } catch (error: any) {
@@ -135,7 +136,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   async fetchWorkflowInputs(tenantId: string, userId: string, workflowUrl: string): Promise<any> {
     try {
       return await this.post(
-        `/tenants/${tenantId}/integrations/ci-cd/github-actions/job-parameters`,
+        CICD.jobParameters(tenantId, 'github-actions'),
         { workflowUrl },
         userId
       );
@@ -153,15 +154,13 @@ export class GitHubActionsIntegrationService extends IntegrationService {
    */
   async listWorkflows(tenantId: string, userId: string, filters?: any): Promise<any> {
     try {
-      const queryParams = new URLSearchParams();
-      queryParams.append('providerType', 'GITHUB_ACTIONS');
-      if (filters?.platform) queryParams.append('platform', filters.platform);
-      if (filters?.workflowType) queryParams.append('workflowType', filters.workflowType);
+      const url = buildUrlWithQuery(CICD.listWorkflows(tenantId), {
+        providerType: 'GITHUB_ACTIONS',
+        platform: filters?.platform,
+        workflowType: filters?.workflowType
+      });
 
-      return await this.get(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows?${queryParams.toString()}`,
-        userId
-      );
+      return await this.get(url, userId);
     } catch (error: any) {
       return {
         success: false,
@@ -177,7 +176,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   async createWorkflow(tenantId: string, userId: string, data: any): Promise<any> {
     try {
       return await this.post(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows`,
+        CICD.createWorkflow(tenantId),
         { ...data, providerType: 'GITHUB_ACTIONS' },
         userId
       );
@@ -195,7 +194,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   async updateWorkflow(tenantId: string, workflowId: string, userId: string, data: any): Promise<any> {
     try {
       return await this.patch(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        CICD.updateWorkflow(tenantId, workflowId),
         data,
         userId
       );
@@ -213,7 +212,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   async deleteWorkflow(tenantId: string, workflowId: string, userId: string): Promise<any> {
     try {
       return await this.delete(
-        `/tenants/${tenantId}/integrations/ci-cd/workflows/${workflowId}`,
+        CICD.deleteWorkflow(tenantId, workflowId),
         userId
       );
     } catch (error: any) {

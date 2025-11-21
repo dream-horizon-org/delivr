@@ -21,8 +21,8 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const service = new JiraIntegrationService();
-      // Use tenantId as projectId for now
+      const service = JiraIntegrationService;
+      // Use tenantId as projectId
       const result = await service.listIntegrations(tenantId, user.user.id);
 
       if (!result.success) {
@@ -67,7 +67,7 @@ const createJiraAction = async ({
 
   try {
     const body = await request.json();
-    const service = new JiraIntegrationService();
+    const service = JiraIntegrationService;
 
     // Use tenantId as projectId
     const result = await service.createIntegration(
@@ -78,7 +78,7 @@ const createJiraAction = async ({
         providerType: 'jira',
         config: {
           baseUrl: body.hostUrl || body.config?.baseUrl,
-          email: body.username || body.email || body.config?.email,
+          email: body.email || body.username || body.config?.email,
           apiToken: body.apiToken || body.config?.apiToken,
           jiraType: body.jiraType || body.config?.jiraType || 'CLOUD',
         },
@@ -115,7 +115,7 @@ const deleteJiraAction = async ({
   }
 
   try {
-    const service = new JiraIntegrationService();
+    const service = JiraIntegrationService;
     const result = await service.deleteIntegration(tenantId, integrationId, user.user.id);
 
     return json(result, { status: result.success ? 200 : 404 });
@@ -149,7 +149,7 @@ const updateJiraAction = async ({
 
   try {
     const body = await request.json();
-    const service = new JiraIntegrationService();
+    const service = JiraIntegrationService;
 
     const updateData: any = {};
     if (body.name || body.displayName) {
