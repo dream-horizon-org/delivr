@@ -106,9 +106,7 @@ export const validateCreateJenkinsBody = (req: Request, res: Response, next: Nex
  * Create workflow body: required fields must be present for provider-agnostic workflow metadata.
  */
 export const validateCreateWorkflowBody = (req: Request, res: Response, next: NextFunction): void => {
-  console.log('validateCreateWorkflowBody');
   const body = req.body || {};
-  console.log('body', body);
   const required = ['providerType', 'integrationId', 'displayName', 'platform', 'workflowType', 'workflowUrl'] as const;
   const missing = required.filter((k) => !isNonEmptyString(body[k]));
   const hasMissing = missing.length > 0;
@@ -116,7 +114,6 @@ export const validateCreateWorkflowBody = (req: Request, res: Response, next: Ne
     res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_CREATE_REQUIRED });
     return;
   }
-  console.log('validateCreateWorkflowBody is valid');
   next();
 };
 
