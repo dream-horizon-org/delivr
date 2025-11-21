@@ -1,3 +1,5 @@
+import type { CreateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
+
 export interface TenantCICDConfig {
   id: string;
   tenantId: string;
@@ -9,7 +11,7 @@ export interface TenantCICDConfig {
 
 export interface CreateCICDConfigDto {
   tenantId: string;
-  workflows: Array<Record<string, any>>; // use CreateWorkflowDto at call site
+  workflows: Array<CreateWorkflowDto>;
   createdByAccountId: string;
 }
 

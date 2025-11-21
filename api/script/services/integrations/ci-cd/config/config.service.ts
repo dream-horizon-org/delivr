@@ -15,6 +15,20 @@ export class CICDConfigService {
     this.workflowRepository = workflowRepository;
   }
 
+  async validateConfig(dto: CreateCICDConfigDto): Promise<void> {
+    const tenantId = dto.tenantId;
+    const workflows = Array.isArray(dto.workflows) ? dto.workflows : [];
+    const noWorkflowsProvided = workflows.length === 0;
+    if (noWorkflowsProvided) {
+      throw new CICDConfigValidationError([{ field: 'workflows', message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED }]);
+    }
+    const validation = await validateWorkflowsForCreateConfig(workflows as unknown[], tenantId);
+    const hasValidationErrors = validation.errors.length > 0;
+    if (hasValidationErrors) {
+      throw new CICDConfigValidationError(validation.errors);
+    }
+  }
+
   async createConfig(dto: CreateCICDConfigDto): Promise<{ configId: string; workflowIds: string[] }> {
     const tenantId = dto.tenantId;
     const createdByAccountId = dto.createdByAccountId;
@@ -24,13 +38,6 @@ export class CICDConfigService {
 
     if (noWorkflowsProvided) {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED);
-    }
-
-    // Aggregate validation across workflows (including provider-specific checks)
-    const validation = await validateWorkflowsForCreateConfig(workflows, tenantId);
-    const hasValidationErrors = validation.errors.length > 0;
-    if (hasValidationErrors) {
-      throw new CICDConfigValidationError(validation.errors);
     }
 
     // Validate and normalize all workflows before creating any
