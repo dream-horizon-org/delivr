@@ -1,9 +1,9 @@
 import { ConnectionService } from './connection.service';
-import { CICDProviderType, AuthType, VerificationStatus } from '../../../../storage/integrations/ci-cd/ci-cd-types';
-import type { SafeCICDIntegration, CreateCICDIntegrationDto, UpdateCICDIntegrationDto } from '../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType, AuthType, VerificationStatus, type SafeCICDIntegration, type CreateCICDIntegrationDto, type UpdateCICDIntegrationDto } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/jenkins/jenkins.interface';
-import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../constants/cicd';
+import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
+import * as shortid from 'shortid';
 
 type CreateInput = {
   displayName?: string;
@@ -21,7 +21,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
   };
 
   create = async (tenantId: string, accountId: string, input: CreateInput): Promise<SafeCICDIntegration> => {
-    const existing = await this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_ALREADY_EXISTS);
     }
@@ -35,7 +35,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       crumbPath
     });
 
-    const createData: CreateCICDIntegrationDto = {
+    const createData: CreateCICDIntegrationDto & { id: string } = {
+      id: shortid.generate(),
       tenantId,
       providerType: CICDProviderType.JENKINS,
       displayName: input.displayName ?? 'Jenkins',
@@ -49,24 +50,27 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       lastVerifiedAt: new Date(),
       verificationError: verify.isValid ? null : verify.message
     };
-    const created: SafeCICDIntegration = await this.cicd.create(createData);
-    return created;
+    const created = await this.repository.create(createData);
+    return this.toSafe(created);
   };
 
   get = async (tenantId: string): Promise<SafeCICDIntegration | null> => {
-    return this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const found = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    return found ? this.toSafe(found) : null;
   };
 
   update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
-    const existing = await this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }
     const needsVerify = (updateData.apiToken || updateData.username || updateData.hostUrl) && !updateData.verificationStatus;
     if (needsVerify) {
-      const useCrumb = updateData.providerConfig?.useCrumb ?? true;
-      const crumbPath = updateData.providerConfig?.crumbPath ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
-      const withSecrets = await this.cicd.findById(existing.id, true);
+      const providerConfig = updateData.providerConfig as Record<string, unknown> | undefined;
+      const useCrumb = typeof providerConfig?.useCrumb === 'boolean' ? (providerConfig.useCrumb as boolean) : true;
+      const crumbPathValue = providerConfig?.crumbPath;
+      const crumbPath = typeof crumbPathValue === 'string' ? crumbPathValue : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
+      const withSecrets = await this.repository.findById(existing.id);
       const verify = await this.verifyConnection({
         hostUrl: updateData.hostUrl ?? existing.hostUrl,
         username: updateData.username ?? existing.username as string,
@@ -78,16 +82,16 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       updateData.lastVerifiedAt = new Date();
       updateData.verificationError = verify.isValid ? null : verify.message;
     }
-    const updated: SafeCICDIntegration = await this.cicd.update(existing.id, updateData);
-    return updated;
+    const updated = await this.repository.update(existing.id, updateData);
+    return this.toSafe(updated as any);
   };
 
   delete = async (tenantId: string): Promise<void> => {
-    const existing = await this.cicd.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const existing = await this.repository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }
-    await this.cicd.delete(existing.id);
+    await this.repository.delete(existing.id);
   };
 }
 

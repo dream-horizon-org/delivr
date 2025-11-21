@@ -11,9 +11,11 @@ export const COMM_ERROR_MESSAGES = {
   CREATE_INTEGRATION_FAILED: 'Failed to create Slack integration',
   UPDATE_INTEGRATION_FAILED: 'Failed to update Slack integration',
   DELETE_INTEGRATION_FAILED: 'Failed to delete Slack integration',
+  FETCH_INTEGRATION_FAILED: 'Failed to fetch Slack integration',
   CREATE_CHANNEL_CONFIG_FAILED: 'Failed to create channel configuration',
   UPDATE_CHANNEL_CONFIG_FAILED: 'Failed to update channel configuration',
   DELETE_CHANNEL_CONFIG_FAILED: 'Failed to delete channel configuration',
+  FETCH_CHANNEL_CONFIG_FAILED: 'Failed to fetch channel configuration',
   FETCH_CHANNELS_FAILED: 'Failed to fetch Slack channels',
   VERIFY_TOKEN_FAILED: 'Failed to verify Slack token',
   SEND_MESSAGE_FAILED: 'Failed to send Slack message'

@@ -1,5 +1,5 @@
 import type { CICDProvider } from '../provider.interface';
-import { CICDProviderType } from '../../../../../storage/integrations/ci-cd/ci-cd-types';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
 export type JenkinsVerifyParams = {
   hostUrl: string;
@@ -16,7 +16,7 @@ export type JenkinsVerifyResult = {
 };
 
 export type JenkinsJobParamsRequest = {
-  jobUrl: string;
+  workflowUrl: string;
   authHeader: string;
   useCrumb: boolean;
   crumbUrl: string;
@@ -36,7 +36,7 @@ export type JenkinsJobParamsResult = {
 };
 
 export type JenkinsTriggerRequest = {
-  jobUrl: string;
+  workflowUrl: string;
   authHeader: string;
   useCrumb: boolean;
   crumbUrl: string;

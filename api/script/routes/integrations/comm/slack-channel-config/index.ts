@@ -1,2 +1,2 @@
-export { createChannelConfigRoutes } from './channel-config.routes';
+export { createChannelConfigRoutes } from './slack-channel-config.routes';
 
