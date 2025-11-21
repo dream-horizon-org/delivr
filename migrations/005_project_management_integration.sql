@@ -12,10 +12,10 @@ USE codepushdb;
 
 CREATE TABLE IF NOT EXISTS project_management_integrations (
   id VARCHAR(255) PRIMARY KEY,
-  projectId VARCHAR(255) NOT NULL COMMENT 'Project identifier',
+  tenantId VARCHAR(255) NOT NULL COMMENT 'Tenant identifier',
   name VARCHAR(255) NOT NULL COMMENT 'User-friendly name (e.g., "JIRA Production")',
   providerType ENUM('JIRA', 'LINEAR', 'ASANA', 'MONDAY', 'CLICKUP') NOT NULL DEFAULT 'JIRA',
-  config JSON NOT NULL COMMENT 'Provider-specific configuration',
+  config JSON NOT NULL COMMENT 'Provider-specific configuration (apiToken encrypted via AES-256-GCM)',
   
   -- Status
   isEnabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS project_management_integrations (
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
   -- Constraints
-  UNIQUE KEY unique_project_name (projectId, name),
-  INDEX idx_pm_integration_project (projectId),
+  UNIQUE KEY unique_tenant_name (tenantId, name),
+  INDEX idx_pm_integration_tenant (tenantId),
   INDEX idx_pm_integration_provider (providerType),
   
   FOREIGN KEY (createdByAccountId) REFERENCES accounts(id) ON DELETE RESTRICT
@@ -42,7 +42,7 @@ COMMENT='Project management credentials (JIRA, Linear, etc.)';
 
 CREATE TABLE IF NOT EXISTS project_management_configs (
   id VARCHAR(255) PRIMARY KEY,
-  projectId VARCHAR(255) NOT NULL,
+  tenantId VARCHAR(255) NOT NULL,
   integrationId VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL COMMENT 'Config name (e.g., "Frontend Release")',
   description TEXT NULL,
@@ -65,8 +65,8 @@ CREATE TABLE IF NOT EXISTS project_management_configs (
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
-  UNIQUE KEY unique_project_config_name (projectId, name),
-  INDEX idx_pm_config_project (projectId, isActive),
+  UNIQUE KEY unique_tenant_config_name (tenantId, name),
+  INDEX idx_pm_config_tenant (tenantId, isActive),
   INDEX idx_pm_config_integration (integrationId),
   
   FOREIGN KEY (integrationId) REFERENCES project_management_integrations(id) ON DELETE RESTRICT,

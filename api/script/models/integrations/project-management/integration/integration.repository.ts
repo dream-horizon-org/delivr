@@ -5,9 +5,10 @@ import type {
 } from '~types/integrations/project-management';
 import { VerificationStatus } from '~types/integrations/project-management';
 import type { ProjectManagementIntegrationModelType } from './integration.sequelize.model';
+import { encryptConfigFields, decryptConfigFields } from '~utils/encryption';
 
 export type FindProjectManagementIntegrationsFilter = {
-  projectId: string;
+  tenantId: string;
   providerType?: string;
   isEnabled?: boolean;
 };
@@ -21,26 +22,37 @@ export class ProjectManagementIntegrationRepository {
 
   /**
    * Convert Sequelize model instance to plain object
+   * Automatically decrypts sensitive fields (apiToken)
    */
   private toPlainObject = (
     instance: InstanceType<ProjectManagementIntegrationModelType>
   ): ProjectManagementIntegration => {
     const json = instance.toJSON();
+    
+    // Decrypt sensitive fields before returning
+    if (json.config) {
+      json.config = decryptConfigFields(json.config, ['apiToken']);
+    }
+    
     return json;
   };
 
   /**
    * Create new integration
+   * Automatically encrypts sensitive fields (apiToken) before storing
    */
   create = async (
     data: CreateProjectManagementIntegrationDto
   ): Promise<ProjectManagementIntegration> => {
+    // Encrypt sensitive fields before storing
+    const encryptedConfig = encryptConfigFields(data.config, ['apiToken']);
+    
     const integration = await this.model.create({
       id: this.generateId(),
-      projectId: data.projectId,
+      tenantId: data.tenantId,
       name: data.name,
       providerType: data.providerType,
-      config: data.config,
+      config: encryptedConfig,
       isEnabled: true,
       verificationStatus: VerificationStatus.NOT_VERIFIED,
       lastVerifiedAt: null,
@@ -72,7 +84,7 @@ export class ProjectManagementIntegrationRepository {
     filter: FindProjectManagementIntegrationsFilter
   ): Promise<ProjectManagementIntegration[]> => {
     const where: Record<string, unknown> = {
-      projectId: filter.projectId
+      tenantId: filter.tenantId
     };
 
     if (filter.providerType !== undefined) {
@@ -93,6 +105,7 @@ export class ProjectManagementIntegrationRepository {
 
   /**
    * Update integration
+   * Automatically encrypts sensitive fields (apiToken) before storing
    */
   update = async (
     id: string,
@@ -113,10 +126,14 @@ export class ProjectManagementIntegrationRepository {
     }
 
     if (data.config !== undefined) {
-      updateData.config = {
+      // Merge configs (existing + updates)
+      const mergedConfig = {
         ...integration.config,
         ...data.config
       };
+      
+      // Encrypt sensitive fields before storing
+      updateData.config = encryptConfigFields(mergedConfig, ['apiToken']);
     }
 
     if (data.isEnabled !== undefined) {

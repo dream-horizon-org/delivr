@@ -50,7 +50,7 @@ export type LinearIntegrationConfig = ProjectManagementIntegrationConfig & {
  */
 export type ProjectManagementIntegration = {
   id: string;
-  projectId: string;
+  tenantId: string;
   name: string;
   providerType: ProjectManagementProviderType;
   config: ProjectManagementIntegrationConfig;
@@ -66,7 +66,7 @@ export type ProjectManagementIntegration = {
  * DTOs
  */
 export type CreateProjectManagementIntegrationDto = {
-  projectId: string;
+  tenantId: string;
   name: string;
   providerType: ProjectManagementProviderType;
   config: ProjectManagementIntegrationConfig;
