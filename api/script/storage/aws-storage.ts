@@ -512,7 +512,7 @@ export class S3Storage implements storage.Storage {
     private s3: S3;
     private bucketName : string = process.env.S3_BUCKETNAME || "codepush-local-bucket";
     private sequelize:Sequelize;
-    private setupPromise: Promise<void>;
+    public readonly setupPromise: Promise<void>;  // Public so it can be awaited before using services
     public scmController!: SCMIntegrationController;  // SCM integration controller
     
     // Test Management Integration - Repositories and Services
