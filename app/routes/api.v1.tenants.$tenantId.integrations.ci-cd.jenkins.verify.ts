@@ -18,7 +18,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     // Parse request body
     const body = await request.json();
-    const { hostUrl, username, apiToken, useCrumb, crumbPath } = body;
+    const { displayName, hostUrl, username, apiToken, useCrumb, crumbPath, providerConfig } = body;
 
     if (!hostUrl || !username || !apiToken) {
       return json(
@@ -29,11 +29,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const result = await JenkinsIntegrationService.verifyJenkins({
       tenantId,
+      displayName,
       hostUrl,
       username,
       apiToken,
-      useCrumb: useCrumb ?? true,
-      crumbPath: crumbPath || undefined,
+      useCrumb: providerConfig?.useCrumb ?? useCrumb ?? true,
+      crumbPath: providerConfig?.crumbPath ?? crumbPath,
       userId,
     });
 

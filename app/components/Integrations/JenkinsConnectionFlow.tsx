@@ -60,7 +60,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     try {
       // Send data in request body with POST method (backend expects req.body)
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/JENKINS/verify`,
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins/verify`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -122,16 +122,19 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         return;
       }
 
-      // Different URLs for create vs update
-      const url = isEditMode
-        ? `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${existingData?.id}`
-        : `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/JENKINS`;
+      // For updates, include integrationId so service layer knows to use new backend path
+      if (isEditMode && existingData?.id) {
+        payload.integrationId = existingData.id;
+      }
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const response = await fetch(
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`,
+        {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
 
       const data = await response.json();
 

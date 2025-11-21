@@ -14,13 +14,9 @@ const DISCONNECT_CONFIG: Record<string, { message: string; endpoint: (tenantId: 
     message: 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.',
     endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`
   },
-  'github-actions': {
-    message: 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/github-actions`
-  },
   github_actions: {
     message: 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/github-actions`
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`
   },
   jira: {
     message: 'Are you sure you want to disconnect Jira? This will stop all project management integrations.',
@@ -455,7 +451,7 @@ export function IntegrationDetailModal({
           </Button>
           
           <Group>
-            {onEdit && (integration.id === 'jenkins' || integration.id === 'github-actions' || integration.id === 'checkmate') && (
+            {onEdit && (integration.id === 'jenkins' || integration.id === 'github_actions' || integration.id === 'checkmate') && (
               <Button
                 variant="filled"
                 color="blue"

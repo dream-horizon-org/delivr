@@ -86,10 +86,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // UPDATE
     if (method === 'PATCH') {
       const body = await request.json();
-      const { displayName, hostUrl, username, apiToken, providerConfig } = body;
+      const { integrationId, displayName, hostUrl, username, apiToken, providerConfig } = body;
 
       const result = await JenkinsIntegrationService.updateIntegration({
         tenantId,
+        integrationId, // Service layer will use this to determine backend path
         displayName,
         hostUrl,
         username,
@@ -107,7 +108,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     // DELETE
     if (method === 'DELETE') {
-      const result = await JenkinsIntegrationService.deleteIntegration(tenantId, userId);
+      const body = await request.json();
+      const { integrationId } = body;
+
+      const result = await JenkinsIntegrationService.deleteIntegration(tenantId, integrationId, userId);
 
       if (result.success) {
         return json(result, { status: 200 });

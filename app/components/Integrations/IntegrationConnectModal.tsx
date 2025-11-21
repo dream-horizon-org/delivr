@@ -74,7 +74,7 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'github-actions':
+      case 'github_actions':
         return (
           <GitHubActionsConnectionFlow
             onConnect={(data) => {
@@ -125,14 +125,14 @@ export function IntegrationConnectModal({
           />
         );
       
+      case 'PLAY_STORE':
       case 'play_store':
       case 'playstore':
-        const playStoreAllowedPlatforms = systemMetadata?.appDistribution?.allowedPlatforms?.play_store || ['ANDROID'];
         return (
           <AppDistributionConnectionFlow
-            storeType="play_store"
+            storeType="PLAY_STORE"
             tenantId={tenantId}
-            allowedPlatforms={playStoreAllowedPlatforms as any}
+            allowedPlatforms={['ANDROID']}
             onConnect={(data) => {
               onConnect(integration.id, data);
               onClose();
@@ -141,14 +141,29 @@ export function IntegrationConnectModal({
           />
         );
       
+      case 'APP_STORE':
       case 'app_store':
       case 'appstore':
-        const appStoreAllowedPlatforms = systemMetadata?.appDistribution?.allowedPlatforms?.app_store || ['IOS'];
         return (
           <AppDistributionConnectionFlow
-            storeType="app_store"
+            storeType="APP_STORE"
             tenantId={tenantId}
-            allowedPlatforms={appStoreAllowedPlatforms as any}
+            allowedPlatforms={['IOS']}
+            onConnect={(data) => {
+              onConnect(integration.id, data);
+              onClose();
+            }}
+            onCancel={onClose}
+          />
+        );
+      
+      case 'TESTFLIGHT':
+      case 'testflight':
+        return (
+          <AppDistributionConnectionFlow
+            storeType="TESTFLIGHT"
+            tenantId={tenantId}
+            allowedPlatforms={['IOS']}
             onConnect={(data) => {
               onConnect(integration.id, data);
               onClose();

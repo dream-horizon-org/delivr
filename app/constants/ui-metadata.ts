@@ -55,9 +55,9 @@ export const INTEGRATION_UI_METADATA: Record<string, {
     description: 'Trigger Jenkins builds and track deployment pipelines',
     icon: 'jenkins',
   },
-  'github-actions': {
+  'github_actions': {
     description: 'Trigger GitHub Actions workflows and automate your CI/CD pipeline',
-    icon: 'github-actions',
+    icon: 'github_actions',
   },
   'gitlab-ci': {
     description: 'Integrate with GitLab CI/CD pipelines',

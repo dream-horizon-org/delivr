@@ -29,6 +29,4 @@ export type { CheckmateIntegration, CheckmateConfig, CheckmateIntegrationRespons
 export { JiraIntegrationService } from './jira-integration';
 
 // App Distribution Integrations
-export { AppStoreIntegrationService } from './appstore-integration';
-export { PlayStoreIntegrationService } from './playstore-integration';
 export { AppDistributionService } from './app-distribution-integration';

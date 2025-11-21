@@ -61,7 +61,10 @@ export default function IntegrationsPage() {
           icon: provider.icon || '',
           status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
           isAvailable: provider.isAvailable, // Use actual value from backend
-          config: connected?.config,
+          config: connected ? {
+            id: connected.id, // Include integration ID from backend
+            ...connected.config
+          } : undefined,
           connectedAt: connected?.connectedAt ? new Date(connected.connectedAt) : undefined,
           connectedBy: connected?.connectedBy || undefined,
         });
@@ -140,7 +143,7 @@ export default function IntegrationsPage() {
       // Show success message and reload to update the integration status
       alert(editingIntegration ? 'Jenkins integration updated successfully!' : 'Jenkins integration connected successfully!');
       window.location.reload();
-    } else if (integrationId === 'github-actions') {
+    } else if (integrationId === 'github_actions') {
       // GitHub Actions connection is handled by the modal with real API calls
       console.log('[GitHub Actions] Operation successful:', data);
       // Show success message and reload to update the integration status
@@ -236,7 +239,7 @@ export default function IntegrationsPage() {
         }}
         onConnect={handleConnect}
         isEditMode={!!editingIntegration}
-        existingData={editingIntegration?.config}
+        existingData={editingIntegration?.config} // Now includes 'id' from backend
       />
     </Container>
   );

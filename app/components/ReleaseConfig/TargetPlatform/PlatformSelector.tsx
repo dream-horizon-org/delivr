@@ -26,6 +26,8 @@ interface PlatformConfig {
   name: string;
   description: string;
   targets: DistributionTarget[];
+  available: boolean;
+  comingSoon?: boolean;
 }
 
 const platformConfigs: PlatformConfig[] = [
@@ -33,6 +35,7 @@ const platformConfigs: PlatformConfig[] = [
     id: 'ANDROID',
     name: 'Android',
     description: 'Build and distribute for Android devices',
+    available: true,
     targets: [
       {
         id: 'PLAY_STORE',
@@ -54,12 +57,15 @@ const platformConfigs: PlatformConfig[] = [
     id: 'IOS',
     name: 'iOS',
     description: 'Build and distribute for iOS devices',
+    available: false,
+    comingSoon: true,
     targets: [
       {
         id: 'APP_STORE',
         name: 'Apple App Store',
         description: 'Distribute to App Store',
-        available: true,
+        available: false,
+        comingSoon: true,
       },
       // Future targets can be added here
       // {
@@ -158,7 +164,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
               {/* Platform Level */}
               <div
                 className="cursor-pointer"
-                onClick={() => toggleExpanded(platform.id)}
+                onClick={() => platform.available && toggleExpanded(platform.id)}
               >
                 <Group justify="apart" className="mb-0">
                   <Group gap="sm">
@@ -171,11 +177,19 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                       checked={isSelected}
                       onChange={() => handlePlatformToggle(platform.id)}
                       onClick={(e) => e.stopPropagation()}
+                      disabled={!platform.available}
                       label={
                         <div>
-                          <Text fw={600} size="md">
-                            {platform.name}
-                          </Text>
+                          <Group gap="xs">
+                            <Text fw={600} size="md" c={platform.available ? undefined : 'dimmed'}>
+                              {platform.name}
+                            </Text>
+                            {platform.comingSoon && (
+                              <Badge size="sm" color="gray" variant="outline">
+                                Coming Soon
+                              </Badge>
+                            )}
+                          </Group>
                           <Text size="xs" c="dimmed">
                             {platform.description}
                           </Text>

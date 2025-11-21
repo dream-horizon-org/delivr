@@ -27,6 +27,7 @@ interface GitHubActionsConnectionFlowProps {
   existingData?: {
     id: string; // integrationId - required for updates
     displayName?: string;
+    hostUrl?: string;
     verificationStatus?: string;
     lastVerifiedAt?: string;
   };
@@ -43,6 +44,7 @@ export function GitHubActionsConnectionFlow({
 
   const [formData, setFormData] = useState({
     displayName: existingData?.displayName || '',
+    hostUrl: existingData?.hostUrl || 'https://api.github.com',
     apiToken: '', // Never pre-populate token for security
   });
 
@@ -58,12 +60,13 @@ export function GitHubActionsConnectionFlow({
 
     try {
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS/verify`,
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions/verify`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             displayName: formData.displayName || undefined,
+            hostUrl: formData.hostUrl || 'https://api.github.com',
             apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
           })
         }
@@ -90,6 +93,7 @@ export function GitHubActionsConnectionFlow({
     try {
       const payload: any = {
         displayName: formData.displayName || 'GitHub Actions',
+        hostUrl: formData.hostUrl || 'https://api.github.com',
       };
 
       // Only include apiToken if provided
@@ -97,16 +101,19 @@ export function GitHubActionsConnectionFlow({
         payload.apiToken = formData.apiToken;
       }
 
-      // Different URLs for create vs update
-      const url = isEditMode
-        ? `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/${existingData?.id}`
-        : `/api/v1/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS`;
+      // For updates, include integrationId so service layer knows to use new backend path
+      if (isEditMode && existingData?.id) {
+        payload.integrationId = existingData.id;
+      }
 
-      const response = await fetch(url, {
-        method: isEditMode ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const response = await fetch(
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        {
+          method: isEditMode ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
 
       const data = await response.json();
 
@@ -143,6 +150,14 @@ export function GitHubActionsConnectionFlow({
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
         description="A friendly name for this integration"
+      />
+
+      <TextInput
+        label="GitHub API URL (Optional)"
+        placeholder="https://api.github.com"
+        value={formData.hostUrl}
+        onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
+        description="For GitHub Enterprise, use your custom API endpoint (e.g., https://github.company.com/api/v3)"
       />
 
       <PasswordInput

@@ -19,6 +19,7 @@ interface PipelineListProps {
     github: Array<{ id: string; name: string }>;
   };
   selectedPlatforms?: Array<'WEB' | 'PLAY_STORE' | 'APP_STORE'>;
+  tenantId: string;
 }
 
 export function PipelineList({
@@ -26,6 +27,7 @@ export function PipelineList({
   onChange,
   availableIntegrations,
   selectedPlatforms = [],
+  tenantId,
 }: PipelineListProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [editingPipeline, setEditingPipeline] = useState<BuildPipelineJob | undefined>();
@@ -139,6 +141,7 @@ export function PipelineList({
         pipeline={editingPipeline}
         availableIntegrations={availableIntegrations}
         existingPipelines={pipelines}
+        tenantId={tenantId}
       />
     </Stack>
   );

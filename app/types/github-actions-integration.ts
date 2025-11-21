@@ -33,6 +33,8 @@ export interface UpdateGitHubActionsRequest {
 }
 
 export interface VerifyGitHubActionsRequest {
+  displayName?: string;
+  hostUrl?: string; // Optional - defaults to https://api.github.com
   apiToken?: string; // Optional - falls back to SCM GitHub token
 }
 

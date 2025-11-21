@@ -27,7 +27,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsVerifyResponse> {
     try {
       return await this.post<GitHubActionsVerifyResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/github-actions/verify`,
+        `/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS/verify`,
         data || {},
         userId
       );
@@ -49,7 +49,7 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.post<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        `/tenants/${tenantId}/integrations/ci-cd/connections/GITHUB_ACTIONS`,
         data,
         userId
       );
@@ -86,12 +86,13 @@ export class GitHubActionsIntegrationService extends IntegrationService {
    */
   async updateIntegration(
     tenantId: string,
+    integrationId: string,
     userId: string,
     data: UpdateGitHubActionsRequest
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.patch<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
         data,
         userId
       );
@@ -108,11 +109,12 @@ export class GitHubActionsIntegrationService extends IntegrationService {
    */
   async deleteIntegration(
     tenantId: string,
+    integrationId: string,
     userId: string
   ): Promise<GitHubActionsIntegrationResponse> {
     try {
       return await this.delete<GitHubActionsIntegrationResponse>(
-        `/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+        `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
         userId
       );
     } catch (error: any) {

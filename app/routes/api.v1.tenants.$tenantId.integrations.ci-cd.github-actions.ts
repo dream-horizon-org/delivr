@@ -52,13 +52,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const body = await request.json();
       const { displayName, apiToken, hostUrl } = body;
 
-      const result = await GitHubActionsIntegrationService.createIntegration({
+      const result = await GitHubActionsIntegrationService.createIntegration(
         tenantId,
-        displayName,
-        apiToken,
-        hostUrl,
-        userId
-      });
+        userId,
+        {
+          displayName,
+          apiToken,
+          hostUrl,
+        }
+      );
 
       return json(result, { status: result.success ? 201 : 500 });
     }
@@ -66,22 +68,28 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // PATCH - Update existing integration
     if (method === 'PATCH') {
       const body = await request.json();
-      const { displayName, apiToken, hostUrl } = body;
+      const { integrationId, displayName, apiToken, hostUrl } = body;
 
-      const result = await GitHubActionsIntegrationService.updateIntegration({
+      const result = await GitHubActionsIntegrationService.updateIntegration(
         tenantId,
-        displayName,
-        apiToken,
-        hostUrl,
-        userId
-      });
+        integrationId, // Service layer will use this to determine backend path
+        userId,
+        {
+          displayName,
+          apiToken,
+          hostUrl,
+        }
+      );
 
       return json(result, { status: result.success ? 200 : 500 });
     }
 
     // DELETE - Delete integration
     if (method === 'DELETE') {
-      const result = await GitHubActionsIntegrationService.deleteIntegration(tenantId, userId);
+      const body = await request.json();
+      const { integrationId } = body;
+
+      const result = await GitHubActionsIntegrationService.deleteIntegration(tenantId, integrationId, userId);
       return json(result, { status: result.success ? 200 : 500 });
     }
 

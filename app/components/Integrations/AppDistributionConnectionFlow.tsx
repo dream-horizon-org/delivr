@@ -26,6 +26,7 @@ import type {
   PlayStorePayload,
   AppStorePayload,
 } from '~/types/app-distribution';
+import { encrypt } from '~/utils/encryption';
 
 interface AppDistributionConnectionFlowProps {
   storeType: StoreType;
@@ -58,7 +59,7 @@ export function AppDistributionConnectionFlow({
   const [playStoreData, setPlayStoreData] = useState<Partial<PlayStorePayload>>({
     displayName: '',
     appIdentifier: '',
-    defaultTrack: 'internal',
+    defaultTrack: 'INTERNAL',
     serviceAccountJson: {
       type: 'service_account',
       project_id: '',
@@ -84,7 +85,28 @@ export function AppDistributionConnectionFlow({
     setError(null);
 
     try {
-      const payload = storeType === 'play_store' ? playStoreData : appStoreData;
+      let payload: any;
+      const platform = allowedPlatforms[0]; // Backend expects singular
+
+      // Encrypt sensitive credentials before sending
+      if (storeType === 'PLAY_STORE') {
+        const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson?.private_key || '');
+        payload = {
+          ...playStoreData,
+          serviceAccountJson: {
+            ...playStoreData.serviceAccountJson,
+            private_key: encryptedPrivateKey,
+            _encrypted: true, // Flag to indicate encryption
+          },
+        };
+      } else {
+        // App Store - encrypt privateKeyPem
+        const encryptedPem = await encrypt(appStoreData.privateKeyPem || '');
+        payload = {
+          ...appStoreData,
+          privateKeyPem: encryptedPem,
+        };
+      }
 
       const response = await fetch(
         `/api/v1/tenants/${tenantId}/distributions?action=verify`,
@@ -93,7 +115,7 @@ export function AppDistributionConnectionFlow({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             storeType,
-            tenantId,
+            platform,
             payload,
           }),
         }
@@ -114,8 +136,8 @@ export function AppDistributionConnectionFlow({
   };
 
   const handleConnect = async () => {
-    if (selectedPlatforms.length === 0) {
-      setError('Please select at least one platform');
+    if (allowedPlatforms.length === 0) {
+      setError('No platform configured for this store type');
       return;
     }
 
@@ -123,15 +145,35 @@ export function AppDistributionConnectionFlow({
     setError(null);
 
     try {
-      const payload = storeType === 'play_store' ? playStoreData : appStoreData;
+      let payload: any;
+      const platform = allowedPlatforms[0]; // Backend expects singular
+
+      // Encrypt sensitive credentials before sending
+      if (storeType === 'PLAY_STORE') {
+        const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson?.private_key || '');
+        payload = {
+          ...playStoreData,
+          serviceAccountJson: {
+            ...playStoreData.serviceAccountJson,
+            private_key: encryptedPrivateKey,
+            _encrypted: true, // Flag to indicate encryption
+          },
+        };
+      } else {
+        // App Store - encrypt privateKeyPem
+        const encryptedPem = await encrypt(appStoreData.privateKeyPem || '');
+        payload = {
+          ...appStoreData,
+          privateKeyPem: encryptedPem,
+        };
+      }
 
       const response = await fetch(`/api/v1/tenants/${tenantId}/distributions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeType,
-          tenantId,
-          platforms: selectedPlatforms,
+          platform,
           payload,
         }),
       });
@@ -175,10 +217,10 @@ export function AppDistributionConnectionFlow({
       <Select
         label="Default Track"
         data={[
-          { value: 'internal', label: 'Internal Testing' },
-          { value: 'alpha', label: 'Alpha' },
-          { value: 'beta', label: 'Beta' },
-          { value: 'production', label: 'Production' },
+          { value: 'INTERNAL', label: 'Internal Testing' },
+          { value: 'ALPHA', label: 'Alpha' },
+          { value: 'BETA', label: 'Beta' },
+          { value: 'PRODUCTION', label: 'Production' },
         ]}
         value={playStoreData.defaultTrack}
         onChange={(val) =>
@@ -357,7 +399,7 @@ export function AppDistributionConnectionFlow({
             </div>
           </Group>
           <Text size="xs" c="dimmed" mt="xs">
-            {storeType === 'play_store' 
+            {storeType === 'PLAY_STORE' 
               ? 'This integration will be used for Android app distribution via Google Play Store'
               : 'This integration will be used for iOS app distribution via Apple App Store'}
           </Text>
@@ -365,7 +407,7 @@ export function AppDistributionConnectionFlow({
       )}
 
       {/* Form */}
-      {storeType === 'play_store' ? renderPlayStoreForm() : renderAppStoreForm()}
+      {storeType === 'PLAY_STORE' ? renderPlayStoreForm() : renderAppStoreForm()}
 
       {/* Error */}
       {error && (

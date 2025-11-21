@@ -62,21 +62,32 @@ const postDistributionAction = async ({
   }
 
   try {
+    const body = await request.json();
+    
     if (isVerify) {
       // Verify credentials
-      const body: AppDistributionVerifyRequest = await request.json();
+      // Validate required fields
+      if (!body.storeType || !body.platform || !body.payload) {
+        return json(
+          {
+            success: false,
+            error: 'storeType, platform, and payload are required',
+          },
+          { status: 400 }
+        );
+      }
+      
       const result = await AppDistributionService.verifyStore(tenantId, user.user.id, body);
       return json(result);
     } else {
       // Connect/Create store integration
-      const body: AppDistributionConnectRequest = await request.json();
       
       // Validate required fields
-      if (!body.storeType || !body.platforms || body.platforms.length === 0 || !body.payload) {
+      if (!body.storeType || !body.platform || !body.payload) {
         return json(
           {
             success: false,
-            error: 'storeType, platforms, and payload are required',
+            error: 'storeType, platform, and payload are required',
           },
           { status: 400 }
         );
@@ -99,7 +110,7 @@ const postDistributionAction = async ({
 };
 
 /**
- * DELETE - Delete distribution
+ * DELETE - Revoke/Delete distribution
  */
 const deleteDistributionAction = async ({
   params,
@@ -108,21 +119,27 @@ const deleteDistributionAction = async ({
 }: ActionFunctionArgs & { user: User }) => {
   const { tenantId } = params;
   const url = new URL(request.url);
-  const integrationId = url.searchParams.get('integrationId');
+  const storeType = url.searchParams.get('storeType');
+  const platform = url.searchParams.get('platform');
 
-  if (!tenantId || !integrationId) {
-    return json({ success: false, error: 'Tenant ID and Integration ID required' }, { status: 400 });
+  if (!tenantId || !storeType || !platform) {
+    return json({ success: false, error: 'Tenant ID, storeType, and platform required' }, { status: 400 });
   }
 
   try {
-    const result = await AppDistributionService.deleteIntegration(tenantId, integrationId, user.user.id);
+    const result = await AppDistributionService.revokeIntegration(
+      tenantId, 
+      storeType as any, 
+      platform as any, 
+      user.user.id
+    );
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error) {
     console.error('[BFF-AppDistribution-Delete] Error:', error);
     return json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete distribution',
+        error: error instanceof Error ? error.message : 'Failed to revoke distribution',
       },
       { status: 500 }
     );

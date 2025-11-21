@@ -18,12 +18,17 @@ class AppDistributionIntegrationService extends IntegrationService {
    * Verify store credentials (test connection)
    * POST /integrations/store/verify
    */
-  async verifyStore(request: VerifyStoreRequest, userId: string): Promise<VerifyStoreResponse> {
+  async verifyStore(
+    tenantId: string,
+    userId: string,
+    request: VerifyStoreRequest
+  ): Promise<VerifyStoreResponse> {
     try {
       return await this.post<VerifyStoreResponse>(
         '/integrations/store/verify',
         {
           ...request,
+          tenantId,
           userId,
         },
         userId
@@ -41,12 +46,17 @@ class AppDistributionIntegrationService extends IntegrationService {
    * Connect/Create store integration
    * PUT /integrations/store/connect
    */
-  async connectStore(request: ConnectStoreRequest, userId: string): Promise<ConnectStoreResponse> {
+  async connectStore(
+    tenantId: string,
+    userId: string,
+    request: ConnectStoreRequest
+  ): Promise<ConnectStoreResponse> {
     try {
       const response = await this.put<ConnectStoreResponse>(
         '/integrations/store/connect',
         {
           ...request,
+          tenantId,
           userId,
         },
         userId
@@ -61,37 +71,35 @@ class AppDistributionIntegrationService extends IntegrationService {
   }
 
   /**
-   * List all store integrations for tenant
-   * GET /integrations/store/:tenantId
+   * List all store integrations for tenant (grouped by platform)
+   * GET /integrations/store/tenant/:tenantId
    */
   async listIntegrations(tenantId: string, userId: string): Promise<ListDistributionsResponse> {
     try {
       const response = await this.get<ListDistributionsResponse>(
-        `/integrations/store/${tenantId}`,
+        `/integrations/store/tenant/${tenantId}`,
         userId
       );
       return response;
     } catch (error: any) {
       return {
         success: false,
-        integrations: [],
         error: error.message || 'Failed to fetch integrations',
       };
     }
   }
 
   /**
-   * Get single store integration
-   * GET /integrations/store/:tenantId/:integrationId
+   * Get single store integration by ID
+   * GET /integrations/store/:integrationId
    */
   async getIntegration(
-    tenantId: string,
     integrationId: string,
     userId: string
-  ): Promise<{ success: boolean; integration?: AppDistributionIntegration; error?: string }> {
+  ): Promise<{ success: boolean; data?: AppDistributionIntegration; error?: string }> {
     try {
-      const response = await this.get<{ success: boolean; integration?: AppDistributionIntegration }>(
-        `/integrations/store/${tenantId}/${integrationId}`,
+      const response = await this.get<{ success: boolean; data?: AppDistributionIntegration }>(
+        `/integrations/store/${integrationId}`,
         userId
       );
       return response;
@@ -104,24 +112,26 @@ class AppDistributionIntegrationService extends IntegrationService {
   }
 
   /**
-   * Delete store integration
-   * DELETE /integrations/store/:tenantId/:integrationId
+   * Revoke store integration
+   * PATCH /integrations/store/tenant/:tenantId/revoke
    */
-  async deleteIntegration(
+  async revokeIntegration(
     tenantId: string,
-    integrationId: string,
+    storeType: StoreType,
+    platform: Platform,
     userId: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
-      const response = await this.delete<{ success: boolean; message?: string }>(
-        `/integrations/store/${tenantId}/${integrationId}`,
+      const response = await this.patch<{ success: boolean; message?: string }>(
+        `/integrations/store/tenant/${tenantId}/revoke?storeType=${storeType}&platform=${platform}`,
+        {},
         userId
       );
       return response;
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || 'Failed to delete integration',
+        error: error.message || 'Failed to revoke integration',
       };
     }
   }

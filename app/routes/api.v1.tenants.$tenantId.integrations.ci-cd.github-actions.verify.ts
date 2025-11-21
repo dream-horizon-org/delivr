@@ -17,13 +17,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   try {
     const body = await request.json();
-    const { apiToken } = body;
+    const { apiToken, displayName, hostUrl } = body;
 
-    const result = await GitHubActionsIntegrationService.verifyGitHubActions({
+    const result = await GitHubActionsIntegrationService.verifyConnection(
       tenantId,
-      apiToken,
-      userId
-    });
+      userId,
+      {
+        displayName,
+        hostUrl,
+        apiToken,
+      }
+    );
 
     return json(result, { status: result.verified ? 200 : 401 });
   } catch (error: any) {

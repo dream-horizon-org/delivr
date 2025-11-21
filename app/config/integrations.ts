@@ -80,7 +80,7 @@ export function getAllIntegrations(params: GetAllIntegrationsParams = {}): Integ
       isAvailable: true
     },
     {
-      id: 'github-actions',
+      id: 'github_actions',
       name: 'GitHub Actions',
       description: 'Trigger GitHub Actions workflows and automate your CI/CD pipeline.',
       category: IntegrationCategory.CI_CD,

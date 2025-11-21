@@ -18,6 +18,7 @@ export enum VerificationStatus {
 
 export interface VerifyJenkinsRequest {
   tenantId: string;
+  displayName?: string;
   hostUrl: string;
   username: string;
   apiToken: string;
@@ -50,6 +51,7 @@ export interface CreateJenkinsIntegrationRequest {
 
 export interface UpdateJenkinsIntegrationRequest {
   tenantId: string;
+  integrationId: string;
   displayName?: string;
   hostUrl?: string;
   username?: string;
@@ -96,26 +98,29 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Verify Jenkins connection
    */
   async verifyJenkins(data: VerifyJenkinsRequest): Promise<VerifyJenkinsResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`);
+    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS/verify`);
     
     try {
       // Send data in body with POST request (backend expects req.body)
       const result = await this.post<VerifyJenkinsResponse>(
-        `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`,
+        `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS/verify`,
         {
+          displayName: data.displayName,
           hostUrl: data.hostUrl,
           username: data.username,
           apiToken: data.apiToken,
-          useCrumb: data.useCrumb,
-          crumbPath: data.crumbPath
+          providerConfig: {
+            useCrumb: data.useCrumb,
+            crumbPath: data.crumbPath
+          }
         },
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`, result.verified);
+      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS/verify`, result.verified);
       return result;
     } catch (error: any) {
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins/verify`, false);
+      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS/verify`, false);
       
       return {
         verified: false,
@@ -128,11 +133,11 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Create Jenkins integration
    */
   async createIntegration(data: CreateJenkinsIntegrationRequest): Promise<JenkinsIntegrationResponse> {
-    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins`);
+    this.logRequest('POST', `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS`);
     
     try {
       const result = await this.post<JenkinsIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/ci-cd/jenkins`,
+        `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS`,
         {
           displayName: data.displayName,
           hostUrl: data.hostUrl,
@@ -143,7 +148,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
         data.userId
       );
 
-      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins`, result.success);
+      this.logResponse('POST', `/tenants/${data.tenantId}/integrations/ci-cd/connections/JENKINS`, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -181,11 +186,11 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    * Update Jenkins integration
    */
   async updateIntegration(data: UpdateJenkinsIntegrationRequest): Promise<JenkinsIntegrationResponse> {
-    this.logRequest('PATCH', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins`);
+    this.logRequest('PATCH', `/tenants/${data.tenantId}/integrations/ci-cd/connections/${data.integrationId}`);
     
     try {
       const result = await this.patch<JenkinsIntegrationResponse>(
-        `/tenants/${data.tenantId}/integrations/ci-cd/jenkins`,
+        `/tenants/${data.tenantId}/integrations/ci-cd/connections/${data.integrationId}`,
         {
           displayName: data.displayName,
           hostUrl: data.hostUrl,
@@ -196,7 +201,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
         data.userId
       );
 
-      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/ci-cd/jenkins`, result.success);
+      this.logResponse('PATCH', `/tenants/${data.tenantId}/integrations/ci-cd/connections/${data.integrationId}`, result.success);
       return result;
     } catch (error: any) {
       return {
@@ -209,10 +214,10 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Jenkins integration
    */
-  async deleteIntegration(tenantId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(tenantId: string, integrationId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        `/tenants/${tenantId}/integrations/ci-cd/jenkins`,
+        `/tenants/${tenantId}/integrations/ci-cd/connections/${integrationId}`,
         userId
       );
     } catch (error: any) {
