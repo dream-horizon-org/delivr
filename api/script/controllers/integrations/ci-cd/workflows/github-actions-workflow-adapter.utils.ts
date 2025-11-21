@@ -24,6 +24,22 @@ export const createGitHubActionsAdapter = (): WorkflowAdapter => {
     return response;
   };
 
+  const trigger: NonNullable<WorkflowAdapter["trigger"]> = async (tenantId, input) => {
+    const hasWorkflowId = !!input.workflowId;
+    const hasTypeAndPlatform = !!input.workflowType && !!input.platform;
+    const invalid = !hasWorkflowId && !hasTypeAndPlatform;
+    if (invalid) {
+      throw new Error(ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED);
+    }
+    const result = await service.trigger(tenantId, {
+      workflowId: input.workflowId,
+      workflowType: input.workflowType,
+      platform: input.platform,
+      jobParameters: input.jobParameters ?? {}
+    });
+    return { queueLocation: result.queueLocation };
+  };
+
   const runStatus: WorkflowAdapter["runStatus"] = async (tenantId, body) => {
     const { runUrl, owner, repo, runId } = body;
     const status = await service.getRunStatus(tenantId, { runUrl, owner, repo, runId });
@@ -33,6 +49,7 @@ export const createGitHubActionsAdapter = (): WorkflowAdapter => {
 
   return {
     fetchParameters,
+    trigger,
     runStatus
   };
 };

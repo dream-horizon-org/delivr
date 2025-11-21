@@ -1,13 +1,20 @@
 import { Request, Response } from "express";
-import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
+import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
-import { getErrorMessage } from "../../../../utils/cicd";
+import { formatErrorMessage } from "~utils/error.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDConfigService } from "../../../../services/integrations/ci-cd/config/config.service";
 
 export const createConfig = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
-  const accountId: string = req.user?.id ?? 'id_0';
+  const accountId = req.user?.id;
+  const missingUser = !accountId || typeof accountId !== 'string';
+  if (missingUser) {
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+      success: RESPONSE_STATUS.FAILURE,
+      error: 'Unauthorized'
+    });
+  }
   const body = req.body || {};
   try {
     const storage = getStorage();
@@ -25,7 +32,7 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
       workflowIds: result.workflowIds
     });
   } catch (e: unknown) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.CONFIG_CREATE_FAILED);
+    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_CREATE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message
@@ -44,7 +51,7 @@ export const listConfigsByTenant = async (req: Request, res: Response): Promise<
       configs: items
     });
   } catch (e: unknown) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.CONFIG_LIST_FAILED);
+    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_LIST_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message
@@ -71,7 +78,7 @@ export const getConfigById = async (req: Request, res: Response): Promise<any> =
       config
     });
   } catch (e: unknown) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.CONFIG_FETCH_FAILED);
+    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_FETCH_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message
@@ -101,7 +108,7 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
       config: updated
     });
   } catch (e: unknown) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.CONFIG_UPDATE_FAILED);
+    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_UPDATE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message
@@ -127,7 +134,7 @@ export const deleteConfigById = async (req: Request, res: Response): Promise<any
       success: RESPONSE_STATUS.SUCCESS
     });
   } catch (e: unknown) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.CONFIG_DELETE_FAILED);
+    const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_DELETE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Storage } from "../../../storage/storage";
 import * as validateCICD from "../../../middleware/validate-cicd";
 import * as configController from "../../../controllers/integrations/ci-cd/config/config.controller";
+import * as configActions from "../../../controllers/integrations/ci-cd/config/config-actions.controller";
 
 export const createCICDConfigRoutes = (_storage: Storage): Router => {
   const router = Router();
@@ -37,6 +38,13 @@ export const createCICDConfigRoutes = (_storage: Storage): Router => {
     validateCICD.validateTenantId,
     validateCICD.validateConfigIdParam,
     configController.deleteConfigById
+  );
+
+  router.post(
+    "/integrations/ci-cd/configs/:configId/trigger",
+    validateCICD.validateConfigIdParam,
+    validateCICD.validateConfigWorkflowTriggerBody,
+    configActions.triggerWorkflowByConfig
   );
 
   return router;

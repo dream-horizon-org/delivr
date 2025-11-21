@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
-import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
+import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
 import { getStorage } from "../../../../storage/storage-instance";
-import { normalizePlatform, getErrorMessage } from "../../../../utils/cicd";
+import { normalizePlatform } from "../../../../services/integrations/ci-cd/utils/cicd.utils";
+import { formatErrorMessage } from "~utils/error.utils";
 import type { CreateWorkflowDto, UpdateWorkflowDto } from "~types/integrations/ci-cd/workflow.interface";
 
 const getCICDIntegrationRepository = () => {
@@ -48,8 +49,8 @@ export const createWorkflow = async (req: Request, res: Response): Promise<any> 
     });
 
     return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_CREATE_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_CREATE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -68,8 +69,8 @@ export const listWorkflows = async (req: Request, res: Response): Promise<any> =
       workflowType: workflowType as any,
     });
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflows: items });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_LIST_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_LIST_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -85,8 +86,8 @@ export const getWorkflowById = async (req: Request, res: Response): Promise<any>
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflow: item });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -104,8 +105,8 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
     }
     const updated = await wfRepository.update(id, body);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, workflow: updated });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_UPDATE_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_UPDATE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -122,8 +123,8 @@ export const deleteWorkflow = async (req: Request, res: Response): Promise<any> 
     }
     await wfRepository.delete(id);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, message: 'Workflow deleted' });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_DELETE_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_DELETE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };

@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { HTTP_STATUS } from '../constants/http';
+import { HTTP_STATUS } from '~constants/http';
 import { ERROR_MESSAGES } from '../controllers/integrations/ci-cd/constants';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
@@ -46,6 +46,16 @@ export const validateJenkinsJobParamsBody = (req: Request, res: Response, next: 
 export const validateJenkinsQueueBody = (req: Request, res: Response, next: NextFunction): void => {
   const { queueUrl } = req.body || {};
   const isQueueUrlMissing = !isNonEmptyString(queueUrl);
+  if (isQueueUrlMissing) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.JENKINS_NO_QUEUE_URL });
+    return;
+  }
+  next();
+};
+
+export const validateJenkinsQueueQuery = (req: Request, res: Response, next: NextFunction): void => {
+  const queueUrl = req.query.queueUrl;
+  const isQueueUrlMissing = !isNonEmptyString(typeof queueUrl === 'string' ? queueUrl : '');
   if (isQueueUrlMissing) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.JENKINS_NO_QUEUE_URL });
     return;
@@ -192,6 +202,40 @@ export const validateWorkflowRunStatusBody = (req: Request, res: Response, next:
   const invalid = !hasRunUrl && !hasOwnerRepoId;
   if (invalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED });
+    return;
+  }
+  next();
+};
+
+export const validateWorkflowRunStatusQuery = (req: Request, res: Response, next: NextFunction): void => {
+  const runUrl = req.query.runUrl;
+  const owner = req.query.owner;
+  const repo = req.query.repo;
+  const runId = req.query.runId;
+  const hasRunUrl = isNonEmptyString(typeof runUrl === 'string' ? runUrl : '');
+  const hasOwnerRepoId =
+    isNonEmptyString(typeof owner === 'string' ? owner : '') &&
+    isNonEmptyString(typeof repo === 'string' ? repo : '') &&
+    isNonEmptyString(typeof runId === 'string' ? runId : '');
+  const invalid = !hasRunUrl && !hasOwnerRepoId;
+  if (invalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_RUN_IDENTIFIERS_REQUIRED });
+    return;
+  }
+  next();
+};
+
+export const validateConfigWorkflowTriggerBody = (req: Request, res: Response, next: NextFunction): void => {
+  const body = req.body || {};
+  const platform = body.platform;
+  const platformType = body.platformType;
+  const workflowType = body.workflowType;
+
+  const hasPlatform = isNonEmptyString(platform) || isNonEmptyString(platformType);
+  const hasWorkflowType = isNonEmptyString(workflowType);
+  const invalid = !hasPlatform || !hasWorkflowType;
+  if (invalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.WORKFLOW_SELECTION_REQUIRED });
     return;
   }
   next();

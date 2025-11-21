@@ -3,7 +3,7 @@ import { CICDProviderType, AuthType } from '~types/integrations/ci-cd/connection
 import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsJobParamsRequest, JenkinsTriggerRequest, JenkinsQueueStatusRequest } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
-import { normalizePlatform, extractDefaultsFromWorkflow } from '../../../../utils/cicd';
+import { normalizePlatform, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
 
 export class JenkinsWorkflowService extends WorkflowService {
   fetchJobParameters = async (tenantId: string, workflowUrl: string): Promise<{ parameters: Array<{

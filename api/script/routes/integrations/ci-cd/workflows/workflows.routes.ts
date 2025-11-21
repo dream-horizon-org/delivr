@@ -26,7 +26,7 @@ export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
     "/tenants/:tenantId/integrations/ci-cd/:integrationId/queue-status",
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
-    validateCICD.validateJenkinsQueueBody,
+    validateCICD.validateJenkinsQueueQuery,
     workflow.getQueueStatus
   );
 
@@ -34,7 +34,7 @@ export const createCICDWorkflowsRoutes = (_storage: Storage): Router => {
     "/tenants/:tenantId/integrations/ci-cd/:integrationId/run-status",
     validateCICD.validateTenantId,
     validateCICD.validateIntegrationIdParam,
-    validateCICD.validateWorkflowRunStatusBody,
+    validateCICD.validateWorkflowRunStatusQuery,
     workflow.getRunStatus
   );
 

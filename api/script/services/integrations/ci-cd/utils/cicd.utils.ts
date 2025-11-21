@@ -1,7 +1,3 @@
-export const getErrorMessage = (error: unknown, fallback: string): string => {
-  return error instanceof Error ? error.message : fallback;
-};
-
 export const normalizePlatform = (platform: unknown): string | undefined => {
   if (typeof platform !== 'string') {
     return undefined;
@@ -12,6 +8,40 @@ export const normalizePlatform = (platform: unknown): string | undefined => {
     return undefined;
   }
   return trimmed.toLowerCase();
+};
+
+import { WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
+
+export const normalizeWorkflowType = (value: unknown): WorkflowType | undefined => {
+  const isString = typeof value === 'string';
+  if (!isString) {
+    return undefined;
+  }
+
+  const raw = value.trim();
+  const isEmpty = raw.length === 0;
+  if (isEmpty) {
+    return undefined;
+  }
+
+  const workflowValues = Object.values(WorkflowType) as string[];
+
+  const isExactMatch = workflowValues.includes(raw);
+  if (isExactMatch) {
+    return raw as WorkflowType;
+  }
+
+  const withUnderscores = raw
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')     // camelCase → snake
+    .replace(/[\s\-]+/g, '_')                   // spaces/hyphens → underscore
+    .toUpperCase();
+
+  const isNormalizedMatch = workflowValues.includes(withUnderscores);
+  if (isNormalizedMatch) {
+    return withUnderscores as WorkflowType;
+  }
+
+  return undefined;
 };
 
 export const fetchWithTimeout = (url: string, options: any, timeoutMs: number): Promise<any> => {

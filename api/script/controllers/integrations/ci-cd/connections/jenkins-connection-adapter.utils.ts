@@ -1,7 +1,7 @@
 import { JenkinsConnectionService } from "../../../../services/integrations/ci-cd/connections/jenkins-connection.service";
 import { ERROR_MESSAGES, PROVIDER_DEFAULTS } from "../constants";
-import type { ConnectionAdapter, VerifyResult, VerifyPreparation } from "./connection-adapter.utils";
-import type { TenantCICDIntegration, UpdateCICDIntegrationDto } from "~types/integrations/ci-cd/connection.interface";
+import type { ConnectionAdapter, VerifyResult } from "./connection-adapter.utils";
+import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
 
 export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
   const service = new JenkinsConnectionService();
@@ -21,38 +21,7 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     return result;
   };
 
-  const prepareVerifyOnUpdate: NonNullable<ConnectionAdapter["prepareVerifyOnUpdate"]> = (args) => {
-    const { existing, update, secrets } = args;
-    const hasApiTokenUpdate = typeof update.apiToken === 'string';
-    const hasUsernameUpdate = typeof update.username === 'string';
-    const hasHostUrlUpdate = typeof update.hostUrl === 'string';
-    const shouldVerify = hasApiTokenUpdate || hasUsernameUpdate || hasHostUrlUpdate;
-    if (!shouldVerify) {
-      return { shouldVerify: false };
-    }
-    const hostUrl = typeof update.hostUrl === 'string' && update.hostUrl ? update.hostUrl : existing.hostUrl;
-    const username = typeof update.username === 'string' && update.username ? update.username : (existing.username ?? '');
-    const preferredToken = update.apiToken;
-    const tokenFromSecrets = typeof secrets.apiToken === 'string' ? secrets.apiToken : undefined;
-    const apiToken = typeof preferredToken === 'string' && preferredToken.trim().length > 0
-      ? preferredToken
-      : (tokenFromSecrets && tokenFromSecrets.trim().length > 0 ? tokenFromSecrets : undefined);
-    const tokenMissing = !apiToken;
-    if (tokenMissing) {
-      return { shouldVerify: true, missingSecretMessage: ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED };
-    }
-    const providerConfig = (update.providerConfig as Record<string, unknown> | null | undefined) ?? {};
-    const useCrumbRaw = providerConfig && Object.prototype.hasOwnProperty.call(providerConfig, 'useCrumb')
-      ? providerConfig['useCrumb']
-      : undefined;
-    const crumbPathRaw = providerConfig && Object.prototype.hasOwnProperty.call(providerConfig, 'crumbPath')
-      ? providerConfig['crumbPath']
-      : undefined;
-    const useCrumb = typeof useCrumbRaw === 'boolean' ? useCrumbRaw : true;
-    const crumbPath = typeof crumbPathRaw === 'string' && crumbPathRaw.length > 0 ? crumbPathRaw : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
-    const body: Record<string, unknown> = { hostUrl, username, apiToken, useCrumb, crumbPath };
-    return { shouldVerify: true, body } as VerifyPreparation;
-  };
+  // prepareVerifyOnUpdate removed; update handled via service.update
 
   const create: ConnectionAdapter["create"] = async (tenantId, accountId, body) => {
     const displayName = body.displayName as string | undefined;
@@ -68,7 +37,12 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     return created;
   };
 
-  return { verify, create, prepareVerifyOnUpdate };
+  const update = async (tenantId: string, updateData: UpdateCICDIntegrationDto): Promise<SafeCICDIntegration> => {
+    const safe = await service.update(tenantId, updateData);
+    return safe;
+  };
+
+  return { verify, create, update };
 };
 
 

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { HTTP_STATUS, RESPONSE_STATUS } from "../../../../constants/http";
+import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
-import { getErrorMessage } from "../../../../utils/cicd";
+import { formatErrorMessage } from "~utils/error.utils";
 import { getIntegrationForTenant, getWorkflowAdapter } from "./workflow-adapter.utils";
 
 export const getJobParameters = async (req: Request, res: Response): Promise<any> => {
@@ -18,8 +18,8 @@ export const getJobParameters = async (req: Request, res: Response): Promise<any
     const body = (req.body || {}) as { workflowUrl?: string };
     const result = await adapter.fetchParameters(tenantId, body);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, parameters: result.parameters, error: null });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_FETCH_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -42,8 +42,8 @@ export const triggerWorkflow = async (req: Request, res: Response): Promise<any>
     }
     const result = await adapter.trigger(tenantId, { workflowId, workflowType, platform, jobParameters });
     return res.status(HTTP_STATUS.CREATED).json({ success: RESPONSE_STATUS.SUCCESS, queueLocation: result.queueLocation });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.JENKINS_TRIGGER_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.JENKINS_TRIGGER_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -51,7 +51,7 @@ export const triggerWorkflow = async (req: Request, res: Response): Promise<any>
 export const getQueueStatus = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
-  const { queueUrl } = req.body || {};
+  const queueUrl = typeof req.query.queueUrl === 'string' ? req.query.queueUrl : undefined;
 
   try {
     const integration = await getIntegrationForTenant(tenantId, integrationId);
@@ -66,12 +66,12 @@ export const getQueueStatus = async (req: Request, res: Response): Promise<any> 
     }
     const status = await adapter.queueStatus(tenantId, { queueUrl });
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, status });
-  } catch (e: any) {
-    const isTimeout = e && (e.name === 'AbortError' || e.code === 'ABORT_ERR');
+  } catch (e: unknown) {
+    const isTimeout = e instanceof Error && e.name === 'AbortError';
     if (isTimeout) {
       return res.status(HTTP_STATUS.TIMEOUT).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.JENKINS_QUEUE_TIMEOUT });
     }
-    const message = getErrorMessage(e, ERROR_MESSAGES.JENKINS_QUEUE_FAILED);
+    const message = formatErrorMessage(e, ERROR_MESSAGES.JENKINS_QUEUE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };
@@ -79,7 +79,10 @@ export const getQueueStatus = async (req: Request, res: Response): Promise<any> 
 export const getRunStatus = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
   const integrationId = req.params.integrationId;
-  const { runUrl, owner, repo, runId } = req.body || {};
+  const runUrl = typeof req.query.runUrl === 'string' ? req.query.runUrl : undefined;
+  const owner = typeof req.query.owner === 'string' ? req.query.owner : undefined;
+  const repo = typeof req.query.repo === 'string' ? req.query.repo : undefined;
+  const runId = typeof req.query.runId === 'string' ? req.query.runId : undefined;
 
   try {
     const integration = await getIntegrationForTenant(tenantId, integrationId);
@@ -94,8 +97,8 @@ export const getRunStatus = async (req: Request, res: Response): Promise<any> =>
     }
     const status = await adapter.runStatus(tenantId, { runUrl, owner, repo, runId });
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, status });
-  } catch (e: any) {
-    const message = getErrorMessage(e, ERROR_MESSAGES.GHA_FETCH_RUN_FAILED);
+  } catch (e: unknown) {
+    const message = formatErrorMessage(e, ERROR_MESSAGES.GHA_FETCH_RUN_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });
   }
 };

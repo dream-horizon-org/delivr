@@ -1,6 +1,6 @@
 import type { CreateWorkflowDto, TenantCICDWorkflow, WorkflowFilters, UpdateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
 import type { CICDWorkflowModelType } from './workflow.sequelize.model';
-import { normalizePlatform } from '../../../../utils/cicd';
+import { normalizePlatform } from '../../../../services/integrations/ci-cd/utils/cicd.utils';
 
 export class CICDWorkflowRepository {
   private model: CICDWorkflowModelType;
