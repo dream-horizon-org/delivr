@@ -109,9 +109,11 @@ export function getManagementRouter(config: ManagementConfig): Router {
       ];
       
       const APP_DISTRIBUTION = [
-        { id: "app_store", name: "App Store", requiresOAuth: false, isAvailable: true },
-        { id: "play_store", name: "Play Store", requiresOAuth: false, isAvailable: true },
-        { id: "firebase", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
+        { id: "APP_STORE", name: "App Store", requiresOAuth: false, isAvailable: false },
+        { id: "PLAY_STORE", name: "Play Store", requiresOAuth: false, isAvailable: true },
+        { id: "TESTFLIGHT", name: "TestFlight", requiresOAuth: false, isAvailable: false },
+        { id: "FIREBASE", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
+        { id: "MICROSOFT_STORE", name: "Microsoft Store", requiresOAuth: false, isAvailable: false },
       ];
 
       const metadata = {
@@ -125,12 +127,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
             APP_DISTRIBUTION,
           },
           platforms: [
-            { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"] },
-            { id: "IOS", name: "iOS", applicableTargets: ["APP_STORE"] },
+            { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"], isAvailable: true },
+            { id: "IOS", name: "iOS", applicableTargets: ["APP_STORE"], isAvailable: false, status: "COMING_SOON" },
           ],
           targets: [
-            { id: "PLAY_STORE", name: "Play Store" },
-            { id: "APP_STORE", name: "App Store" },
+            { id: "PLAY_STORE", name: "Play Store", isAvailable: true },
+            { id: "APP_STORE", name: "App Store", isAvailable: false, status: "COMING_SOON" },
           ],
           releaseTypes: [
             { id: "PLANNED", name: "Planned" },
@@ -158,6 +160,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
             { id: "PRODUCTION", name: "Production", order: 2, applicablePlatforms: ["ANDROID", "IOS"] },
             { id: "AUTOMATION", name: "Automation", order: 3, applicablePlatforms: ["ANDROID", "IOS"] },
             { id: "CUSTOM", name: "Custom", order: 4, applicablePlatforms: ["ANDROID", "IOS"] },
+          ],
+          // Distribution tracks for App Store and Play Store
+          distributionTracks: [
+            { id: "PRODUCTION", name: "Production", order: 1 },
+            { id: "BETA", name: "Beta", order: 2 },
+            { id: "ALPHA", name: "Alpha", order: 3 },
+            { id: "INTERNAL", name: "Internal", order: 4 },
+            { id: "TESTFLIGHT", name: "TestFlight", order: 5 },
           ],
         },
         system: {
@@ -471,6 +481,20 @@ export function getManagementRouter(config: ManagementConfig): Router {
           console.error('[TenantInfo] Error fetching test management integrations:', error);
         }
       }
+
+      // App Distribution integrations (Play Store, App Store, etc.)
+      let storeIntegrations: any[] = [];
+      if ((storage as any).storeIntegrationController) {
+        try {
+          storeIntegrations = await (storage as any).storeIntegrationController.findAll({ 
+            tenantId, 
+            status: 'VERIFIED' // Only show verified integrations
+          });
+          console.log(`[TenantInfo] Found ${storeIntegrations.length} store integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching store integrations:', error);
+        }
+      }
       
       // TODO: Get other integrations when implemented
       // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);
@@ -548,6 +572,23 @@ export function getManagementRouter(config: ManagementConfig): Router {
           createdAt: integration.createdAt,
           updatedAt: integration.updatedAt
           // Note: config (including authToken) is intentionally excluded (never sent to client)
+        });
+      });
+
+      // Add App Distribution integrations (Play Store, App Store, etc.)
+      storeIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'app_distribution',
+          id: integration.id,
+          storeType: integration.storeType,
+          platform: integration.platform,
+          displayName: integration.displayName,
+          appIdentifier: integration.appIdentifier,
+          status: integration.status,
+          lastVerifiedAt: integration.lastVerifiedAt,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: credentials are intentionally excluded (never sent to client)
         });
       });
       
@@ -640,7 +681,24 @@ export function getManagementRouter(config: ManagementConfig): Router {
             connectedBy: i.createdByAccountId || 'System',
           })),
           PROJECT_MANAGEMENT: [], // TODO: Add project management integrations when implemented
-          APP_DISTRIBUTION: [],   // TODO: Add app distribution integrations when implemented
+          APP_DISTRIBUTION: storeIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.storeType.toLowerCase(), // e.g., 'play_store', 'app_store'
+            name: i.displayName,
+            status: i.status === 'VERIFIED' ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              storeType: i.storeType,
+              platform: i.platform,
+              appIdentifier: i.appIdentifier,
+              targetAppId: i.targetAppId || null,
+              defaultTrack: i.defaultTrack || null,
+              defaultLocale: i.defaultLocale || null,
+              teamName: i.teamName || null,
+            },
+            verificationStatus: i.status, // PENDING, VERIFIED, REVOKED
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
         },
         enabledPlatforms: ["ANDROID", "IOS"], // TODO: Make this dynamic based on tenant settings
         enabledTargets: ["APP_STORE", "PLAY_STORE", "WEB"], // TODO: Make this dynamic
