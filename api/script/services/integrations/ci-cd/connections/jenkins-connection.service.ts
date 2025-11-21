@@ -64,17 +64,26 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     if (!existing) {
       throw new Error(ERROR_MESSAGES.JENKINS_NOT_FOUND);
     }
-    const needsVerify = (updateData.apiToken || updateData.username || updateData.hostUrl) && !updateData.verificationStatus;
-    if (needsVerify) {
-      const providerConfig = updateData.providerConfig as Record<string, unknown> | undefined;
-      const useCrumb = typeof providerConfig?.useCrumb === 'boolean' ? (providerConfig.useCrumb as boolean) : true;
-      const crumbPathValue = providerConfig?.crumbPath;
-      const crumbPath = typeof crumbPathValue === 'string' ? crumbPathValue : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
-      const withSecrets = await this.repository.findById(existing.id);
+    // Always verify on update
+    const providerConfig = updateData.providerConfig as Record<string, unknown> | undefined;
+    const useCrumb = typeof providerConfig?.useCrumb === 'boolean' ? (providerConfig.useCrumb as boolean) : true;
+    const crumbPathValue = providerConfig?.crumbPath;
+    const crumbPath = typeof crumbPathValue === 'string' ? crumbPathValue : PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
+    const withSecrets = await this.repository.findById(existing.id);
+    const hostUrlToUse = updateData.hostUrl ?? existing.hostUrl;
+    const usernameToUse = updateData.username ?? existing.username as string;
+    const tokenToUse = (updateData.apiToken ?? (withSecrets as any)?.apiToken) as string | undefined;
+    const tokenMissing = !tokenToUse;
+
+    if (tokenMissing) {
+      updateData.verificationStatus = VerificationStatus.INVALID;
+      updateData.lastVerifiedAt = new Date();
+      updateData.verificationError = ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED;
+    } else {
       const verify = await this.verifyConnection({
-        hostUrl: updateData.hostUrl ?? existing.hostUrl,
-        username: updateData.username ?? existing.username as string,
-        apiToken: (updateData.apiToken ?? (withSecrets as any)?.apiToken) as string,
+        hostUrl: hostUrlToUse,
+        username: usernameToUse,
+        apiToken: tokenToUse as string,
         useCrumb,
         crumbPath
       });
@@ -83,6 +92,11 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       updateData.verificationError = verify.isValid ? null : verify.message;
     }
     const updated = await this.repository.update(existing.id, updateData);
+    const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
+    if (wasInvalid) {
+      const errorMessage = updateData.verificationError ?? ERROR_MESSAGES.JENKINS_VERIFY_FAILED;
+      throw new Error(errorMessage);
+    }
     return this.toSafe(updated as any);
   };
 

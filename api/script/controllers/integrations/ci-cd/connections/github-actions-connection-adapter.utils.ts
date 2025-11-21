@@ -1,4 +1,4 @@
-import { GitHubActionsConnectionService } from "../../../../services/integrations/ci-cd/connections/github-actions-connection.service";
+import { GitHubActionsConnectionService } from "~services/integrations/ci-cd";
 import { ERROR_MESSAGES } from "../constants";
 import type { ConnectionAdapter, VerifyResult } from "./connection-adapter.utils";
 import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
