@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { Storage } from "../../../storage/storage";
-import * as validateCICD from "../../../middleware/validate-cicd";
-import * as configController from "../../../controllers/integrations/ci-cd/config/config.controller";
-import * as configActions from "../../../controllers/integrations/ci-cd/config/config-actions.controller";
+import { Storage } from "../../../../storage/storage";
+import * as validateCICD from "../../../../middleware/validate-cicd";
+import * as configController from "../../../../controllers/integrations/ci-cd/config/config.controller";
+import * as configActions from "../../../../controllers/integrations/ci-cd/config/config-actions.controller";
 
 export const createCICDConfigRoutes = (_storage: Storage): Router => {
   const router = Router();
@@ -49,5 +49,6 @@ export const createCICDConfigRoutes = (_storage: Storage): Router => {
 
   return router;
 };
+
 
 

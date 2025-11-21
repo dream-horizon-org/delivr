@@ -1,3 +1,5 @@
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
+
 export type Platform = string; // platform-agnostic
 
 export enum WorkflowType {
@@ -6,13 +8,6 @@ export enum WorkflowType {
   TEST_FLIGHT_BUILD = 'TEST_FLIGHT_BUILD',
   AUTOMATION_BUILD = 'AUTOMATION_BUILD',
   CUSTOM = 'CUSTOM',
-}
-
-export enum CICDProviderType {
-  JENKINS = 'JENKINS',
-  GITHUB_ACTIONS = 'GITHUB_ACTIONS',
-  CIRCLE_CI = 'CIRCLE_CI',
-  GITLAB_CI = 'GITLAB_CI',
 }
 
 export interface TenantCICDWorkflow {

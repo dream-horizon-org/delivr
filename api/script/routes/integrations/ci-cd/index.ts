@@ -1,12 +1,11 @@
 import { Router } from "express";
-import { Storage } from "../storage/storage";
-// import * as tenantPermissions from "../middleware/tenant-permissions";
-import { createCICDConfigRoutes } from "./integrations/ci-cd/config.routes";
-import { createCICDConnectionsRoutes } from "./integrations/ci-cd/connections/connections.routes";
-import { createCICDWorkflowsRoutes } from "./integrations/ci-cd/workflows/workflows.routes";
-import * as workflowControllers from "../controllers/integrations/ci-cd/workflows/workflows.controller";
-import * as validateCICD from "../middleware/validate-cicd";
-import { getAvailableCICDProviders } from "../controllers/integrations/ci-cd/providers.controller";
+import { Storage } from "../../../storage/storage";
+import { createCICDConfigRoutes } from "./config/config.routes";
+import { createCICDConnectionsRoutes } from "./connections/connections.routes";
+import { createCICDWorkflowsRoutes } from "./workflows/workflows.routes";
+import * as workflowControllers from "../../../controllers/integrations/ci-cd/workflows/workflows.controller";
+import * as validateCICD from "../../../middleware/validate-cicd";
+import { getAvailableCICDProviders } from "../../../controllers/integrations/ci-cd/providers.controller";
 
 export function createCICDIntegrationRoutes(storage: Storage): Router {
   const router = Router();
