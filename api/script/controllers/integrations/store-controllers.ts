@@ -22,9 +22,9 @@ import {
   getInvalidTrackErrorMessage,
 } from '../../storage/integrations/store/store-types';
 import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
-import { decrypt } from '../../utils/encryption.utils';
 import { ERROR_MESSAGES } from '../../constants/store';
 import { getErrorMessage } from '../../utils/error.utils';
+import { decrypt } from '../../utils/encryption.utils';
 
 const getStoreController = (): StoreIntegrationController => {
   const storage = getStorage();
