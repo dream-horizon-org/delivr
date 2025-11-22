@@ -25,28 +25,38 @@ import type {
   CheckmatePlatformConfiguration,
 } from '~/types/release-config';
 
+// Backend API response structures - match Checkmate API exactly
 interface CheckmateProject {
-  id: number;
-  name: string;
-  description?: string;
+  projectId: number;
+  projectName: string;
+  projectDescription: string | null;
+  orgId: number;
+  createdByName: string | null;
+  createdOn: string;
 }
 
 interface CheckmateSection {
-  id: number;
-  name: string;
+  sectionId: number;
+  sectionName: string;
   projectId: number;
+  parentSectionId: number | null;
+  sectionDepth: number;
 }
 
 interface CheckmateLabel {
-  id: number;
-  name: string;
+  labelId: number;
+  labelName: string;
+  labelType: 'System' | 'Custom';
   projectId: number;
+  createdOn: string | null;
 }
 
 interface CheckmateSquad {
-  id: number;
-  name: string;
+  squadId: number;
+  squadName: string;
   projectId: number;
+  createdOn: string | null;
+  createdBy: number | null;
 }
 
 interface CheckmateConfigFormEnhancedProps {
@@ -103,15 +113,15 @@ export function CheckmateConfigFormEnhanced({
 
     try {
       const response = await fetch(`/api/v1/integrations/${integrationId}/metadata/projects`);
-      
+      console.log('response checkmate projects', response);
       if (!response.ok) {
         throw new Error('Failed to fetch projects');
       }
 
       const result = await response.json();
-      
-      if (result.success && result.data?.data) {
-        setProjects(result.data.data);
+      console.log('result checkmate projects', result);
+      if (result.success && result.data?.projectsList) {
+        setProjects(result?.data?.projectsList || []);
       } else {
         throw new Error(result.error || 'Failed to fetch projects');
       }
@@ -268,7 +278,7 @@ export function CheckmateConfigFormEnhanced({
               <Select
                 label="Checkmate Project"
                 placeholder="Select project"
-                data={projects.map(p => ({ value: p.id.toString(), label: p.name }))}
+                data={projects.map(p => ({ value: p.projectId.toString(), label: p.projectName }))}
                 value={config.projectId?.toString() || ''}
                 onChange={(val) => handleProjectChange(val || '')}
                 required
@@ -315,8 +325,8 @@ export function CheckmateConfigFormEnhanced({
                                 label="Sections"
                                 placeholder="Select sections for Android"
                                 data={sections.map(s => ({ 
-                                  value: s.id.toString(), 
-                                  label: s.name 
+                                  value: s.sectionId.toString(), 
+                                  label: s.sectionName 
                                 }))}
                                 value={getPlatformConfig('ANDROID').sectionIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
@@ -334,8 +344,8 @@ export function CheckmateConfigFormEnhanced({
                                 label="Labels"
                                 placeholder="Select labels for Android"
                                 data={labels.map(l => ({ 
-                                  value: l.id.toString(), 
-                                  label: l.name 
+                                  value: l.labelId.toString(), 
+                                  label: l.labelName 
                                 }))}
                                 value={getPlatformConfig('ANDROID').labelIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
@@ -353,8 +363,8 @@ export function CheckmateConfigFormEnhanced({
                                 label="Squads"
                                 placeholder="Select squads for Android"
                                 data={squads.map(s => ({ 
-                                  value: s.id.toString(), 
-                                  label: s.name 
+                                  value: s.squadId.toString(), 
+                                  label: s.squadName 
                                 }))}
                                 value={getPlatformConfig('ANDROID').squadIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
@@ -386,8 +396,8 @@ export function CheckmateConfigFormEnhanced({
                                 label="Sections"
                                 placeholder="Select sections for iOS"
                                 data={sections.map(s => ({ 
-                                  value: s.id.toString(), 
-                                  label: s.name 
+                                  value: s.sectionId.toString(), 
+                                  label: s.sectionName 
                                 }))}
                                 value={getPlatformConfig('IOS').sectionIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
@@ -405,8 +415,8 @@ export function CheckmateConfigFormEnhanced({
                                 label="Labels"
                                 placeholder="Select labels for iOS"
                                 data={labels.map(l => ({ 
-                                  value: l.id.toString(), 
-                                  label: l.name 
+                                  value: l.labelId.toString(), 
+                                  label: l.labelName 
                                 }))}
                                 value={getPlatformConfig('IOS').labelIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
@@ -424,8 +434,8 @@ export function CheckmateConfigFormEnhanced({
                                 label="Squads"
                                 placeholder="Select squads for iOS"
                                 data={squads.map(s => ({ 
-                                  value: s.id.toString(), 
-                                  label: s.name 
+                                  value: s.squadId.toString(), 
+                                  label: s.squadName 
                                 }))}
                                 value={getPlatformConfig('IOS').squadIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
