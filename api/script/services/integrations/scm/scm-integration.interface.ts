@@ -10,7 +10,6 @@ export interface SCMIntegration {
    * 
    * @param tenantId - Tenant ID to fetch integration config
    * @param branch - Branch name to check
-   * @param customConfig - Optional per-request config overrides
    * @returns true if branch exists, false otherwise
    */
   checkBranchExists(
@@ -25,7 +24,6 @@ export interface SCMIntegration {
    * @param tenantId - Tenant ID to fetch integration config
    * @param releaseBranch - Name of the new branch to create
    * @param baseBranch - Base branch to fork from
-   * @param customConfig - Optional per-request config overrides
    */
   forkOutBranch(
     tenantId: string,
@@ -53,7 +51,6 @@ export interface SCMIntegration {
    * @param tagName - Optional explicit tag name (for RC tags: "v1.0.0_rc_0")
    * @param targets - Optional array of target names (for final tags: ['WEB', 'PLAY_STORE', 'APP_STORE'])
    * @param version - Release version (e.g., '1.0.0') - required if tagName not provided
-   * @param customConfig - Optional per-request config overrides
    * @returns Created tag name
    */
   createReleaseTag(
@@ -65,11 +62,7 @@ export interface SCMIntegration {
   ): Promise<string>;
 
   /**
-   * Create release notes between two tags
-   * 
-   * Optional method - typically not needed separately since createGitHubRelease handles it.
-   * Only use if you need notes without creating a release.
-   * 
+   * Create GitHub release with auto-generated notes
    * Business logic handled by integration:
    * - Determines previousTag using one of these (in order):
    *   1. If previousTag provided: Uses it directly
@@ -90,7 +83,6 @@ export interface SCMIntegration {
    *                        Used to generate previousTag: createReleaseTag(parentTargets, baseVersion)
    *                        Example: ['WEB', 'PLAY_STORE', 'APP_STORE']
    * @param releaseId - Optional release ID for logging/debugging (not required for GitHub operation)
-   * @param customConfig - Optional per-request config overrides
    * @returns Formatted release notes content as string
    */
   createReleaseNotes(
@@ -126,7 +118,6 @@ export interface SCMIntegration {
    * @param branch - Release branch name (e.g., 'release/v1.0.0')
    * @param tag - Previous release tag (e.g., "v1.0.0_rc_2")
    * @param releaseId - Optional release ID for logging/debugging (not required for GitHub operation)
-   * @param customConfig - Optional per-request config overrides
    * @returns Number of commits between branch and tag
    */
   getCommitsDiff(
