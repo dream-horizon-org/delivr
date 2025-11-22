@@ -26,6 +26,11 @@ import {
   IconAlertCircle,
 } from '@tabler/icons-react';
 import type { RegressionSlot, ReleaseConfiguration } from '~/types/release-config';
+import {
+  DEFAULT_KICKOFF_OFFSET_DAYS,
+  DEFAULT_REGRESSION_OFFSET_DAYS,
+  DEFAULT_REGRESSION_SLOT_TIME,
+} from './release-creation-constants';
 
 interface ReleaseSchedulingPanelProps {
   releaseDate: string;
@@ -57,11 +62,11 @@ export function ReleaseSchedulingPanel({
   onChange,
   errors = {},
 }: ReleaseSchedulingPanelProps) {
-  // Calculate default kickoff date (RD - 2 days)
+  // Calculate default kickoff date (RD - DEFAULT_KICKOFF_OFFSET_DAYS)
   useEffect(() => {
     if (releaseDate && !kickoffDate) {
       const rd = new Date(releaseDate);
-      rd.setDate(rd.getDate() - 2);
+      rd.setDate(rd.getDate() - DEFAULT_KICKOFF_OFFSET_DAYS);
       onChange({
         releaseDate,
         releaseTime,
@@ -74,10 +79,10 @@ export function ReleaseSchedulingPanel({
   }, [releaseDate]);
 
   const handleReleaseDateChange = (date: string) => {
-    // Auto-update kickoff date to RD-2days
+    // Auto-update kickoff date to RD - DEFAULT_KICKOFF_OFFSET_DAYS
     const rd = new Date(date);
     const kd = new Date(rd);
-    kd.setDate(kd.getDate() - 2);
+    kd.setDate(kd.getDate() - DEFAULT_KICKOFF_OFFSET_DAYS);
 
     onChange({
       releaseDate: date,
@@ -93,8 +98,8 @@ export function ReleaseSchedulingPanel({
     const newSlot: RegressionSlot = {
       id: `slot-${Date.now()}`,
       name: `Slot ${regressionBuildSlots.length + 1}`,
-      offsetDays: 1, // Default 1 day before release
-      time: '10:00',
+      offsetDays: DEFAULT_REGRESSION_OFFSET_DAYS,
+      time: DEFAULT_REGRESSION_SLOT_TIME,
       config: {
         regressionBuilds: true,
         postReleaseNotes: false,

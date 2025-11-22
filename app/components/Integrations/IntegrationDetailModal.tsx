@@ -3,50 +3,7 @@ import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
 import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from '../Icons/IntegrationIcon';
-
-// Integration disconnect configuration
-const DISCONNECT_CONFIG: Record<string, { message: string; endpoint: (tenantId: string, config?: any) => string }> = {
-  slack: {
-    message: 'Are you sure you want to disconnect Slack? This will stop all release notifications.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/slack`
-  },
-  jenkins: {
-    message: 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`
-  },
-  github_actions: {
-    message: 'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`
-  },
-  jira: {
-    message: 'Are you sure you want to disconnect Jira? This will stop all project management integrations.',
-    endpoint: (tenantId, config) => {
-      if (!config?.id) throw new Error('Integration ID required for Jira');
-      return `/api/v1/tenants/${tenantId}/integrations/jira?integrationId=${config.id}`;
-    }
-  },
-  checkmate: {
-    message: 'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.',
-    endpoint: (tenantId, config) => {
-      if (!config?.id) throw new Error('Integration ID required for Checkmate');
-      return `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${config.id}`;
-    }
-  },
-  play_store: {
-    message: 'Are you sure you want to disconnect Play Store? This will stop all app distribution integrations.',
-    endpoint: (tenantId, config) => {
-      if (!config?.integrationId) throw new Error('Integration ID required for Play Store');
-      return `/api/v1/tenants/${tenantId}/distributions?action=delete&integrationId=${config.integrationId}`;
-    }
-  },
-  app_store: {
-    message: 'Are you sure you want to disconnect App Store? This will stop all app distribution integrations.',
-    endpoint: (tenantId, config) => {
-      if (!config?.integrationId) throw new Error('Integration ID required for App Store');
-      return `/api/v1/tenants/${tenantId}/distributions?action=delete&integrationId=${config.integrationId}`;
-    }
-  }
-};
+import { DISCONNECT_CONFIG } from './integrations-constants';
 
 interface IntegrationDetailModalProps {
   integration: IntegrationDetails | null;

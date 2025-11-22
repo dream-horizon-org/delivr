@@ -2,6 +2,7 @@ import { Badge, Card, Button } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from '~/components/Icons/IntegrationIcon';
+import { INTEGRATION_STATUS_COLORS, INTEGRATION_STATUS_TEXT } from './integrations-constants';
 
 interface IntegrationCardProps {
   integration: Integration;
@@ -11,25 +12,11 @@ interface IntegrationCardProps {
 
 export function IntegrationCard({ integration, onClick, onConnect }: IntegrationCardProps) {
   const getStatusColor = () => {
-    switch (integration.status) {
-      case IntegrationStatus.CONNECTED:
-        return 'green';
-      case IntegrationStatus.ERROR:
-        return 'red';
-      default:
-        return 'gray';
-    }
+    return INTEGRATION_STATUS_COLORS[integration.status] || INTEGRATION_STATUS_COLORS[IntegrationStatus.NOT_CONNECTED];
   };
 
   const getStatusText = () => {
-    switch (integration.status) {
-      case IntegrationStatus.CONNECTED:
-        return 'Connected';
-      case IntegrationStatus.ERROR:
-        return 'Error';
-      default:
-        return 'Not Connected';
-    }
+    return INTEGRATION_STATUS_TEXT[integration.status] || INTEGRATION_STATUS_TEXT[IntegrationStatus.NOT_CONNECTED];
   };
 
   const isDisabled = !integration.isAvailable;

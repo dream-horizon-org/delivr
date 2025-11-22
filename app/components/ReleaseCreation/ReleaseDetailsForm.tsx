@@ -20,6 +20,7 @@ import {
 import { IconTarget } from '@tabler/icons-react';
 import type { ReleaseBasicDetails } from '~/types/release-creation';
 import type { ReleaseConfiguration, TargetPlatform } from '~/types/release-config';
+import { RELEASE_TYPES } from './release-creation-constants';
 
 interface ReleaseDetailsFormProps {
   details: Partial<ReleaseBasicDetails>;
@@ -29,12 +30,6 @@ interface ReleaseDetailsFormProps {
   tenantId: string; // For fetching branches
   errors?: Record<string, string>;
 }
-
-const releaseTypes = [
-  { value: 'PLANNED', label: 'Planned Release' },
-  { value: 'HOTFIX', label: 'Hotfix' },
-  { value: 'PATCH', label: 'Patch' },
-];
 
 export function ReleaseDetailsForm({
   details,
@@ -156,7 +151,7 @@ export function ReleaseDetailsForm({
 
           <Select
             label="Release Type"
-            data={releaseTypes}
+            data={RELEASE_TYPES}
             value={details.releaseType || 'PLANNED'}
             onChange={(val) => onChange({ ...details, releaseType: val as any })}
             required
