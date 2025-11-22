@@ -292,46 +292,85 @@ export const SCM = {
 
 export const TEST_MANAGEMENT = {
   /**
-   * List all test management integrations
-   * GET /projects/:projectId/integrations/test-management
+   * Verify credentials (stateless - no save)
+   * POST /test-management/integrations/verify
    */
-  list: (projectId: string) => 
-    `/projects/${projectId}/integrations/test-management`,
+  verifyCredentials: '/test-management/integrations/verify',
+  
+  /**
+   * List all test management integrations for tenant
+   * GET /test-management/tenants/:tenantId/integrations
+   */
+  list: (tenantId: string) => 
+    `/test-management/tenants/${tenantId}/integrations`,
   
   /**
    * Create test management integration
-   * POST /projects/:projectId/integrations/test-management
+   * POST /test-management/tenants/:tenantId/integrations
    */
-  create: (projectId: string) => 
-    `/projects/${projectId}/integrations/test-management`,
+  create: (tenantId: string) => 
+    `/test-management/tenants/${tenantId}/integrations`,
   
   /**
    * Get single integration
-   * GET /projects/:projectId/integrations/test-management/:integrationId
+   * GET /test-management/integrations/:integrationId
    */
-  get: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/test-management/${integrationId}`,
+  get: (integrationId: string) => 
+    `/test-management/integrations/${integrationId}`,
   
   /**
    * Update integration
-   * PUT /projects/:projectId/integrations/test-management/:integrationId
+   * PUT /test-management/integrations/:integrationId
    */
-  update: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/test-management/${integrationId}`,
+  update: (integrationId: string) => 
+    `/test-management/integrations/${integrationId}`,
   
   /**
    * Delete integration
-   * DELETE /projects/:projectId/integrations/test-management/:integrationId
+   * DELETE /test-management/integrations/:integrationId
    */
-  delete: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/test-management/${integrationId}`,
+  delete: (integrationId: string) => 
+    `/test-management/integrations/${integrationId}`,
   
   /**
-   * Verify integration connection
-   * POST /projects/:projectId/integrations/test-management/:integrationId/verify
+   * Verify existing integration connection
+   * POST /test-management/integrations/:integrationId/verify
    */
-  verify: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/test-management/${integrationId}/verify`,
+  verify: (integrationId: string) => 
+    `/test-management/integrations/${integrationId}/verify`,
+  
+  /**
+   * Checkmate-specific metadata routes
+   */
+  checkmate: {
+    /**
+     * Get Checkmate projects
+     * GET /test-management/integrations/:integrationId/checkmate/metadata/projects
+     */
+    projects: (integrationId: string) => 
+      `/test-management/integrations/${integrationId}/checkmate/metadata/projects`,
+    
+    /**
+     * Get Checkmate sections
+     * GET /test-management/integrations/:integrationId/checkmate/metadata/sections?projectId={projectId}
+     */
+    sections: (integrationId: string) => 
+      `/test-management/integrations/${integrationId}/checkmate/metadata/sections`,
+    
+    /**
+     * Get Checkmate labels
+     * GET /test-management/integrations/:integrationId/checkmate/metadata/labels?projectId={projectId}
+     */
+    labels: (integrationId: string) => 
+      `/test-management/integrations/${integrationId}/checkmate/metadata/labels`,
+    
+    /**
+     * Get Checkmate squads
+     * GET /test-management/integrations/:integrationId/checkmate/metadata/squads?projectId={projectId}
+     */
+    squads: (integrationId: string) => 
+      `/test-management/integrations/${integrationId}/checkmate/metadata/squads`,
+  },
 } as const;
 
 // ============================================================================

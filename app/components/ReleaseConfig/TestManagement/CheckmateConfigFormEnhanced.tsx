@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getDummyCheckmateProjects, getDummyCheckmateMetadata } from './checkmate-dummy-data';
 import {
   Stack,
   Text,
@@ -103,35 +102,19 @@ export function CheckmateConfigFormEnhanced({
     setError(null);
 
     try {
-      // ====================================================================
-      // 🔧 USING DUMMY DATA (See: checkmate-dummy-data.ts)
-      // 🗑️ DELETE when backend API is ready
-      // ====================================================================
-      const result = await getDummyCheckmateProjects(integrationId);
+      const response = await fetch(`/api/v1/integrations/${integrationId}/metadata/projects`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+
+      const result = await response.json();
       
       if (result.success && result.data?.data) {
         setProjects(result.data.data);
       } else {
-        throw new Error('Failed to load projects');
+        throw new Error(result.error || 'Failed to fetch projects');
       }
-      
-      // ====================================================================
-      // 🚫 ORIGINAL API CALL (Restore when backend is ready)
-      // ====================================================================
-      // const response = await fetch(`/api/v1/integrations/${integrationId}/metadata/projects`);
-      // 
-      // if (!response.ok) {
-      //   throw new Error('Failed to fetch projects');
-      // }
-      //
-      // const result = await response.json();
-      // 
-      // if (result.success && result.data?.data) {
-      //   setProjects(result.data.data);
-      // } else {
-      //   throw new Error(result.error || 'Failed to fetch projects');
-      // }
-      // ====================================================================
     } catch (error) {
       console.error('[Checkmate] Error fetching projects:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch projects');
@@ -145,39 +128,25 @@ export function CheckmateConfigFormEnhanced({
     setError(null);
 
     try {
-      // ====================================================================
-      // 🔧 USING DUMMY DATA (See: checkmate-dummy-data.ts)
-      // 🗑️ DELETE when backend API is ready
-      // ====================================================================
-      const result = await getDummyCheckmateMetadata(integrationId, projectId);
+      const [sectionsRes, labelsRes, squadsRes] = await Promise.all([
+        fetch(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
+        fetch(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
+        fetch(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
+      ]);
 
-      setSections(result.sections.data?.data || []);
-      setLabels(result.labels.data?.data || []);
-      setSquads(result.squads.data?.data || []);
-      
-      // ====================================================================
-      // 🚫 ORIGINAL API CALLS (Restore when backend is ready)
-      // ====================================================================
-      // const [sectionsRes, labelsRes, squadsRes] = await Promise.all([
-      //   fetch(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
-      //   fetch(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
-      //   fetch(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
-      // ]);
-      //
-      // if (!sectionsRes.ok || !labelsRes.ok || !squadsRes.ok) {
-      //   throw new Error('Failed to fetch metadata');
-      // }
-      //
-      // const [sectionsData, labelsData, squadsData] = await Promise.all([
-      //   sectionsRes.json(),
-      //   labelsRes.json(),
-      //   squadsRes.json(),
-      // ]);
-      //
-      // setSections(sectionsData.data?.data || []);
-      // setLabels(labelsData.data?.data || []);
-      // setSquads(squadsData.data?.data || []);
-      // ====================================================================
+      if (!sectionsRes.ok || !labelsRes.ok || !squadsRes.ok) {
+        throw new Error('Failed to fetch metadata');
+      }
+
+      const [sectionsData, labelsData, squadsData] = await Promise.all([
+        sectionsRes.json(),
+        labelsRes.json(),
+        squadsRes.json(),
+      ]);
+
+      setSections(sectionsData.data?.data || []);
+      setLabels(labelsData.data?.data || []);
+      setSquads(squadsData.data?.data || []);
     } catch (error) {
       console.error('[Checkmate] Error fetching metadata:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch metadata');

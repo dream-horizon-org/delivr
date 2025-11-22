@@ -24,7 +24,6 @@ export interface CheckmateConfig {
 }
 
 export interface VerifyCheckmateRequest {
-  projectId: string;
   integrationId: string;
   userId: string;
 }
@@ -37,14 +36,13 @@ export interface VerifyCheckmateResponse {
 }
 
 export interface CreateCheckmateIntegrationRequest {
-  projectId: string;
+  tenantId: string;
   name: string;
   config: CheckmateConfig;
   userId: string;
 }
 
 export interface UpdateCheckmateIntegrationRequest {
-  projectId: string;
   integrationId: string;
   name?: string;
   config?: Partial<CheckmateConfig>;
@@ -53,7 +51,7 @@ export interface UpdateCheckmateIntegrationRequest {
 
 export interface CheckmateIntegration {
   id: string;
-  projectId: string;
+  tenantId: string;
   name: string;
   providerType: 'CHECKMATE';
   config: CheckmateConfig;
@@ -78,7 +76,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
    * Create Checkmate integration
    */
   async createIntegration(data: CreateCheckmateIntegrationRequest): Promise<CheckmateIntegrationResponse> {
-    const endpoint = TEST_MANAGEMENT.create(data.projectId);
+    const endpoint = TEST_MANAGEMENT.create(data.tenantId);
     this.logRequest('POST', endpoint);
     
     try {
@@ -111,12 +109,12 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Get all Checkmate integrations for a project
+   * Get all Checkmate integrations for a tenant
    */
-  async listIntegrations(projectId: string, userId: string): Promise<CheckmateIntegrationResponse> {
+  async listIntegrations(tenantId: string, userId: string): Promise<CheckmateIntegrationResponse> {
     try {
       const result = await this.get<{ success: boolean; data: CheckmateIntegration[]; error?: string }>(
-        TEST_MANAGEMENT.list(projectId),
+        TEST_MANAGEMENT.list(tenantId),
         userId
       );
 
@@ -146,10 +144,10 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Get single Checkmate integration
    */
-  async getIntegration(projectId: string, integrationId: string, userId: string): Promise<CheckmateIntegrationResponse> {
+  async getIntegration(integrationId: string, userId: string): Promise<CheckmateIntegrationResponse> {
     try {
       const result = await this.get<{ success: boolean; data: CheckmateIntegration; error?: string }>(
-        TEST_MANAGEMENT.get(projectId, integrationId),
+        TEST_MANAGEMENT.get(integrationId),
         userId
       );
 
@@ -176,8 +174,8 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Update Checkmate integration
    */
-  async updateIntegration(data: UpdateCheckmateIntegrationRequest): Promise<CheckmateIntegrationResponse> {
-    const endpoint = TEST_MANAGEMENT.update(data.projectId, data.integrationId);
+  async updateIntegration(data: UpdateCheckmateIntegrationRequest, userId: string): Promise<CheckmateIntegrationResponse> {
+    const endpoint = TEST_MANAGEMENT.update(data.integrationId);
     this.logRequest('PUT', endpoint);
     
     try {
@@ -194,7 +192,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
       const result = await this.put<{ success: boolean; data: CheckmateIntegration; error?: string }>(
         endpoint,
         payload,
-        data.userId
+        userId
       );
 
       this.logResponse('PUT', endpoint, result.success);
@@ -214,10 +212,10 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Delete Checkmate integration
    */
-  async deleteIntegration(projectId: string, integrationId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  async deleteIntegration(integrationId: string, userId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const result = await this.delete<{ success: boolean; message?: string; error?: string }>(
-        TEST_MANAGEMENT.delete(projectId, integrationId),
+        TEST_MANAGEMENT.delete(integrationId),
         userId
       );
 
@@ -233,15 +231,15 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
    * Verify Checkmate integration connection
    */
-  async verifyIntegration(data: VerifyCheckmateRequest): Promise<VerifyCheckmateResponse> {
-    const endpoint = TEST_MANAGEMENT.verify(data.projectId, data.integrationId);
+  async verifyIntegration(integrationId: string, userId: string): Promise<VerifyCheckmateResponse> {
+    const endpoint = TEST_MANAGEMENT.verify(integrationId);
     this.logRequest('POST', endpoint);
     
     try {
       const result = await this.post<{ success: boolean; data: VerifyCheckmateResponse }>(
         endpoint,
         {},
-        data.userId
+        userId
       );
 
       this.logResponse('POST', endpoint, result.data.success);
