@@ -103,15 +103,17 @@ export function getManagementRouter(config: ManagementConfig): Router {
         }));
       
       const PROJECT_MANAGEMENT = [
-        { id: "jira", name: "Jira", requiresOAuth: true, isAvailable: false },
-        { id: "linear", name: "Linear", requiresOAuth: true, isAvailable: false },
-        { id: "asana", name: "Asana", requiresOAuth: true, isAvailable: false },
+        { id: "jira", name: "Jira", requiresOAuth: false, isAvailable: true },
+        { id: "linear", name: "Linear", requiresOAuth: false, isAvailable: false },
+        { id: "asana", name: "Asana", requiresOAuth: false, isAvailable: false },
       ];
       
       const APP_DISTRIBUTION = [
-        { id: "appstore", name: "App Store", requiresOAuth: false, isAvailable: false },
-        { id: "playstore", name: "Play Store", requiresOAuth: false, isAvailable: false },
-        { id: "firebase", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
+        { id: "APP_STORE", name: "App Store", requiresOAuth: false, isAvailable: false },
+        { id: "PLAY_STORE", name: "Play Store", requiresOAuth: false, isAvailable: true },
+        { id: "TESTFLIGHT", name: "TestFlight", requiresOAuth: false, isAvailable: false },
+        { id: "FIREBASE", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
+        { id: "MICROSOFT_STORE", name: "Microsoft Store", requiresOAuth: false, isAvailable: false },
       ];
 
       const metadata = {
@@ -125,12 +127,12 @@ export function getManagementRouter(config: ManagementConfig): Router {
             APP_DISTRIBUTION,
           },
           platforms: [
-            { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"] },
-            { id: "IOS", name: "iOS", applicableTargets: ["APP_STORE"] },
+            { id: "ANDROID", name: "Android", applicableTargets: ["PLAY_STORE"], isAvailable: true },
+            { id: "IOS", name: "iOS", applicableTargets: ["APP_STORE"], isAvailable: false, status: "COMING_SOON" },
           ],
           targets: [
-            { id: "PLAY_STORE", name: "Play Store" },
-            { id: "APP_STORE", name: "App Store" },
+            { id: "PLAY_STORE", name: "Play Store", isAvailable: true },
+            { id: "APP_STORE", name: "App Store", isAvailable: false, status: "COMING_SOON" },
           ],
           releaseTypes: [
             { id: "PLANNED", name: "Planned" },
@@ -158,6 +160,14 @@ export function getManagementRouter(config: ManagementConfig): Router {
             { id: "PRODUCTION", name: "Production", order: 2, applicablePlatforms: ["ANDROID", "IOS"] },
             { id: "AUTOMATION", name: "Automation", order: 3, applicablePlatforms: ["ANDROID", "IOS"] },
             { id: "CUSTOM", name: "Custom", order: 4, applicablePlatforms: ["ANDROID", "IOS"] },
+          ],
+          // Distribution tracks for App Store and Play Store
+          distributionTracks: [
+            { id: "PRODUCTION", name: "Production", order: 1 },
+            { id: "BETA", name: "Beta", order: 2 },
+            { id: "ALPHA", name: "Alpha", order: 3 },
+            { id: "INTERNAL", name: "Internal", order: 4 },
+            { id: "TESTFLIGHT", name: "TestFlight", order: 5 },
           ],
         },
         system: {
@@ -450,6 +460,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const scmController = (storage as any).scmController;
       const slackController = (storage as any).slackController;
       const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
+      const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
@@ -469,6 +480,33 @@ export function getManagementRouter(config: ManagementConfig): Router {
           console.log(`[TenantInfo] Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching test management integrations:', error);
+        }
+      }
+
+      // Project Management integrations (JIRA, Linear, Asana, etc.)
+      let projectManagementIntegrations: any[] = [];
+      if (projectManagementIntegrationRepository) {
+        try {
+          projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ 
+            projectId: tenantId
+          });
+          console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching project management integrations:', error);
+        }
+      }
+
+      // App Distribution integrations (Play Store, App Store, etc.)
+      let storeIntegrations: any[] = [];
+      if ((storage as any).storeIntegrationController) {
+        try {
+          storeIntegrations = await (storage as any).storeIntegrationController.findAll({ 
+            tenantId, 
+            status: 'VERIFIED' // Only show verified integrations
+          });
+          console.log(`[TenantInfo] Found ${storeIntegrations.length} store integrations for tenant ${tenantId}`);
+        } catch (error) {
+          console.error('[TenantInfo] Error fetching store integrations:', error);
         }
       }
       
@@ -548,6 +586,40 @@ export function getManagementRouter(config: ManagementConfig): Router {
           createdAt: integration.createdAt,
           updatedAt: integration.updatedAt
           // Note: config (including authToken) is intentionally excluded (never sent to client)
+        });
+      });
+
+      // Add Project Management integrations (JIRA, Linear, Asana, etc.)
+      projectManagementIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'project_management',
+          id: integration.id,
+          providerType: integration.providerType,
+          name: integration.name,
+          projectId: integration.projectId,
+          isEnabled: integration.isEnabled,
+          verificationStatus: integration.verificationStatus,
+          lastVerifiedAt: integration.lastVerifiedAt,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: config (including apiToken, email) is intentionally excluded (never sent to client)
+        });
+      });
+
+      // Add App Distribution integrations (Play Store, App Store, etc.)
+      storeIntegrations.forEach((integration: any) => {
+        integrations.push({
+          type: 'app_distribution',
+          id: integration.id,
+          storeType: integration.storeType,
+          platform: integration.platform,
+          displayName: integration.displayName,
+          appIdentifier: integration.appIdentifier,
+          status: integration.status,
+          lastVerifiedAt: integration.lastVerifiedAt,
+          createdAt: integration.createdAt,
+          updatedAt: integration.updatedAt
+          // Note: credentials are intentionally excluded (never sent to client)
         });
       });
       
@@ -639,8 +711,41 @@ export function getManagementRouter(config: ManagementConfig): Router {
             connectedAt: i.createdAt,
             connectedBy: i.createdByAccountId || 'System',
           })),
-          PROJECT_MANAGEMENT: [], // TODO: Add project management integrations when implemented
-          APP_DISTRIBUTION: [],   // TODO: Add app distribution integrations when implemented
+          PROJECT_MANAGEMENT: projectManagementIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.providerType.toLowerCase(),
+            name: i.name,
+            status: i.isEnabled ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              providerType: i.providerType,
+              projectId: i.projectId,
+              // Include non-sensitive config fields
+              baseUrl: i.config?.baseUrl,
+              jiraType: i.config?.jiraType, // JIRA-specific: CLOUD, SERVER, DATA_CENTER
+              // Don't expose sensitive config data (like apiToken, email)
+            },
+            verificationStatus: i.verificationStatus || 'NOT_VERIFIED',
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
+          APP_DISTRIBUTION: storeIntegrations.map((i: any) => ({
+            id: i.id,
+            providerId: i.storeType.toLowerCase(), // e.g., 'play_store', 'app_store'
+            name: i.displayName,
+            status: i.status === 'VERIFIED' ? 'CONNECTED' : 'DISCONNECTED',
+            config: {
+              storeType: i.storeType,
+              platform: i.platform,
+              appIdentifier: i.appIdentifier,
+              targetAppId: i.targetAppId || null,
+              defaultTrack: i.defaultTrack || null,
+              defaultLocale: i.defaultLocale || null,
+              teamName: i.teamName || null,
+            },
+            verificationStatus: i.status, // PENDING, VERIFIED, REVOKED
+            connectedAt: i.createdAt,
+            connectedBy: i.createdByAccountId || 'System',
+          })),
         },
         enabledPlatforms: ["ANDROID", "IOS"], // TODO: Make this dynamic based on tenant settings
         enabledTargets: ["APP_STORE", "PLAY_STORE", "WEB"], // TODO: Make this dynamic

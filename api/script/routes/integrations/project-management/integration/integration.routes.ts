@@ -11,6 +11,12 @@ export const createIntegrationRoutes = (
   // List available providers (public info)
   router.get('/integrations/project-management/providers', controller.getAvailableProviders);
 
+  // Verify credentials without saving (stateless)
+  router.post(
+    '/projects/:projectId/integrations/project-management/verify',
+    controller.verifyCredentials
+  );
+
   // CRUD operations for integrations
   router.post(
     '/tenants/:tenantId/integrations/project-management',

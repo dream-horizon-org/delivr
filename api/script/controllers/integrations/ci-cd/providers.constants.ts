@@ -14,7 +14,7 @@ export const CICD_PROVIDERS = [
     features: ['Workflows', 'Build Triggers', 'Job Parameters', 'Queue Management']
   },
   {
-    id: 'github-actions',
+    id: 'github_actions',
     name: 'GitHub Actions',
     description: 'GitHub\'s native CI/CD platform',
     enabled: true,
@@ -23,7 +23,7 @@ export const CICD_PROVIDERS = [
     features: ['Workflows', 'Matrix Builds', 'Reusable Workflows', 'Environments']
   },
   {
-    id: 'gitlab-ci',
+    id: 'gitlab_ci',
     name: 'GitLab CI',
     description: 'GitLab\'s integrated CI/CD solution',
     enabled: false,

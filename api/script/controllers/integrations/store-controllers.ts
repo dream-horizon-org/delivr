@@ -22,8 +22,9 @@ import {
   getInvalidTrackErrorMessage,
 } from '../../storage/integrations/store/store-types';
 import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../constants/store';
+import { ERROR_MESSAGES } from '../../constants/store';
 import { getErrorMessage } from '../../utils/error.utils';
+import { decrypt } from '../../utils/encryption.utils';
 
 const getStoreController = (): StoreIntegrationController => {
   const storage = getStorage();
@@ -96,7 +97,18 @@ const verifyAppStoreConnect = async (
   payload: AppStoreConnectPayload
 ): Promise<{ isValid: boolean; message: string; details?: any }> => {
   try {
-    const { issuerId, keyId, privateKeyPem, targetAppId, appIdentifier } = payload;
+    const { issuerId, keyId, targetAppId, appIdentifier } = payload;
+    let { privateKeyPem } = payload;
+
+    // Decrypt private key if encrypted (check if it's not a PEM format)
+    if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
+      try {
+        privateKeyPem = decrypt(privateKeyPem);
+      } catch (error) {
+        // If decryption fails, assume it's not encrypted
+        console.warn('Failed to decrypt privateKeyPem, using as-is:', error);
+      }
+    }
 
     // Validate required fields
     const isIssuerIdMissing = !issuerId || issuerId.trim().length === 0;
@@ -229,7 +241,20 @@ const verifyGooglePlayStore = async (
   payload: GooglePlayStorePayload
 ): Promise<{ isValid: boolean; message: string; details?: any }> => {
   try {
-    const { serviceAccountJson, appIdentifier } = payload;
+    const serviceAccountJson = payload.serviceAccountJson as any;
+    const { appIdentifier } = payload;
+
+    // Decrypt service account private_key if encrypted
+    if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
+      try {
+        serviceAccountJson.private_key = decrypt(serviceAccountJson.private_key);
+        // Remove the encryption flag
+        delete serviceAccountJson._encrypted;
+      } catch (error) {
+        console.warn('Failed to decrypt service account private_key, using as-is:', error);
+        delete serviceAccountJson._encrypted;
+      }
+    }
 
     // Validate required fields
     const isServiceAccountMissing = !serviceAccountJson || typeof serviceAccountJson !== 'object';
@@ -262,10 +287,14 @@ const verifyGooglePlayStore = async (
       console.warn('project_id missing in service account JSON (unusual but not critical for authentication)');
     }
 
+    // Fix escaped newlines in private key
+    // When sent via JSON, \n becomes \\n, so we need to convert it back
+    const privateKey = serviceAccountJson.private_key.replace(/\\n/g, '\n');
+
     // Create GoogleAuth instance with service account credentials
     const credentials: any = {
       type: serviceAccountJson.type,
-      private_key: serviceAccountJson.private_key,
+      private_key: privateKey,
       client_email: serviceAccountJson.client_email,
     };
 
@@ -321,6 +350,7 @@ const verifyGooglePlayStore = async (
       accessToken = tokenResponse.token;
     } catch (authError: unknown) {
       const authErrorMessage = authError instanceof Error ? authError.message : 'Unknown error';
+      console.error('Google authentication failed: ', authErrorMessage);
       return {
         isValid: false,
         message: `Google authentication failed: ${authErrorMessage}`,
@@ -698,7 +728,8 @@ interface PlatformStoreTypeMapping {
   allowedStoreTypes: string[];
 }
 
-interface GetPlatformStoreTypesResponse {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _GetPlatformStoreTypesResponse {
   success: boolean;
   data?: PlatformStoreTypeMapping[];
   error?: string;
@@ -840,7 +871,8 @@ interface StoreIntegrationMetadata {
   updatedAt: Date;
 }
 
-interface StoreIntegrationsByPlatformResponse {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _StoreIntegrationsByPlatformResponse {
   success: boolean;
   data?: {
     IOS?: StoreIntegrationMetadata[];
@@ -949,7 +981,8 @@ export const getStoreIntegrationsByTenant = async (
 // Revoke Store Integrations by Tenant, StoreType, and Platform
 // ============================================================================
 
-interface RevokeStoreIntegrationsResponse {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _RevokeStoreIntegrationsResponse {
   success: boolean;
   data?: {
     revokedCount: number;
@@ -1080,7 +1113,8 @@ export const revokeStoreIntegrations = async (
 // Get Store Integration by ID
 // ============================================================================
 
-interface GetStoreIntegrationResponse {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _GetStoreIntegrationResponse {
   success: boolean;
   data?: {
     integrationId: string;
