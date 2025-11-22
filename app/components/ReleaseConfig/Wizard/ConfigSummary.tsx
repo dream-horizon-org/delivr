@@ -193,13 +193,13 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               <Text fw={500}>{config.scheduling.timezone}</Text>
               
               <Text c="dimmed">Release Time:</Text>
-              <Text fw={500}>{config.scheduling.defaultReleaseTime}</Text>
+              <Text fw={500}>{config.scheduling.targetReleaseTime}</Text>
               
               <Text c="dimmed">Kickoff Time:</Text>
-              <Text fw={500}>{config.scheduling.defaultKickoffTime}</Text>
+              <Text fw={500}>{config.scheduling.kickoffTime}</Text>
               
-              <Text c="dimmed">Kickoff Lead:</Text>
-              <Text fw={500}>{config.scheduling.kickoffLeadDays} days</Text>
+              <Text c="dimmed">Release Offset:</Text>
+              <Text fw={500}>{config.scheduling.targetReleaseDateOffsetFromKickoff} days</Text>
               
               <Text c="dimmed">Working Days:</Text>
               <Text fw={500}>{config.scheduling.workingDays.length} days/week</Text>
@@ -236,10 +236,10 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 </Text>
               </Group>
               <div className="ml-6 text-xs text-gray-600">
-                <div>• Releases: {config.communication.slack.channels.releases}</div>
-                <div>• Builds: {config.communication.slack.channels.builds}</div>
-                <div>• Regression: {config.communication.slack.channels.regression}</div>
-                <div>• Critical: {config.communication.slack.channels.critical}</div>
+                <div>• Releases: {config.communication.slack.channelData.releases.map(ch => `#${ch.name}`).join(', ')}</div>
+                <div>• Builds: {config.communication.slack.channelData.builds.map(ch => `#${ch.name}`).join(', ')}</div>
+                <div>• Regression: {config.communication.slack.channelData.regression.map(ch => `#${ch.name}`).join(', ')}</div>
+                <div>• Critical: {config.communication.slack.channelData.critical.map(ch => `#${ch.name}`).join(', ')}</div>
               </div>
             </div>
           ) : (

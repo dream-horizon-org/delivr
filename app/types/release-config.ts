@@ -192,10 +192,10 @@ export interface SlackChannel {
 }
 
 export interface SlackChannelConfig {
-  releases: string[]; // Channel IDs - supports multiple channels
-  builds: string[];
-  regression: string[];
-  critical: string[];
+  releases: SlackChannel[]; // Array of channel objects with id and name
+  builds: SlackChannel[];
+  regression: SlackChannel[];
+  critical: SlackChannel[];
 }
 
 export interface StageWiseSlackChannels {
@@ -209,7 +209,7 @@ export interface CommunicationConfig {
   slack?: {
     enabled: boolean;
     integrationId: string;
-    channels: SlackChannelConfig; // Channel mappings for different notification types
+    channelData: SlackChannelConfig; // Channel data with id and name for different notification types
   };
   
   email?: {

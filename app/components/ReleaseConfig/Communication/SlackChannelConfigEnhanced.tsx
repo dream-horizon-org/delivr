@@ -83,7 +83,7 @@ export function SlackChannelConfigEnhanced({
         ? {
             enabled: true,
             integrationId: '',
-            channels: {
+            channelData: {
               releases: [],
               builds: [],
               regression: [],
@@ -107,14 +107,20 @@ export function SlackChannelConfigEnhanced({
   };
 
   const handleChannelChange = (channelType: keyof SlackChannelConfig, channelIds: string[]) => {
-    if (slackConfig && slackConfig.channels) {
+    if (slackConfig && slackConfig.channelData) {
+      // Convert channel IDs to channel objects with id and name
+      const channelObjects = channelIds.map(id => {
+        const channel = availableChannels.find(ch => ch.id === id);
+        return channel || { id, name: id }; // Fallback if channel not found
+      });
+      
       onChange({
         ...config,
         slack: {
           ...slackConfig,
-          channels: {
-            ...slackConfig.channels,
-            [channelType]: channelIds,
+          channelData: {
+            ...slackConfig.channelData,
+            [channelType]: channelObjects,
           },
         },
       });
@@ -135,7 +141,7 @@ export function SlackChannelConfigEnhanced({
         label="Releases Channels"
         placeholder="Select channels"
         data={channelOptions}
-        value={channels.releases || []}
+        value={channels.releases?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('releases', val)}
         searchable
         clearable
@@ -145,7 +151,7 @@ export function SlackChannelConfigEnhanced({
         label="Builds Channels"
         placeholder="Select channels"
         data={channelOptions}
-        value={channels.builds || []}
+        value={channels.builds?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('builds', val)}
         searchable
         clearable
@@ -155,7 +161,7 @@ export function SlackChannelConfigEnhanced({
         label="Regression Channels"
         placeholder="Select channels"
         data={channelOptions}
-        value={channels.regression || []}
+        value={channels.regression?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('regression', val)}
         searchable
         clearable
@@ -165,7 +171,7 @@ export function SlackChannelConfigEnhanced({
         label="Critical Alerts Channels"
         placeholder="Select channels"
         data={channelOptions}
-        value={channels.critical || []}
+        value={channels.critical?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('critical', val)}
         searchable
         clearable
@@ -221,13 +227,13 @@ export function SlackChannelConfigEnhanced({
                       </Alert>
                     ) : availableChannels.length > 0 ? (
                       <>
-                        {slackConfig?.channels && (
+                        {slackConfig?.channelData && (
                           <div className="bg-gray-50 p-4 rounded-lg">
                             <Text size="sm" fw={500} className="mb-3">
                               Channel Mappings
                             </Text>
                             {renderChannelSelects(
-                              slackConfig.channels,
+                              slackConfig.channelData,
                               (type, value) => handleChannelChange(type, value)
                             )}
                           </div>

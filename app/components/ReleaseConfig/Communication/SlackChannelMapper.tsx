@@ -10,10 +10,10 @@ interface SlackChannelMapperProps {
   enabled: boolean;
   integrationId: string;
   channels: {
-    releases: string[];
-    builds: string[];
-    regression: string[];
-    critical: string[];
+    releases: Array<{ id: string; name: string }>;
+    builds: Array<{ id: string; name: string }>;
+    regression: Array<{ id: string; name: string }>;
+    critical: Array<{ id: string; name: string }>;
   };
   onToggle: (enabled: boolean) => void;
   onChange: (channels: any) => void;
@@ -82,10 +82,14 @@ export function SlackChannelMapper({
                       label="Releases Channels"
                       placeholder="Select channels for release notifications"
                       data={channelOptions}
-                      value={channels.releases || []}
-                      onChange={(val) =>
-                        onChange({ ...channels, releases: val })
-                      }
+                      value={channels.releases?.map(ch => ch.id) || []}
+                      onChange={(val) => {
+                        const channelObjects = val.map(id => {
+                          const channel = availableChannels.find(ch => ch.id === id);
+                          return channel || { id, name: id };
+                        });
+                        onChange({ ...channels, releases: channelObjects });
+                      }}
                       searchable
                       clearable
                       description="Release announcements and status updates (supports multiple channels)"
@@ -95,10 +99,14 @@ export function SlackChannelMapper({
                       label="Builds Channels"
                       placeholder="Select channels for build notifications"
                       data={channelOptions}
-                      value={channels.builds || []}
-                      onChange={(val) =>
-                        onChange({ ...channels, builds: val })
-                      }
+                      value={channels.builds?.map(ch => ch.id) || []}
+                      onChange={(val) => {
+                        const channelObjects = val.map(id => {
+                          const channel = availableChannels.find(ch => ch.id === id);
+                          return channel || { id, name: id };
+                        });
+                        onChange({ ...channels, builds: channelObjects });
+                      }}
                       searchable
                       clearable
                       description="Build status and completion notifications (supports multiple channels)"
@@ -108,10 +116,14 @@ export function SlackChannelMapper({
                       label="Regression Channels"
                       placeholder="Select channels for regression updates"
                       data={channelOptions}
-                      value={channels.regression || []}
-                      onChange={(val) =>
-                        onChange({ ...channels, regression: val })
-                      }
+                      value={channels.regression?.map(ch => ch.id) || []}
+                      onChange={(val) => {
+                        const channelObjects = val.map(id => {
+                          const channel = availableChannels.find(ch => ch.id === id);
+                          return channel || { id, name: id };
+                        });
+                        onChange({ ...channels, regression: channelObjects });
+                      }}
                       searchable
                       clearable
                       description="Regression test updates (supports multiple channels)"
@@ -121,10 +133,14 @@ export function SlackChannelMapper({
                       label="Critical Alerts Channels"
                       placeholder="Select channels for critical alerts"
                       data={channelOptions}
-                      value={channels.critical || []}
-                      onChange={(val) =>
-                        onChange({ ...channels, critical: val })
-                      }
+                      value={channels.critical?.map(ch => ch.id) || []}
+                      onChange={(val) => {
+                        const channelObjects = val.map(id => {
+                          const channel = availableChannels.find(ch => ch.id === id);
+                          return channel || { id, name: id };
+                        });
+                        onChange({ ...channels, critical: channelObjects });
+                      }}
                       searchable
                       clearable
                       description="Critical issues and urgent notifications (supports multiple channels)"
