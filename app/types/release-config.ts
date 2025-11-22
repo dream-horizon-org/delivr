@@ -170,7 +170,6 @@ export interface JiraPlatformConfig {
 export interface JiraProjectConfig {
   enabled: boolean;
   integrationId: string; // Reference to connected JIRA integration
-  pmConfigId?: string; // Backend project management config ID (set after creation)
   
   // Platform-specific configurations
   platformConfigurations: JiraPlatformConfig[]; // One config per platform

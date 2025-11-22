@@ -119,7 +119,6 @@ export function transformBackendDTOToJiraConfig(
   return {
     enabled: backendConfig.isActive,
     integrationId: backendConfig.integrationId,
-    pmConfigId: backendConfig.id,
     platformConfigurations: backendConfig.platformConfigurations.map(pc => ({
       platform: pc.platform,
       projectKey: (pc.parameters.projectKey as string) || '',
