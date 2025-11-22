@@ -5,7 +5,7 @@
 
 import { AUTH_SCHEMES, CONTENT_TYPES, HTTP_HEADERS, HTTP_METHODS, HTTP_STATUS } from '~constants/http';
 import { TestManagementProviderType, TestRunStatus } from '~types/integrations/test-management';
-import type { ProjectTestManagementIntegrationConfig } from '~types/integrations/test-management/project-integration';
+import type { TenantTestManagementIntegrationConfig } from '~types/integrations/test-management/tenant-integration';
 import type {
   ITestManagementProvider,
   PlatformTestParameters,
@@ -41,28 +41,20 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Type guard to validate Checkmate configuration
+   * Checks for required fields: baseUrl (string), authToken (string), orgId (number)
    */
-  private isCheckmateConfig = (config: ProjectTestManagementIntegrationConfig): config is CheckmateConfig => {
-    const baseUrlExists = 'baseUrl' in config;
-    const baseUrlIsString = typeof config.baseUrl === 'string';
-    const hasBaseUrl = baseUrlExists && baseUrlIsString;
+  private isCheckmateConfig = (config: TenantTestManagementIntegrationConfig): config is CheckmateConfig => {
+    const hasValidBaseUrl = 'baseUrl' in config && typeof config.baseUrl === 'string';
+    const hasValidAuthToken = 'authToken' in config && typeof config.authToken === 'string';
+    const hasValidOrgId = 'orgId' in config && typeof config.orgId === 'number';
     
-    const authTokenExists = 'authToken' in config;
-    const authTokenIsString = typeof config.authToken === 'string';
-    const hasAuthToken = authTokenExists && authTokenIsString;
-    
-    const orgIdExists = 'orgId' in config;
-    const orgIdIsNumber = typeof config.orgId === 'number';
-    const hasOrgId = orgIdExists && orgIdIsNumber;
-    
-    const configIsValid = hasBaseUrl && hasAuthToken && hasOrgId;
-    return configIsValid;
+    return hasValidBaseUrl && hasValidAuthToken && hasValidOrgId;
   };
 
   /**
    * Get Checkmate config from generic config (with validation)
    */
-  private getCheckmateConfig = (config: ProjectTestManagementIntegrationConfig): CheckmateConfig => {
+  private getCheckmateConfig = (config: TenantTestManagementIntegrationConfig): CheckmateConfig => {
     const isValidConfig = this.isCheckmateConfig(config);
     
     if (!isValidConfig) {
@@ -105,21 +97,34 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Map Checkmate run status to our TestRunStatus
+   * 
+   * Status meanings:
+   * - PENDING: Test run created but not yet started
+   * - IN_PROGRESS: Tests are currently being executed
+   * - COMPLETED: Test run finished execution (regardless of pass/fail)
+   * - FAILED: Test run failed to execute (system error, not test failures)
+   * 
+   * Note: Pass/fail evaluation based on test results happens at the service layer
+   * using passThresholdPercent. This method only indicates execution status.
    */
   private mapRunStatus = (checkmateData: CheckmateRunStateData): TestRunStatus => {
     const inProgressCount = checkmateData.inProgress ?? 0;
     const allTestsCompleted = checkmateData.untested === 0 && inProgressCount === 0;
     
+    // If all tests are completed (no untested, no in-progress), mark as COMPLETED
+    // The service layer will evaluate pass/fail using the threshold
     if (allTestsCompleted) {
-      return checkmateData.failed > 0 ? TestRunStatus.FAILED : TestRunStatus.COMPLETED;
+      return TestRunStatus.COMPLETED;
     }
     
+    // If any tests have been executed, mark as IN_PROGRESS
     const testingHasStarted = checkmateData.passed > 0 || checkmateData.failed > 0;
     
     if (testingHasStarted) {
       return TestRunStatus.IN_PROGRESS;
     }
     
+    // No tests executed yet
     return TestRunStatus.PENDING;
   };
 
@@ -152,7 +157,7 @@ export class CheckmateProvider implements ITestManagementProvider {
   /**
    * Validate Checkmate configuration
    */
-  validateConfig = async (config: ProjectTestManagementIntegrationConfig): Promise<boolean> => {
+  validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<boolean> => {
     const isValidCheckmateConfig = this.isCheckmateConfig(config);
     
     if (!isValidCheckmateConfig) {
@@ -206,7 +211,7 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Create a new test run in Checkmate
    */
   createTestRun = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     parameters: PlatformTestParameters
   ): Promise<TestRunResult> => {
     const checkmateConfig = this.getCheckmateConfig(config);
@@ -249,7 +254,13 @@ export class CheckmateProvider implements ITestManagementProvider {
       }
     );
 
-    const runId = response.runId.toString();
+    // Validate response has runId
+    const isValidRunId = response?.data?.runId ?? false;
+    if (!isValidRunId) {
+      throw new Error('Checkmate API returned success but no runId in response');
+    }
+
+    const runId = response.data.runId.toString();
     const runUrl = this.buildRunUrl(checkmateConfig.baseUrl, projectId, runId);
     
     return {
@@ -263,7 +274,7 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Get test status from Checkmate
    */
   getTestStatus = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string
   ): Promise<TestStatusResult> => {
     const checkmateConfig = this.getCheckmateConfig(config);
@@ -297,48 +308,61 @@ export class CheckmateProvider implements ITestManagementProvider {
 
   /**
    * Reset a test run in Checkmate
+   * Calls Checkmate's /api/v1/run/reset which marks all Passed tests as Retest
    */
   resetTestRun = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string
   ): Promise<TestRunResult> => {
     const checkmateConfig = this.getCheckmateConfig(config);
-    const endpoint = this.buildRunActionEndpoint(CHECKMATE_API_ENDPOINTS.RUN_RESET, runId);
     
+    // Call Checkmate's reset endpoint (only requires runId)
     await this.makeRequest(
       checkmateConfig,
-      endpoint,
+      CHECKMATE_API_ENDPOINTS.RUN_RESET,
       {
-        method: HTTP_METHODS.POST,
-        body: '{}'
+        method: HTTP_METHODS.PUT,
+        body: JSON.stringify({
+          runId: parseInt(runId)
+        })
       }
     );
-
+    
     const runUrl = this.buildSimpleRunUrl(checkmateConfig.baseUrl, runId);
-
+    
     return {
       runId,
       url: runUrl,
-      status: TestRunStatus.PENDING
+      status: TestRunStatus.PENDING // Reset makes tests available for re-execution
     };
   };
 
   /**
    * Cancel a test run in Checkmate
+   * Calls Checkmate's /api/v1/run/delete which soft-deletes the run (sets status to 'Deleted')
    */
   cancelTestRun = async (
-    config: ProjectTestManagementIntegrationConfig,
-    runId: string
+    config: TenantTestManagementIntegrationConfig,
+    runId: string,
+    projectId: number
   ): Promise<void> => {
     const checkmateConfig = this.getCheckmateConfig(config);
-    const endpoint = this.buildRunActionEndpoint(CHECKMATE_API_ENDPOINTS.RUN_CANCEL, runId);
     
+    if (!projectId) {
+      throw new Error('projectId is required for Checkmate cancel operation');
+    }
+    
+    // Call Checkmate's delete endpoint (soft delete)
+    // Note: userId is added server-side by Checkmate from authenticated user
     await this.makeRequest(
       checkmateConfig,
-      endpoint,
+      CHECKMATE_API_ENDPOINTS.RUN_DELETE,
       {
-        method: HTTP_METHODS.POST,
-        body: '{}'
+        method: HTTP_METHODS.DELETE,
+        body: JSON.stringify({
+          runId: parseInt(runId),
+          projectId: projectId
+        })
       }
     );
   };
@@ -347,7 +371,7 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Get detailed test report from Checkmate
    */
   getTestReport = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     runId: string,
     groupBy?: string
   ): Promise<unknown> => {
@@ -376,13 +400,13 @@ export class CheckmateProvider implements ITestManagementProvider {
   /**
    * Get all projects for an organization
    */
-  getProjects = async (config: ProjectTestManagementIntegrationConfig): Promise<CheckmateProjectsResponse> => {
+  getProjects = async (config: TenantTestManagementIntegrationConfig): Promise<CheckmateProjectsResponse> => {
     const checkmateConfig = this.getCheckmateConfig(config);
     
     const params = new URLSearchParams();
     params.append(CHECKMATE_QUERY_PARAMS.ORG_ID, checkmateConfig.orgId.toString());
     params.append(CHECKMATE_QUERY_PARAMS.PAGE, '1');
-    params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, '1000');
+    params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, CHECKMATE_DEFAULTS.METADATA_PAGE_SIZE.toString());
     
     const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
     const response = await this.makeRequest<CheckmateProjectsResponse>(
@@ -400,7 +424,7 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Get all sections for a project
    */
   getSections = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     projectId: number
   ): Promise<CheckmateSectionsResponse> => {
     const checkmateConfig = this.getCheckmateConfig(config);
@@ -424,7 +448,7 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Get all labels for a project
    */
   getLabels = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     projectId: number
   ): Promise<CheckmateLabelsResponse> => {
     const checkmateConfig = this.getCheckmateConfig(config);
@@ -448,7 +472,7 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Get all squads for a project
    */
   getSquads = async (
-    config: ProjectTestManagementIntegrationConfig,
+    config: TenantTestManagementIntegrationConfig,
     projectId: number
   ): Promise<CheckmateSquadsResponse> => {
     const checkmateConfig = this.getCheckmateConfig(config);

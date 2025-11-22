@@ -1,4 +1,4 @@
-// Type definitions for project-level test management integrations
+// Type definitions for tenant-level test management integrations
 // Strict typing - no 'any' types, explicit type definitions
 
 // Enum-like const object pattern - provides both type AND value
@@ -25,39 +25,39 @@ export type VerificationStatus = typeof VerificationStatusValues[keyof typeof Ve
 export const VerificationStatus = VerificationStatusValues;
 
 // Base configuration type - provider-specific
-export type ProjectTestManagementIntegrationConfig = {
+export type TenantTestManagementIntegrationConfig = {
   baseUrl: string;
   authToken: string;
   [key: string]: unknown; // Allow provider-specific additional fields
 };
 
 // Main entity type
-export type ProjectTestManagementIntegration = {
+export type TenantTestManagementIntegration = {
   id: string;
-  projectId: string;
+  tenantId: string;
   name: string;
   providerType: TestManagementProviderType;
-  config: ProjectTestManagementIntegrationConfig;
+  config: TenantTestManagementIntegrationConfig;
   createdByAccountId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
 // DTOs for API operations
-export type CreateProjectTestManagementIntegrationDto = {
-  projectId: string;
+export type CreateTenantTestManagementIntegrationDto = {
+  tenantId: string;
   name: string;
   providerType: TestManagementProviderType;
-  config: ProjectTestManagementIntegrationConfig;
+  config: TenantTestManagementIntegrationConfig;
   createdByAccountId?: string;
 };
 
-export type UpdateProjectTestManagementIntegrationDto = {
+export type UpdateTenantTestManagementIntegrationDto = {
   name?: string;
-  config?: Partial<ProjectTestManagementIntegrationConfig>;
+  config?: Partial<TenantTestManagementIntegrationConfig>;
 };
 
-export type VerifyProjectTestManagementIntegrationResult = {
+export type VerifyTenantTestManagementIntegrationResult = {
   success: boolean;
   status: VerificationStatus;
   message: string;
@@ -65,8 +65,8 @@ export type VerifyProjectTestManagementIntegrationResult = {
 };
 
 // Query filters
-export type FindProjectIntegrationsFilter = {
-  projectId: string;
+export type FindTenantIntegrationsFilter = {
+  tenantId: string;
   providerType?: TestManagementProviderType;
 };
 

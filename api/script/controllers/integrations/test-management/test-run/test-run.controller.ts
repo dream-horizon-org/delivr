@@ -23,9 +23,9 @@ import { validatePlatforms } from './test-run.validation';
  * If platforms is provided, only creates runs for those specific platforms.
  * 
  * Returns: {
- *   IOS: { runId, url, status },              // Success
- *   ANDROID_WEB: { error: "Network timeout" },  // Failure
- *   ANDROID_PLAYSTORE: { runId, url, status }   // Success
+ *   IOS_APP_STORE: { runId, url, status },              // Success
+ *   ANDROID_PLAY_STORE: { error: "Network timeout" },  // Failure
+ *   IOS_TESTFLIGHT: { runId, url, status }   // Success
  * }
  * 
  * Note: Supports partial success - some platforms may succeed while others fail.

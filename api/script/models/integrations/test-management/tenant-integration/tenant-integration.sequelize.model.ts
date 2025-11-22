@@ -1,27 +1,27 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
 import type {
-  ProjectTestManagementIntegration,
-  ProjectTestManagementIntegrationConfig,
+  TenantTestManagementIntegration,
+  TenantTestManagementIntegrationConfig,
   TestManagementProviderType
-} from '~types/integrations/test-management/project-integration';
+} from '~types/integrations/test-management/tenant-integration';
 
-export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize) => {
-  class ProjectTestManagementIntegrationModel
-    extends Model<ProjectTestManagementIntegration>
-    implements ProjectTestManagementIntegration
+export const createTenantTestManagementIntegrationModel = (sequelize: Sequelize) => {
+  class TenantTestManagementIntegrationModel
+    extends Model<TenantTestManagementIntegration>
+    implements TenantTestManagementIntegration
   {
     declare id: string;
-    declare projectId: string;
+    declare tenantId: string;
     declare name: string;
     declare providerType: TestManagementProviderType;
-    declare config: ProjectTestManagementIntegrationConfig;
+    declare config: TenantTestManagementIntegrationConfig;
     declare createdByAccountId: string | null;
     declare createdAt: Date;
     declare updatedAt: Date;
   }
 
-  ProjectTestManagementIntegrationModel.init(
+  TenantTestManagementIntegrationModel.init(
     {
       id: {
         type: DataTypes.UUID,
@@ -29,10 +29,17 @@ export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize
         primaryKey: true,
         comment: 'Primary key'
       },
-      projectId: {
-        type: DataTypes.STRING(255),
+      tenantId: {
+        type: DataTypes.UUID,
         allowNull: false,
-        comment: 'Project identifier - links to project service'
+        field: 'tenant_id',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Tenant identifier (references tenants.id)'
       },
       name: {
         type: DataTypes.STRING(255),
@@ -48,7 +55,7 @@ export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize
         comment: 'Test management provider type'
       },
       config: {
-        type: DataTypes.JSONB,
+        type: DataTypes.JSON,
         allowNull: false,
         defaultValue: {},
         comment: 'Provider configuration (baseUrl, authToken, etc.)'
@@ -73,32 +80,32 @@ export const createProjectTestManagementIntegrationModel = (sequelize: Sequelize
     },
     {
       sequelize,
-      tableName: 'project_test_management_integrations',
+      tableName: 'tenant_test_management_integrations',
       timestamps: true,
       underscored: true,
       indexes: [
         {
-          name: 'idx_ptmi_project',
-          fields: ['projectId']
+          name: 'idx_ptmi_tenant',
+          fields: ['tenant_id']  // Index on tenant_id
         },
         {
           name: 'idx_ptmi_provider',
-          fields: ['providerType']
+          fields: ['provider_type']
         },
         {
           name: 'idx_ptmi_created_at',
-          fields: ['createdAt']
+          fields: ['created_at']
         },
         {
           name: 'idx_ptmi_unique_name',
           unique: true,
-          fields: ['projectId', 'name']
+          fields: ['tenant_id', 'name']  // Unique constraint on tenant_id + name
         }
       ]
     }
   );
 
-  return ProjectTestManagementIntegrationModel;
+  return TenantTestManagementIntegrationModel;
 };
 
-export type ProjectTestManagementIntegrationModelType = ReturnType<typeof createProjectTestManagementIntegrationModel>;
+export type TenantTestManagementIntegrationModelType = ReturnType<typeof createTenantTestManagementIntegrationModel>;

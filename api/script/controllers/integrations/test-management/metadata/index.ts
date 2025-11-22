@@ -1,1 +1,1 @@
-export { createCheckmateMetadataController, validateProjectId } from './checkmate';
+export { createCheckmateMetadataController, validateCheckmateProjectId } from './checkmate';

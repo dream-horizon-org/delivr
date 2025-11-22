@@ -2,7 +2,7 @@ import { TestManagementProviderType } from '~types/integrations/test-management'
 import { hasProperty } from '~utils/type-guards.utils';
 
 /**
- * Validation utilities for project integration test management
+ * Validation utilities for tenant integration test management
  */
 
 /**

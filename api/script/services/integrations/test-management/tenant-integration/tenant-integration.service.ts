@@ -1,14 +1,14 @@
 import { TEST_MANAGEMENT_ERROR_MESSAGES } from '~controllers/integrations/test-management/constants';
-import type { ProjectTestManagementIntegrationRepository } from '~models/integrations/test-management/project-integration/project-integration.repository';
+import type { TenantTestManagementIntegrationRepository } from '~models/integrations/test-management/tenant-integration/tenant-integration.repository';
 import type {
-  CreateProjectTestManagementIntegrationDto,
-  ProjectTestManagementIntegration,
-  ProjectTestManagementIntegrationConfig,
+  CreateTenantTestManagementIntegrationDto,
+  TenantTestManagementIntegration,
+  TenantTestManagementIntegrationConfig,
   TestManagementProviderType,
-  UpdateProjectTestManagementIntegrationDto,
-  VerifyProjectTestManagementIntegrationResult
-} from '~types/integrations/test-management/project-integration';
-import { VerificationStatus } from '~types/integrations/test-management/project-integration';
+  UpdateTenantTestManagementIntegrationDto,
+  VerifyTenantTestManagementIntegrationResult
+} from '~types/integrations/test-management/tenant-integration';
+import { VerificationStatus } from '~types/integrations/test-management/tenant-integration';
 import { ProviderFactory } from '../providers/provider.factory';
 
 /**
@@ -23,15 +23,15 @@ import { ProviderFactory } from '../providers/provider.factory';
  */
 export class TestManagementIntegrationService {
   constructor(
-    private readonly repository: ProjectTestManagementIntegrationRepository
+    private readonly repository:TenantTestManagementIntegrationRepository
   ) {}
 
   /**
-   * Create a new project integration
+   * Create a new tenant integration
    */
-  async createProjectIntegration(
-    data: CreateProjectTestManagementIntegrationDto
-  ): Promise<ProjectTestManagementIntegration> {
+  async createTenantIntegration(
+    data: CreateTenantTestManagementIntegrationDto
+  ): Promise<TenantTestManagementIntegration> {
     // Validate config structure before creating
     const provider = ProviderFactory.getProvider(data.providerType);
     const isValidConfig = await provider.validateConfig(data.config);
@@ -44,26 +44,26 @@ export class TestManagementIntegrationService {
   }
 
   /**
-   * List all integrations for a project
+   * List all integrations for a tenant
    */
-  async listProjectIntegrations(projectId: string): Promise<ProjectTestManagementIntegration[]> {
-    return await this.repository.findAll({ projectId });
+  async listTenantIntegrations(tenantId: string): Promise<TenantTestManagementIntegration[]> {
+    return await this.repository.findAll({ tenantId });
   }
 
   /**
    * Get a specific integration by ID
    */
-  async getProjectIntegration(integrationId: string): Promise<ProjectTestManagementIntegration | null> {
+  async getTenantIntegration(integrationId: string): Promise<TenantTestManagementIntegration | null> {
     return await this.repository.findById(integrationId);
   }
 
   /**
    * Update an existing integration
    */
-  async updateProjectIntegration(
+  async updateTenantIntegration(
     integrationId: string,
-    data: UpdateProjectTestManagementIntegrationDto
-  ): Promise<ProjectTestManagementIntegration | null> {
+    data: UpdateTenantTestManagementIntegrationDto
+  ): Promise<TenantTestManagementIntegration | null> {
     // If config is being updated, validate it
     const configIsBeingUpdated = data.config !== undefined;
     
@@ -95,16 +95,16 @@ export class TestManagementIntegrationService {
   /**
    * Delete an integration
    */
-  async deleteProjectIntegration(integrationId: string): Promise<boolean> {
+  async deleteTenantIntegration(integrationId: string): Promise<boolean> {
     return await this.repository.delete(integrationId);
   }
 
   /**
    * Verify an integration by testing connectivity
    */
-  async verifyProjectIntegration(
+  async verifyTenantIntegration(
     integrationId: string
-  ): Promise<VerifyProjectTestManagementIntegrationResult> {
+  ): Promise<VerifyTenantTestManagementIntegrationResult> {
     const integration = await this.repository.findById(integrationId);
     
     if (!integration) {
@@ -141,8 +141,8 @@ export class TestManagementIntegrationService {
    */
   async verifyCredentials(
     providerType: TestManagementProviderType,
-    config: ProjectTestManagementIntegrationConfig
-  ): Promise<VerifyProjectTestManagementIntegrationResult> {
+    config:TenantTestManagementIntegrationConfig
+  ): Promise<VerifyTenantTestManagementIntegrationResult> {
     try {
       const provider = ProviderFactory.getProvider(providerType);
       const isValid = await provider.validateConfig(config);
