@@ -477,7 +477,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       if ((storage as any).testManagementIntegrationService) {
         try {
           testManagementIntegrations = await (storage as any).testManagementIntegrationService.listTenantIntegrations(tenantId);
-          console.log(`[TenantInfo] Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
+          console.log(`[TenantInfo] ===================================  Found ${testManagementIntegrations.length} test management integrations for tenant ${tenantId}`);
         } catch (error) {
           console.error('[TenantInfo] Error fetching test management integrations:', error);
         }
@@ -488,7 +488,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       if (projectManagementIntegrationRepository) {
         try {
           projectManagementIntegrations = await projectManagementIntegrationRepository.findAll({ 
-            projectId: tenantId
+            tenantId: tenantId
           });
           console.log(`[TenantInfo] Found ${projectManagementIntegrations.length} project management integrations for tenant ${tenantId}`);
         } catch (error) {

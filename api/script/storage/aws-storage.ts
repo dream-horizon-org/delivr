@@ -829,7 +829,7 @@ export class S3Storage implements storage.Storage {
       }
   
     public getAccount(accountId: string): Promise<storage.Account> {
-      console.log("Fetching account for accountId:", accountId); // Debug log
+      // console.log("Fetching account for accountId:", accountId); // Debug log
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.ACCOUNT].findByPk(accountId)
