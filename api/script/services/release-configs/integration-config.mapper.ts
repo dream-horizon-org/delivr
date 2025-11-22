@@ -27,7 +27,7 @@ export class IntegrationConfigMapper {
     }
 
     return {
-      tenantId: requestData.organizationId,
+      tenantId: requestData.tenantId,
       integrationId: requestData.testManagement.integrationId,
       passThresholdPercent: requestData.testManagement.passThresholdPercent ?? 100,
       platformConfigurations: requestData.testManagement.platformConfigurations ?? [],
@@ -39,13 +39,18 @@ export class IntegrationConfigMapper {
    * Prepare CI config from request data
    * TODO: Return proper CreateCIConfigDto when CI integration implements types
    */
-  static prepareCIConfig(requestData: CreateReleaseConfigRequest): any | null {
+  static prepareCIConfig(
+    requestData: CreateReleaseConfigRequest,
+    currentUserId: string
+  ): any | null {
     if (!requestData.workflows || requestData.workflows.length === 0) {
       return null;
     }
 
     return {
-      workflows: requestData.workflows // Map workflows to workflows for CI service
+      tenantId: requestData.tenantId,
+      workflows: requestData.workflows,
+      createdByAccountId: currentUserId
     };
   }
 
@@ -58,7 +63,10 @@ export class IntegrationConfigMapper {
       return null;
     }
 
-    return requestData.communication;
+    return {
+      tenantId: requestData.tenantId,
+      channelData: requestData.communication.channelData
+    };
   }
 
 
@@ -66,12 +74,22 @@ export class IntegrationConfigMapper {
    * Prepare project management config from request data
    * TODO: Return proper CreateProjectManagementConfigDto when Project Management integration implements types
    */
-  static prepareProjectManagementConfig(requestData: CreateReleaseConfigRequest): any | null {
-    if (!requestData.jiraProject) {
+  static prepareProjectManagementConfig(
+    requestData: CreateReleaseConfigRequest,
+    currentUserId: string
+  ): any | null {
+    if (!requestData.projectManagement) {
       return null;
     }
 
-    return requestData.jiraProject;
+    return {
+      tenantId: requestData.tenantId,
+      integrationId: requestData.projectManagement.integrationId,
+      name: requestData.projectManagement.name,
+      description: requestData.projectManagement.description,
+      platformConfigurations: requestData.projectManagement.platformConfigurations,
+      createdByAccountId: currentUserId
+    };
   }
 
   /**
@@ -82,10 +100,10 @@ export class IntegrationConfigMapper {
     currentUserId: string
   ): IntegrationConfigs {
     return {
-      ci: this.prepareCIConfig(requestData),
+      ci: this.prepareCIConfig(requestData, currentUserId),
       testManagement: this.prepareTestManagementConfig(requestData, currentUserId),
       communication: this.prepareCommunicationConfig(requestData),
-      projectManagement: this.prepareProjectManagementConfig(requestData)
+      projectManagement: this.prepareProjectManagementConfig(requestData, currentUserId)
     };
   }
 }

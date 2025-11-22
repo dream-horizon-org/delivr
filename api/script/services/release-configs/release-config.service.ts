@@ -52,7 +52,7 @@ export class ReleaseConfigService {
     // Validate CI configuration
     if (integrationConfigs.ci && this.cicdConfigService?.validateConfig) {
       const ciValidation = await this.cicdConfigService.validateConfig({
-        tenantId: requestData.organizationId,
+        tenantId: requestData.tenantId,
         workflows: integrationConfigs.ci.workflows || [],
         createdByAccountId: currentUserId
       });
@@ -62,7 +62,7 @@ export class ReleaseConfigService {
     // Validate Test Management configuration
     if (integrationConfigs.testManagement && this.testManagementConfigService?.validateConfig) {
       const testMgmtValidation = this.testManagementConfigService.validateConfig({
-        tenantId: requestData.organizationId,
+        tenantId: requestData.tenantId,
         integrationId: integrationConfigs.testManagement.integrationId || '',
         name: `Test Config for ${requestData.name}`,
         passThresholdPercent: integrationConfigs.testManagement.passThresholdPercent || 100,
@@ -75,7 +75,7 @@ export class ReleaseConfigService {
     // Validate Communication configuration
     if (integrationConfigs.communication && this.slackChannelConfigService?.validateConfig) {
       const commValidation = this.slackChannelConfigService.validateConfig({
-        tenantId: requestData.organizationId,
+        tenantId: requestData.tenantId,
         channelData: integrationConfigs.communication.slack?.channels || {}
       });
       validationResults.push(commValidation);
@@ -127,7 +127,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing CI config:', integrationConfigIds.ciConfigId);
       } else {
         const ciResult = await this.cicdConfigService.createConfig({
-          tenantId: requestData.organizationId,
+          tenantId: requestData.tenantId,
           workflows: integrationConfigs.ci.workflows || [],
           createdByAccountId: currentUserId
         });
@@ -143,7 +143,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing TCM config:', integrationConfigIds.testManagementConfigId);
       } else {
         const tcmConfigDto: CreateTestManagementConfigDto = {
-          tenantId: requestData.organizationId,
+          tenantId: requestData.tenantId,
           name: requestData.testManagement?.name || `TCM Config for ${requestData.name}`,
           ...integrationConfigs.testManagement
         };
@@ -160,7 +160,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing Communication config:', integrationConfigIds.commsConfigId);
       } else {
         const commConfig = await this.slackChannelConfigService.createConfig({
-          tenantId: requestData.organizationId,
+          tenantId: requestData.tenantId,
           channelData: integrationConfigs.communication.slack?.channels || {}
         });
         integrationConfigIds.commsConfigId = commConfig.id;
@@ -170,15 +170,15 @@ export class ReleaseConfigService {
 
     // Create Project Management config
     if (integrationConfigs.projectManagement && this.projectManagementConfigService) {
-      if (requestData.jiraProject?.id?.trim()) {
-        integrationConfigIds.projectManagementConfigId = requestData.jiraProject.id;
+      if (requestData.projectManagement?.id?.trim()) {
+        integrationConfigIds.projectManagementConfigId = requestData.projectManagement.id;
         console.log('Reusing existing Project Management config:', integrationConfigIds.projectManagementConfigId);
       } else {
         const pmConfig = await this.projectManagementConfigService.createConfig({
-          tenantId: requestData.organizationId,
+          tenantId: requestData.tenantId,
           integrationId: integrationConfigs.projectManagement.integrationId || '',
-          name: requestData.jiraProject?.name || `PM Config for ${requestData.name}`,
-          description: requestData.jiraProject?.description || '',
+          name: requestData.projectManagement?.name || `PM Config for ${requestData.name}`,
+          description: requestData.projectManagement?.description || '',
           createdByAccountId: currentUserId,
           ...integrationConfigs.projectManagement
         });
@@ -232,7 +232,7 @@ export class ReleaseConfigService {
     }
 
     // Step 4: Check if configuration name already exists for this tenant
-    const existing = await this.configRepo.findByTenantIdAndName(requestData.organizationId, requestData.name);
+    const existing = await this.configRepo.findByTenantIdAndName(requestData.tenantId, requestData.name);
     if (existing) {
       return {
         success: false,
@@ -246,13 +246,13 @@ export class ReleaseConfigService {
 
     // Step 5: If this is marked as default, unset any existing default
     if (requestData.isDefault) {
-      await this.configRepo.unsetDefaultForTenant(requestData.organizationId);
+      await this.configRepo.unsetDefaultForTenant(requestData.tenantId);
     }
 
     // Step 6: Create release config in database
     const id = shortid.generate();
     const createDto: CreateReleaseConfigDto = {
-      tenantId: requestData.organizationId,
+      tenantId: requestData.tenantId,
       name: requestData.name,
       description: requestData.description ?? null,
       releaseType: requestData.releaseType,

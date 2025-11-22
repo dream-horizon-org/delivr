@@ -77,7 +77,7 @@ export type UpdateReleaseConfigDto = {
  * Request body structure from client for creating release configuration
  */
 export type CreateReleaseConfigRequest = {
-  organizationId: string;      // Maps to tenantId
+  tenantId: string;
   name: string;
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
@@ -90,8 +90,7 @@ export type CreateReleaseConfigRequest = {
   workflows?: Workflow[];                // Will be sent to CI integration service if no ciConfigId
   testManagement?: TestManagementRequestConfig;        // Will be sent to TCM integration service
   communication?: any;         // TODO: Use proper Communication config type when implemented
-  jiraConfig?: any;            // TODO: Use proper Project Management config type when implemented
-  jiraProject?: any;           // TODO: Use proper Project Management config type when implemented
+  projectManagement?: any;     // TODO: Use proper Project Management config type when implemented
   
   scheduling?: ReleaseScheduling;            // Stored directly as JSON
   baseBranch?: string;         // Base branch for releases
