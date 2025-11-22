@@ -59,8 +59,18 @@ export class ReleaseConfigService {
       validationResults.push(ciValidation);
     }
 
-    // Test Management validation is done at the provider level during integration creation
-    // No service-level validation needed here
+    // Validate Test Management configuration
+    if (integrationConfigs.testManagement && this.testManagementConfigService?.validateConfig) {
+      const testMgmtValidation = this.testManagementConfigService.validateConfig({
+        tenantId: requestData.organizationId,
+        integrationId: integrationConfigs.testManagement.integrationId || '',
+        name: `Test Config for ${requestData.name}`,
+        passThresholdPercent: integrationConfigs.testManagement.passThresholdPercent || 100,
+        platformConfigurations: integrationConfigs.testManagement.platformConfigurations || [],
+        createdByAccountId: currentUserId
+      });
+      validationResults.push(testMgmtValidation);
+    }
 
     // Validate Communication configuration
     if (integrationConfigs.communication && this.slackChannelConfigService?.validateConfig) {
@@ -133,7 +143,7 @@ export class ReleaseConfigService {
         console.log('Reusing existing TCM config:', integrationConfigIds.testManagementConfigId);
       } else {
         const tcmConfigDto: CreateTestManagementConfigDto = {
-          projectId: requestData.organizationId,
+          tenantId: requestData.organizationId,
           name: requestData.testManagement?.name || `TCM Config for ${requestData.name}`,
           ...integrationConfigs.testManagement
         };

@@ -21,12 +21,13 @@ export class IntegrationConfigMapper {
   static prepareTestManagementConfig(
     requestData: CreateReleaseConfigRequest,
     currentUserId: string
-  ): Omit<CreateTestManagementConfigDto, 'projectId' | 'name'> | null {
+  ): Omit<CreateTestManagementConfigDto, 'name'> | null {
     if (!requestData.testManagement) {
       return null;
     }
 
     return {
+      tenantId: requestData.organizationId,
       integrationId: requestData.testManagement.integrationId,
       passThresholdPercent: requestData.testManagement.passThresholdPercent ?? 100,
       platformConfigurations: requestData.testManagement.platformConfigurations ?? [],
@@ -95,7 +96,7 @@ export class IntegrationConfigMapper {
  */
 export interface IntegrationConfigs {
   ci: any | null; // TODO: CreateCIConfigDto
-  testManagement: Omit<CreateTestManagementConfigDto, 'projectId' | 'name'> | null;
+  testManagement: Omit<CreateTestManagementConfigDto, 'name'> | null;
   communication: any | null; // TODO: CreateCommunicationConfigDto
   projectManagement: any | null; // TODO: CreateProjectManagementConfigDto
 }

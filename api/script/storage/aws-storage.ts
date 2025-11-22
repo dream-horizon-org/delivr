@@ -6,26 +6,12 @@ import * as storage from "./storage";
 //import * from nanoid;
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
-import { CICDConfigRepository, CICDIntegrationRepository, CICDWorkflowRepository, createCICDConfigModel, createCICDIntegrationModel, createCICDWorkflowModel } from "../models/integrations/ci-cd";
-import {
-  createProjectManagementConfigModel,
-  createProjectManagementIntegrationModel,
-  ProjectManagementConfigRepository,
-  ProjectManagementIntegrationRepository
-} from "../models/integrations/project-management";
 import {
   createTenantTestManagementIntegrationModel,
   createTestManagementConfigModel,
   TenantTestManagementIntegrationRepository,
   TestManagementConfigRepository
 } from "../models/integrations/test-management";
-import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
-import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
-import {
-  ProjectManagementConfigService,
-  ProjectManagementIntegrationService,
-  ProjectManagementTicketService
-} from "../services/integrations/project-management";
 import {
   TestManagementConfigService,
   TestManagementIntegrationService,
@@ -51,8 +37,6 @@ import {
 } from "../models/release-configs";
 import { ReleaseConfigService } from "../services/release-configs";
 import * as utils from "../utils/common";
-import { ChannelController, SlackIntegrationController } from "./integrations/comm/slack-controller";
-import { createChannelConfigModel, createSlackIntegrationModel } from "./integrations/comm/slack-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
 import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
@@ -60,10 +44,10 @@ import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigMo
 import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
 import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
-import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
-import { StoreCredentialController, StoreIntegrationController } from "./integrations/store/store-controller";
-import { createStoreCredentialModel, createStoreIntegrationModel } from "./integrations/store/store-models";
 import { createRelease } from "./release-models";
+import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
+import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
+import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
