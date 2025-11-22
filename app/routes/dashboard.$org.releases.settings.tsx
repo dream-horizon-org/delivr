@@ -4,8 +4,8 @@
  */
 
 import { json } from '@remix-run/node';
-import { useLoaderData, Link, useFetcher, useNavigate } from '@remix-run/react';
-import { useState } from 'react';
+import { useLoaderData, Link, useFetcher, useNavigate, useSearchParams } from '@remix-run/react';
+import { useState, useEffect } from 'react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData, saveSetupData } from '~/.server/services/ReleaseManagement/setup';
@@ -104,7 +104,26 @@ export default function ReleaseSettingsPage() {
   const { org, setupData, configurations, stats } = data as any;
   const fetcher = useFetcher();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'integrations' | 'configurations' | 'cicd' | 'general'>('integrations');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Get tab from URL params, default to 'integrations'
+  const tabFromUrl = searchParams.get('tab') as 'integrations' | 'configurations' | 'cicd' | 'general' | null;
+  const [activeTab, setActiveTab] = useState<'integrations' | 'configurations' | 'cicd' | 'general'>(
+    tabFromUrl || 'integrations'
+  );
+  
+  // Sync activeTab with URL params
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+  
+  // Update URL when tab changes
+  const handleTabChange = (tab: 'integrations' | 'configurations' | 'cicd' | 'general') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
   
   // Get integration data from ConfigContext
   const { 
@@ -204,8 +223,9 @@ export default function ReleaseSettingsPage() {
       const connectedIntegrations = getConnectedIntegrations(category);
 
       availableIntegrations.forEach((provider) => {
+        // Case-insensitive matching for providerId (backend sends lowercase, metadata has uppercase)
         const connected = connectedIntegrations.find(
-          (c) => c.providerId === provider.id
+          (c) => c.providerId.toLowerCase() === provider.id.toLowerCase()
         );
 
         allIntegrations.push({
@@ -261,7 +281,7 @@ export default function ReleaseSettingsPage() {
         <div className="border-b border-gray-200 mb-6">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('integrations')}
+              onClick={() => handleTabChange('integrations')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'integrations'
                   ? 'border-blue-500 text-blue-600'
@@ -272,7 +292,7 @@ export default function ReleaseSettingsPage() {
             </button>
             
             <button
-              onClick={() => setActiveTab('configurations')}
+              onClick={() => handleTabChange('configurations')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'configurations'
                   ? 'border-blue-500 text-blue-600'
@@ -283,7 +303,7 @@ export default function ReleaseSettingsPage() {
             </button>
             
             <button
-              onClick={() => setActiveTab('cicd')}
+              onClick={() => handleTabChange('cicd')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'cicd'
                   ? 'border-blue-500 text-blue-600'
@@ -294,7 +314,7 @@ export default function ReleaseSettingsPage() {
             </button>
             
             <button
-              onClick={() => setActiveTab('general')}
+              onClick={() => handleTabChange('general')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'general'
                   ? 'border-blue-500 text-blue-600'
@@ -363,15 +383,37 @@ export default function ReleaseSettingsPage() {
                   }
 
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {connectedIntegrations.map((integration) => (
-                        <IntegrationCard
-                          key={integration.id}
-                          integration={integration}
-                          onClick={() => {}}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {connectedIntegrations.map((integration) => (
+                          <IntegrationCard
+                            key={integration.id}
+                            integration={integration}
+                            onClick={() => {}}
+                          />
+                        ))}
+                      </div>
+                      
+                      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div className="flex-1">
+                            <p className="text-sm text-blue-900">
+                              To edit or change integration configuration, please visit the{' '}
+                              <Link
+                                to={`/dashboard/${org}/integrations`}
+                                className="font-medium text-blue-700 hover:text-blue-800 underline"
+                              >
+                                Integrations page
+                              </Link>
+                              .
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   );
                 })()}
               </>

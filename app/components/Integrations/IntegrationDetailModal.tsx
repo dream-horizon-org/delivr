@@ -79,6 +79,7 @@ export function IntegrationDetailModal({
     <Modal
       opened={opened}
       onClose={onClose}
+      centered
       title={
         <div className="flex items-center gap-3">
           <IntegrationIcon name={integration.icon} size={32} className="text-blue-600 dark:text-blue-400" />

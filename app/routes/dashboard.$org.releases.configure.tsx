@@ -174,7 +174,7 @@ export default function ReleasesConfigurePage() {
     if (returnTo === 'create') {
       navigate(`/dashboard/${organizationId}/releases/create?returnTo=config`);
     } else {
-      navigate(`/dashboard/${organizationId}/releases/settings`);
+      navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
     }
   };
   
@@ -183,7 +183,7 @@ export default function ReleasesConfigurePage() {
     if (returnTo === 'create') {
       navigate(`/dashboard/${organizationId}/releases/create`);
     } else {
-      navigate(`/dashboard/${organizationId}/releases/settings`);
+      navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
     }
   };
   

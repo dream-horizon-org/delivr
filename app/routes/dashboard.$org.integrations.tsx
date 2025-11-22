@@ -49,8 +49,9 @@ export default function IntegrationsPage() {
 
       availableIntegrations.forEach((provider) => {
         // Check if this provider is connected for this tenant
+        // Case-insensitive matching (backend sends lowercase, metadata has uppercase)
         const connected = connectedIntegrations.find(
-          (c) => c.providerId === provider.id
+          (c) => c.providerId.toLowerCase() === provider.id.toLowerCase()
         );
 
         allIntegrations.push({
