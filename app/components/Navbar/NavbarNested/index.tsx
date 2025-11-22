@@ -1,6 +1,6 @@
-import { UserButton, UserButtonProps } from "../UserButton";
+import { UserButton, UserButtonProps } from "../../UserButton";
 import classes from "./index.module.css";
-import { OrgListWithActions } from "../Pages/components/OrgListNavbar";
+import { OrgListWithActions } from "../../Pages/components/OrgListNavbar";
 
 export function NavbarNested({ user }: UserButtonProps) {
   return (
