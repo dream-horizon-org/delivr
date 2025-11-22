@@ -32,10 +32,33 @@ import {
   TestManagementRunService
 } from "../services/integrations/test-management";
 import { CheckmateMetadataService } from "../services/integrations/test-management/metadata/checkmate";
+import {
+  createProjectManagementIntegrationModel,
+  createProjectManagementConfigModel,
+  ProjectManagementIntegrationRepository,
+  ProjectManagementConfigRepository
+} from "../models/integrations/project-management";
+import {
+  ProjectManagementIntegrationService,
+  ProjectManagementConfigService,
+  ProjectManagementTicketService
+} from "../services/integrations/project-management";
+import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
+import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
+import {
+  createReleaseConfigModel,
+  ReleaseConfigRepository
+} from "../models/release-configs";
+import { ReleaseConfigService } from "../services/release-configs";
 import * as utils from "../utils/common";
 import { ChannelController, SlackIntegrationController } from "./integrations/comm/slack-controller";
 import { createChannelConfigModel, createSlackIntegrationModel } from "./integrations/comm/slack-models";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
+import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
+import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
+import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigModel } from "../models/integrations/ci-cd";
+import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
+import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
 import { StoreCredentialController, StoreIntegrationController } from "./integrations/store/store-controller";
@@ -580,12 +603,15 @@ export class S3Storage implements storage.Storage {
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
+    public cicdConfigService!: CICDConfigService;  // CI/CD config service
+    public releaseConfigRepository!: ReleaseConfigRepository;
+    public releaseConfigService!: ReleaseConfigService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public channelController!: ChannelController;  // Channel configuration controller
-    public slackIntegrationService!: SlackIntegrationService;  // Slack integration service
-    public slackChannelConfigService!: SlackChannelConfigService;  // Slack channel config service
+    public slackIntegrationService!: SlackIntegrationService;
+    public slackChannelConfigService!: SlackChannelConfigService;// Slack channel config service
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -699,7 +725,10 @@ export class S3Storage implements storage.Storage {
           
           this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
           console.log("CI/CD Config Repository initialized");
-                    
+          
+          // Initialize CI/CD Config Service
+          this.cicdConfigService = new CICDConfigService(this.cicdConfigRepository, this.cicdWorkflowRepository);
+          console.log("CI/CD Config Service initialized");
           
           
           // Initialize Test Management Integration
@@ -781,6 +810,18 @@ export class S3Storage implements storage.Storage {
             this.slackController
           );
           console.log("Slack Channel Config Service initialized");
+          
+          // Initialize Release Config (AFTER all integration services are ready)
+          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
+          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          this.releaseConfigService = new ReleaseConfigService(
+            this.releaseConfigRepository,
+            this.cicdConfigService,
+            this.testManagementConfigService,
+            this.slackChannelConfigService,
+            this.projectManagementConfigService
+          );
+          console.log("Release Config Service initialized");
           
           // return this.sequelize.sync();
         })

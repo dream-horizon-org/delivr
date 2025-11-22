@@ -21,6 +21,9 @@ import { createCheckmateMetadataRoutes } from "./integrations/test-management/me
 import { createTenantIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
+import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
+import { createCommIntegrationRoutes } from "./integrations/comm";
+import { createReleaseConfigRoutes } from "./release-config-routes";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -146,6 +149,28 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const commRoutes = createCommIntegrationRoutes(storage);
   router.use(commRoutes);
   // router.use(createCommunicationRoutes(storage));
+
+  // ============================================================================
+  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
+  // ============================================================================
+  // TODO: Implement ticket management integration routes
+  // router.use(createTicketManagementRoutes(storage));
+
+  // ============================================================================
+  // RELEASE CONFIGURATION ROUTES
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    const releaseConfigRoutes = createReleaseConfigRoutes(
+      s3Storage.releaseConfigService,
+      storage,
+      s3Storage.testManagementConfigService
+    );
+    router.use(releaseConfigRoutes);
+    console.log('[Release Management] Release Config routes mounted successfully');
+  } else {
+    console.warn('[Release Management] Release Config service not available (S3Storage required), routes not mounted');
+  }
 
   // ============================================================================
   // SETUP MANAGEMENT
