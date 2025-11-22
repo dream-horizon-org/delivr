@@ -4,6 +4,7 @@ import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from './IntegrationIcon';
 import { DISCONNECT_CONFIG } from './integrations-constants';
+import { ConfirmationModal } from '../Common/ConfirmationModal';
 
 interface IntegrationDetailModalProps {
   integration: IntegrationDetails | null;
@@ -23,39 +24,48 @@ export function IntegrationDetailModal({
   tenantId
 }: IntegrationDetailModalProps) {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
   
   if (!integration) return null;
 
-  const handleDisconnect = async () => {
-    const integrationId = integration.id;
-    const integrationName = integration.name;
-    
-    // Get config for this integration or use default
-    const config = DISCONNECT_CONFIG[integrationId];
-    const confirmMessage = config?.message || `Are you sure you want to disconnect ${integrationName}?`;
+  const handleDisconnectClick = () => {
+    const integrationId = integration?.id;
+    if (!integrationId) return;
 
-    if (!window.confirm(confirmMessage)) {
+    // Check if integration has disconnect config
+    const config = DISCONNECT_CONFIG[integrationId];
+    if (!config) {
+      alert(`Disconnect not implemented for ${integration.name}`);
       return;
     }
+
+    // Show confirmation modal
+    setShowConfirmDisconnect(true);
+  };
+
+  const handleConfirmDisconnect = async () => {
+    if (!integration) return;
+
+    const integrationId = integration.id;
+    const integrationName = integration.name;
+    const config = DISCONNECT_CONFIG[integrationId];
+
+    if (!config) return;
 
     setIsDisconnecting(true);
 
     try {
-      // Check if integration has disconnect config
-      if (!config) {
-        alert(`Disconnect not implemented for ${integrationName}`);
-        setIsDisconnecting(false);
-        return;
-      }
-
       // Get the endpoint URL
       const endpoint = config.endpoint(tenantId, integration.config);
+      
+      console.log(`[Disconnect] Calling endpoint:`, endpoint);
       
       // Make DELETE request
       const response = await fetch(endpoint, { method: 'DELETE' });
 
       if (response.ok) {
         alert(`${integrationName} disconnected successfully!`);
+        setShowConfirmDisconnect(false);
         onClose();
         onDisconnectComplete(); // Notify parent that disconnect is complete
       } else {
@@ -401,7 +411,7 @@ export function IntegrationDetailModal({
           <Button
             variant="subtle"
             color="red"
-            onClick={handleDisconnect}
+            onClick={handleDisconnectClick}
             disabled={isDisconnecting}
             leftSection={isDisconnecting ? <Loader size="xs" /> : null}
           >
@@ -427,6 +437,21 @@ export function IntegrationDetailModal({
           </Group>
         </Group>
       </div>
+
+      {/* Confirmation Modal */}
+      {integration && DISCONNECT_CONFIG[integration.id] && (
+        <ConfirmationModal
+          opened={showConfirmDisconnect}
+          onClose={() => setShowConfirmDisconnect(false)}
+          onConfirm={handleConfirmDisconnect}
+          title="Disconnect Integration"
+          message={DISCONNECT_CONFIG[integration.id].message}
+          confirmLabel="Disconnect"
+          cancelLabel="Cancel"
+          confirmColor="red"
+          isLoading={isDisconnecting}
+        />
+      )}
     </Modal>
   );
 }
