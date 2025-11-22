@@ -264,7 +264,7 @@ export function ReleaseSchedulingPanel({
                   onClick={() =>
                     onChange({
                       releaseDate,
-                      releaseTime: config?.scheduling.defaultReleaseTime || '18:00',
+                      releaseTime: config?.scheduling.targetReleaseTime || '18:00',
                       kickoffDate,
                       kickoffTime,
                       hasRegressionBuilds,
@@ -274,10 +274,10 @@ export function ReleaseSchedulingPanel({
                 >
                   Add Release Time
                 </Button>
-                {config?.scheduling.defaultReleaseTime && (
+                {config?.scheduling.targetReleaseTime && (
                   <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" className="mt-2">
                     <Text size="xs">
-                      Default release time from configuration: <strong>{config.scheduling.defaultReleaseTime}</strong>
+                      Default release time from configuration: <strong>{config.scheduling.targetReleaseTime}</strong>
                     </Text>
                   </Alert>
                 )}
