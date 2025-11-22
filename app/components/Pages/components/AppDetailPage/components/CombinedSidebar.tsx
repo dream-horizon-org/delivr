@@ -23,6 +23,7 @@ import {
   IconList,
   IconPlug,
   IconAdjustments,
+  IconAdjustmentsHorizontal,
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "@remix-run/react";
@@ -315,10 +316,12 @@ function OrgSidebar({
   const isReleasesActive = location.pathname.includes("/releases/list") || 
                            (location.pathname.includes("/releases/") && 
                             !location.pathname.includes("/releases/setup") &&
+                            !location.pathname.includes("/releases/settings") &&
                             !location.pathname.includes("/settings/release-config") &&
                             location.pathname !== `/dashboard/${org.id}/releases`);
   const isReleaseConfigActive = location.pathname.includes("/settings/release-config") ||
                                 location.pathname.includes("/releases/configure");
+  const isReleaseSettingsActive = location.pathname.includes("/releases/settings");
   const isIntegrationsActive = location.pathname.includes("/integrations");
 
   return (
@@ -405,6 +408,16 @@ function OrgSidebar({
             label="Integrations"
             isActive={isIntegrationsActive}
             onClick={() => navigate(`/dashboard/${org.id}/integrations`)}
+            isOwnerOnly={true}
+            isOwner={org.isAdmin}
+          />
+
+          {/* Release Settings */}
+          <NavItem
+            icon={IconAdjustmentsHorizontal}
+            label="Release Settings"
+            isActive={isReleaseSettingsActive}
+            onClick={() => navigate(`/dashboard/${org.id}/releases/settings`)}
             isOwnerOnly={true}
             isOwner={org.isAdmin}
           />

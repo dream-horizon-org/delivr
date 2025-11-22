@@ -540,12 +540,6 @@ export default function ReleaseDashboardPage() {
               >
                 View Active Releases
               </Link>
-              <Link
-                to={`/dashboard/${org}/releases/settings`}
-                className="block w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 text-center"
-              >
-                Release Settings
-              </Link>
             </div>
           </div>
         </div>
