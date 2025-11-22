@@ -57,11 +57,14 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
 
     const data = await response.json();
     
-    console.log(`[Checkmate Labels API] Successfully fetched ${data.data?.data?.length || 0} labels`);
+    // Backend returns { success: true, data: [labels array] }
+    // Extract the array directly
+    const labels = data.data || [];
+    console.log(`[Checkmate Labels API] Successfully fetched ${labels.length} labels`);
     
     return json({
       success: true,
-      data: data.data || { data: [] },
+      data: labels,
     });
   } catch (error) {
     console.error('[Checkmate Labels API] Error:', error);

@@ -58,11 +58,14 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
 
     const data = await response.json();
     
-    console.log(`[Checkmate Sections API] Successfully fetched ${data.data?.data?.length || 0} sections`);
+    // Backend returns { success: true, data: [sections array] }
+    // Extract the array directly
+    const sections = data.data || [];
+    console.log(`[Checkmate Sections API] Successfully fetched ${sections.length} sections`);
     
     return json({
       success: true,
-      data: data.data || { data: [] },
+      data: sections,
     });
   } catch (error) {
     console.error('[Checkmate Sections API] Error:', error);
