@@ -1,6 +1,6 @@
 import { Center, Group, Paper, Stack, Text, Alert } from "@mantine/core";
 import { IconAlertCircle } from "@tabler/icons-react";
-import { GoogleButton } from "~/components/GoogleButton";
+import { GoogleButton } from "~/components/Common/GoogleButton";
 
 type LoginProps = {
   onClickLogin: () => void;
