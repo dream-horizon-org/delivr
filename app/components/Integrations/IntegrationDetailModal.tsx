@@ -32,9 +32,17 @@ export function IntegrationDetailModal({
     const integrationId = integration?.id;
     if (!integrationId) return;
 
+    // Normalize integration ID to lowercase for matching with DISCONNECT_CONFIG
+    const normalizedId = integrationId.toLowerCase();
+    
+    console.log('[Disconnect] Integration ID:', integrationId);
+    console.log('[Disconnect] Normalized ID:', normalizedId);
+    console.log('[Disconnect] Available configs:', Object.keys(DISCONNECT_CONFIG));
+
     // Check if integration has disconnect config
-    const config = DISCONNECT_CONFIG[integrationId];
+    const config = DISCONNECT_CONFIG[normalizedId];
     if (!config) {
+      console.error('[Disconnect] No config found for integration ID:', normalizedId);
       alert(`Disconnect not implemented for ${integration.name}`);
       return;
     }
@@ -48,7 +56,9 @@ export function IntegrationDetailModal({
 
     const integrationId = integration.id;
     const integrationName = integration.name;
-    const config = DISCONNECT_CONFIG[integrationId];
+    // Normalize integration ID to lowercase for matching with DISCONNECT_CONFIG
+    const normalizedId = integrationId.toLowerCase();
+    const config = DISCONNECT_CONFIG[normalizedId];
 
     if (!config) return;
 
@@ -439,13 +449,13 @@ export function IntegrationDetailModal({
       </div>
 
       {/* Confirmation Modal */}
-      {integration && DISCONNECT_CONFIG[integration.id] && (
+      {integration && DISCONNECT_CONFIG[integration.id.toLowerCase()] && (
         <ConfirmationModal
           opened={showConfirmDisconnect}
           onClose={() => setShowConfirmDisconnect(false)}
           onConfirm={handleConfirmDisconnect}
           title="Disconnect Integration"
-          message={DISCONNECT_CONFIG[integration.id].message}
+          message={DISCONNECT_CONFIG[integration.id.toLowerCase()].message}
           confirmLabel="Disconnect"
           cancelLabel="Cancel"
           confirmColor="red"
