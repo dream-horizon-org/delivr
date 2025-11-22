@@ -15,11 +15,14 @@ export function IntegrationIcon({ name, size = 40, className = '' }: Integration
     height: size,
     viewBox: "0 0 24 24",
     fill: "currentColor",
-    className: className
+    className: className || 'text-gray-700'
   };
 
+  // Normalize icon name to lowercase
+  const iconName = (name || '').toLowerCase();
+
   // Map icon names to SVG components
-  switch (name) {
+  switch (iconName) {
     case 'github':
       return (
         <svg {...iconProps}>
