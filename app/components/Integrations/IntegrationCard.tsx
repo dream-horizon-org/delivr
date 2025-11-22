@@ -34,32 +34,34 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
       }`}
       onClick={() => !isDisabled && onClick(integration)}
     >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0">
-            <IntegrationIcon 
-              name={integration.icon} 
-              size={48} 
-              className={isDisabled ? 'text-gray-400' : ''} 
-            />
-          </div>
-          <div>
-            <h3 className={`font-semibold text-base flex items-center gap-2 mb-1 ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
+      {/* Header with Icon, Name, and Status */}
+      <div className="flex items-start gap-3 mb-3">
+        <div className="flex-shrink-0">
+          <IntegrationIcon 
+            name={integration.icon} 
+            size={44} 
+            className={isDisabled ? 'text-gray-400' : ''} 
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className={`font-semibold text-base ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
               {integration.name}
-              {integration.isPremium && (
-                <Badge size="xs" color="yellow" variant="filled">
-                  Premium
-                </Badge>
-              )}
             </h3>
             <Badge
               size="sm"
               color={getStatusColor()}
               variant={integration.status === IntegrationStatus.CONNECTED ? 'filled' : 'light'}
+              className="flex-shrink-0"
             >
               {getStatusText()}
             </Badge>
           </div>
+          {integration.isPremium && (
+            <Badge size="xs" color="yellow" variant="filled" className="mt-1">
+              Premium
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -71,9 +73,14 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
       )}
 
       {!integration.isAvailable && (
-        <Badge size="sm" color="gray" variant="outline" className="w-full">
-          Coming Soon
-        </Badge>
+        <div className="mt-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+          <div className="flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-medium text-gray-600">Coming Soon</span>
+          </div>
+        </div>
       )}
 
       {integration.isAvailable && integration.status !== IntegrationStatus.CONNECTED && (
@@ -95,84 +102,84 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
       )}
 
       {integration.status === IntegrationStatus.CONNECTED && integration.config && (
-        <div className="mt-2 pt-2 border-t border-gray-200">
-          <div className="text-xs text-gray-600 space-y-1.5">
-            {/* GitHub/SCM */}
-            {integration.config.owner && integration.config.repo && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Repository:</span>
-                <span className="text-gray-900">{integration.config.owner}/{integration.config.repo}</span>
+        <div className="mt-3 p-3 bg-blue-50/50 rounded-md space-y-2">
+          {/* GitHub/SCM */}
+          {integration.config.owner && integration.config.repo && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Repository</div>
+              <div className="text-sm text-gray-900 font-mono">
+                {integration.config.owner}/{integration.config.repo}
               </div>
-            )}
-            
-            {/* Slack */}
-            {integration.config.workspace && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Workspace:</span>
-                <span className="text-gray-900">{integration.config.workspace}</span>
+            </div>
+          )}
+          
+          {/* Slack */}
+          {integration.config.workspace && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Workspace</div>
+              <div className="text-sm text-gray-900">{integration.config.workspace}</div>
+            </div>
+          )}
+          
+          {/* Jenkins */}
+          {integration.config.accountName && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Account</div>
+              <div className="text-sm text-gray-900">{integration.config.accountName}</div>
+            </div>
+          )}
+          
+          {/* General */}
+          {integration.config.displayName && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Configuration</div>
+              <div className="text-sm text-gray-900">{integration.config.displayName}</div>
+            </div>
+          )}
+          
+          {/* Checkmate/Others - Host URL */}
+          {integration.config.hostUrl && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Host</div>
+              <div className="text-sm text-gray-900 truncate font-mono" title={integration.config.hostUrl}>
+                {integration.config.hostUrl}
               </div>
-            )}
-            
-            {/* Jenkins */}
-            {integration.config.accountName && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Account:</span>
-                <span className="text-gray-900">{integration.config.accountName}</span>
+            </div>
+          )}
+          
+          {/* App Distribution - App Identifier */}
+          {integration.config.appIdentifier && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">App ID</div>
+              <div className="text-sm text-gray-900 truncate font-mono" title={integration.config.appIdentifier}>
+                {integration.config.appIdentifier}
               </div>
-            )}
-            
-            {/* General */}
-            {integration.config.displayName && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Name:</span>
-                <span className="text-gray-900">{integration.config.displayName}</span>
+            </div>
+          )}
+          
+          {/* App Distribution - Platforms */}
+          {integration.config.platforms && Array.isArray(integration.config.platforms) && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Platforms</div>
+              <div className="flex gap-1 flex-wrap">
+                {integration.config.platforms.map((p: string) => (
+                  <Badge key={p} size="xs" variant="light">
+                    {p}
+                  </Badge>
+                ))}
               </div>
-            )}
-            
-            {/* Checkmate/Others - Host URL */}
-            {integration.config.hostUrl && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Host:</span>
-                <span className="text-gray-900 truncate max-w-[200px]" title={integration.config.hostUrl}>
-                  {integration.config.hostUrl}
-                </span>
+            </div>
+          )}
+          
+          {/* App Distribution - Store Type */}
+          {integration.config.storeType && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">Store</div>
+              <div className="text-sm text-gray-900">
+                {integration.config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
               </div>
-            )}
-            
-            {/* App Distribution - App Identifier */}
-            {integration.config.appIdentifier && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">App ID:</span>
-                <span className="text-gray-900 truncate max-w-[200px]" title={integration.config.appIdentifier}>
-                  {integration.config.appIdentifier}
-                </span>
-              </div>
-            )}
-            
-            {/* App Distribution - Platforms */}
-            {integration.config.platforms && Array.isArray(integration.config.platforms) && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Platforms:</span>
-                <span className="inline-flex gap-1 flex-wrap">
-                  {integration.config.platforms.map((p: string) => (
-                    <Badge key={p} size="xs" variant="light">
-                      {p}
-                    </Badge>
-                  ))}
-                </span>
-              </div>
-            )}
-            
-            {/* App Distribution - Store Type */}
-            {integration.config.storeType && (
-              <div className="flex items-start">
-                <span className="font-medium text-gray-700 min-w-[80px]">Store:</span>
-                <span className="text-gray-900">
-                  {integration.config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
-                </span>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </Card>
