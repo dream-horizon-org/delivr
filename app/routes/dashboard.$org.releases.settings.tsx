@@ -13,11 +13,7 @@ import { VerificationBadge } from '~/components/ReleaseManagement/SetupWizard/co
 import { ConfigurationList } from '~/components/ReleaseConfig/Settings/ConfigurationList';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { Container, Loader as MantineLoader } from '@mantine/core';
-import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
-import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
-import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
-import type { Integration, IntegrationDetails } from '~/types/integrations';
-import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
+import { IntegrationCategory } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
@@ -108,13 +104,6 @@ export default function ReleaseSettingsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'integrations' | 'configurations' | 'cicd' | 'general'>('integrations');
   
-  // Integration modal state
-  const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
-  const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
-  const [editingIntegration, setEditingIntegration] = useState<Integration | null>(null);
-  const [detailModalOpened, setDetailModalOpened] = useState(false);
-  const [connectModalOpened, setConnectModalOpened] = useState(false);
-  
   // Get integration data from ConfigContext
   const { 
     isLoadingMetadata,
@@ -195,11 +184,18 @@ export default function ReleaseSettingsPage() {
     }
   };
   
-  // Build integrations list using ConfigContext helpers
-  const buildIntegrationsList = (): Integration[] => {
-    const allIntegrations: Integration[] = [];
+  // Get all connected integrations from ConfigContext
+  const getConnectedIntegrationsList = () => {
+    const connectedList: Array<{
+      id: string;
+      name: string;
+      category: string;
+      categoryLabel: string;
+      connectedAt: Date;
+      connectedBy: string;
+      config: any;
+    }> = [];
     
-    // Get all integration categories
     const categories: IntegrationCategory[] = [
       IntegrationCategory.SOURCE_CONTROL,
       IntegrationCategory.COMMUNICATION,
@@ -209,71 +205,84 @@ export default function ReleaseSettingsPage() {
       IntegrationCategory.APP_DISTRIBUTION,
     ];
 
+    const categoryLabels: Record<string, string> = {
+      SOURCE_CONTROL: 'Source Control',
+      COMMUNICATION: 'Communication',
+      CI_CD: 'CI/CD',
+      TEST_MANAGEMENT: 'Test Management',
+      PROJECT_MANAGEMENT: 'Project Management',
+      APP_DISTRIBUTION: 'App Distribution',
+    };
+
     categories.forEach(category => {
-      const availableIntegrations = getAvailableIntegrations(category);
       const connectedIntegrations = getConnectedIntegrations(category);
+      const availableIntegrations = getAvailableIntegrations(category);
 
-      availableIntegrations.forEach((provider) => {
-        const connected = connectedIntegrations.find(
-          (c) => c.providerId === provider.id
-        );
-
-        allIntegrations.push({
-          id: provider.id,
-          name: provider.name,
-          description: provider.description || '',
+      connectedIntegrations.forEach((connected) => {
+        // Find the provider info
+        const provider = availableIntegrations.find(p => p.id === connected.providerId);
+        
+        connectedList.push({
+          id: connected.id,
+          name: connected.name || provider?.name || connected.providerId,
           category: category,
-          icon: provider.icon || '',
-          status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
-          isAvailable: provider.isAvailable,
-          config: connected ? {
-            id: connected.id,
-            ...connected.config
-          } : undefined,
-          connectedAt: connected?.connectedAt ? new Date(connected.connectedAt) : undefined,
-          connectedBy: connected?.connectedBy || undefined,
+          categoryLabel: categoryLabels[category] || category,
+          connectedAt: connected.connectedAt ? new Date(connected.connectedAt) : new Date(),
+          connectedBy: connected.connectedBy || 'System',
+          config: connected.config || {}
         });
       });
     });
           
-    return allIntegrations;
+    return connectedList;
   };
 
-  const handleCardClick = (integration: Integration) => {
-    if (integration.status === IntegrationStatus.CONNECTED) {
-      const details: IntegrationDetails = {
-        ...integration,
-        lastSyncedAt: new Date(),
-        webhookUrl: integration.id === 'github' 
-          ? `https://delivr.yourdomain.com/api/github-webhooks/${org}` 
-          : undefined,
-        webhookStatus: integration.id === 'github' ? 'active' : undefined
-      };
-      setSelectedIntegration(details);
-      setDetailModalOpened(true);
-    } else {
-      setConnectingIntegration(integration);
-      setConnectModalOpened(true);
+  // Helper function to get category icon
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case IntegrationCategory.SOURCE_CONTROL:
+        return (
+          <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+            <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+          </svg>
+        );
+      case IntegrationCategory.COMMUNICATION:
+        return (
+          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
+          </svg>
+        );
+      case IntegrationCategory.CI_CD:
+        return (
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        );
+      case IntegrationCategory.PROJECT_MANAGEMENT:
+        return (
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        );
+      case IntegrationCategory.APP_DISTRIBUTION:
+        return (
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        );
+      case IntegrationCategory.TEST_MANAGEMENT:
+        return (
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        );
     }
-  };
-
-  const handleIntegrationConnect = (integrationId: string, data?: any) => {
-    console.log('[Integration] Operation successful:', data);
-    alert('Integration operation successful!');
-    window.location.reload();
-  };
-
-  const handleIntegrationEdit = (integrationId: string) => {
-    const allIntegrations = buildIntegrationsList();
-    const integration = allIntegrations.find(i => i.id === integrationId);
-    if (integration) {
-      setEditingIntegration(integration);
-      setConnectModalOpened(true);
-    }
-  };
-
-  const handleDisconnectComplete = () => {
-    window.location.reload();
   };
   
   return (
@@ -369,33 +378,36 @@ export default function ReleaseSettingsPage() {
                   </div>
                   <Link
                     to={`/dashboard/${org}/integrations`}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
+                    <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
                     View All Integrations
                   </Link>
                 </div>
 
                 {(() => {
-                  const allIntegrations = buildIntegrationsList();
-                  const connectedIntegrations = allIntegrations.filter(
-                    i => i.status === IntegrationStatus.CONNECTED
-                  );
+                  const connectedIntegrations = getConnectedIntegrationsList();
 
                   if (connectedIntegrations.length === 0) {
                     return (
-                      <div className="text-center bg-white rounded-lg border border-gray-200 p-12">
+                      <div className="text-center bg-white rounded-lg border-2 border-dashed border-gray-300 p-12">
                         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">No Integrations Connected</h3>
-                        <p className="mt-1 text-sm text-gray-500">
+                        <h3 className="mt-4 text-sm font-semibold text-gray-900">No Integrations Connected</h3>
+                        <p className="mt-2 text-sm text-gray-500">
                           Connect external services to enhance your release management workflow
                         </p>
                         <div className="mt-6">
                           <Link
                             to={`/dashboard/${org}/integrations`}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
+                            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
                             Browse Integrations
                           </Link>
                         </div>
@@ -404,13 +416,48 @@ export default function ReleaseSettingsPage() {
                   }
 
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {connectedIntegrations.map((integration) => (
-                        <IntegrationCard
-                          key={integration.id}
-                          integration={integration}
-                          onClick={handleCardClick}
-                        />
+                        <div key={integration.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                          <div className="p-6">
+                            <div className="flex items-start">
+                              <div className="flex-shrink-0">
+                                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
+                                  {getCategoryIcon(integration.category)}
+                                </div>
+                              </div>
+                              <div className="ml-4 flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <h3 className="text-base font-semibold text-gray-900">{integration.name}</h3>
+                                    <p className="text-sm text-gray-500 mt-1">{integration.categoryLabel}</p>
+                                  </div>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Connected
+                                  </span>
+                                </div>
+                                
+                                <div className="mt-3 text-sm text-gray-600 space-y-1">
+                                  {integration.config.appIdentifier && (
+                                    <div className="flex items-center">
+                                      <span className="text-gray-500 w-20">App ID:</span>
+                                      <span className="font-mono text-xs">{integration.config.appIdentifier}</span>
+                                    </div>
+                                  )}
+                                  {integration.config.platform && (
+                                    <div className="flex items-center">
+                                      <span className="text-gray-500 w-20">Platform:</span>
+                                      <span>{integration.config.platform}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center text-xs text-gray-400 mt-2">
+                                    <span>Connected {new Date(integration.connectedAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   );
@@ -535,28 +582,6 @@ export default function ReleaseSettingsPage() {
           </div>
         )}
       </div>
-
-      {/* Integration Modals */}
-      <IntegrationDetailModal
-        integration={selectedIntegration}
-        opened={detailModalOpened}
-        onClose={() => setDetailModalOpened(false)}
-        onDisconnectComplete={handleDisconnectComplete}
-        onEdit={handleIntegrationEdit}
-        tenantId={org}
-      />
-
-      <IntegrationConnectModal
-        integration={editingIntegration || connectingIntegration}
-        opened={connectModalOpened}
-        onClose={() => {
-          setConnectModalOpened(false);
-          setEditingIntegration(null);
-        }}
-        onConnect={handleIntegrationConnect}
-        isEditMode={!!editingIntegration}
-        existingData={editingIntegration?.config}
-      />
     </div>
   );
 }
