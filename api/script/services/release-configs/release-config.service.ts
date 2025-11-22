@@ -16,11 +16,11 @@ import type {
 } from '~types/release-configs';
 import { hasAtLeastOneIntegration, validateScheduling } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
-import type { TestManagementConfigService as BaseTestManagementConfigService } from '~services/integrations/test-management/test-management-config';
+import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
 import type { SlackChannelConfigService } from '~services/integrations/comm/slack-channel-config';
-import type { ProjectManagementConfigService as BaseProjectManagementConfigService } from '~services/integrations/project-management/configuration';
+import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
 
@@ -32,9 +32,9 @@ export class ReleaseConfigService {
   constructor(
     private readonly configRepo: ReleaseConfigRepository,
     private readonly cicdConfigService?: CICDConfigService,
-    private readonly testManagementConfigService?: BaseTestManagementConfigService,
+    private readonly testManagementConfigService?: TestManagementConfigService,
     private readonly slackChannelConfigService?: SlackChannelConfigService,
-    private readonly projectManagementConfigService?: BaseProjectManagementConfigService
+    private readonly projectManagementConfigService?: ProjectManagementConfigService
   ) {}
 
   /**
