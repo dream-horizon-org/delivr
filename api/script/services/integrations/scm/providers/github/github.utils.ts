@@ -1,5 +1,5 @@
 import { Octokit } from 'octokit';
-import { SCM_ERROR_MESSAGES } from './scm.constants';
+import { SCM_ERROR_MESSAGES } from '../../scm.constants';
 
 export type OctokitClient = InstanceType<typeof Octokit>;
 

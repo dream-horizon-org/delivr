@@ -9,7 +9,7 @@ import {
   tryGenerateTagFromTargets,
   getLatestTagName,
   generateReleaseNotes
-} from '../../github.utils';
+} from './github.utils';
 
 type OctokitClient = InstanceType<typeof Octokit>;
 
