@@ -4,13 +4,17 @@
  */
 
 import { json } from '@remix-run/node';
-import { useLoaderData, Link, useFetcher } from '@remix-run/react';
+import { useLoaderData, Link, useFetcher, useNavigate } from '@remix-run/react';
 import { useState } from 'react';
+import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData, saveSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { ConnectionCard, VerificationBadge } from '~/components/ReleaseManagement/SetupWizard/components';
+import { ConfigurationList } from '~/components/ReleaseConfig/Settings/ConfigurationList';
+import type { ReleaseConfiguration } from '~/types/release-config';
+import { Container } from '@mantine/core';
 
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
   
   if (!org) {
@@ -19,10 +23,31 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
   
   const setupData = await getSetupData(org);
   
+  // Fetch configurations from API for the configurations tab
+  let configurations: ReleaseConfiguration[] = [];
+  let stats = null;
+  
+  try {
+    const url = new URL(request.url);
+    const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config`;
+    
+    const response = await fetch(apiUrl);
+    if (response.ok) {
+      const data = await response.json();
+      configurations = data.configurations || [];
+      stats = data.stats || null;
+      console.log(`[Settings] Loaded ${configurations.length} configurations`);
+    }
+  } catch (error) {
+    console.error('[Settings] Failed to load configurations:', error);
+  }
+  
   return json({
     org,
     user,
     setupData,
+    configurations,
+    stats,
   });
 });
 
@@ -71,9 +96,11 @@ export const action = authenticateActionRequest({
 });
 
 export default function ReleaseSettingsPage() {
-  const { org, setupData } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
+  const { org, setupData, configurations, stats } = data as any;
   const fetcher = useFetcher();
-  const [activeTab, setActiveTab] = useState<'integrations' | 'cicd' | 'general'>('integrations');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'integrations' | 'configurations' | 'cicd' | 'general'>('integrations');
   
   const handleDisconnect = (type: string) => {
     if (confirm('Are you sure you want to disconnect this integration?')) {
@@ -81,6 +108,78 @@ export default function ReleaseSettingsPage() {
       formData.append('_action', 'disconnect');
       formData.append('type', type);
       fetcher.submit(formData, { method: 'post' });
+    }
+  };
+  
+  // Configuration handlers
+  const handleCreate = () => {
+    navigate(`/dashboard/${org}/releases/configure`);
+  };
+  
+  const handleEdit = (config: ReleaseConfiguration) => {
+    console.log('[Settings] Edit config:', config.id);
+    navigate(`/dashboard/${org}/releases/configure?edit=${config.id}`);
+  };
+  
+  const handleDuplicate = async (config: ReleaseConfiguration) => {
+    console.log('[Settings] Duplicate config:', config.id);
+    // TODO: Implement duplicate via API
+    alert('Duplicate feature coming soon - will call API to duplicate configuration');
+  };
+  
+  const handleArchive = async (configId: string) => {
+    if (!confirm('Are you sure you want to archive this configuration?')) {
+      return;
+    }
+    
+    console.log('[Settings] Archive config:', configId);
+    
+    try {
+      const response = await fetch(`/api/v1/tenants/${org}/release-config`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ configId, archive: true }),
+      });
+      
+      if (response.ok) {
+        // Reload page to refresh list
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Failed to archive: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('[Settings] Archive failed:', error);
+      alert('Failed to archive configuration');
+    }
+  };
+  
+  const handleSetDefault = async (configId: string) => {
+    console.log('[Settings] Set default config:', configId);
+    
+    try {
+      const response = await fetch(`/api/v1/tenants/${org}/release-config`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          config: { id: configId, isDefault: true },
+        }),
+      });
+      
+      if (response.ok) {
+        // Reload page to refresh list
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Failed to set default: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('[Settings] Set default failed:', error);
+      alert('Failed to set as default');
     }
   };
   
@@ -124,6 +223,17 @@ export default function ReleaseSettingsPage() {
               }`}
             >
               Integrations
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('configurations')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'configurations'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Release Configurations
             </button>
             
             <button
@@ -190,7 +300,7 @@ export default function ReleaseSettingsPage() {
                 >
                   {setupData?.slack?.channels && setupData.slack.channels.length > 0 && (
                     <div className="text-xs text-gray-600 space-y-1">
-                      {setupData.slack.channels.map(channel => (
+                      {setupData.slack.channels.map((channel: any) => (
                         <div key={channel.id}>
                           #{channel.name} <span className="text-gray-400">({channel.purpose})</span>
                         </div>
@@ -238,6 +348,42 @@ export default function ReleaseSettingsPage() {
           </div>
         )}
         
+        {activeTab === 'configurations' && (
+          <Container size="xl" className="p-0">
+            {stats && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+                    <div className="text-sm text-gray-600">Total</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+                    <div className="text-sm text-gray-600">Active</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-yellow-600">{stats.draft}</div>
+                    <div className="text-sm text-gray-600">Draft</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-gray-600">{stats.archived}</div>
+                    <div className="text-sm text-gray-600">Archived</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <ConfigurationList
+              configurations={configurations}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onArchive={handleArchive}
+              onSetDefault={handleSetDefault}
+              onCreate={handleCreate}
+            />
+          </Container>
+        )}
+        
         {activeTab === 'cicd' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -252,7 +398,7 @@ export default function ReleaseSettingsPage() {
             
             {setupData?.cicdPipelines && setupData.cicdPipelines.length > 0 ? (
               <div className="space-y-4">
-                {setupData.cicdPipelines.map(pipeline => (
+                {setupData.cicdPipelines.map((pipeline: any) => (
                   <div key={pipeline.id} className="bg-white border border-gray-200 rounded-lg p-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
