@@ -26,7 +26,7 @@ export class TestManagementConfigRepository {
     const createdByAccountIdValue = data.createdByAccountId ?? null;
 
     const config = await this.model.create({
-      projectId: data.projectId,
+      tenantId: data.tenantId,
       integrationId: data.integrationId,
       name: data.name,
       passThresholdPercent: data.passThresholdPercent,
@@ -47,9 +47,9 @@ export class TestManagementConfigRepository {
     return this.toPlainObject(config);
   };
 
-  findByProjectId = async (projectId: string): Promise<TestManagementConfig[]> => {
+  findByTenantId = async (tenantId: string): Promise<TestManagementConfig[]> => {
     const configs = await this.model.findAll({
-      where: { projectId },
+      where: { tenantId },
       order: [['createdAt', 'DESC']]
     });
 

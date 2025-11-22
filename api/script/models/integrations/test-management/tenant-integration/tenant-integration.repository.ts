@@ -1,15 +1,15 @@
 import type {
-  CreateProjectTestManagementIntegrationDto,
-  FindProjectIntegrationsFilter,
-  ProjectTestManagementIntegration,
-  UpdateProjectTestManagementIntegrationDto
-} from '~types/integrations/test-management/project-integration';
-import type { ProjectTestManagementIntegrationModelType } from './project-integration.sequelize.model';
+  CreateTenantTestManagementIntegrationDto,
+  FindTenantIntegrationsFilter,
+  TenantTestManagementIntegration,
+  UpdateTenantTestManagementIntegrationDto
+} from '~types/integrations/test-management/tenant-integration';
+import type { TenantTestManagementIntegrationModelType } from './tenant-integration.sequelize.model';
 
-export class ProjectTestManagementIntegrationRepository {
-  private model: ProjectTestManagementIntegrationModelType;
+export class TenantTestManagementIntegrationRepository {
+  private model: TenantTestManagementIntegrationModelType;
 
-  constructor(model: ProjectTestManagementIntegrationModelType) {
+  constructor(model: TenantTestManagementIntegrationModelType) {
     this.model = model;
   }
 
@@ -17,19 +17,19 @@ export class ProjectTestManagementIntegrationRepository {
    * Convert Sequelize model instance to plain object
    * Return type is declared, TypeScript trusts the signature
    */
-  private toPlainObject = (instance: InstanceType<ProjectTestManagementIntegrationModelType>): ProjectTestManagementIntegration => {
+  private toPlainObject = (instance: InstanceType<TenantTestManagementIntegrationModelType>): TenantTestManagementIntegration => {
     const json = instance.toJSON();
     return json;
   };
 
   // Create new integration
   create = async (
-    data: CreateProjectTestManagementIntegrationDto
-  ): Promise<ProjectTestManagementIntegration> => {
+    data: CreateTenantTestManagementIntegrationDto
+  ): Promise<TenantTestManagementIntegration> => {
     const createdByAccountIdValue = data.createdByAccountId ?? null;
     
     const integration = await this.model.create({
-      projectId: data.projectId,
+      tenantId: data.tenantId,
       name: data.name,
       providerType: data.providerType,
       config: data.config,
@@ -40,7 +40,7 @@ export class ProjectTestManagementIntegrationRepository {
   };
 
   // Find by ID
-  findById = async (id: string): Promise<ProjectTestManagementIntegration | null> => {
+  findById = async (id: string): Promise<TenantTestManagementIntegration | null> => {
     const integration = await this.model.findByPk(id);
     
     if (!integration) {
@@ -50,12 +50,12 @@ export class ProjectTestManagementIntegrationRepository {
     return this.toPlainObject(integration);
   };
 
-  // Find all by project
-  findByProject = async (
-    filter: FindProjectIntegrationsFilter
-  ): Promise<ProjectTestManagementIntegration[]> => {
+  // Find all by tenant
+  findByTenant = async (
+    filter: FindTenantIntegrationsFilter
+  ): Promise<TenantTestManagementIntegration[]> => {
     const where: Record<string, unknown> = {
-      projectId: filter.projectId
+      tenantId: filter.tenantId
     };
 
     if (filter.providerType !== undefined) {
@@ -70,25 +70,25 @@ export class ProjectTestManagementIntegrationRepository {
     return integrations.map((integration) => this.toPlainObject(integration));
   };
 
-  // Alias for findByProject (used by service)
+  // Alias for findByTenant (used by service)
   findAll = async (
-    filter: FindProjectIntegrationsFilter
-  ): Promise<ProjectTestManagementIntegration[]> => {
-    return this.findByProject(filter);
+    filter: FindTenantIntegrationsFilter
+  ): Promise<TenantTestManagementIntegration[]> => {
+    return this.findByTenant(filter);
   };
 
   // Update integration
   update = async (
     id: string,
-    data: UpdateProjectTestManagementIntegrationDto
-  ): Promise<ProjectTestManagementIntegration | null> => {
+    data: UpdateTenantTestManagementIntegrationDto
+  ): Promise<TenantTestManagementIntegration | null> => {
     const integration = await this.model.findByPk(id);
     
     if (!integration) {
       return null;
     }
 
-    const updateData: Partial<ProjectTestManagementIntegration> = {
+    const updateData: Partial<TenantTestManagementIntegration> = {
       updatedAt: new Date()
     };
 

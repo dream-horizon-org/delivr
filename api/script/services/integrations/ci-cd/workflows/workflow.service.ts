@@ -1,5 +1,4 @@
-import type { CICDIntegrationRepository } from '~models/integrations/ci-cd/connection/connection.repository';
-import type { CICDWorkflowRepository } from '~models/integrations/ci-cd/workflow/workflow.repository';
+import type { CICDIntegrationRepository, CICDWorkflowRepository } from '~models/integrations/ci-cd';
 import { getStorage } from '../../../../storage/storage-instance';
 
 export abstract class WorkflowService {

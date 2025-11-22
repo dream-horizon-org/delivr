@@ -19,32 +19,32 @@ export const createIntegrationRoutes = (
 
   // CRUD operations for integrations
   router.post(
-    '/projects/:projectId/integrations/project-management',
+    '/tenants/:tenantId/integrations/project-management',
     controller.createIntegration
   );
 
   router.get(
-    '/projects/:projectId/integrations/project-management',
+    '/tenants/:tenantId/integrations/project-management',
     controller.listIntegrations
   );
 
   router.get(
-    '/projects/:projectId/integrations/project-management/:integrationId',
+    '/tenants/:tenantId/integrations/project-management/:integrationId',
     controller.getIntegration
   );
 
   router.put(
-    '/projects/:projectId/integrations/project-management/:integrationId',
+    '/tenants/:tenantId/integrations/project-management/:integrationId',
     controller.updateIntegration
   );
 
   router.delete(
-    '/projects/:projectId/integrations/project-management/:integrationId',
+    '/tenants/:tenantId/integrations/project-management/:integrationId',
     controller.deleteIntegration
   );
 
   router.post(
-    '/projects/:projectId/integrations/project-management/:integrationId/verify',
+    '/tenants/:tenantId/integrations/project-management/:integrationId/verify',
     controller.verifyIntegration
   );
 

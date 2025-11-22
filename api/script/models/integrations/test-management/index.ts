@@ -1,10 +1,4 @@
-export {
-    ProjectTestManagementIntegrationRepository, createProjectTestManagementIntegrationModel,
-    type ProjectTestManagementIntegrationModelType
-} from './project-integration';
+export { createTenantTestManagementIntegrationModel, TenantTestManagementIntegrationRepository, type TenantTestManagementIntegrationModelType } from './tenant-integration';
 
-export {
-    TestManagementConfigRepository, createTestManagementConfigModel,
-    type TestManagementConfigModelType
-} from './test-management-config';
+export { createTestManagementConfigModel, TestManagementConfigRepository, type TestManagementConfigModelType } from './test-management-config';
 

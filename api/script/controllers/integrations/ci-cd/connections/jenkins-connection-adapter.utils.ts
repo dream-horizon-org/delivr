@@ -1,4 +1,4 @@
-import { JenkinsConnectionService } from "../../../../services/integrations/ci-cd/connections/jenkins-connection.service";
+import { JenkinsConnectionService } from "~services/integrations/ci-cd";
 import { ERROR_MESSAGES, PROVIDER_DEFAULTS } from "../constants";
 import type { ConnectionAdapter, VerifyResult } from "./connection-adapter.utils";
 import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";

@@ -8,7 +8,7 @@ import type { PlatformConfiguration } from '~types/integrations/project-manageme
 
 export type ProjectManagementConfigAttributes = {
   id: string;
-  projectId: string;
+  tenantId: string;
   integrationId: string;
   name: string;
   description: string | null;
@@ -36,10 +36,10 @@ export const createProjectManagementConfigModel = (
         primaryKey: true,
         allowNull: false
       },
-      projectId: {
+      tenantId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'projectId'
+        field: 'tenantId'
       },
       integrationId: {
         type: DataTypes.STRING(255),
