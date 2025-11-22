@@ -58,7 +58,5 @@
  */
 
 export { SCMIntegration } from './scm-integration.interface';
-export { SCMService } from './scm-service';
-export { SCMServiceFactory } from './scm-service-factory';
 export { GitHubService } from './github-service';
 export * from './scm-types';

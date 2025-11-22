@@ -1,694 +1,303 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-
 import { Octokit } from 'octokit';
-import { Webhooks } from '@octokit/webhooks';
-import type { EmitterWebhookEventName } from '@octokit/webhooks';
-import * as schedule from 'node-schedule';
+import type { SCMIntegration } from './scm-integration.interface';
+import { HTTP_STATUS } from '~constants/http';
+import { SCM_ERROR_MESSAGES } from './scm.constants';
+import { getStorage } from '~storage/storage-instance';
+import { SCMIntegrationController } from '~storage/integrations/scm';
+import {
+  generateTagNameFromTargetsAndVersion,
+  tryGenerateTagFromTargets,
+  getLatestTagName,
+  generateReleaseNotes
+} from './github.utils';
+type OctokitClient = InstanceType<typeof Octokit>;
 
-import type {
-  SCMConfig,
-  CreateBranchArgs,
-  TriggerWorkflowArgs,
-  WorkflowRun,
-  RerunFailedJobsArgs,
-  CreateTagArgs,
-  CreateReleaseArgs,
-  Release,
-  CommitComparison,
-  PullRequest,
-  CreateWebhookArgs,
-  Webhook,
-  Branch,
-  Tag,
-  ReleaseNotes,
-  WorkflowStatus,
-  WorkflowConclusion
-} from './scm-types';
+export class GitHubService implements SCMIntegration {
+  private readonly scmController: SCMIntegrationController;
 
-/**
- * GitHub Service
- * Implements all GitHub API operations for Release Management
- */
-export class GitHubService {
-  private client: Octokit['rest'];
-  private webhooks: Webhooks | null = null;
-  private config: {
-    owner: string;
-    repo: string;
+  constructor(deps?: { scmController?: SCMIntegrationController }) {
+    const hasProvidedController = !!deps?.scmController;
+    if (hasProvidedController) {
+      this.scmController = deps!.scmController as SCMIntegrationController;
+      return;
+    }
+    const storage = getStorage() as unknown as { scmController?: SCMIntegrationController };
+    const controllerAvailable = !!storage && !!storage.scmController;
+    if (!controllerAvailable) {
+      throw new Error(SCM_ERROR_MESSAGES.ACTIVE_INTEGRATION_NOT_FOUND);
+    }
+    this.scmController = storage.scmController as SCMIntegrationController;
+  }
+
+  async checkBranchExists(
+    tenantId: string,
+    branch: string
+  ): Promise<boolean> {
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    try {
+      await client.repos.getBranch({ owner, repo, branch });
+      return true;
+    } catch (error: unknown) {
+      const status = (error as { status?: number })?.status ?? 0;
+      const isNotFound = status === HTTP_STATUS.NOT_FOUND;
+      if (isNotFound) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async forkOutBranch(
+    tenantId: string,
+    releaseBranch: string,
+    baseBranch: string,
+  ): Promise<void> {
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+
+    const baseRefResponse = await client.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${baseBranch}`
+    });
+    const baseSha = baseRefResponse.data.object.sha;
+
+    await client.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/${releaseBranch}`,
+      sha: baseSha
+    });
+  }
+
+  async createReleaseTag(
+    tenantId: string,
+    releaseBranch: string,
+    tagName?: string,
+    targets?: string[],
+    version?: string,
+  ): Promise<string> {
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+
+    const hasExplicitTag = typeof tagName === 'string' && tagName.length > 0;
+    const finalTagName = hasExplicitTag ? (tagName as string) : generateTagNameFromTargetsAndVersion(targets, version);
+
+    const branch = await client.repos.getBranch({ owner, repo, branch: releaseBranch });
+    const commitSha = branch.data.commit.sha;
+
+    const tagObject = await client.git.createTag({
+      owner,
+      repo,
+      tag: finalTagName,
+      message: `Release tag: ${finalTagName} created for ${releaseBranch}`,
+      object: commitSha,
+      type: 'commit'
+    });
+
+    let tagExists = false;
+    try {
+      await client.git.getRef({ owner, repo, ref: `tags/${finalTagName}` });
+      tagExists = true;
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status ?? 0;
+      if (status !== HTTP_STATUS.NOT_FOUND) {
+        throw err;
+      }
+    }
+    if (!tagExists) {
+      await client.git.createRef({
+        owner,
+        repo,
+        ref: `refs/tags/${finalTagName}`,
+        sha: tagObject.data.sha
+      });
+    }
+
+    return finalTagName;
+  }
+
+  async createReleaseNotes(
+    tenantId: string,
+    currentTag: string,
+    previousTag?: string | null,
+    baseVersion?: string,
+    parentTargets?: string[],
+    _releaseId?: string,
+  ): Promise<string> {
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+
+    const hasExplicitPrevious = typeof previousTag === 'string' && previousTag.length > 0;
+    let prev = hasExplicitPrevious
+      ? (previousTag as string)
+      : tryGenerateTagFromTargets(parentTargets, baseVersion);
+
+    if (!prev) {
+      const latest = await getLatestTagName(client, owner, repo);
+      prev = latest ?? currentTag;
+    }
+
+    const notes = await generateReleaseNotes(client, owner, repo, currentTag, prev);
+    return notes;
+  }
+
+  async createFinalReleaseNotes(
+    tenantId: string,
+    currentTag: string,
+    previousTag?: string | null,
+    releaseDate?: Date,
+  ): Promise<string> {
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+
+    const notes = await generateReleaseNotes(client, owner, repo, currentTag, previousTag);
+    const dateStr = (releaseDate ?? new Date()).toISOString().split('T')[0];
+    const body = `## Release Date: \n${dateStr}\n\n## What's Changed\n${notes}`;
+
+    const { data } = await client.repos.createRelease({
+      owner,
+      repo,
+      tag_name: currentTag,
+      name: currentTag,
+      body
+    });
+    return data.html_url;
+  }
+
+  async getCommitsDiff(
+    tenantId: string,
+    branch: string,
+    tag: string,
+    _releaseId?: string
+  ): Promise<number> {
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    const { data } = await client.repos.compareCommits({
+      owner,
+      repo,
+      base: tag,
+      head: branch
+    });
+    return data.total_commits;
+  }
+
+  async checkCherryPickStatus(
+    tenantId: string,
+    releaseId: string
+  ): Promise<boolean> {
+    const storage = getStorage() as unknown as { setupPromise?: Promise<void>; sequelize?: any };
+    const hasSetup = !!storage && !!storage.setupPromise;
+    if (hasSetup) {
+      await storage.setupPromise;
+    }
+
+    const sequelize = (storage as any).sequelize;
+    const hasSequelize = !!sequelize && !!sequelize.models && !!sequelize.models.release;
+    if (!hasSequelize) {
+      // If we cannot read release data, conservatively return false
+      return false;
+    }
+
+    const ReleaseModel = sequelize.models.release;
+    const release = await ReleaseModel.findOne({ where: { id: releaseId, tenantId } });
+    const releaseNotFound = !release;
+    if (releaseNotFound) {
+      return false;
+    }
+
+    const data = release.dataValues || {};
+    const releaseBranch: string | undefined = data.branchRelease;
+    const releaseTag: string | undefined = data.releaseTag;
+
+    const releaseBranchMissing = !releaseBranch || releaseBranch.length === 0;
+    const releaseTagMissing = !releaseTag || releaseTag.length === 0;
+    const cannotCompare = releaseBranchMissing || releaseTagMissing;
+    if (cannotCompare) {
+      return false;
+    }
+
+    const { client, owner, repo } = await this.getClientAndRepo(tenantId);
+    // Get HEAD commit of release branch
+    const branchResp = await client.repos.getBranch({ owner, repo, branch: releaseBranch as string });
+    const branchHeadSha = branchResp.data?.commit?.sha ?? '';
+
+    // Resolve tag to underlying commit SHA
+    const tagCommitSha = await this.resolveTagCommitSha(client, owner, repo, releaseTag as string);
+    const tagMissing = !tagCommitSha || tagCommitSha.length === 0;
+    if (tagMissing) {
+      return false;
+    }
+
+    const hasCherryPicks = branchHeadSha !== tagCommitSha;
+    return hasCherryPicks;
+  }
+
+  private getClientAndRepo = async (
+    tenantId: string
+  ): Promise<{ client: OctokitClient; owner: string; repo: string }> => {
+    const integration = await this.scmController.findActiveByTenantWithTokens(tenantId);
+    const notFound = !integration;
+    if (notFound) {
+      throw new Error(SCM_ERROR_MESSAGES.ACTIVE_INTEGRATION_NOT_FOUND);
+    }
+
+    const dbOwner = (integration as any).owner as string | undefined;
+    const dbRepo = (integration as any).repo as string | undefined;
+    const dbToken = (integration as any).accessToken as string | undefined;
+
+    const owner = dbOwner ?? '';
+    const repo = dbRepo ?? '';
+    const accessToken = dbToken ?? '';
+
+    const ownerMissing = owner.length === 0;
+    if (ownerMissing) {
+      throw new Error(SCM_ERROR_MESSAGES.MISSING_REPOSITORY_CONFIGURATION);
+    }
+    const repoMissing = repo.length === 0;
+    if (repoMissing) {
+      throw new Error(SCM_ERROR_MESSAGES.MISSING_REPOSITORY_CONFIGURATION);
+    }
+    const tokenMissing = accessToken.length === 0;
+    if (tokenMissing) {
+      throw new Error(SCM_ERROR_MESSAGES.MISSING_ACCESS_TOKEN);
+    }
+
+    const client = new Octokit({ auth: accessToken });
+    return { client, owner, repo };
   };
 
-  constructor(private scmConfig: SCMConfig) {
-    this.client = new Octokit({
-      auth: scmConfig.accessToken
-    }).rest;
-
-    this.config = {
-      owner: scmConfig.owner,
-      repo: scmConfig.repo
-    };
-
-    // Initialize webhooks if secret is provided
-    if (scmConfig.webhookSecret) {
-      this.webhooks = new Webhooks({
-        secret: scmConfig.webhookSecret
-      });
-    }
-  }
-
-  // ============================================================================
-  // GIT OPERATIONS - Branch & Tag Management
-  // ============================================================================
-
-  /**
-   * Create a new branch from a base branch
-   */
-  async createBranch({ baseBranch, newBranch }: CreateBranchArgs): Promise<void> {
+  private resolveTagCommitSha = async (
+    client: OctokitClient,
+    owner: string,
+    repo: string,
+    tagName: string
+  ): Promise<string> => {
     try {
-      // Get latest commit SHA of base branch
-      const { data: baseRef } = await this.client.git.getRef({
-        ...this.config,
-        ref: `heads/${baseBranch}`
-      });
+      const refResp = await client.git.getRef({ owner, repo, ref: `tags/${tagName}` });
+      let sha = (refResp.data as any)?.object?.sha ?? refResp.data?.object?.sha ?? '';
+      let type = (refResp.data as any)?.object?.type ?? refResp.data?.object?.type ?? 'commit';
 
-      // Create new branch pointing to the same commit
-      await this.client.git.createRef({
-        ...this.config,
-        ref: `refs/heads/${newBranch}`,
-        sha: baseRef.object.sha
-      });
-
-      console.log(`✅ Branch '${newBranch}' created from '${baseBranch}'`);
-    } catch (error) {
-      console.error(`Failed to create branch '${newBranch}':`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get a specific branch details
-   */
-  async getBranch(branchName: string): Promise<Branch> {
-    try {
-      const { data } = await this.client.repos.getBranch({
-        ...this.config,
-        branch: branchName
-      });
-
-      return {
-        name: data.name,
-        commit: {
-          sha: data.commit.sha,
-          url: data.commit.url
-        },
-        protected: data.protected
+      // If annotated tag, dereference once (and one more time if nested)
+      const deref = async (currentSha: string): Promise<{ sha: string; type: string }> => {
+        const tagResp = await client.git.getTag({ owner, repo, tag_sha: currentSha });
+        const obj = tagResp.data?.object as any;
+        const objSha = obj?.sha ?? '';
+        const objType = obj?.type ?? 'commit';
+        return { sha: objSha, type: objType };
       };
-    } catch (error) {
-      console.error(`Failed to get branch '${branchName}':`, error);
-      throw error;
-    }
-  }
 
-  /**
-   * List all branches (with pagination and caching support)
-   */
-  async listBranches(searchQuery?: string): Promise<Branch[]> {
-    try {
-      let allBranches: Branch[] = [];
-      let page = 1;
-      let hasMorePages = true;
-
-      while (hasMorePages) {
-        const { data: branches } = await this.client.repos.listBranches({
-          ...this.config,
-          per_page: 100,
-          page
-        });
-
-        allBranches.push(...branches.map(b => ({
-          name: b.name,
-          commit: {
-            sha: b.commit.sha,
-            url: b.commit.url
-          }
-        })));
-
-        hasMorePages = branches.length === 100;
-        page++;
-      }
-
-      // Filter by search query if provided
-      if (searchQuery && searchQuery.length > 0) {
-        const lowerQuery = searchQuery.toLowerCase();
-        allBranches = allBranches.filter(b => 
-          b.name.toLowerCase().includes(lowerQuery)
-        );
-      }
-
-      console.log(`✅ Fetched ${allBranches.length} branches`);
-      return allBranches;
-    } catch (error) {
-      console.error('Failed to list branches:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create an annotated tag
-   */
-  async createTag({ tagName, branchName, message }: CreateTagArgs): Promise<Tag> {
-    try {
-      // Get commit SHA from branch
-      const branch = await this.getBranch(branchName);
-      const commitSHA = branch.commit.sha;
-
-      // Create annotated tag object
-      const { data: tagObject } = await this.client.git.createTag({
-        ...this.config,
-        tag: tagName,
-        message: message || `Release tag: ${tagName} created for ${branchName}`,
-        object: commitSHA,
-        type: 'commit'
-      });
-
-      // Check if tag reference already exists
-      let tagExists = false;
-      try {
-        await this.client.git.getRef({
-          ...this.config,
-          ref: `tags/${tagName}`
-        });
-        tagExists = true;
-        console.log(`⚠️  Tag '${tagName}' already exists`);
-      } catch (error: any) {
-        if (error?.status !== 404) {
-          throw error;
+      if (type === 'tag') {
+        const first = await deref(sha);
+        sha = first.sha;
+        type = first.type;
+        if (type === 'tag') {
+          const second = await deref(sha);
+          sha = second.sha;
+          type = second.type;
         }
       }
 
-      // Create tag reference if it doesn't exist
-      if (!tagExists) {
-        await this.client.git.createRef({
-          ...this.config,
-          ref: `refs/tags/${tagName}`,
-          sha: tagObject.sha
-        });
-      }
-
-      console.log(`✅ Tag '${tagName}' created successfully`);
-      
-      return {
-        name: tagName,
-        commit: {
-          sha: commitSHA,
-          url: branch.commit.url
-        }
-      };
-    } catch (error) {
-      console.error(`Failed to create tag '${tagName}':`, error);
-      throw error;
+      return sha;
+    } catch {
+      return '';
     }
-  }
-
-  /**
-   * Get a specific tag
-   */
-  async getTag(tagName: string): Promise<Tag> {
-    try {
-      const { data } = await this.client.git.getRef({
-        ...this.config,
-        ref: `tags/${tagName}`
-      });
-
-      return {
-        name: tagName,
-        commit: {
-          sha: data.object.sha,
-          url: data.url
-        }
-      };
-    } catch (error) {
-      console.error(`Failed to get tag '${tagName}':`, error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // REPOSITORY OPERATIONS - Commits & PRs
-  // ============================================================================
-
-  /**
-   * Compare commits between two refs (branches/tags)
-   */
-  async compareCommits(base: string, head: string): Promise<CommitComparison> {
-    try {
-      const { data } = await this.client.repos.compareCommits({
-        ...this.config,
-        base,
-        head
-      });
-
-      console.log(`✅ Compared ${base}...${head}: ${data.total_commits} commits`);
-
-      return {
-        total_commits: data.total_commits,
-        commits: data.commits.map(c => ({
-          sha: c.sha,
-          commit: {
-            message: c.commit.message,
-            author: {
-              name: c.commit.author?.name || 'Unknown',
-              email: c.commit.author?.email || '',
-              date: c.commit.author?.date || ''
-            }
-          }
-        }))
-      };
-    } catch (error) {
-      console.error(`Failed to compare commits ${base}...${head}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get Pull Requests associated with a commit
-   */
-  async getPRsForCommit(commitSha: string): Promise<PullRequest[]> {
-    try {
-      const { data: prs } = await this.client.repos.listPullRequestsAssociatedWithCommit({
-        ...this.config,
-        commit_sha: commitSha
-      });
-
-      return prs.map(pr => ({
-        number: pr.number,
-        title: pr.title,
-        body: pr.body || '',
-        html_url: pr.html_url,
-        user: {
-          login: pr.user?.login || 'Unknown'
-        },
-        merged: pr.merged_at !== null
-      }));
-    } catch (error) {
-      console.error(`Failed to get PRs for commit ${commitSha}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Generate release notes from commits between two tags
-   */
-  async generateReleaseNotes(latestTag: string, previousTag: string): Promise<ReleaseNotes> {
-    try {
-      const comparison = await this.compareCommits(previousTag, latestTag);
-      const releaseNotes: string[] = [];
-      let prCount = 0;
-
-      for (const commit of comparison.commits) {
-        const prs = await this.getPRsForCommit(commit.sha);
-
-        if (prs.length > 0) {
-          for (const pr of prs) {
-            releaseNotes.push(
-              `- ${pr.title} (#${pr.number}) by @${pr.user.login}`
-            );
-            prCount++;
-          }
-        } else {
-          const author = commit.commit.author.name;
-          const message = commit.commit.message.split('\n')[0]; // First line only
-          releaseNotes.push(`- ${message} (by ${author})`);
-        }
-      }
-
-      const fullChangelog = `\n\n## Full Changelog:\nhttps://github.com/${this.config.owner}/${this.config.repo}/compare/${previousTag}...${latestTag}\n`;
-      const markdown = releaseNotes.join('\n') + fullChangelog;
-
-      console.log(`✅ Generated release notes: ${comparison.total_commits} commits, ${prCount} PRs`);
-
-      return {
-        markdown,
-        commits: comparison.total_commits,
-        pullRequests: prCount
-      };
-    } catch (error) {
-      console.error('Failed to generate release notes:', error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // RELEASE OPERATIONS
-  // ============================================================================
-
-  /**
-   * Create a GitHub release
-   */
-  async createRelease({
-    tagName,
-    previousTag,
-    releaseName,
-    releaseBody,
-    draft = false,
-    prerelease = false
-  }: CreateReleaseArgs): Promise<Release> {
-    try {
-      let body = releaseBody;
-
-      // Auto-generate release notes if not provided and previousTag is available
-      if (!body && previousTag) {
-        const notes = await this.generateReleaseNotes(tagName, previousTag);
-        const releaseDate = new Date().toISOString().split('T')[0];
-        body = `## Release Date: \n${releaseDate}\n\n## What's Changed\n${notes.markdown}`;
-      }
-
-      const { data } = await this.client.repos.createRelease({
-        ...this.config,
-        tag_name: tagName,
-        name: releaseName || tagName,
-        body: body || '',
-        draft,
-        prerelease
-      });
-
-      console.log(`✅ Release created: ${data.html_url}`);
-
-      return {
-        id: data.id,
-        tag_name: data.tag_name,
-        name: data.name,
-        body: data.body || '',
-        html_url: data.html_url,
-        created_at: data.created_at,
-        published_at: data.published_at || '',
-        draft: data.draft,
-        prerelease: data.prerelease
-      };
-    } catch (error) {
-      console.error('Failed to create release:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get a release by tag name
-   */
-  async getReleaseByTag(tagName: string): Promise<Release> {
-    try {
-      const { data } = await this.client.repos.getReleaseByTag({
-        ...this.config,
-        tag: tagName
-      });
-
-      return {
-        id: data.id,
-        tag_name: data.tag_name,
-        name: data.name,
-        body: data.body || '',
-        html_url: data.html_url,
-        created_at: data.created_at,
-        published_at: data.published_at || '',
-        draft: data.draft,
-        prerelease: data.prerelease
-      };
-    } catch (error) {
-      console.error(`Failed to get release for tag '${tagName}':`, error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // GITHUB ACTIONS - Workflow Management
-  // ============================================================================
-
-  /**
-   * Trigger a workflow
-   */
-  async triggerWorkflow<T = Record<string, any>>({
-    workflowId,
-    ref,
-    inputs
-  }: TriggerWorkflowArgs<T>): Promise<void> {
-    try {
-      await this.client.actions.createWorkflowDispatch({
-        ...this.config,
-        workflow_id: workflowId,
-        ref,
-        inputs: inputs as any
-      });
-
-      console.log(`✅ Workflow '${workflowId}' triggered on '${ref}'`);
-    } catch (error) {
-      console.error(`Failed to trigger workflow '${workflowId}':`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get workflow run status
-   */
-  async getWorkflowRun(runId: number): Promise<WorkflowRun> {
-    try {
-      const { data } = await this.client.actions.getWorkflowRun({
-        ...this.config,
-        run_id: runId
-      });
-
-      return {
-        id: data.id,
-        status: data.status as WorkflowStatus,
-        conclusion: data.conclusion as WorkflowConclusion | null,
-        html_url: data.html_url,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        run_started_at: data.run_started_at || undefined
-      };
-    } catch (error) {
-      console.error(`Failed to get workflow run ${runId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Re-run failed jobs in a workflow
-   */
-  async rerunFailedJobs({ runId }: RerunFailedJobsArgs): Promise<void> {
-    try {
-      await this.client.actions.reRunWorkflowFailedJobs({
-        ...this.config,
-        run_id: parseInt(runId, 10)
-      });
-
-      console.log(`✅ Re-running failed jobs for workflow run ${runId}`);
-    } catch (error) {
-      console.error(`Failed to re-run failed jobs for run ${runId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Poll workflow status with callback
-   * Returns a cancellable polling function
-   */
-  pollWorkflowStatus(
-    runId: number,
-    onUpdate: (run: WorkflowRun) => void | Promise<void>,
-    intervalMinutes: number = 3,
-    timeoutHours: number = 4
-  ): { cancel: () => void } {
-    const startTime = Date.now();
-    const timeoutMs = timeoutHours * 60 * 60 * 1000;
-    const intervalMs = intervalMinutes * 60 * 1000;
-
-    let cancelled = false;
-    let timeoutId: NodeJS.Timeout;
-
-    const poll = async () => {
-      if (cancelled) return;
-
-      const elapsedTime = Date.now() - startTime;
-      
-      if (elapsedTime > timeoutMs) {
-        console.log(`⏱️  Polling timeout reached for workflow run ${runId}`);
-        return;
-      }
-
-      try {
-        const run = await this.getWorkflowRun(runId);
-        await onUpdate(run);
-
-        // Stop polling if workflow is completed
-        if (run.status === 'completed') {
-          console.log(`✅ Workflow run ${runId} completed with ${run.conclusion}`);
-          return;
-        }
-
-        // Schedule next poll
-        timeoutId = setTimeout(poll, intervalMs);
-      } catch (error) {
-        console.error(`Error polling workflow run ${runId}:`, error);
-        timeoutId = setTimeout(poll, intervalMs);
-      }
-    };
-
-    // Start polling immediately
-    poll();
-
-    return {
-      cancel: () => {
-        cancelled = true;
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        console.log(`🛑 Stopped polling workflow run ${runId}`);
-      }
-    };
-  }
-
-  // ============================================================================
-  // WEBHOOK MANAGEMENT
-  // ============================================================================
-
-  /**
-   * Create a webhook for the repository
-   */
-  async createWebhook({
-    webhookUrl,
-    secret,
-    events = ['workflow_run', 'push', 'pull_request', 'create', 'release'],
-    active = true
-  }: CreateWebhookArgs): Promise<Webhook> {
-    try {
-      const { data } = await this.client.repos.createWebhook({
-        ...this.config,
-        config: {
-          url: webhookUrl,
-          content_type: 'json',
-          secret,
-          insecure_ssl: '0'
-        },
-        events,
-        active
-      });
-
-      console.log(`✅ Webhook created (ID: ${data.id}): ${webhookUrl}`);
-
-      return {
-        id: data.id,
-        name: data.name,
-        active: data.active,
-        events: data.events,
-        config: data.config,
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      };
-    } catch (error) {
-      console.error('Failed to create webhook:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * List all webhooks for the repository
-   */
-  async listWebhooks(): Promise<Webhook[]> {
-    try {
-      const { data } = await this.client.repos.listWebhooks(this.config);
-
-      return data.map(hook => ({
-        id: hook.id,
-        name: hook.name,
-        active: hook.active,
-        events: hook.events,
-        config: hook.config,
-        created_at: hook.created_at,
-        updated_at: hook.updated_at
-      }));
-    } catch (error) {
-      console.error('Failed to list webhooks:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a webhook
-   */
-  async deleteWebhook(webhookId: number): Promise<void> {
-    try {
-      await this.client.repos.deleteWebhook({
-        ...this.config,
-        hook_id: webhookId
-      });
-
-      console.log(`✅ Webhook ${webhookId} deleted`);
-    } catch (error) {
-      console.error(`Failed to delete webhook ${webhookId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Test webhook by sending a ping
-   */
-  async pingWebhook(webhookId: number): Promise<void> {
-    try {
-      await this.client.repos.pingWebhook({
-        ...this.config,
-        hook_id: webhookId
-      });
-
-      console.log(`✅ Ping sent to webhook ${webhookId}`);
-    } catch (error) {
-      console.error(`Failed to ping webhook ${webhookId}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Setup webhook event handlers (if webhooks are initialized)
-   */
-  setupWebhookHandlers(
-    handlers: {
-      [eventName: string]: (payload: any) => void | Promise<void>;
-    }
-  ): void {
-    if (!this.webhooks) {
-      throw new Error('Webhooks not initialized. Provide webhookSecret in config.');
-    }
-
-    Object.entries(handlers).forEach(([eventName, handler]) => {
-      this.webhooks!.on(eventName as EmitterWebhookEventName, async ({ payload }) => {
-        try {
-          await handler(payload);
-        } catch (error) {
-          console.error(`Error handling webhook event '${eventName}':`, error);
-        }
-      });
-    });
-
-    console.log(`✅ Webhook handlers registered for: ${Object.keys(handlers).join(', ')}`);
-  }
-
-  /**
-   * Verify and receive a webhook
-   */
-  async handleWebhook(
-    name: EmitterWebhookEventName,
-    id: string,
-    signature: string,
-    rawBody: string
-  ): Promise<void> {
-    if (!this.webhooks) {
-      throw new Error('Webhooks not initialized. Provide webhookSecret in config.');
-    }
-
-    await this.webhooks.verifyAndReceive({
-      id,
-      name,
-      signature,
-      payload: rawBody
-    });
-  }
+  };
 }
-

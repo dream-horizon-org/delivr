@@ -15,8 +15,7 @@ export interface SCMIntegration {
    */
   checkBranchExists(
     tenantId: string,
-    branch: string,
-    customConfig?: any
+    branch: string
   ): Promise<boolean>;
 
   /**
@@ -31,8 +30,7 @@ export interface SCMIntegration {
   forkOutBranch(
     tenantId: string,
     releaseBranch: string,
-    baseBranch: string,
-    customConfig?: any
+    baseBranch: string
   ): Promise<void>;
 
   /**
@@ -63,54 +61,7 @@ export interface SCMIntegration {
     releaseBranch: string,
     tagName?: string,
     targets?: string[],
-    version?: string,
-    customConfig?: any
-  ): Promise<string>;
-
-  /**
-   * Create GitHub release with auto-generated notes
-   * 
-   * Business logic handled by integration:
-   * - Determines previousTag using one of these (in order):
-   *   1. If previousTag provided: Uses it directly
-   *   2. If previousTag is null but baseVersion + parentTargets provided: 
-   *      Generates previousTag using createReleaseTag(parentTargets, baseVersion)
-   *   3. If neither provided: Finds latest tag from repository
-   * - Compares commits between currentTag and previousTag
-   * - Extracts PR info or commit messages
-   * - Formats release body with date + notes
-   * - Creates GitHub release linked to tag
-   * 
-   * NOTE: Orchestration layer stores release URL in release.stageData (integration just returns it)
-   * 
-   * @param tenantId - Tenant ID to fetch integration config
-   * @param currentTag - Current release tag name (from createReleaseTag)
-   * @param previousTag - Optional previous release tag (from parent.releaseTag)
-   *                      If null, integration will determine it using baseVersion + parentTargets or find latest tag
-   * @param baseVersion - Optional base version (required if previousTag is null)
-   *                      Used to generate previousTag: createReleaseTag(parentTargets, baseVersion)
-   * @param parentTargets - Optional array of parent target names (required if previousTag is null)
-   *                        Used to generate previousTag: createReleaseTag(parentTargets, baseVersion)
-   *                        Example: ['WEB', 'PLAY_STORE', 'APP_STORE']
-   * @param releaseDate - Optional release date (defaults to current date)
-   * @param releaseId - Optional release ID for logging/debugging (not required for GitHub operation)
-   * @param customConfig - Optional per-request config overrides
-   * @returns GitHub release URL (html_url) - Public URL to the GitHub release page
-   *          Example: "https://github.com/owner/repo/releases/tag/v1.0.0"
-   *          This URL can be:
-   *          - Stored in release.stageData for reference
-   *          - Shared in Slack notifications
-   *          - Displayed in UI for users to view release notes
-   */
-  createGitHubRelease(
-    tenantId: string,
-    currentTag: string,
-    previousTag?: string | null,
-    baseVersion?: string,
-    parentTargets?: string[],
-    releaseDate?: Date,
-    releaseId?: string,
-    customConfig?: any
+    version?: string
   ): Promise<string>;
 
   /**
@@ -148,8 +99,23 @@ export interface SCMIntegration {
     previousTag?: string | null,
     baseVersion?: string,
     parentTargets?: string[],
-    releaseId?: string,
-    customConfig?: any
+    releaseId?: string
+  ): Promise<string>;
+
+  /**
+   * Create final release notes
+   * 
+   * @param tenantId - Tenant ID to fetch integration config
+   * @param currentTag - Current release tag
+   * @param previousTag - Optional previous release tag (from parent.releaseTag)
+   * @param releaseDate - Release date
+   * @returns Formatted release notes content as string
+   */
+  createFinalReleaseNotes(
+    tenantId: string,
+    currentTag: string,
+    previousTag?: string | null,
+    releaseDate?: Date,
   ): Promise<string>;
 
   /**
@@ -167,8 +133,20 @@ export interface SCMIntegration {
     tenantId: string,
     branch: string,
     tag: string,
-    releaseId?: string,
-    customConfig?: any
+    releaseId?: string
   ): Promise<number>;
+
+  /**
+   * Check whether the commit pointed to by the release tag matches
+   * the current HEAD commit on the release branch.
+   *
+   * Returns:
+   * - true  → they differ (branch has diverged since tag; cherry-picks present)
+   * - false → tag commit and branch HEAD are the same (no extra commits)
+   */
+  checkCherryPickStatus(
+    tenantId: string,
+    releaseId: string
+  ): Promise<boolean>;
 }
 
