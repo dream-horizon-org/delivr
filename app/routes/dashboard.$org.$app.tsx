@@ -8,7 +8,7 @@ import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { useState } from "react";
 import { CreateDeploymentForm } from "~/components/Pages/components/CreateDeploymentForm";
 import { useGetDeploymentsForApp } from "~/components/Pages/DeploymentList/hooks/getDeploymentsForApp";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 
 export const loader = authenticateLoaderRequest();
 

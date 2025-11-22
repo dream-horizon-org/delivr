@@ -16,7 +16,7 @@ import { User } from "~/.server/services/Auth/Auth.interface";
 import { useGetAppListForOrg } from "../AppList/hooks/useGetAppListForOrg";
 import { AppListRow } from "./components/AppListRow";
 import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 import { useState } from "react";
 import { CreateAppForm } from "../CreateApp";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";

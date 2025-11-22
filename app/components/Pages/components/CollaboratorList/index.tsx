@@ -21,7 +21,7 @@ import { useRemoveCollabarator } from "./hooks/useRemoveCollabarator";
 import { AddCollboratorForm } from "../AddCollboratorForm";
 import { useParams } from "@remix-run/react";
 import { Collaborator } from "./data/getAppCollaborator";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 
 const getInitials = (name: string) => {
   const parts = name.split("@")[0].split(".");

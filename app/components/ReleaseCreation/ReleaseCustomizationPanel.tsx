@@ -3,7 +3,7 @@
  * Override configuration settings for this specific release
  */
 
-import { Stack, Text, Card, Switch, Group, Badge, Checkbox, Divider, Alert } from '@mantine/core';
+import { Stack, Text, Card, Switch, Group, Badge, Alert } from '@mantine/core';
 import { IconInfoCircle, IconSettings, IconTestPipe, IconCalendar } from '@tabler/icons-react';
 import type { ReleaseCustomizations } from '~/types/release-creation';
 import type { ReleaseConfiguration } from '~/types/release-config';
@@ -29,10 +29,13 @@ export function ReleaseCustomizationPanel({
     );
   }
   
-  // Get pre-regression pipelines from config
-  const preRegressionPipelines = config.buildPipelines.filter(
+  // Check if config has pre-regression builds configured
+  const hasPreRegressionBuilds = config.buildPipelines?.some(
     p => p.environment === 'PRE_REGRESSION'
-  );
+  ) ?? false;
+  
+  // Check if config has test management (Checkmate) enabled
+  const hasCheckmate = config.testManagement?.enabled ?? false;
   
   return (
     <Stack gap="lg">
@@ -46,65 +49,41 @@ export function ReleaseCustomizationPanel({
       </div>
       
       {/* Build Pipelines Customization */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconSettings size={20} className="text-blue-600" />
-          <Text fw={600} size="sm">
-            Build Pipelines
-          </Text>
-          <Badge size="xs" variant="light">
-            {config.buildPipelines.length} configured
-          </Badge>
-        </Group>
-        
-        <Stack gap="sm">
-          {preRegressionPipelines.length > 0 && (
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <Switch
-                label="Enable Pre-Regression Builds"
-                description="Run initial sanity builds before full regression"
-                checked={customizations.buildPipelines?.enablePreRegression ?? true}
-                onChange={(e) =>
-                  onChange({
-                    ...customizations,
-                    buildPipelines: {
-                      ...customizations.buildPipelines,
-                      enablePreRegression: e.currentTarget.checked,
-                      enabledPipelineIds: customizations.buildPipelines?.enabledPipelineIds || [],
-                    },
-                  })
-                }
-              />
-              
-              {customizations.buildPipelines?.enablePreRegression === false && (
-                <Text size="xs" c="orange" className="mt-2">
+      {hasPreRegressionBuilds && (
+        <Card shadow="sm" padding="md" radius="md" withBorder>
+          <Group gap="sm" className="mb-3">
+            <IconSettings size={20} className="text-blue-600" />
+            <Text fw={600} size="sm">
+              Pre-Regression Builds
+            </Text>
+          </Group>
+          
+          <Stack gap="sm">
+            <Switch
+              label="Enable Pre-Regression Builds"
+              description="Run initial sanity builds before full regression testing"
+              checked={customizations.enablePreRegressionBuilds ?? true}
+              onChange={(e) =>
+                onChange({
+                  ...customizations,
+                  enablePreRegressionBuilds: e.currentTarget.checked,
+                })
+              }
+            />
+            
+            {customizations.enablePreRegressionBuilds === false && (
+              <Alert color="yellow" variant="light">
+                <Text size="xs">
                   ⚠️ Pre-regression builds will be skipped for this release
                 </Text>
-              )}
-            </div>
-          )}
-          
-          <div className="text-xs text-gray-600">
-            <Text size="xs" fw={500} className="mb-2">
-              Configured Pipelines:
-            </Text>
-            {config.buildPipelines.map((pipeline) => (
-              <div key={pipeline.id} className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span>{pipeline.name}</span>
-                {pipeline.environment === 'PRE_REGRESSION' && (
-                  <Badge size="xs" variant="outline">
-                    Pre-Regression
-                  </Badge>
-                )}
-              </div>
-            ))}
-          </div>
-        </Stack>
-      </Card>
+              </Alert>
+            )}
+          </Stack>
+        </Card>
+      )}
       
       {/* Test Management Customization */}
-      {config.testManagement?.enabled && (
+      {hasCheckmate && (
         <Card shadow="sm" padding="md" radius="md" withBorder>
           <Group gap="sm" className="mb-3">
             <IconTestPipe size={20} className="text-purple-600" />
@@ -112,46 +91,24 @@ export function ReleaseCustomizationPanel({
               Test Management
             </Text>
             <Badge size="xs" variant="light" color="purple">
-              {config.testManagement.provider}
+              {config.testManagement?.provider || 'Checkmate'}
             </Badge>
           </Group>
           
           <Stack gap="sm">
             <Switch
-              label="Enable Test Management"
-              description={`Integrate with ${config.testManagement.provider} for this release`}
-              checked={customizations.testManagement?.enabled ?? true}
+              label="Enable Checkmate Integration"
+              description={`Integrate with ${config.testManagement?.provider || 'Checkmate'} for this release`}
+              checked={customizations.enableCheckmate ?? true}
               onChange={(e) =>
                 onChange({
                   ...customizations,
-                  testManagement: {
-                    ...customizations.testManagement,
-                    enabled: e.currentTarget.checked,
-                  },
+                  enableCheckmate: e.currentTarget.checked,
                 })
               }
             />
             
-            {customizations.testManagement?.enabled !== false && (
-              <div className="ml-6">
-                <Checkbox
-                  label="Auto-create test runs"
-                  description="Automatically create test runs when builds are ready"
-                  checked={customizations.testManagement?.createTestRuns ?? true}
-                  onChange={(e) =>
-                    onChange({
-                      ...customizations,
-                      testManagement: {
-                        ...customizations.testManagement,
-                        createTestRuns: e.currentTarget.checked,
-                      },
-                    })
-                  }
-                />
-              </div>
-            )}
-            
-            {customizations.testManagement?.enabled === false && (
+            {customizations.enableCheckmate === false && (
               <Alert color="yellow" variant="light">
                 <Text size="xs">
                   Test management will be disabled for this release. You'll need to manage tests manually.
@@ -162,108 +119,76 @@ export function ReleaseCustomizationPanel({
         </Card>
       )}
       
-      {/* Scheduling Information */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconCalendar size={20} className="text-green-600" />
-          <Text fw={600} size="sm">
-            Scheduling
-          </Text>
-        </Group>
-        
-        <div className="text-sm text-gray-700">
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <Text size="xs" c="dimmed">
-                Release Frequency
-              </Text>
-              <Text size="sm" fw={500}>
-                {config.scheduling.releaseFrequency}
-                {config.scheduling.customFrequencyDays && ` (${config.scheduling.customFrequencyDays} days)`}
-              </Text>
-            </div>
-            
-            <div>
-              <Text size="xs" c="dimmed">
-                Timezone
-              </Text>
-              <Text size="sm" fw={500}>
-                {config.scheduling.timezone}
-              </Text>
-            </div>
-            
-            <div>
-              <Text size="xs" c="dimmed">
-                Default Release Time
-              </Text>
-              <Text size="sm" fw={500}>
-                {config.scheduling.defaultReleaseTime}
-              </Text>
-            </div>
-            
-            <div>
-              <Text size="xs" c="dimmed">
-                Regression Slots
-              </Text>
-              <Text size="sm" fw={500}>
-                {config.scheduling.regressionSlots.length} slots configured
-              </Text>
-            </div>
-          </div>
-          
-          <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-            <Text size="xs">
-              Dates can be adjusted in the release details above. Scheduling configuration will be applied from the selected configuration.
-            </Text>
-          </Alert>
-        </div>
-      </Card>
-      
-      {/* Communication */}
-      {(config.communication?.slack?.enabled || config.communication?.email?.enabled) && (
+      {/* Scheduling Information (Read-only display) */}
+      {config.scheduling && (
         <Card shadow="sm" padding="md" radius="md" withBorder>
-          <Text fw={600} size="sm" className="mb-3">
-            Communication
-          </Text>
+          <Group gap="sm" className="mb-3">
+            <IconCalendar size={20} className="text-green-600" />
+            <Text fw={600} size="sm">
+              Scheduling Configuration
+            </Text>
+          </Group>
           
-          <Stack gap="sm">
-            {config.communication.slack?.enabled && (
-              <Switch
-                label="Enable Slack Notifications"
-                description="Send release updates to configured Slack channels"
-                checked={customizations.communication?.enableSlack ?? true}
-                onChange={(e) =>
-                  onChange({
-                    ...customizations,
-                    communication: {
-                      ...customizations.communication,
-                      enableSlack: e.currentTarget.checked,
-                      enableEmail: customizations.communication?.enableEmail ?? true,
-                    },
-                  })
-                }
-              />
-            )}
+          <div className="text-sm text-gray-700">
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <Text size="xs" c="dimmed">
+                  Release Frequency
+                </Text>
+                <Text size="sm" fw={500}>
+                  {config.scheduling.releaseFrequency}
+                  {config.scheduling.customFrequencyDays && ` (${config.scheduling.customFrequencyDays} days)`}
+                </Text>
+              </div>
+              
+              <div>
+                <Text size="xs" c="dimmed">
+                  Timezone
+                </Text>
+                <Text size="sm" fw={500}>
+                  {config.scheduling.timezone}
+                </Text>
+              </div>
+              
+              <div>
+                <Text size="xs" c="dimmed">
+                  Target Release Time
+                </Text>
+                <Text size="sm" fw={500}>
+                  {config.scheduling.targetReleaseTime}
+                </Text>
+              </div>
+              
+              <div>
+                <Text size="xs" c="dimmed">
+                  Regression Slots
+                </Text>
+                <Text size="sm" fw={500}>
+                  {config.scheduling.regressionSlots?.length || 0} slots configured
+                </Text>
+              </div>
+            </div>
             
-            {config.communication.email?.enabled && (
-              <Switch
-                label="Enable Email Notifications"
-                description="Send release updates via email"
-                checked={customizations.communication?.enableEmail ?? true}
-                onChange={(e) =>
-                  onChange({
-                    ...customizations,
-                    communication: {
-                      ...customizations.communication,
-                      enableEmail: e.currentTarget.checked,
-                      enableSlack: customizations.communication?.enableSlack ?? true,
-                    },
-                  })
-                }
-              />
-            )}
-          </Stack>
+            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+              <Text size="xs">
+                Dates can be adjusted in the release details above. Scheduling configuration will be applied from the selected configuration.
+              </Text>
+            </Alert>
+          </div>
         </Card>
+      )}
+      
+      {/* Info message if no customizations available */}
+      {!hasPreRegressionBuilds && !hasCheckmate && (
+        <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light">
+          <Text size="sm" fw={500} className="mb-1">
+            No Customizations Available
+          </Text>
+          <Text size="xs">
+            This configuration doesn't have optional features that can be toggled for individual releases.
+            All settings will be applied as configured in the template.
+          </Text>
+        </Alert>
       )}
     </Stack>
   );

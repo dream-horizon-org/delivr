@@ -24,7 +24,7 @@ import { ReleaseListResponse } from "../ReleaseListForDeploymentTable/data/getRe
 import { useNavigate, useParams, useSearchParams } from "@remix-run/react";
 import { IconHelpOctagon, IconEdit, IconInfoCircle, IconSparkles } from "@tabler/icons-react";
 import { useUpdateReleaseDataForDeployment } from "./hooks/useUpdateReleaseDataForDeployment";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 
 type ReleaseEditProps = { data: ReleaseListResponse; refetch: () => void };
 

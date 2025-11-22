@@ -274,6 +274,7 @@ export function validateBuildPipelines(
 
 /**
  * Validate scheduling configuration
+ * Note: Scheduling is optional. Only validate if user has started filling it out.
  */
 export function validateScheduling(
   scheduling: ReleaseConfiguration['scheduling']
@@ -281,25 +282,33 @@ export function validateScheduling(
   const errors: string[] = [];
   
   if (!scheduling) {
-    errors.push('Scheduling configuration is required');
+    // Scheduling is optional, no error if not provided
     return errors;
   }
   
-  if (!scheduling.defaultReleaseTime) {
-    errors.push('Default release time is required');
+  // Only validate if firstReleaseKickoffDate is set (indicates user wants to use scheduling)
+  if (!scheduling.firstReleaseKickoffDate) {
+    // Not filled out yet, skip validation
+    return errors;
   }
   
-  if (!scheduling.defaultKickoffTime) {
-    errors.push('Default kickoff time is required');
+  if (!scheduling.targetReleaseTime) {
+    errors.push('Target release time is required');
+  }
+  
+  if (!scheduling.kickoffTime) {
+    errors.push('Kickoff time is required');
   }
   
   if (!scheduling.workingDays || scheduling.workingDays.length === 0) {
     errors.push('At least one working day must be selected');
   }
   
-  if (!scheduling.regressionSlots || scheduling.regressionSlots.length === 0) {
-    errors.push('At least one regression slot is required');
+  if (!scheduling.timezone) {
+    errors.push('Timezone is required');
   }
+  
+  // Regression slots are optional - not required
   
   return errors;
 }
@@ -321,15 +330,14 @@ export function validateConfiguration(
     errors.targets = ['At least one target platform must be selected'];
   }
   
-  // Validate build pipelines
-  if (config.buildPipelines && config.defaultTargets) {
+  // Validate build pipelines (optional - manual upload is the default)
+  if (config.buildPipelines && config.buildPipelines.length > 0 && config.defaultTargets) {
     const pipelineErrors = validateBuildPipelines(config.buildPipelines, config.defaultTargets);
     if (pipelineErrors.length > 0) {
       errors.buildPipelines = pipelineErrors;
     }
-  } else {
-    errors.buildPipelines = ['Build pipeline configuration is required'];
   }
+  // Note: Build pipelines are optional. Manual upload is supported as default.
   
   // Validate scheduling (optional - only validate if provided)
   if (config.scheduling) {

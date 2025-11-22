@@ -15,7 +15,7 @@ import {
   IconBrandAndroid,
   IconBrandApple,
 } from '@tabler/icons-react';
-import type { Step } from '~/components/Common/VerticalStepper';
+import type { Step } from '~/components/Common/VerticalStepper/VerticalStepper';
 import type { BuildProvider, Platform } from '~/types/release-config';
 
 // =============================================================================

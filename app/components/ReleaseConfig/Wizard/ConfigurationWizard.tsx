@@ -17,7 +17,7 @@ import { WizardNavigation } from './WizardNavigation';
 import { ConfigSummary } from './ConfigSummary';
 import { BasicInfoForm } from './BasicInfoForm';
 import { WIZARD_STEPS, STEP_INDEX } from './wizard-steps.constants';
-import { VerticalStepper } from '~/components/Common/VerticalStepper';
+import { VerticalStepper } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
 import { ManualUploadStep } from '../BuildUpload/ManualUploadStep';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';

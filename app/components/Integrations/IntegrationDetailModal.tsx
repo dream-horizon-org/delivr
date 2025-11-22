@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
 import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
-import { IntegrationIcon } from '../Icons/IntegrationIcon';
+import { IntegrationIcon } from './IntegrationIcon';
 import { DISCONNECT_CONFIG } from './integrations-constants';
 
 interface IntegrationDetailModalProps {

@@ -12,7 +12,7 @@ import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } f
 import { getSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { createRelease } from '~/.server/services/ReleaseManagement';
 // Config loading moved to API - no longer using local storage
-import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper';
+import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { ConfigurationSelector } from '~/components/ReleaseCreation/ConfigurationSelector';
 import { ReleaseDetailsForm } from '~/components/ReleaseCreation/ReleaseDetailsForm';
 import { ReleaseSchedulingPanel } from '~/components/ReleaseCreation/ReleaseSchedulingPanel';

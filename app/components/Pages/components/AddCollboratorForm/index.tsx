@@ -3,7 +3,7 @@ import { useForm } from "@mantine/form";
 
 import { useParams } from "@remix-run/react";
 import { useAddCollabarator } from "./hooks/useAddCollabarator";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 
 export type AddCollboratorFormProps = {
   open: boolean;

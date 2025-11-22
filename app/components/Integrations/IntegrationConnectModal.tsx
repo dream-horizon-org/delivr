@@ -7,7 +7,7 @@ import { GitHubActionsConnectionFlow } from './GitHubActionsConnectionFlow';
 import { CheckmateConnectionFlow } from './CheckmateConnectionFlow';
 import { JiraConnectionFlow } from './JiraConnectionFlow';
 import { AppDistributionConnectionFlow } from './AppDistributionConnectionFlow';
-import { IntegrationIcon } from '~/components/Icons/IntegrationIcon';
+import { IntegrationIcon } from '~/components/Integrations/IntegrationIcon';
 import { useParams } from '@remix-run/react';
 import { useSystemMetadata } from '~/hooks/useSystemMetadata';
 

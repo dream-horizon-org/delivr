@@ -19,7 +19,7 @@ import { route } from "routes-gen";
 import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
 import { OrgCard } from "./components/OrgCard";
 import { Intro } from "../../Intro";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 import { useState, useEffect } from "react";
 import { CreateOrgModal } from "./components/CreateOrgModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";

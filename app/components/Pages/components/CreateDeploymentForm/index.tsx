@@ -18,7 +18,7 @@ import { useForm } from "@mantine/form";
 import { IconCheck, IconCopy, IconKey, IconInfoCircle, IconSparkles } from "@tabler/icons-react";
 import { useCreateDeployment } from "./hooks/useCreateDeployment";
 import { useParams } from "@remix-run/react";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 
 export type CreateTokenFormProps = {
   open: boolean;

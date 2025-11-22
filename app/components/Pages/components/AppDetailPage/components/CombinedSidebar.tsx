@@ -28,7 +28,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "@remix-run/react";
 import { route } from "routes-gen";
 import { useGetAppListForOrg } from "../../AppList/hooks/useGetAppListForOrg";
-import { CTAButton } from "~/components/CTAButton";
+import { CTAButton } from "~/components/Common/CTAButton";
 import { CreateOrgModal } from "~/components/Pages/components/OrgsPage/components/CreateOrgModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 

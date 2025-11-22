@@ -1,7 +1,7 @@
 import { Badge, Card, Button } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
-import { IntegrationIcon } from '~/components/Icons/IntegrationIcon';
+import { IntegrationIcon } from '~/components/Integrations/IntegrationIcon';
 import { INTEGRATION_STATUS_COLORS, INTEGRATION_STATUS_TEXT } from './integrations-constants';
 
 interface IntegrationCardProps {
