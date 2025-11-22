@@ -53,7 +53,7 @@ export interface CheckmateIntegration {
   id: string;
   tenantId: string;
   name: string;
-  providerType: 'CHECKMATE';
+  providerType: 'checkmate'; // Backend uses lowercase
   config: CheckmateConfig;
   createdByAccountId: string | null;
   createdAt: string;
@@ -84,7 +84,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
         endpoint,
         {
           name: data.name,
-          providerType: 'CHECKMATE',
+          providerType: 'checkmate', // Backend expects lowercase
           config: {
             baseUrl: data.config.baseUrl,
             authToken: data.config.authToken,
@@ -119,7 +119,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
       );
 
       // Filter only Checkmate integrations
-      const checkmateIntegrations = result.data?.filter((i: any) => i.providerType === 'CHECKMATE') || [];
+      const checkmateIntegrations = result.data?.filter((i: any) => i.providerType === 'checkmate') || [];
 
       return {
         success: result.success,
