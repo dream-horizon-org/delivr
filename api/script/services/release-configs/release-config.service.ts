@@ -160,14 +160,15 @@ export class ReleaseConfigService {
 
     // Create Project Management config
     if (integrationConfigs.projectManagement && this.projectManagementConfigService) {
-      if (requestData.jiraConfig?.id?.trim()) {
-        integrationConfigIds.projectManagementConfigId = requestData.jiraConfig.id;
+      if (requestData.jiraProject?.id?.trim()) {
+        integrationConfigIds.projectManagementConfigId = requestData.jiraProject.id;
         console.log('Reusing existing Project Management config:', integrationConfigIds.projectManagementConfigId);
       } else {
         const pmConfig = await this.projectManagementConfigService.createConfig({
-          projectId: requestData.organizationId,
+          tenantId: requestData.organizationId,
           integrationId: integrationConfigs.projectManagement.integrationId || '',
-          name: requestData.jiraConfig?.name || `PM Config for ${requestData.name}`,
+          name: requestData.jiraProject?.name || `PM Config for ${requestData.name}`,
+          description: requestData.jiraProject?.description || '',
           createdByAccountId: currentUserId,
           ...integrationConfigs.projectManagement
         });
@@ -227,7 +228,7 @@ export class ReleaseConfigService {
         success: false,
         error: {
           type: 'BUSINESS_RULE_ERROR',
-          message: 'Configuration profile already exists',
+          message: 'Configuration profile with this name already exists',
           code: 'CONFIG_NAME_EXISTS'
         }
       };
@@ -246,7 +247,10 @@ export class ReleaseConfigService {
       description: requestData.description ?? null,
       releaseType: requestData.releaseType,
       targets: requestData.defaultTargets,
+      platforms: requestData.platforms ?? null,
+      baseBranch: requestData.baseBranch ?? null,
       scheduling: requestData.scheduling ?? null,
+      isActive: true,
       isDefault: requestData.isDefault ?? false,
       createdByAccountId: currentUserId,
       ...integrationConfigIds

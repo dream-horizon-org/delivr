@@ -22,7 +22,7 @@ export class IntegrationConfigMapper {
     requestData: CreateReleaseConfigRequest,
     currentUserId: string
   ): Omit<CreateTestManagementConfigDto, 'projectId' | 'name'> | null {
-    if (!requestData.testManagement?.enabled) {
+    if (!requestData.testManagement) {
       return null;
     }
 
@@ -53,7 +53,7 @@ export class IntegrationConfigMapper {
    * TODO: Return proper CreateCommunicationConfigDto when Communication integration implements types
    */
   static prepareCommunicationConfig(requestData: CreateReleaseConfigRequest): any | null {
-    if (!requestData.communication?.slack?.enabled) {
+    if (!requestData.communication) {
       return null;
     }
 
@@ -66,11 +66,11 @@ export class IntegrationConfigMapper {
    * TODO: Return proper CreateProjectManagementConfigDto when Project Management integration implements types
    */
   static prepareProjectManagementConfig(requestData: CreateReleaseConfigRequest): any | null {
-    if (!requestData.jiraConfig) {
+    if (!requestData.jiraProject) {
       return null;
     }
 
-    return requestData.jiraConfig;
+    return requestData.jiraProject;
   }
 
   /**

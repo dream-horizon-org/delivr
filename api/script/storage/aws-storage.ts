@@ -562,8 +562,8 @@ export class S3Storage implements storage.Storage {
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public channelController!: ChannelController;  // Channel configuration controller
-    public slackIntegrationService!: SlackIntegrationService;  // Slack integration service
-    public slackChannelConfigService!: SlackChannelConfigService;  // Slack channel config service
+    public slackIntegrationService!: SlackIntegrationService;
+    public slackChannelConfigService!: SlackChannelConfigService;// Slack channel config service
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -737,19 +737,6 @@ export class S3Storage implements storage.Storage {
           
           console.log("Project Management Integration initialized");
           
-          
-          // Initialize Release Config
-          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
-          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
-          this.releaseConfigService = new ReleaseConfigService(
-            this.releaseConfigRepository,
-            this.cicdConfigService,
-            this.testManagementConfigService,
-            this.slackChannelConfigService,
-            this.projectManagementConfigService
-          );
-          console.log("Release Config Service initialized");
-          
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
@@ -775,6 +762,18 @@ export class S3Storage implements storage.Storage {
             this.slackController
           );
           console.log("Slack Channel Config Service initialized");
+          
+          // Initialize Release Config (AFTER all integration services are ready)
+          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
+          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          this.releaseConfigService = new ReleaseConfigService(
+            this.releaseConfigRepository,
+            this.cicdConfigService,
+            this.testManagementConfigService,
+            this.slackChannelConfigService,
+            this.projectManagementConfigService
+          );
+          console.log("Release Config Service initialized");
           
           // return this.sequelize.sync();
         })

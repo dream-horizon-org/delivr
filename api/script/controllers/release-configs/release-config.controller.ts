@@ -13,7 +13,11 @@ import type { TestManagementConfigService } from '~services/integrations/test-ma
 import type { ReleaseConfiguration } from '~types/release-configs';
 
 type AuthenticatedRequest = Request & {
-  accountId?: string;
+  user?: {
+    id: string;
+    email?: string;
+    name?: string;
+  };
 };
 
 // ============================================================================
@@ -55,7 +59,7 @@ const createConfigHandler = (service: ReleaseConfigService, testManagementConfig
     try {
       const requestBody: CreateReleaseConfigRequest = req.body;
       const { tenantId } = req.params;
-      const currentUserId = req.accountId || 'default-user';
+      const currentUserId = req.user?.id || 'default-user';
 
       // Validate required fields
       if (!requestBody.name) {

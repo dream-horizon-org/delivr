@@ -72,25 +72,25 @@ export const createReleaseConfigModel = (
       baseBranch: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        field: 'base_branch',
+        field: 'baseBranch',
         comment: 'Base branch for releases'
       },
       ciConfigId: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        field: 'ci_config_id',
+        field: 'ciConfigId',
         comment: 'Reference to CI integration config (contains all build pipelines)'
       },
       testManagementConfigId: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        field: 'test_case_management_config_id',
+        field: 'testManagementConfigId',
         comment: 'Reference to Test Case Management integration config'
       },
       projectManagementConfigId: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        field: 'project_management_config_id',
+        field: 'projectManagementConfigId',
         comment: 'Reference to Project Management integration config'
       },
       commsConfigId: {
