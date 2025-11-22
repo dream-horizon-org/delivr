@@ -37,6 +37,18 @@ export function SlackChannelMapper({
     value: ch.id,
     label: ch.name,
   }));
+
+  // Reusable function to handle channel selection changes
+  const handleChannelChange = (
+    channelType: keyof typeof channels,
+    selectedIds: string[]
+  ) => {
+    const channelObjects = selectedIds.map(id => {
+      const channel = availableChannels.find(ch => ch.id === id);
+      return channel || { id, name: id };
+    });
+    onChange({ ...channels, [channelType]: channelObjects });
+  };
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
@@ -83,13 +95,7 @@ export function SlackChannelMapper({
                       placeholder="Select channels for release notifications"
                       data={channelOptions}
                       value={channels.releases?.map(ch => ch.id) || []}
-                      onChange={(val) => {
-                        const channelObjects = val.map(id => {
-                          const channel = availableChannels.find(ch => ch.id === id);
-                          return channel || { id, name: id };
-                        });
-                        onChange({ ...channels, releases: channelObjects });
-                      }}
+                      onChange={(val) => handleChannelChange('releases', val)}
                       searchable
                       clearable
                       description="Release announcements and status updates (supports multiple channels)"
@@ -100,13 +106,7 @@ export function SlackChannelMapper({
                       placeholder="Select channels for build notifications"
                       data={channelOptions}
                       value={channels.builds?.map(ch => ch.id) || []}
-                      onChange={(val) => {
-                        const channelObjects = val.map(id => {
-                          const channel = availableChannels.find(ch => ch.id === id);
-                          return channel || { id, name: id };
-                        });
-                        onChange({ ...channels, builds: channelObjects });
-                      }}
+                      onChange={(val) => handleChannelChange('builds', val)}
                       searchable
                       clearable
                       description="Build status and completion notifications (supports multiple channels)"
@@ -117,13 +117,7 @@ export function SlackChannelMapper({
                       placeholder="Select channels for regression updates"
                       data={channelOptions}
                       value={channels.regression?.map(ch => ch.id) || []}
-                      onChange={(val) => {
-                        const channelObjects = val.map(id => {
-                          const channel = availableChannels.find(ch => ch.id === id);
-                          return channel || { id, name: id };
-                        });
-                        onChange({ ...channels, regression: channelObjects });
-                      }}
+                      onChange={(val) => handleChannelChange('regression', val)}
                       searchable
                       clearable
                       description="Regression test updates (supports multiple channels)"
@@ -134,13 +128,7 @@ export function SlackChannelMapper({
                       placeholder="Select channels for critical alerts"
                       data={channelOptions}
                       value={channels.critical?.map(ch => ch.id) || []}
-                      onChange={(val) => {
-                        const channelObjects = val.map(id => {
-                          const channel = availableChannels.find(ch => ch.id === id);
-                          return channel || { id, name: id };
-                        });
-                        onChange({ ...channels, critical: channelObjects });
-                      }}
+                      onChange={(val) => handleChannelChange('critical', val)}
                       searchable
                       clearable
                       description="Critical issues and urgent notifications (supports multiple channels)"
