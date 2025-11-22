@@ -98,13 +98,10 @@ export function ReleaseSchedulingPanel({
     const newSlot: RegressionSlot = {
       id: `slot-${Date.now()}`,
       name: `Slot ${regressionBuildSlots.length + 1}`,
-      offsetDays: DEFAULT_REGRESSION_OFFSET_DAYS,
+      regressionSlotOffsetFromKickoff: DEFAULT_REGRESSION_OFFSET_DAYS,
       time: DEFAULT_REGRESSION_SLOT_TIME,
       config: {
         regressionBuilds: true,
-        postReleaseNotes: false,
-        automationBuilds: false,
-        automationRuns: false,
       },
     };
 
@@ -145,10 +142,10 @@ export function ReleaseSchedulingPanel({
   };
 
   const calculateSlotDateTime = (slot: RegressionSlot): string => {
-    if (!releaseDate) return '-';
-    const rd = new Date(releaseDate);
-    rd.setDate(rd.getDate() - slot.offsetDays);
-    return `${rd.toLocaleDateString()} at ${slot.time}`;
+    if (!kickoffDate) return '-';
+    const kd = new Date(kickoffDate);
+    kd.setDate(kd.getDate() + slot.regressionSlotOffsetFromKickoff);
+    return `${kd.toLocaleDateString()} at ${slot.time}`;
   };
 
   const validateSlotTiming = (slot: RegressionSlot): string | null => {
@@ -167,8 +164,8 @@ export function ReleaseSchedulingPanel({
     kdDate.setHours(kdHours, kdMinutes, 0, 0);
 
     // Create full datetime for slot (date + time)
-    const slotDateTime = new Date(releaseDate);
-    slotDateTime.setDate(slotDateTime.getDate() - slot.offsetDays);
+    const slotDateTime = new Date(kickoffDate);
+    slotDateTime.setDate(slotDateTime.getDate() + slot.regressionSlotOffsetFromKickoff);
     const [slotHours, slotMinutes] = slot.time.split(':').map(Number);
     slotDateTime.setHours(slotHours, slotMinutes, 0, 0);
 
@@ -442,12 +439,12 @@ export function ReleaseSchedulingPanel({
 
                       <Group grow>
                         <TextInput
-                          label="Days Before Release"
+                          label="Days After Kickoff"
                           type="number"
-                          value={slot.offsetDays}
+                          value={slot.regressionSlotOffsetFromKickoff}
                           onChange={(e) =>
                             handleUpdateSlot(index, {
-                              offsetDays: parseInt(e.target.value) || 0,
+                              regressionSlotOffsetFromKickoff: parseInt(e.target.value) || 0,
                             })
                           }
                           min={0}
