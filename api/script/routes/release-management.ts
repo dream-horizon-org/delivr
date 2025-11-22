@@ -21,8 +21,6 @@ import { createCheckmateMetadataRoutes } from "./integrations/test-management/me
 import { createTenantIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
-import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
-import { createCommIntegrationRoutes } from "./integrations/comm";
 import { createReleaseConfigRoutes } from "./release-config-routes";
 
 export interface ReleaseManagementConfig {
