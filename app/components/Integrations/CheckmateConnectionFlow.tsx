@@ -100,7 +100,7 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
 
       const payload: any = {
         name: formData.name || `Checkmate - ${formData.baseUrl}`,
-        providerType: 'CHECKMATE', // Required by API
+        providerType: 'checkmate', // Required by API (lowercase)
         config: {
           baseUrl: formData.baseUrl,
           authToken: formData.authToken,
