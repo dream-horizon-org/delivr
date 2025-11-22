@@ -6,6 +6,7 @@
 import { Stack, Select, NumberInput, Text, Group, Card } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import type { ReleaseFrequency } from '~/types/release-config';
+import { RELEASE_FREQUENCY_OPTIONS } from '../release-config-constants';
 
 interface ReleaseFrequencySelectorProps {
   frequency: ReleaseFrequency;
@@ -13,20 +14,12 @@ interface ReleaseFrequencySelectorProps {
   onChange: (frequency: ReleaseFrequency, customDays?: number) => void;
 }
 
-const frequencyOptions = [
-  { value: 'WEEKLY', label: 'Weekly', description: 'Release every 7 days', days: 7 },
-  { value: 'BIWEEKLY', label: 'Biweekly', description: 'Release every 14 days', days: 14 },
-  { value: 'TRIWEEKLY', label: 'Triweekly', description: 'Release every 21 days', days: 21 },
-  { value: 'MONTHLY', label: 'Monthly', description: 'Release every 30 days', days: 30 },
-  { value: 'CUSTOM', label: 'Custom', description: 'Define custom frequency', days: 0 },
-];
-
 export function ReleaseFrequencySelector({
   frequency,
   customDays,
   onChange,
 }: ReleaseFrequencySelectorProps) {
-  const selectedOption = frequencyOptions.find(opt => opt.value === frequency);
+  const selectedOption = RELEASE_FREQUENCY_OPTIONS.find(opt => opt.value === frequency);
   
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
@@ -41,7 +34,7 @@ export function ReleaseFrequencySelector({
         <Select
           label="Frequency"
           placeholder="Select release frequency"
-          data={frequencyOptions.map(opt => ({
+          data={RELEASE_FREQUENCY_OPTIONS.map(opt => ({
             value: opt.value,
             label: opt.label,
           }))}

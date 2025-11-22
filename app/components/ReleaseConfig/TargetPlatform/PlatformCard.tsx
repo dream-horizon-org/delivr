@@ -4,8 +4,8 @@
  */
 
 import { Card, Checkbox, Text, Badge, Group } from '@mantine/core';
-import { IconWorld, IconBrandAndroid, IconBrandApple } from '@tabler/icons-react';
 import type { TargetPlatform } from '~/types/release-config';
+import { PLATFORM_CARD_CONFIG } from '../release-config-constants';
 
 interface PlatformCardProps {
   platform: TargetPlatform;
@@ -14,32 +14,8 @@ interface PlatformCardProps {
   disabled?: boolean;
 }
 
-const platformConfig = {
-  WEB: {
-    label: 'Web (Android)',
-    description: 'CodePush updates for web platform',
-    icon: IconWorld,
-    color: '#FF6B6B',
-    badge: 'Android',
-  },
-  PLAY_STORE: {
-    label: 'Play Store',
-    description: 'Google Play Store distribution',
-    icon: IconBrandAndroid,
-    color: '#82C91E',
-    badge: 'Android',
-  },
-  APP_STORE: {
-    label: 'App Store',
-    description: 'Apple App Store distribution via TestFlight',
-    icon: IconBrandApple,
-    color: '#4DABF7',
-    badge: 'iOS',
-  },
-};
-
 export function PlatformCard({ platform, selected, onToggle, disabled = false }: PlatformCardProps) {
-  const config = platformConfig[platform];
+  const config = PLATFORM_CARD_CONFIG[platform];
   const Icon = config.icon;
   
   return (

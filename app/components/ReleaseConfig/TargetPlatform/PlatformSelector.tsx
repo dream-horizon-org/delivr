@@ -7,77 +7,12 @@ import { useState } from 'react';
 import { Stack, Text, Alert, Card, Checkbox, Group, Badge, Collapse } from '@mantine/core';
 import { IconInfoCircle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import type { TargetPlatform } from '~/types/release-config';
+import { PLATFORM_CONFIGS } from '../release-config-constants';
 
 interface PlatformSelectorProps {
   selectedPlatforms: TargetPlatform[];
   onChange: (platforms: TargetPlatform[]) => void;
 }
-
-interface DistributionTarget {
-  id: TargetPlatform;
-  name: string;
-  description: string;
-  available: boolean;
-  comingSoon?: boolean;
-}
-
-interface PlatformConfig {
-  id: 'ANDROID' | 'IOS';
-  name: string;
-  description: string;
-  targets: DistributionTarget[];
-  available: boolean;
-  comingSoon?: boolean;
-}
-
-const platformConfigs: PlatformConfig[] = [
-  {
-    id: 'ANDROID',
-    name: 'Android',
-    description: 'Build and distribute for Android devices',
-    available: true,
-    targets: [
-      {
-        id: 'PLAY_STORE',
-        name: 'Google Play Store',
-        description: 'Distribute to Play Store',
-        available: true,
-      },
-      // Future targets can be added here
-      // {
-      //   id: 'FIREBASE',
-      //   name: 'Firebase App Distribution',
-      //   description: 'Internal distribution via Firebase',
-      //   available: false,
-      //   comingSoon: true,
-      // },
-    ],
-  },
-  {
-    id: 'IOS',
-    name: 'iOS',
-    description: 'Build and distribute for iOS devices',
-    available: false,
-    comingSoon: true,
-    targets: [
-      {
-        id: 'APP_STORE',
-        name: 'Apple App Store',
-        description: 'Distribute to App Store',
-        available: false,
-        comingSoon: true,
-      },
-      // Future targets can be added here
-      // {
-      //   id: 'TESTFLIGHT_STANDALONE',
-      //   name: 'TestFlight Only',
-      //   description: 'TestFlight distribution without App Store',
-      //   available: false,
-      //   comingSoon: true,
-      // },
-    ],
-  },
-];
 
 export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelectorProps) {
   // Track which platforms are expanded
@@ -85,13 +20,13 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
   
   // Determine which platforms are selected based on their targets
   const isPlatformSelected = (platformId: 'ANDROID' | 'IOS') => {
-    const platform = platformConfigs.find(p => p.id === platformId);
+    const platform = PLATFORM_CONFIGS.find(p => p.id === platformId);
     if (!platform) return false;
     return platform.targets.some(target => selectedPlatforms.includes(target.id));
   };
   
   const handlePlatformToggle = (platformId: 'ANDROID' | 'IOS') => {
-    const platform = platformConfigs.find(p => p.id === platformId);
+    const platform = PLATFORM_CONFIGS.find(p => p.id === platformId);
     if (!platform) return;
     
     const availableTargets = platform.targets.filter(t => t.available).map(t => t.id);
@@ -99,7 +34,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
     
     if (isCurrentlySelected) {
       // Deselect all targets for this platform
-      onChange(selectedPlatforms.filter(p => !availableTargets.includes(p)));
+      onChange(selectedPlatforms.filter(p => !(availableTargets as readonly TargetPlatform[]).includes(p)));
     } else {
       // Select all available targets for this platform
       const newTargets = [...selectedPlatforms, ...availableTargets.filter(t => !selectedPlatforms.includes(t))];
@@ -147,7 +82,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       </Alert>
       
       <Stack gap="md">
-        {platformConfigs.map((platform) => {
+        {PLATFORM_CONFIGS.map((platform) => {
           const isExpanded = expandedPlatforms.has(platform.id);
           const isSelected = isPlatformSelected(platform.id);
           const selectedTargetsCount = platform.targets.filter(t => selectedPlatforms.includes(t.id)).length;
@@ -184,7 +119,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                             <Text fw={600} size="md" c={platform.available ? undefined : 'dimmed'}>
                               {platform.name}
                             </Text>
-                            {platform.comingSoon && (
+                            {'comingSoon' in platform && platform.comingSoon && (
                               <Badge size="sm" color="gray" variant="outline">
                                 Coming Soon
                               </Badge>
@@ -232,7 +167,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                                   <Text size="sm" fw={500}>
                                     {target.name}
                                   </Text>
-                                  {target.comingSoon && (
+                                  {'comingSoon' in target && target.comingSoon && (
                                     <Badge size="xs" color="gray" variant="outline">
                                       Coming Soon
                                     </Badge>

@@ -12,6 +12,7 @@ import type {
   TestRailSettings
 } from '~/types/release-config';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
+import { TEST_MANAGEMENT_PROVIDER_OPTIONS } from '../release-config-constants';
 
 interface TestManagementSelectorProps {
   config: TestManagementConfig;
@@ -29,13 +30,6 @@ const isCheckmateSettings = (settings: unknown): settings is CheckmateSettings =
 const isTestRailSettings = (settings: unknown): settings is TestRailSettings => {
   return typeof settings === 'object' && settings !== null && 'type' in settings && settings.type === 'testrail';
 };
-
-const providerOptions = [
-  { value: 'none', label: 'No Test Management', disabled: false },
-  { value: 'checkmate', label: 'Checkmate', disabled: false },
-  { value: 'testrail', label: 'TestRail (Coming Soon)', disabled: true },
-  { value: 'zephyr', label: 'Zephyr (Coming Soon)', disabled: true },
-];
 
 export function TestManagementSelector({
   config,
@@ -99,7 +93,7 @@ export function TestManagementSelector({
             <Select
               label="Test Management Provider"
               placeholder="Select a provider"
-              data={providerOptions}
+              data={TEST_MANAGEMENT_PROVIDER_OPTIONS}
               value={config.provider}
               onChange={(val) => handleProviderChange(val as TestManagementProvider)}
               required

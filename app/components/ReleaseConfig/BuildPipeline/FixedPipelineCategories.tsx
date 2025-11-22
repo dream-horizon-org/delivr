@@ -9,6 +9,7 @@ import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@ta
 import type { BuildPipelineJob, TargetPlatform } from '~/types/release-config';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
+import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '../release-config-constants';
 
 interface FixedPipelineCategoriesProps {
   pipelines: BuildPipelineJob[];
@@ -77,52 +78,9 @@ export function FixedPipelineCategories({
     }
   };
 
-  // Define all possible pipeline categories
-  const androidCategories: PipelineCategory[] = [
-    {
-      id: 'android-pre-regression',
-      platform: 'ANDROID',
-      environment: 'PRE_REGRESSION',
-      label: 'Android Pre-Regression',
-      description: 'Optional pre-regression build before main testing',
-      required: false,
-    },
-    {
-      id: 'android-regression',
-      platform: 'ANDROID',
-      environment: 'REGRESSION',
-      label: 'Android Regression',
-      description: 'Main regression build for Play Store release',
-      required: true,
-    },
-  ];
-
-  const iosCategories: PipelineCategory[] = [
-    {
-      id: 'ios-pre-regression',
-      platform: 'IOS',
-      environment: 'PRE_REGRESSION',
-      label: 'iOS Pre-Regression',
-      description: 'Optional pre-regression build before main testing',
-      required: false,
-    },
-    {
-      id: 'ios-regression',
-      platform: 'IOS',
-      environment: 'REGRESSION',
-      label: 'iOS Regression',
-      description: 'Main regression build for App Store release',
-      required: true,
-    },
-    {
-      id: 'ios-testflight',
-      platform: 'IOS',
-      environment: 'TESTFLIGHT',
-      label: 'iOS TestFlight',
-      description: 'TestFlight build for App Store distribution',
-      required: true,
-    },
-  ];
+  // Define all possible pipeline categories (imported from constants)
+  const androidCategories = ANDROID_PIPELINE_CATEGORIES;
+  const iosCategories = IOS_PIPELINE_CATEGORIES;
 
   // Get categories to show based on selected platforms
   const categoriesToShow = [

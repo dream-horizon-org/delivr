@@ -5,21 +5,12 @@
 
 import { Stack, Text, Checkbox, Group, Card } from '@mantine/core';
 import { IconCalendarEvent } from '@tabler/icons-react';
+import { DAYS_OF_WEEK } from '../release-config-constants';
 
 interface WorkingDaysSelectorProps {
   workingDays: number[];
   onChange: (days: number[]) => void;
 }
-
-const daysOfWeek = [
-  { value: 1, label: 'Monday', short: 'Mon' },
-  { value: 2, label: 'Tuesday', short: 'Tue' },
-  { value: 3, label: 'Wednesday', short: 'Wed' },
-  { value: 4, label: 'Thursday', short: 'Thu' },
-  { value: 5, label: 'Friday', short: 'Fri' },
-  { value: 6, label: 'Saturday', short: 'Sat' },
-  { value: 0, label: 'Sunday', short: 'Sun' },
-];
 
 export function WorkingDaysSelector({ workingDays, onChange }: WorkingDaysSelectorProps) {
   const handleToggle = (day: number) => {
@@ -73,7 +64,7 @@ export function WorkingDaysSelector({ workingDays, onChange }: WorkingDaysSelect
         </Group>
         
         <div className="grid grid-cols-2 gap-2">
-          {daysOfWeek.map((day) => (
+          {DAYS_OF_WEEK.map((day) => (
             <div
               key={day.value}
               className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer ${

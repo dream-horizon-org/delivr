@@ -5,6 +5,7 @@
 
 import { Select } from '@mantine/core';
 import type { BuildProvider } from '~/types/release-config';
+import { BUILD_PROVIDER_LABELS } from '../release-config-constants';
 
 interface PipelineProviderSelectProps {
   value: BuildProvider;
@@ -12,12 +13,6 @@ interface PipelineProviderSelectProps {
   availableProviders: BuildProvider[];
   disabled?: boolean;
 }
-
-const providerLabels: Record<BuildProvider, string> = {
-  JENKINS: 'Jenkins',
-  GITHUB_ACTIONS: 'GitHub Actions',
-  MANUAL_UPLOAD: 'Manual Upload',
-};
 
 export function PipelineProviderSelect({
   value,
@@ -27,7 +22,7 @@ export function PipelineProviderSelect({
 }: PipelineProviderSelectProps) {
   const options = availableProviders.map(provider => ({
     value: provider,
-    label: providerLabels[provider],
+    label: BUILD_PROVIDER_LABELS[provider],
   }));
   
   return (

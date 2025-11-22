@@ -28,24 +28,13 @@ import type {
 import { ReleaseFrequencySelector } from './ReleaseFrequencySelector';
 import { WorkingDaysSelector } from './WorkingDaysSelector';
 import { TimezonePicker } from './TimezonePicker';
+import { PLATFORMS, PLATFORM_METADATA } from '../release-config-constants';
 
 interface SchedulingConfigProps {
   config: SchedulingConfigType;
   onChange: (config: SchedulingConfigType) => void;
   selectedPlatforms: Platform[]; // Platforms configured in the release
 }
-
-// Platform enum constants
-const PLATFORMS: Record<Platform, Platform> = {
-  ANDROID: 'ANDROID',
-  IOS: 'IOS',
-} as const;
-
-// Platform display metadata
-const PLATFORM_METADATA: Record<Platform, { label: string; color: string }> = {
-  ANDROID: { label: 'Android', color: 'green' },
-  IOS: { label: 'iOS', color: 'blue' },
-};
 
 export function SchedulingConfig({ config, onChange, selectedPlatforms }: SchedulingConfigProps) {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);

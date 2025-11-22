@@ -5,6 +5,12 @@
 
 import { Card, TextInput, Select, Stack, Text, Badge } from '@mantine/core';
 import type { JiraPlatformConfig } from '~/types/release-config';
+import {
+  JIRA_PLATFORM_CONFIG,
+  JIRA_ISSUE_TYPES,
+  JIRA_COMPLETION_STATUSES,
+  JIRA_PRIORITIES,
+} from '../release-config-constants';
 
 interface JiraPlatformConfigCardProps {
   platform: 'WEB' | 'IOS' | 'ANDROID';
@@ -12,46 +18,12 @@ interface JiraPlatformConfigCardProps {
   onChange: (config: JiraPlatformConfig) => void;
 }
 
-// Platform display configuration
-const PLATFORM_CONFIG = {
-  WEB: { label: 'Web', color: 'blue', icon: '🌐' },
-  IOS: { label: 'iOS', color: 'grape', icon: '📱' },
-  ANDROID: { label: 'Android', color: 'green', icon: '🤖' },
-} as const;
-
-// Common JIRA issue types
-const ISSUE_TYPES = [
-  { value: 'Epic', label: 'Epic' },
-  { value: 'Story', label: 'Story' },
-  { value: 'Task', label: 'Task' },
-  { value: 'Bug', label: 'Bug' },
-  { value: 'Subtask', label: 'Subtask' },
-];
-
-// Common JIRA completion statuses
-const COMPLETION_STATUSES = [
-  { value: 'Done', label: 'Done' },
-  { value: 'Released', label: 'Released' },
-  { value: 'Closed', label: 'Closed' },
-  { value: 'Resolved', label: 'Resolved' },
-  { value: 'Deployed', label: 'Deployed' },
-];
-
-// Priority options
-const PRIORITIES = [
-  { value: 'Highest', label: 'Highest' },
-  { value: 'High', label: 'High' },
-  { value: 'Medium', label: 'Medium' },
-  { value: 'Low', label: 'Low' },
-  { value: 'Lowest', label: 'Lowest' },
-];
-
 export function JiraPlatformConfigCard({
   platform,
   config,
   onChange,
 }: JiraPlatformConfigCardProps) {
-  const platformConfig = PLATFORM_CONFIG[platform];
+  const platformConfig = JIRA_PLATFORM_CONFIG[platform];
 
   const handleChange = (field: keyof JiraPlatformConfig, value: unknown) => {
     onChange({
@@ -94,7 +66,7 @@ export function JiraPlatformConfigCard({
           label="Issue Type"
           placeholder="Select issue type"
           description="Type of JIRA issue to create for releases"
-          data={ISSUE_TYPES}
+          data={JIRA_ISSUE_TYPES}
           value={config.issueType || null}
           onChange={(value) => handleChange('issueType', value || undefined)}
           clearable
@@ -106,7 +78,7 @@ export function JiraPlatformConfigCard({
           label="Completion Status"
           placeholder="Select completion status"
           description="Status that indicates work is complete"
-          data={COMPLETION_STATUSES}
+          data={JIRA_COMPLETION_STATUSES}
           value={config.completedStatus}
           onChange={(value) => handleChange('completedStatus', value || 'Done')}
           required
@@ -124,7 +96,7 @@ export function JiraPlatformConfigCard({
           label="Priority"
           placeholder="Select default priority"
           description="Default priority for created issues"
-          data={PRIORITIES}
+          data={JIRA_PRIORITIES}
           value={config.priority || null}
           onChange={(value) => handleChange('priority', value || undefined)}
           clearable
