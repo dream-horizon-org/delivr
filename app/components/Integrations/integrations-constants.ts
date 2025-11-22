@@ -68,16 +68,18 @@ export const DISCONNECT_CONFIG: Record<
     message:
       'Are you sure you want to disconnect Play Store? This will stop all app distribution integrations.',
     endpoint: (tenantId, config) => {
-      if (!config?.integrationId) throw new Error('Integration ID required for Play Store');
-      return `/api/v1/tenants/${tenantId}/distributions?action=delete&integrationId=${config.integrationId}`;
+      const storeType = config?.storeType || 'play_store';
+      const platform = config?.platform || 'ANDROID';
+      return `/api/v1/tenants/${tenantId}/integrations/app-distribution/revoke?storeType=${storeType}&platform=${platform}`;
     },
   },
   app_store: {
     message:
       'Are you sure you want to disconnect App Store? This will stop all app distribution integrations.',
     endpoint: (tenantId, config) => {
-      if (!config?.integrationId) throw new Error('Integration ID required for App Store');
-      return `/api/v1/tenants/${tenantId}/distributions?action=delete&integrationId=${config.integrationId}`;
+      const storeType = config?.storeType || 'app_store';
+      const platform = config?.platform || 'IOS';
+      return `/api/v1/tenants/${tenantId}/integrations/app-distribution/revoke?storeType=${storeType}&platform=${platform}`;
     },
   },
 } as const;
