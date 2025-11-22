@@ -227,7 +227,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         </Group>
         
         <Stack gap="sm">
-          {config.communication?.slack?.enabled ? (
+          {config.communication?.slack?.enabled && config.communication.slack.channelData ? (
             <div>
               <Group gap="xs" className="mb-2">
                 <IconCheck size={16} className="text-green-600" />
@@ -236,10 +236,10 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 </Text>
               </Group>
               <div className="ml-6 text-xs text-gray-600">
-                <div>• Releases: {config.communication.slack.channelData.releases.map(ch => `#${ch.name}`).join(', ')}</div>
-                <div>• Builds: {config.communication.slack.channelData.builds.map(ch => `#${ch.name}`).join(', ')}</div>
-                <div>• Regression: {config.communication.slack.channelData.regression.map(ch => `#${ch.name}`).join(', ')}</div>
-                <div>• Critical: {config.communication.slack.channelData.critical.map(ch => `#${ch.name}`).join(', ')}</div>
+                <div>• Releases: {config.communication.slack.channelData.releases?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Builds: {config.communication.slack.channelData.builds?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Regression: {config.communication.slack.channelData.regression?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Critical: {config.communication.slack.channelData.critical?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
               </div>
             </div>
           ) : (
@@ -261,7 +261,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               </Group>
               <div className="ml-6">
                 <Text size="xs" c="dimmed">
-                  {config.communication.email.notificationEmails.length} recipient(s)
+                  {config.communication.email.notificationEmails?.length || 0} recipient(s)
                 </Text>
               </div>
             </div>
