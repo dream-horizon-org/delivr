@@ -11,6 +11,7 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { CheckmateIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 import { requireUserId } from '~/.server/services/Auth';
+import type { UpdateCheckmateIntegrationRequest } from '~/.server/services/ReleaseManagement/integrations/checkmate-integration';
 
 /**
  * GET - List all test management integrations for project
@@ -77,7 +78,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
 
       const result = await CheckmateIntegrationService.createIntegration({
-        projectId,
+        tenantId: projectId, // projectId in URL is actually tenantId
         name,
         config: {
           baseUrl: config.baseUrl,
@@ -103,22 +104,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const { name, providerType, config } = body;
 
       // Build update payload - only include fields that are provided
-      const updatePayload: any = {
-        projectId,
+      const updatePayload: UpdateCheckmateIntegrationRequest = {
         integrationId,
-        userId
+        userId,
+        ...(name && { name }),
+        ...(config && {
+          config: {
+            ...(config.baseUrl && { baseUrl: config.baseUrl }),
+            ...(config.authToken && { authToken: config.authToken }),
+            ...(config.orgId && { orgId: config.orgId })
+          }
+        })
       };
 
-      if (name) updatePayload.name = name;
-      if (config) {
-        updatePayload.config = {
-          ...(config.baseUrl && { baseUrl: config.baseUrl }),
-          ...(config.authToken && { authToken: config.authToken }),
-          ...(config.orgId && { orgId: config.orgId })
-        };
-      }
-
-      const result = await CheckmateIntegrationService.updateIntegration(updatePayload);
+      const result = await CheckmateIntegrationService.updateIntegration(updatePayload, userId);
 
       return json(result, { status: result.success ? 200 : 500 });
     }
@@ -132,7 +131,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ success: false, error: 'Integration ID is required for delete' }, { status: 400 });
       }
 
-      const result = await CheckmateIntegrationService.deleteIntegration(projectId, integrationId, userId);
+      const result = await CheckmateIntegrationService.deleteIntegration(integrationId, userId);
       return json(result, { status: result.success ? 200 : 500 });
     }
 
