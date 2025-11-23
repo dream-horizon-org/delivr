@@ -38,7 +38,10 @@ export class ReleaseConfigService {
         },
       });
 
-      const response = await fetch(`${BACKEND_API_URL}/tenants/${tenantId}/release-configs`, {
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs`;
+      console.log('[ReleaseConfigService] POST to:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,6 +49,17 @@ export class ReleaseConfigService {
         },
         body: JSON.stringify(payload),
       });
+
+      console.log('[ReleaseConfigService] Response status:', response.status, response.statusText);
+      console.log('[ReleaseConfigService] Response headers:', Object.fromEntries(response.headers.entries()));
+
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('[ReleaseConfigService] Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Backend returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType}. Response: ${text.substring(0, 200)}`);
+      }
 
       const result = await response.json();
 
