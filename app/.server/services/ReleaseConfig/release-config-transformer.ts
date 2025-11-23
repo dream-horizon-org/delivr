@@ -169,14 +169,21 @@ function transformReleaseFrequency(frequency: string): 'weekly' | 'biweekly' | '
 }
 
 /**
- * Convert working days from day names to numbers
+ * Convert working days to backend format
+ * Handles both string day names and numbers
  * Monday = 1, Sunday = 7
  */
-function transformWorkingDays(days?: string[]): number[] {
+function transformWorkingDays(days?: (string | number)[]): number[] {
   if (!days || days.length === 0) {
     return [1, 2, 3, 4, 5]; // Default: weekdays
   }
 
+  // If already numbers, return them (after validation)
+  if (typeof days[0] === 'number') {
+    return (days as number[]).filter(d => d >= 1 && d <= 7);
+  }
+
+  // Otherwise, convert from day names to numbers
   const dayMap: Record<string, number> = {
     'MONDAY': 1,
     'TUESDAY': 2,
@@ -187,7 +194,9 @@ function transformWorkingDays(days?: string[]): number[] {
     'SUNDAY': 7,
   };
 
-  return days.map(day => dayMap[day.toUpperCase()] || 1).filter(d => d >= 1 && d <= 7);
+  return (days as string[])
+    .map(day => typeof day === 'string' ? dayMap[day.toUpperCase()] || 1 : day)
+    .filter(d => d >= 1 && d <= 7);
 }
 
 /**
@@ -366,10 +375,7 @@ export function transformFromBackendResponse(
     scheduling: backendConfig.scheduling ? {
       ...backendConfig.scheduling,
       releaseFrequency: backendConfig.scheduling.releaseFrequency.toUpperCase() as any,
-      workingDays: backendConfig.scheduling.workingDays.map(d => {
-        const dayNames = ['', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-        return dayNames[d] || 'MONDAY';
-      }),
+      workingDays: backendConfig.scheduling.workingDays, // Already numbers (1-7), keep as is
       regressionSlots: backendConfig.scheduling.regressionSlots?.map(slot => ({
         name: slot.name,
         regressionSlotOffsetFromKickoff: slot.regressionSlotOffsetFromKickoff,
