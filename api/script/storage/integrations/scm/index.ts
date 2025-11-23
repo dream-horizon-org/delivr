@@ -3,8 +3,16 @@
  * 
  * Central export point for all SCM integration related code
  */
-
-export * from './scm-types';
-export * from './scm-models';
-export * from './scm-controller';
-
+export {
+  SCMType,
+  VerificationStatus,
+  type TenantSCMIntegration,
+  type CreateSCMIntegrationDto,
+  type UpdateSCMIntegrationDto,
+  type VerificationResult,
+  type SafeSCMIntegration,
+  type SCMIntegrationFilters,
+  type GitHubClientConfig
+} from './scm-types';
+export { createSCMIntegrationModel } from './scm-models';
+export { SCMIntegrationController } from './scm-controller';
