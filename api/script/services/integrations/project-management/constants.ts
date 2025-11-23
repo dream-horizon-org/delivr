@@ -20,7 +20,7 @@ export const PROJECT_MANAGEMENT_ERROR_MESSAGES = {
   DELETE_CONFIG_FAILED: 'Failed to delete project management configuration',
   VERIFY_CONFIG_FAILED: 'Failed to verify project management configuration',
   INVALID_PLATFORM_CONFIG: 'Invalid platform configuration',
-  DUPLICATE_CONFIG_NAME: 'Configuration with this name already exists for this project',
+  DUPLICATE_CONFIG_NAME: 'Configuration with this name already exists for this tenant',
 
   // Ticket errors
   CREATE_TICKETS_FAILED: 'Failed to create project management tickets',

@@ -21,20 +21,30 @@ export class ProjectManagementConfigRepository {
   };
 
   create = async (data: CreateProjectManagementConfigDto): Promise<ProjectManagementConfig> => {
-    const config = await this.model.create({
-      id: this.generateId(),
-      tenantId: data.tenantId,
-      integrationId: data.integrationId,
-      name: data.name,
-      description: data.description ?? null,
-      platformConfigurations: data.platformConfigurations,
-      isActive: true,
-      createdByAccountId: data.createdByAccountId ?? 'system',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
+    try {
+      const config = await this.model.create({
+        id: this.generateId(),
+        tenantId: data.tenantId,
+        integrationId: data.integrationId,
+        name: data.name,
+        description: data.description ?? null,
+        platformConfigurations: data.platformConfigurations,
+        isActive: true,
+        createdByAccountId: data.createdByAccountId ?? 'system',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-    return this.toPlainObject(config);
+      return this.toPlainObject(config);
+    } catch (error: any) {
+      // Handle unique constraint violation from database
+      if (error.name === 'SequelizeUniqueConstraintError' || error.original?.code === 'ER_DUP_ENTRY') {
+        throw new Error(
+          `A project management configuration with the name "${data.name}" already exists for this tenant. Please use a different name.`
+        );
+      }
+      throw error;
+    }
   };
 
   findById = async (id: string): Promise<ProjectManagementConfig | null> => {
@@ -95,9 +105,18 @@ export class ProjectManagementConfigRepository {
       updateData.isActive = data.isActive;
     }
 
-    await config.update(updateData);
-
-    return this.toPlainObject(config);
+    try {
+      await config.update(updateData);
+      return this.toPlainObject(config);
+    } catch (error: any) {
+      // Handle unique constraint violation from database
+      if (error.name === 'SequelizeUniqueConstraintError' || error.original?.code === 'ER_DUP_ENTRY') {
+        throw new Error(
+          `A project management configuration with the name "${data.name}" already exists for this tenant. Please use a different name.`
+        );
+      }
+      throw error;
+    }
   };
 
   delete = async (id: string): Promise<boolean> => {

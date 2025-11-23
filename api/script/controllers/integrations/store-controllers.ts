@@ -23,7 +23,7 @@ import {
 } from '../../storage/integrations/store/store-types';
 import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../../constants/store';
-import { getErrorMessage } from '../../utils/cicd';
+import { getErrorMessage } from '../../utils/error.utils';
 
 const getStoreController = (): StoreIntegrationController => {
   const storage = getStorage();
