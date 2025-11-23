@@ -206,7 +206,7 @@ export function generateConfigId(): string {
  */
 export function validateBuildPipelines(
   buildPipelines: ReleaseConfiguration['buildPipelines'],
-  targetPlatforms: ReleaseConfiguration['defaultTargets']
+  targetPlatforms: ReleaseConfiguration['targets']
 ): string[] {
   const errors: string[] = [];
   
@@ -326,13 +326,13 @@ export function validateConfiguration(
     errors.general = ['Configuration name is required'];
   }
   
-  if (!config.defaultTargets || config.defaultTargets.length === 0) {
+  if (!config.targets || config.targets.length === 0) {
     errors.targets = ['At least one target platform must be selected'];
   }
   
   // Validate build pipelines (optional - manual upload is the default)
-  if (config.buildPipelines && config.buildPipelines.length > 0 && config.defaultTargets) {
-    const pipelineErrors = validateBuildPipelines(config.buildPipelines, config.defaultTargets);
+  if (config.buildPipelines && config.buildPipelines.length > 0 && config.targets) {
+    const pipelineErrors = validateBuildPipelines(config.buildPipelines, config.targets);
     if (pipelineErrors.length > 0) {
       errors.buildPipelines = pipelineErrors;
     }

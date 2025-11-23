@@ -4,7 +4,7 @@
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { prepareReleaseConfigPayload, prepareUpdatePayload } from './release-config-payload';
+import { prepareReleaseConfigPayload, prepareUpdatePayload, transformFromBackend } from './release-config-payload';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
 
@@ -20,17 +20,10 @@ export class ReleaseConfigService {
     try {
       const payload = prepareReleaseConfigPayload(config, userId);
       
-      console.log('[ReleaseConfigService] Creating config:', {
-        name: payload.name,
-        tenantId: payload.tenantId,
-        integrations: {
-          workflows: payload.workflows?.length || 0,
-          testManagement: !!payload.testManagement,
-          communication: !!payload.communication,
-          projectManagement: !!payload.projectManagement,
-          scheduling: !!payload.scheduling,
-        },
-      });
+      console.log('[ReleaseConfigService] ==================== REQUEST PAYLOAD ====================');
+      console.log('[ReleaseConfigService] defaultTargets:', payload.defaultTargets);
+      console.log('[ReleaseConfigService] Full payload:', JSON.stringify(payload, null, 2));
+      console.log('[ReleaseConfigService] ========================================================');
 
       const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs`;
       console.log('[ReleaseConfigService] POST to:', url);
@@ -69,7 +62,7 @@ export class ReleaseConfigService {
       
       return {
         success: true,
-        data: result.data, // No transformation needed - backend response matches frontend
+        data: transformFromBackend(result.data), // Transform response (targets field mapping)
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Create error:', error);
@@ -112,7 +105,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: result.data || [], // No transformation needed
+        data: (result.data || []).map(transformFromBackend), // Transform each config
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] List error:', error);
@@ -159,7 +152,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: result.data, // No transformation needed
+        data: transformFromBackend(result.data), // Transform response
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Get error:', error);
@@ -210,7 +203,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: result.data, // No transformation needed
+        data: transformFromBackend(result.data), // Transform response
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Update error:', error);

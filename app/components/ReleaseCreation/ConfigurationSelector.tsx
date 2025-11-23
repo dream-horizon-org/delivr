@@ -98,7 +98,7 @@ export function ConfigurationSelector({
                       <span className="font-medium">{config.buildPipelines.length}</span> pipelines
                     </div>
                     <div>
-                      <span className="font-medium">{config.defaultTargets.length}</span> platforms
+                      <span className="font-medium">{config.targets.length}</span> platforms
                     </div>
                     <div>
                       <span className="font-medium">{config.scheduling.regressionSlots.length}</span> slots

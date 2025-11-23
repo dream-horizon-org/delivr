@@ -88,7 +88,7 @@ export function ConfigurationWizard({
         return !!(config.name && config.name.trim());
         
       case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP)
-        return !!config.defaultTargets && config.defaultTargets.length > 0;
+        return !!config.targets && config.targets.length > 0;
         
       // ==================== COMMENTED OUT: CI/CD PIPELINE VALIDATION ====================
       // TODO: Uncomment when CI/CD pipeline integration is ready
@@ -97,8 +97,8 @@ export function ConfigurationWizard({
       //     return false;
       //   }
       //   // Validate required pipelines based on selected distribution targets
-      //   const needsAndroid = config.defaultTargets?.includes('PLAY_STORE');
-      //   const needsIOS = config.defaultTargets?.includes('APP_STORE');
+      //   const needsAndroid = config.targets?.includes('PLAY_STORE');
+      //   const needsIOS = config.targets?.includes('APP_STORE');
       //   
       //   if (needsAndroid) {
       //     const hasAndroidRegression = config.buildPipelines.some(
@@ -176,7 +176,7 @@ export function ConfigurationWizard({
       console.log('[ConfigWizard] Submitting configuration:', {
         name: completeConfig.name,
         releaseType: completeConfig.releaseType,
-        targets: completeConfig.defaultTargets,
+        targets: completeConfig.targets,
         hasJira: !!completeConfig.jiraProject?.enabled,
         hasTestManagement: !!completeConfig.testManagement?.enabled,
         hasSlack: !!completeConfig.communication?.slack?.enabled,
@@ -243,7 +243,7 @@ export function ConfigurationWizard({
       case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP - Select platforms FIRST)
         return (
           <PlatformSelector
-            selectedPlatforms={config.defaultTargets || []}
+            selectedPlatforms={config.targets || []}
             onChange={(targets) => {
               // Derive platforms from selected targets
               const platforms: Array<'ANDROID' | 'IOS'> = [];
@@ -258,7 +258,7 @@ export function ConfigurationWizard({
               
               setConfig({ 
                 ...config, 
-                defaultTargets: targets,
+                targets: targets,
                 platforms: platforms as any, // Update platforms based on targets
               });
             }}
@@ -276,7 +276,7 @@ export function ConfigurationWizard({
       //         jenkins: availableIntegrations.jenkins,
       //         github: availableIntegrations.github,
       //       }}
-      //       selectedPlatforms={config.defaultTargets || []}
+      //       selectedPlatforms={config.targets || []}
       //       tenantId={organizationId}
       //     />
       //   );
@@ -293,7 +293,7 @@ export function ConfigurationWizard({
             availableIntegrations={{
               checkmate: availableIntegrations.checkmate,
             }}
-            selectedTargets={config.defaultTargets || []}
+            selectedTargets={config.targets || []}
           />
         );
         

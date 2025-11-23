@@ -92,9 +92,9 @@ export function ReleaseDetailsForm({
         releaseType: config.releaseType as any,
         baseBranch: defaultBranch, // Use default branch from SCM
         releaseTargets: {
-          web: config.defaultTargets.includes('WEB' as TargetPlatform),
-          playStore: config.defaultTargets.includes('PLAY_STORE' as TargetPlatform),
-          appStore: config.defaultTargets.includes('APP_STORE' as TargetPlatform),
+          web: config.targets.includes('WEB' as TargetPlatform),
+          playStore: config.targets.includes('PLAY_STORE' as TargetPlatform),
+          appStore: config.targets.includes('APP_STORE' as TargetPlatform),
         },
       });
     }
@@ -110,9 +110,9 @@ export function ReleaseDetailsForm({
   // Available target platforms based on config (or all if manual)
   const availableTargets = config
     ? {
-        web: config.defaultTargets.includes('WEB' as TargetPlatform),
-        playStore: config.defaultTargets.includes('PLAY_STORE' as TargetPlatform),
-        appStore: config.defaultTargets.includes('APP_STORE' as TargetPlatform),
+        web: config.targets.includes('WEB' as TargetPlatform),
+        playStore: config.targets.includes('PLAY_STORE' as TargetPlatform),
+        appStore: config.targets.includes('APP_STORE' as TargetPlatform),
       }
     : { web: true, playStore: true, appStore: true };
 

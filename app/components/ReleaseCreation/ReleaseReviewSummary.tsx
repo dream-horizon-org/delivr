@@ -156,7 +156,7 @@ export function ReleaseReviewSummary({
                 <span className="font-medium">{config.buildPipelines.length}</span> build pipelines
               </div>
               <div>
-                <span className="font-medium">{config.defaultTargets.length}</span> target platforms
+                <span className="font-medium">{config.targets.length}</span> target platforms
               </div>
               <div>
                 <span className="font-medium">{config.scheduling.regressionSlots.length}</span> regression slots

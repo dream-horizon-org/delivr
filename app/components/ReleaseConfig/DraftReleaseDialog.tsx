@@ -66,7 +66,7 @@ export function DraftReleaseDialog({
               
               <div className="mt-2">
                 <Text size="xs" c="dimmed">
-                  {draftConfig.defaultTargets?.length || 0} platform(s) selected
+                  {draftConfig.targets?.length || 0} platform(s) selected
                 </Text>
                 <Text size="xs" c="dimmed">
                   {draftConfig.buildPipelines?.length || 0} pipeline(s) configured

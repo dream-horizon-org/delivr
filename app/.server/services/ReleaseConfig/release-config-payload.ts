@@ -1,18 +1,17 @@
 /**
  * Release Config Payload Preparation
- * SIMPLIFIED - Only handles truly necessary transformations
+ * Maps frontend schema to backend API contract
  * 
- * Philosophy: UI schema matches backend schema as much as possible
- * Only transform what's ACTUALLY different between UI and backend
+ * Important: Backend has DIFFERENT field names for request vs response
+ * - REQUEST uses: defaultTargets, projectManagement, etc.
+ * - RESPONSE uses: targets, projectManagement, etc.
  */
 
-import type { ReleaseConfiguration, RegressionSlot, TargetPlatform } from '~/types/release-config';
-import { targetToTestPlatform } from '~/utils/platform-mapper';
-import * as shortid from 'shortid';
+import type { ReleaseConfiguration } from '~/types/release-config';
 
 /**
- * Prepare release config payload for backend
- * MINIMAL transformations - only what's truly necessary
+ * Prepare release config payload matching backend API contract
+ * See: CREATE_RELEASE_CONFIG_API_CONTRACT.md
  */
 export function prepareReleaseConfigPayload(
   config: ReleaseConfiguration,
@@ -20,99 +19,83 @@ export function prepareReleaseConfigPayload(
 ): any {
   const payload: any = {
     // ========================================================================
-    // DIRECT PASS-THROUGH (No transformation needed!)
+    // BASIC CONFIGURATION (Required)
     // ========================================================================
     tenantId: config.tenantId,
     name: config.name,
-    description: config.description,
     releaseType: config.releaseType,
-    isDefault: config.isDefault ?? false,
-    targets: config.targets,
-    baseBranch: config.baseBranch,
-    scheduling: config.scheduling, // Direct pass-through (backend handles as JSON)
+    defaultTargets: config.targets, // ⚠️ Backend REQUEST expects "defaultTargets", RESPONSE returns "targets"
     
     // ========================================================================
-    // DERIVED FIELDS (Backend needs these for indexing/querying)
+    // OPTIONAL BASIC FIELDS
     // ========================================================================
-    platforms: extractPlatforms(config.targets),
+    ...(config.description && { description: config.description }),
+    ...(config.isDefault !== undefined && { isDefault: config.isDefault }),
+    ...(config.platforms && config.platforms.length > 0 && { platforms: config.platforms }),
+    ...(config.baseBranch && { baseBranch: config.baseBranch }),
   };
 
   // ========================================================================
-  // WORKFLOWS - Minimal transformation (add IDs + userId)
-  // ========================================================================
-  if (config.workflows && config.workflows.length > 0) {
-    payload.workflows = config.workflows.map(w => ({
-      id: w.id || shortid.generate(),
-      tenantId: config.tenantId,
-      providerType: w.provider,
-      integrationId: w.integrationId,
-      displayName: w.name,
-      workflowUrl: w.url || '',
-      providerIdentifiers: w.providerIdentifiers,
-      platform: w.platform,
-      workflowType: w.type,
-      parameters: w.config,
-      createdByAccountId: userId,
-    }));
-  }
-
-  // ========================================================================
-  // TEST MANAGEMENT - NECESSARY transformation (platform mapping)
+  // TEST MANAGEMENT (Optional)
   // ========================================================================
   if (config.testManagement?.enabled && config.testManagement.integrationId) {
     payload.testManagement = {
       tenantId: config.tenantId,
       integrationId: config.testManagement.integrationId,
-      name: config.testManagement.name || `TCM Config for ${config.name}`,
-      passThresholdPercent: config.testManagement.passThresholdPercent ?? 100,
-      platformConfigurations: (config.testManagement.platformConfigurations || []).map(pc => {
-        // NECESSARY TRANSFORMATION: UI uses simple platform (ANDROID/IOS)
-        // Backend needs specific TestPlatform enum (ANDROID_PLAY_STORE, IOS_APP_STORE)
-        const matchingTarget = config.targets.find(
-          target => getPlatformFromTarget(target) === pc.platform
-        );
-
-        return {
-          platform: matchingTarget 
-            ? targetToTestPlatform(matchingTarget)
-            : (pc.platform === 'ANDROID' ? 'ANDROID_PLAY_STORE' : 'IOS_APP_STORE'),
-          parameters: {
-            sectionIds: pc.sectionIds || [],
-            labelIds: pc.labelIds || [],
-            squadIds: pc.squadIds || [],
-            autoCreateRuns: true,
-            filterType: 'AND' as const,
-          },
-        };
-      }),
+      name: `Test Management Config for ${config.name}`,
+      passThresholdPercent: 100, // Default
+      platformConfigurations: (config.testManagement.providerConfig as any)?.platformConfigurations || [],
       createdByAccountId: userId,
     };
   }
 
   // ========================================================================
-  // COMMUNICATION - Direct pass-through
+  // COMMUNICATION (Optional)
   // ========================================================================
-  if (config.communication?.enabled && config.communication.slack?.channels) {
+  if (config.communication?.slack?.enabled && config.communication.slack.channelData) {
     payload.communication = {
       tenantId: config.tenantId,
-      channelData: config.communication.slack.channels,
+      channelData: config.communication.slack.channelData,
     };
   }
 
   // ========================================================================
-  // PROJECT MANAGEMENT - Direct pass-through
+  // PROJECT MANAGEMENT (Optional)
   // ========================================================================
   if (config.jiraProject?.enabled && config.jiraProject.integrationId) {
     payload.projectManagement = {
       tenantId: config.tenantId,
       integrationId: config.jiraProject.integrationId,
-      name: config.jiraProject.name || `PM Config for ${config.name}`,
-      description: config.jiraProject.description || config.description || '',
-      platformConfigurations: (config.jiraProject.platformConfigurations || []).map(pc => ({
-        platform: pc.platform,
-        parameters: pc.parameters,
-      })),
+      name: `Project Management Config for ${config.name}`,
+      description: config.description || '',
+      platformConfigurations: config.jiraProject.platformConfigurations || [],
       createdByAccountId: userId,
+    };
+  }
+
+  // ========================================================================
+  // SCHEDULING (Optional - but if present, all fields required)
+  // ========================================================================
+  if (config.scheduling) {
+    payload.scheduling = {
+      releaseFrequency: config.scheduling.releaseFrequency.toLowerCase(), // "WEEKLY" -> "weekly"
+      firstReleaseKickoffDate: config.scheduling.firstReleaseKickoffDate,
+      initialVersions: config.scheduling.initialVersions || {},
+      kickoffTime: config.scheduling.kickoffTime,
+      kickoffReminderEnabled: config.scheduling.kickoffReminderEnabled,
+      kickoffReminderTime: config.scheduling.kickoffReminderTime,
+      targetReleaseTime: config.scheduling.targetReleaseTime,
+      targetReleaseDateOffsetFromKickoff: config.scheduling.targetReleaseDateOffsetFromKickoff,
+      workingDays: config.scheduling.workingDays,
+      timezone: config.scheduling.timezone,
+      ...(config.scheduling.regressionSlots && config.scheduling.regressionSlots.length > 0 && {
+        regressionSlots: config.scheduling.regressionSlots.map(slot => ({
+          ...(slot.name && { name: slot.name }),
+          regressionSlotOffsetFromKickoff: slot.regressionSlotOffsetFromKickoff,
+          time: slot.time,
+          config: slot.config,
+        })),
+      }),
     };
   }
 
@@ -120,43 +103,33 @@ export function prepareReleaseConfigPayload(
 }
 
 /**
- * Extract unique platforms from targets
- * e.g., [PLAY_STORE, TESTFLIGHT, APP_STORE] → [ANDROID, IOS]
+ * Transform backend response to frontend schema
+ * Backend RESPONSE uses "targets", frontend uses "targets" too
  */
-function extractPlatforms(targets: TargetPlatform[]): string[] {
-  const platforms = new Set<string>();
-  
-  targets.forEach(target => {
-    const platform = getPlatformFromTarget(target);
-    if (platform) {
-      platforms.add(platform);
-    }
-  });
-  
-  return Array.from(platforms);
+export function transformFromBackend(backendConfig: any): Partial<ReleaseConfiguration> {
+  return {
+    id: backendConfig.id,
+    tenantId: backendConfig.tenantId,
+    name: backendConfig.name,
+    description: backendConfig.description,
+    releaseType: backendConfig.releaseType,
+    isDefault: backendConfig.isDefault,
+    targets: backendConfig.targets, // Backend RESPONSE uses "targets"
+    platforms: backendConfig.platforms,
+    baseBranch: backendConfig.baseBranch,
+    scheduling: backendConfig.scheduling,
+    // Note: Backend doesn't return full integration configs, only metadata
+    createdAt: backendConfig.createdAt,
+    updatedAt: backendConfig.updatedAt,
+  };
 }
 
 /**
- * Get platform from target
- */
-function getPlatformFromTarget(target: TargetPlatform): 'ANDROID' | 'IOS' | null {
-  const androidTargets = ['PLAY_STORE', 'INTERNAL_TESTING', 'FIREBASE'];
-  const iosTargets = ['APP_STORE', 'TESTFLIGHT'];
-  
-  if (androidTargets.includes(target)) return 'ANDROID';
-  if (iosTargets.includes(target)) return 'IOS';
-  return null;
-}
-
-/**
- * Prepare update payload (similar to create but allows partial updates)
+ * Prepare update payload
  */
 export function prepareUpdatePayload(
   config: Partial<ReleaseConfiguration>,
   userId: string
 ): any {
-  // For updates, just prepare the full payload with provided fields
-  // Backend will handle partial updates
   return prepareReleaseConfigPayload(config as ReleaseConfiguration, userId);
 }
-

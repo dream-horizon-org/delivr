@@ -25,7 +25,7 @@ const statusColors = {
 const releaseTypeColors = {
   PLANNED: 'blue',
   HOTFIX: 'orange',
-  EMERGENCY: 'red',
+  MAJOR: 'red',
 };
 
 export function ConfigurationListItem({
@@ -86,21 +86,21 @@ export function ConfigurationListItem({
               <Text size="xs" c="dimmed">
                 Platforms
               </Text>
-              <Text fw={500}>{config.defaultTargets.length}</Text>
+              <Text fw={500}>{config.targets.length}</Text>
             </div>
             
             <div>
               <Text size="xs" c="dimmed">
                 Frequency
               </Text>
-              <Text fw={500}>{config.scheduling.releaseFrequency}</Text>
+              <Text fw={500}>{config.scheduling?.releaseFrequency || 'N/A'}</Text>
             </div>
             
             <div>
               <Text size="xs" c="dimmed">
                 Regression Slots
               </Text>
-              <Text fw={500}>{config.scheduling.regressionSlots.length}</Text>
+              <Text fw={500}>{config.scheduling?.regressionSlots?.length || 0}</Text>
             </div>
           </div>
         </div>

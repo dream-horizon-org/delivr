@@ -124,9 +124,9 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </Text>
         </Group>
         
-        {config.defaultTargets && config.defaultTargets.length > 0 ? (
+        {config.targets && config.targets.length > 0 ? (
           <Group gap="xs">
-            {config.defaultTargets.map((target) => (
+            {config.targets.map((target) => (
               <Badge key={target} variant="light" size="md">
                 {target.replace('_', ' ')}
               </Badge>
