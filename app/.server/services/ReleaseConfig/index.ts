@@ -1,19 +1,14 @@
 /**
  * Release Config BFF Module
- * Exports service and transformers for release configuration
+ * Exports service and payload preparation utilities
+ * 
+ * SIMPLIFIED: UI schema now matches backend schema
+ * Only necessary transformations remain
  */
 
 export { ReleaseConfigService } from './release-config.service';
 export {
-  transformToBackendPayload,
-  transformFromBackendResponse,
-  transformToUpdatePayload,
-  type CreateReleaseConfigRequest,
-  type SafeReleaseConfiguration,
-  type BackendWorkflow,
-  type BackendTestManagementConfig,
-  type BackendCommunicationConfig,
-  type BackendProjectManagementConfig,
-  type BackendReleaseScheduling,
-} from './release-config-transformer';
+  prepareReleaseConfigPayload,
+  prepareUpdatePayload,
+} from './release-config-payload';
 

@@ -9,15 +9,15 @@ import { generateConfigId } from './release-config-storage';
 /**
  * Create a default configuration object for a new release configuration
  */
-export function createDefaultConfig(organizationId: string): Partial<ReleaseConfiguration> {
+export function createDefaultConfig(tenantId: string): Partial<ReleaseConfiguration> {
   return {
     id: generateConfigId(),
-    organizationId,
+    tenantId,
     name: '',
     releaseType: 'PLANNED',
     isDefault: true,
     platforms: [],
-    defaultTargets: [],
+    targets: [],
     buildUploadStep: 'MANUAL', // Default to manual upload
     buildPipelines: [],
     testManagement: {

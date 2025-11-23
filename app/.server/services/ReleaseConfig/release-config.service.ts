@@ -4,13 +4,7 @@
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
-import {
-  transformToBackendPayload,
-  transformFromBackendResponse,
-  transformToUpdatePayload,
-  type CreateReleaseConfigRequest,
-  type SafeReleaseConfiguration,
-} from './release-config-transformer';
+import { prepareReleaseConfigPayload, prepareUpdatePayload } from './release-config-payload';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
 
@@ -24,7 +18,7 @@ export class ReleaseConfigService {
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
-      const payload = transformToBackendPayload(config, userId);
+      const payload = prepareReleaseConfigPayload(config, userId);
       
       console.log('[ReleaseConfigService] Creating config:', {
         name: payload.name,
@@ -75,7 +69,7 @@ export class ReleaseConfigService {
       
       return {
         success: true,
-        data: transformFromBackendResponse(result.data),
+        data: result.data, // No transformation needed - backend response matches frontend
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Create error:', error);
@@ -118,7 +112,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: (result.data || []).map(transformFromBackendResponse),
+        data: result.data || [], // No transformation needed
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] List error:', error);
@@ -165,7 +159,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: transformFromBackendResponse(result.data),
+        data: result.data, // No transformation needed
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Get error:', error);
@@ -186,7 +180,7 @@ export class ReleaseConfigService {
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
-      const payload = transformToUpdatePayload(updates, userId);
+      const payload = prepareUpdatePayload(updates, userId);
       
       console.log('[ReleaseConfigService] Updating config:', configId, Object.keys(payload));
 
@@ -216,7 +210,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: transformFromBackendResponse(result.data),
+        data: result.data, // No transformation needed
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Update error:', error);

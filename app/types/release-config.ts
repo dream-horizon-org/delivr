@@ -223,12 +223,12 @@ export interface CommunicationConfig {
 
 export interface ReleaseConfiguration {
   id: string; // Config ID
-  organizationId: string;
+  tenantId: string; // Match backend schema (was: organizationId)
   
   // Configuration metadata
   name: string; // e.g., "Standard Release Configuration", "Hotfix Configuration"
   description?: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'EMERGENCY';
+  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR'; // Match backend enum
   isDefault: boolean;
   
   // Default base branch (from SCM integration)
@@ -237,8 +237,8 @@ export interface ReleaseConfiguration {
   // Platforms configured in this release
   platforms: Platform[]; // e.g., ['ANDROID', 'IOS']
   
-  // Default target platforms
-  defaultTargets: TargetPlatform[];
+  // Target platforms (match backend: defaultTargets → targets)
+  targets: TargetPlatform[];
   
   // Build upload method
   buildUploadStep: BuildUploadStep; // 'MANUAL' (default) or 'CI_CD' (when pipelines configured)

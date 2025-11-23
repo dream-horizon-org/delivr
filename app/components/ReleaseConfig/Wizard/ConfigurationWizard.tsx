@@ -74,7 +74,7 @@ export function ConfigurationWizard({
     
     // Create new config
     console.log('[ConfigWizard] Creating new config');
-    return createDefaultConfig(organizationId);
+    return createDefaultConfig(organizationId); // organizationId param → config.tenantId
   });
   
   // Auto-save draft to local storage
