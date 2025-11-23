@@ -197,6 +197,14 @@ export function ConfigurationWizard({
         body: JSON.stringify(completeConfig), // Send config directly (not wrapped)
       });
       
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('[ConfigWizard] Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Server returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType || 'unknown'}`);
+      }
+      
       const result = await response.json();
       
       if (!response.ok || !result.success) {
