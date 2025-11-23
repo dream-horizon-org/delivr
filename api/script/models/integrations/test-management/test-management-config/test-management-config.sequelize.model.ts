@@ -1,6 +1,6 @@
 /**
  * Test Management Config Sequelize Model
- * Reusable test configurations for projects
+ * Reusable test configurations for tenants
  */
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
@@ -8,7 +8,7 @@ import type { PlatformConfiguration } from '~types/integrations/test-management/
 
 export type TestManagementConfigAttributes = {
   id: string;
-  projectId: string;
+  tenantId: string;
   integrationId: string;
   name: string;
   passThresholdPercent: number;
@@ -34,10 +34,17 @@ export const createTestManagementConfigModel = (
         primaryKey: true,
         allowNull: false
       },
-      projectId: {
-        type: DataTypes.STRING(255),
+      tenantId: {
+        type: DataTypes.UUID,
         allowNull: false,
-        field: 'project_id'
+        field: 'tenant_id',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+        comment: 'Tenant identifier (references tenants.id)'
       },
       integrationId: {
         type: DataTypes.UUID,
@@ -55,7 +62,7 @@ export const createTestManagementConfigModel = (
         field: 'pass_threshold_percent'
       },
       platformConfigurations: {
-        type: DataTypes.JSONB,
+        type: DataTypes.JSON,
         allowNull: false,
         defaultValue: [],
         field: 'platform_configurations'

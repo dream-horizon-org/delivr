@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
 import { ERROR_MESSAGES } from "../constants";
 import { formatErrorMessage } from "~utils/error.utils";
+import { getErrorStatusCode } from "~utils/response.utils";
 import { getStorage } from "../../../../storage/storage-instance";
 import type { CICDConfigService } from "../../../../services/integrations/ci-cd/config/config.service";
+import { CICDConfigValidationError } from "../../../../services/integrations/ci-cd/config/config.validation";
 
 export const createConfig = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
@@ -12,8 +14,8 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
   if (missingUser) {
     // Route: POST /tenants/:tenantId/integrations/ci-cd/configs
     return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: 'Unauthorized'
+      integration: 'ci',
+      errors: [{ field: 'auth', message: 'Unauthorized' }]
     });
   }
   const body = req.body || {};
@@ -33,10 +35,17 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
       workflowIds: result.workflowIds
     });
   } catch (e: unknown) {
+    if (e instanceof CICDConfigValidationError) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        integration: 'ci',
+        errors: e.errors
+      });
+    }
     const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_CREATE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: RESPONSE_STATUS.FAILURE,
-      error: message
+    const statusCode = getErrorStatusCode(e);
+    return res.status(statusCode).json({
+      integration: 'ci',
+      errors: [{ field: 'workflows', message }]
     });
   }
 };

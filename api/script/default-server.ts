@@ -1,18 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { S3, SecretsManager } from "aws-sdk"; // Amazon S3
+import { Response } from "express";
 import * as api from "./api";
-import { S3 } from "aws-sdk"; // Amazon S3
-import { SecretsManager } from "aws-sdk";
-import * as awsRDS from "aws-sdk/clients/rds";
-import { AzureStorage } from "./storage/azure-storage";
 import { fileUploadMiddleware, initializeFileUploadManager } from "./file-upload-manager";
-import { JsonStorage } from "./storage/json-storage";
-import { RedisManager } from "./redis-manager";
 import { MemcachedManager } from "./memcached-manager";
+import { RedisManager } from "./redis-manager";
+import { JsonStorage } from "./storage/json-storage";
 import { Storage } from "./storage/storage";
 import { initializeStorage } from "./storage/storage-instance";
-import { Response } from "express";
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "<your-s3-bucket-name>";
 const RDS_DB_INSTANCE_IDENTIFIER = process.env.RDS_DB_INSTANCE_IDENTIFIER || "<your-rds-instance>";
 const SECRETS_MANAGER_SECRET_ID = process.env.SECRETS_MANAGER_SECRET_ID || "<your-secret-id>";
@@ -21,10 +19,10 @@ const s3 = new S3(); // Create an S3 instance
 const secretsManager = new SecretsManager(); // Secrets Manager instance for fetching credentials
 
 import * as bodyParser from "body-parser";
-const domain = require("express-domain-middleware");
 import * as express from "express";
-const csrf = require('lusca').csrf;
 import { S3Storage } from "./storage/aws-storage";
+const domain = require("express-domain-middleware");
+const csrf = require('lusca').csrf;
 
 interface Secret {
   id: string;
@@ -53,9 +51,14 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
     .then(async () => {
       if (!useJsonStorage) {
         //storage = new JsonStorage();
-        storage = new S3Storage();
-        // Wait for S3Storage to complete initialization
-        await (storage as any).setupPromise;
+        const s3Storage = new S3Storage();
+        storage = s3Storage;
+        
+        // Wait for S3Storage async initialization to complete before using services
+        // This ensures all repositories and services (SCM, CI/CD, Slack, Test Management)
+        // are fully initialized before routes are mounted
+        await s3Storage.setupPromise;
+        console.log('[Storage] S3Storage setup completed');
       } else {
         storage = new JsonStorage();
       }
@@ -188,12 +191,6 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
           app.use(api.releaseManagement({ storage: storage }));
         } else {
           app.use(auth.router());
-          
-          // DOTA Management Routes (deployments, apps, packages)
-          app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
-          
-          // Release Management Routes (releases, builds, integrations)
-          app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
         }
         // Release Management Routes (releases, builds, integrations)
         app.use(auth.authenticate, api.releaseManagement({ storage: storage }));

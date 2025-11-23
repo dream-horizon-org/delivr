@@ -1,0 +1,94 @@
+erDiagram
+    TENANTS ||--o{ RELEASE_TARGETS : "has"
+    TENANTS ||--o{ RELEASE_TARGET_CREDENTIALS : "has"
+    TENANTS ||--o{ RELEASE_ARTIFACTS : "has"
+    TENANTS ||--o{ RELEASES : "has"
+    TENANTS ||--o{ RELEASE_SUBMISSIONS : "has"
+    TENANTS ||--o{ RELEASE_ROLLOUTS : "has"
+
+    ACCOUNTS ||--o{ RELEASE_TARGETS : "creates"
+    ACCOUNTS ||--o{ RELEASES : "creates"
+
+    APPS ||--o{ RELEASES : "produces"
+
+    RELEASE_TARGETS ||--o{ RELEASE_TARGET_CREDENTIALS : "uses"
+    RELEASES ||--o{ RELEASE_SUBMISSIONS : "has"
+    RELEASE_TARGETS ||--o{ RELEASE_SUBMISSIONS : "receives"
+    RELEASE_TARGET_CREDENTIALS ||--o{ RELEASE_SUBMISSIONS : "auth"
+    RELEASE_SUBMISSIONS ||--o{ RELEASE_ROLLOUTS : "controls"
+    RELEASE_ARTIFACTS ||--o{ RELEASES : "linked (optional)"
+
+    RELEASE_TARGETS {
+      string id PK
+      string tenantId
+      string provider
+      string platform
+      string displayName
+      string appIdentifier
+      string defaultTrack
+      boolean isActive
+      string createdByAccountId
+      date createdAt
+      date updatedAt
+    }
+
+    RELEASE_TARGET_CREDENTIALS {
+      string id PK
+      string tenantId
+      string targetId
+      string kind
+      string payloadEncrypted
+      date validUntil
+      date createdAt
+      date updatedAt
+    }
+
+    RELEASE_ARTIFACTS {
+      string id PK
+      string tenantId
+      string storageProvider
+      string location
+      string checksum
+      number sizeBytes
+      string platform
+      date createdAt
+    }
+
+    RELEASES {
+      string id PK
+      string tenantId
+      string appId
+      string version
+      string notes
+      string artifactId
+      string createdByAccountId
+      date createdAt
+      date updatedAt
+    }
+
+    RELEASE_SUBMISSIONS {
+      string id PK
+      string tenantId
+      string releaseId
+      string targetId
+      string credentialsId
+      string track
+      string status
+      string externalSubmissionId
+      string errorMessage
+      date submittedAt
+      date completedAt
+      date createdAt
+      date updatedAt
+    }
+
+    RELEASE_ROLLOUTS {
+      string id PK
+      string tenantId
+      string submissionId
+      number percentage
+      string status
+      date createdAt
+      date updatedAt
+    }
+

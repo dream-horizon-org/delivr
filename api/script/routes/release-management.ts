@@ -6,20 +6,22 @@ import { Request, Response, Router } from "express";
 import * as tenantPermissions from "../middleware/tenant-permissions";
 import { S3Storage } from "../storage/aws-storage";
 import * as storageTypes from "../storage/storage";
+import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
+import { createCommIntegrationRoutes } from "./integrations/comm";
 import {
-  createProjectIntegrationRoutes,
+  createConfigurationRoutes as createPMConfigurationRoutes,
+  createIntegrationRoutes as createPMIntegrationRoutes,
+  createTicketRoutes as createPMTicketRoutes
+} from "./integrations/project-management";
+import {
   createTestManagementConfigRoutes,
   createTestRunOperationsRoutes
 } from "./integrations/test-management";
-import {
-  createIntegrationRoutes as createPMIntegrationRoutes,
-  createConfigurationRoutes as createPMConfigurationRoutes,
-  createTicketRoutes as createPMTicketRoutes
-} from "./integrations/project-management";
 import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
+import { createTenantIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
-import { createCommIntegrationRoutes } from "./integrations/comm";
+import { createStoreIntegrationRoutes } from "./store-integrations";
+import { createReleaseConfigRoutes } from "./release-config-routes";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -72,9 +74,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     // All test management routes under /test-management/ prefix
     const testManagementRouter = Router();
     
-    // Project-Level Integration Management (Credentials)
-    const projectIntegrationRoutes = createProjectIntegrationRoutes(s3Storage.testManagementIntegrationService);
-    testManagementRouter.use(projectIntegrationRoutes);
+    // Tenant-Level Integration Management (Credentials)
+    const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    testManagementRouter.use(tenantIntegrationRoutes);
 
     // Test Management Config Management (Reusable test configurations)
     const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
@@ -130,8 +132,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
-  // TODO: Implement target platform integration routes
-  // router.use(createTargetPlatformRoutes(storage));
+  const storeRoutes = createStoreIntegrationRoutes();
+  router.use(storeRoutes);
 
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)
@@ -145,6 +147,28 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const commRoutes = createCommIntegrationRoutes(storage);
   router.use(commRoutes);
   // router.use(createCommunicationRoutes(storage));
+
+  // ============================================================================
+  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
+  // ============================================================================
+  // TODO: Implement ticket management integration routes
+  // router.use(createTicketManagementRoutes(storage));
+
+  // ============================================================================
+  // RELEASE CONFIGURATION ROUTES
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    const releaseConfigRoutes = createReleaseConfigRoutes(
+      s3Storage.releaseConfigService,
+      storage,
+      s3Storage.testManagementConfigService
+    );
+    router.use(releaseConfigRoutes);
+    console.log('[Release Management] Release Config routes mounted successfully');
+  } else {
+    console.warn('[Release Management] Release Config service not available (S3Storage required), routes not mounted');
+  }
 
   // ============================================================================
   // SETUP MANAGEMENT
@@ -209,9 +233,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
     async (req: Request, res: Response): Promise<any> => {
-      const { tenantId, releaseId } = req.params;
       
       // TODO: Implement full release details retrieval from database
+      // const { tenantId, releaseId } = req.params;
       // const release = await storage.getRelease(releaseId);
       
       res.status(501).json({

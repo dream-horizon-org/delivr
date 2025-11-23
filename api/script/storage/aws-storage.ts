@@ -7,9 +7,9 @@ import * as storage from "./storage";
 import * as mysql from "mysql2/promise";
 import * as shortid from "shortid";
 import {
-  createProjectTestManagementIntegrationModel,
+  createTenantTestManagementIntegrationModel,
   createTestManagementConfigModel,
-  ProjectTestManagementIntegrationRepository,
+  TenantTestManagementIntegrationRepository,
   TestManagementConfigRepository
 } from "../models/integrations/test-management";
 import {
@@ -31,14 +31,23 @@ import {
 } from "../services/integrations/project-management";
 import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
 import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
+import {
+  createReleaseConfigModel,
+  ReleaseConfigRepository
+} from "../models/release-configs";
+import { ReleaseConfigService } from "../services/release-configs";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
 import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
 import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigModel } from "../models/integrations/ci-cd";
 import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
+import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createRelease } from "./release-models";
+import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
+import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
+import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -388,7 +397,15 @@ export function createModelss(sequelize: Sequelize) {
 
   // ============================================
   const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
+  const StoreIntegrations = createStoreIntegrationModel(sequelize);  // Store integrations (App Store, Play Store, etc.)
+  const StoreCredentials = createStoreCredentialModel(sequelize);  // Store credentials (encrypted)
+  const PlatformStoreMapping = createPlatformStoreMappingModel(sequelize);  // Platform to store type mapping (static data)
   const ChannelConfig = createChannelConfigModel(sequelize);  // Channel configurations for communication integrations
+  
+  // Test Management integrations
+  const TenantTestManagementIntegration = createTenantTestManagementIntegrationModel(sequelize);
+  const TestManagementConfig = createTestManagementConfigModel(sequelize);
+  
   // Define associations
   // ============================================
 
@@ -469,6 +486,27 @@ export function createModelss(sequelize: Sequelize) {
   SlackIntegrations.hasOne(ChannelConfig, { foreignKey: 'integrationId', as: 'channelConfig' });
   ChannelConfig.belongsTo(SlackIntegrations, { foreignKey: 'integrationId' });
 
+  // Test Management associations
+  // Tenant has many Test Management Integrations
+  Tenant.hasMany(TenantTestManagementIntegration, { 
+    foreignKey: 'tenantId',
+    as: 'testManagementIntegrations' 
+  });
+  TenantTestManagementIntegration.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+  
+  // Tenant has many Test Management Configs
+  Tenant.hasMany(TestManagementConfig, { 
+    foreignKey: 'tenantId',
+    as: 'testManagementConfigs' 
+  });
+  TestManagementConfig.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant'
+  });
+
   return {
     Account,
     AccountChannel,
@@ -485,7 +523,12 @@ export function createModelss(sequelize: Sequelize) {
     CICDConfig,            // CI/CD configurations
     Release,
     SlackIntegrations,  // Slack integrations
+    StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
+    StoreCredentials,   // Store credentials (encrypted)
+    PlatformStoreMapping,   // Platform to store type mapping (static data)
     ChannelConfig,  // Channel configurations for communication integrations
+    TenantTestManagementIntegration,  // Test management integrations
+    TestManagementConfig,  // Test management configurations
   };
 }
 
@@ -524,26 +567,35 @@ export class S3Storage implements storage.Storage {
     private s3: S3;
     private bucketName : string = process.env.S3_BUCKETNAME || "codepush-local-bucket";
     private sequelize:Sequelize;
-    private setupPromise: Promise<void>;
+    public readonly setupPromise: Promise<void>;  // Public so it can be awaited before using services
     public scmController!: SCMIntegrationController;  // SCM integration controller
     
     // Test Management Integration - Repositories and Services
-    public projectIntegrationRepository!: ProjectTestManagementIntegrationRepository;
+    public tenantIntegrationRepository!: TenantTestManagementIntegrationRepository;
     public testManagementConfigRepository!: TestManagementConfigRepository;
     public testManagementIntegrationService!: TestManagementIntegrationService;
     public testManagementConfigService!: TestManagementConfigService;
     public testManagementRunService!: TestManagementRunService;
     public checkmateMetadataService!: CheckmateMetadataService;
+    
+    // Project Management Integration - Repositories and Services
+    public projectManagementIntegrationRepository!: ProjectManagementIntegrationRepository;
+    public projectManagementConfigRepository!: ProjectManagementConfigRepository;
     public projectManagementIntegrationService!: ProjectManagementIntegrationService;
     public projectManagementConfigService!: ProjectManagementConfigService;
     public projectManagementTicketService!: ProjectManagementTicketService;
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
+    public cicdConfigService!: CICDConfigService;  // CI/CD config service
+    public releaseConfigRepository!: ReleaseConfigRepository;
+    public releaseConfigService!: ReleaseConfigService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
+    public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
+    public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public channelController!: ChannelController;  // Channel configuration controller
-    public slackIntegrationService!: SlackIntegrationService;  // Slack integration service
-    public slackChannelConfigService!: SlackChannelConfigService;  // Slack channel config service
+    public slackIntegrationService!: SlackIntegrationService;
+    public slackChannelConfigService!: SlackChannelConfigService;// Slack channel config service
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -657,59 +709,62 @@ export class S3Storage implements storage.Storage {
           
           this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
           console.log("CI/CD Config Repository initialized");
-                    
+          
+          // Initialize CI/CD Config Service
+          this.cicdConfigService = new CICDConfigService(this.cicdConfigRepository, this.cicdWorkflowRepository);
+          console.log("CI/CD Config Service initialized");
           
           
           // Initialize Test Management Integration
-          const projectIntegrationModel = createProjectTestManagementIntegrationModel(this.sequelize);
-          this.projectIntegrationRepository = new ProjectTestManagementIntegrationRepository(projectIntegrationModel);
+          const tenantIntegrationModel = createTenantTestManagementIntegrationModel(this.sequelize);
+          this.tenantIntegrationRepository = new TenantTestManagementIntegrationRepository(tenantIntegrationModel);
           
           const testManagementConfigModel = createTestManagementConfigModel(this.sequelize);
           this.testManagementConfigRepository = new TestManagementConfigRepository(testManagementConfigModel);
           
-          // Service 1: Project Integration Service (manages credentials)
+          // Service 1: Tenant Integration Service (manages credentials)
           this.testManagementIntegrationService = new TestManagementIntegrationService(
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           // Service 2: Config Service (manages test management configs)
           this.testManagementConfigService = new TestManagementConfigService(
             this.testManagementConfigRepository,
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           // Service 3: Run Service (stateless test operations)
           this.testManagementRunService = new TestManagementRunService(
             this.testManagementConfigRepository,
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           // Service 4: Metadata Service (fetches metadata from providers)
           this.checkmateMetadataService = new CheckmateMetadataService(
-            this.projectIntegrationRepository
+            this.tenantIntegrationRepository
           );
           
           console.log("Test Management Integration initialized");
           
           // Initialize Project Management Integration
           const projectManagementIntegrationModel = createProjectManagementIntegrationModel(this.sequelize);
-          const projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
+          this.projectManagementIntegrationRepository = new ProjectManagementIntegrationRepository(projectManagementIntegrationModel);
           
           const projectManagementConfigModel = createProjectManagementConfigModel(this.sequelize);
-          const projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
+          this.projectManagementConfigRepository = new ProjectManagementConfigRepository(projectManagementConfigModel);
           
           this.projectManagementIntegrationService = new ProjectManagementIntegrationService(
-            projectManagementIntegrationRepository
+            this.projectManagementIntegrationRepository
           );
           
           this.projectManagementConfigService = new ProjectManagementConfigService(
-            projectManagementConfigRepository,
-            projectManagementIntegrationRepository
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
           );
           
           this.projectManagementTicketService = new ProjectManagementTicketService(
-            projectManagementConfigRepository,
-            projectManagementIntegrationRepository
+            this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
           );
           
           console.log("Project Management Integration initialized");
@@ -717,6 +772,14 @@ export class S3Storage implements storage.Storage {
           // Initialize Slack Integration Controller
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
+
+          // Initialize Store Integration Controllers
+          this.storeIntegrationController = new StoreIntegrationController(
+            models.StoreIntegrations,
+            models.StoreCredentials
+          );
+          this.storeCredentialController = new StoreCredentialController(models.StoreCredentials);
+          console.log("Store Integration Controllers initialized");
           
           // Initialize Channel Configuration Controller
           this.channelController = new ChannelController(models.ChannelConfig);
@@ -731,6 +794,18 @@ export class S3Storage implements storage.Storage {
             this.slackController
           );
           console.log("Slack Channel Config Service initialized");
+          
+          // Initialize Release Config (AFTER all integration services are ready)
+          const releaseConfigModel = createReleaseConfigModel(this.sequelize);
+          this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          this.releaseConfigService = new ReleaseConfigService(
+            this.releaseConfigRepository,
+            this.cicdConfigService,
+            this.testManagementConfigService,
+            this.slackChannelConfigService,
+            this.projectManagementConfigService
+          );
+          console.log("Release Config Service initialized");
           
           // return this.sequelize.sync();
         })

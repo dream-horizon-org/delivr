@@ -2,7 +2,7 @@
  * Checkmate Metadata Validation Utilities
  */
 
-export const validateProjectId = (projectId: unknown): string | null => {
+export const validateCheckmateProjectId = (projectId: unknown): string | null => {
   if (!projectId) {
     return 'projectId query parameter is required';
   }

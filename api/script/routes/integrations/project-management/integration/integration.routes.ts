@@ -11,34 +11,40 @@ export const createIntegrationRoutes = (
   // List available providers (public info)
   router.get('/integrations/project-management/providers', controller.getAvailableProviders);
 
+  // Verify credentials without saving (stateless)
+  router.post(
+    '/projects/:projectId/integrations/project-management/verify',
+    controller.verifyCredentials
+  );
+
   // CRUD operations for integrations
   router.post(
-    '/projects/:projectId/integrations/project-management',
+    '/tenants/:tenantId/integrations/project-management',
     controller.createIntegration
   );
 
   router.get(
-    '/projects/:projectId/integrations/project-management',
+    '/tenants/:tenantId/integrations/project-management',
     controller.listIntegrations
   );
 
   router.get(
-    '/projects/:projectId/integrations/project-management/:integrationId',
+    '/tenants/:tenantId/integrations/project-management/:integrationId',
     controller.getIntegration
   );
 
   router.put(
-    '/projects/:projectId/integrations/project-management/:integrationId',
+    '/tenants/:tenantId/integrations/project-management/:integrationId',
     controller.updateIntegration
   );
 
   router.delete(
-    '/projects/:projectId/integrations/project-management/:integrationId',
+    '/tenants/:tenantId/integrations/project-management/:integrationId',
     controller.deleteIntegration
   );
 
   router.post(
-    '/projects/:projectId/integrations/project-management/:integrationId/verify',
+    '/tenants/:tenantId/integrations/project-management/:integrationId/verify',
     controller.verifyIntegration
   );
 
