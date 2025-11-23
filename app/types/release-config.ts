@@ -252,8 +252,8 @@ export interface ReleaseConfiguration {
   // Jira project management
   jiraProject: JiraProjectConfig;
   
-  // Scheduling
-  scheduling: SchedulingConfig;
+  // Scheduling (Optional - for release train automation)
+  scheduling?: SchedulingConfig;
   
   // Communication
   communication: CommunicationConfig;

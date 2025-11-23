@@ -23,7 +23,7 @@ import { ManualUploadStep } from '../BuildUpload/ManualUploadStep';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
 import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
-import { SchedulingConfig } from '../Scheduling/SchedulingConfig';
+import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
 
 interface ConfigurationWizardProps {
@@ -321,8 +321,8 @@ export function ConfigurationWizard({
         
       case STEP_INDEX.SCHEDULING: // Scheduling (Optional - Release Train)
         return (
-          <SchedulingConfig
-            config={config.scheduling!}
+          <SchedulingStepWrapper
+            scheduling={config.scheduling}
             onChange={(scheduling) => setConfig({ ...config, scheduling })}
             selectedPlatforms={config.platforms || []}
           />

@@ -217,6 +217,7 @@ export default function CreateReleasePage() {
         }
         
         if (!details.releaseType) {
+          console.log('details.releaseType', details.releaseType);
           newErrors.releaseType = 'Release type is required';
         }
         

@@ -29,6 +29,7 @@ import { ReleaseFrequencySelector } from './ReleaseFrequencySelector';
 import { WorkingDaysSelector } from './WorkingDaysSelector';
 import { TimezonePicker } from './TimezonePicker';
 import { PLATFORMS, PLATFORM_METADATA } from '../release-config-constants';
+import { validateScheduling, formatValidationErrors } from './scheduling-validation';
 
 interface SchedulingConfigProps {
   config: SchedulingConfigType;
@@ -39,87 +40,10 @@ interface SchedulingConfigProps {
 export function SchedulingConfig({ config, onChange, selectedPlatforms }: SchedulingConfigProps) {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
-  // Validation logic
+  // Comprehensive validation matching backend
   const validationErrors = useMemo(() => {
-    const errors: string[] = [];
-
-    // kickoffReminderTime must be <= kickoffTime
-    if (config.kickoffReminderEnabled && config.kickoffReminderTime && config.kickoffTime) {
-      const reminderTime = timeToMinutes(config.kickoffReminderTime);
-      const kickoffTime = timeToMinutes(config.kickoffTime);
-      if (reminderTime > kickoffTime) {
-        errors.push('Kickoff reminder time must be before or equal to kickoff time');
-      }
-    }
-
-    // targetReleaseDateOffsetFromKickoff must be >= 0
-    if (config.targetReleaseDateOffsetFromKickoff < 0) {
-      errors.push('Target release date offset must be 0 or greater');
-    }
-
-    // Regression slot validations
-    config.regressionSlots.forEach((slot, index) => {
-      const slotNumber = index + 1;
-      
-      // Offset must be >= 0
-      if (slot.regressionSlotOffsetFromKickoff < 0) {
-        errors.push(
-          `Regression slot ${slotNumber}: Offset cannot be negative`
-        );
-      }
-      
-      // regressionSlotOffsetFromKickoff must be <= targetReleaseDateOffsetFromKickoff
-      if (slot.regressionSlotOffsetFromKickoff > config.targetReleaseDateOffsetFromKickoff) {
-        errors.push(
-          `Regression slot ${slotNumber}: Offset (${slot.regressionSlotOffsetFromKickoff}) cannot be greater than target release offset (${config.targetReleaseDateOffsetFromKickoff})`
-        );
-      }
-
-      // Time is required
-      if (!slot.time) {
-        errors.push(
-          `Regression slot ${slotNumber}: Time is required`
-        );
-      }
-
-      // Regression slot must be BETWEEN kickoff and release (chronologically)
-      if (slot.time && config.kickoffTime && config.targetReleaseTime) {
-        // Calculate chronological timestamps (offset in days + time in minutes)
-        const slotTimestamp = (slot.regressionSlotOffsetFromKickoff * 1440) + timeToMinutes(slot.time);
-        const kickoffTimestamp = (0 * 1440) + timeToMinutes(config.kickoffTime);
-        const releaseTimestamp = (config.targetReleaseDateOffsetFromKickoff * 1440) + timeToMinutes(config.targetReleaseTime);
-
-        // Slot must be >= kickoff time
-        if (slotTimestamp < kickoffTimestamp) {
-          errors.push(
-            `Regression slot ${slotNumber}: Slot (Day ${slot.regressionSlotOffsetFromKickoff} at ${slot.time}) is before kickoff (Day 0 at ${config.kickoffTime})`
-          );
-        }
-
-        // Slot must be <= release time
-        if (slotTimestamp > releaseTimestamp) {
-          errors.push(
-            `Regression slot ${slotNumber}: Slot (Day ${slot.regressionSlotOffsetFromKickoff} at ${slot.time}) is after release (Day ${config.targetReleaseDateOffsetFromKickoff} at ${config.targetReleaseTime})`
-          );
-        }
-      }
-      
-      // Check for duplicate slots (same offset and time)
-      const duplicates = config.regressionSlots.filter(
-        (s, i) => 
-          i !== index && 
-          s.regressionSlotOffsetFromKickoff === slot.regressionSlotOffsetFromKickoff && 
-          s.time === slot.time
-      );
-      
-      if (duplicates.length > 0) {
-        errors.push(
-          `Regression slot ${slotNumber}: Duplicate slot detected (Day ${slot.regressionSlotOffsetFromKickoff} at ${slot.time})`
-        );
-      }
-    });
-
-    return errors;
+    const backendValidationErrors = validateScheduling(config);
+    return formatValidationErrors(backendValidationErrors);
   }, [config]);
   
   const handleFrequencyChange = (frequency: ReleaseFrequency, customDays?: number) => {

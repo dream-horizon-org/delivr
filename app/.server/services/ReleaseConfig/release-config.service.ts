@@ -64,7 +64,7 @@ export class ReleaseConfigService {
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('[ReleaseConfigService] Create failed:', result);
+        console.error('[ReleaseConfigService] Create failed:', result, result?.details?.invalidIntegrations);
         return {
           success: false,
           error: result.error || result.message || 'Failed to create release configuration',
