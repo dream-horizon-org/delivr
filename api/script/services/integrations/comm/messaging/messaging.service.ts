@@ -5,6 +5,7 @@ import { WebClient } from '@slack/web-api';
 import fetch from 'node-fetch';
 import type {
   CommConfig,
+  CommType,
   SendMessageArgs,
   MessageResponse,
   MessageFile,
@@ -15,6 +16,8 @@ import type {
 } from '../comm-types';
 import { ICommService } from '../providers/provider.interface';
 import { getStorage } from '../../../../storage/storage-instance';
+import { buildSlackMessage, downloadFileFromUrl } from './messaging.utils';
+import { Task, Platform, ChannelBucket, BUCKET_TASK_MAPPING } from './messaging.interface';
 
 /**
  * Slack Service
@@ -39,25 +42,68 @@ export class SlackService implements ICommService {
 
 
   /**
-   * Send a plain text message to channels configured for a specific stage
-   * Fetches channels based on configId and stageEnum, then sends the message
+   * Send a templated message to appropriate channels based on task
+   * Routes to platform-specific implementation based on commType
    * 
-   * @param configId - Slack configuration ID (from slack_configuration table)
-   * @param stageEnum - Stage name (e.g., "development", "production")
-   * @param message - Plain text message to send
-   * @param files - Optional: files to attach to the message
+   * @param commType - Communication type (SLACK, TEAMS, EMAIL, etc.)
+   * @param configId - Configuration ID (from respective integration table)
+   * @param task - Message template task type (e.g., Task.REGRESSION_BUILDS)
+   * @param parameters - Array of values to replace placeholders {0}, {1}, {2}...
+   * @param fileUrl - Optional: URL of file to download and attach to the message
+   * @param platform - Optional: platform for platform-specific templates (e.g., Platform.IOS)
    * 
    * @returns Map of channel IDs to their send responses
    */
-  async sendSlackMessage(
+  async sendMessage(
+    commType: CommType,
     configId: string,
-    stageEnum: string,
-    message: string,
-    files?: MessageFile[]
+    task: Task,
+    parameters: string[],
+    fileUrl?: string,
+    platform?: Platform
+  ): Promise<Map<string, MessageResponse>> {
+    // Route to appropriate platform-specific implementation
+    switch (commType) {
+      case 'SLACK':
+        return await this.sendSlackMsg(configId, task, parameters, fileUrl, platform);
+      
+      // Future implementations
+      // case 'TEAMS':
+      //   return await this.sendTeamsMsg(configId, task, parameters, fileUrl, platform);
+      // case 'EMAIL':
+      //   return await this.sendEmailMsg(configId, task, parameters, fileUrl, platform);
+      
+      default:
+        throw new Error(`Unsupported communication type: ${commType}`);
+    }
+  }
+
+  /**
+   * Send Slack message implementation
+   * Internal method called by sendMessage when commType is SLACK
+   */
+  private async sendSlackMsg(
+    configId: string,
+    task: Task,
+    parameters: string[],
+    fileUrl?: string,
+    platform?: Platform
   ): Promise<Map<string, MessageResponse>> {
     const responses = new Map<string, MessageResponse>();
     
     try {
+      // Download file if URL provided
+      const files = fileUrl ? await downloadFileFromUrl(fileUrl) : undefined;
+
+      // Build message from template
+      const message = buildSlackMessage(task, parameters, platform);
+      
+      if (!message) {
+        const platformInfo = platform ? ` and platform "${platform}"` : '';
+        console.error(`[ConfigId ${configId}] Failed to build message for task "${task}"${platformInfo}`);
+        throw new Error(`Failed to build message for task "${task}"${platformInfo}`);
+      }
+
       // Get channel controller from storage
       const storage = getStorage();
       const channelController = (storage as any).channelController;
@@ -70,17 +116,43 @@ export class SlackService implements ICommService {
         throw new Error('Channel configuration not found');
       }
       
-      // Get channels for the specified stage
-      const channels = channelConfig.channelData?.[stageEnum] ?? [];
+      // Find all buckets that handle this task
+      const relevantBuckets: ChannelBucket[] = [];
+      for (const [bucket, tasks] of Object.entries(BUCKET_TASK_MAPPING)) {
+        if (tasks.includes(task)) {
+          relevantBuckets.push(bucket as ChannelBucket);
+        }
+      }
       
-      if (channels.length === 0) {
-        console.warn(`[ConfigId ${configId}] No channels configured for stage "${stageEnum}"`);
+      if (relevantBuckets.length === 0) {
+        console.warn(`[ConfigId ${configId}] No buckets configured for task "${task}"`);
         return responses;
       }
 
-      // Send message to all channels for this stage
-      for (const channel of channels) {
-        const channelId = channel.id;
+      // Collect all unique channel IDs from relevant buckets
+      const channelIds = new Set<string>();
+      const channels = channelConfig.channelData?.channels ?? {};
+      
+      for (const bucket of relevantBuckets) {
+        // Use bucket name directly (singular form: 'release', 'build', 'regression', 'critical')
+        const bucketChannels = channels[bucket] ?? [];
+        
+        // Handle both array of strings and array of objects with id property
+        bucketChannels.forEach((channel: any) => {
+          const channelId = typeof channel === 'string' ? channel : channel.id;
+          if (channelId) {
+            channelIds.add(channelId);
+          }
+        });
+      }
+
+      if (channelIds.size === 0) {
+        console.warn(`[ConfigId ${configId}] No channels configured for buckets [${relevantBuckets.join(', ')}]`);
+        return responses;
+      }
+
+      // Send message to all unique channels
+      for (const channelId of channelIds) {
         const responseMap = await this.sendBasicMessage({
           channelId,
           text: message,
@@ -94,25 +166,32 @@ export class SlackService implements ICommService {
         }
       }
 
+      // Count actual successes
+      const successCount = Array.from(responses.values()).filter(r => r.ok === true).length;
       const fileInfo = files && files.length > 0 ? ` with ${files.length} file(s)` : '';
-      console.log(`[ConfigId ${configId}] Sent message to ${channels.length} channel(s) in stage "${stageEnum}"${fileInfo}`);
+      const bucketsInfo = relevantBuckets.join(', ');
+      
+      if (successCount === channelIds.size) {
+        console.log(`[ConfigId ${configId}] Sent message for task "${task}" to ${channelIds.size} channel(s) in buckets [${bucketsInfo}]${fileInfo}`);
+      } else {
+        console.warn(`[ConfigId ${configId}] Sent message for task "${task}" to ${successCount}/${channelIds.size} channel(s) in buckets [${bucketsInfo}]${fileInfo}`);
+      }
+      
       return responses;
     } catch (error: any) {
-      console.error(`[ConfigId ${configId}] Failed to send message to stage "${stageEnum}":`, error);
+      console.error(`[ConfigId ${configId}] Failed to send message for task "${task}":`, error);
       return responses;
     }
   }
 
   /**
    * Send a basic text message to one or more channels
-   * Internal method - use sendSlackMessage or sendSimpleMessage for standard messaging
+   * Internal method - use sendSlackMessage for standard messaging
    * Supports file uploads via files parameter
    */
   async sendBasicMessage({
     channelId,
     text,
-    blocks,
-    attachments,
     files,
     threadTs
   }: SendMessageArgs): Promise<Map<string, MessageResponse>> {
@@ -248,8 +327,6 @@ export class SlackService implements ICommService {
       const result = await this.client.chat.postMessage({
             channel: currentChannelId,
         text,
-        blocks,
-        attachments: attachments as any,
         thread_ts: threadTs,
         unfurl_links: false,
         unfurl_media: false

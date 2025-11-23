@@ -31,6 +31,7 @@ export class SlackChannelConfigService {
   /**
    * Validate channel configuration data
    * Public method for controller to validate before creating
+   * Supports both old stage-based and new bucket-based structures
    */
   validateConfig (data: CreateChannelConfigDto): ChannelConfigValidationResult {
     const errors: ValidationError[] = [];
@@ -50,7 +51,98 @@ export class SlackChannelConfigService {
       };
     }
 
-    // Validate each stage
+    // Check if using new bucket-based structure (has 'channels' property)
+    const isNewBucketStructure = 'channels' in channelData;
+
+    if (isNewBucketStructure) {
+      // Validate new bucket-based structure
+      const channels = (channelData as any).channels;
+
+      if (!channels || typeof channels !== 'object') {
+        errors.push({
+          field: 'channelData.channels',
+          message: 'channels must be an object containing bucket mappings'
+        });
+        
+        return {
+          integration: 'communication',
+          isValid: false,
+          errors
+        };
+      }
+
+      // Valid bucket names (singular form)
+      const validBuckets = ['release', 'build', 'regression', 'critical'];
+
+      // Validate each bucket
+      for (const [bucket, bucketChannels] of Object.entries(channels)) {
+        // Check if bucket name is valid
+        if (!validBuckets.includes(bucket)) {
+          errors.push({
+            field: `channelData.channels.${bucket}`,
+            message: `Invalid bucket name '${bucket}'. Valid buckets: ${validBuckets.join(', ')}`
+          });
+          continue;
+        }
+
+        // Check if bucket contains an array
+        if (!Array.isArray(bucketChannels)) {
+          errors.push({
+            field: `channelData.channels.${bucket}`,
+            message: `Bucket '${bucket}' must contain an array of channels`
+          });
+          continue;
+        }
+
+        // Validate each channel in the bucket
+        for (let i = 0; i < (bucketChannels as any[]).length; i++) {
+          const channel = (bucketChannels as any[])[i];
+
+          // Support both string IDs and objects with id/name
+          if (typeof channel === 'string') {
+            // Valid: just a channel ID string
+            continue;
+          }
+
+          if (typeof channel === 'object' && channel !== null) {
+            // Validate object format
+            if (!channel.id) {
+              errors.push({
+                field: `channelData.channels.${bucket}[${i}].id`,
+                message: `Channel ID is missing in bucket '${bucket}'`
+              });
+            }
+
+            if (!channel.name) {
+              errors.push({
+                field: `channelData.channels.${bucket}[${i}].name`,
+                message: `Channel name is missing in bucket '${bucket}'`
+              });
+            }
+
+            if (channel.id && typeof channel.id !== 'string') {
+              errors.push({
+                field: `channelData.channels.${bucket}[${i}].id`,
+                message: `Channel ID must be a string in bucket '${bucket}'`
+              });
+            }
+
+            if (channel.name && typeof channel.name !== 'string') {
+              errors.push({
+                field: `channelData.channels.${bucket}[${i}].name`,
+                message: `Channel name must be a string in bucket '${bucket}'`
+              });
+            }
+          } else {
+            errors.push({
+              field: `channelData.channels.${bucket}[${i}]`,
+              message: `Channel must be a string ID or an object with id and name in bucket '${bucket}'`
+            });
+          }
+        }
+      }
+    } else {
+      // Validate old stage-based structure (backward compatibility)
     for (const [stage, channels] of Object.entries(channelData)) {
       // Check if channels is an array
       if (!Array.isArray(channels)) {
@@ -93,6 +185,7 @@ export class SlackChannelConfigService {
             field: `channelData.${stage}[${i}].name`,
             message: `Channel name must be a string in stage '${stage}'`
           });
+          }
         }
       }
     }

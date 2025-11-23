@@ -16,7 +16,15 @@ export {
   getSlackChannelConfigService
 } from './providers/provider.factory';
 
-// Types
+// Messaging Types & Enums
+export {
+  Task,
+  Platform,
+  ChannelBucket,
+  BUCKET_TASK_MAPPING
+} from './messaging';
+
+// Communication Types
 export { CommType } from './comm-types';
 export type {
   CommConfig,
