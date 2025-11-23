@@ -80,11 +80,12 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
         data={[
           { value: 'PLANNED', label: 'Planned Release' },
           { value: 'HOTFIX', label: 'Hotfix Release' },
-          { value: 'EMERGENCY', label: 'Emergency Release' },
+          { value: 'MAJOR', label: 'Major Release' },
         ]}
-        value={config.releaseType}
+        value={config.releaseType || 'PLANNED'}
         onChange={(val) => onChange({ ...config, releaseType: val as any })}
         required
+        clearable={false}
         description="Type of releases this configuration is for"
       />
 
