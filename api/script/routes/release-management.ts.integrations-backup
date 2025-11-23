@@ -6,7 +6,7 @@ import { Request, Response, Router } from "express";
 import * as storageTypes from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createIntegrationRoutes as createSlackIntegrationRoutes } from "./integrations/comm/slack-integration/slack-integration.routes";
+import { createSlackIntegrationRoutes } from "./slack-integrations";
 import { getReleaseManagementRouter as getReleaseRoutes } from "./release/release-management";
 
 export interface ReleaseManagementConfig {
