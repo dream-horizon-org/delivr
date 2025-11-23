@@ -176,7 +176,7 @@ export default function CreateReleasePage() {
   useEffect(() => {
     if (selectedConfig) {
       // Map config release type to form release type (EMERGENCY -> HOTFIX for now)
-      const mappedReleaseType = selectedConfig.releaseType === 'EMERGENCY' 
+      const mappedReleaseType = selectedConfig.releaseType === 'MAJOR' 
         ? 'HOTFIX' as const
         : selectedConfig.releaseType as 'PLANNED' | 'HOTFIX' | 'PATCH';
       

@@ -61,7 +61,10 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
       regressionSlotOffsetFromKickoff: 0,
       time: '09:00',
       config: {
-        regressionBuilds: false,
+        regressionBuilds: true,
+        postReleaseNotes: false,
+        automationBuilds: false,
+        automationRuns: false,
       },
     };
     onChange({
@@ -538,7 +541,7 @@ function RegressionSlotCard({
           onChange={(e) =>
             onUpdate({
               ...slot,
-              config: { regressionBuilds: e.currentTarget.checked },
+              config: { ...slot.config, regressionBuilds: e.currentTarget.checked },
             })
           }
         />

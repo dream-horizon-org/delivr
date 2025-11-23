@@ -15,14 +15,14 @@ interface CommunicationConfigProps {
   availableIntegrations: {
     slack: Array<{ id: string; name: string }>;
   };
-  organizationId: string;
+  tenantId: string;
 }
 
 export function CommunicationConfig({
   config,
   onChange,
   availableIntegrations,
-  organizationId,
+  tenantId,
 }: CommunicationConfigProps) {
   const navigate = useNavigate();
   const params = useParams();
@@ -57,7 +57,7 @@ export function CommunicationConfig({
               leftSection={<IconPlugConnected size={16} />}
               variant="light"
               size="sm"
-              onClick={() => navigate(`/dashboard/${organizationId}/integrations`)}
+              onClick={() => navigate(`/dashboard/${tenantId}/integrations`)}
             >
               Go to Integrations
             </Button>
@@ -84,7 +84,7 @@ export function CommunicationConfig({
         config={config}
         onChange={onChange}
         availableIntegrations={availableIntegrations.slack}
-          organizationId={organizationId}
+          tenantId={tenantId}
       />
       )}
     </Stack>

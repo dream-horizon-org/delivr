@@ -27,7 +27,7 @@ import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
 
 interface ConfigurationWizardProps {
-  organizationId: string;
+  tenantId: string;
   onSubmit: (config: ReleaseConfiguration) => Promise<void>;
   onCancel: () => void;
   availableIntegrations: {
@@ -43,7 +43,7 @@ interface ConfigurationWizardProps {
 }
 
 export function ConfigurationWizard({
-  organizationId,
+  tenantId,
   onSubmit,
   onCancel,
   availableIntegrations,
@@ -66,7 +66,7 @@ export function ConfigurationWizard({
     }
     
     // Otherwise, try to load draft
-    const draft = loadDraftConfig(organizationId);
+    const draft = loadDraftConfig(tenantId);
     if (draft) {
       console.log('[ConfigWizard] Loading draft config');
       return draft;
@@ -74,13 +74,13 @@ export function ConfigurationWizard({
     
     // Create new config
     console.log('[ConfigWizard] Creating new config');
-    return createDefaultConfig(organizationId); // organizationId param → config.tenantId
+    return createDefaultConfig(tenantId); // tenantId param → config.tenantId
   });
   
   // Auto-save draft to local storage
   useEffect(() => {
-    saveDraftConfig(organizationId, config);
-  }, [organizationId, config]);
+    saveDraftConfig(tenantId, config);
+  }, [tenantId, config]);
   
   const canProceedFromStep = (stepIndex: number): boolean => {
     switch (stepIndex) {
@@ -186,8 +186,8 @@ export function ConfigurationWizard({
       // Submit to API (POST for create, PUT for update)
       const method = isEditMode ? 'PUT' : 'POST';
       const endpoint = isEditMode && config.id
-        ? `/api/v1/tenants/${organizationId}/release-config/${config.id}`
-        : `/api/v1/tenants/${organizationId}/release-config`;
+        ? `/api/v1/tenants/${tenantId}/release-config/${config.id}`
+        : `/api/v1/tenants/${tenantId}/release-config`;
       
       const response = await fetch(endpoint, {
         method,
@@ -216,7 +216,7 @@ export function ConfigurationWizard({
       
       // Clear draft after successful submission (but not when editing)
       if (!isEditMode) {
-        clearDraftConfig(organizationId);
+        clearDraftConfig(tenantId);
       }
       
       // Call parent onSubmit with the backend response data
@@ -236,7 +236,7 @@ export function ConfigurationWizard({
           <BasicInfoForm
             config={config}
             onChange={setConfig}
-            tenantId={organizationId}
+            tenantId={tenantId}
           />
         );
         
@@ -277,7 +277,7 @@ export function ConfigurationWizard({
       //         github: availableIntegrations.github,
       //       }}
       //       selectedPlatforms={config.targets || []}
-      //       tenantId={organizationId}
+      //       tenantId={tenantId}
       //     />
       //   );
       // =================================================================================
@@ -315,7 +315,7 @@ export function ConfigurationWizard({
             availableIntegrations={{
               slack: availableIntegrations.slack,
             }}
-            organizationId={organizationId}
+            tenantId={tenantId}
           />
         );
         

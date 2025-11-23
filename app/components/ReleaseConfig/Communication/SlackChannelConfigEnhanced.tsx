@@ -26,14 +26,14 @@ interface SlackChannelConfigEnhancedProps {
   config: CommunicationConfig;
   onChange: (config: CommunicationConfig) => void;
   availableIntegrations: Array<{ id: string; name: string }>;
-  organizationId: string;
+  tenantId: string;
 }
 
 export function SlackChannelConfigEnhanced({
   config,
   onChange,
   availableIntegrations,
-  organizationId,
+  tenantId,
 }: SlackChannelConfigEnhancedProps) {
   const [availableChannels, setAvailableChannels] = useState<SlackChannel[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
@@ -55,7 +55,7 @@ export function SlackChannelConfigEnhanced({
     setChannelsError(null);
 
     try {
-      const response = await fetch(`/api/v1/integrations/${integrationId}/channels?tenantId=${organizationId}`);
+      const response = await fetch(`/api/v1/integrations/${integrationId}/channels?tenantId=${tenantId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch channels');

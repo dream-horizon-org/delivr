@@ -141,9 +141,12 @@ export interface RegressionSlot {
   regressionSlotOffsetFromKickoff: number; // Days from kickoff (must be <= targetReleaseDateOffsetFromKickoff)
   time: string; // HH:MM format (must be <= targetReleaseTime if offsets match)
   
-  // What happens in this slot
+  // What happens in this slot (per backend API contract)
   config: {
-    regressionBuilds: boolean; // Only regression builds are valid for regression slots
+    regressionBuilds: boolean;
+    postReleaseNotes: boolean;
+    automationBuilds: boolean;
+    automationRuns: boolean;
   };
 }
 

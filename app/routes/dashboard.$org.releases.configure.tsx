@@ -43,7 +43,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         if (cloneConfigId && existingConfig) {
           existingConfig = {
             ...existingConfig,
-            organizationId: existingConfig.organizationId || org,
+            tenantId: existingConfig.tenantId || org,
             id: '', // Will be generated on save
             name: `${existingConfig.name} (Copy)`,
             isDefault: false, // Clones are never default
