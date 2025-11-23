@@ -23,7 +23,9 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import type {
   CheckmateSettings,
   CheckmatePlatformConfiguration,
+  TargetPlatform,
 } from '~/types/release-config';
+import { isAndroidTarget, isIOSTarget } from '~/utils/platform-mapper';
 
 // Backend API response structures - match Checkmate API exactly
 interface CheckmateProject {
@@ -69,15 +71,21 @@ interface CheckmateConfigFormEnhancedProps {
     baseUrl?: string;
     orgId?: string;
   }>;
+  selectedTargets: TargetPlatform[]; // NEW: Selected targets from Step 2
 }
 
 export function CheckmateConfigFormEnhanced({
   config,
   onChange,
   availableIntegrations,
+  selectedTargets, // NEW: Receive selected targets
 }: CheckmateConfigFormEnhancedProps) {
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('');
   const [projects, setProjects] = useState<CheckmateProject[]>([]);
+  
+  // Determine which platforms to show based on selected targets
+  const hasAndroidTarget = selectedTargets.some(isAndroidTarget);
+  const hasIOSTarget = selectedTargets.some(isIOSTarget);
   const [sections, setSections] = useState<CheckmateSection[]>([]);
   const [labels, setLabels] = useState<CheckmateLabel[]>([]);
   const [squads, setSquads] = useState<CheckmateSquad[]>([]);
@@ -153,10 +161,13 @@ export function CheckmateConfigFormEnhanced({
         labelsRes.json(),
         squadsRes.json(),
       ]);
+      console.log('sectionsData', sectionsData);
+      console.log('labelsData', labelsData);
+      console.log('squadsData', squadsData);
 
-      setSections(sectionsData.data?.data || []);
-      setLabels(labelsData.data?.data || []);
-      setSquads(squadsData.data?.data || []);
+      setSections(sectionsData.data || []);
+      setLabels(labelsData.data || []);
+      setSquads(squadsData.data || []);
     } catch (error) {
       console.error('[Checkmate] Error fetching metadata:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch metadata');
@@ -309,16 +320,17 @@ export function CheckmateConfigFormEnhanced({
                         </div>
 
                         <Stack gap="md">
-                          {/* ANDROID Configuration */}
-                          <Card shadow="sm" padding="md" radius="md" withBorder>
-                            <Group gap="xs" className="mb-3">
-                              <Badge color="green" size="lg" variant="filled">
-                                Android
-                              </Badge>
-                              <Text size="xs" c="dimmed">
-                                (Global platform)
-                              </Text>
-                            </Group>
+                          {/* ANDROID Configuration - Only show if Android target is selected */}
+                          {hasAndroidTarget && (
+                            <Card shadow="sm" padding="md" radius="md" withBorder>
+                              <Group gap="xs" className="mb-3">
+                                <Badge color="green" size="lg" variant="filled">
+                                  Android
+                                </Badge>
+                                <Text size="xs" c="dimmed">
+                                  Configure test selection for Android builds
+                                </Text>
+                              </Group>
 
                             <Stack gap="sm">
                               <MultiSelect
@@ -379,17 +391,19 @@ export function CheckmateConfigFormEnhanced({
                               />
                             </Stack>
                           </Card>
+                          )}
 
-                          {/* iOS Configuration */}
-                          <Card shadow="sm" padding="md" radius="md" withBorder>
-                            <Group gap="xs" className="mb-3">
-                              <Badge color="blue" size="lg" variant="filled">
-                                iOS
-                              </Badge>
-                              <Text size="xs" c="dimmed">
-                                (Global platform)
-                              </Text>
-                            </Group>
+                          {/* iOS Configuration - Only show if iOS target is selected */}
+                          {hasIOSTarget && (
+                            <Card shadow="sm" padding="md" radius="md" withBorder>
+                              <Group gap="xs" className="mb-3">
+                                <Badge color="blue" size="lg" variant="filled">
+                                  iOS
+                                </Badge>
+                                <Text size="xs" c="dimmed">
+                                  Configure test selection for iOS builds
+                                </Text>
+                              </Group>
 
                             <Stack gap="sm">
                               <MultiSelect
@@ -450,6 +464,7 @@ export function CheckmateConfigFormEnhanced({
                               />
                             </Stack>
                           </Card>
+                          )}
                         </Stack>
                       </div>
 

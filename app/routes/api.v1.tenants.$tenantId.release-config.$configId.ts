@@ -1,0 +1,115 @@
+/**
+ * BFF Route: Get, Update & Delete Release Configuration
+ * GET    /api/v1/tenants/:tenantId/release-config/:configId  - Get specific config
+ * PUT    /api/v1/tenants/:tenantId/release-config/:configId  - Update config
+ * DELETE /api/v1/tenants/:tenantId/release-config/:configId  - Delete config
+ */
+
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
+import { requireUserId } from '~/.server/services/Auth';
+import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
+import type { ReleaseConfiguration } from '~/types/release-config';
+
+/**
+ * GET - Get specific release configuration
+ */
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  const { tenantId, configId } = params;
+
+  if (!tenantId) {
+    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  }
+
+  if (!configId) {
+    return json({ success: false, error: 'Config ID is required' }, { status: 400 });
+  }
+
+  try {
+    console.log('[BFF] Fetching release config:', configId);
+
+    const result = await ReleaseConfigService.getById(configId, tenantId, userId);
+
+    if (!result.success) {
+      console.error('[BFF] Get failed:', result.error);
+      return json({ success: false, error: result.error }, { status: 404 });
+    }
+
+    console.log('[BFF] Get successful:', result.data?.name);
+    return json({ success: true, data: result.data }, { status: 200 });
+  } catch (error: any) {
+    console.error('[BFF] Get error:', error);
+    return json(
+      { success: false, error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT - Update release configuration
+ * DELETE - Delete release configuration
+ */
+export async function action({ request, params }: ActionFunctionArgs) {
+  const userId = await requireUserId(request);
+  const { tenantId, configId } = params;
+
+  if (!tenantId) {
+    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
+  }
+
+  if (!configId) {
+    return json({ success: false, error: 'Config ID is required' }, { status: 400 });
+  }
+
+  // Handle UPDATE
+  if (request.method === 'PUT') {
+    try {
+      const updates: Partial<ReleaseConfiguration> = await request.json();
+
+      console.log('[BFF] Updating release config:', configId, Object.keys(updates));
+
+      const result = await ReleaseConfigService.update(configId, updates, tenantId, userId);
+
+      if (!result.success) {
+        console.error('[BFF] Update failed:', result.error);
+        return json({ success: false, error: result.error }, { status: 400 });
+      }
+
+      console.log('[BFF] Update successful:', result.data?.name);
+      return json({ success: true, data: result.data }, { status: 200 });
+    } catch (error: any) {
+      console.error('[BFF] Update error:', error);
+      return json(
+        { success: false, error: error.message || 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Handle DELETE
+  if (request.method === 'DELETE') {
+    try {
+      console.log('[BFF] Deleting release config:', configId);
+
+      const result = await ReleaseConfigService.delete(configId, tenantId, userId);
+
+      if (!result.success) {
+        console.error('[BFF] Delete failed:', result.error);
+        return json({ success: false, error: result.error }, { status: 400 });
+      }
+
+      console.log('[BFF] Delete successful');
+      return json({ success: true, message: 'Release configuration deleted' }, { status: 200 });
+    } catch (error: any) {
+      console.error('[BFF] Delete error:', error);
+      return json(
+        { success: false, error: error.message || 'Internal server error' },
+        { status: 500 }
+      );
+    }
+  }
+
+  return json({ success: false, error: 'Method not allowed' }, { status: 405 });
+}
+

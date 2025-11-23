@@ -28,22 +28,35 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   const setupData = await getSetupData(org);
   
   // Fetch configurations from API for the configurations tab
-  let configurations: ReleaseConfiguration[] = [];
+  let configurations: Partial<ReleaseConfiguration>[] = [];
   let stats = null;
   
   try {
     const url = new URL(request.url);
     const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config`;
     
-    const response = await fetch(apiUrl);
+    console.log('[Settings] Fetching configurations from:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Cookie': request.headers.get('Cookie') || '',
+      },
+    });
+    
     if (response.ok) {
-      const data = await response.json();
-      configurations = data.configurations || [];
-      stats = data.stats || null;
-      console.log(`[Settings] Loaded ${configurations.length} configurations`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        configurations = result.data; // Backend returns { success: true, data: [...] }
+        console.log(`[Settings] Loaded ${configurations.length} configurations`);
+      } else {
+        console.warn('[Settings] API returned no data:', result);
+      }
+    } else {
+      const errorData = await response.json();
+      console.error('[Settings] Failed to fetch configurations:', errorData);
     }
   } catch (error) {
-    console.error('[Settings] Failed to load configurations:', error);
+    console.error('[Settings] Error loading configurations:', error);
   }
   
   return json({
@@ -150,31 +163,31 @@ export default function ReleaseSettingsPage() {
   };
   
   const handleArchive = async (configId: string) => {
-    if (!confirm('Are you sure you want to archive this configuration?')) {
+    if (!confirm('Are you sure you want to delete this configuration?')) {
       return;
     }
     
-    console.log('[Settings] Archive config:', configId);
+    console.log('[Settings] Delete config:', configId);
     
     try {
-      const response = await fetch(`/api/v1/tenants/${org}/release-config`, {
+      const response = await fetch(`/api/v1/tenants/${org}/release-config/${configId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ configId, archive: true }),
       });
       
-      if (response.ok) {
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
         // Reload page to refresh list
         window.location.reload();
       } else {
-        const error = await response.json();
-        alert(`Failed to archive: ${error.error}`);
+        alert(`Failed to delete: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[Settings] Archive failed:', error);
-      alert('Failed to archive configuration');
+      console.error('[Settings] Delete failed:', error);
+      alert('Failed to delete configuration');
     }
   };
   
@@ -182,22 +195,23 @@ export default function ReleaseSettingsPage() {
     console.log('[Settings] Set default config:', configId);
     
     try {
-      const response = await fetch(`/api/v1/tenants/${org}/release-config`, {
+      const response = await fetch(`/api/v1/tenants/${org}/release-config/${configId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          config: { id: configId, isDefault: true },
+          isDefault: true,
         }),
       });
       
-      if (response.ok) {
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
         // Reload page to refresh list
         window.location.reload();
       } else {
-        const error = await response.json();
-        alert(`Failed to set default: ${error.error}`);
+        alert(`Failed to set default: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('[Settings] Set default failed:', error);

@@ -164,7 +164,7 @@ export function ConfigurationWizard({
     
     try {
       // Create/Update Release Configuration
-      // JIRA config will be sent as part of the release config payload
+      // BFF will transform this to backend format and handle all integration configs
       const completeConfig: ReleaseConfiguration = {
         ...config,
         status: 'ACTIVE',
@@ -173,33 +173,48 @@ export function ConfigurationWizard({
         createdAt: isEditMode ? config.createdAt! : new Date().toISOString(),
       } as ReleaseConfiguration;
       
+      console.log('[ConfigWizard] Submitting configuration:', {
+        name: completeConfig.name,
+        releaseType: completeConfig.releaseType,
+        targets: completeConfig.defaultTargets,
+        hasJira: !!completeConfig.jiraProject?.enabled,
+        hasTestManagement: !!completeConfig.testManagement?.enabled,
+        hasSlack: !!completeConfig.communication?.slack?.enabled,
+        hasScheduling: !!completeConfig.scheduling,
+      });
+      
       // Submit to API (POST for create, PUT for update)
       const method = isEditMode ? 'PUT' : 'POST';
-      const response = await fetch(`/api/v1/tenants/${organizationId}/release-config`, {
+      const endpoint = isEditMode && config.id
+        ? `/api/v1/tenants/${organizationId}/release-config/${config.id}`
+        : `/api/v1/tenants/${organizationId}/release-config`;
+      
+      const response = await fetch(endpoint, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ config: completeConfig }),
+        body: JSON.stringify(completeConfig), // Send config directly (not wrapped)
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${isEditMode ? 'update' : 'save'} configuration`);
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        console.error('[ConfigWizard] API error:', result);
+        throw new Error(result.error || `Failed to ${isEditMode ? 'update' : 'save'} configuration`);
       }
       
-      const result = await response.json();
-      console.log(`[ConfigWizard] Configuration ${isEditMode ? 'updated' : 'saved'} to server:`, result.configId);
+      console.log(`[ConfigWizard] Configuration ${isEditMode ? 'updated' : 'created'} successfully:`, result.data?.id);
       
       // Clear draft after successful submission (but not when editing)
       if (!isEditMode) {
         clearDraftConfig(organizationId);
       }
       
-      // Call parent onSubmit with the complete config (for navigation)
-      await onSubmit(completeConfig);
+      // Call parent onSubmit with the backend response data
+      await onSubmit({ ...completeConfig, id: result.data?.id });
     } catch (error) {
-      console.error('Failed to save configuration:', error);
+      console.error('[ConfigWizard] Failed to save configuration:', error);
       alert(`Failed to ${isEditMode ? 'update' : 'save'} configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
@@ -270,6 +285,7 @@ export function ConfigurationWizard({
             availableIntegrations={{
               checkmate: availableIntegrations.checkmate,
             }}
+            selectedTargets={config.defaultTargets || []}
           />
         );
         

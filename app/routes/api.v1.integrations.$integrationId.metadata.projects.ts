@@ -49,8 +49,9 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
     }
 
     const data = await response.json();
+    console.log('data checkmate projects', data);
     
-    console.log(`[Checkmate Projects API] Successfully fetched ${data.data?.data?.length || 0} projects`);
+    console.log(`[Checkmate Projects API] Successfully fetched ${data.data?.projectsList.length || 0} projects`);
     
     return json({
       success: true,

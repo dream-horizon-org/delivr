@@ -9,7 +9,8 @@ import type {
   TestManagementConfig, 
   TestManagementProvider,
   CheckmateSettings,
-  TestRailSettings
+  TestRailSettings,
+  TargetPlatform
 } from '~/types/release-config';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
 import { TEST_MANAGEMENT_PROVIDER_OPTIONS } from '../release-config-constants';
@@ -20,6 +21,7 @@ interface TestManagementSelectorProps {
   availableIntegrations: {
     checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
   };
+  selectedTargets: TargetPlatform[]; // NEW: Selected targets from Step 2
 }
 
 // Type guards for provider settings
@@ -35,6 +37,7 @@ export function TestManagementSelector({
   config,
   onChange,
   availableIntegrations,
+  selectedTargets, // NEW: Receive selected targets
 }: TestManagementSelectorProps) {
   const handleToggle = (enabled: boolean) => {
     onChange({
@@ -115,6 +118,7 @@ export function TestManagementSelector({
                     }
                     onChange={handleProviderSettingsChange}
                     availableIntegrations={availableIntegrations.checkmate}
+                    selectedTargets={selectedTargets}
                   />
                 ) : (
                   <Alert color="yellow" variant="light">

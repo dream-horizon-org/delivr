@@ -520,9 +520,50 @@ export function buildUrlWithQuery(
 }
 
 // ============================================================================
+// Release Configurations
+// ============================================================================
+
+export const RELEASE_CONFIG = {
+  /**
+   * Create release configuration
+   * POST /tenants/:tenantId/release-configs
+   */
+  create: (tenantId: string) => 
+    `/tenants/${tenantId}/release-configs`,
+  
+  /**
+   * List all release configurations
+   * GET /tenants/:tenantId/release-configs
+   */
+  list: (tenantId: string) => 
+    `/tenants/${tenantId}/release-configs`,
+  
+  /**
+   * Get single release configuration
+   * GET /tenants/:tenantId/release-configs/:configId
+   */
+  get: (tenantId: string, configId: string) => 
+    `/tenants/${tenantId}/release-configs/${configId}`,
+  
+  /**
+   * Update release configuration
+   * PUT /tenants/:tenantId/release-configs/:configId
+   */
+  update: (tenantId: string, configId: string) => 
+    `/tenants/${tenantId}/release-configs/${configId}`,
+  
+  /**
+   * Delete release configuration
+   * DELETE /tenants/:tenantId/release-configs/:configId
+   */
+  delete: (tenantId: string, configId: string) => 
+    `/tenants/${tenantId}/release-configs/${configId}`,
+};
+
+// ============================================================================
 // Export All Routes (Individual Exports)
 // ============================================================================
 
 // All route objects are already exported above with their const declarations
-// Services should import directly: import { PROJECT_MANAGEMENT, CICD } from './api-routes';
+// Services should import directly: import { PROJECT_MANAGEMENT, CICD, RELEASE_CONFIG } from './api-routes';
 
