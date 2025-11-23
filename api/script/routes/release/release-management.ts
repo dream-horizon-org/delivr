@@ -9,9 +9,13 @@ import { Request, Response, Router } from "express";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
+import type { ReleaseCreationService } from "../../services/release/release-creation.service";
+import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
+  releaseCreationService: ReleaseCreationService;
+  releaseRetrievalService: ReleaseRetrievalService;
 }
 
 /**
@@ -20,7 +24,10 @@ export interface ReleaseManagementConfig {
 export function getReleaseManagementRouter(config: ReleaseManagementConfig): Router {
   const storage: storageTypes.Storage = config.storage;
   const router: Router = Router();
-  const controller = new ReleaseManagementController(storage);
+  const controller = new ReleaseManagementController(
+    config.releaseCreationService,
+    config.releaseRetrievalService
+  );
 
   // ============================================================================
   // HEALTH CHECK
@@ -48,26 +55,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.get(
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.getRelease
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Release details endpoint coming soon"
-      });
-    }
+    controller.getRelease
   );
 
   // Get all releases for a tenant
   router.get(
     "/tenants/:tenantId/releases",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.listReleases
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Release listing endpoint coming soon"
-      });
-    }
+    controller.listReleases
   );
 
   // Update a release

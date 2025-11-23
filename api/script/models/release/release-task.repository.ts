@@ -30,6 +30,14 @@ export class ReleaseTaskRepository {
     return this.toPlainObject(task);
   }
 
+  async findByReleaseId(releaseId: string): Promise<ReleaseTask[]> {
+    const tasks = await this.model.findAll({
+      where: { releaseId },
+      order: [['createdAt', 'ASC']]
+    });
+    return tasks.map((t: any) => this.toPlainObject(t));
+  }
+
   async findByReleaseIdAndStage(releaseId: string, stage: string): Promise<ReleaseTask[]> {
     const tasks = await this.model.findAll({
       where: { releaseId, stage }

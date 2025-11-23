@@ -135,6 +135,8 @@ export interface ReleaseTask {
   externalData: Record<string, unknown> | null;
   branch: string | null;
   regressionId: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface CreateReleaseTaskDto {

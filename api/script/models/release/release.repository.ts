@@ -61,6 +61,14 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
+  async findAllByTenantId(tenantId: string): Promise<Release[]> {
+    const releases = await this.model.findAll({
+      where: { tenantId },
+      order: [['createdAt', 'DESC']]
+    });
+    return releases.map(this.toPlainObject.bind(this));
+  }
+
   // TODO: Add update, delete, etc. as needed
 }
 

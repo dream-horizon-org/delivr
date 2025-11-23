@@ -115,7 +115,11 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // RELEASE OPERATIONS
   // ============================================================================
   // All release-specific routes are now in ./release/release-management.ts
-  const releaseRoutes = getReleaseRoutes({ storage });
+  const releaseRoutes = getReleaseRoutes({
+    storage,
+    releaseCreationService: (storage as any).releaseCreationService,
+    releaseRetrievalService: (storage as any).releaseRetrievalService
+  });
   router.use(releaseRoutes);
 
   // ============================================================================

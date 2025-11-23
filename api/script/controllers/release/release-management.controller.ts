@@ -6,48 +6,20 @@
  */
 
 import { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import { ReleaseCreationService, CreateReleasePayload } from '../../services/release/release-creation.service';
-import { ReleaseRepository } from '../../models/release/release.repository';
-import { ReleaseToPlatformsRepository } from '../../models/release/release-to-platforms.repository';
-import { ReleaseToTargetsRepository } from '../../models/release/release-to-targets.repository';
-import { CronJobRepository } from '../../models/release/cron-job.repository';
-import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
-import { StateHistoryRepository } from '../../models/release/state-history.repository';
+import { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
 import { ReleaseType } from '../../storage/release/release-models';
-import { hasSequelize, StorageWithSequelize } from '../../routes/release/release-types';
-import * as storageTypes from '../../storage/storage';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
+  private retrievalService: ReleaseRetrievalService;
 
-  constructor(private storage: storageTypes.Storage) {
-    // Initialize repositories
-    if (!hasSequelize(storage)) {
-      throw new Error('Storage must have Sequelize instance');
-    }
-    const storageSeq = storage as StorageWithSequelize;
-    const sequelize = storageSeq.sequelize;
-
-    const releaseRepo = new ReleaseRepository(sequelize.models.release);
-    const releaseToPlatformsRepo = new ReleaseToPlatformsRepository(sequelize.models.releaseToPlatforms);
-    const releaseToTargetsRepo = new ReleaseToTargetsRepository(sequelize.models.releaseToTargets);
-    const cronJobRepo = new CronJobRepository(sequelize.models.cronJob);
-    const releaseTaskRepo = new ReleaseTaskRepository(sequelize.models.releaseTasks);
-    const stateHistoryRepo = new StateHistoryRepository(
-      sequelize.models.stateHistory,
-      sequelize.models.stateHistoryItem
-    );
-
-    this.creationService = new ReleaseCreationService(
-      releaseRepo,
-      releaseToPlatformsRepo,
-      releaseToTargetsRepo,
-      cronJobRepo,
-      releaseTaskRepo,
-      stateHistoryRepo,
-      storage
-    );
+  constructor(
+    creationService: ReleaseCreationService,
+    retrievalService: ReleaseRetrievalService
+  ) {
+    this.creationService = creationService;
+    this.retrievalService = retrievalService;
   }
 
   /**
@@ -248,6 +220,62 @@ export class ReleaseManagementController {
       return res.status(500).json({
         success: false,
         error: 'Failed to create release',
+        message: error.message || 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get all releases for a tenant
+   * Query params:
+   * - includeTasks: 'true' to include task details (default: false for performance)
+   */
+  listReleases = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const tenantId = req.params.tenantId;
+      const includeTasks = req.query.includeTasks === 'true';
+      
+      const releases = await this.retrievalService.getAllReleases(tenantId, includeTasks);
+      
+      return res.status(200).json({
+        success: true,
+        releases
+      });
+    } catch (error: any) {
+      console.error('[List Releases] Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch releases',
+        message: error.message || 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Get a specific release by ID
+   */
+  getRelease = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const releaseId = req.params.releaseId;
+      
+      const release = await this.retrievalService.getReleaseById(releaseId);
+      
+      if (!release) {
+        return res.status(404).json({
+          success: false,
+          error: 'Release not found'
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        release
+      });
+    } catch (error: any) {
+      console.error('[Get Release] Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch release',
         message: error.message || 'Unknown error'
       });
     }

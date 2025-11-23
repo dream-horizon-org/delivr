@@ -36,6 +36,16 @@ import {
   ReleaseConfigRepository
 } from "../models/release-configs";
 import { ReleaseConfigService } from "../services/release-configs";
+import {
+  ReleaseRepository,
+  ReleaseToPlatformsRepository,
+  ReleaseToTargetsRepository,
+  CronJobRepository,
+  ReleaseTaskRepository,
+  StateHistoryRepository
+} from "../models/release";
+import { ReleaseCreationService } from "../services/release/release-creation.service";
+import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
@@ -590,6 +600,8 @@ export class S3Storage implements storage.Storage {
     public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
+    public releaseCreationService!: ReleaseCreationService;
+    public releaseRetrievalService!: ReleaseRetrievalService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
@@ -806,6 +818,37 @@ export class S3Storage implements storage.Storage {
             this.projectManagementConfigService
           );
           console.log("Release Config Service initialized");
+          
+          // Initialize Release Management Services
+          const releaseRepo = new ReleaseRepository(this.sequelize.models.release);
+          const releaseToPlatformsRepo = new ReleaseToPlatformsRepository(this.sequelize.models.releaseToPlatforms);
+          const releaseToTargetsRepo = new ReleaseToTargetsRepository(this.sequelize.models.releaseToTargets);
+          const cronJobRepo = new CronJobRepository(this.sequelize.models.cronJob);
+          const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.releaseTasks);
+          const stateHistoryRepo = new StateHistoryRepository(
+            this.sequelize.models.stateHistory,
+            this.sequelize.models.stateHistoryItem
+          );
+          
+          this.releaseCreationService = new ReleaseCreationService(
+            releaseRepo,
+            releaseToPlatformsRepo,
+            releaseToTargetsRepo,
+            cronJobRepo,
+            releaseTaskRepo,
+            stateHistoryRepo,
+            this
+          );
+          console.log("Release Creation Service initialized");
+          
+          this.releaseRetrievalService = new ReleaseRetrievalService(
+            releaseRepo,
+            releaseToPlatformsRepo,
+            releaseToTargetsRepo,
+            cronJobRepo,
+            releaseTaskRepo
+          );
+          console.log("Release Retrieval Service initialized");
           
           // return this.sequelize.sync();
         })
