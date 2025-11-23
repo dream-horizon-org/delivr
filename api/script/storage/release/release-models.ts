@@ -312,6 +312,99 @@ export function createTargetModel(sequelize: Sequelize) {
 }
 
 /**
+ * ReleaseToPlatforms Junction Table
+ * Links releases to platforms with per-platform version
+ */
+export function createReleaseToPlatformsModel(sequelize: Sequelize) {
+  return sequelize.define('releaseToPlatforms', {
+    id: {
+      type: DataTypes.STRING(255),
+      primaryKey: true
+    },
+    releaseId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      references: {
+        model: 'releases',
+        key: 'id'
+      }
+    },
+    platform: {
+      type: DataTypes.ENUM(...Object.values(PlatformName)),
+      allowNull: false
+    },
+    version: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      comment: 'Version for this platform (e.g., v6.5.0 for ANDROID, v6.3.0 for IOS)'
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    }
+  }, {
+    tableName: 'releaseToPlatforms',
+    timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['releaseId', 'platform']
+      }
+    ]
+  });
+}
+
+/**
+ * ReleaseToTargets Junction Table
+ * Links releases to targets
+ */
+export function createReleaseToTargetsModel(sequelize: Sequelize) {
+  return sequelize.define('releaseToTargets', {
+    id: {
+      type: DataTypes.STRING(255),
+      primaryKey: true
+    },
+    releaseId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      references: {
+        model: 'releases',
+        key: 'id'
+      }
+    },
+    target: {
+      type: DataTypes.ENUM(...Object.values(TargetName)),
+      allowNull: false
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    }
+  }, {
+    tableName: 'releaseToTargets',
+    timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['releaseId', 'target']
+      }
+    ]
+  });
+}
+
+/**
  * Release Model (Core table - tenant-linked)
  */
 export function createReleaseModel(sequelize: Sequelize) {
@@ -366,10 +459,6 @@ export function createReleaseModel(sequelize: Sequelize) {
     delayedReason: {
       type: DataTypes.TEXT,
       allowNull: true
-    },
-    version: {
-      type: DataTypes.STRING(255),
-      allowNull: false
     },
     type: {
       type: DataTypes.ENUM(...Object.values(ReleaseType)),
@@ -1397,6 +1486,8 @@ export function createReleaseModels(sequelize: Sequelize) {
     // TenantIntegrations removed - each integration has its own table
     Platform: createPlatformModel(sequelize),
     Target: createTargetModel(sequelize),
+    ReleaseToPlatforms: createReleaseToPlatformsModel(sequelize),
+    ReleaseToTargets: createReleaseToTargetsModel(sequelize),
     Release: createReleaseModel(sequelize),
     ReleaseBuilds: createReleaseBuildsModel(sequelize),
     Build: createBuildModel(sequelize),
@@ -1432,32 +1523,24 @@ export function createReleaseModels(sequelize: Sequelize) {
   models.Release.belongsTo(models.Release, { foreignKey: 'parentId', as: 'parent' });
   models.Release.hasMany(models.Release, { foreignKey: 'parentId', as: 'hotfixes' });
   
-  // Release ↔ Platform (many-to-many via platform_releases junction table)
-  models.Release.belongsToMany(models.Platform, {
-    through: 'platform_releases',
+  // Release ↔ ReleaseToPlatforms (one-to-many)
+  models.Release.hasMany(models.ReleaseToPlatforms, {
     foreignKey: 'releaseId',
-    otherKey: 'platformId',
-    as: 'platforms'
+    as: 'releaseToPlatforms'
   });
-  models.Platform.belongsToMany(models.Release, {
-    through: 'platform_releases',
-    foreignKey: 'platformId',
-    otherKey: 'releaseId',
-    as: 'releases'
+  models.ReleaseToPlatforms.belongsTo(models.Release, {
+    foreignKey: 'releaseId',
+    as: 'release'
   });
   
-  // Release ↔ Target (many-to-many via target_releases junction table)
-  models.Release.belongsToMany(models.Target, {
-    through: 'target_releases',
+  // Release ↔ ReleaseToTargets (one-to-many)
+  models.Release.hasMany(models.ReleaseToTargets, {
     foreignKey: 'releaseId',
-    otherKey: 'targetId',
-    as: 'targets'
+    as: 'releaseToTargets'
   });
-  models.Target.belongsToMany(models.Release, {
-    through: 'target_releases',
-    foreignKey: 'targetId',
-    otherKey: 'releaseId',
-    as: 'releases'
+  models.ReleaseToTargets.belongsTo(models.Release, {
+    foreignKey: 'releaseId',
+    as: 'release'
   });
   
   // ReleaseBuilds associations

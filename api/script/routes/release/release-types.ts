@@ -44,10 +44,10 @@ export interface ApiResponse<T = unknown> {
 export interface CreateReleaseRequestBody {
   targetReleaseDate: string;
   plannedDate: string;
-  version: string;
   type: string;
   baseBranch: string;
-  platforms: string[];
+  platformVersions: Record<string, string>; // e.g., { "ANDROID": "v6.5.0", "IOS": "v6.3.0" }
+  targets: string[]; // e.g., ["ANDROID_PLAYSTORE", "IOS_APPSTORE"]
   regressionBuildSlots?: Array<{
     date: string;
     config: Record<string, unknown>;
