@@ -58,13 +58,13 @@ export function SchedulingStepWrapper({
   };
 
   return (
-    <Stack spacing="md">
+    <Stack gap="md">
       {/* Opt-In Toggle */}
       <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack spacing="sm">
+        <Stack gap="sm">
           <Switch
             label={
-              <Text size="md" weight={500}>
+              <Text size="md" fw={500}>
                 Enable Release Train Scheduling
               </Text>
             }

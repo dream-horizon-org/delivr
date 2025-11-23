@@ -15,6 +15,7 @@ import type { ReleaseConfiguration } from '~/types/release-config';
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
   const { tenantId } = params;
+  console.log('[BFF] action:', request, params, userId, tenantId); 
 
   if (!tenantId) {
     return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });

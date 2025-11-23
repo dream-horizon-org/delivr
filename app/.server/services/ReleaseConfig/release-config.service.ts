@@ -20,10 +20,12 @@ export class ReleaseConfigService {
     try {
       const payload = prepareReleaseConfigPayload(config, userId);
       
-      console.log('[ReleaseConfigService] ==================== REQUEST PAYLOAD ====================');
-      console.log('[ReleaseConfigService] defaultTargets:', payload.defaultTargets);
-      console.log('[ReleaseConfigService] Full payload:', JSON.stringify(payload, null, 2));
-      console.log('[ReleaseConfigService] ========================================================');
+      console.log('[ReleaseConfigService] Minimal transformation applied:', {
+        name: payload.name,
+        defaultTargets: payload.defaultTargets, // Transformed: targets → defaultTargets
+        releaseFrequency: payload.scheduling?.releaseFrequency, // Transformed: uppercase → lowercase
+        hasUserIdInjection: !!(payload.testManagement?.createdByAccountId || payload.communication?.createdByAccountId),
+      });
 
       const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs`;
       console.log('[ReleaseConfigService] POST to:', url);

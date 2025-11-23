@@ -221,7 +221,7 @@ export default function ReleasesConfigurePage() {
   
   return (
     <ConfigurationWizard
-      organizationId={organizationId}
+      tenantId={organizationId}
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       availableIntegrations={availableIntegrations}

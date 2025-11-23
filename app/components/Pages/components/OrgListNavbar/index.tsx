@@ -1,6 +1,6 @@
 import { Text, Skeleton } from "@mantine/core";
 import { useGetOrgList } from "./hooks/useGetOrgList";
-import { LinksGroup, LinksGroupProps } from "~/components/NavbarLinksGroup";
+import { LinksGroup, LinksGroupProps } from "~/components/Navbar/NavbarLinksGroup";
 import { useEffect, useMemo } from "react";
 import { IconGauge } from "@tabler/icons-react";
 import { route } from "routes-gen";

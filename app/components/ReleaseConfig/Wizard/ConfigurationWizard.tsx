@@ -173,7 +173,7 @@ export function ConfigurationWizard({
         createdAt: isEditMode ? config.createdAt! : new Date().toISOString(),
       } as ReleaseConfiguration;
       
-      console.log('[ConfigWizard] Submitting configuration:', {
+      console.log('[ConfigWizard] Submitting configuration:', completeConfig, {
         name: completeConfig.name,
         releaseType: completeConfig.releaseType,
         targets: completeConfig.targets,
