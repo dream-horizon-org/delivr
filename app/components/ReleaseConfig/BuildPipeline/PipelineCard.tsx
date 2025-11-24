@@ -6,34 +6,18 @@
 import { Card, Badge, Button, Text, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
 import type { Workflow, BuildEnvironment, Platform } from '~/types/release-config';
-
-interface PipelineCardProps {
-  pipeline: Workflow;
-  onEdit: () => void;
-  onDelete: () => void;
-  onToggle: () => void;
-}
+import type { PipelineCardProps } from '~/types/release-config-props';
+import { BUILD_ENVIRONMENTS, BUILD_PROVIDERS, PLATFORMS } from '~/types/release-config-constants';
+import { ENVIRONMENT_LABELS, PLATFORM_LABELS, BUTTON_LABELS, STATUS_LABELS } from '~/constants/release-config-ui';
 
 const environmentColors: Record<BuildEnvironment, string> = {
-  PRE_REGRESSION: 'blue',
-  REGRESSION: 'green',
-  TESTFLIGHT: 'orange',
-  PRODUCTION: 'red',
+  [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'blue',
+  [BUILD_ENVIRONMENTS.REGRESSION]: 'green',
+  [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'orange',
+  [BUILD_ENVIRONMENTS.PRODUCTION]: 'red',
 };
 
-const environmentLabels: Record<BuildEnvironment, string> = {
-  PRE_REGRESSION: 'Pre-Regression',
-  REGRESSION: 'Regression',
-  TESTFLIGHT: 'TestFlight',
-  PRODUCTION: 'Production',
-};
-
-const platformLabels: Record<Platform, string> = {
-  ANDROID: 'Android',
-  IOS: 'iOS',
-};
-
-export function PipelineCard({ pipeline, onEdit, onDelete, onToggle }: PipelineCardProps) {
+export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) {
   const providerLabel = pipeline.provider.replace('_', ' ');
   
   return (
@@ -66,7 +50,7 @@ export function PipelineCard({ pipeline, onEdit, onDelete, onToggle }: PipelineC
           
           <Group gap="xs" className="mb-2">
             <Badge size="sm" variant="light">
-              {platformLabels[pipeline.platform]}
+              {PLATFORM_LABELS[pipeline.platform]}
             </Badge>
             
             <Badge 
@@ -74,7 +58,7 @@ export function PipelineCard({ pipeline, onEdit, onDelete, onToggle }: PipelineC
               variant="light" 
               color={environmentColors[pipeline.environment]}
             >
-              {environmentLabels[pipeline.environment]}
+              {ENVIRONMENT_LABELS[pipeline.environment]}
             </Badge>
             
             <Badge size="sm" variant="outline" color="gray">
@@ -84,23 +68,14 @@ export function PipelineCard({ pipeline, onEdit, onDelete, onToggle }: PipelineC
         </div>
         
         <Group gap="xs">
-          <Tooltip label={pipeline.enabled ? 'Disable' : 'Enable'}>
-            <ActionIcon
-              variant="subtle"
-              color={pipeline.enabled ? 'green' : 'gray'}
-              onClick={onToggle}
-            >
-              {pipeline.enabled ? <IconCheck size={18} /> : <IconX size={18} />}
-            </ActionIcon>
-          </Tooltip>
           
-          <Tooltip label="Edit">
+          <Tooltip label={BUTTON_LABELS.EDIT}>
             <ActionIcon variant="subtle" color="blue" onClick={onEdit}>
               <IconEdit size={18} />
             </ActionIcon>
           </Tooltip>
           
-          <Tooltip label="Delete">
+          <Tooltip label={BUTTON_LABELS.DELETE}>
             <ActionIcon variant="subtle" color="red" onClick={onDelete}>
               <IconTrash size={18} />
             </ActionIcon>
@@ -109,7 +84,7 @@ export function PipelineCard({ pipeline, onEdit, onDelete, onToggle }: PipelineC
       </div>
       
       <div className="text-xs text-gray-600">
-        {pipeline.provider === 'JENKINS' && (
+        {pipeline.provider === BUILD_PROVIDERS.JENKINS && (
           <div className="space-y-1">
             <div>
               <span className="font-medium">Job:</span>{' '}

@@ -67,6 +67,8 @@ export const BUILD_UPLOAD_DESCRIPTIONS = {
 export const STATUS_LABELS = {
   ENABLED: 'Enabled',
   DISABLED: 'Disabled',
+  ENABLE: 'Enable',
+  DISABLE: 'Disable',
   ACTIVE: 'Active',
   INACTIVE: 'Inactive',
   REQUIRED: 'Required',
