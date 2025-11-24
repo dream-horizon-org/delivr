@@ -231,6 +231,18 @@ export class ProjectManagementConfigService {
       throw new Error('Integration does not belong to the specified tenant');
     }
 
+    // Check if a config with the same name already exists for this tenant
+    const existingConfigs = await this.configRepo.findByTenantId(data.tenantId);
+    const duplicateName = existingConfigs.find(
+      (config) => config.name.toLowerCase() === data.name.toLowerCase() && config.isActive
+    );
+
+    if (duplicateName) {
+      throw new Error(
+        `${PROJECT_MANAGEMENT_ERROR_MESSAGES.DUPLICATE_CONFIG_NAME}. A project management configuration with the name "${data.name}" already exists for this tenant. Please use a different name.`
+      );
+    }
+
     return this.configRepo.create(data);
   }
 
@@ -266,6 +278,23 @@ export class ProjectManagementConfigService {
 
     if (!config) {
       return null;
+    }
+
+    // Check for duplicate name if name is being updated
+    if (data.name !== undefined) {
+      const existingConfigs = await this.configRepo.findByTenantId(config.tenantId);
+      const duplicateName = existingConfigs.find(
+        (existingConfig) =>
+          existingConfig.id !== id &&
+          existingConfig.name.toLowerCase() === data.name!.toLowerCase() &&
+          existingConfig.isActive
+      );
+
+      if (duplicateName) {
+        throw new Error(
+          `${PROJECT_MANAGEMENT_ERROR_MESSAGES.DUPLICATE_CONFIG_NAME}. A project management configuration with the name "${data.name}" already exists for this tenant. Please use a different name.`
+        );
+      }
     }
 
     // Validate platform configurations if provided

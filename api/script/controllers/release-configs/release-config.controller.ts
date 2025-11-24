@@ -34,8 +34,7 @@ const toSafeConfig = (config: ReleaseConfiguration): SafeReleaseConfiguration =>
     name: config.name,
     description: config.description,
     releaseType: config.releaseType,
-    targets: config.targets,
-    platforms: config.platforms,
+    platformTargets: config.platformTargets,
     baseBranch: config.baseBranch,
     isActive: config.isActive,
     isDefault: config.isDefault,
@@ -76,11 +75,38 @@ const createConfigHandler = (service: ReleaseConfigService, testManagementConfig
         return;
       }
 
-      if (!requestBody.defaultTargets || !Array.isArray(requestBody.defaultTargets)) {
+      if (!requestBody.platformTargets || !Array.isArray(requestBody.platformTargets) || requestBody.platformTargets.length === 0) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('defaultTargets', 'Default targets must be an array')
+          validationErrorResponse('platformTargets', 'platformTargets must be a non-empty array')
         );
         return;
+      }
+
+      // Validate each platform-target pair
+      const validPlatforms = ['IOS', 'ANDROID', 'WEB'];
+      const validTargets = ['WEB', 'PLAY_STORE', 'APP_STORE'];
+      
+      for (const pt of requestBody.platformTargets) {
+        if (!pt.platform || !pt.target) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('platformTargets', 'Each platformTarget must have platform and target fields')
+          );
+          return;
+        }
+
+        if (!validPlatforms.includes(pt.platform)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('platformTargets', `Invalid platform: ${pt.platform}. Must be one of: ${validPlatforms.join(', ')}`)
+          );
+          return;
+        }
+
+        if (!validTargets.includes(pt.target)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('platformTargets', `Invalid target: ${pt.target}. Must be one of: ${validTargets.join(', ')}`)
+          );
+          return;
+        }
       }
 
       // ========================================================================
@@ -113,14 +139,14 @@ const createConfigHandler = (service: ReleaseConfigService, testManagementConfig
   };
 
 /**
- * Handler: Get config by ID
+ * Handler: Get config by ID (with verbose integration data)
  */
 const getConfigByIdHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { configId } = req.params;
 
-      const config = await service.getConfigById(configId);
+      const config = await service.getConfigByIdVerbose(configId);
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -129,8 +155,8 @@ const getConfigByIdHandler = (service: ReleaseConfigService) =>
         return;
       }
 
-      const safeConfig = toSafeConfig(config);
-      res.status(HTTP_STATUS.OK).json(successResponse(safeConfig));
+      // For verbose response, we don't use toSafeConfig as we want full nested objects
+      res.status(HTTP_STATUS.OK).json(successResponse(config));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
