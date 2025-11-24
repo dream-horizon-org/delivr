@@ -3,10 +3,25 @@
 // Separate from DOTA (Over-The-Air) management routes
 
 import { Request, Response, Router } from "express";
-import * as storageTypes from "../storage/storage";
 import * as tenantPermissions from "../middleware/tenant-permissions";
+import { S3Storage } from "../storage/aws-storage";
+import * as storageTypes from "../storage/storage";
+import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
+import { createCommIntegrationRoutes } from "./integrations/comm";
+import {
+  createConfigurationRoutes as createPMConfigurationRoutes,
+  createIntegrationRoutes as createPMIntegrationRoutes,
+  createTicketRoutes as createPMTicketRoutes
+} from "./integrations/project-management";
+import {
+  createTestManagementConfigRoutes,
+  createTestRunOperationsRoutes
+} from "./integrations/test-management";
+import { createCheckmateMetadataRoutes } from "./integrations/test-management/metadata/checkmate";
+import { createTenantIntegrationRoutes } from "./integrations/test-management/tenant-integration/tenant-integration.routes";
 import { createSCMIntegrationRoutes } from "./scm-integrations";
-import { createIntegrationRoutes as createSlackIntegrationRoutes } from "./integrations/comm/slack-integration/slack-integration.routes";
+import { createStoreIntegrationRoutes } from "./store-integrations";
+import { createReleaseConfigRoutes } from "./release-config-routes";
 import { getReleaseManagementRouter as getReleaseRoutes } from "./release/release-management";
 
 export interface ReleaseManagementConfig {
@@ -50,29 +65,104 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.use(scmRoutes);
 
   // ============================================================================
+  // TEST MANAGEMENT INTEGRATIONS (Checkmate, TestRail, etc.)
+  // ============================================================================
+  // Only mount test management routes if using S3Storage (which has test management)
+  const isS3Storage = storage instanceof S3Storage;
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // All test management routes under /test-management/ prefix
+    const testManagementRouter = Router();
+    
+    // Tenant-Level Integration Management (Credentials)
+    const tenantIntegrationRoutes = createTenantIntegrationRoutes(s3Storage.testManagementIntegrationService);
+    testManagementRouter.use(tenantIntegrationRoutes);
+
+    // Test Management Config Management (Reusable test configurations)
+    const testManagementConfigRoutes = createTestManagementConfigRoutes(s3Storage.testManagementConfigService);
+    testManagementRouter.use(testManagementConfigRoutes);
+
+    // Test Run Operations (Stateless - Create, Status, Reset, Cancel)
+    const testRunRoutes = createTestRunOperationsRoutes(s3Storage.testManagementRunService);
+    testManagementRouter.use(testRunRoutes);
+
+    // Checkmate Metadata Proxy Routes (Projects, Sections, Labels, Squads)
+    const checkmateMetadataRoutes = createCheckmateMetadataRoutes(s3Storage.checkmateMetadataService);
+    testManagementRouter.use(checkmateMetadataRoutes);
+    
+    // Mount all test management routes under /test-management
+    router.use('/test-management', testManagementRouter);
+    
+    console.log('[Release Management] Test Management routes mounted successfully under /test-management');
+  } else {
+    console.warn('[Release Management] Test Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
+  // PROJECT MANAGEMENT INTEGRATIONS (JIRA, Linear, Asana, etc.)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if services are initialized
+    if (s3Storage.projectManagementIntegrationService && 
+        s3Storage.projectManagementConfigService && 
+        s3Storage.projectManagementTicketService) {
+      
+      // Project Management Integration Management (Credentials)
+      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService);
+      router.use(pmIntegrationRoutes);
+      
+      // Project Management Configuration Management (Reusable configurations)
+      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService);
+      router.use(pmConfigurationRoutes);
+      
+      // Project Management Ticket Operations (Stateless - Create, Check Status)
+      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService);
+      router.use(pmTicketRoutes);
+      
+      console.log('[Release Management] Project Management routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Project Management services not yet initialized, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Project Management services not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
   // TARGET PLATFORM INTEGRATIONS (App Store, Play Store)
   // ============================================================================
-  // TODO: Implement target platform integration routes
-  // router.use(createTargetPlatformRoutes(storage));
+  const storeRoutes = createStoreIntegrationRoutes();
+  router.use(storeRoutes);
 
   // ============================================================================
   // PIPELINE INTEGRATIONS (Jenkins, GitHub Actions)
   // ============================================================================
-  // TODO: Implement pipeline integration routes
-  // router.use(createPipelineRoutes(storage));
+  const cicdRoutes = createCICDIntegrationRoutes(storage);
+  router.use(cicdRoutes);
 
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  const slackRoutes = createSlackIntegrationRoutes(storage);
-  router.use(slackRoutes);
-  // router.use(createCommunicationRoutes(storage));
+  const commRoutes = createCommIntegrationRoutes(storage);
+  router.use(commRoutes);
 
   // ============================================================================
-  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
+  // RELEASE CONFIGURATION ROUTES
   // ============================================================================
-  // TODO: Implement ticket management integration routes
-  // router.use(createTicketManagementRoutes(storage));
+  if (isS3Storage) {
+    const s3Storage = storage;
+    const releaseConfigRoutes = createReleaseConfigRoutes(
+      s3Storage.releaseConfigService,
+      storage,
+      s3Storage.testManagementConfigService
+    );
+    router.use(releaseConfigRoutes);
+    console.log('[Release Management] Release Config routes mounted successfully');
+  } else {
+    console.warn('[Release Management] Release Config service not available (S3Storage required), routes not mounted');
+  }
 
   // ============================================================================
   // SETUP MANAGEMENT
