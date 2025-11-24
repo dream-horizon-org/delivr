@@ -149,12 +149,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // router.use(createCommunicationRoutes(storage));
 
   // ============================================================================
-  // TICKET MANAGEMENT INTEGRATIONS (Jira, etc.)
-  // ============================================================================
-  // TODO: Implement ticket management integration routes
-  // router.use(createTicketManagementRoutes(storage));
-
-  // ============================================================================
   // RELEASE CONFIGURATION ROUTES
   // ============================================================================
   if (isS3Storage) {

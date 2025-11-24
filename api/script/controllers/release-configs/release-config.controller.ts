@@ -113,14 +113,14 @@ const createConfigHandler = (service: ReleaseConfigService, testManagementConfig
   };
 
 /**
- * Handler: Get config by ID
+ * Handler: Get config by ID (with verbose integration data)
  */
 const getConfigByIdHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { configId } = req.params;
 
-      const config = await service.getConfigById(configId);
+      const config = await service.getConfigByIdVerbose(configId);
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -129,8 +129,8 @@ const getConfigByIdHandler = (service: ReleaseConfigService) =>
         return;
       }
 
-      const safeConfig = toSafeConfig(config);
-      res.status(HTTP_STATUS.OK).json(successResponse(safeConfig));
+      // For verbose response, we don't use toSafeConfig as we want full nested objects
+      res.status(HTTP_STATUS.OK).json(successResponse(config));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(

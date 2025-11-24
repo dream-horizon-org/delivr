@@ -279,10 +279,48 @@ export class ReleaseConfigService {
 
 
   /**
-   * Get config by ID
+   * Get config by ID with minimal data
    */
   async getConfigById(id: string): Promise<ReleaseConfiguration | null> {
     return this.configRepo.findById(id);
+  }
+
+  /**
+   * Get config by ID with verbose integration data
+   */
+  async getConfigByIdVerbose(id: string): Promise<any | null> {
+    const config = await this.configRepo.findById(id);
+    
+    if (!config) {
+      return null;
+    }
+
+    // Fetch integration configs in parallel
+    const [ciConfig, testManagementConfig, commsConfig, projectManagementConfig] = await Promise.all([
+      config.ciConfigId && this.cicdConfigService 
+        ? this.cicdConfigService.findById(config.ciConfigId)
+        : Promise.resolve(null),
+      
+      config.testManagementConfigId && this.testManagementConfigService
+        ? this.testManagementConfigService.getConfigById(config.testManagementConfigId)
+        : Promise.resolve(null),
+      
+      config.commsConfigId && this.slackChannelConfigService
+        ? this.slackChannelConfigService.getConfig(config.commsConfigId)
+        : Promise.resolve(null),
+      
+      config.projectManagementConfigId && this.projectManagementConfigService
+        ? this.projectManagementConfigService.getConfigById(config.projectManagementConfigId)
+        : Promise.resolve(null)
+    ]);
+
+    return {
+      ...config,
+      ciConfig,
+      testManagementConfig,
+      commsConfig,
+      projectManagementConfig
+    };
   }
 
   /**
