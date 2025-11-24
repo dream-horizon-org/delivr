@@ -25,6 +25,8 @@ import type {
   CheckmatePlatformConfiguration,
   TargetPlatform,
 } from '~/types/release-config';
+import type { CheckmateConfigFormEnhancedProps } from '~/types/release-config-props';
+import { PLATFORMS } from '~/types/release-config-constants';
 import { isAndroidTarget, isIOSTarget } from '~/utils/platform-mapper';
 
 // Backend API response structures - match Checkmate API exactly
@@ -61,19 +63,7 @@ interface CheckmateSquad {
   createdBy: number | null;
 }
 
-interface CheckmateConfigFormEnhancedProps {
-  config: Partial<CheckmateSettings>;
-  onChange: (config: CheckmateSettings) => void;
-  availableIntegrations: Array<{ 
-    id: string; 
-    name: string; 
-    workspaceId?: string;
-    baseUrl?: string;
-    orgId?: string;
-  }>;
-  selectedTargets: TargetPlatform[]; // NEW: Selected targets from Step 2
-}
-
+// Using CheckmateConfigFormEnhancedProps from centralized types
 export function CheckmateConfigFormEnhanced({
   config,
   onChange,
@@ -108,11 +98,7 @@ export function CheckmateConfigFormEnhanced({
     };
   };
 
-  // Platforms are HARDCODED - these are global system constants, not Checkmate metadata
-  const PLATFORMS = {
-    ANDROID: 'ANDROID',
-    IOS: 'IOS',
-  } as const;
+  // Using centralized PLATFORMS from constants
 
   // Define fetch functions BEFORE useEffect hooks that use them
   const fetchProjects = useCallback(async (integrationId: string) => {
@@ -215,7 +201,7 @@ export function CheckmateConfigFormEnhanced({
   };
 
   // Get or initialize platform config for a specific platform
-  const getPlatformConfig = (platform: 'ANDROID' | 'IOS'): CheckmatePlatformConfiguration => {
+  const getPlatformConfig = (platform: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS): CheckmatePlatformConfiguration => {
     const platformConfigs = config.platformConfigurations || [];
     return platformConfigs.find(pc => pc.platform === platform) || {
       platform,
@@ -227,7 +213,7 @@ export function CheckmateConfigFormEnhanced({
 
   // Update platform-specific configuration
   const handlePlatformConfigChange = (
-    platform: 'ANDROID' | 'IOS',
+    platform: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS,
     field: keyof Omit<CheckmatePlatformConfiguration, 'platform'>,
     value: number[]
   ) => {
@@ -340,10 +326,10 @@ export function CheckmateConfigFormEnhanced({
                                   value: s.sectionId.toString(), 
                                   label: s.sectionName 
                                 }))}
-                                value={getPlatformConfig('ANDROID').sectionIds?.map(id => id.toString()) || []}
+                                value={getPlatformConfig(PLATFORMS.ANDROID).sectionIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
                                   handlePlatformConfigChange(
-                                    'ANDROID',
+                                    PLATFORMS.ANDROID,
                                     'sectionIds',
                                     val.map(v => parseInt(v, 10))
                                   )
@@ -359,10 +345,10 @@ export function CheckmateConfigFormEnhanced({
                                   value: l.labelId.toString(), 
                                   label: l.labelName 
                                 }))}
-                                value={getPlatformConfig('ANDROID').labelIds?.map(id => id.toString()) || []}
+                                value={getPlatformConfig(PLATFORMS.ANDROID).labelIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
                                   handlePlatformConfigChange(
-                                    'ANDROID',
+                                    PLATFORMS.ANDROID,
                                     'labelIds',
                                     val.map(v => parseInt(v, 10))
                                   )
@@ -378,10 +364,10 @@ export function CheckmateConfigFormEnhanced({
                                   value: s.squadId.toString(), 
                                   label: s.squadName 
                                 }))}
-                                value={getPlatformConfig('ANDROID').squadIds?.map(id => id.toString()) || []}
+                                value={getPlatformConfig(PLATFORMS.ANDROID).squadIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
                                   handlePlatformConfigChange(
-                                    'ANDROID',
+                                    PLATFORMS.ANDROID,
                                     'squadIds',
                                     val.map(v => parseInt(v, 10))
                                   )
@@ -413,10 +399,10 @@ export function CheckmateConfigFormEnhanced({
                                   value: s.sectionId.toString(), 
                                   label: s.sectionName 
                                 }))}
-                                value={getPlatformConfig('IOS').sectionIds?.map(id => id.toString()) || []}
+                                value={getPlatformConfig(PLATFORMS.IOS).sectionIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
                                   handlePlatformConfigChange(
-                                    'IOS',
+                                    PLATFORMS.IOS,
                                     'sectionIds',
                                     val.map(v => parseInt(v, 10))
                                   )
@@ -432,10 +418,10 @@ export function CheckmateConfigFormEnhanced({
                                   value: l.labelId.toString(), 
                                   label: l.labelName 
                                 }))}
-                                value={getPlatformConfig('IOS').labelIds?.map(id => id.toString()) || []}
+                                value={getPlatformConfig(PLATFORMS.IOS).labelIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
                                   handlePlatformConfigChange(
-                                    'IOS',
+                                    PLATFORMS.IOS,
                                     'labelIds',
                                     val.map(v => parseInt(v, 10))
                                   )
@@ -451,10 +437,10 @@ export function CheckmateConfigFormEnhanced({
                                   value: s.squadId.toString(), 
                                   label: s.squadName 
                                 }))}
-                                value={getPlatformConfig('IOS').squadIds?.map(id => id.toString()) || []}
+                                value={getPlatformConfig(PLATFORMS.IOS).squadIds?.map(id => id.toString()) || []}
                                 onChange={(val) =>
                                   handlePlatformConfigChange(
-                                    'IOS',
+                                    PLATFORMS.IOS,
                                     'squadIds',
                                     val.map(v => parseInt(v, 10))
                                   )
