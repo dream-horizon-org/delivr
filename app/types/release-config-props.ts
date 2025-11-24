@@ -85,6 +85,7 @@ export interface WizardStepIndicatorProps {
 export interface BasicInfoFormProps {
   config: Partial<ReleaseConfiguration>;
   onChange: (config: Partial<ReleaseConfiguration>) => void;
+  tenantId: string;
 }
 
 export interface ConfigSummaryProps {
@@ -200,6 +201,13 @@ export interface BuildUploadSelectorProps {
 export interface PlatformSelectorProps {
   selectedPlatforms: TargetPlatform[];
   onChange: (platforms: TargetPlatform[]) => void;
+}
+
+export interface JiraProjectStepProps {
+  config: JiraProjectConfig;
+  onChange: (config: JiraProjectConfig) => void;
+  availableIntegrations: Array<{ id: string; name: string }>;
+  selectedPlatforms?: Platform[];
 }
 
 export interface PlatformCardProps {

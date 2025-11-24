@@ -7,21 +7,16 @@
 import { Stack, Text, Switch, Select, Alert, Checkbox } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
+import type { JiraProjectStepProps } from '~/types/release-config-props';
+import { PLATFORMS, JIRA_PLATFORMS } from '~/types/release-config-constants';
 import { JiraPlatformConfigCard } from './JiraPlatformConfigCard';
 import { createDefaultPlatformConfigs } from '~/utils/jira-config-transformer';
 
-interface JiraProjectStepProps {
-  config: JiraProjectConfig;
-  onChange: (config: JiraProjectConfig) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
-  selectedPlatforms?: Platform[]; // Platforms selected in earlier step
-}
-
 // Map frontend Platform to backend Platform
-function mapPlatform(platform: Platform): 'WEB' | 'IOS' | 'ANDROID' {
-  if (platform === 'ANDROID') return 'ANDROID';
-  if (platform === 'IOS') return 'IOS';
-  return 'WEB';
+function mapPlatform(platform: Platform): typeof JIRA_PLATFORMS.WEB | typeof JIRA_PLATFORMS.IOS | typeof JIRA_PLATFORMS.ANDROID {
+  if (platform === PLATFORMS.ANDROID) return JIRA_PLATFORMS.ANDROID;
+  if (platform === PLATFORMS.IOS) return JIRA_PLATFORMS.IOS;
+  return JIRA_PLATFORMS.WEB;
 }
 
 export function JiraProjectStep({
