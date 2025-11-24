@@ -10,8 +10,9 @@ import { AppDistributionConnectionFlow } from './AppDistributionConnectionFlow';
 import { IntegrationIcon } from '~/components/Integrations/IntegrationIcon';
 import { useParams } from '@remix-run/react';
 import { useSystemMetadata } from '~/hooks/useSystemMetadata';
+import { PLATFORMS, TARGET_PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 
-interface IntegrationConnectModalProps {
+export interface IntegrationConnectModalProps {
   integration: Integration | null;
   opened: boolean;
   onClose: () => void;
@@ -125,14 +126,14 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'PLAY_STORE':
+      case TARGET_PLATFORMS.PLAY_STORE:
       case 'play_store':
       case 'playstore':
         return (
           <AppDistributionConnectionFlow
-            storeType="PLAY_STORE"
+            storeType={TARGET_PLATFORMS.PLAY_STORE}
             tenantId={tenantId}
-            allowedPlatforms={['ANDROID']}
+            allowedPlatforms={[PLATFORMS.ANDROID]}
             onConnect={(data) => {
               onConnect(integration.id, data);
               onClose();
@@ -141,14 +142,14 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'APP_STORE':
+      case TARGET_PLATFORMS.APP_STORE:
       case 'app_store':
       case 'appstore':
         return (
           <AppDistributionConnectionFlow
-            storeType="APP_STORE"
+            storeType={TARGET_PLATFORMS.APP_STORE}
             tenantId={tenantId}
-            allowedPlatforms={['IOS']}
+            allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
               onConnect(integration.id, data);
               onClose();
@@ -157,13 +158,13 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'TESTFLIGHT':
+      case BUILD_ENVIRONMENTS.TESTFLIGHT:
       case 'testflight':
         return (
           <AppDistributionConnectionFlow
-            storeType="TESTFLIGHT"
+            storeType={BUILD_ENVIRONMENTS.TESTFLIGHT}
             tenantId={tenantId}
-            allowedPlatforms={['IOS']}
+            allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
               onConnect(integration.id, data);
               onClose();
