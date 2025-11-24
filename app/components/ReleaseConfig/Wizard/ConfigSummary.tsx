@@ -16,7 +16,7 @@ import {
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigSummaryProps } from '~/types/release-config-props';
 import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
-import { SECTION_TITLES, SECTION_DESCRIPTIONS, FIELD_LABELS, BUILD_UPLOAD_LABELS } from '~/constants/release-config-ui';
+import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES } from '~/constants/release-config-ui';
 
 export function ConfigSummary({ config }: ConfigSummaryProps) {
   return (
@@ -26,7 +26,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           {SECTION_TITLES.REVIEW}
         </Text>
         <Text size="sm" c="dimmed">
-          Review your release management configuration before saving
+          {INFO_MESSAGES.REVIEW_DESCRIPTION}
         </Text>
       </div>
       
@@ -41,16 +41,16 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         
         <Stack gap="xs">
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <Text c="dimmed">Configuration Name:</Text>
-            <Text fw={500}>{config.name || 'Not set'}</Text>
+            <Text c="dimmed">{FIELD_LABELS.CONFIGURATION_NAME}:</Text>
+            <Text fw={500}>{config.name || INFO_MESSAGES.NOT_SET}</Text>
             
-            <Text c="dimmed">Release Type:</Text>
+            <Text c="dimmed">{FIELD_LABELS.RELEASE_TYPE}:</Text>
             <Badge variant="light" size="sm">
-              {config.releaseType || 'PLANNED'}
+              {config.releaseType || INFO_MESSAGES.PLANNED}
             </Badge>
             
-            <Text c="dimmed">Default Config:</Text>
-            <Text fw={500}>{config.isDefault ? 'Yes' : 'No'}</Text>
+            <Text c="dimmed">{FIELD_LABELS.DEFAULT_CONFIG}:</Text>
+            <Text fw={500}>{config.isDefault ? INFO_MESSAGES.YES : INFO_MESSAGES.NO}</Text>
           </div>
           
           {config.description && (
@@ -58,7 +58,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               <Divider className="my-2" />
               <div>
                 <Text size="xs" c="dimmed" className="mb-1">
-                  Description:
+                  {FIELD_LABELS.DESCRIPTION}:
                 </Text>
                 <Text size="sm">{config.description}</Text>
               </div>
@@ -88,7 +88,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               <Divider />
               <div>
                 <Text size="sm" fw={500} className="mb-2">
-                  Configured Workflows ({config.workflows?.length || 0})
+                  {FIELD_LABELS.CONFIGURED_WORKFLOWS} ({config.workflows?.length || 0})
                 </Text>
         {config.workflows && config.workflows.length > 0 ? (
           <List spacing="xs" size="sm">
@@ -120,7 +120,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </List>
         ) : (
           <Text size="sm" c="dimmed">
-                    No workflows configured yet
+                    {INFO_MESSAGES.NO_WORKFLOWS_CONFIGURED}
                   </Text>
                 )}
               </div>
@@ -129,7 +129,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           
           {config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL && (
             <Text size="sm" c="dimmed">
-              Builds will be uploaded manually through the release dashboard
+              {INFO_MESSAGES.MANUAL_UPLOAD_DASHBOARD_INFO}
           </Text>
         )}
         </Stack>
@@ -168,16 +168,16 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </Text>
         </Group>
         
-        {config.testManagement?.enabled ? (
+        {config?.testManagement?.enabled ? (
           <Stack gap="xs">
             <Group gap="xs">
               <Text size="sm">Provider:</Text>
               <Badge variant="light" size="sm">
-                {config.testManagement.provider}
+                {config?.testManagement.provider}
               </Badge>
             </Group>
             
-            {config.testManagement.providerConfig && (
+            {config?.testManagement?.providerConfig && (
               <div className="text-sm">
                 <Text c="dimmed">Settings configured</Text>
               </div>

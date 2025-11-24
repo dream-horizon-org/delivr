@@ -121,6 +121,14 @@ export const INFO_MESSAGES = {
   REDIRECT_TO_INTEGRATIONS: 'Go to Integrations page to connect CI/CD providers',
   NO_PROVIDERS_CONNECTED: 'No CI/CD providers are connected. Connect Jenkins or GitHub Actions to create workflows.',
   SELECT_PLATFORM_FIRST: 'Select distribution targets in the previous step to continue.',
+  NOT_SET: 'Not set',
+  PLANNED: 'PLANNED',
+  YES: 'Yes',
+  NO: 'No',
+  NO_WORKFLOWS_CONFIGURED: 'No workflows configured yet',
+  MANUAL_UPLOAD_DASHBOARD_INFO: 'Builds will be uploaded manually through the release dashboard',
+  REVIEW_DESCRIPTION: 'Review your release management configuration before saving',
+  SETTINGS_CONFIGURED: 'Settings configured',
 } as const;
 
 // ============================================================================
@@ -202,6 +210,10 @@ export const FIELD_LABELS = {
   RETRY_ATTEMPTS: 'Retry Attempts',
   PARAMETERS: 'Parameters',
   INPUTS: 'Inputs',
+  CONFIGURATION_NAME: 'Configuration Name',
+  RELEASE_TYPE: 'Release Type',
+  DEFAULT_CONFIG: 'Default Config',
+  CONFIGURED_WORKFLOWS: 'Configured Workflows',
 } as const;
 
 // ============================================================================
