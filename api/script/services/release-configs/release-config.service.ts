@@ -260,6 +260,7 @@ export class ReleaseConfigService {
       platforms: requestData.platforms ?? null,
       baseBranch: requestData.baseBranch ?? null,
       scheduling: requestData.scheduling ?? null,
+      hasManualBuildUpload: requestData.hasManualBuildUpload ?? false,
       isActive: true,
       isDefault: requestData.isDefault ?? false,
       createdByAccountId: currentUserId,
