@@ -10,15 +10,8 @@ import {
   IconLayersIntersect
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
-
-interface ConfigurationListItemProps {
-  config: ReleaseConfiguration;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onArchive: () => void;
-  onExport: () => void;
-  onSetDefault: () => void;
-}
+import type { ConfigurationListItemProps } from '~/types/release-config-props';
+import { PLATFORMS } from '~/types/release-config-constants';
 
 // Helper to get status display from isActive field or draft status
 const getStatusDisplay = (config: any) => {
@@ -76,8 +69,8 @@ export function ConfigurationListItem({
   // Platform icons mapping
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
-      case 'ANDROID': return <IconBrandAndroid size={16} />;
-      case 'IOS': return <IconBrandApple size={16} />;
+      case PLATFORMS.ANDROID: return <IconBrandAndroid size={16} />;
+      case PLATFORMS.IOS: return <IconBrandApple size={16} />;
       default: return <IconDeviceMobile size={16} />;
     }
   };
