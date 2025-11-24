@@ -30,7 +30,7 @@ import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
 import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
 import { derivePlatformsFromTargets } from '~/utils/platform-utils';
-import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_UPLOAD_STEPS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 import type { ConfigurationWizardProps } from '~/types/release-config-props';
 
 // Using ConfigurationWizardProps from centralized types
@@ -125,7 +125,7 @@ export function ConfigurationWizard({
         
       case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
         // Only validate if CI/CD is selected
-        if (config.buildUploadStep !== 'CI_CD') {
+        if (config.buildUploadStep !== BUILD_UPLOAD_STEPS.CI_CD) {
           return true; // Skip validation if not using CI/CD
         }
         
@@ -134,12 +134,12 @@ export function ConfigurationWizard({
         }
         
         // Validate required pipelines based on selected distribution targets
-        const needsAndroid = config.targets?.includes('PLAY_STORE');
-        const needsIOS = config.targets?.includes('APP_STORE');
+        const needsAndroid = config.targets?.includes(TARGET_PLATFORMS.PLAY_STORE);
+        const needsIOS = config.targets?.includes(TARGET_PLATFORMS.APP_STORE);
         
         if (needsAndroid) {
           const hasAndroidRegression = config.workflows.some(
-            p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
+            p => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
           );
           if (!hasAndroidRegression) return false;
         }
@@ -180,7 +180,7 @@ export function ConfigurationWizard({
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       
       // Auto-skip PIPELINES step if Manual upload is selected
-      if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.buildUploadStep === 'MANUAL') {
+      if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL) {
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
         setCurrentStep(currentStep + 2); // Skip pipelines step
       } else {
@@ -192,7 +192,7 @@ export function ConfigurationWizard({
   const handlePrevious = () => {
     if (currentStep > 0) {
       // Auto-skip PIPELINES step backwards if Manual upload is selected
-      if (currentStep === STEP_INDEX.TESTING && config.buildUploadStep === 'MANUAL') {
+      if (currentStep === STEP_INDEX.TESTING && config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL) {
         setCurrentStep(currentStep - 2); // Skip back over pipelines step
       } else {
       setCurrentStep(currentStep - 1);
@@ -309,7 +309,7 @@ export function ConfigurationWizard({
       case STEP_INDEX.BUILD_UPLOAD: // Build Upload Method Selection
         return (
           <BuildUploadSelector
-            selectedMode={config.buildUploadStep || 'MANUAL'}
+            selectedMode={config.buildUploadStep || BUILD_UPLOAD_STEPS.MANUAL}
             onChange={(mode) => setConfig({ ...config, buildUploadStep: mode })}
             hasIntegrations={
               availableIntegrations.jenkins.length > 0 || 
@@ -320,7 +320,7 @@ export function ConfigurationWizard({
         
       case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
         // Only show if CI/CD is selected
-        if (config.buildUploadStep !== 'CI_CD') {
+        if (config.buildUploadStep !== BUILD_UPLOAD_STEPS.CI_CD) {
           // Skip this step - auto-proceed to next
           return null;
         }
