@@ -20,6 +20,7 @@ export type ReleaseConfigAttributes = {
   projectManagementConfigId: string | null;
   commsConfigId: string | null;
   scheduling: any;
+  hasManualBuildUpload: boolean;
   isActive: boolean;
   isDefault: boolean;
   createdByAccountId: string;
@@ -101,6 +102,13 @@ export const createReleaseConfigModel = (
       scheduling: {
         type: DataTypes.JSON,
         allowNull: true
+      },
+      hasManualBuildUpload: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'hasManualBuildUpload',
+        comment: 'Whether manual build upload is enabled for this configuration'
       },
       isActive: {
         type: DataTypes.BOOLEAN,
