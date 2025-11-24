@@ -104,6 +104,22 @@ export interface ListDistributionsResponse {
 }
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+// Available store types (for system metadata)
+export const STORE_TYPES: StoreType[] = [
+  'APP_STORE',
+  'PLAY_STORE',
+  'TESTFLIGHT',
+  'FIREBASE',
+  'MICROSOFT_STORE',
+];
+
+// Allowed platforms (for system metadata)
+export const ALLOWED_PLATFORMS: Platform[] = ['ANDROID', 'IOS'];
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 

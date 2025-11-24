@@ -35,7 +35,10 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
 
     // Fetch app distribution integrations
     const distributionsResponse = await AppDistributionService.listIntegrations(tenantId, user.user.id);
-    const distributions = distributionsResponse.success ? distributionsResponse.integrations || [] : [];
+    // Flatten the grouped data into a single array
+    const distributions = distributionsResponse.success && distributionsResponse.data
+      ? [...(distributionsResponse.data.IOS || []), ...(distributionsResponse.data.ANDROID || [])]
+      : [];
 
     console.log(`[BFF-TenantInfo] Successfully fetched tenant info with ${distributions.length} distributions`);
     
@@ -45,7 +48,11 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
       appDistributions: distributions, // NEW: App distribution integrations
     };
     
-    return json(enrichedData, {
+    // Return with proper API client structure
+    return json({
+      success: true,
+      data: enrichedData,
+    }, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',

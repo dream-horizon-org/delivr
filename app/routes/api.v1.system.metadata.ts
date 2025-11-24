@@ -21,15 +21,18 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
       },
     };
     
-    return json(enrichedData);
-  } catch (error: any) {
-    console.error('[BFF] Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
+    // Return with proper API client structure
+    return json({
+      success: true,
+      data: enrichedData,
     });
+  } catch (error: any) {
+    console.error('[BFF-SystemMetadata] Error:', error.message);
     return json(
-      { error: 'Failed to fetch system metadata' },
+      { 
+        success: false,
+        error: 'Failed to fetch system metadata' 
+      },
       { status: 500 }
     );
   }

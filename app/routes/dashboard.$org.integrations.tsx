@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from '@remix-run/react';
 import { Container, Title, Text, Tabs, Loader as MantineLoader } from '@mantine/core';
+import { showSuccessToast, showInfoToast } from '~/utils/toast';
+import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
@@ -16,7 +18,7 @@ export default function IntegrationsPage() {
     getConnectedIntegrations,
     getAvailableIntegrations 
   } = useConfig();
-  console.log('[Integrations] Connected integrations:', getConnectedIntegrations());
+  console.log('[Integrations] Connected integrations:', isLoadingMetadata, isLoadingTenantConfig);
 
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
@@ -25,8 +27,9 @@ export default function IntegrationsPage() {
   const [connectModalOpened, setConnectModalOpened] = useState(false);
 
   // Build integrations list using ConfigContext helpers
-  const buildIntegrationsList = (): Integration[] => {
-    const allIntegrations: Integration[] = [];
+  // Memoize to prevent unnecessary re-renders
+  const allIntegrations = useMemo((): Integration[] => {
+    const integrations: Integration[] = [];
     
     // Get all integration categories
     const categories: IntegrationCategory[] = [
@@ -54,7 +57,7 @@ export default function IntegrationsPage() {
           (c) => c.providerId.toLowerCase() === provider.id.toLowerCase()
         );
 
-        allIntegrations.push({
+        integrations.push({
           id: provider.id,
           name: provider.name,
           description: provider.description || '',
@@ -72,8 +75,8 @@ export default function IntegrationsPage() {
       });
     });
           
-    return allIntegrations;
-  };
+    return integrations;
+  }, [getAvailableIntegrations, getConnectedIntegrations]);
 
   // Loading state
   if (isLoadingMetadata || isLoadingTenantConfig) {
@@ -85,8 +88,6 @@ export default function IntegrationsPage() {
       </Container>
     );
   }
-
-  const allIntegrations = buildIntegrationsList();
   
   console.log('[Integrations] Total integrations:', allIntegrations.length);
   console.log('[Integrations] Available integrations:', allIntegrations.filter(i => i.isAvailable).length);
@@ -132,7 +133,7 @@ export default function IntegrationsPage() {
       // GitHub connection is handled by the modal with real API calls
       console.log('[GitHub] Operation successful:', data);
       // Show success message and reload to update the integration status
-      alert(editingIntegration ? 'GitHub integration updated successfully!' : 'GitHub integration connected successfully!');
+      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('GitHub', !!editingIntegration));
       window.location.reload();
     } else if (integrationId === 'slack') {
       // Navigate to Slack setup in release management wizard
@@ -142,23 +143,23 @@ export default function IntegrationsPage() {
       // Jenkins connection is handled by the modal with real API calls
       console.log('[Jenkins] Operation successful:', data);
       // Show success message and reload to update the integration status
-      alert(editingIntegration ? 'Jenkins integration updated successfully!' : 'Jenkins integration connected successfully!');
+      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('Jenkins', !!editingIntegration));
       window.location.reload();
     } else if (integrationId === 'github_actions') {
       // GitHub Actions connection is handled by the modal with real API calls
       console.log('[GitHub Actions] Operation successful:', data);
       // Show success message and reload to update the integration status
-      alert(editingIntegration ? 'GitHub Actions integration updated successfully!' : 'GitHub Actions integration connected successfully!');
+      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('GitHub Actions', !!editingIntegration));
       window.location.reload();
     } else if (integrationId === 'checkmate') {
       // Checkmate connection is handled by the modal with real API calls
       console.log('[Checkmate] Operation successful:', data);
       // Show success message and reload to update the integration status
-      alert(editingIntegration ? 'Checkmate integration updated successfully!' : 'Checkmate integration connected successfully!');
+      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('Checkmate', !!editingIntegration));
       window.location.reload();
     } else {
       // For other integrations, show success message (demo)
-      alert(`${integrationId} connection initiated (demo mode)`);
+      showInfoToast(INTEGRATION_MESSAGES.DEMO_MODE(integrationId));
     }
   };
 

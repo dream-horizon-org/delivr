@@ -4,7 +4,7 @@
  * Uses React Query for data fetching with caching
  */
 
-import { createContext, useContext, ReactNode, useMemo } from 'react';
+import { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 
 // Centralized debug flag - set to true to enable console logs
 const DEBUG = false;
@@ -103,7 +103,6 @@ export function ConfigProvider({
     error: metadataError,
   } = useSystemMetadata();
   
-  
   // Fetch tenant configuration (tenant-specific)
   const {
     data: tenantConfig,
@@ -154,9 +153,10 @@ export function ConfigProvider({
   // Selector Functions
   // ============================================================================
   
-  const getAvailableIntegrations = (category?: string): IntegrationProvider[] => {
+  const getAvailableIntegrations = useCallback((category?: string): IntegrationProvider[] => {
+    console.log('[ConfigContext] Available integrations :' + "category" + category, systemMetadata);
     if (!systemMetadata) return [];
-    
+    console.log('[ConfigContext] Available integrations:', systemMetadata);
     const integrations = systemMetadata.releaseManagement.integrations;
     
     if (category) {
@@ -172,12 +172,14 @@ export function ConfigProvider({
       ...integrations.PROJECT_MANAGEMENT,
       ...integrations.APP_DISTRIBUTION,
     ];
-  };
+  }, [systemMetadata]);
   
-  const getConnectedIntegrations = (category?: string): ConnectedIntegration[] => {
+  const getConnectedIntegrations = useCallback((category?: string): ConnectedIntegration[] => {
     if (!tenantConfig?.releaseManagement?.connectedIntegrations) return [];
-    
+    console.log('[ConfigContext] Connected integrations :' + "category" + category, tenantConfig?.releaseManagement?.connectedIntegrations);
     const connected = tenantConfig.releaseManagement.connectedIntegrations;
+    
+    ;
     
     if (category) {
       return connected[category as keyof typeof connected] || [];
@@ -192,18 +194,18 @@ export function ConfigProvider({
       ...connected.PROJECT_MANAGEMENT,
       ...connected.APP_DISTRIBUTION,
     ];
-  };
+  }, [tenantConfig]);
   
-  const isIntegrationConnected = (providerId: string): boolean => {
+  const isIntegrationConnected = useCallback((providerId: string): boolean => {
     const connected = getConnectedIntegrations();
     return connected.some(i => i.providerId === providerId && i.status === 'CONNECTED');
-  };
+  }, [getConnectedIntegrations]);
   
-  const getAvailablePlatforms = (): PlatformOption[] => {
+  const getAvailablePlatforms = useCallback((): PlatformOption[] => {
     return systemMetadata?.releaseManagement.platforms || [];
-  };
+  }, [systemMetadata]);
   
-  const getAvailableTargets = (platformId?: string): TargetOption[] => {
+  const getAvailableTargets = useCallback((platformId?: string): TargetOption[] => {
     if (!systemMetadata) return [];
     
     const allTargets = systemMetadata.releaseManagement.targets;
@@ -219,29 +221,29 @@ export function ConfigProvider({
     
     // Filter targets to only those applicable to this platform
     return allTargets.filter(target => platform.applicableTargets.includes(target.id));
-  };
+  }, [systemMetadata]);
   
-  const isTargetEnabled = (targetId: string): boolean => {
+  const isTargetEnabled = useCallback((targetId: string): boolean => {
     return tenantConfig?.releaseManagement?.enabledTargets?.includes(targetId) || false;
-  };
+  }, [tenantConfig]);
   
-  const isPlatformEnabled = (platformId: string): boolean => {
+  const isPlatformEnabled = useCallback((platformId: string): boolean => {
     return tenantConfig?.releaseManagement?.enabledPlatforms?.includes(platformId) || false;
-  };
+  }, [tenantConfig]);
   
-  const getReleaseTypes = (): ReleaseTypeOption[] => {
+  const getReleaseTypes = useCallback((): ReleaseTypeOption[] => {
     return systemMetadata?.releaseManagement.releaseTypes || [];
-  };
+  }, [systemMetadata]);
   
-  const isReleaseTypeAllowed = (releaseTypeId: string): boolean => {
+  const isReleaseTypeAllowed = useCallback((releaseTypeId: string): boolean => {
     return tenantConfig?.releaseManagement?.allowedReleaseTypes?.includes(releaseTypeId) || false;
-  };
+  }, [tenantConfig]);
   
-  const getReleaseStages = (): ReleaseStageOption[] => {
+  const getReleaseStages = useCallback((): ReleaseStageOption[] => {
     return systemMetadata?.releaseManagement.releaseStages || [];
-  };
+  }, [systemMetadata]);
   
-  const getReleaseStatuses = (stage?: string): ReleaseStatusOption[] => {
+  const getReleaseStatuses = useCallback((stage?: string): ReleaseStatusOption[] => {
     if (!systemMetadata) return [];
     
     const statuses = systemMetadata.releaseManagement.releaseStatuses;
@@ -249,9 +251,9 @@ export function ConfigProvider({
       return statuses.filter(s => s.stage === stage);
     }
     return statuses;
-  };
+  }, [systemMetadata]);
   
-  const getBuildEnvironments = (platformId?: string): BuildEnvironmentOption[] => {
+  const getBuildEnvironments = useCallback((platformId?: string): BuildEnvironmentOption[] => {
     if (!systemMetadata) return [];
     
     const environments = systemMetadata.releaseManagement.buildEnvironments;
@@ -259,19 +261,19 @@ export function ConfigProvider({
       return environments.filter(e => e.applicablePlatforms.includes(platformId));
     }
     return environments;
-  };
+  }, [systemMetadata]);
   
   // ============================================================================
   // Release Config Selectors
   // ============================================================================
   
-  const getReleaseConfig = (id: string): ReleaseConfiguration | undefined => {
+  const getReleaseConfig = useCallback((id: string): ReleaseConfiguration | undefined => {
     return releaseConfigs.find(c => c.id === id);
-  };
+  }, [releaseConfigs]);
   
-  const getReleaseConfigsByType = (type: string): ReleaseConfiguration[] => {
+  const getReleaseConfigsByType = useCallback((type: string): ReleaseConfiguration[] => {
     return releaseConfigs.filter(c => c.releaseType === type);
-  };
+  }, [releaseConfigs]);
   
   
   const value: ConfigContextValue = {

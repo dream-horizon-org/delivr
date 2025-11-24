@@ -22,14 +22,27 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const result = await SCMIntegrationService.fetchBranches(tenantId, userId);
 
     if (result.success) {
-      return json(result, { status: 200 });
+      // Return with proper API client structure
+      return json({
+        success: true,
+        data: {
+          branches: result.branches,
+          defaultBranch: result.defaultBranch,
+        },
+      }, { status: 200 });
     } else {
-      return json(result, { status: 404 });
+      return json({
+        success: false,
+        error: result.error || 'Failed to fetch branches',
+      }, { status: 404 });
     }
   } catch (error: any) {
     console.error('[SCM Branches] Error:', error);
     return json(
-      { success: false, error: error.message || 'Internal server error', branches: [] },
+      { 
+        success: false, 
+        error: error.message || 'Internal server error',
+      },
       { status: 500 }
     );
   }

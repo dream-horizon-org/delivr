@@ -18,9 +18,10 @@ import {
   Loader as MantineLoader,
 } from '@mantine/core';
 import { IconTarget } from '@tabler/icons-react';
+import { apiGet } from '~/utils/api-client';
 import type { ReleaseBasicDetails } from '~/types/release-creation';
 import type { ReleaseConfiguration, TargetPlatform } from '~/types/release-config';
-import { RELEASE_TYPES } from './release-creation-constants';
+import { RELEASE_TYPES } from '~/constants/release-creation';
 
 interface ReleaseDetailsFormProps {
   details: Partial<ReleaseBasicDetails>;
@@ -48,18 +49,19 @@ export function ReleaseDetailsForm({
     const fetchBranches = async () => {
       setLoadingBranches(true);
       try {
-        const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/scm/branches`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.branches) {
-            const branchOptions = data.branches.map((branch: any) => ({
-              value: branch.name,
-              label: branch.default ? `${branch.name} (default)` : branch.name,
-            }));
-            setBranches(branchOptions);
-            if (data.defaultBranch) {
-              setDefaultBranch(data.defaultBranch);
-            }
+        const result = await apiGet<{
+          branches?: Array<{ name: string; default?: boolean }>;
+          defaultBranch?: string;
+        }>(`/api/v1/tenants/${tenantId}/integrations/scm/branches`);
+
+        if (result.success && result.data?.branches) {
+          const branchOptions = result.data.branches.map((branch: { name: string; default?: boolean }) => ({
+            value: branch.name,
+            label: branch.default ? `${branch.name} (default)` : branch.name,
+          }));
+          setBranches(branchOptions);
+          if (result.data.defaultBranch) {
+            setDefaultBranch(result.data.defaultBranch);
           }
         } else {
           console.warn('[ReleaseDetailsForm] Failed to fetch branches');

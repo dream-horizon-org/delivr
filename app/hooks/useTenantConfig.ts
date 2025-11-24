@@ -5,6 +5,7 @@
  */
 
 import { useQuery } from 'react-query';
+import { apiGet } from '~/utils/api-client';
 import type { TenantConfig } from '~/types/system-metadata';
 
 interface TenantInfoResponse {
@@ -27,18 +28,13 @@ interface TenantInfoResponse {
 }
 
 async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null> {
-  // Fetch tenant info using existing endpoint (already through BFF layer)
-  const response = await fetch(`/api/v1/tenants/${tenantId}`, {
-    headers: {
-      'Accept': 'application/json',
-    },
-  });
+  const result = await apiGet<TenantInfoResponse>(
+    `/api/v1/tenants/${tenantId}`,
+    { headers: { 'Accept': 'application/json' } }
+  );
   
-  if (!response.ok) {
-    throw new Error('Failed to fetch tenant configuration');
-  }
-  
-  const data: TenantInfoResponse = await response.json();
+  const data = result.data;
+  if (!data) return null;
   
   // Extract and structure the config
   const config = data.organisation?.releaseManagement?.config;
@@ -69,6 +65,7 @@ export function useTenantConfig(tenantId: string | undefined) {
       staleTime: 1000 * 60 * 5, // 5 minutes - can change more frequently
       cacheTime: 1000 * 60 * 30, // 30 minutes
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
       retry: 2,
     }
   );
