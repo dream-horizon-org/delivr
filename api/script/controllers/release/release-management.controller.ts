@@ -6,9 +6,15 @@
  */
 
 import { Request, Response } from 'express';
-import { ReleaseCreationService, CreateReleasePayload } from '../../services/release/release-creation.service';
+import { ReleaseCreationService } from '../../services/release/release-creation.service';
 import { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
 import { ReleaseType } from '../../storage/release/release-models';
+import { 
+  CreateReleaseRequestBody,
+  CreateReleasePayload,
+  ReleaseListResponseBody, 
+  SingleReleaseResponseBody 
+} from '../../routes/release/release-types';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
@@ -42,14 +48,13 @@ export class ReleaseManagementController {
         return res.status(401).json({ success: false, error: 'Unauthorized' });
       }
       const accountId = req.user.id;
-      const body = req.body;
+      const body = req.body as CreateReleaseRequestBody;
 
       // STEP 1: Mandatory field validation
       const mandatoryFields = [
         'targetReleaseDate',
         'plannedDate',
-        'platformVersions',
-        'targets',
+        'platformTargets',
         'type',
         'baseBranch'
       ];
@@ -64,30 +69,46 @@ export class ReleaseManagementController {
 
       // STEP 2: Optional field validation
       
-      // Validate platformVersions format (object with platform -> version mapping)
-      if (typeof body.platformVersions !== 'object' || Object.keys(body.platformVersions).length === 0) {
+      // Validate platformTargets format (array of platform-target-version objects)
+      if (!Array.isArray(body.platformTargets) || body.platformTargets.length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'platformVersions must be a non-empty object mapping platforms to versions'
+          error: 'platformTargets must be a non-empty array'
         });
       }
 
-      // Validate each version format (semver-like)
-      for (const [platform, version] of Object.entries(body.platformVersions)) {
-        if (typeof version !== 'string' || !/^v?\d+\.\d+\.\d+/.test(version as string)) {
+      // Validate each platform-target pair
+      const validPlatforms = ['IOS', 'ANDROID', 'WEB'];
+      const validTargets = ['WEB', 'PLAY_STORE', 'APP_STORE'];
+      
+      for (const pt of body.platformTargets) {
+        if (!pt.platform || !pt.target || !pt.version) {
           return res.status(400).json({
             success: false,
-            error: `Invalid version format for platform ${platform}. Expected format: vX.Y.Z (e.g., v1.0.0)`
+            error: 'Each platformTarget must have platform, target, and version fields'
           });
         }
-      }
 
-      // Validate targets
-      if (!Array.isArray(body.targets) || body.targets.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'targets must be a non-empty array'
-        });
+        if (!validPlatforms.includes(pt.platform)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid platform: ${pt.platform}. Must be one of: ${validPlatforms.join(', ')}`
+          });
+        }
+
+        if (!validTargets.includes(pt.target)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid target: ${pt.target}. Must be one of: ${validTargets.join(', ')}`
+          });
+        }
+
+        if (typeof pt.version !== 'string' || !/^v?\d+\.\d+\.\d+/.test(pt.version)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid version format for ${pt.platform}-${pt.target}. Expected format: vX.Y.Z (e.g., v1.0.0)`
+          });
+        }
       }
 
       // Validate dates
@@ -117,27 +138,6 @@ export class ReleaseManagementController {
         });
       }
 
-      // Validate platform names in platformVersions
-      const validPlatforms = ['IOS', 'ANDROID', 'WEB'];
-      for (const platform of Object.keys(body.platformVersions)) {
-        if (!validPlatforms.includes(platform)) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid platform: ${platform}. Must be one of: ${validPlatforms.join(', ')}`
-          });
-        }
-      }
-
-      // Validate target names
-      const validTargets = ['WEB', 'PLAY_STORE', 'APP_STORE'];
-      for (const target of body.targets) {
-        if (!validTargets.includes(target)) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid target: ${target}. Must be one of: ${validTargets.join(', ')}`
-          });
-        }
-      }
 
       // Validate regressionBuildSlots if provided
       if (body.regressionBuildSlots) {
@@ -179,8 +179,11 @@ export class ReleaseManagementController {
       const payload: CreateReleasePayload = {
         tenantId,
         accountId,
-        platformVersions: body.platformVersions,
-        targets: body.targets,
+        platformTargets: body.platformTargets.map(pt => ({
+          platform: pt.platform,
+          target: pt.target,
+          version: pt.version
+        })),
         type: body.type as ReleaseType,
         targetReleaseDate,
         plannedDate,
@@ -193,7 +196,8 @@ export class ReleaseManagementController {
         regressionBuildSlots: body.regressionBuildSlots,
         preCreatedBuilds: body.preCreatedBuilds,
         cronConfig: body.cronConfig,
-        regressionTimings: body.regressionTimings
+        regressionTimings: body.regressionTimings,
+        hasManualBuildUpload: body.hasManualBuildUpload
       };
 
       const result = await this.creationService.createRelease(payload);
@@ -237,10 +241,12 @@ export class ReleaseManagementController {
       
       const releases = await this.retrievalService.getAllReleases(tenantId, includeTasks);
       
-      return res.status(200).json({
+      const responseBody: ReleaseListResponseBody = {
         success: true,
         releases
-      });
+      };
+      
+      return res.status(200).json(responseBody);
     } catch (error: any) {
       console.error('[List Releases] Error:', error);
       return res.status(500).json({
@@ -267,10 +273,12 @@ export class ReleaseManagementController {
         });
       }
       
-      return res.status(200).json({
+      const responseBody: SingleReleaseResponseBody = {
         success: true,
         release
-      });
+      };
+      
+      return res.status(200).json(responseBody);
     } catch (error: any) {
       console.error('[Get Release] Error:', error);
       return res.status(500).json({

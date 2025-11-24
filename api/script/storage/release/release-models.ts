@@ -312,11 +312,12 @@ export function createTargetModel(sequelize: Sequelize) {
 }
 
 /**
- * ReleaseToPlatforms Junction Table
- * Links releases to platforms with per-platform version
+ * Release Platforms Targets Mapping (Consolidated)
+ * Links releases to platform-target combinations with version and integration run IDs
+ * Replaces the old releaseToPlatforms and releaseToTargets junction tables
  */
-export function createReleaseToPlatformsModel(sequelize: Sequelize) {
-  return sequelize.define('releaseToPlatforms', {
+export function createReleasePlatformTargetMappingModel(sequelize: Sequelize) {
+  return sequelize.define('releasePlatformTargetMapping', {
     id: {
       type: DataTypes.STRING(255),
       primaryKey: true
@@ -333,55 +334,25 @@ export function createReleaseToPlatformsModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(PlatformName)),
       allowNull: false
     },
-    version: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      comment: 'Version for this platform (e.g., v6.5.0 for ANDROID, v6.3.0 for IOS)'
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    }
-  }, {
-    tableName: 'releaseToPlatforms',
-    timestamps: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['releaseId', 'platform']
-      }
-    ]
-  });
-}
-
-/**
- * ReleaseToTargets Junction Table
- * Links releases to targets
- */
-export function createReleaseToTargetsModel(sequelize: Sequelize) {
-  return sequelize.define('releaseToTargets', {
-    id: {
-      type: DataTypes.STRING(255),
-      primaryKey: true
-    },
-    releaseId: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      references: {
-        model: 'releases',
-        key: 'id'
-      }
-    },
     target: {
       type: DataTypes.ENUM(...Object.values(TargetName)),
       allowNull: false
     },
+    version: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      comment: 'Version for this platform-target combination (e.g., v6.5.0)'
+    },
+    projectManagementRunId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Project management run ID (e.g., Jira epic ID for this platform-target)'
+    },
+    testManagementRunId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Test management run ID (e.g., test suite run ID for this platform-target)'
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -393,12 +364,18 @@ export function createReleaseToTargetsModel(sequelize: Sequelize) {
       defaultValue: DataTypes.NOW
     }
   }, {
-    tableName: 'releaseToTargets',
+    tableName: 'release_platforms_targets_mapping',
     timestamps: true,
     indexes: [
       {
         unique: true,
-        fields: ['releaseId', 'target']
+        fields: ['releaseId', 'platform', 'target']
+      },
+      {
+        fields: ['projectManagementRunId']
+      },
+      {
+        fields: ['testManagementRunId']
       }
     ]
   });
@@ -601,6 +578,12 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.JSON,
       allowNull: true,
       comment: 'Array of pre-created builds: [{"platform": "IOS", "target": "APP_STORE", "buildNumber": "...", "buildUrl": "..."}]'
+    },
+    hasManualBuildUpload: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: 'Whether manual build upload is enabled for this release'
     }
   }, {
     tableName: 'releases',
@@ -1486,8 +1469,7 @@ export function createReleaseModels(sequelize: Sequelize) {
     // TenantIntegrations removed - each integration has its own table
     Platform: createPlatformModel(sequelize),
     Target: createTargetModel(sequelize),
-    ReleaseToPlatforms: createReleaseToPlatformsModel(sequelize),
-    ReleaseToTargets: createReleaseToTargetsModel(sequelize),
+    ReleasePlatformTargetMapping: createReleasePlatformTargetMappingModel(sequelize),
     Release: createReleaseModel(sequelize),
     ReleaseBuilds: createReleaseBuildsModel(sequelize),
     Build: createBuildModel(sequelize),
@@ -1523,22 +1505,12 @@ export function createReleaseModels(sequelize: Sequelize) {
   models.Release.belongsTo(models.Release, { foreignKey: 'parentId', as: 'parent' });
   models.Release.hasMany(models.Release, { foreignKey: 'parentId', as: 'hotfixes' });
   
-  // Release ↔ ReleaseToPlatforms (one-to-many)
-  models.Release.hasMany(models.ReleaseToPlatforms, {
+  // Release ↔ ReleasePlatformTargetMapping (one-to-many)
+  models.Release.hasMany(models.ReleasePlatformTargetMapping, {
     foreignKey: 'releaseId',
-    as: 'releaseToPlatforms'
+    as: 'platformTargetMappings'
   });
-  models.ReleaseToPlatforms.belongsTo(models.Release, {
-    foreignKey: 'releaseId',
-    as: 'release'
-  });
-  
-  // Release ↔ ReleaseToTargets (one-to-many)
-  models.Release.hasMany(models.ReleaseToTargets, {
-    foreignKey: 'releaseId',
-    as: 'releaseToTargets'
-  });
-  models.ReleaseToTargets.belongsTo(models.Release, {
+  models.ReleasePlatformTargetMapping.belongsTo(models.Release, {
     foreignKey: 'releaseId',
     as: 'release'
   });

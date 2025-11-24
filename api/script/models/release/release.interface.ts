@@ -26,11 +26,11 @@ export interface Release {
   preCreatedBuilds: any[] | null; // TODO: Type strictly
   branchRelease: string | null;
   releaseKey: string;
+  hasManualBuildUpload: boolean;
   createdAt: Date;
   updatedAt: Date;
   // Associations
-  releaseToPlatforms?: ReleaseToPlatform[];
-  releaseToTargets?: ReleaseToTarget[];
+  platformTargetMappings?: ReleasePlatformTargetMapping[];
 }
 
 export interface CreateReleaseDto {
@@ -50,40 +50,31 @@ export interface CreateReleaseDto {
   regressionBuildSlots?: any[];
   preCreatedBuilds?: any[];
   releaseKey: string; // e.g. "REL-001"
+  hasManualBuildUpload?: boolean;
 }
 
-// --- ReleaseToPlatforms Junction Table ---
+// --- Release Platforms Targets Mapping (Consolidated) ---
 
-export interface ReleaseToPlatform {
+export interface ReleasePlatformTargetMapping {
   id: string;
   releaseId: string;
   platform: PlatformName;
+  target: TargetName;
   version: string;
+  projectManagementRunId: string | null;
+  testManagementRunId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateReleaseToPlatformDto {
+export interface CreateReleasePlatformTargetMappingDto {
   id: string;
   releaseId: string;
   platform: PlatformName;
+  target: TargetName;
   version: string;
-}
-
-// --- ReleaseToTargets Junction Table ---
-
-export interface ReleaseToTarget {
-  id: string;
-  releaseId: string;
-  target: TargetName;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateReleaseToTargetDto {
-  id: string;
-  releaseId: string;
-  target: TargetName;
+  projectManagementRunId?: string | null;
+  testManagementRunId?: string | null;
 }
 
 // --- Cron Job ---

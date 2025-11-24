@@ -38,8 +38,7 @@ import {
 import { ReleaseConfigService } from "../services/release-configs";
 import {
   ReleaseRepository,
-  ReleaseToPlatformsRepository,
-  ReleaseToTargetsRepository,
+  ReleasePlatformTargetMappingRepository,
   CronJobRepository,
   ReleaseTaskRepository,
   StateHistoryRepository
@@ -821,8 +820,9 @@ export class S3Storage implements storage.Storage {
           
           // Initialize Release Management Services
           const releaseRepo = new ReleaseRepository(this.sequelize.models.release);
-          const releaseToPlatformsRepo = new ReleaseToPlatformsRepository(this.sequelize.models.releaseToPlatforms);
-          const releaseToTargetsRepo = new ReleaseToTargetsRepository(this.sequelize.models.releaseToTargets);
+          const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(
+            this.sequelize.models.releasePlatformTargetMapping
+          );
           const cronJobRepo = new CronJobRepository(this.sequelize.models.cronJob);
           const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.releaseTasks);
           const stateHistoryRepo = new StateHistoryRepository(
@@ -832,8 +832,7 @@ export class S3Storage implements storage.Storage {
           
           this.releaseCreationService = new ReleaseCreationService(
             releaseRepo,
-            releaseToPlatformsRepo,
-            releaseToTargetsRepo,
+            platformTargetMappingRepo,
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
@@ -843,8 +842,7 @@ export class S3Storage implements storage.Storage {
           
           this.releaseRetrievalService = new ReleaseRetrievalService(
             releaseRepo,
-            releaseToPlatformsRepo,
-            releaseToTargetsRepo,
+            platformTargetMappingRepo,
             cronJobRepo,
             releaseTaskRepo
           );

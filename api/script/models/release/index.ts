@@ -5,8 +5,7 @@
 
 export * from './release.interface';
 export * from './release.repository';
-export * from './release-to-platforms.repository';
-export * from './release-to-targets.repository';
+export * from './release-platform-target-mapping.repository';
 export * from './cron-job.repository';
 export * from './release-task.repository';
 export * from './state-history.repository';

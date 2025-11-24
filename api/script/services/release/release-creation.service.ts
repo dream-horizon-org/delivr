@@ -14,52 +14,18 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { ReleaseRepository } from '../../models/release/release.repository';
-import { ReleaseToPlatformsRepository } from '../../models/release/release-to-platforms.repository';
-import { ReleaseToTargetsRepository } from '../../models/release/release-to-targets.repository';
+import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { StateHistoryRepository } from '../../models/release/state-history.repository';
 import { ReleaseType, PlatformName, TargetName, TaskType, TaskStage, TaskIdentifier, StateChangeType } from '../../storage/release/release-models';
-import { hasSequelize, StorageWithSequelize } from '../../routes/release/release-types';
+import { hasSequelize, StorageWithSequelize, CreateReleasePayload, CreateReleaseResult } from '../../routes/release/release-types';
 import * as storageTypes from '../../storage/storage';
-
-export interface CreateReleasePayload {
-  tenantId: string;
-  accountId: string;
-  platformVersions: Record<string, string>; // e.g., { "ANDROID": "v6.5.0", "IOS": "v6.3.0" }
-  targets: string[]; // e.g., ["ANDROID_PLAYSTORE", "IOS_APPSTORE"]
-  type: ReleaseType;
-  targetReleaseDate: Date;
-  plannedDate: Date;
-  baseBranch: string;
-  baseVersion?: string;
-  parentId?: string;
-  releasePilotAccountId?: string;
-  kickOffReminderDate?: Date;
-  customIntegrationConfigs?: Record<string, unknown>;
-  regressionBuildSlots?: any[];
-  preCreatedBuilds?: any[];
-  cronConfig?: {
-    kickOffReminder?: boolean;
-    preRegressionBuilds?: boolean;
-    automationBuilds?: boolean;
-    automationRuns?: boolean;
-    testFlightBuilds?: boolean;
-  };
-  regressionTimings?: string;
-}
-
-export interface CreateReleaseResult {
-  release: any;
-  cronJob: any;
-  stage1TaskIds: string[];
-}
 
 export class ReleaseCreationService {
   constructor(
     private readonly releaseRepo: ReleaseRepository,
-    private readonly releaseToPlatformsRepo: ReleaseToPlatformsRepository,
-    private readonly releaseToTargetsRepo: ReleaseToTargetsRepository,
+    private readonly platformTargetMappingRepo: ReleasePlatformTargetMappingRepository,
     private readonly cronJobRepo: CronJobRepository,
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly stateHistoryRepo: StateHistoryRepository,
@@ -103,12 +69,12 @@ export class ReleaseCreationService {
       customIntegrationConfigs: payload.customIntegrationConfigs,
       regressionBuildSlots: payload.regressionBuildSlots,
       preCreatedBuilds: payload.preCreatedBuilds,
-      releaseKey
+      releaseKey,
+      hasManualBuildUpload: payload.hasManualBuildUpload
     });
 
-    // Step 5: Link platforms and targets to release (with per-platform versioning)
-    const platformRecords = await this.linkPlatformsToRelease(releaseId, payload.platformVersions);
-    const targetRecords = await this.linkTargetsToRelease(releaseId, payload.targets);
+    // Step 5: Link platform-target combinations to release
+    const mappingRecords = await this.linkPlatformTargetsToRelease(releaseId, payload.platformTargets);
 
     // Step 6: Create cron job
     const cronJobId = uuidv4();
@@ -136,7 +102,7 @@ export class ReleaseCreationService {
     );
 
     // Step 8: Create state history
-    await this.createStateHistory(releaseId, payload.accountId, releaseKey, payload.platformVersions);
+    await this.createStateHistory(releaseId, payload.accountId, releaseKey, payload.platformTargets);
 
     return {
       release,
@@ -146,45 +112,29 @@ export class ReleaseCreationService {
   }
 
   /**
-   * Step 5a: Link platforms to release with per-platform versioning
-   * Creates entries in releaseToPlatforms junction table
+   * Step 5: Link platform-target combinations to release
+   * Creates entries in release_platforms_targets_mapping table
    */
-  private async linkPlatformsToRelease(
+  private async linkPlatformTargetsToRelease(
     releaseId: string,
-    platformVersions: Record<string, string>
+    platformTargets: Array<{ platform: string; target: string; version: string }>
   ): Promise<any[]> {
-    const platformRecords = [];
+    const mappingRecords = [];
     
-    for (const [platformName, version] of Object.entries(platformVersions)) {
-      const record = await this.releaseToPlatformsRepo.create({
+    for (const pt of platformTargets) {
+      const record = await this.platformTargetMappingRepo.create({
         id: uuidv4(),
         releaseId,
-        platform: platformName as PlatformName,
-        version
+        platform: pt.platform as PlatformName,
+        target: pt.target as TargetName,
+        version: pt.version,
+        projectManagementRunId: null,
+        testManagementRunId: null
       });
-      platformRecords.push(record);
+      mappingRecords.push(record);
     }
 
-    return platformRecords;
-  }
-
-  /**
-   * Step 5b: Link targets to release
-   * Creates entries in releaseToTargets junction table
-   */
-  private async linkTargetsToRelease(releaseId: string, targetNames: string[]): Promise<any[]> {
-    const targetRecords = [];
-    
-    for (const targetName of targetNames) {
-      const record = await this.releaseToTargetsRepo.create({
-        id: uuidv4(),
-        releaseId,
-        target: targetName as TargetName
-      });
-      targetRecords.push(record);
-    }
-
-    return targetRecords;
+    return mappingRecords;
   }
 
   /**
@@ -288,7 +238,7 @@ export class ReleaseCreationService {
     releaseId: string,
     accountId: string,
     releaseKey: string,
-    platformVersions: Record<string, string>
+    platformTargets: Array<{ platform: string; target: string; version: string }>
   ): Promise<void> {
     const historyId = uuidv4();
 
@@ -311,14 +261,14 @@ export class ReleaseCreationService {
       metadata: null
     });
 
-    // Record platform versions
+    // Record platform-target-version mappings
     await this.stateHistoryRepo.createHistoryItem({
       id: uuidv4(),
       historyId,
       group: 'creation',
       type: StateChangeType.CREATE,
-      key: 'platformVersions',
-      value: JSON.stringify(platformVersions),
+      key: 'platformTargets',
+      value: JSON.stringify(platformTargets),
       oldValue: null,
       metadata: null
     });
