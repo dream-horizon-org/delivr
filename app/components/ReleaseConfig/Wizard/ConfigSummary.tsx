@@ -14,17 +14,16 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
-
-interface ConfigSummaryProps {
-  config: Partial<ReleaseConfiguration>;
-}
+import type { ConfigSummaryProps } from '~/types/release-config-props';
+import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
+import { SECTION_TITLES, SECTION_DESCRIPTIONS, FIELD_LABELS, BUILD_UPLOAD_LABELS } from '~/constants/release-config-ui';
 
 export function ConfigSummary({ config }: ConfigSummaryProps) {
   return (
     <Stack gap="lg">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Review Configuration
+          {SECTION_TITLES.REVIEW}
         </Text>
         <Text size="sm" c="dimmed">
           Review your release management configuration before saving
@@ -36,7 +35,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         <Group gap="sm" className="mb-3">
           <IconSettings size={20} className="text-blue-600" />
           <Text fw={600} size="sm">
-            Basic Information
+            {SECTION_TITLES.BASIC_INFORMATION}
           </Text>
         </Group>
         
@@ -73,18 +72,18 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         <Group gap="sm" className="mb-3">
           <IconSettings size={20} className="text-green-600" />
           <Text fw={600} size="sm">
-            Build Upload Method
+            {SECTION_TITLES.BUILD_UPLOAD_METHOD}
           </Text>
         </Group>
         
         <Stack gap="sm">
           <div className="flex items-center gap-2">
-            <Badge size="lg" variant="light" color={config.buildUploadStep === 'CI_CD' ? 'grape' : 'blue'}>
-              {config.buildUploadStep === 'CI_CD' ? 'CI/CD Workflows' : 'Manual Upload'}
+            <Badge size="lg" variant="light" color={config.buildUploadStep === BUILD_UPLOAD_STEPS.CI_CD ? 'grape' : 'blue'}>
+              {config.buildUploadStep === BUILD_UPLOAD_STEPS.CI_CD ? BUILD_UPLOAD_LABELS.CI_CD : BUILD_UPLOAD_LABELS.MANUAL}
             </Badge>
           </div>
           
-          {config.buildUploadStep === 'CI_CD' && (
+          {config.buildUploadStep === BUILD_UPLOAD_STEPS.CI_CD && (
             <>
               <Divider />
               <div>
@@ -128,7 +127,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
             </>
           )}
           
-          {config.buildUploadStep === 'MANUAL' && (
+          {config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL && (
             <Text size="sm" c="dimmed">
               Builds will be uploaded manually through the release dashboard
           </Text>

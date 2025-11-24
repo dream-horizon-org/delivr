@@ -405,3 +405,7 @@ export interface CheckmateConfigFormEnhancedProps {
   selectedTargets: TargetPlatform[];
 }
 
+export interface ConfigSummaryProps {
+  config: Partial<ReleaseConfiguration>;
+}
+
