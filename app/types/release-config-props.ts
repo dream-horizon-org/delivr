@@ -392,3 +392,16 @@ export interface AvailableIntegrations {
   jira: IntegrationReference[];
 }
 
+export interface CheckmateConfigFormEnhancedProps {
+  config: Partial<CheckmateSettings>;
+  onChange: (config: CheckmateSettings) => void;
+  availableIntegrations: Array<{ 
+    id: string; 
+    name: string; 
+    workspaceId?: string;
+    baseUrl?: string;
+    orgId?: string;
+  }>;
+  selectedTargets: TargetPlatform[];
+}
+

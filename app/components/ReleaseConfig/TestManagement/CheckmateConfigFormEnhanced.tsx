@@ -249,7 +249,7 @@ export function CheckmateConfigFormEnhanced({
       <Select
         label="Checkmate Integration"
         placeholder="Select Checkmate integration"
-        data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+        data={availableIntegrations.map((i: { id: string; name: string }) => ({ value: i.id, label: i.name }))}
         value={selectedIntegrationId}
         onChange={(val) => handleIntegrationChange(val || '')}
         required
