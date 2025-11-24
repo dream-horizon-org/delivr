@@ -6,12 +6,7 @@
 import { useEffect, useState } from 'react';
 import { TextInput, Textarea, Select, Switch, Loader } from '@mantine/core';
 import type { ReleaseConfiguration } from '~/types/release-config';
-
-interface BasicInfoFormProps {
-  config: Partial<ReleaseConfiguration>;
-  onChange: (config: Partial<ReleaseConfiguration>) => void;
-  tenantId: string; // For fetching branches from SCM
-}
+import type { BasicInfoFormProps } from '~/types/release-config-props';
 
 export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps) {
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
