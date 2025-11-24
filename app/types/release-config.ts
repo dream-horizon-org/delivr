@@ -4,7 +4,7 @@
  */
 
 // ============================================================================
-// Build Pipeline Configuration
+// Workflow Configuration (CI/CD Pipelines)
 // ============================================================================
 
 export type BuildUploadStep = 'MANUAL' | 'CI_CD';
@@ -17,7 +17,8 @@ export type Platform = 'ANDROID' | 'IOS';
 
 export type TargetPlatform = 'WEB' | 'PLAY_STORE' | 'APP_STORE';
 
-export interface BuildPipelineJob {
+// Workflow (CI/CD Pipeline Job)
+export interface Workflow {
   id: string;
   name: string;
   platform: Platform;
@@ -32,6 +33,9 @@ export interface BuildPipelineJob {
   timeout?: number; // seconds
   retryAttempts?: number;
 }
+
+// Backward compatibility alias
+export type BuildPipelineJob = Workflow;
 
 export interface JenkinsConfig {
   type: 'JENKINS';
@@ -244,10 +248,10 @@ export interface ReleaseConfiguration {
   targets: TargetPlatform[];
   
   // Build upload method
-  buildUploadStep: BuildUploadStep; // 'MANUAL' (default) or 'CI_CD' (when pipelines configured)
+  buildUploadStep: BuildUploadStep; // 'MANUAL' (default) or 'CI_CD' (when workflows configured)
   
-  // Build pipelines (optional - only used when buildUploadStep = 'CI_CD')
-  buildPipelines: BuildPipelineJob[];
+  // Workflows (CI/CD pipelines - optional, only used when buildUploadStep = 'CI_CD')
+  workflows: Workflow[];
   
   // Test management
   testManagement: TestManagementConfig;
@@ -264,6 +268,7 @@ export interface ReleaseConfiguration {
   // Metadata
   createdAt: string;
   updatedAt: string;
+  isActive: boolean;
   status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 }
 

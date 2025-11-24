@@ -26,6 +26,8 @@ export function CommunicationConfig({
 }: CommunicationConfigProps) {
   const navigate = useNavigate();
   const params = useParams();
+
+  console.log('CommunicationConfig', config);
   
   // Check if any communication integrations are connected
   const hasSlack = availableIntegrations.slack.length > 0;

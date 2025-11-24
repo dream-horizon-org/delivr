@@ -37,8 +37,16 @@ export function ConfigurationList({
       !searchQuery ||
       config.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       config.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    const matchesStatus = !statusFilter || config.status === statusFilter;
+    
+    // Map status filter to isActive field + draft status
+    // - DRAFT: config.status === 'DRAFT' (from localStorage)
+    // - ACTIVE: config.isActive === true (from backend)
+    // - ARCHIVED: config.isActive === false && not draft (from backend)
+    const matchesStatus = !statusFilter || 
+      (statusFilter === 'DRAFT' && config.status === 'DRAFT') ||
+      (statusFilter === 'ACTIVE' && config.isActive === true) ||
+      (statusFilter === 'ARCHIVED' && config.isActive === false && config.status !== 'DRAFT');
+    
     const matchesType = !typeFilter || config.releaseType === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
@@ -108,7 +116,7 @@ export function ConfigurationList({
             data={[
               { value: 'PLANNED', label: 'Planned' },
               { value: 'HOTFIX', label: 'Hotfix' },
-              { value: 'EMERGENCY', label: 'Emergency' },
+              { value: 'MAJOR', label: 'Major' },
             ]}
             clearable
             leftSection={<IconFilter size={16} />}
@@ -118,7 +126,7 @@ export function ConfigurationList({
       </div>
       
       {filteredConfigs.length > 0 ? (
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, sm: 1, md: 2, lg: 2, xl: 3 }} spacing="lg">
           {filteredConfigs.map((config) => (
             <ConfigurationListItem
               key={config.id}

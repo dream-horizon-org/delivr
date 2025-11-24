@@ -76,13 +76,13 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
             Build Pipelines
           </Text>
           <Badge size="sm" variant="light">
-            {config.buildPipelines?.length || 0} configured
+            {config.workflows?.length || 0} configured
           </Badge>
         </Group>
         
-        {config.buildPipelines && config.buildPipelines.length > 0 ? (
+        {config.workflows && config.workflows.length > 0 ? (
           <List spacing="xs" size="sm">
-            {config.buildPipelines.map((pipeline) => (
+            {config.workflows.map((pipeline) => (
               <List.Item
                 key={pipeline.id}
                 icon={

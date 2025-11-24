@@ -30,8 +30,12 @@ export function JiraProjectStep({
   availableIntegrations,
   selectedPlatforms = [],
 }: JiraProjectStepProps) {
+  // ✅ Safe access with default values
+  const isEnabled = config?.enabled ?? false;
+  const platformConfigurations = config?.platformConfigurations ?? [];
+  
   // Initialize platform configurations if they don't exist
-  if (config.enabled && (!config.platformConfigurations || config.platformConfigurations.length === 0)) {
+  if (isEnabled && platformConfigurations.length === 0) {
     const defaultConfigs = createDefaultPlatformConfigs(selectedPlatforms);
     onChange({
       ...config,
@@ -65,7 +69,7 @@ export function JiraProjectStep({
   };
 
   const handlePlatformConfigChange = (platform: 'WEB' | 'IOS' | 'ANDROID', platformConfig: JiraPlatformConfig) => {
-    const updatedConfigs = config.platformConfigurations.map(pc =>
+    const updatedConfigs = platformConfigurations.map(pc =>
       pc.platform === platform ? platformConfig : pc
     );
     onChange({
@@ -103,12 +107,12 @@ export function JiraProjectStep({
       <Switch
         label="Enable JIRA Integration"
         description="Link releases and builds to JIRA issues"
-        checked={config.enabled}
+        checked={isEnabled}
         onChange={(event) => handleToggle(event.currentTarget.checked)}
         size="md"
       />
 
-      {config.enabled && (
+      {isEnabled && (
         <>
           {/* No platforms selected warning */}
           {selectedPlatforms.length === 0 && (

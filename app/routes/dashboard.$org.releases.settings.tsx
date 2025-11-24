@@ -5,7 +5,7 @@
 
 import { json } from '@remix-run/node';
 import { useLoaderData, Link, useFetcher, useNavigate, useSearchParams } from '@remix-run/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData, saveSetupData } from '~/.server/services/ReleaseManagement/setup';
@@ -27,44 +27,13 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   
   const setupData = await getSetupData(org);
   
-  // Fetch configurations from API for the configurations tab
-  let configurations: Partial<ReleaseConfiguration>[] = [];
-  let stats = null;
-  
-  try {
-    const url = new URL(request.url);
-    const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config`;
-    
-    console.log('[Settings] Fetching configurations from:', apiUrl);
-    
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Cookie': request.headers.get('Cookie') || '',
-      },
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success && result.data) {
-        configurations = result.data; // Backend returns { success: true, data: [...] }
-        console.log(`[Settings] Loaded ${configurations.length} configurations`);
-      } else {
-        console.warn('[Settings] API returned no data:', result);
-      }
-    } else {
-      const errorData = await response.json();
-      console.error('[Settings] Failed to fetch configurations:', errorData);
-    }
-  } catch (error) {
-    console.error('[Settings] Error loading configurations:', error);
-  }
+  // NOTE: Release configurations are now fetched via ConfigContext (cached)
+  // No need to fetch here - component will use useConfig() hook
   
   return json({
     org,
     user,
     setupData,
-    configurations,
-    stats,
   });
 });
 
@@ -114,10 +83,57 @@ export const action = authenticateActionRequest({
 
 export default function ReleaseSettingsPage() {
   const data = useLoaderData<typeof loader>();
-  const { org, setupData, configurations, stats } = data as any;
+  const { org, setupData } = data as any;
+  const { releaseConfigs, invalidateReleaseConfigs } = useConfig(); // ✅ Get cached release configs
   const fetcher = useFetcher();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Merge backend configs with localStorage draft
+  const configurations = useMemo(() => {
+    const backendConfigs = releaseConfigs;
+    
+    // Load draft config from localStorage
+    // Only consider it a valid draft if user has progressed past step 0
+    const draftKey = `delivr_release_config_draft_${org}`;
+    const stepKey = `delivr_release_config_wizard_step_${org}`;
+    let draftConfig = null;
+    
+    if (typeof window !== 'undefined') {
+      try {
+        const draftData = localStorage.getItem(draftKey);
+        const savedStep = localStorage.getItem(stepKey);
+        const currentStep = savedStep ? parseInt(savedStep, 10) : 0;
+        
+        // Only show draft if user has clicked "Next" at least once (step > 0)
+        if (draftData && currentStep > 0) {
+          draftConfig = JSON.parse(draftData);
+          // Mark as draft and ensure it has required fields
+          draftConfig.status = 'DRAFT';
+          draftConfig.isActive = false; // Draft is not active
+          draftConfig.id = draftConfig.id || 'draft-temp-id';
+          console.log('[Settings] Loaded draft config at step:', currentStep);
+        } else if (draftData && currentStep === 0) {
+          console.log('[Settings] Draft exists but user is still on step 0, not showing as draft');
+        }
+      } catch (error) {
+        console.error('[Settings] Failed to load draft config:', error);
+      }
+    }
+    
+    // Merge draft with backend configs
+    return draftConfig ? [draftConfig, ...backendConfigs] : backendConfigs;
+  }, [releaseConfigs, org]);
+  
+  // Calculate stats from merged configs (backend + localStorage draft)
+  // Backend configs use isActive: true (ACTIVE) or false (ARCHIVED)
+  // Draft configs have status: 'DRAFT'
+  const stats = {
+    total: configurations.length,
+    active: configurations.filter((c: any) => c.isActive === true).length,
+    draft: configurations.filter((c: any) => c.status === 'DRAFT').length,
+    archived: configurations.filter((c: any) => c.isActive === false && c.status !== 'DRAFT').length,
+  };
   
   // Get tab from URL params, default to 'integrations'
   const tabFromUrl = searchParams.get('tab') as 'integrations' | 'configurations' | 'cicd' | 'general' | null;
@@ -163,11 +179,36 @@ export default function ReleaseSettingsPage() {
   };
   
   const handleArchive = async (configId: string) => {
-    if (!confirm('Are you sure you want to delete this configuration?')) {
+    // Check if it's a draft config (localStorage)
+    const config = configurations.find((c: any) => c.id === configId);
+    const isDraft = config?.status === 'DRAFT';
+    
+    const confirmMessage = isDraft 
+      ? 'Are you sure you want to delete this draft configuration?' 
+      : 'Are you sure you want to archive this configuration?';
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
     
-    console.log('[Settings] Delete config:', configId);
+    // Handle draft deletion (localStorage)
+    if (isDraft) {
+      try {
+        const draftKey = `delivr_release_config_draft_${org}`;
+        localStorage.removeItem(draftKey);
+        console.log('[Settings] Draft deleted from localStorage');
+        
+        // Force re-render by invalidating cache
+        invalidateReleaseConfigs();
+      } catch (error) {
+        console.error('[Settings] Failed to delete draft:', error);
+        alert('Failed to delete draft');
+      }
+      return;
+    }
+    
+    // Handle backend config archival
+    console.log('[Settings] Archive config:', configId);
     
     try {
       const response = await fetch(`/api/v1/tenants/${org}/release-config/${configId}`, {
@@ -180,14 +221,15 @@ export default function ReleaseSettingsPage() {
       const result = await response.json();
       
       if (response.ok && result.success) {
-        // Reload page to refresh list
-        window.location.reload();
+        // ✅ Invalidate cache to refresh all routes
+        invalidateReleaseConfigs();
+        console.log('[Settings] Configuration archived, cache invalidated');
       } else {
-        alert(`Failed to delete: ${result.error || 'Unknown error'}`);
+        alert(`Failed to archive: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[Settings] Delete failed:', error);
-      alert('Failed to delete configuration');
+      console.error('[Settings] Archive failed:', error);
+      alert('Failed to archive configuration');
     }
   };
   
@@ -208,8 +250,9 @@ export default function ReleaseSettingsPage() {
       const result = await response.json();
       
       if (response.ok && result.success) {
-        // Reload page to refresh list
-        window.location.reload();
+        // ✅ Invalidate cache to refresh all routes
+        invalidateReleaseConfigs();
+        console.log('[Settings] Default configuration set, cache invalidated');
       } else {
         alert(`Failed to set default: ${result.error || 'Unknown error'}`);
       }

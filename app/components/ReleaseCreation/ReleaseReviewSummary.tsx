@@ -153,7 +153,7 @@ export function ReleaseReviewSummary({
             
             <Group gap="md" className="text-xs">
               <div>
-                <span className="font-medium">{config.buildPipelines.length}</span> build pipelines
+                <span className="font-medium">{config.workflows.length}</span> build pipelines
               </div>
               <div>
                 <span className="font-medium">{config.targets.length}</span> target platforms
@@ -175,7 +175,7 @@ export function ReleaseReviewSummary({
           
           <Stack gap="sm">
             {/* Check if config has pre-regression builds */}
-            {config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') && (
+            {config.workflows.some(p => p.environment === 'PRE_REGRESSION') && (
               <Group gap="xs">
                 {customizations.enablePreRegressionBuilds !== false ? (
                   <IconCheck size={16} className="text-green-600" />
@@ -207,7 +207,7 @@ export function ReleaseReviewSummary({
             )}
             
             {/* If no customizations available */}
-            {!config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') &&
+            {!config.workflows.some(p => p.environment === 'PRE_REGRESSION') &&
              !(config.testManagement.enabled && config.testManagement.provider === 'checkmate') && (
               <Text size="sm" c="dimmed" className="italic">
                 No configuration overrides available for this release configuration
@@ -217,7 +217,7 @@ export function ReleaseReviewSummary({
             {/* Show defaults if everything is enabled */}
             {customizations.enablePreRegressionBuilds !== false && 
              customizations.enableCheckmate !== false &&
-             (config.buildPipelines.some(p => p.environment === 'PRE_REGRESSION') ||
+             (config.workflows.some(p => p.environment === 'PRE_REGRESSION') ||
               (config.testManagement.enabled && config.testManagement.provider === 'checkmate')) && (
               <Text size="xs" c="dimmed" className="mt-2">
                 All features from configuration are enabled for this release

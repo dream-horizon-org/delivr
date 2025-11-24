@@ -11,6 +11,7 @@ const DEBUG = false;
 const log = (...args: any[]) => DEBUG && console.log('[ConfigContext]', ...args);
 import { useSystemMetadata } from '~/hooks/useSystemMetadata';
 import { useTenantConfig } from '~/hooks/useTenantConfig';
+import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import type {
   SystemMetadata,
   TenantConfig,
@@ -23,6 +24,7 @@ import type {
   ReleaseStatusOption,
   BuildEnvironmentOption,
 } from '~/types/system-metadata';
+import type { ReleaseConfiguration } from '~/types/release-config';
 import {
   enrichIntegration,
   enrichPlatform,
@@ -67,6 +69,22 @@ interface ConfigContextValue {
   
   // Selectors - Build Environments
   getBuildEnvironments: (platformId?: string) => BuildEnvironmentOption[];
+  
+  // Release Configurations (Cached)
+  releaseConfigs: ReleaseConfiguration[];
+  activeReleaseConfigs: ReleaseConfiguration[];
+  defaultReleaseConfig: ReleaseConfiguration | undefined;
+  archivedReleaseConfigs: ReleaseConfiguration[];
+  isLoadingReleaseConfigs: boolean;
+  releaseConfigsError: Error | null;
+  
+  // Release Config Actions
+  refreshReleaseConfigs: () => void;
+  invalidateReleaseConfigs: () => void;
+  
+  // Release Config Selectors
+  getReleaseConfig: (id: string) => ReleaseConfiguration | undefined;
+  getReleaseConfigsByType: (type: string) => ReleaseConfiguration[];
 }
 
 const ConfigContext = createContext<ConfigContextValue | null>(null);
@@ -92,6 +110,18 @@ export function ConfigProvider({
     isLoading: isLoadingTenantConfig,
     error: tenantConfigError,
   } = useTenantConfig(tenantId);
+  
+  // Fetch release configurations (cached)
+  const {
+    configs: releaseConfigs,
+    activeConfigs: activeReleaseConfigs,
+    defaultConfig: defaultReleaseConfig,
+    archivedConfigs: archivedReleaseConfigs,
+    isLoading: isLoadingReleaseConfigs,
+    error: releaseConfigsError,
+    refetch: refreshReleaseConfigs,
+    invalidateCache: invalidateReleaseConfigs,
+  } = useReleaseConfigs(tenantId);
   
   // Enrich backend data with frontend UI metadata
   const systemMetadata = useMemo<SystemMetadata | undefined>(() => {
@@ -231,6 +261,18 @@ export function ConfigProvider({
     return environments;
   };
   
+  // ============================================================================
+  // Release Config Selectors
+  // ============================================================================
+  
+  const getReleaseConfig = (id: string): ReleaseConfiguration | undefined => {
+    return releaseConfigs.find(c => c.id === id);
+  };
+  
+  const getReleaseConfigsByType = (type: string): ReleaseConfiguration[] => {
+    return releaseConfigs.filter(c => c.releaseType === type);
+  };
+  
   
   const value: ConfigContextValue = {
     systemMetadata,
@@ -253,10 +295,22 @@ export function ConfigProvider({
     getReleaseStages,
     getReleaseStatuses,
     getBuildEnvironments,
+    
+    // Release Configurations
+    releaseConfigs,
+    activeReleaseConfigs,
+    defaultReleaseConfig,
+    archivedReleaseConfigs,
+    isLoadingReleaseConfigs,
+    releaseConfigsError,
+    refreshReleaseConfigs,
+    invalidateReleaseConfigs,
+    getReleaseConfig,
+    getReleaseConfigsByType,
   };
   
   // Single centralized debug log
-  log('Config Data:', { systemMetadata, tenantConfig });
+  log('Config Data:', { systemMetadata, tenantConfig, releaseConfigs: releaseConfigs.length });
   
   return (
     <ConfigContext.Provider value={value}>

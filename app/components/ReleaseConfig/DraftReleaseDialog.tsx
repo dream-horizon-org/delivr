@@ -69,7 +69,7 @@ export function DraftReleaseDialog({
                   {draftConfig.targets?.length || 0} platform(s) selected
                 </Text>
                 <Text size="xs" c="dimmed">
-                  {draftConfig.buildPipelines?.length || 0} pipeline(s) configured
+                  {draftConfig.workflows?.length || 0} pipeline(s) configured
                 </Text>
               </div>
             </Stack>

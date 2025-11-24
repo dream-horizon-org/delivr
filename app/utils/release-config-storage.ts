@@ -7,6 +7,7 @@ import type { ReleaseConfiguration } from '~/types/release-config';
 
 const CONFIG_STORAGE_KEY = 'delivr_release_config_draft';
 const CONFIG_LIST_KEY = 'delivr_release_configs';
+const WIZARD_STEP_KEY = 'delivr_release_config_wizard_step';
 
 // ============================================================================
 // Draft Configuration Management (Local Storage)
@@ -57,6 +58,7 @@ export function loadDraftConfig(
 
 /**
  * Clear draft configuration from local storage
+ * Also clears the saved wizard step
  */
 export function clearDraftConfig(organizationId: string): void {
   if (typeof window === 'undefined') return;
@@ -64,6 +66,9 @@ export function clearDraftConfig(organizationId: string): void {
   try {
     const key = `${CONFIG_STORAGE_KEY}_${organizationId}`;
     localStorage.removeItem(key);
+    
+    // Also clear the wizard step
+    clearWizardStep(organizationId);
   } catch (error) {
     console.error('Failed to clear draft config:', error);
   }
@@ -80,6 +85,58 @@ export function hasDraftConfig(organizationId: string): boolean {
     return localStorage.getItem(key) !== null;
   } catch (error) {
     return false;
+  }
+}
+
+/**
+ * Save last active wizard step for draft configuration
+ */
+export function saveWizardStep(
+  organizationId: string,
+  stepIndex: number
+): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const key = `${WIZARD_STEP_KEY}_${organizationId}`;
+    localStorage.setItem(key, stepIndex.toString());
+  } catch (error) {
+    console.error('Failed to save wizard step:', error);
+  }
+}
+
+/**
+ * Load last active wizard step for draft configuration
+ * Returns 0 (first step) if no saved step exists
+ */
+export function loadWizardStep(organizationId: string): number {
+  if (typeof window === 'undefined') return 0;
+  
+  try {
+    const key = `${WIZARD_STEP_KEY}_${organizationId}`;
+    const saved = localStorage.getItem(key);
+    
+    if (!saved) return 0;
+    
+    const stepIndex = parseInt(saved, 10);
+    return isNaN(stepIndex) ? 0 : stepIndex;
+  } catch (error) {
+    console.error('Failed to load wizard step:', error);
+    return 0;
+  }
+}
+
+/**
+ * Clear saved wizard step
+ */
+export function clearWizardStep(organizationId: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const key = `${WIZARD_STEP_KEY}_${organizationId}`;
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error('Failed to clear wizard step:', error);
   }
 }
 
@@ -205,12 +262,12 @@ export function generateConfigId(): string {
  * Validate build pipeline configuration based on target platforms
  */
 export function validateBuildPipelines(
-  buildPipelines: ReleaseConfiguration['buildPipelines'],
+  workflows: ReleaseConfiguration['workflows'],
   targetPlatforms: ReleaseConfiguration['targets']
 ): string[] {
   const errors: string[] = [];
   
-  if (!buildPipelines || buildPipelines.length === 0) {
+  if (!workflows || workflows.length === 0) {
     errors.push('At least one build pipeline is required');
     return errors;
   }
@@ -221,7 +278,7 @@ export function validateBuildPipelines(
   
   // Android requirements: Regression is mandatory
   if (needsAndroid) {
-    const hasAndroidRegression = buildPipelines.some(
+    const hasAndroidRegression = workflows.some(
       p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
     );
     
@@ -232,10 +289,10 @@ export function validateBuildPipelines(
   
   // iOS requirements: Regression + TestFlight are mandatory
   if (needsIOS) {
-    const hasIOSRegression = buildPipelines.some(
+    const hasIOSRegression = workflows.some(
       p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
     );
-    const hasTestFlight = buildPipelines.some(
+    const hasTestFlight = workflows.some(
       p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
     );
     
@@ -248,7 +305,7 @@ export function validateBuildPipelines(
   }
   
   // Validate each pipeline configuration
-  buildPipelines.forEach((pipeline, index) => {
+  workflows.forEach((pipeline, index) => {
     if (!pipeline.name) {
       errors.push(`Pipeline ${index + 1}: Name is required`);
     }
@@ -331,10 +388,10 @@ export function validateConfiguration(
   }
   
   // Validate build pipelines (optional - manual upload is the default)
-  if (config.buildPipelines && config.buildPipelines.length > 0 && config.targets) {
-    const pipelineErrors = validateBuildPipelines(config.buildPipelines, config.targets);
+  if (config.workflows && config.workflows.length > 0 && config.targets) {
+    const pipelineErrors = validateBuildPipelines(config.workflows, config.targets);
     if (pipelineErrors.length > 0) {
-      errors.buildPipelines = pipelineErrors;
+      errors.workflows = pipelineErrors;
     }
   }
   // Note: Build pipelines are optional. Manual upload is supported as default.

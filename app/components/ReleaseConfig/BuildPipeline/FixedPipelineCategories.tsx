@@ -6,14 +6,14 @@
 import { useState, useEffect } from 'react';
 import { Stack, Card, Text, Button, Badge, Group, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import type { BuildPipelineJob, TargetPlatform } from '~/types/release-config';
+import type { Workflow, TargetPlatform } from '~/types/release-config';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
 import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '../release-config-constants';
 
 interface FixedPipelineCategoriesProps {
-  pipelines: BuildPipelineJob[];
-  onChange: (pipelines: BuildPipelineJob[]) => void;
+  pipelines: Workflow[];
+  onChange: (pipelines: Workflow[]) => void;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
     github: Array<{ id: string; name: string }>;
@@ -40,7 +40,7 @@ export function FixedPipelineCategories({
 }: FixedPipelineCategoriesProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [editingCategory, setEditingCategory] = useState<PipelineCategory | null>(null);
-  const [editingPipeline, setEditingPipeline] = useState<BuildPipelineJob | undefined>();
+  const [editingPipeline, setEditingPipeline] = useState<Workflow | undefined>();
   
   // Workflows state
   const [workflows, setWorkflows] = useState<CICDWorkflow[]>([]);
@@ -89,7 +89,7 @@ export function FixedPipelineCategories({
   ];
 
   // Find pipeline for a category
-  const getPipelineForCategory = (category: PipelineCategory): BuildPipelineJob | undefined => {
+  const getPipelineForCategory = (category: PipelineCategory): Workflow | undefined => {
     return pipelines.find(
       p => p.platform === category.platform && p.environment === category.environment
     );
@@ -109,17 +109,17 @@ export function FixedPipelineCategories({
     setEditModalOpened(true);
   };
 
-  const handleEditPipeline = (category: PipelineCategory, pipeline: BuildPipelineJob) => {
+  const handleEditPipeline = (category: PipelineCategory, pipeline: Workflow) => {
     setEditingCategory(category);
     setEditingPipeline(pipeline);
     setEditModalOpened(true);
   };
 
-  const handleDeletePipeline = (pipeline: BuildPipelineJob) => {
+  const handleDeletePipeline = (pipeline: Workflow) => {
     onChange(pipelines.filter(p => p.id !== pipeline.id));
   };
 
-  const handleSavePipeline = (pipeline: BuildPipelineJob) => {
+  const handleSavePipeline = (pipeline: Workflow) => {
     if (editingPipeline) {
       // Update existing
       onChange(pipelines.map(p => (p.id === pipeline.id ? pipeline : p)));

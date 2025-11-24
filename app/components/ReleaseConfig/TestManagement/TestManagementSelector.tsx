@@ -39,11 +39,15 @@ export function TestManagementSelector({
   availableIntegrations,
   selectedTargets, // NEW: Receive selected targets
 }: TestManagementSelectorProps) {
+  // ✅ Safe access with default values
+  const isEnabled = config?.enabled ?? false;
+  const provider = config?.provider ?? 'none';
+  
   const handleToggle = (enabled: boolean) => {
     onChange({
       ...config,
       enabled,
-      provider: enabled ? (config.provider === 'none' ? 'checkmate' : config.provider) : 'none',
+      provider: enabled ? (provider === 'none' ? 'checkmate' : provider) : 'none',
     });
   };
   
@@ -85,25 +89,25 @@ export function TestManagementSelector({
         <Switch
           label="Enable Test Management Integration"
           description="Connect a test management tool for automated test tracking"
-          checked={config.enabled}
+          checked={isEnabled}
           onChange={(e) => handleToggle(e.currentTarget.checked)}
           size="md"
           className="mb-4"
         />
         
-        {config.enabled && (
+        {isEnabled && (
           <div className="mt-4">
             <Select
               label="Test Management Provider"
               placeholder="Select a provider"
               data={TEST_MANAGEMENT_PROVIDER_OPTIONS}
-              value={config.provider}
+              value={provider}
               onChange={(val) => handleProviderChange(val as TestManagementProvider)}
               required
               className="mb-4"
             />
             
-            {config.provider === 'checkmate' && (
+            {provider === 'checkmate' && (
               <div className="bg-white p-4 rounded-lg border border-gray-200 mt-4">
                 <Text fw={500} size="sm" className="mb-3">
                   Checkmate Configuration
@@ -150,7 +154,7 @@ export function TestManagementSelector({
         )}
       </div>
       
-      {!config.enabled && (
+      {!isEnabled && (
         <Alert color="gray" variant="light">
           <Text size="sm" c="dimmed">
             Test management integration is disabled. You can still create releases 

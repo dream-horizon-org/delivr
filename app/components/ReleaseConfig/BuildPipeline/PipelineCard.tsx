@@ -5,10 +5,10 @@
 
 import { Card, Badge, Button, Text, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { IconEdit, IconTrash, IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
-import type { BuildPipelineJob, BuildEnvironment, Platform } from '~/types/release-config';
+import type { Workflow, BuildEnvironment, Platform } from '~/types/release-config';
 
 interface PipelineCardProps {
-  pipeline: BuildPipelineJob;
+  pipeline: Workflow;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;

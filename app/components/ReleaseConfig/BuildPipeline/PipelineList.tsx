@@ -6,14 +6,14 @@
 import { useState } from 'react';
 import { Stack, Button, Text, Group, SimpleGrid } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import type { BuildPipelineJob } from '~/types/release-config';
+import type { Workflow } from '~/types/release-config';
 import { PipelineCard } from './PipelineCard';
 import { PipelineEditModal } from './PipelineEditModal';
 import { RequiredPipelinesCheck } from './RequiredPipelinesCheck';
 
 interface PipelineListProps {
-  pipelines: BuildPipelineJob[];
-  onChange: (pipelines: BuildPipelineJob[]) => void;
+  pipelines: Workflow[];
+  onChange: (pipelines: Workflow[]) => void;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
     github: Array<{ id: string; name: string }>;
@@ -30,7 +30,7 @@ export function PipelineList({
   tenantId,
 }: PipelineListProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
-  const [editingPipeline, setEditingPipeline] = useState<BuildPipelineJob | undefined>();
+  const [editingPipeline, setEditingPipeline] = useState<Workflow | undefined>();
   
   // Determine which platforms are needed based on selected targets
   const needsAndroid = selectedPlatforms.some(p => p === 'WEB' || p === 'PLAY_STORE');
@@ -41,7 +41,7 @@ export function PipelineList({
     setEditModalOpened(true);
   };
   
-  const handleEdit = (pipeline: BuildPipelineJob) => {
+  const handleEdit = (pipeline: Workflow) => {
     setEditingPipeline(pipeline);
     setEditModalOpened(true);
   };
@@ -58,7 +58,7 @@ export function PipelineList({
     );
   };
   
-  const handleSave = (pipeline: BuildPipelineJob) => {
+  const handleSave = (pipeline: Workflow) => {
     if (editingPipeline) {
       // Update existing
       onChange(pipelines.map(p => (p.id === pipeline.id ? pipeline : p)));

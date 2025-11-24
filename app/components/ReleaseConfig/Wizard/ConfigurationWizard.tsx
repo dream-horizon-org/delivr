@@ -6,11 +6,15 @@
 import { useState, useEffect } from 'react';
 import { Container, Paper, Text, Badge } from '@mantine/core';
 import type { ReleaseConfiguration } from '~/types/release-config';
+import { useConfig } from '~/contexts/ConfigContext';
 import {
   saveDraftConfig,
   loadDraftConfig,
   clearDraftConfig,
   validateConfiguration,
+  saveWizardStep,
+  loadWizardStep,
+  clearWizardStep,
 } from '~/utils/release-config-storage';
 import { createDefaultConfig } from '~/utils/default-config';
 import { WizardNavigation } from './WizardNavigation';
@@ -51,11 +55,38 @@ export function ConfigurationWizard({
   isEditMode = false,
   returnTo,
 }: ConfigurationWizardProps) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const { invalidateReleaseConfigs } = useConfig(); // ✅ For cache invalidation after save
+  
+  // Initialize step from saved draft step (if exists) or default to 0
+  const [currentStep, setCurrentStep] = useState(() => {
+    // Only restore step for draft configs, not in edit mode
+    if (!isEditMode) {
+      const savedStep = loadWizardStep(tenantId);
+      if (savedStep > 0) {
+        console.log('[ConfigWizard] Resuming from saved step:', savedStep);
+      }
+      return savedStep;
+    }
+    return 0;
+  });
+  
+  // Initialize completed steps based on saved step
+  // Mark all steps before the saved step as completed
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(() => {
+    const savedStep = !isEditMode ? loadWizardStep(tenantId) : 0;
+    if (savedStep > 0) {
+      const completed = new Set<number>();
+      for (let i = 0; i < savedStep; i++) {
+        completed.add(i);
+      }
+      return completed;
+    }
+    return new Set();
+  });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  console.log('[ConfigurationWizard] Available integrations:', availableIntegrations);
+  // console.log('[ConfigurationWizard] Available integrations:', availableIntegrations);
   
   // Initialize configuration from existing, draft, or create new
   const [config, setConfig] = useState<Partial<ReleaseConfiguration>>(() => {
@@ -82,6 +113,14 @@ export function ConfigurationWizard({
     saveDraftConfig(tenantId, config);
   }, [tenantId, config]);
   
+  // Auto-save current wizard step to local storage
+  useEffect(() => {
+    // Only save step for draft configs, not in edit mode
+    if (!isEditMode) {
+      saveWizardStep(tenantId, currentStep);
+    }
+  }, [tenantId, currentStep, isEditMode]);
+  
   const canProceedFromStep = (stepIndex: number): boolean => {
     switch (stepIndex) {
       case STEP_INDEX.BASIC: // Basic Info
@@ -93,7 +132,7 @@ export function ConfigurationWizard({
       // ==================== COMMENTED OUT: CI/CD PIPELINE VALIDATION ====================
       // TODO: Uncomment when CI/CD pipeline integration is ready
       // case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN)
-      //   if (!config.buildPipelines || config.buildPipelines.length === 0) {
+      //   if (!config.workflows || config.workflows.length === 0) {
       //     return false;
       //   }
       //   // Validate required pipelines based on selected distribution targets
@@ -101,17 +140,17 @@ export function ConfigurationWizard({
       //   const needsIOS = config.targets?.includes('APP_STORE');
       //   
       //   if (needsAndroid) {
-      //     const hasAndroidRegression = config.buildPipelines.some(
+      //     const hasAndroidRegression = config.workflows.some(
       //       p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
       //     );
       //     if (!hasAndroidRegression) return false;
       //   }
       //   
       //   if (needsIOS) {
-      //     const hasIOSRegression = config.buildPipelines.some(
+      //     const hasIOSRegression = config.workflows.some(
       //       p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
       //     );
-      //     const hasTestFlight = config.buildPipelines.some(
+      //     const hasTestFlight = config.workflows.some(
       //       p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
       //     );
       //     if (!hasIOSRegression || !hasTestFlight) return false;
@@ -214,6 +253,10 @@ export function ConfigurationWizard({
       
       console.log(`[ConfigWizard] Configuration ${isEditMode ? 'updated' : 'created'} successfully:`, result.data?.id);
       
+      // ✅ Invalidate cache to refresh configs across all routes
+      invalidateReleaseConfigs();
+      console.log('[ConfigWizard] Release configs cache invalidated');
+      
       // Clear draft after successful submission (but not when editing)
       if (!isEditMode) {
         clearDraftConfig(tenantId);
@@ -270,8 +313,8 @@ export function ConfigurationWizard({
       // case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
       //   return (
       //     <FixedPipelineCategories
-      //       pipelines={config.buildPipelines || []}
-      //       onChange={(pipelines) => setConfig({ ...config, buildPipelines: pipelines })}
+      //       pipelines={config.workflows || []}
+      //       onChange={(pipelines) => setConfig({ ...config, workflows: pipelines })}
       //       availableIntegrations={{
       //         jenkins: availableIntegrations.jenkins,
       //         github: availableIntegrations.github,
@@ -336,7 +379,7 @@ export function ConfigurationWizard({
     }
   };
 
-  console.log('currentStep', currentStep, 'config', config, );
+  console.log('currentStep', currentStep, 'config', config, isEditMode, existingConfig );
   
   return (
     <Container size="xl" className="py-8">
@@ -348,6 +391,11 @@ export function ConfigurationWizard({
               {isEditMode && (
                 <Badge color="blue" size="lg" className="mb-4">
                   Editing: {config.name || 'Configuration'}
+                </Badge>
+              )}
+              {!isEditMode && loadWizardStep(tenantId) > 0 && (
+                <Badge color="green" size="lg" className="mb-4">
+                  📍 Resuming Draft (Step {currentStep + 1})
                 </Badge>
               )}
               <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">

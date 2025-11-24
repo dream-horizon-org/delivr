@@ -4,7 +4,7 @@
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { prepareReleaseConfigPayload, prepareUpdatePayload, transformFromBackend } from './release-config-payload';
+import { prepareReleaseConfigPayload, prepareUpdatePayload, transformFromBackend, logTransformation } from './release-config-payload';
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
 
@@ -18,17 +18,20 @@ export class ReleaseConfigService {
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
-      const payload = prepareReleaseConfigPayload(config, userId);
+      const payload = prepareReleaseConfigPayload(config, tenantId, userId);
       
-      console.log('[ReleaseConfigService] Minimal transformation applied:', {
-        name: payload.name,
-        defaultTargets: payload.defaultTargets, // Transformed: targets → defaultTargets
-        releaseFrequency: payload.scheduling?.releaseFrequency, // Transformed: uppercase → lowercase
-        hasUserIdInjection: !!(payload.testManagement?.createdByAccountId || payload.communication?.createdByAccountId),
-      });
+      // Log transformation for debugging
+      if (process.env.NODE_ENV === 'development') {
+        logTransformation(config, payload, 'create');
+      }
 
       const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs`;
+      const requestBody = JSON.stringify(payload);
+      
       console.log('[ReleaseConfigService] POST to:', url);
+      console.log('[ReleaseConfigService] Request body (first 1000 chars):', requestBody.substring(0, 1000));
+      console.log('[ReleaseConfigService] testManagement.tenantId:', payload.testManagement?.tenantId);
+      console.log('[ReleaseConfigService] testManagement.tenantId type:', typeof payload.testManagement?.tenantId);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -36,7 +39,7 @@ export class ReleaseConfigService {
           'Content-Type': 'application/json',
           'userid': userId,
         },
-        body: JSON.stringify(payload),
+        body: requestBody,
       });
 
       console.log('[ReleaseConfigService] Response status:', response.status, response.statusText);
@@ -53,7 +56,7 @@ export class ReleaseConfigService {
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('[ReleaseConfigService] Create failed:', result, result?.details?.invalidIntegrations);
+        console.error('[ReleaseConfigService] Create failed:', result, JSON.stringify(result?.details?.invalidIntegrations, null, 2), JSON.stringify(result?.details?.invalidIntegrations[0]?.errors, null, 2));
         return {
           success: false,
           error: result.error || result.message || 'Failed to create release configuration',
@@ -175,9 +178,12 @@ export class ReleaseConfigService {
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
-      const payload = prepareUpdatePayload(updates, userId);
+      const payload = prepareUpdatePayload(updates, tenantId, userId);
       
-      console.log('[ReleaseConfigService] Updating config:', configId, Object.keys(payload));
+      // Log transformation for debugging
+      if (process.env.NODE_ENV === 'development') {
+        logTransformation(updates, payload, 'update');
+      }
 
       const response = await fetch(
         `${BACKEND_API_URL}/tenants/${tenantId}/release-configs/${configId}`,
@@ -192,6 +198,7 @@ export class ReleaseConfigService {
       );
 
       const result = await response.json();
+      console.log('[ReleaseConfigService] Update result:', result);
 
       if (!response.ok) {
         console.error('[ReleaseConfigService] Update failed:', result);

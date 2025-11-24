@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { Modal, Button, TextInput, Select, Stack, Group, SegmentedControl, Text, Card, Badge } from '@mantine/core';
 import { IconServer, IconBrandGithub } from '@tabler/icons-react';
 import type { 
-  BuildPipelineJob, 
+  Workflow, 
   BuildProvider, 
   Platform, 
   BuildEnvironment,
@@ -25,13 +25,13 @@ import { generateConfigId } from '~/utils/release-config-storage';
 interface PipelineEditModalProps {
   opened: boolean;
   onClose: () => void;
-  onSave: (pipeline: BuildPipelineJob) => void;
-  pipeline?: BuildPipelineJob; // If editing existing pipeline
+  onSave: (pipeline: Workflow) => void;
+  pipeline?: Workflow; // If editing existing pipeline
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
     github: Array<{ id: string; name: string }>;
   };
-  existingPipelines: BuildPipelineJob[]; // For validation
+  existingPipelines: Workflow[]; // For validation
   fixedPlatform?: 'ANDROID' | 'IOS'; // Fixed platform (cannot be changed)
   fixedEnvironment?: BuildEnvironment; // Fixed environment (cannot be changed)
   workflows?: CICDWorkflow[]; // Available workflows to select from
@@ -220,7 +220,7 @@ export function PipelineEditModal({
       finalProviderConfig = providerConfig as any;
     }
     
-    const pipelineData: BuildPipelineJob = {
+    const pipelineData: Workflow = {
       id: pipeline?.id || generateConfigId(),
       name: name.trim(),
       platform,

@@ -1,88 +1,247 @@
 /**
- * Release Config Payload Preparation
- * MINIMAL transformations - UI sends data in backend-compatible format
+ * Release Config Payload Preparation - BFF Transformation Layer
  * 
- * Only 4 minimal transformations:
- * 1. Field rename: targets → defaultTargets (backend API inconsistency)
- * 2. Field rename: jiraProject → projectManagement (semantic naming)
- * 3. Case change: WEEKLY → weekly (backend expects lowercase)
- * 4. User ID injection (security - backend needs createdByAccountId)
+ * PURPOSE: Bridge UI structure (optimized for UX) with Backend API contract
+ * 
+ * TRANSFORMATIONS PERFORMED:
+ * 1. ✅ Remove UI-only fields (id, status, timestamps, buildUploadStep, workflows)
+ * 2. ✅ Flatten testManagement (extract from providerConfig)
+ * 3. ✅ Flatten projectManagement (add required fields, remove UI fields)
+ * 4. ✅ Handle communication (only send if configured, proper structure)
+ * 5. ✅ Field renames (targets → defaultTargets, jiraProject → projectManagement)
+ * 6. ✅ Case transformations (scheduling.releaseFrequency)
+ * 7. ✅ Security injection (createdByAccountId)
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
 
 /**
- * Prepare release config payload for backend
- * MINIMAL transformation - UI already matches backend structure
+ * Map UI platform to backend TestPlatform enum
+ * UI uses simple platforms (ANDROID, IOS)
+ * Backend expects specific distribution platforms
+ */
+function mapTestManagementPlatform(
+  platform: string,
+  selectedTargets: string[]
+): string {
+  if (platform === 'ANDROID') {
+    // For Android, use PLAY_STORE as primary (can be extended for other targets)
+    return 'ANDROID_PLAY_STORE';
+  }
+  if (platform === 'IOS') {
+    // For iOS, use APP_STORE as primary (can be extended for TestFlight)
+    return 'IOS_APP_STORE';
+  }
+  // Fallback: return as-is if already in correct format
+  return platform;
+}
+
+/**
+ * Prepare release config payload for backend API
  */
 export function prepareReleaseConfigPayload(
   config: ReleaseConfiguration,
+  tenantId: string,
   userId: string
 ): any {
-  const payload = {
-    ...config,
+  console.log('[prepareReleaseConfigPayload] Inputs:', { tenantId, userId, configName: config.name });
+  console.log('[prepareReleaseConfigPayload] tenantId type:', typeof tenantId, 'value:', JSON.stringify(tenantId));
+  
+  const payload: any = {
+    // ========================================================================
+    // BASIC FIELDS - Direct pass-through (UI already matches backend)
+    // ========================================================================
+    tenantId: tenantId,  // Use parameter, not config.tenantId (UI doesn't have it)
+    name: config.name,
+    releaseType: config.releaseType,
     
     // ========================================================================
-    // TRANSFORMATION 1: Field Rename (Backend API Inconsistency)
-    // Backend REQUEST expects "defaultTargets", but RESPONSE returns "targets"
+    // TRANSFORMATION 1: Field Rename - targets → defaultTargets
+    // Why: Backend API inconsistency (REQUEST uses "defaultTargets", RESPONSE uses "targets")
     // ========================================================================
     defaultTargets: config.targets,
-    targets: undefined, // Remove to avoid confusion
     
     // ========================================================================
-    // TRANSFORMATION 2: Scheduling - Lowercase frequency
-    // Backend expects "weekly", UI has "WEEKLY"
+    // NULL-VALIDATION - Only include if provided (optional fields)
     // ========================================================================
-    ...(config.scheduling && {
-      scheduling: {
-        ...config.scheduling,
-        releaseFrequency: config.scheduling.releaseFrequency.toLowerCase(),
-      },
-    }),
-    
-    // ========================================================================
-    // TRANSFORMATION 3: User ID Injection (Security)
-    // Backend requires createdByAccountId for audit trail
-    // ========================================================================
-    ...(config.testManagement && {
-      testManagement: {
-        ...config.testManagement,
-        createdByAccountId: userId,
-      },
-    }),
-    
-    ...(config.communication && {
-      communication: {
-        ...config.communication,
-        createdByAccountId: userId,
-      },
-    }),
-    
-    // ========================================================================
-    // TRANSFORMATION 4: Field Rename - jiraProject → projectManagement
-    // Frontend uses "jiraProject", backend expects "projectManagement"
-    // ========================================================================
-    ...(config.jiraProject && {
-      projectManagement: {
-        ...config.jiraProject,
-        createdByAccountId: userId,
-      },
-    }),
-    jiraProject: undefined, // Remove frontend field
+    ...(config.description && { description: config.description }),
+    ...(config.isDefault !== undefined && { isDefault: config.isDefault }),
+    ...(config.platforms && config.platforms.length > 0 && { platforms: config.platforms }),
+    ...(config.baseBranch && { baseBranch: config.baseBranch }),
   };
 
+  // ========================================================================
+  // TRANSFORMATION 2: Test Management - Flatten providerConfig structure
+  // Why: UI nests config inside "providerConfig", backend expects flat structure
+  // ========================================================================
+  if (config.testManagement?.enabled && config.testManagement.providerConfig) {
+    const providerConfig = config.testManagement.providerConfig as any;
+    
+    // Type guard: Only Checkmate has the fields we need for backend
+    // TestRail would have different structure - handle when implemented
+    if (providerConfig.type === 'checkmate' && providerConfig.integrationId) {
+      // Transform platformConfigurations: UI sends "ANDROID"/"IOS", backend expects specific enums
+      const originalPlatformConfigs = providerConfig.platformConfigurations || [];
+      const transformedPlatformConfigs = originalPlatformConfigs.map((pc: any) => {
+        const originalPlatform = pc.platform;
+        const mappedPlatform = mapTestManagementPlatform(pc.platform, config.targets || []);
+        console.log(`[TestManagement] Platform mapping: ${originalPlatform} → ${mappedPlatform}`);
+        return {
+          ...pc,
+          platform: mappedPlatform,
+        };
+      });
+      
+      payload.testManagement = {
+        tenantId: tenantId,  // Use parameter
+        integrationId: providerConfig.integrationId,
+        name: `Test Management for ${config.name}`,
+        passThresholdPercent: providerConfig.passThresholdPercent || 100,
+        platformConfigurations: transformedPlatformConfigs,
+        createdByAccountId: userId,
+      };
+      
+      console.log('[TestManagement] Final payload:', JSON.stringify(payload.testManagement, null, 2));
+      
+      // Verify tenantId is not null/undefined/empty
+      if (!payload.testManagement.tenantId || payload.testManagement.tenantId.trim() === '') {
+        console.error('[TestManagement] ERROR: tenantId is blank!', payload.testManagement.tenantId);
+      }
+    }
+  }
+  // If not enabled or no config, omit entirely (backend optional)
+
+  // ========================================================================
+  // TRANSFORMATION 3: Communication - Extract channelData from slack config
+  // Why: UI has slack.channelData, backend expects top-level channelData
+  // ========================================================================
+  if (config.communication?.slack?.enabled && config.communication.slack.channelData) {
+    payload.communication = {
+      tenantId: tenantId,  // Use parameter
+      channelData: config.communication.slack.channelData,
+    };
+  }
+  // If not configured or empty, omit entirely (backend optional)
+
+  // ========================================================================
+  // TRANSFORMATION 4: Project Management - Clean and add required fields
+  // Why: UI has extra fields (enabled, createReleaseTicket), backend needs tenantId, name
+  // Also: Backend expects platformConfigurations with nested "parameters" object
+  // ========================================================================
+  if (config.jiraProject?.enabled && config.jiraProject.integrationId) {
+    // Transform platformConfigurations: UI sends flat structure, backend expects nested "parameters"
+    const transformedPMPlatformConfigs = (config.jiraProject.platformConfigurations || []).map((pc: any) => {
+      const { platform, projectKey, issueType, completedStatus, priority, labels, assignee, customFields, ...rest } = pc;
+      
+      return {
+        platform,
+        parameters: {
+          projectKey,
+          ...(issueType && { issueType }),
+          completedStatus,
+          ...(priority && { priority }),
+          ...(labels && { labels }),
+          ...(assignee && { assignee }),
+          ...(customFields && { customFields }),
+          ...rest, // Any other provider-specific fields
+        },
+      };
+    });
+    
+    payload.projectManagement = {
+      tenantId: tenantId,  // Use parameter
+      integrationId: config.jiraProject.integrationId,
+      name: `PM Config for ${config.name}`,
+      ...(config.description && { description: config.description }),
+      platformConfigurations: transformedPMPlatformConfigs,
+      createdByAccountId: userId,
+    };
+    
+    console.log('[ProjectManagement] Transformed platformConfigurations:', JSON.stringify(transformedPMPlatformConfigs, null, 2));
+    // Explicitly remove UI-only fields: enabled, createReleaseTicket, linkBuildsToIssues
+  }
+
+  // ========================================================================
+  // TRANSFORMATION 5: Scheduling - Lowercase releaseFrequency
+  // Why: Backend expects lowercase enum ("weekly"), UI uses uppercase ("WEEKLY")
+  // ========================================================================
+  if (config.scheduling) {
+    payload.scheduling = {
+      ...config.scheduling,
+      releaseFrequency: config.scheduling.releaseFrequency.toLowerCase(),
+    };
+  }
+
+  // ========================================================================
+  // TRANSFORMATION 6: Workflows (CI/CD)
+  // Why: UI uses workflows, backend expects workflows
+  // ========================================================================
+  if (config.workflows && config.workflows.length > 0) {
+    payload.workflows = config.workflows;
+    console.log('[prepareReleaseConfigPayload] Added workflows:', payload.workflows.length);
+  }
+
+  // ========================================================================
+  // CLEANUP - Remove UI-only fields that should NOT be sent to backend
+  // Why: Backend generates these (id, status, timestamps) or doesn't expect them
+  // ========================================================================
+  // These fields are NOT included in payload by design:
+  // - id (backend generates)
+  // - status (backend manages)
+  // - createdAt (backend generates)
+  // - updatedAt (backend generates)
+  // - buildUploadStep (not in API contract)
+  // - targets (renamed to defaultTargets)
+  // - jiraProject (renamed to projectManagement)
+  // 
+  // These fields ARE included if present:
+  // - workflows (CI/CD configuration)
+
+  console.log('[prepareReleaseConfigPayload] Final payload.tenantId:', payload.tenantId);
+  console.log('[prepareReleaseConfigPayload] Final payload keys:', Object.keys(payload));
+  
   return payload;
 }
 
 /**
  * Transform backend response to frontend schema
- * Backend RESPONSE uses "targets" - no transformation needed for most fields
+ * Reverse transformation: Backend → Frontend
  */
 export function transformFromBackend(backendConfig: any): Partial<ReleaseConfiguration> {
-  return {
+  const frontendConfig: any = {
     ...backendConfig,
-    // Backend RESPONSE already has "targets" - perfect match with frontend
+    // Backend RESPONSE uses "targets" - matches frontend perfectly
   };
+
+  // Reverse transformation for projectManagement → jiraProject
+  if (backendConfig.projectManagement) {
+    frontendConfig.jiraProject = {
+      enabled: true,
+      integrationId: backendConfig.projectManagement.integrationId,
+      platformConfigurations: backendConfig.projectManagement.platformConfigurations,
+      // Note: Backend doesn't store createReleaseTicket, linkBuildsToIssues - UI defaults will apply
+    };
+    delete frontendConfig.projectManagement;
+  }
+
+  // Reverse transformation for testManagement (if needed in future)
+  if (backendConfig.testManagement) {
+    // For now, keep it as-is since UI can handle flat structure
+    // If UI needs providerConfig wrapper, add transformation here
+  }
+
+  // Reverse transformation for communication
+  if (backendConfig.communication?.channelData) {
+    frontendConfig.communication = {
+      slack: {
+        enabled: true,
+        integrationId: backendConfig.communication.integrationId || '',
+        channelData: backendConfig.communication.channelData,
+      },
+    };
+  }
+
+  return frontendConfig;
 }
 
 /**
@@ -90,7 +249,42 @@ export function transformFromBackend(backendConfig: any): Partial<ReleaseConfigu
  */
 export function prepareUpdatePayload(
   config: Partial<ReleaseConfiguration>,
+  tenantId: string,
   userId: string
 ): any {
-  return prepareReleaseConfigPayload(config as ReleaseConfiguration, userId);
+  return prepareReleaseConfigPayload(config as ReleaseConfiguration, tenantId, userId);
+}
+
+/**
+ * Debug helper: Log transformation details
+ */
+export function logTransformation(before: any, after: any, operation: 'create' | 'update') {
+  console.log(`\n🔄 [BFF Transformation] ${operation.toUpperCase()}`);
+  console.log('📤 UI Input:', JSON.stringify(before, null, 2).substring(0, 2000));
+  console.log('📦 Backend Payload:', JSON.stringify(after, null, 2).substring(0, 2000));
+  console.log('✅ Transformations applied:');
+  
+  const transformations: string[] = [];
+  
+  if (before.targets && after.defaultTargets) {
+    transformations.push('  • targets → defaultTargets');
+  }
+  if (before.jiraProject && after.projectManagement) {
+    transformations.push('  • jiraProject → projectManagement (flattened)');
+  }
+  if (before.testManagement?.providerConfig && after.testManagement) {
+    transformations.push('  • testManagement.providerConfig → flattened structure');
+  }
+  if (before.communication && after.communication) {
+    transformations.push('  • communication.slack.channelData → communication.channelData');
+  }
+  if (before.scheduling?.releaseFrequency) {
+    transformations.push(`  • scheduling.releaseFrequency: ${before.scheduling.releaseFrequency} → ${after.scheduling?.releaseFrequency}`);
+  }
+  if (before.id && !after.id) {
+    transformations.push('  • Removed UI-only fields: id, status, timestamps');
+  }
+  
+  console.log(transformations.join('\n') || '  • No transformations needed');
+  console.log('─'.repeat(80) + '\n');
 }

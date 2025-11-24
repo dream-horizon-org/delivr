@@ -16,6 +16,7 @@ import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { getReleases } from '~/.server/services/ReleaseManagement';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
 import { UnconfiguredBanner } from '~/components/ReleaseManagement/UnconfiguredBanner';
+import { useConfig } from '~/contexts/ConfigContext';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org } = params;
@@ -27,21 +28,15 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   // NOTE: Setup status is available from parent route - no need to fetch again!
   // We'll access it via useRouteLoaderData in the component
   
+  // NOTE: Release configurations are now fetched via ConfigContext (cached)
+  // No need to fetch here - component will use useConfig() hook
+  
   // Fetch releases and analytics from API
   let releases = [];
   let analyticsData = null;
-  let configurations: any[] = [];
   
   try {
     const url = new URL(request.url);
-    
-    // Fetch release configurations to check if setup is complete
-    const configsResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?status=ACTIVE`);
-    if (configsResponse.ok) {
-      const configsData = await configsResponse.json();
-      configurations = configsData.configurations || [];
-      console.log(`[Dashboard] Loaded ${configurations.length} active configurations`);
-    }
     
     // Fetch analytics
     const analyticsResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/releases?analytics=true`);
@@ -117,13 +112,13 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     },
     recentReleases,
     adoptionChartData,
-    hasConfigurations: configurations.length > 0,
   });
 });
 
 export default function ReleaseDashboardPage() {
   const loaderData = useLoaderData<typeof loader>();
   const orgData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const { activeReleaseConfigs } = useConfig(); // ✅ Get cached release configs
   
   if (!orgData) {
     throw new Error('Organization data not found');
@@ -132,7 +127,7 @@ export default function ReleaseDashboardPage() {
   const { tenantId: org } = orgData;
   
   // Extract data (guaranteed to exist as loader always returns this structure)
-  const { analytics, recentReleases, adoptionChartData, hasConfigurations } = loaderData as {
+  const { analytics, recentReleases, adoptionChartData } = loaderData as {
     analytics: {
       totalReleases: number;
       activeReleases: number;
@@ -143,8 +138,10 @@ export default function ReleaseDashboardPage() {
     };
     recentReleases: any[];
     adoptionChartData: any[];
-    hasConfigurations: boolean;
   };
+  
+  // Derive hasConfigurations from cached configs
+  const hasConfigurations = activeReleaseConfigs.length > 0;
   
   return (
     <div className="min-h-screen bg-gray-50">

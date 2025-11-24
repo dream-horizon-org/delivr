@@ -30,7 +30,7 @@ export function ReleaseCustomizationPanel({
   }
   
   // Check if config has pre-regression builds configured
-  const hasPreRegressionBuilds = config.buildPipelines?.some(
+  const hasPreRegressionBuilds = config.workflows?.some(
     p => p.environment === 'PRE_REGRESSION'
   ) ?? false;
   

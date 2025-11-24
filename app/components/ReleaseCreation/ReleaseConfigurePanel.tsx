@@ -21,7 +21,7 @@ export function ReleaseConfigurePanel({
 }: ReleaseConfigurePanelProps) {
   // Check if config has pre-regression builds
   const hasPreRegressionBuilds = config
-    ? config.buildPipelines.some((p) => p.environment === 'PRE_REGRESSION')
+    ? config.workflows.some((p) => p.environment === 'PRE_REGRESSION')
     : false;
 
   // Check if config has Checkmate enabled
@@ -80,7 +80,7 @@ export function ReleaseConfigurePanel({
             <br />
             <strong>Release Type:</strong> {config.releaseType}
             <br />
-            <strong>Build Pipelines:</strong> {config.buildPipelines.length} configured
+            <strong>Build Pipelines:</strong> {config.workflows.length} configured
             <br />
             <strong>Test Management:</strong>{' '}
             {config.testManagement.enabled
@@ -148,7 +148,7 @@ export function ReleaseConfigurePanel({
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
                 ✓ Pre-regression builds will run according to your configuration (
-                {config.buildPipelines.filter((p) => p.environment === 'PRE_REGRESSION').length}{' '}
+                {config.workflows.filter((p) => p.environment === 'PRE_REGRESSION').length}{' '}
                 pipeline(s))
               </Text>
             </Alert>

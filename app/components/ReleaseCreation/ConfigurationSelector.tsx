@@ -95,7 +95,7 @@ export function ConfigurationSelector({
                   
                   <Group gap="lg" className="text-xs text-gray-600">
                     <div>
-                      <span className="font-medium">{config.buildPipelines.length}</span> pipelines
+                      <span className="font-medium">{config.workflows.length}</span> pipelines
                     </div>
                     <div>
                       <span className="font-medium">{config.targets.length}</span> platforms

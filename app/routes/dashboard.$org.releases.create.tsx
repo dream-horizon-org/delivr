@@ -11,6 +11,7 @@ import { IconArrowLeft, IconArrowRight, IconRocket, IconSettings } from '@tabler
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { createRelease } from '~/.server/services/ReleaseManagement';
+import { useConfig } from '~/contexts/ConfigContext';
 // Config loading moved to API - no longer using local storage
 import { VerticalStepper, type Step } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { ConfigurationSelector } from '~/components/ReleaseCreation/ConfigurationSelector';
@@ -64,22 +65,8 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   // Get setup data for validation
   const setupData = await getSetupData(org);
   
-  // Fetch active configurations from API
-  let configurations: any[] = [];
-  try {
-    const url = new URL(request.url);
-    const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config?status=ACTIVE`;
-    
-    const response = await fetch(apiUrl);
-    if (response.ok) {
-      const data = await response.json();
-      configurations = data.configurations || [];
-      console.log(`[CreateRelease] Loaded ${configurations.length} active configurations`);
-    }
-  } catch (error) {
-    console.error('[CreateRelease] Failed to load configurations:', error);
-    // Continue with empty array if API fails
-  }
+  // NOTE: Release configurations are now fetched via ConfigContext (cached)
+  // No need to fetch here - component will use useConfig() hook
   
   // Check if returnTo query param exists (user came back from config creation)
   const returnTo = new URL(request.url).searchParams.get('returnTo');
@@ -88,8 +75,6 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     org,
     user,
     setupData,
-    configurations,
-    hasConfigurations: configurations.length > 0,
     returnTo,
   });
 });
@@ -127,8 +112,9 @@ export const action = authenticateActionRequest({
 export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
   const org = (loaderData as any).org;
-  const configurations = (loaderData as any).configurations || [];
-  const hasConfigurations = (loaderData as any).hasConfigurations;
+  const { activeReleaseConfigs, defaultReleaseConfig } = useConfig(); // ✅ Get cached release configs
+  const configurations = activeReleaseConfigs;
+  const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
 
   // Wizard state
@@ -152,13 +138,10 @@ export default function CreateReleasePage() {
   
   // Select default configuration on load
   useEffect(() => {
-    if (configurations.length > 0) {
-      const defaultConfig = configurations.find((c: any) => c.isDefault && c.status === 'ACTIVE');
-      if (defaultConfig && !selectedConfigId) {
-        setSelectedConfigId(defaultConfig.id);
-      }
+    if (defaultReleaseConfig && !selectedConfigId) {
+      setSelectedConfigId(defaultReleaseConfig.id);
     }
-  }, [configurations, selectedConfigId]);
+  }, [defaultReleaseConfig, selectedConfigId]);
   
   // Load the full configuration when a config is selected
   useEffect(() => {

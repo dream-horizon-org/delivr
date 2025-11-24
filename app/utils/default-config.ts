@@ -19,7 +19,7 @@ export function createDefaultConfig(tenantId: string): Partial<ReleaseConfigurat
     platforms: [],
     targets: [],
     buildUploadStep: 'MANUAL', // Default to manual upload
-    buildPipelines: [],
+    workflows: [],
     testManagement: {
       enabled: false,
       provider: 'none',

@@ -39,7 +39,7 @@ export function SlackChannelConfigEnhanced({
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [channelsError, setChannelsError] = useState<string | null>(null);
 
-  const slackConfig = config.slack;
+  const slackConfig = config?.slack;
   const isEnabled = slackConfig?.enabled || false;
   const integrationId = slackConfig?.integrationId || '';
 

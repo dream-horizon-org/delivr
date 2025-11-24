@@ -5,10 +5,10 @@
 
 import { Alert, Text, List, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
-import type { BuildPipelineJob } from '~/types/release-config';
+import type { Workflow } from '~/types/release-config';
 
 interface RequiredPipelinesCheckProps {
-  pipelines: BuildPipelineJob[];
+  pipelines: Workflow[];
 }
 
 interface RequirementStatus {
