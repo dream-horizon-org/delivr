@@ -12,8 +12,7 @@ export type ReleaseConfigAttributes = {
   name: string;
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms: string[] | null;
+  platformTargets: Array<{ platform: string; target: string }> | null;
   baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
@@ -61,14 +60,10 @@ export const createReleaseConfigModel = (
         allowNull: false,
         field: 'releaseType'
       },
-      targets: {
+      platformTargets: {
         type: DataTypes.JSON,
-        allowNull: false
-      },
-      platforms: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        comment: 'Array of supported platforms (e.g., ["ANDROID", "IOS"])'
+        allowNull: false,
+        comment: 'Array of platform-target pairs: [{"platform": "ANDROID", "target": "PLAY_STORE"}, ...]'
       },
       baseBranch: {
         type: DataTypes.STRING(255),
