@@ -251,13 +251,13 @@ export class ReleaseConfigService {
 
     // Step 6: Create release config in database
     const id = shortid.generate();
+    
     const createDto: CreateReleaseConfigDto = {
       tenantId: requestData.tenantId,
       name: requestData.name,
       description: requestData.description ?? null,
       releaseType: requestData.releaseType,
-      targets: requestData.defaultTargets,
-      platforms: requestData.platforms ?? null,
+      platformTargets: requestData.platformTargets,
       baseBranch: requestData.baseBranch ?? null,
       scheduling: requestData.scheduling ?? null,
       hasManualBuildUpload: requestData.hasManualBuildUpload ?? false,
