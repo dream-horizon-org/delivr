@@ -7,25 +7,22 @@ import { useState } from 'react';
 import { Stack, Text, Alert, Card, Checkbox, Group, Badge, Collapse } from '@mantine/core';
 import { IconInfoCircle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import type { TargetPlatform } from '~/types/release-config';
+import type { PlatformSelectorProps } from '~/types/release-config-props';
 import { PLATFORM_CONFIGS } from '../release-config-constants';
-
-interface PlatformSelectorProps {
-  selectedPlatforms: TargetPlatform[];
-  onChange: (platforms: TargetPlatform[]) => void;
-}
+import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 
 export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelectorProps) {
   // Track which platforms are expanded
-  const [expandedPlatforms, setExpandedPlatforms] = useState<Set<string>>(new Set(['ANDROID', 'IOS']));
+  const [expandedPlatforms, setExpandedPlatforms] = useState<Set<string>>(new Set([PLATFORMS.ANDROID, PLATFORMS.IOS]));
   
   // Determine which platforms are selected based on their targets
-  const isPlatformSelected = (platformId: 'ANDROID' | 'IOS') => {
+  const isPlatformSelected = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
     const platform = PLATFORM_CONFIGS.find(p => p.id === platformId);
     if (!platform) return false;
     return platform.targets.some(target => selectedPlatforms.includes(target.id));
   };
   
-  const handlePlatformToggle = (platformId: 'ANDROID' | 'IOS') => {
+  const handlePlatformToggle = (platformId: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS) => {
     const platform = PLATFORM_CONFIGS.find(p => p.id === platformId);
     if (!platform) return;
     
@@ -60,8 +57,8 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
     setExpandedPlatforms(newExpanded);
   };
   
-  const hasAndroid = selectedPlatforms.includes('PLAY_STORE');
-  const hasIOS = selectedPlatforms.includes('APP_STORE');
+  const hasAndroid = selectedPlatforms.includes(TARGET_PLATFORMS.PLAY_STORE);
+  const hasIOS = selectedPlatforms.includes(TARGET_PLATFORMS.APP_STORE);
   
   return (
     <Stack gap="md">
