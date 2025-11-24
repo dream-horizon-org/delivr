@@ -1,2 +1,1 @@
-export { SlackApiService } from './slack.provider';
-
+export { SlackService } from './slack.service';

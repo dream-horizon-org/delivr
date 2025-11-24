@@ -1,40 +1,54 @@
-import { getStorage } from '../../../../storage/storage-instance';
-import { SlackIntegrationService } from '../slack-integration';
-import { SlackChannelConfigService } from '../slack-channel-config';
+import { CommType } from '../comm-types';
+import type { CommConfig } from '../comm-types';
+import type { ICommService } from './provider.interface';
+import { SlackService } from './slack/slack.service';
 
 /**
- * Service Factory
- * Creates service instances with proper repository dependencies
+ * Provider Factory
+ * Creates communication provider instances
+ * 
+ * Note: Unlike project-management providers, communication providers are stateful
+ * and require configuration (credentials) at instantiation time.
  */
-export class ServiceFactory {
+export class ProviderFactory {
   /**
-   * Get Slack Integration Service instance
-   * Note: Creates new instance each time to ensure fresh repository reference
+   * Get provider instance by type
+   * @param providerType - Communication provider type
+   * @param config - Provider configuration with credentials
    */
-  static getSlackIntegrationService(): SlackIntegrationService {
-      const storage = getStorage();
-      const integrationRepository = (storage as any).slackController;
-
-    return new SlackIntegrationService(integrationRepository);
-  }
-
-  /**
-   * Get Slack Channel Config Service instance
-   * Note: Creates new instance each time to ensure fresh repository reference
-   */
-  static getSlackChannelConfigService(): SlackChannelConfigService {
-      const storage = getStorage();
-      const channelConfigRepository = (storage as any).channelController;
-      const integrationRepository = (storage as any).slackController;
-
-    return new SlackChannelConfigService(
-        channelConfigRepository,
-        integrationRepository
-      );
+  static getProvider(providerType: CommType, config: CommConfig): ICommService {
+    switch (providerType) {
+      case CommType.SLACK:
+        return new SlackService(config);
+      // Future providers:
+      // case CommType.TEAMS:
+      //   return new TeamsService(config);
+      // case CommType.EMAIL:
+      //   return new EmailService(config);
+      default:
+        throw new Error(`Unsupported communication provider: ${providerType}`);
   }
 }
 
-// Convenience exports
-export const getSlackIntegrationService = () => ServiceFactory.getSlackIntegrationService();
-export const getSlackChannelConfigService = () => ServiceFactory.getSlackChannelConfigService();
+  /**
+   * Check if provider is supported
+   */
+  static isSupported(providerType: CommType): boolean {
+    return [
+      CommType.SLACK
+      // Future: TEAMS, EMAIL
+    ].includes(providerType);
+  }
+
+  /**
+   * Get list of supported providers
+   */
+  static getSupportedProviders(): CommType[] {
+    return [
+      CommType.SLACK
+      // Future: TEAMS, EMAIL
+    ];
+  }
+}
+
 

@@ -1,7 +1,4 @@
-export { SlackApiService } from './slack';
-export { ICommService } from './provider.interface';
-export {
-  getSlackIntegrationService,
-  getSlackChannelConfigService
-} from './provider.factory';
+export { SlackService } from './slack';
+export type { ICommService } from './provider.interface';
+export { ProviderFactory } from './provider.factory';
 

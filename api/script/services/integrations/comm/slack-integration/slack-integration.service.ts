@@ -1,4 +1,5 @@
-import { slackApiService, SlackVerificationResult, SlackChannelsResult } from '../providers/slack/slack.provider';
+import { CommType } from '../comm-types';
+import { ProviderFactory } from '../providers/provider.factory';
 import {
   CommunicationType,
   VerificationStatus
@@ -15,6 +16,31 @@ import type {
 } from '../../../../types/integrations/comm/slack-integration';
 
 /**
+ * Verification result for Slack integration
+ */
+export type SlackVerificationResult = {
+  isValid: boolean;
+  message: string;
+  workspaceId?: string;
+  workspaceName?: string;
+  botUserId?: string;
+  details?: any;
+};
+
+/**
+ * Channels result for Slack integration
+ */
+export type SlackChannelsResult = {
+  success: boolean;
+  channels: Array<{ id: string; name: string }>;
+  message: string;
+  metadata?: {
+    total: number;
+    hasMore?: boolean;
+  };
+};
+
+/**
  * Slack Integration Service
  * Business logic for Slack integration management (CRUD, verification)
  */
@@ -25,16 +51,50 @@ export class SlackIntegrationService {
 
   /**
    * Verify Slack bot token
+   * Uses provider factory pattern (same as project-management and test-management)
    */
   async verifyToken(botToken: string): Promise<SlackVerificationResult> {
-    return await slackApiService.verifyToken(botToken);
+    // Get provider using factory (consistent with other integrations)
+    const provider = ProviderFactory.getProvider(CommType.SLACK, {
+      commType: CommType.SLACK,
+      botToken: botToken
+    });
+
+    // Use provider to verify
+    const result = await provider.verify();
+
+    return {
+      isValid: result.success,
+      message: result.message,
+      workspaceId: result.workspaceId,
+      workspaceName: result.workspaceName,
+      botUserId: result.botUserId,
+      details: result.error ? { error: result.error } : undefined
+    };
   }
 
   /**
    * Fetch Slack channels
+   * Uses provider factory pattern (same as other integrations)
    */
   async fetchChannels(botToken: string): Promise<SlackChannelsResult> {
-    return await slackApiService.fetchChannels(botToken);
+    // Get provider using factory
+    const provider = ProviderFactory.getProvider(CommType.SLACK, {
+      commType: CommType.SLACK,
+      botToken: botToken
+    });
+
+    // Use provider to list channels
+    const result = await provider.listChannels();
+
+    return {
+      success: true,
+      channels: result.channels.map(ch => ({ id: ch.id, name: ch.name })),
+      message: 'Channels fetched successfully',
+      metadata: {
+        total: result.total
+      }
+    };
   }
 
   /**
@@ -111,6 +171,15 @@ export class SlackIntegrationService {
       CommunicationType.SLACK,
       true // include token
     );
+  }
+
+  /**
+   * Get integration by ID (with token for internal use)
+   */
+  async getIntegrationById(
+    integrationId: string
+  ): Promise<TenantCommunicationIntegration | null> {
+    return await this.integrationRepository.findById(integrationId, true);
   }
 
   /**

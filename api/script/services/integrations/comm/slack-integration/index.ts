@@ -1,2 +1,6 @@
-export { SlackIntegrationService } from './slack-integration.service';
+export { 
+  SlackIntegrationService,
+  type SlackVerificationResult,
+  type SlackChannelsResult
+} from './slack-integration.service';
 

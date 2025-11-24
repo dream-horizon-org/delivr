@@ -33,7 +33,6 @@ export interface ICommService {
    * Send a templated message to appropriate channels based on task
    * Automatically maps task to buckets and sends to configured channels
    * 
-   * @param commType - Communication type (SLACK, TEAMS, etc.)
    * @param configId - Channel configuration ID (from respective integration table)
    * @param task - Message template task type (e.g., Task.REGRESSION_BUILDS)
    * @param parameters - Array of values to replace placeholders {0}, {1}, {2}...
@@ -42,7 +41,6 @@ export interface ICommService {
    * @returns Map of channel IDs to message responses
    */
   sendMessage(
-    commType: CommType,
     configId: string,
     task: Task,
     parameters: string[],
@@ -69,23 +67,6 @@ export interface ICommService {
    * @returns List of channels with metadata
    */
   listChannels(): Promise<ListChannelsResponse>;
-
-  /**
-   * Get specific channel details
-   * 
-   * @param channelId - Channel ID
-   * @returns Channel details or null if not found
-   */
-  getChannel(channelId: string): Promise<Channel | null>;
-
-  /**
-   * Get the timestamp of the last message in a channel
-   * Used for auto-threading to the most recent message
-   * 
-   * @param channelId - Channel ID
-   * @returns Message timestamp or undefined if channel has no messages
-   */
-  getLastMessageTs(channelId: string): Promise<string | undefined>;
 
   // ============================================================================
   // VERIFICATION & HEALTH

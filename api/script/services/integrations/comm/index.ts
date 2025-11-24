@@ -6,15 +6,12 @@
 // Services
 export { SlackIntegrationService } from './slack-integration';
 export { SlackChannelConfigService } from './slack-channel-config';
-export { SlackService } from './messaging';
+export { MessagingService } from './messaging';
 
 // Providers
-export { SlackApiService } from './providers/slack';
+export { SlackService } from './providers/slack';
 export type { ICommService } from './providers/provider.interface';
-export {
-  getSlackIntegrationService,
-  getSlackChannelConfigService
-} from './providers/provider.factory';
+export { ProviderFactory } from './providers/provider.factory';
 
 // Messaging Types & Enums
 export {
