@@ -17,6 +17,8 @@ import {
 } from '@tabler/icons-react';
 import type { Step } from '~/components/Common/VerticalStepper/VerticalStepper';
 import type { BuildProvider, Platform } from '~/types/release-config';
+import { PLATFORMS as PLATFORM_CONSTANTS, BUILD_ENVIRONMENTS, TARGET_PLATFORMS } from '~/types/release-config-constants';
+import type { PipelineCategoryConfig } from '~/types/release-config-props';
 
 // =============================================================================
 // WIZARD STEPS & NAVIGATION
@@ -134,11 +136,8 @@ export const JIRA_PRIORITIES = [
 // PLATFORMS & DISTRIBUTION
 // =============================================================================
 
-// Platform enum constants
-export const PLATFORMS: Record<Platform, Platform> = {
-  ANDROID: 'ANDROID',
-  IOS: 'IOS',
-} as const;
+// Re-export PLATFORMS from centralized constants for backward compatibility
+export const PLATFORMS = PLATFORM_CONSTANTS;
 
 // Platform display metadata for scheduling
 export const PLATFORM_METADATA: Record<Platform, { label: string; color: string }> = {
@@ -174,13 +173,13 @@ export const PLATFORM_CARD_CONFIG = {
 // Platform configurations (two-level selection)
 export const PLATFORM_CONFIGS = [
   {
-    id: 'ANDROID' as const,
+    id: PLATFORM_CONSTANTS.ANDROID,
     name: 'Android',
     description: 'Build and distribute for Android devices',
     available: true,
     targets: [
       {
-        id: 'PLAY_STORE' as const,
+        id: TARGET_PLATFORMS.PLAY_STORE,
         name: 'Google Play Store',
         description: 'Distribute to Play Store',
         available: true,
@@ -196,14 +195,14 @@ export const PLATFORM_CONFIGS = [
     ],
   },
   {
-    id: 'IOS' as const,
+    id: PLATFORM_CONSTANTS.IOS,
     name: 'iOS',
     description: 'Build and distribute for iOS devices',
     available: false,
     comingSoon: true,
     targets: [
       {
-        id: 'APP_STORE' as const,
+        id: TARGET_PLATFORMS.APP_STORE,
         name: 'Apple App Store',
         description: 'Distribute to App Store',
         available: false,
@@ -225,27 +224,20 @@ export const PLATFORM_CONFIGS = [
 // BUILD PIPELINES
 // =============================================================================
 
-// Build provider labels
-export const BUILD_PROVIDER_LABELS: Record<BuildProvider, string> = {
-  JENKINS: 'Jenkins',
-  GITHUB_ACTIONS: 'GitHub Actions',
-  MANUAL_UPLOAD: 'Manual Upload',
-} as const;
-
 // Android pipeline categories
-export const ANDROID_PIPELINE_CATEGORIES = [
+export const ANDROID_PIPELINE_CATEGORIES: readonly PipelineCategoryConfig[] = [
   {
     id: 'android-pre-regression',
-    platform: 'ANDROID' as const,
-    environment: 'PRE_REGRESSION' as const,
+    platform: PLATFORM_CONSTANTS.ANDROID,
+    environment: BUILD_ENVIRONMENTS.PRE_REGRESSION,
     label: 'Android Pre-Regression',
     description: 'Optional pre-regression build before main testing',
     required: false,
   },
   {
     id: 'android-regression',
-    platform: 'ANDROID' as const,
-    environment: 'REGRESSION' as const,
+    platform: PLATFORM_CONSTANTS.ANDROID,
+    environment: BUILD_ENVIRONMENTS.REGRESSION,
     label: 'Android Regression',
     description: 'Main regression build for Play Store release',
     required: true,
@@ -253,27 +245,27 @@ export const ANDROID_PIPELINE_CATEGORIES = [
 ] as const;
 
 // iOS pipeline categories
-export const IOS_PIPELINE_CATEGORIES = [
+export const IOS_PIPELINE_CATEGORIES: readonly PipelineCategoryConfig[] = [
   {
     id: 'ios-pre-regression',
-    platform: 'IOS' as const,
-    environment: 'PRE_REGRESSION' as const,
+    platform: PLATFORM_CONSTANTS.IOS,
+    environment: BUILD_ENVIRONMENTS.PRE_REGRESSION,
     label: 'iOS Pre-Regression',
     description: 'Optional pre-regression build before main testing',
     required: false,
   },
   {
     id: 'ios-regression',
-    platform: 'IOS' as const,
-    environment: 'REGRESSION' as const,
+    platform: PLATFORM_CONSTANTS.IOS,
+    environment: BUILD_ENVIRONMENTS.REGRESSION,
     label: 'iOS Regression',
     description: 'Main regression build for App Store release',
     required: true,
   },
   {
     id: 'ios-testflight',
-    platform: 'IOS' as const,
-    environment: 'TESTFLIGHT' as const,
+    platform: PLATFORM_CONSTANTS.IOS,
+    environment: BUILD_ENVIRONMENTS.TESTFLIGHT,
     label: 'iOS TestFlight',
     description: 'TestFlight build for App Store distribution',
     required: true,

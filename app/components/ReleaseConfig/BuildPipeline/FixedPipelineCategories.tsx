@@ -6,30 +6,24 @@
 import { useState, useEffect } from 'react';
 import { Stack, Card, Text, Button, Badge, Group, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import type { Workflow, Platform } from '~/types/release-config';
+import type { Workflow } from '~/types/release-config';
+import type { FixedPipelineCategoriesProps, PipelineCategoryConfig } from '~/types/release-config-props';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
 import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '../release-config-constants';
-
-interface FixedPipelineCategoriesProps {
-  pipelines: Workflow[];
-  onChange: (pipelines: Workflow[]) => void;
-  availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
-  };
-  selectedPlatforms: Platform[]; // ✅ Workflows are platform-specific (ANDROID/IOS), not target-specific
-  tenantId: string;
-}
-
-interface PipelineCategory {
-  id: string;
-  platform: 'ANDROID' | 'IOS';
-  environment: 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT';
-  label: string;
-  description: string;
-  required: boolean;
-}
+import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import {
+  PROVIDER_LABELS,
+  STATUS_LABELS,
+  BUTTON_LABELS,
+  SECTION_TITLES,
+  SECTION_DESCRIPTIONS,
+  ERROR_MESSAGES,
+  TARGET_PLATFORM_LABELS,
+  BADGE_COLORS,
+  ICON_SIZES,
+  FIELD_LABELS,
+} from '~/constants/release-config-ui';
 
 export function FixedPipelineCategories({
   pipelines,
@@ -39,7 +33,7 @@ export function FixedPipelineCategories({
   tenantId,
 }: FixedPipelineCategoriesProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<PipelineCategory | null>(null);
+  const [editingCategory, setEditingCategory] = useState<PipelineCategoryConfig | null>(null);
   const [editingPipeline, setEditingPipeline] = useState<Workflow | undefined>();
   
   // Workflows state
@@ -47,8 +41,8 @@ export function FixedPipelineCategories({
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
 
   // Determine which platforms are needed
-  const needsAndroid = selectedPlatforms.includes('ANDROID');
-  const needsIOS = selectedPlatforms.includes('IOS');
+  const needsAndroid = selectedPlatforms.includes(PLATFORMS.ANDROID);
+  const needsIOS = selectedPlatforms.includes(PLATFORMS.IOS);
   
   // Fetch workflows when component mounts
   useEffect(() => {
@@ -89,7 +83,7 @@ export function FixedPipelineCategories({
   ];
 
   // Find pipeline for a category
-  const getPipelineForCategory = (category: PipelineCategory): Workflow | undefined => {
+  const getPipelineForCategory = (category: PipelineCategoryConfig): Workflow | undefined => {
     return pipelines.find(
       p => p.platform === category.platform && p.environment === category.environment
     );
@@ -103,13 +97,13 @@ export function FixedPipelineCategories({
       .map(cat => cat.label);
   };
 
-  const handleAddPipeline = (category: PipelineCategory) => {
+  const handleAddPipeline = (category: PipelineCategoryConfig) => {
     setEditingCategory(category);
     setEditingPipeline(undefined);
     setEditModalOpened(true);
   };
 
-  const handleEditPipeline = (category: PipelineCategory, pipeline: Workflow) => {
+  const handleEditPipeline = (category: PipelineCategoryConfig, pipeline: Workflow) => {
     setEditingCategory(category);
     setEditingPipeline(pipeline);
     setEditModalOpened(true);
@@ -132,15 +126,29 @@ export function FixedPipelineCategories({
     setEditingPipeline(undefined);
   };
 
+  // Get provider display name
+  const getProviderLabel = (provider: string): string => {
+    switch (provider) {
+      case BUILD_PROVIDERS.JENKINS:
+        return PROVIDER_LABELS.JENKINS;
+      case BUILD_PROVIDERS.GITHUB_ACTIONS:
+        return PROVIDER_LABELS.GITHUB_ACTIONS;
+      case BUILD_PROVIDERS.MANUAL_UPLOAD:
+        return PROVIDER_LABELS.MANUAL_UPLOAD;
+      default:
+        return provider;
+    }
+  };
+
   const missingRequired = getMissingRequired();
 
   if (selectedPlatforms.length === 0) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <Group gap="sm">
-          <IconAlertCircle size={20} className="text-yellow-600" />
+          <IconAlertCircle size={ICON_SIZES.MEDIUM} className="text-yellow-600" />
           <Text size="sm" c="orange" className="font-medium">
-            Please select platforms first (previous step) to configure CI/CD workflows.
+            {ERROR_MESSAGES.PLATFORM_NOT_SELECTED}
           </Text>
         </Group>
       </div>
@@ -155,18 +163,18 @@ export function FixedPipelineCategories({
       {/* Header with validation status */}
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          CI/CD Workflows
+          {SECTION_TITLES.CI_CD_WORKFLOWS}
         </Text>
         <Text size="sm" c="dimmed" className="mb-3">
-          Configure automated CI/CD workflows for your selected platforms
+          {SECTION_DESCRIPTIONS.CI_CD_WORKFLOWS}
         </Text>
         
         <Group gap="sm" className="mb-4">
-          <Badge color={needsAndroid ? 'blue' : 'gray'} variant="light">
-            {needsAndroid ? '✓ Play Store' : 'Play Store'}: {androidCategories.length} pipelines
+          <Badge color={needsAndroid ? BADGE_COLORS.INFO : BADGE_COLORS.NEUTRAL} variant="light">
+            {needsAndroid ? `✓ ${TARGET_PLATFORM_LABELS.PLAY_STORE}` : TARGET_PLATFORM_LABELS.PLAY_STORE}: {androidCategories.length} pipelines
           </Badge>
-          <Badge color={needsIOS ? 'blue' : 'gray'} variant="light">
-            {needsIOS ? '✓ App Store' : 'App Store'}: {iosCategories.length} pipelines
+          <Badge color={needsIOS ? BADGE_COLORS.INFO : BADGE_COLORS.NEUTRAL} variant="light">
+            {needsIOS ? `✓ ${TARGET_PLATFORM_LABELS.APP_STORE}` : TARGET_PLATFORM_LABELS.APP_STORE}: {iosCategories.length} pipelines
           </Badge>
         </Group>
 
@@ -176,7 +184,7 @@ export function FixedPipelineCategories({
               <IconAlertCircle size={18} className="text-red-600" />
               <div>
                 <Text size="sm" fw={600} c="red">
-                  Required pipelines missing:
+                  {ERROR_MESSAGES.REQUIRED_PIPELINES_MISSING}
                 </Text>
                 <Text size="sm" c="red">
                   {missingRequired.join(', ')}
@@ -209,14 +217,14 @@ export function FixedPipelineCategories({
                       {category.label}
                     </Text>
                     {category.required && (
-                      <Badge color="red" size="sm" variant="light">
-                        Required
+                      <Badge color={BADGE_COLORS.ERROR} size="sm" variant="light">
+                        {STATUS_LABELS.REQUIRED}
                       </Badge>
                     )}
                     {isConfigured && (
-                      <Badge color="green" size="sm" variant="light">
+                      <Badge color={BADGE_COLORS.SUCCESS} size="sm" variant="light">
                         <IconCheck size={12} className="mr-1" />
-                        Configured
+                        {STATUS_LABELS.CONFIGURED}
                       </Badge>
                     )}
                   </Group>
@@ -229,26 +237,24 @@ export function FixedPipelineCategories({
                     <div className="bg-gray-50 rounded p-3">
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <Text size="xs" c="dimmed">Name</Text>
+                          <Text size="xs" c="dimmed">{FIELD_LABELS.NAME}</Text>
                           <Text size="sm" fw={500}>{pipeline.name}</Text>
                         </div>
                         <div>
-                          <Text size="xs" c="dimmed">Provider</Text>
+                          <Text size="xs" c="dimmed">{FIELD_LABELS.PROVIDER}</Text>
                           <Text size="sm" fw={500}>
-                            {pipeline.provider === 'JENKINS' ? 'Jenkins' : 
-                             pipeline.provider === 'GITHUB_ACTIONS' ? 'GitHub Actions' : 
-                             'Manual Upload'}
+                            {getProviderLabel(pipeline.provider)}
                           </Text>
                         </div>
                         <div>
-                          <Text size="xs" c="dimmed">Status</Text>
-                          <Badge color={pipeline.enabled ? 'green' : 'gray'} size="sm">
-                            {pipeline.enabled ? 'Enabled' : 'Disabled'}
+                          <Text size="xs" c="dimmed">{FIELD_LABELS.STATUS}</Text>
+                          <Badge color={pipeline.enabled ? BADGE_COLORS.SUCCESS : BADGE_COLORS.NEUTRAL} size="sm">
+                            {pipeline.enabled ? STATUS_LABELS.ENABLED : STATUS_LABELS.DISABLED}
                           </Badge>
                         </div>
-                        {pipeline.provider === 'JENKINS' && (
+                        {pipeline.provider === BUILD_PROVIDERS.JENKINS && (
                           <div>
-                            <Text size="xs" c="dimmed">Integration</Text>
+                            <Text size="xs" c="dimmed">{FIELD_LABELS.INTEGRATION}</Text>
                             <Text size="sm" fw={500}>
                               {availableIntegrations.jenkins.find(
                                 j => j.id === (pipeline.providerConfig as any).integrationId
@@ -267,20 +273,20 @@ export function FixedPipelineCategories({
                       <Button
                         size="sm"
                         variant="light"
-                        leftSection={<IconPencil size={16} />}
+                        leftSection={<IconPencil size={ICON_SIZES.SMALL} />}
                         onClick={() => handleEditPipeline(category, pipeline)}
                       >
-                        Edit
+                        {BUTTON_LABELS.EDIT}
                       </Button>
                       {!category.required && (
                         <Button
                           size="sm"
                           variant="light"
                           color="red"
-                          leftSection={<IconTrash size={16} />}
+                          leftSection={<IconTrash size={ICON_SIZES.SMALL} />}
                           onClick={() => handleDeletePipeline(pipeline)}
                         >
-                          Remove
+                          {BUTTON_LABELS.REMOVE}
                         </Button>
                       )}
                     </Group>
@@ -288,11 +294,11 @@ export function FixedPipelineCategories({
                     <Button
                       size="sm"
                       variant="filled"
-                      leftSection={<IconPlus size={16} />}
+                      leftSection={<IconPlus size={ICON_SIZES.SMALL} />}
                       onClick={() => handleAddPipeline(category)}
                       className={category.required ? 'bg-blue-600 hover:bg-blue-700' : ''}
                     >
-                      Add Pipeline
+                      {BUTTON_LABELS.ADD_PIPELINE}
                     </Button>
                   )}
                 </div>
@@ -323,4 +329,3 @@ export function FixedPipelineCategories({
     </div>
   );
 }
-

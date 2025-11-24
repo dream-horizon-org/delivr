@@ -5,13 +5,16 @@
 
 import { Stack, Text, Card, Radio, Group, Alert } from '@mantine/core';
 import { IconUpload, IconRocket, IconInfoCircle } from '@tabler/icons-react';
-import type { BuildUploadStep } from '~/types/release-config';
-
-interface BuildUploadSelectorProps {
-  selectedMode: BuildUploadStep;
-  onChange: (mode: BuildUploadStep) => void;
-  hasIntegrations: boolean; // Whether CI/CD integrations are available
-}
+import type { BuildUploadSelectorProps } from '~/types/release-config-props';
+import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
+import {
+  BUILD_UPLOAD_LABELS,
+  BUILD_UPLOAD_DESCRIPTIONS,
+  SECTION_TITLES,
+  INFO_MESSAGES,
+  PROVIDER_LABELS,
+  ICON_SIZES,
+} from '~/constants/release-config-ui';
 
 export function BuildUploadSelector({
   selectedMode,
@@ -23,7 +26,7 @@ export function BuildUploadSelector({
       {/* Header */}
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Build Upload Method
+          {SECTION_TITLES.BUILD_UPLOAD_METHOD}
         </Text>
         <Text size="sm" c="dimmed">
           Choose how builds reach the release dashboard
@@ -33,7 +36,7 @@ export function BuildUploadSelector({
       {/* Radio Button Selector */}
       <Radio.Group
         value={selectedMode}
-        onChange={(value) => onChange(value as BuildUploadStep)}
+        onChange={(value) => onChange(value as typeof selectedMode)}
       >
         <Stack gap="md">
           {/* Manual Upload Option */}
@@ -43,23 +46,23 @@ export function BuildUploadSelector({
             radius="md"
             withBorder
             className={`cursor-pointer transition-all ${
-              selectedMode === 'MANUAL'
+              selectedMode === BUILD_UPLOAD_STEPS.MANUAL
                 ? 'border-blue-500 bg-blue-50'
                 : 'hover:border-gray-300'
             }`}
-            onClick={() => onChange('MANUAL')}
+            onClick={() => onChange(BUILD_UPLOAD_STEPS.MANUAL)}
           >
             <Group gap="md" align="flex-start">
-              <Radio value="MANUAL" size="md" className="mt-1" />
+              <Radio value={BUILD_UPLOAD_STEPS.MANUAL} size="md" className="mt-1" />
               <div className="flex-1">
                 <Group gap="sm" className="mb-2">
-                  <IconUpload size={24} className="text-blue-600" />
+                  <IconUpload size={ICON_SIZES.LARGE} className="text-blue-600" />
                   <Text fw={600} size="md">
-                    Manual Upload
+                    {BUILD_UPLOAD_LABELS.MANUAL}
                   </Text>
                 </Group>
                 <Text size="sm" c="dimmed">
-                  Upload builds manually through the release dashboard. Build anywhere, upload when ready.
+                  {BUILD_UPLOAD_DESCRIPTIONS.MANUAL}
                 </Text>
               </div>
             </Group>
@@ -74,19 +77,19 @@ export function BuildUploadSelector({
             className={`cursor-pointer transition-all ${
               !hasIntegrations
                 ? 'opacity-50 cursor-not-allowed'
-                : selectedMode === 'CI_CD'
+                : selectedMode === BUILD_UPLOAD_STEPS.CI_CD
                 ? 'border-grape-500 bg-grape-50'
                 : 'hover:border-gray-300'
             }`}
-            onClick={() => hasIntegrations && onChange('CI_CD')}
+            onClick={() => hasIntegrations && onChange(BUILD_UPLOAD_STEPS.CI_CD)}
           >
             <Group gap="md" align="flex-start">
-              <Radio value="CI_CD" size="md" disabled={!hasIntegrations} className="mt-1" />
+              <Radio value={BUILD_UPLOAD_STEPS.CI_CD} size="md" disabled={!hasIntegrations} className="mt-1" />
               <div className="flex-1">
                 <Group gap="sm" className="mb-2">
-                  <IconRocket size={24} className={hasIntegrations ? 'text-grape-600' : 'text-gray-400'} />
+                  <IconRocket size={ICON_SIZES.LARGE} className={hasIntegrations ? 'text-grape-600' : 'text-gray-400'} />
                   <Text fw={600} size="md">
-                    CI/CD Workflows
+                    {BUILD_UPLOAD_LABELS.CI_CD}
                   </Text>
                   {!hasIntegrations && (
                     <Text size="xs" c="dimmed" className="italic">
@@ -95,7 +98,7 @@ export function BuildUploadSelector({
                   )}
                 </Group>
                 <Text size="sm" c="dimmed">
-                  Automated builds from Jenkins or GitHub Actions. Trigger builds directly from the dashboard.
+                  {BUILD_UPLOAD_DESCRIPTIONS.CI_CD}
                 </Text>
               </div>
             </Group>
@@ -112,11 +115,11 @@ export function BuildUploadSelector({
           title="CI/CD Providers Required"
         >
           <Text size="sm" className="mb-2">
-            To use <strong>CI/CD Workflows</strong>, you need to connect at least one provider:
+            To use <strong>{BUILD_UPLOAD_LABELS.CI_CD}</strong>, you need to connect at least one provider:
           </Text>
           <ul className="list-disc list-inside text-sm mb-2">
-            <li>Jenkins</li>
-            <li>GitHub Actions</li>
+            <li>{PROVIDER_LABELS.JENKINS}</li>
+            <li>{PROVIDER_LABELS.GITHUB_ACTIONS}</li>
           </ul>
           <Text size="sm" fw={500}>
             📍 Go to <strong>Settings → Integrations</strong> to connect a CI/CD provider.
@@ -125,7 +128,7 @@ export function BuildUploadSelector({
       )}
 
       {/* Next Step Info */}
-      {selectedMode === 'CI_CD' && (
+      {selectedMode === BUILD_UPLOAD_STEPS.CI_CD && (
         <Alert
           icon={<IconInfoCircle size={18} />}
           color="grape"
@@ -139,4 +142,3 @@ export function BuildUploadSelector({
     </Stack>
   );
 }
-
