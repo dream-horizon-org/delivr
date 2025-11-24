@@ -6,8 +6,9 @@ import React, { useState } from 'react';
 import { WizardStep, FormField } from '../components';
 import { useCICDPipelines } from '../hooks';
 import type { CICDPipeline } from '../types';
+import { BUILD_PROVIDERS, PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 
-interface CICDSetupStepProps {
+export interface CICDSetupStepProps {
   initialPipelines?: CICDPipeline[];
   githubRepo?: { owner: string; repoName: string };
   onPipelinesChange: (pipelines: CICDPipeline[]) => void;
@@ -21,9 +22,9 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPipeline, setNewPipeline] = useState<Partial<CICDPipeline>>({
-    type: 'GITHUB_ACTIONS',
-    platform: 'IOS',
-    environment: 'PRODUCTION',
+    type: BUILD_PROVIDERS.GITHUB_ACTIONS as any,
+    platform: PLATFORMS.IOS as any,
+    environment: BUILD_ENVIRONMENTS.PRODUCTION as any,
   });
   
   const handleAddPipeline = async () => {
@@ -36,9 +37,9 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
     if (success) {
       setShowAddForm(false);
       setNewPipeline({
-        type: 'GITHUB_ACTIONS',
-        platform: 'IOS',
-        environment: 'PRODUCTION',
+        type: BUILD_PROVIDERS.GITHUB_ACTIONS as any,
+        platform: PLATFORMS.IOS as any,
+        environment: BUILD_ENVIRONMENTS.PRODUCTION as any,
       });
     }
   };
@@ -62,9 +63,9 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
                     <div className="flex items-center space-x-2">
                       <h4 className="text-sm font-medium text-gray-900">{pipeline.name}</h4>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        pipeline.type === 'GITHUB_ACTIONS' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'
+                        pipeline.type === (BUILD_PROVIDERS.GITHUB_ACTIONS as any) ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'
                       }`}>
-                        {pipeline.type === 'GITHUB_ACTIONS' ? 'GitHub Actions' : 'Jenkins'}
+                        {pipeline.type === (BUILD_PROVIDERS.GITHUB_ACTIONS as any) ? 'GitHub Actions' : 'Jenkins'}
                       </span>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                         {pipeline.platform}
@@ -74,10 +75,10 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
                       </span>
                     </div>
                     
-                    {pipeline.type === 'GITHUB_ACTIONS' && (
+                    {pipeline.type === (BUILD_PROVIDERS.GITHUB_ACTIONS as any) && (
                       <p className="mt-1 text-xs text-gray-500">Workflow: {pipeline.workflowPath}</p>
                     )}
-                    {pipeline.type === 'JENKINS' && (
+                    {pipeline.type === (BUILD_PROVIDERS.JENKINS as any) && (
                       <p className="mt-1 text-xs text-gray-500">Job: {pipeline.jenkinsJob}</p>
                     )}
                   </div>
@@ -132,9 +133,9 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setNewPipeline({ ...newPipeline, type: 'GITHUB_ACTIONS' })}
+                    onClick={() => setNewPipeline({ ...newPipeline, type: BUILD_PROVIDERS.GITHUB_ACTIONS as any })}
                     className={`p-4 border-2 rounded-lg text-left transition-all ${
-                      newPipeline.type === 'GITHUB_ACTIONS'
+                      newPipeline.type === (BUILD_PROVIDERS.GITHUB_ACTIONS as any)
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
@@ -145,9 +146,9 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
                   
                   <button
                     type="button"
-                    onClick={() => setNewPipeline({ ...newPipeline, type: 'JENKINS' })}
+                    onClick={() => setNewPipeline({ ...newPipeline, type: BUILD_PROVIDERS.JENKINS as any })}
                     className={`p-4 border-2 rounded-lg text-left transition-all ${
-                      newPipeline.type === 'JENKINS'
+                      newPipeline.type === (BUILD_PROVIDERS.JENKINS as any)
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
@@ -164,11 +165,11 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
                   <label className="block text-sm font-medium text-gray-700 mb-1">Platform *</label>
                   <select
                     value={newPipeline.platform}
-                    onChange={(e) => setNewPipeline({ ...newPipeline, platform: e.target.value as 'IOS' | 'ANDROID' })}
+                    onChange={(e) => setNewPipeline({ ...newPipeline, platform: e.target.value as any })}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                   >
-                    <option value="IOS">iOS</option>
-                    <option value="ANDROID">Android</option>
+                    <option value={PLATFORMS.IOS}>iOS</option>
+                    <option value={PLATFORMS.ANDROID}>Android</option>
                   </select>
                 </div>
                 
@@ -188,7 +189,7 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
               </div>
               
               {/* GitHub Actions specific */}
-              {newPipeline.type === 'GITHUB_ACTIONS' && (
+              {newPipeline.type === (BUILD_PROVIDERS.GITHUB_ACTIONS as any) && (
                 <>
                   <FormField
                     label="Workflow Path"
@@ -212,7 +213,7 @@ export function CICDSetupStep({ initialPipelines, githubRepo, onPipelinesChange 
               )}
               
               {/* Jenkins specific */}
-              {newPipeline.type === 'JENKINS' && (
+              {newPipeline.type === (BUILD_PROVIDERS.JENKINS as any) && (
                 <>
                   <FormField
                     label="Jenkins URL"
