@@ -26,6 +26,7 @@ export type ReleaseConfiguration = {
   projectManagementConfigId: string | null;
   commsConfigId: string | null;
   scheduling: ReleaseScheduling;
+  hasManualBuildUpload: boolean;
   isActive: boolean;
   isDefault: boolean;
   createdByAccountId: string;
@@ -49,6 +50,7 @@ export type CreateReleaseConfigDto = {
   projectManagementConfigId?: string;
   commsConfigId?: string;
   scheduling?: ReleaseScheduling;
+  hasManualBuildUpload?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
   createdByAccountId: string;
@@ -69,6 +71,7 @@ export type UpdateReleaseConfigDto = {
   projectManagementConfigId?: string | null;
   commsConfigId?: string | null;
   scheduling?: ReleaseScheduling;
+  hasManualBuildUpload?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
 };
@@ -94,6 +97,7 @@ export type CreateReleaseConfigRequest = {
   
   scheduling?: ReleaseScheduling;            // Stored directly as JSON
   baseBranch?: string;         // Base branch for releases
+  hasManualBuildUpload?: boolean;  // Whether manual build upload is enabled
   status?: string;             // Not stored in release config
 };
 
