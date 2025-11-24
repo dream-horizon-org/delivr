@@ -7,14 +7,9 @@ import { useState } from 'react';
 import { TextInput, Select, Stack, Button, Text, Group, Alert, LoadingOverlay, Card, Badge } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import type { JenkinsConfig } from '~/types/release-config';
+import type { JenkinsConfigFormProps } from '~/types/release-config-props';
 import type { JobParameter } from '~/.server/services/ReleaseManagement/integrations';
-
-interface JenkinsConfigFormProps {
-  config: Partial<JenkinsConfig>;
-  onChange: (config: Partial<JenkinsConfig>) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
-  tenantId: string;
-}
+import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
 
 export function JenkinsConfigForm({
   config,

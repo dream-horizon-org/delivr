@@ -7,14 +7,9 @@ import { useState } from 'react';
 import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Badge, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import type { GitHubActionsConfig } from '~/types/release-config';
+import type { GitHubActionsConfigFormProps } from '~/types/release-config-props';
 import type { JobParameter } from '~/.server/services/ReleaseManagement/integrations';
-
-interface GitHubActionsConfigFormProps {
-  config: Partial<GitHubActionsConfig>;
-  onChange: (config: Partial<GitHubActionsConfig>) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
-  tenantId: string;
-}
+import { FIELD_LABELS, PLACEHOLDERS, BUTTON_LABELS } from '~/constants/release-config-ui';
 
 export function GitHubActionsConfigForm({
   config,
