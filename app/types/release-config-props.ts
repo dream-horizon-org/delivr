@@ -47,8 +47,17 @@ import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrat
 export interface ConfigurationWizardProps {
   tenantId: string;
   onSubmit: (config: ReleaseConfiguration) => Promise<void>;
-  existingConfig?: ReleaseConfiguration;
+  onCancel: () => void;
+  availableIntegrations: {
+    jenkins: Array<{ id: string; name: string }>;
+    github: Array<{ id: string; name: string }>;
+    slack: Array<{ id: string; name: string }>;
+    jira: Array<{ id: string; name: string }>;
+    checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
+  };
+  existingConfig?: ReleaseConfiguration | null;
   isEditMode?: boolean;
+  returnTo?: string | null;
 }
 
 export interface WizardNavigationProps {

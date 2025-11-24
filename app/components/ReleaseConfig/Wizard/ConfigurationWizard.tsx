@@ -30,23 +30,10 @@ import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
 import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
 import { derivePlatformsFromTargets } from '~/utils/platform-utils';
+import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import type { ConfigurationWizardProps } from '~/types/release-config-props';
 
-interface ConfigurationWizardProps {
-  tenantId: string;
-  onSubmit: (config: ReleaseConfiguration) => Promise<void>;
-  onCancel: () => void;
-  availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
-    slack: Array<{ id: string; name: string }>;
-    jira: Array<{ id: string; name: string }>;
-    checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
-  };
-  existingConfig?: ReleaseConfiguration | null;
-  isEditMode?: boolean;
-  returnTo?: string | null;
-}
-
+// Using ConfigurationWizardProps from centralized types
 export function ConfigurationWizard({
   tenantId,
   onSubmit,
@@ -159,10 +146,10 @@ export function ConfigurationWizard({
         
         if (needsIOS) {
           const hasIOSRegression = config.workflows.some(
-            p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
+            p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
           );
           const hasTestFlight = config.workflows.some(
-            p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
+            p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
           );
           if (!hasIOSRegression || !hasTestFlight) return false;
         }
