@@ -4,6 +4,7 @@
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
+import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 
 const CONFIG_STORAGE_KEY = 'delivr_release_config_draft';
 const CONFIG_LIST_KEY = 'delivr_release_configs';
@@ -298,7 +299,7 @@ export function validateBuildPipelines(
   // Android requirements: Regression is mandatory
   if (needsAndroid) {
     const hasAndroidRegression = workflows.some(
-      p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
+      p => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
     );
     
     if (!hasAndroidRegression) {
@@ -309,10 +310,10 @@ export function validateBuildPipelines(
   // iOS requirements: Regression + TestFlight are mandatory
   if (needsIOS) {
     const hasIOSRegression = workflows.some(
-      p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
+      p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
     );
     const hasTestFlight = workflows.some(
-      p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
+      p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
     );
     
     if (!hasIOSRegression) {

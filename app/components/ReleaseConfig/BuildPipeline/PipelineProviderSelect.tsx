@@ -6,8 +6,7 @@
 import { Select } from '@mantine/core';
 import type { BuildProvider } from '~/types/release-config';
 import type { PipelineProviderSelectProps } from '~/types/release-config-props';
-import { BUILD_PROVIDER_LABELS } from '../release-config-constants';
-import { FIELD_LABELS, PLACEHOLDERS } from '~/constants/release-config-ui';
+import { getBuildProviderLabel, FIELD_LABELS, PLACEHOLDERS } from '~/constants/release-config-ui';
 
 export function PipelineProviderSelect({
   value,
@@ -17,7 +16,7 @@ export function PipelineProviderSelect({
 }: PipelineProviderSelectProps) {
   const options = availableProviders.map(provider => ({
     value: provider,
-    label: BUILD_PROVIDER_LABELS[provider],
+    label: getBuildProviderLabel(provider),
   }));
   
   // Dynamic description based on available providers

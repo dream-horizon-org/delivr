@@ -5,18 +5,15 @@
 
 import { Select, Card, Text, Group } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
-import { TIMEZONES } from '../release-config-constants';
-
-interface TimezonePickerProps {
-  timezone: string;
-  onChange: (timezone: string) => void;
-}
+import type { TimezonePickerProps } from '~/types/release-config-props';
+import { TIMEZONES } from '~/constants/release-config';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function TimezonePicker({ timezone, onChange }: TimezonePickerProps) {
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
-        <IconClock size={20} className="text-blue-600" />
+        <IconClock size={ICON_SIZES.SMALL} className="text-blue-600" />
         <Text fw={600} size="sm">
           Timezone
         </Text>

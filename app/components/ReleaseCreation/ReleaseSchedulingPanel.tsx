@@ -30,7 +30,7 @@ import {
   DEFAULT_KICKOFF_OFFSET_DAYS,
   DEFAULT_REGRESSION_OFFSET_DAYS,
   DEFAULT_REGRESSION_SLOT_TIME,
-} from './release-creation-constants';
+} from '~/constants/release-creation';
 
 interface ReleaseSchedulingPanelProps {
   releaseDate: string;

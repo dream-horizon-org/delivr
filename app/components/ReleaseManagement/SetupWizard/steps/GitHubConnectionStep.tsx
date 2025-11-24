@@ -5,7 +5,7 @@
 import React from 'react';
 import { WizardStep, FormField } from '../components';
 import { useGitHubConnection } from '../hooks';
-import type { GitHubConnection } from '../types';
+import type { GitHubConnection } from '~/types/setup-wizard';
 
 interface GitHubConnectionStepProps {
   initialData?: GitHubConnection;

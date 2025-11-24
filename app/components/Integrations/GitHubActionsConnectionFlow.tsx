@@ -11,14 +11,17 @@ import { useState } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
-  Button,
-  Group,
-  Alert,
   PasswordInput,
   Stack,
-  Text
+  Text,
+  Alert
 } from '@mantine/core';
-import { IconCheck, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { GITHUB_ACTIONS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { ActionButtons } from './shared/ActionButtons';
+import { ConnectionAlert } from './shared/ConnectionAlert';
 
 interface GitHubActionsConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -44,7 +47,7 @@ export function GitHubActionsConnectionFlow({
 
   const [formData, setFormData] = useState({
     displayName: existingData?.displayName || '',
-    hostUrl: existingData?.hostUrl || 'https://api.github.com',
+    hostUrl: existingData?.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
     apiToken: '', // Never pre-populate token for security
   });
 
@@ -59,28 +62,22 @@ export function GitHubActionsConnectionFlow({
     setIsVerified(false);
 
     try {
-      const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions/verify`,
+      const result = await apiPost<{ verified: boolean }>(
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.GITHUB_ACTIONS.toLowerCase().replace('_', '-')}/verify`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            displayName: formData.displayName || undefined,
-            hostUrl: formData.hostUrl || 'https://api.github.com',
-            apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
-          })
+          displayName: formData.displayName || undefined,
+          hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
+          apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
         }
       );
 
-      const data = await response.json();
-
-      if (data.verified) {
+      if (result.data?.verified) {
         setIsVerified(true);
       } else {
-        setError(data.message || 'Failed to verify GitHub Actions connection');
+        setError(ALERT_MESSAGES.VERIFICATION_FAILED);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify GitHub Actions connection');
+    } catch (err) {
+      setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
     } finally {
       setIsVerifying(false);
     }
@@ -92,8 +89,8 @@ export function GitHubActionsConnectionFlow({
 
     try {
       const payload: any = {
-        displayName: formData.displayName || 'GitHub Actions',
-        hostUrl: formData.hostUrl || 'https://api.github.com',
+        displayName: formData.displayName || GITHUB_ACTIONS_LABELS.DISPLAY_NAME_PLACEHOLDER,
+        hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
       };
 
       // Only include apiToken if provided
@@ -106,24 +103,18 @@ export function GitHubActionsConnectionFlow({
         payload.integrationId = existingData.id;
       }
 
-      const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`,
-        {
-          method: isEditMode ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.GITHUB_ACTIONS.toLowerCase().replace('_', '-')}`;
+      const result = isEditMode
+        ? await apiPatch(endpoint, payload)
+        : await apiPost(endpoint, payload);
 
-      const data = await response.json();
-
-      if (data.success) {
-        onConnect(data);
+      if (result.success) {
+        onConnect(result);
       } else {
-        setError(data.error || `Failed to ${isEditMode ? 'update' : 'connect'} GitHub Actions integration`);
+        setError(ALERT_MESSAGES.CONNECTION_FAILED);
       }
-    } catch (err: any) {
-      setError(err.message || `Failed to ${isEditMode ? 'update' : 'connect'} GitHub Actions integration`);
+    } catch (err) {
+      setError(getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED));
     } finally {
       setIsConnecting(false);
     }
@@ -139,81 +130,86 @@ export function GitHubActionsConnectionFlow({
       {!isEditMode && (
         <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
           <Text size="sm">
-            <strong>Tip:</strong> If you have GitHub SCM integration connected, you can leave the token field empty and we'll use your existing GitHub token.
+            <strong>{GITHUB_ACTIONS_LABELS.TIP_TITLE}</strong> {GITHUB_ACTIONS_LABELS.TIP_MESSAGE}
           </Text>
         </Alert>
       )}
 
       <TextInput
-        label="Display Name (Optional)"
-        placeholder="GitHub Actions"
+        label={GITHUB_ACTIONS_LABELS.DISPLAY_NAME_LABEL}
+        placeholder={GITHUB_ACTIONS_LABELS.DISPLAY_NAME_PLACEHOLDER}
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-        description="A friendly name for this integration"
+        description={GITHUB_ACTIONS_LABELS.DISPLAY_NAME_DESCRIPTION}
       />
 
       <TextInput
-        label="GitHub API URL (Optional)"
-        placeholder="https://api.github.com"
+        label={GITHUB_ACTIONS_LABELS.API_URL_LABEL}
+        placeholder={GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER}
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
-        description="For GitHub Enterprise, use your custom API endpoint (e.g., https://github.company.com/api/v3)"
+        description={GITHUB_ACTIONS_LABELS.API_URL_DESCRIPTION}
       />
 
       <PasswordInput
-        label={isEditMode ? "Personal Access Token (leave blank to keep existing)" : "Personal Access Token (Optional)"}
-        placeholder={isEditMode ? "Leave blank to keep existing token" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
+        label={isEditMode ? GITHUB_ACTIONS_LABELS.PAT_LABEL_EDIT : GITHUB_ACTIONS_LABELS.PAT_LABEL}
+        placeholder={isEditMode ? GITHUB_ACTIONS_LABELS.PAT_PLACEHOLDER_EDIT : GITHUB_ACTIONS_LABELS.PAT_PLACEHOLDER}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-        description={isEditMode ? "Only provide if you want to update the token" : "Leave empty to use your connected GitHub SCM token"}
+        description={isEditMode ? GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION_EDIT : GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION}
       />
 
       {error && (
-        <Alert icon={<IconAlertCircle size={16} />} color="red">
+        <ConnectionAlert color="red" title="Error">
           {error}
-        </Alert>
+        </ConnectionAlert>
       )}
 
       {isVerified && (
-        <Alert icon={<IconCheck size={16} />} color="green">
-          Credentials verified successfully! Click "Connect" to save.
-        </Alert>
+        <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
+          {GITHUB_ACTIONS_LABELS.VERIFIED_MESSAGE}
+        </ConnectionAlert>
       )}
 
-      <Group justify="flex-end">
-        <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
-          Cancel
-        </Button>
-        {!isEditMode && !isVerified ? (
-          <Button
-            onClick={handleVerify}
-            loading={isVerifying}
-            disabled={!isFormValid()}
-          >
-            Verify Connection
-          </Button>
-        ) : (
-          <Button
-            onClick={handleConnect}
-            loading={isConnecting}
-            color={isEditMode ? 'blue' : 'green'}
-            disabled={!isEditMode && !isVerified}
-          >
-            {isEditMode ? 'Update' : 'Connect'}
-          </Button>
-        )}
-      </Group>
+      {!isEditMode && !isVerified ? (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleVerify}
+          primaryLabel={GITHUB_ACTIONS_LABELS.VERIFY_CONNECTION}
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isVerifying}
+          isPrimaryDisabled={!isFormValid()}
+          isCancelDisabled={isVerifying || isConnecting}
+          primaryClassName="bg-gray-600 hover:bg-gray-700"
+        />
+      ) : (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleConnect}
+          primaryLabel={isEditMode ? INTEGRATION_MODAL_LABELS.UPDATE : GITHUB_ACTIONS_LABELS.CONNECT_GITHUB_ACTIONS}
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isConnecting}
+          isPrimaryDisabled={!isEditMode && !isVerified}
+          isCancelDisabled={isVerifying || isConnecting}
+          primaryClassName={isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}
+        />
+      )}
 
       <Text size="xs" c="dimmed">
-        <strong>Required token scopes:</strong> <code>repo</code>, <code>workflow</code>, <code>read:org</code>
+        <strong>{GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES_TITLE}</strong>{' '}
+        {GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES.map((scope, idx) => (
+          <span key={scope}>
+            <code>{scope}</code>{idx < GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES.length - 1 ? ', ' : ''}
+          </span>
+        ))}
         <br />
         <a
-          href="https://github.com/settings/tokens/new"
+          href={GITHUB_ACTIONS_LABELS.GENERATE_TOKEN_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 hover:underline"
         >
-          Generate a new Personal Access Token
+          {GITHUB_ACTIONS_LABELS.GENERATE_TOKEN_LINK}
         </a>
       </Text>
     </Stack>

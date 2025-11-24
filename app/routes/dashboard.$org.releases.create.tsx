@@ -8,6 +8,9 @@ import { useLoaderData, useNavigate } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { Container, Paper, Button, Group } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight, IconRocket, IconSettings } from '@tabler/icons-react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showWarningToast } from '~/utils/toast';
+import { RELEASE_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { createRelease } from '~/.server/services/ReleaseManagement';
@@ -272,7 +275,7 @@ export default function CreateReleasePage() {
       // Show first error
       const firstError = Object.values(validation.errors)[0];
       if (firstError) {
-        alert(firstError);
+        showWarningToast(getErrorMessage(firstError, RELEASE_MESSAGES.VALIDATION_ERROR.title));
       }
     }
   };
@@ -288,7 +291,7 @@ export default function CreateReleasePage() {
     const validation = validateStep(currentStep);
     if (!validation.valid) {
       setErrors(validation.errors);
-      alert('Please fix validation errors before submitting');
+      showWarningToast(RELEASE_MESSAGES.VALIDATION_ERRORS);
       return;
     }
     
@@ -330,31 +333,23 @@ export default function CreateReleasePage() {
       console.log('[CreateRelease] Submitting release:', releaseData);
       
       // Submit to API
-      const response = await fetch(`/api/v1/tenants/${org}/releases`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(releaseData),
-      });
+      const result = await apiPost<{ releaseId?: string }>(
+        `/api/v1/tenants/${org}/releases`,
+        releaseData
+      );
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create release');
-      }
-      
-      const result = await response.json();
-      console.log('[CreateRelease] Release created:', result);
+      console.log('[CreateRelease] Release created:', result.data);
       
       // Navigate to the release detail page
-      if (result.releaseId) {
-        navigate(`/dashboard/${org}/releases/${result.releaseId}`);
+      if (result.data?.releaseId) {
+        navigate(`/dashboard/${org}/releases/${result.data.releaseId}`);
       } else {
         navigate(`/dashboard/${org}/releases`);
       }
     } catch (error) {
-      console.error('[CreateRelease] Failed to create release:', error);
-      alert(`Failed to create release: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = getApiErrorMessage(error, 'Failed to create release');
+      console.error('[CreateRelease] Failed to create release:', errorMessage);
+      showErrorToast(getErrorMessage(errorMessage, RELEASE_MESSAGES.CREATE_ERROR.title));
       setIsSubmitting(false);
     }
   };

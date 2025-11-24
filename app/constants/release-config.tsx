@@ -98,9 +98,8 @@ export const STEP_INDEX = {
 // JIRA / PROJECT MANAGEMENT
 // =============================================================================
 
-// Platform display configuration for JIRA
+// Platform display configuration for JIRA (uses global system platforms)
 export const JIRA_PLATFORM_CONFIG = {
-  WEB: { label: 'Web', color: 'blue', icon: '🌐' },
   IOS: { label: 'iOS', color: 'grape', icon: '📱' },
   ANDROID: { label: 'Android', color: 'green', icon: '🤖' },
 } as const;
@@ -147,13 +146,6 @@ export const PLATFORM_METADATA: Record<Platform, { label: string; color: string 
 
 // Platform card configuration for target platform selection
 export const PLATFORM_CARD_CONFIG = {
-  WEB: {
-    label: 'Web (Android)',
-    description: 'CodePush updates for web platform',
-    icon: IconWorld,
-    color: '#FF6B6B',
-    badge: 'Android',
-  },
   PLAY_STORE: {
     label: 'Play Store',
     description: 'Google Play Store distribution',
@@ -167,6 +159,13 @@ export const PLATFORM_CARD_CONFIG = {
     icon: IconBrandApple,
     color: '#4DABF7',
     badge: 'iOS',
+  },
+  WEB: {
+    label: 'Web',
+    description: 'Web application distribution',
+    icon: IconWorld,
+    color: '#339AF0',
+    badge: 'Web',
   },
 } as const;
 

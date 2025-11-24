@@ -3,8 +3,12 @@ import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
 import type { IntegrationDetails } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from './IntegrationIcon';
-import { DISCONNECT_CONFIG } from './integrations-constants';
+import { DISCONNECT_CONFIG, INTEGRATION_STATUS_VALUES } from '~/constants/integrations';
 import { ConfirmationModal } from '../Common/ConfirmationModal';
+import { apiDelete, getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast, showWarningToast } from '~/utils/toast';
+import { INTEGRATION_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
+import { DEBUG_LABELS, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 
 interface IntegrationDetailModalProps {
   integration: IntegrationDetails | null;
@@ -35,15 +39,15 @@ export function IntegrationDetailModal({
     // Normalize integration ID to lowercase for matching with DISCONNECT_CONFIG
     const normalizedId = integrationId.toLowerCase();
     
-    console.log('[Disconnect] Integration ID:', integrationId);
-    console.log('[Disconnect] Normalized ID:', normalizedId);
-    console.log('[Disconnect] Available configs:', Object.keys(DISCONNECT_CONFIG));
+    console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration ID:`, integrationId);
+    console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Normalized ID:`, normalizedId);
+    console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Available configs:`, Object.keys(DISCONNECT_CONFIG));
 
     // Check if integration has disconnect config
     const config = DISCONNECT_CONFIG[normalizedId];
     if (!config) {
-      console.error('[Disconnect] No config found for integration ID:', normalizedId);
-      alert(`Disconnect not implemented for ${integration.name}`);
+      console.error(`${DEBUG_LABELS.CONNECTION_PREFIX} No config found for integration ID:`, normalizedId);
+      showWarningToast(INTEGRATION_MESSAGES.DISCONNECT_NOT_IMPLEMENTED(integration.name));
       return;
     }
 
@@ -68,23 +72,16 @@ export function IntegrationDetailModal({
       // Get the endpoint URL
       const endpoint = config.endpoint(tenantId, integration.config);
       
-      console.log(`[Disconnect] Calling endpoint:`, endpoint);
-      
-      // Make DELETE request
-      const response = await fetch(endpoint, { method: 'DELETE' });
+      // Make DELETE request using API client
+      await apiDelete(endpoint);
 
-      if (response.ok) {
-        alert(`${integrationName} disconnected successfully!`);
-        setShowConfirmDisconnect(false);
-        onClose();
-        onDisconnectComplete(); // Notify parent that disconnect is complete
-      } else {
-        const error = await response.json();
-        alert(`Failed to disconnect: ${error.error || 'Unknown error'}`);
-      }
-    } catch (error: any) {
-      console.error(`Failed to disconnect ${integration.name}:`, error);
-      alert(error.message || `Failed to disconnect ${integration.name}. Please try again.`);
+      showSuccessToast(INTEGRATION_MESSAGES.DISCONNECT_SUCCESS(integrationName));
+      setShowConfirmDisconnect(false);
+      onClose();
+      onDisconnectComplete(); // Notify parent that disconnect is complete
+    } catch (error) {
+      const message = getApiErrorMessage(error, `Failed to disconnect ${integrationName}`);
+      showErrorToast(getErrorMessage(message, INTEGRATION_MESSAGES.DISCONNECT_ERROR(integrationName).title));
     } finally {
       setIsDisconnecting(false);
     }
@@ -107,9 +104,9 @@ export function IntegrationDetailModal({
             <h2 className="text-xl font-semibold">{integration.name}</h2>
             <Badge
               size="sm"
-              color={integration.status === IntegrationStatus.CONNECTED ? 'green' : 'red'}
+              color={integration.status === INTEGRATION_STATUS_VALUES.CONNECTED ? 'green' : 'red'}
             >
-              {integration.status === IntegrationStatus.CONNECTED ? 'Connected' : 'Error'}
+              {integration.status === INTEGRATION_STATUS_VALUES.CONNECTED ? 'Connected' : 'Error'}
             </Badge>
           </div>
         </div>
@@ -425,7 +422,7 @@ export function IntegrationDetailModal({
             disabled={isDisconnecting}
             leftSection={isDisconnecting ? <Loader size="xs" /> : null}
           >
-            {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+            {isDisconnecting ? 'Disconnecting...' : INTEGRATION_MODAL_LABELS.DISCONNECT}
           </Button>
           
           <Group>

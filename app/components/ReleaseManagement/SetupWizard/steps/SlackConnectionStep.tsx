@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { TextInput, MultiSelect, Alert, Loader } from '@mantine/core';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import { WizardStep } from '~/components/ReleaseManagement/SetupWizard/components';
 
 interface SlackConnectionData {
@@ -59,34 +60,34 @@ export function SlackConnectionStep({ tenantId, initialData, onComplete, hasSlac
     setVerificationError('');
 
     try {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken }),
-      });
+      const result = await apiPost<{
+        success: boolean;
+        verified?: boolean;
+        workspaceId?: string;
+        workspaceName?: string;
+        botUserId?: string;
+        message?: string;
+        error?: string;
+      }>(`/api/v1/tenants/${tenantId}/integrations/slack/verify`, { botToken });
 
-
-      const result = await response.json();
-      console.log('result in handleVerify', result);
-
-      if (result.success && result.verified) {
+      if (result.data?.success && result.data?.verified) {
         setIsVerified(true);
         setVerificationStatus('success');
-        setWorkspaceId(result.workspaceId || '');
-        setWorkspaceName(result.workspaceName || '');
-        setBotUserId(result.botUserId || '');
+        setWorkspaceId(result.data.workspaceId || '');
+        setWorkspaceName(result.data.workspaceName || '');
+        setBotUserId(result.data.botUserId || '');
         
         // Auto-fetch channels after successful verification
         await handleFetchChannels();
       } else {
         setVerificationStatus('error');
-        setVerificationError(result.message || result.error || 'Failed to verify token');
+        setVerificationError(result.data?.message || result.data?.error || 'Failed to verify token');
         setIsVerified(false);
       }
     } catch (error) {
-      console.error('[Slack-Verify] Error:', error);
+      const errorMessage = getApiErrorMessage(error, 'Failed to verify token');
       setVerificationStatus('error');
-      setVerificationError('Network error. Please try again.');
+      setVerificationError(errorMessage);
       setIsVerified(false);
     }
   };
@@ -101,16 +102,15 @@ export function SlackConnectionStep({ tenantId, initialData, onComplete, hasSlac
     setChannelsError('');
 
     try {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack/channels`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken }),
-      });
+      const result = await apiPost<{
+        success: boolean;
+        channels?: Array<{ id: string; name: string }>;
+        message?: string;
+        error?: string;
+      }>(`/api/v1/tenants/${tenantId}/integrations/slack/channels`, { botToken });
 
-      const result = await response.json();
-
-      if (result.success && result.channels) {
-        const channelOptions = result.channels.map((channel: any) => ({
+      if (result.data?.success && result.data?.channels) {
+        const channelOptions = result.data.channels.map((channel: { id: string; name: string }) => ({
           value: channel.id,
           label: channel.name,
         }));
@@ -118,12 +118,12 @@ export function SlackConnectionStep({ tenantId, initialData, onComplete, hasSlac
         setChannelsStatus('success');
       } else {
         setChannelsStatus('error');
-        setChannelsError(result.message || result.error || 'Failed to fetch channels');
+        setChannelsError(result.data?.message || result.data?.error || 'Failed to fetch channels');
       }
     } catch (error) {
-      console.error('[Slack-Channels] Error:', error);
+      const errorMessage = getApiErrorMessage(error, 'Failed to fetch channels');
       setChannelsStatus('error');
-      setChannelsError('Network error. Please try again.');
+      setChannelsError(errorMessage);
     }
   };
 
@@ -141,41 +141,38 @@ export function SlackConnectionStep({ tenantId, initialData, onComplete, hasSlac
     setIsSaving(true);
 
     try {
-      const channels = selectedChannels.map(channelId => {
-        const channel = availableChannels.find(c => c.value === channelId);
+      const channels = selectedChannels.map((channelId: string) => {
+        const channel = availableChannels.find((c: { value: string; label: string }) => c.value === channelId);
         return {
           id: channelId,
           name: channel?.label || channelId,
         };
       });
 
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${tenantId}/integrations/slack`,
+        {
           botToken,
           workspaceId,
           workspaceName,
           botUserId,
           channels,
-        }),
-      });
+        }
+      );
 
-      const result = await response.json();
-
-      if (result.success) {
+      if (result.data?.success) {
         setIsSaved(true);
         setIsSaving(false);
         
         // Integration saved successfully! User can now click "Next" to proceed
         // or use "Skip" button to move on without configuring Slack
       } else {
-        setChannelsError(result.error || 'Failed to save Slack integration');
+        setChannelsError(result.data?.error || 'Failed to save Slack integration');
         setIsSaving(false);
       }
     } catch (error) {
-      console.error('[Slack-Save] Error:', error);
-      setChannelsError('Network error. Please try again.');
+      const errorMessage = getApiErrorMessage(error, 'Failed to save Slack integration');
+      setChannelsError(errorMessage);
       setIsSaving(false);
     }
   };

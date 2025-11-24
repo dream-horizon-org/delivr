@@ -11,6 +11,7 @@ import { IntegrationIcon } from '~/components/Integrations/IntegrationIcon';
 import { useParams } from '@remix-run/react';
 import { useSystemMetadata } from '~/hooks/useSystemMetadata';
 import { PLATFORMS, TARGET_PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { INTEGRATION_IDS, INTEGRATION_MODAL_LABELS, DEBUG_LABELS } from '~/constants/integration-ui';
 
 export interface IntegrationConnectModalProps {
   integration: Integration | null;
@@ -31,12 +32,12 @@ export function IntegrationConnectModal({
 }: IntegrationConnectModalProps) {
   const params = useParams();
   const tenantId = params.org!;
-  const { data: systemMetadata } = useSystemMetadata();
-  
+  // const { data: systemMetadata } = useSystemMetadata();
+  const data = null; 
   if (!integration) return null;
 
   // Debug: Log integration details
-  console.log('[IntegrationConnectModal] Integration:', {
+  console.log(`${DEBUG_LABELS.MODAL_PREFIX} ${DEBUG_LABELS.MODAL_INTEGRATION_DETAILS}`, {
     id: integration.id,
     name: integration.name,
     category: integration.category,
@@ -45,13 +46,13 @@ export function IntegrationConnectModal({
 
   // Determine which connection flow to render
   const renderConnectionFlow = () => {
-    console.log('[IntegrationConnectModal] Matching against integration.id:', integration.id);
+    console.log(`${DEBUG_LABELS.MODAL_PREFIX} ${DEBUG_LABELS.MODAL_MATCHING_ID}`, integration.id);
     
     // Normalize integration ID to lowercase for consistent matching
     const integrationId = integration.id.toLowerCase();
     
     switch (integrationId) {
-      case 'slack':
+      case INTEGRATION_IDS.SLACK:
         return (
           <SlackConnectionFlow
             onConnect={(data) => {
@@ -62,7 +63,7 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'jenkins':
+      case INTEGRATION_IDS.JENKINS:
         return (
           <JenkinsConnectionFlow
             onConnect={(data) => {
@@ -75,7 +76,7 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'github_actions':
+      case INTEGRATION_IDS.GITHUB_ACTIONS:
         return (
           <GitHubActionsConnectionFlow
             onConnect={(data) => {
@@ -88,8 +89,8 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'checkmate':
-        console.log('[IntegrationConnectModal] Rendering CheckmateConnectionFlow');
+      case INTEGRATION_IDS.CHECKMATE:
+        console.log(`${DEBUG_LABELS.MODAL_PREFIX} Rendering CheckmateConnectionFlow`);
         return (
           <CheckmateConnectionFlow
             onConnect={(data) => {
@@ -102,7 +103,7 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'jira':
+      case INTEGRATION_IDS.JIRA:
         return (
           <JiraConnectionFlow
             onConnect={(data) => {
@@ -113,7 +114,7 @@ export function IntegrationConnectModal({
           />
         );
       
-      case 'github':
+      case INTEGRATION_IDS.GITHUB:
         return (
           <GitHubConnectionFlow
             onConnect={(data) => {
@@ -175,24 +176,23 @@ export function IntegrationConnectModal({
       
       default:
         // Coming soon / demo mode
-        console.log('[IntegrationConnectModal] FALLBACK: Rendering demo mode for:', integration.id, '(normalized:', integrationId, ')');
+        console.log(`${DEBUG_LABELS.MODAL_PREFIX} ${DEBUG_LABELS.MODAL_FALLBACK}`, integration.id, `${DEBUG_LABELS.MODAL_NORMALIZED}`, integrationId, ')');
         return (
           <div className="space-y-4">
-            <Alert color="yellow" title="Demo Mode" icon={<span>🔨</span>}>
-              This is a placeholder for the {integration.name} connection flow. The actual implementation will be added soon.
+            <Alert color="yellow" title={INTEGRATION_MODAL_LABELS.DEMO_MODE_TITLE} icon={<span>🔨</span>}>
+              {INTEGRATION_MODAL_LABELS.DEMO_MODE_MESSAGE(integration.name)}
             </Alert>
             <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Planned Features:</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">{INTEGRATION_MODAL_LABELS.PLANNED_FEATURES_TITLE}</h3>
               <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                <li>Secure OAuth authentication</li>
-                <li>Easy configuration setup</li>
-                <li>Real-time synchronization</li>
-                <li>Comprehensive integration options</li>
+                {INTEGRATION_MODAL_LABELS.PLANNED_FEATURES.map((feature, idx) => (
+                  <li key={idx}>{feature}</li>
+                ))}
               </ul>
             </div>
             <Group justify="flex-end" className="mt-6">
               <Button variant="subtle" onClick={onClose}>
-                Cancel
+                {INTEGRATION_MODAL_LABELS.CANCEL}
               </Button>
               <Button
                 onClick={() => {
@@ -202,7 +202,7 @@ export function IntegrationConnectModal({
                 disabled={!integration.isAvailable}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                Connect (Demo)
+                {INTEGRATION_MODAL_LABELS.CONNECT_DEMO}
               </Button>
             </Group>
           </div>
@@ -219,11 +219,11 @@ export function IntegrationConnectModal({
         <div className="flex items-center gap-3">
           <IntegrationIcon name={integration.icon} size={32} className="text-blue-600 dark:text-blue-400" />
           <h2 className="text-xl font-semibold">
-            {isEditMode ? `Edit ${integration.name}` : `Connect ${integration.name}`}
+            {isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${integration.name}` : `${INTEGRATION_MODAL_LABELS.CONNECT} ${integration.name}`}
           </h2>
         </div>
       }
-      size={['slack', 'github'].includes(integration.id) ? 'lg' : 'md'}
+      size={[INTEGRATION_IDS.SLACK.toLowerCase(), INTEGRATION_IDS.GITHUB.toLowerCase()].includes(integration.id.toLowerCase()) ? 'lg' : 'md'}
     >
       {renderConnectionFlow()}
     </Modal>

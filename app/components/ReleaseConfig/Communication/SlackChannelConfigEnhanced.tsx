@@ -16,18 +16,14 @@ import {
   Alert
 } from '@mantine/core';
 import { IconBrandSlack, IconAlertCircle } from '@tabler/icons-react';
+import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import type { 
   CommunicationConfig,
   SlackChannelConfig,
   SlackChannel 
 } from '~/types/release-config';
-
-interface SlackChannelConfigEnhancedProps {
-  config: CommunicationConfig;
-  onChange: (config: CommunicationConfig) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
-  tenantId: string;
-}
+import type { SlackChannelConfigEnhancedProps } from '~/types/release-config-props';
+import { SLACK_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function SlackChannelConfigEnhanced({
   config,
@@ -55,22 +51,17 @@ export function SlackChannelConfigEnhanced({
     setChannelsError(null);
 
     try {
-      const response = await fetch(`/api/v1/integrations/${integrationId}/channels?tenantId=${tenantId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch channels');
-      }
-
-      const result = await response.json();
+      const result = await apiGet<SlackChannel[]>(
+        `/api/v1/integrations/${integrationId}/channels?tenantId=${tenantId}`
+      );
       
       if (result.success && result.data) {
         setAvailableChannels(result.data);
       } else {
-        throw new Error(result.error || 'Failed to fetch channels');
+        throw new Error('Failed to fetch channels');
       }
     } catch (error) {
-      console.error('[Slack] Error fetching channels:', error);
-      setChannelsError(error instanceof Error ? error.message : 'Failed to fetch channels');
+      setChannelsError(getApiErrorMessage(error, 'Failed to fetch channels'));
     } finally {
       setIsLoadingChannels(false);
     }
@@ -138,44 +129,44 @@ export function SlackChannelConfigEnhanced({
   ) => (
     <Stack gap="sm">
       <MultiSelect
-        label="Releases Channels"
-        placeholder="Select channels"
+        label={SLACK_LABELS.RELEASES_LABEL}
+        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
         data={channelOptions}
         value={channels.releases?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('releases', val)}
         searchable
         clearable
-        description="Release announcements and status updates (supports multiple channels)"
+        description={SLACK_LABELS.RELEASES_DESCRIPTION}
       />
       <MultiSelect
-        label="Builds Channels"
-        placeholder="Select channels"
+        label={SLACK_LABELS.BUILDS_LABEL}
+        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
         data={channelOptions}
         value={channels.builds?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('builds', val)}
         searchable
         clearable
-        description="Build status and completion notifications (supports multiple channels)"
+        description={SLACK_LABELS.BUILDS_DESCRIPTION}
       />
       <MultiSelect
-        label="Regression Channels"
-        placeholder="Select channels"
+        label={SLACK_LABELS.REGRESSION_LABEL}
+        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
         data={channelOptions}
         value={channels.regression?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('regression', val)}
         searchable
         clearable
-        description="Regression test updates (supports multiple channels)"
+        description={SLACK_LABELS.REGRESSION_DESCRIPTION}
       />
       <MultiSelect
-        label="Critical Alerts Channels"
-        placeholder="Select channels"
+        label={SLACK_LABELS.CRITICAL_LABEL}
+        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
         data={channelOptions}
         value={channels.critical?.map(ch => ch.id) || []}
         onChange={(val) => onChannelChange('critical', val)}
         searchable
         clearable
-        description="Critical issues and urgent notifications (supports multiple channels)"
+        description={SLACK_LABELS.CRITICAL_DESCRIPTION}
       />
     </Stack>
   );
@@ -183,16 +174,16 @@ export function SlackChannelConfigEnhanced({
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
-        <IconBrandSlack size={20} className="text-blue-600" />
+        <IconBrandSlack size={ICON_SIZES.MEDIUM} className="text-blue-600" />
         <Text fw={600} size="sm">
-          Slack Integration
+          {SLACK_LABELS.INTEGRATION_TITLE}
         </Text>
       </Group>
 
       <Stack gap="md">
         <Switch
-          label="Enable Slack Notifications"
-          description="Send release updates and notifications to Slack"
+          label={SLACK_LABELS.ENABLE_NOTIFICATIONS}
+          description={SLACK_LABELS.ENABLE_DESCRIPTION}
           checked={isEnabled}
           onChange={(e) => handleToggle(e.currentTarget.checked)}
           size="md"
@@ -203,13 +194,13 @@ export function SlackChannelConfigEnhanced({
             {availableIntegrations.length > 0 ? (
               <>
                 <Select
-                  label="Slack Workspace"
-                  placeholder="Select Slack integration"
+                  label={SLACK_LABELS.WORKSPACE_LABEL}
+                  placeholder={SLACK_LABELS.WORKSPACE_PLACEHOLDER}
                   data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
                   value={integrationId}
                   onChange={(val) => handleIntegrationChange(val || '')}
                   required
-                  description="Choose the connected Slack workspace"
+                  description={SLACK_LABELS.WORKSPACE_DESCRIPTION}
                 />
 
                 {integrationId && (
@@ -218,11 +209,11 @@ export function SlackChannelConfigEnhanced({
                       <div className="flex items-center justify-center py-4">
                         <Loader size="sm" />
                         <Text size="sm" c="dimmed" className="ml-2">
-                          Loading channels...
+                          {SLACK_LABELS.LOADING_CHANNELS}
                         </Text>
                       </div>
                     ) : channelsError ? (
-                      <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                      <Alert color="red" icon={<IconAlertCircle size={ICON_SIZES.SMALL} />}>
                         {channelsError}
                       </Alert>
                     ) : availableChannels.length > 0 ? (
@@ -230,7 +221,7 @@ export function SlackChannelConfigEnhanced({
                         {slackConfig?.channelData && (
                           <div className="bg-gray-50 p-4 rounded-lg">
                             <Text size="sm" fw={500} className="mb-3">
-                              Channel Mappings
+                              {SLACK_LABELS.CHANNEL_MAPPINGS_TITLE}
                             </Text>
                             {renderChannelSelects(
                               slackConfig.channelData,
@@ -241,7 +232,7 @@ export function SlackChannelConfigEnhanced({
                       </>
                     ) : (
                       <Alert color="blue">
-                        No channels found for this workspace.
+                        {SLACK_LABELS.NO_CHANNELS_MESSAGE}
                       </Alert>
                     )}
                   </>
@@ -250,8 +241,7 @@ export function SlackChannelConfigEnhanced({
             ) : (
               <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                 <Text size="sm" c="orange">
-                  No Slack integration found. Please connect Slack in the Integrations
-                  page before configuring notifications.
+                  {SLACK_LABELS.NO_WORKSPACE_MESSAGE}
                 </Text>
               </div>
             )}

@@ -4,15 +4,8 @@
  */
 
 import { Card, Checkbox, Text, Badge, Group } from '@mantine/core';
-import type { TargetPlatform } from '~/types/release-config';
-import { PLATFORM_CARD_CONFIG } from '../release-config-constants';
-
-interface PlatformCardProps {
-  platform: TargetPlatform;
-  selected: boolean;
-  onToggle: () => void;
-  disabled?: boolean;
-}
+import type { PlatformCardProps } from '~/types/release-config-props';
+import { PLATFORM_CARD_CONFIG } from '~/constants/release-config';
 
 export function PlatformCard({ platform, selected, onToggle, disabled = false }: PlatformCardProps) {
   const config = PLATFORM_CARD_CONFIG[platform];

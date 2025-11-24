@@ -5,18 +5,8 @@
 
 import { Group, Button } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight, IconCheck, IconX } from '@tabler/icons-react';
-
-interface WizardNavigationProps {
-  currentStep: number;
-  totalSteps: number;
-  onPrevious: () => void;
-  onNext: () => void;
-  onFinish: () => void;
-  onCancel?: () => void;
-  canProceed: boolean;
-  isLoading?: boolean;
-  isEditMode?: boolean;
-}
+import type { WizardNavigationProps } from '~/types/release-config-props';
+import { WIZARD_NAV_LABELS } from '~/constants/release-config-ui';
 
 export function WizardNavigation({
   currentStep,
@@ -46,7 +36,7 @@ export function WizardNavigation({
             onClick={onCancel}
             disabled={isLoading}
           >
-            Cancel
+            {WIZARD_NAV_LABELS.CANCEL}
           </Button>
         )}
         {!isFirstStep && (
@@ -56,14 +46,14 @@ export function WizardNavigation({
             onClick={onPrevious}
             disabled={isLoading}
           >
-            Previous
+            {WIZARD_NAV_LABELS.PREVIOUS}
           </Button>
         )}
       </Group>
       
       {/* Center: Step indicator */}
       <div className="text-sm text-gray-500">
-        Step {currentStep + 1} of {totalSteps}
+        {WIZARD_NAV_LABELS.STEP_INDICATOR(currentStep + 1, totalSteps)}
       </div>
       
       {/* Right: Next or Finish */}
@@ -75,7 +65,7 @@ export function WizardNavigation({
           disabled={!canProceed || isLoading}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          Next Step
+          {WIZARD_NAV_LABELS.NEXT_STEP}
         </Button>
       ) : (
         <Button
@@ -86,7 +76,7 @@ export function WizardNavigation({
           disabled={!canProceed}
           className="bg-green-600 hover:bg-green-700"
         >
-          {isEditMode ? 'Update Configuration' : 'Save Configuration'}
+          {isEditMode ? WIZARD_NAV_LABELS.UPDATE_CONFIGURATION : WIZARD_NAV_LABELS.SAVE_CONFIGURATION}
         </Button>
       )}
     </Group>

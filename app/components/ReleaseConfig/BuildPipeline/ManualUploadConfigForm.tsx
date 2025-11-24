@@ -6,6 +6,7 @@
 import { Textarea, Stack, Text, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { ManualUploadConfigFormProps } from '~/types/release-config-props';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function ManualUploadConfigForm({
   config,
@@ -13,7 +14,7 @@ export function ManualUploadConfigForm({
 }: ManualUploadConfigFormProps) {
   return (
     <Stack gap="md">
-      <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light">
+      <Alert icon={<IconInfoCircle size={ICON_SIZES.SMALL} />} color="blue" variant="light">
         <Text size="sm">
           This pipeline requires manual build uploads. You'll need to upload builds 
           through the release dashboard when creating each release.

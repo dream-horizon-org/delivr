@@ -2,7 +2,9 @@ import { Badge, Card, Button } from '@mantine/core';
 import type { Integration } from '~/types/integrations';
 import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from '~/components/Integrations/IntegrationIcon';
-import { INTEGRATION_STATUS_COLORS, INTEGRATION_STATUS_TEXT } from './integrations-constants';
+import { INTEGRATION_STATUS_COLORS, INTEGRATION_STATUS_TEXT, INTEGRATION_STATUS_VALUES } from '~/constants/integrations';
+import { INTEGRATION_CARD_LABELS } from '~/constants/integration-ui';
+import { TARGET_PLATFORMS } from '~/types/release-config-constants';
 
 interface IntegrationCardProps {
   integration: Integration;
@@ -12,17 +14,17 @@ interface IntegrationCardProps {
 
 export function IntegrationCard({ integration, onClick, onConnect }: IntegrationCardProps) {
   const getStatusColor = () => {
-    return INTEGRATION_STATUS_COLORS[integration.status] || INTEGRATION_STATUS_COLORS[IntegrationStatus.NOT_CONNECTED];
+    return INTEGRATION_STATUS_COLORS[integration.status as keyof typeof INTEGRATION_STATUS_COLORS] || INTEGRATION_STATUS_COLORS[INTEGRATION_STATUS_VALUES.NOT_CONNECTED];
   };
 
   const getStatusText = () => {
-    return INTEGRATION_STATUS_TEXT[integration.status] || INTEGRATION_STATUS_TEXT[IntegrationStatus.NOT_CONNECTED];
+    return INTEGRATION_STATUS_TEXT[integration.status as keyof typeof INTEGRATION_STATUS_TEXT] || INTEGRATION_STATUS_TEXT[INTEGRATION_STATUS_VALUES.NOT_CONNECTED];
   };
 
   const isDisabled = !integration.isAvailable;
 
   // Check if there's any config data to display
-  const hasConfigToDisplay = integration.status === IntegrationStatus.CONNECTED && integration.config && (
+  const hasConfigToDisplay = integration.status === INTEGRATION_STATUS_VALUES.CONNECTED && integration.config && (
     integration.config.owner ||
     integration.config.repo ||
     integration.config.workspace ||
@@ -70,7 +72,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
             <Badge
               size="sm"
               color={getStatusColor()}
-              variant={integration.status === IntegrationStatus.CONNECTED ? 'filled' : 'light'}
+              variant={integration.status === INTEGRATION_STATUS_VALUES.CONNECTED ? 'filled' : 'light'}
               className="flex-shrink-0"
             >
               {getStatusText()}
@@ -78,7 +80,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           </div>
           {integration.isPremium && (
             <Badge size="xs" color="yellow" variant="filled" className="mt-1.5">
-              Premium
+              {INTEGRATION_CARD_LABELS.PREMIUM}
             </Badge>
           )}
           </div>
@@ -97,12 +99,12 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
               <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm font-medium text-gray-600">Coming Soon</span>
+              <span className="text-sm font-medium text-gray-600">{INTEGRATION_CARD_LABELS.COMING_SOON}</span>
             </div>
           </div>
         )}
 
-        {integration.isAvailable && integration.status !== IntegrationStatus.CONNECTED && (
+        {integration.isAvailable && integration.status !== INTEGRATION_STATUS_VALUES.CONNECTED && (
           <div className="mt-auto">
             <Button
               fullWidth
@@ -117,7 +119,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
                 }
               }}
             >
-              Connect
+              {INTEGRATION_CARD_LABELS.CONNECT}
             </Button>
           </div>
         )}
@@ -127,7 +129,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* GitHub/SCM */}
           {integration.config.owner && integration.config.repo && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Repository</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.REPOSITORY}</div>
               <div className="text-sm text-gray-900 font-mono">
                 {integration.config.owner}/{integration.config.repo}
               </div>
@@ -137,7 +139,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* Slack - Workspace Name */}
           {integration.config.workspaceName && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Workspace</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.WORKSPACE}</div>
               <div className="text-sm text-gray-900">{integration.config.workspaceName}</div>
             </div>
           )}
@@ -145,15 +147,17 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* Slack - Channels Count */}
           {integration.config.channels && Array.isArray(integration.config.channels) && integration.config.channels.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Connected Channels</div>
-              <div className="text-sm text-gray-900">{integration.config.channels.length} channel{integration.config.channels.length !== 1 ? 's' : ''}</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.CONNECTED_CHANNELS}</div>
+              <div className="text-sm text-gray-900">
+                {integration.config.channels.length} {integration.config.channels.length !== 1 ? INTEGRATION_CARD_LABELS.CHANNELS : INTEGRATION_CARD_LABELS.CHANNEL}
+              </div>
             </div>
           )}
           
           {/* JIRA/Checkmate - Base URL */}
           {integration.config.baseUrl && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">URL</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.URL}</div>
               <div className="text-sm text-gray-900 truncate font-mono" title={integration.config.baseUrl}>
                 {integration.config.baseUrl}
               </div>
@@ -163,7 +167,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* Jenkins */}
           {integration.config.accountName && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Account</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.ACCOUNT}</div>
               <div className="text-sm text-gray-900">{integration.config.accountName}</div>
             </div>
           )}
@@ -171,7 +175,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* General */}
           {integration.config.displayName && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Configuration</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.CONFIGURATION}</div>
               <div className="text-sm text-gray-900">{integration.config.displayName}</div>
             </div>
           )}
@@ -179,7 +183,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* Checkmate/Others - Host URL */}
           {integration.config.hostUrl && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Host</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.HOST}</div>
               <div className="text-sm text-gray-900 truncate font-mono" title={integration.config.hostUrl}>
                 {integration.config.hostUrl}
               </div>
@@ -189,7 +193,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* App Distribution - App Identifier */}
           {integration.config.appIdentifier && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">App ID</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.APP_ID}</div>
               <div className="text-sm text-gray-900 truncate font-mono" title={integration.config.appIdentifier}>
                 {integration.config.appIdentifier}
               </div>
@@ -199,7 +203,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* App Distribution - Platforms */}
           {integration.config.platforms && Array.isArray(integration.config.platforms) && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Platforms</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.PLATFORMS}</div>
               <div className="flex gap-1 flex-wrap">
                 {integration.config.platforms.map((p: string) => (
                   <Badge key={p} size="xs" variant="light">
@@ -213,9 +217,11 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           {/* App Distribution - Store Type */}
           {integration.config.storeType && (
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-0.5">Store</div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.STORE}</div>
               <div className="text-sm text-gray-900">
-                {integration.config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
+                {integration.config.storeType === TARGET_PLATFORMS.PLAY_STORE.toLowerCase() 
+                  ? INTEGRATION_CARD_LABELS.PLAY_STORE 
+                  : INTEGRATION_CARD_LABELS.APP_STORE}
               </div>
             </div>
           )}
@@ -225,4 +231,3 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
     </Card>
   );
 }
-

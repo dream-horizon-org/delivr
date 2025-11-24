@@ -7,6 +7,7 @@
  */
 
 import type { TargetPlatform, Platform } from '~/types/release-config';
+import { PLATFORMS } from '~/types/release-config-constants';
 
 /**
  * Backend TestPlatform enum (matches backend API contract)
@@ -34,10 +35,10 @@ const TARGET_TO_TEST_PLATFORM_MAP: Record<TargetPlatform, BackendTestPlatform> =
  * Reverse map: Backend TestPlatform → Frontend Platform
  */
 const TEST_PLATFORM_TO_PLATFORM_MAP: Record<BackendTestPlatform, Platform> = {
-  ANDROID_PLAY_STORE: 'ANDROID',
-  ANDROID_INTERNAL_TESTING: 'ANDROID',
-  IOS_APP_STORE: 'IOS',
-  IOS_TESTFLIGHT: 'IOS',
+  ANDROID_PLAY_STORE: PLATFORMS.ANDROID,
+  ANDROID_INTERNAL_TESTING: PLATFORMS.ANDROID,
+  IOS_APP_STORE: PLATFORMS.IOS,
+  IOS_TESTFLIGHT: PLATFORMS.IOS,
 };
 
 /**
@@ -104,14 +105,14 @@ export function getPlatformForTarget(target: TargetPlatform): Platform {
  * Check if a target is Android-based
  */
 export function isAndroidTarget(target: TargetPlatform): boolean {
-  return getPlatformForTarget(target) === 'ANDROID';
+  return getPlatformForTarget(target) === PLATFORMS.ANDROID;
 }
 
 /**
  * Check if a target is iOS-based
  */
 export function isIOSTarget(target: TargetPlatform): boolean {
-  return getPlatformForTarget(target) === 'IOS';
+  return getPlatformForTarget(target) === PLATFORMS.IOS;
 }
 
 /**

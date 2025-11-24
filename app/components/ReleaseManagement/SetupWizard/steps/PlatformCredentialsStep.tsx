@@ -3,8 +3,9 @@
  */
 
 import React, { useState } from 'react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import { WizardStep, FormField } from '../components';
-import type { TargetPlatforms, AppStoreCredentials, PlayStoreCredentials } from '../types';
+import type { TargetPlatforms, AppStoreCredentials, PlayStoreCredentials } from '~/types/setup-wizard';
 
 interface PlatformCredentialsStepProps {
   targets: TargetPlatforms;
@@ -38,23 +39,21 @@ export function PlatformCredentialsStep({
     setAppStoreError(null);
     
     try {
-      const response = await fetch('/api/v1/setup/verify-appstore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(appStore),
-      });
+      const result = await apiPost<{ success: boolean; error?: string }>(
+        '/api/v1/setup/verify-appstore',
+        appStore
+      );
       
-      const result = await response.json();
-      
-      if (result.success) {
+      if (result.data?.success) {
         const verified = { ...appStore, isVerified: true } as AppStoreCredentials;
         setAppStore(verified);
         onAppStoreComplete?.(verified);
       } else {
-        setAppStoreError(result.error || 'Verification failed');
+        setAppStoreError(result.data?.error || 'Verification failed');
       }
     } catch (err) {
-      setAppStoreError('Failed to verify credentials');
+      const errorMessage = getApiErrorMessage(err, 'Failed to verify credentials');
+      setAppStoreError(errorMessage);
     } finally {
       setIsVerifyingAppStore(false);
     }
@@ -70,23 +69,21 @@ export function PlatformCredentialsStep({
     setPlayStoreError(null);
     
     try {
-      const response = await fetch('/api/v1/setup/verify-playstore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(playStore),
-      });
+      const result = await apiPost<{ success: boolean; error?: string }>(
+        '/api/v1/setup/verify-playstore',
+        playStore
+      );
       
-      const result = await response.json();
-      
-      if (result.success) {
+      if (result.data?.success) {
         const verified = { ...playStore, isVerified: true } as PlayStoreCredentials;
         setPlayStore(verified);
         onPlayStoreComplete?.(verified);
       } else {
-        setPlayStoreError(result.error || 'Verification failed');
+        setPlayStoreError(result.data?.error || 'Verification failed');
       }
     } catch (err) {
-      setPlayStoreError('Failed to verify credentials');
+      const errorMessage = getApiErrorMessage(err, 'Failed to verify credentials');
+      setPlayStoreError(errorMessage);
     } finally {
       setIsVerifyingPlayStore(false);
     }

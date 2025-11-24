@@ -6,14 +6,8 @@
 import { useState } from 'react';
 import { Modal, TextInput, NumberInput, Stack, Group, Button, Switch, Text } from '@mantine/core';
 import type { RegressionSlot } from '~/types/release-config';
+import type { RegressionSlotEditorProps } from '~/types/release-config-props';
 import { generateConfigId } from '~/utils/release-config-storage';
-
-interface RegressionSlotEditorProps {
-  opened: boolean;
-  onClose: () => void;
-  onSave: (slot: RegressionSlot) => void;
-  slot?: RegressionSlot;
-}
 
 export function RegressionSlotEditor({
   opened,
@@ -24,7 +18,7 @@ export function RegressionSlotEditor({
   const isEditing = !!slot;
   
   const [name, setName] = useState(slot?.name || '');
-  const [offsetDays, setOffsetDays] = useState(slot?.offsetDays || 0);
+  const [offsetDays, setOffsetDays] = useState(slot?.regressionSlotOffsetFromKickoff || 0);
   const [time, setTime] = useState(slot?.time || '09:00');
   const [config, setConfig] = useState(
     slot?.config || {
@@ -39,7 +33,7 @@ export function RegressionSlotEditor({
     const slotData: RegressionSlot = {
       id: slot?.id || generateConfigId(),
       name: name.trim(),
-      offsetDays,
+      regressionSlotOffsetFromKickoff: offsetDays,
       time,
       config,
     };

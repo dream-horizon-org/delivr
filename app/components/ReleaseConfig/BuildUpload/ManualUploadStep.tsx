@@ -5,6 +5,7 @@
 
 import { Stack, Text, Card, Alert, List, ThemeIcon } from '@mantine/core';
 import { IconUpload, IconRocket, IconInfoCircle } from '@tabler/icons-react';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function ManualUploadStep() {
   return (
@@ -22,8 +23,8 @@ export function ManualUploadStep() {
       {/* Manual Upload Card */}
       <Card shadow="sm" padding="xl" radius="md" withBorder>
         <Stack gap="lg" align="center">
-          <ThemeIcon size={80} radius="md" variant="light" color="blue">
-            <IconUpload size={48} />
+          <ThemeIcon size={ICON_SIZES.EXTRA_LARGE} radius="md" variant="light" color="blue">
+            <IconUpload size={ICON_SIZES.LARGE} />
           </ThemeIcon>
 
           <div style={{ textAlign: 'center' }}>
@@ -36,7 +37,7 @@ export function ManualUploadStep() {
           </div>
 
           <Alert
-            icon={<IconInfoCircle size={18} />}
+            icon={<IconInfoCircle size={ICON_SIZES.SMALL} />}
             color="blue"
             variant="light"
             style={{ width: '100%' }}
@@ -53,7 +54,7 @@ export function ManualUploadStep() {
               size="sm"
               center
               icon={
-                <ThemeIcon color="blue" size={20} radius="xl">
+                <ThemeIcon color="blue" size={ICON_SIZES.SMALL} radius="xl">
                   <Text size="xs">✓</Text>
                 </ThemeIcon>
               }
@@ -81,8 +82,8 @@ export function ManualUploadStep() {
       {/* Coming Soon Card */}
       <Card shadow="sm" padding="lg" radius="md" withBorder style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
         <Stack gap="md" align="center">
-          <ThemeIcon size={60} radius="md" variant="light" color="grape">
-            <IconRocket size={32} />
+          <ThemeIcon size={ICON_SIZES.LARGE} radius="md" variant="light" color="grape">
+            <IconRocket size={ICON_SIZES.MEDIUM} />
           </ThemeIcon>
 
           <div style={{ textAlign: 'center' }}>

@@ -8,8 +8,9 @@ import { Stack, Text, Alert, Card, Checkbox, Group, Badge, Collapse } from '@man
 import { IconInfoCircle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import type { TargetPlatform } from '~/types/release-config';
 import type { PlatformSelectorProps } from '~/types/release-config-props';
-import { PLATFORM_CONFIGS } from '../release-config-constants';
+import { PLATFORM_CONFIGS } from '~/constants/release-config';
 import { PLATFORMS, TARGET_PLATFORMS } from '~/types/release-config-constants';
+import { PLATFORM_SELECTION_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelectorProps) {
   // Track which platforms are expanded
@@ -64,17 +65,17 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
     <Stack gap="md">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Platforms & Distribution Targets
+          {PLATFORM_SELECTION_LABELS.SECTION_TITLE}
         </Text>
         <Text size="sm" c="dimmed">
-          Select platforms and their distribution targets
+          {PLATFORM_SELECTION_LABELS.SECTION_DESCRIPTION}
         </Text>
       </div>
       
-      <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light">
+      <Alert icon={<IconInfoCircle size={ICON_SIZES.SMALL} />} color="blue" variant="light">
         <Text size="sm">
-          <strong>Step 1:</strong> Select platforms (Android/iOS)<br />
-          <strong>Step 2:</strong> For each platform, select distribution targets
+          <strong>{PLATFORM_SELECTION_LABELS.STEP_1}</strong><br />
+          <strong>{PLATFORM_SELECTION_LABELS.STEP_2}</strong>
         </Text>
       </Alert>
       
@@ -118,7 +119,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                             </Text>
                             {'comingSoon' in platform && platform.comingSoon && (
                               <Badge size="sm" color="gray" variant="outline">
-                                Coming Soon
+                                {PLATFORM_SELECTION_LABELS.COMING_SOON}
                               </Badge>
                             )}
                           </Group>
@@ -132,7 +133,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                   
                   {isSelected && (
                     <Badge color="blue" variant="light">
-                      {selectedTargetsCount} target{selectedTargetsCount > 1 ? 's' : ''}
+                      {selectedTargetsCount} {selectedTargetsCount > 1 ? PLATFORM_SELECTION_LABELS.TARGET_PLURAL : PLATFORM_SELECTION_LABELS.TARGET_SINGULAR}
                     </Badge>
                   )}
                 </Group>
@@ -142,7 +143,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
               <Collapse in={isExpanded}>
                 <div className="ml-8 mt-3 pl-4 border-l-2 border-gray-200">
                   <Text size="sm" fw={500} c="dimmed" className="mb-2">
-                    Distribution Targets:
+                    {PLATFORM_SELECTION_LABELS.DISTRIBUTION_TARGETS_LABEL}
                   </Text>
                   <Stack gap="xs">
                     {platform.targets.map((target) => (
@@ -166,7 +167,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
                                   </Text>
                                   {'comingSoon' in target && target.comingSoon && (
                                     <Badge size="xs" color="gray" variant="outline">
-                                      Coming Soon
+                                      {PLATFORM_SELECTION_LABELS.COMING_SOON}
                                     </Badge>
                                   )}
                                 </Group>
@@ -190,7 +191,7 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       {selectedPlatforms.length === 0 && (
         <Alert color="red" variant="light">
           <Text size="sm">
-            Please select at least one distribution target to continue.
+            {PLATFORM_SELECTION_LABELS.SELECT_AT_LEAST_ONE}
           </Text>
         </Alert>
       )}
@@ -198,12 +199,12 @@ export function PlatformSelector({ selectedPlatforms, onChange }: PlatformSelect
       {selectedPlatforms.length > 0 && (
         <Alert color="green" variant="light">
           <Text size="sm" fw={500}>
-            Selected: {hasAndroid && 'Android (Play Store)'}
+            {PLATFORM_SELECTION_LABELS.SELECTED_PREFIX} {hasAndroid && 'Android (Play Store)'}
             {hasAndroid && hasIOS && ' + '}
             {hasIOS && 'iOS (App Store)'}
           </Text>
           <Text size="xs" c="dimmed" className="mt-1">
-            {selectedPlatforms.length} distribution target{selectedPlatforms.length > 1 ? 's' : ''} configured
+            {selectedPlatforms.length} {PLATFORM_SELECTION_LABELS.TARGETS_CONFIGURED}
           </Text>
         </Alert>
       )}

@@ -359,7 +359,7 @@ export function PipelineEditModal({
                   </Group>
                   
                   <Group gap="xs">
-                    <Badge size="sm" color={selectedWorkflow.providerType === 'JENKINS' ? 'red' : 'dark'}>
+                    <Badge size="sm" color={selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS ? 'red' : 'dark'}>
                       {selectedWorkflow.providerType.replace('_', ' ')}
                     </Badge>
                     <Badge size="sm" color="blue">
@@ -424,11 +424,11 @@ export function PipelineEditModal({
             )}
             
             {availableProviders.length > 0 && (
-              <PipelineProviderSelect
-                value={provider}
-                onChange={setProvider}
-                availableProviders={availableProviders}
-              />
+            <PipelineProviderSelect
+              value={provider}
+              onChange={setProvider}
+              availableProviders={availableProviders}
+            />
             )}
             
             {errors.integration && (
@@ -441,6 +441,7 @@ export function PipelineEditModal({
                 config={providerConfig as Partial<JenkinsConfig>}
                 onChange={setProviderConfig}
                 availableIntegrations={availableIntegrations.jenkins}
+                workflows={workflows}
                 tenantId={tenantId}
               />
             )}
@@ -450,6 +451,7 @@ export function PipelineEditModal({
                 config={providerConfig as Partial<GitHubActionsConfig>}
                 onChange={setProviderConfig}
                 availableIntegrations={availableIntegrations.github}
+                workflows={workflows}
                 tenantId={tenantId}
               />
             )}

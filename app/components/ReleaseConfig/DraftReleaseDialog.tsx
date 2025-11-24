@@ -1,19 +1,7 @@
-/**
- * Draft Release Dialog
- * Prompts user to continue editing draft or start new release config
- */
-
 import { Modal, Button, Text, Stack, Group, Card, Badge } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconEdit } from '@tabler/icons-react';
-import type { ReleaseConfiguration } from '~/types/release-config';
-
-interface DraftReleaseDialogProps {
-  opened: boolean;
-  onClose: () => void;
-  draftConfig: Partial<ReleaseConfiguration> | null;
-  onContinueDraft: () => void;
-  onStartNew: () => void;
-}
+import type { DraftReleaseDialogProps } from '~/types/release-config-props';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function DraftReleaseDialog({
   opened,
@@ -37,7 +25,7 @@ export function DraftReleaseDialog({
       <Stack gap="lg">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
           <Group gap="sm">
-            <IconAlertCircle size={20} className="text-yellow-600" />
+            <IconAlertCircle size={ICON_SIZES.SMALL} className="text-yellow-600" />
             <Text size="sm" c="orange">
               You have an unsaved draft configuration
             </Text>

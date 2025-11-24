@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { useParams } from '@remix-run/react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 
 export interface SlackChannel {
   id: string;
@@ -88,41 +89,38 @@ export function useSlackConnection(initialConnection?: Partial<SlackConnection>)
     setVerificationError('');
 
     try {
-      // TODO: Replace with actual API call
-      // Example:
-      // const result = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack/verify`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ botToken: connection.botToken })
-      // });
-      // const data = await result.json();
+      const result = await apiPost<{
+        success: boolean;
+        verified?: boolean;
+        workspaceId?: string;
+        workspaceName?: string;
+        botUserId?: string;
+      }>(`/api/v1/tenants/${tenantId}/integrations/slack/verify`, {
+        botToken: connection.botToken
+      });
 
-      // MOCK RESPONSE - REPLACE THIS
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const mockSuccess = true;
-
-      if (mockSuccess) {
-        const mockData: VerificationResult = {
+      if (result.data?.success && result.data?.verified) {
+        const verifiedData: VerificationResult = {
           success: true,
-          workspaceId: 'T01234ABCDE',
-          workspaceName: 'Acme Corp',
-          botUserId: 'U01234ABCDE'
+          workspaceId: result.data.workspaceId,
+          workspaceName: result.data.workspaceName,
+          botUserId: result.data.botUserId,
         };
 
         setConnection(prev => ({
           ...prev,
-          workspaceId: mockData.workspaceId,
-          workspaceName: mockData.workspaceName,
-          botUserId: mockData.botUserId,
+          workspaceId: verifiedData.workspaceId,
+          workspaceName: verifiedData.workspaceName,
+          botUserId: verifiedData.botUserId,
           isVerified: true
         }));
 
-        return mockData;
+        return verifiedData;
       } else {
         throw new Error('Verification failed');
       }
     } catch (error: any) {
-      const errorMessage = error.message || 'Failed to verify Slack token';
+      const errorMessage = getApiErrorMessage(error, 'Failed to verify Slack token');
       setVerificationError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -144,29 +142,21 @@ export function useSlackConnection(initialConnection?: Partial<SlackConnection>)
     setChannelsError('');
 
     try {
-      // TODO: Replace with actual API call
-      // Example:
-      // const result = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack/channels`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ botToken: connection.botToken })
-      // });
-      // const data = await result.json();
+      const result = await apiPost<{
+        success: boolean;
+        channels: SlackChannel[];
+      }>(`/api/v1/tenants/${tenantId}/integrations/slack/channels`, {
+        botToken: connection.botToken
+      });
 
-      // MOCK RESPONSE - REPLACE THIS
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockChannels: SlackChannel[] = [
-        { id: 'C01', name: 'general' },
-        { id: 'C02', name: 'releases' },
-        { id: 'C03', name: 'notifications' },
-        { id: 'C04', name: 'engineering' },
-        { id: 'C05', name: 'product' },
-      ];
-
-      setAvailableChannels(mockChannels);
-      return { success: true, channels: mockChannels };
+      if (result.data?.success && result.data?.channels) {
+        setAvailableChannels(result.data.channels);
+        return { success: true, channels: result.data.channels };
+      } else {
+        throw new Error('Failed to fetch channels');
+      }
     } catch (error: any) {
-      const errorMessage = error.message || 'Failed to fetch channels';
+      const errorMessage = getApiErrorMessage(error, 'Failed to fetch channels');
       setChannelsError(errorMessage);
       return { success: false, channels: [], error: errorMessage };
     } finally {
@@ -207,34 +197,24 @@ export function useSlackConnection(initialConnection?: Partial<SlackConnection>)
     setIsSaving(true);
 
     try {
-      // TODO: Replace with actual API call
-      // Example:
-      // const result = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     botToken: connection.botToken,
-      //     workspaceId: connection.workspaceId,
-      //     workspaceName: connection.workspaceName,
-      //     botUserId: connection.botUserId,
-      //     channels: connection.selectedChannels
-      //   })
-      // });
-      // const data = await result.json();
+      const result = await apiPost<{ success: boolean }>(
+        `/api/v1/tenants/${tenantId}/integrations/slack`,
+        {
+          botToken: connection.botToken,
+          workspaceId: connection.workspaceId,
+          workspaceName: connection.workspaceName,
+          botUserId: connection.botUserId,
+          channels: connection.selectedChannels
+        }
+      );
 
-      // MOCK RESPONSE - REPLACE THIS
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('Saving Slack integration:', {
-        tenantId,
-        workspaceId: connection.workspaceId,
-        workspaceName: connection.workspaceName,
-        channels: connection.selectedChannels
-      });
-
-      return { success: true };
+      if (result.data?.success) {
+        return { success: true };
+      } else {
+        throw new Error('Failed to save Slack integration');
+      }
     } catch (error: any) {
-      const errorMessage = error.message || 'Failed to save Slack integration';
+      const errorMessage = getApiErrorMessage(error, 'Failed to save Slack integration');
       return { success: false, error: errorMessage };
     } finally {
       setIsSaving(false);

@@ -9,6 +9,8 @@
 
 import { useState, useCallback } from 'react';
 import { useParams } from '@remix-run/react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { CONNECTION_STEPS } from '~/constants/integration-ui';
 
 export interface SlackChannel {
   id: string;
@@ -34,7 +36,7 @@ export function useSlackConnection() {
   const [botToken, setBotToken] = useState('');
   const [workspaceInfo, setWorkspaceInfo] = useState<SlackWorkspaceInfo>({});
   
-  const [step, setStep] = useState<'token' | 'channels'>('token');
+  const [step, setStep] = useState<typeof CONNECTION_STEPS.SLACK_TOKEN | typeof CONNECTION_STEPS.SLACK_CHANNELS>(CONNECTION_STEPS.SLACK_TOKEN);
   
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,41 +60,38 @@ export function useSlackConnection() {
     setError(null);
 
     try {
-      console.log(`[useSlackConnection] Verifying token for tenant: ${tenantId}`);
-      
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken: token })
-      });
+      const result = await apiPost<{
+        verified: boolean;
+        workspaceId: string;
+        workspaceName: string;
+        botUserId: string;
+      }>(
+        `/api/v1/tenants/${tenantId}/integrations/slack/verify`,
+        { botToken: token }
+      );
 
-      const result = await response.json();
-
-      console.log(`[useSlackConnection] Verification result:`, result);
-
-      if (!result.success || !result.verified) {
-        setError(result.message || result.error || 'Failed to verify token');
+      if (!result.data?.verified) {
+        setError('Failed to verify token');
         setIsVerifying(false);
         return false;
       }
 
       // Store workspace info
       setWorkspaceInfo({
-        workspaceId: result.workspaceId,
-        workspaceName: result.workspaceName,
-        botUserId: result.botUserId
+        workspaceId: result.data.workspaceId,
+        workspaceName: result.data.workspaceName,
+        botUserId: result.data.botUserId
       });
 
       setBotToken(token);
       setIsVerifying(false);
 
       // Move to next step - user will click "Connect" to save
-      setStep('channels'); // Keep this for UI flow, but we won't show channel selection
+      setStep(CONNECTION_STEPS.SLACK_CHANNELS); // Keep this for UI flow, but we won't show channel selection
 
       return true;
     } catch (error) {
-      console.error('[useSlackConnection] Verification error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to verify token');
+      setError(getApiErrorMessage(error, 'Failed to verify token'));
       setIsVerifying(false);
       return false;
     }
@@ -110,35 +109,21 @@ export function useSlackConnection() {
     setError(null);
 
     try {
-      console.log(`[useSlackConnection] Saving integration for tenant: ${tenantId}`);
-
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/slack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await apiPost(
+        `/api/v1/tenants/${tenantId}/integrations/slack`,
+        {
           botToken: token,
           botUserId: workspace.botUserId,
           workspaceId: workspace.workspaceId,
           workspaceName: workspace.workspaceName
           // No channels array - channels selected in Release Config
-        })
-      });
-
-      const result = await response.json();
-
-      console.log(`[useSlackConnection] Save result:`, result.success ? 'Success' : 'Failed');
-
-      if (!result.success) {
-        setError(result.error || 'Failed to save integration');
-        setIsSaving(false);
-        return false;
-      }
+        }
+      );
 
       setIsSaving(false);
       return true;
     } catch (error) {
-      console.error('[useSlackConnection] Save integration error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save integration');
+      setError(getApiErrorMessage(error, 'Failed to save integration'));
       setIsSaving(false);
       return false;
     }
@@ -163,7 +148,7 @@ export function useSlackConnection() {
   const reset = useCallback(() => {
     setBotToken('');
     setWorkspaceInfo({});
-    setStep('token');
+    setStep(CONNECTION_STEPS.SLACK_TOKEN);
     setError(null);
   }, []);
 
@@ -171,7 +156,7 @@ export function useSlackConnection() {
    * Go back to token step
    */
   const goBack = useCallback(() => {
-    setStep('token');
+    setStep(CONNECTION_STEPS.SLACK_TOKEN);
     setError(null);
   }, []);
 

@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { TextInput, Select, Stack, Button, Text, Group, Alert, LoadingOverlay, Card, Badge } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type { JenkinsConfig } from '~/types/release-config';
 import type { JenkinsConfigFormProps } from '~/types/release-config-props';
 import type { JobParameter } from '~/.server/services/ReleaseManagement/integrations';
@@ -69,26 +70,20 @@ export function JenkinsConfigForm({
     setFetchError(null);
     
     try {
-      const response = await fetch(
+      const result = await apiPost<{ parameters: JobParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            providerType: 'JENKINS',
-            url: config.jobUrl,
-          }),
+          providerType: 'JENKINS',
+          url: config.jobUrl,
         }
       );
       
-      const result = await response.json();
-      
-      if (result.success && result.parameters) {
-        setFetchedParameters(result.parameters);
+      if (result.success && result.data?.parameters) {
+        setFetchedParameters(result.data.parameters);
         
         // Initialize parameter values with defaults or existing values
         const newParams: Record<string, string> = {};
-        result.parameters.forEach((param: JobParameter) => {
+        result.data.parameters.forEach((param: JobParameter) => {
           newParams[param.name] = 
             parameters[param.name] || 
             param.defaultValue?.toString() || 
@@ -103,11 +98,10 @@ export function JenkinsConfigForm({
         
         setParametersFetched(true);
       } else {
-        setFetchError(result.error || 'Failed to fetch parameters');
+        setFetchError('Failed to fetch parameters');
       }
     } catch (error) {
-      setFetchError('Network error while fetching parameters');
-      console.error('Error fetching job parameters:', error);
+      setFetchError(getApiErrorMessage(error, 'Failed to fetch parameters'));
     } finally {
       setFetchingParams(false);
     }

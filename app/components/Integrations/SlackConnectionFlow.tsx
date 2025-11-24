@@ -1,5 +1,15 @@
-import { Button, Group, Alert, TextInput, Loader } from '@mantine/core';
+import { Alert, TextInput } from '@mantine/core';
 import { useSlackConnection } from '~/hooks/useSlackConnection';
+import { 
+  SLACK_LABELS, 
+  SLACK_REQUIRED_SCOPES, 
+  INTEGRATION_MODAL_LABELS,
+  CONNECTION_STEPS 
+} from '~/constants/integration-ui';
+import { ActionButtons } from './shared/ActionButtons';
+import { ConnectionAlert } from './shared/ConnectionAlert';
+import { InstructionsPanel } from './shared/InstructionsPanel';
+import { ScopeChip } from './shared/ScopeChip';
 
 interface SlackConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -51,66 +61,84 @@ export function SlackConnectionFlow({
   return (
     <div className="space-y-4">
         {/* Step 1: Token Input */}
-        {step === 'token' && (
+        {step === CONNECTION_STEPS.SLACK_TOKEN && (
           <>
-            <Alert color="blue" title="Ready to Connect" icon={<span>✓</span>}>
-              Connect your Slack workspace to receive release notifications and updates.
-            </Alert>
+            <ConnectionAlert 
+              color="blue" 
+              title={SLACK_LABELS.READY_TO_CONNECT} 
+              icon={<span>✓</span>}
+            >
+              {SLACK_LABELS.CONNECTION_DESCRIPTION}
+            </ConnectionAlert>
 
             <TextInput
-              label="Slack Bot Token"
-              placeholder="xoxb-..."
+              label={SLACK_LABELS.BOT_TOKEN_LABEL}
+              placeholder={SLACK_LABELS.BOT_TOKEN_PLACEHOLDER}
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
               error={error}
-              description="Enter your Slack bot token (starts with 'xoxb-')"
+              description={SLACK_LABELS.BOT_TOKEN_DESCRIPTION}
             />
 
             {/* How to get token */}
             <div className="bg-gray-50 rounded-lg p-4 text-sm">
-              <h3 className="font-medium text-gray-900 mb-2">How to get your Bot Token:</h3>
+              <h3 className="font-medium text-gray-900 mb-2">{SLACK_LABELS.HOW_TO_GET_TOKEN}</h3>
               <ol className="text-gray-600 space-y-1 list-decimal list-inside">
-                <li>Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">api.slack.com/apps</a></li>
-                <li>Create or select your app</li>
-                <li>Go to "OAuth & Permissions"</li>
-                <li>Add scopes: <code className="bg-gray-200 px-1 rounded text-xs">channels:read</code>, <code className="bg-gray-200 px-1 rounded text-xs">chat:write</code></li>
-                <li>Install app to workspace</li>
-                <li>Copy the "Bot User OAuth Token"</li>
+                <li>
+                  {SLACK_LABELS.INSTRUCTIONS[0].text}
+                  <a 
+                    href={SLACK_LABELS.INSTRUCTIONS[0].link} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-blue-600 underline"
+                  >
+                    {SLACK_LABELS.INSTRUCTIONS[0].linkText}
+                  </a>
+                </li>
+                <li>{SLACK_LABELS.INSTRUCTIONS[1]}</li>
+                <li>{SLACK_LABELS.INSTRUCTIONS[2]}</li>
+                <li>
+                  {SLACK_LABELS.INSTRUCTIONS[3]}{' '}
+                  {SLACK_REQUIRED_SCOPES.map((scope, idx) => (
+                    <span key={scope}>
+                      <ScopeChip scope={scope} />
+                      {idx < SLACK_REQUIRED_SCOPES.length - 1 && ', '}
+                    </span>
+                  ))}
+                </li>
+                <li>{SLACK_LABELS.INSTRUCTIONS[4]}</li>
+                <li>{SLACK_LABELS.INSTRUCTIONS[5]}</li>
               </ol>
             </div>
 
-            <Group justify="flex-end" className="mt-6">
-              <Button variant="subtle" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleVerifyToken}
-                loading={isVerifying}
-                disabled={!botToken || isVerifying}
-              >
-                Verify Token
-              </Button>
-            </Group>
+            <ActionButtons
+              onCancel={onCancel}
+              onPrimary={handleVerifyToken}
+              primaryLabel={SLACK_LABELS.VERIFY_TOKEN}
+              cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+              isPrimaryLoading={isVerifying}
+              isPrimaryDisabled={!botToken || isVerifying}
+            />
           </>
         )}
 
         {/* Step 2: Ready to Connect */}
-        {step === 'channels' && (
+        {step === CONNECTION_STEPS.SLACK_CHANNELS && (
           <>
-            <Alert color="green" title="✓ Token Verified Successfully">
+            <ConnectionAlert color="green" title={SLACK_LABELS.TOKEN_VERIFIED}>
               <div className="text-sm">
-                <p><strong>Workspace:</strong> {workspaceInfo.workspaceName}</p>
-                <p><strong>Bot ID:</strong> {workspaceInfo.botUserId}</p>
+                <p><strong>{SLACK_LABELS.WORKSPACE_LABEL}</strong> {workspaceInfo.workspaceName}</p>
+                <p><strong>{SLACK_LABELS.BOT_ID_LABEL}</strong> {workspaceInfo.botUserId}</p>
                 <p className="mt-2 text-gray-600">
-                  Your Slack bot token has been verified. Click "Connect" below to save the integration.
+                  {SLACK_LABELS.TOKEN_VERIFIED_MESSAGE}
                 </p>
               </div>
-            </Alert>
+            </ConnectionAlert>
 
             <div className="bg-blue-50 rounded-lg p-4 text-sm border border-blue-200">
-              <h3 className="font-medium text-blue-900 mb-2">📢 Channel Configuration</h3>
+              <h3 className="font-medium text-blue-900 mb-2">{SLACK_LABELS.CHANNEL_CONFIG_TITLE}</h3>
               <p className="text-blue-800">
-                Channel selection will be done later in <strong>Release Configuration</strong> when you set up your release workflow.
+                {SLACK_LABELS.CHANNEL_CONFIG_MESSAGE}
               </p>
               </div>
 
@@ -120,21 +148,16 @@ export function SlackConnectionFlow({
               </Alert>
             )}
 
-            <Group justify="flex-end" className="mt-6">
-              <Button variant="subtle" onClick={goBack}>
-                Back
-              </Button>
-              <Button
-                onClick={handleSave}
-                loading={isSaving}
-                disabled={isSaving}
-              >
-                Connect Slack
-              </Button>
-            </Group>
+            <ActionButtons
+              onBack={goBack}
+              onPrimary={handleSave}
+              primaryLabel={SLACK_LABELS.CONNECT_SLACK}
+              backLabel={INTEGRATION_MODAL_LABELS.BACK}
+              isPrimaryLoading={isSaving}
+              isPrimaryDisabled={isSaving}
+            />
           </>
         )}
       </div>
   );
 }
-

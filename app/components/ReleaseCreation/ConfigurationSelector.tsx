@@ -1,8 +1,3 @@
-/**
- * Configuration Selector Component
- * Select a configuration for release creation
- */
-
 import { Card, Text, Group, Badge, Stack, Button, ActionIcon, Menu } from '@mantine/core';
 import { IconSettings, IconInfoCircle, IconPlus, IconCopy, IconDotsVertical } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
@@ -95,13 +90,13 @@ export function ConfigurationSelector({
                   
                   <Group gap="lg" className="text-xs text-gray-600">
                     <div>
-                      <span className="font-medium">{config.workflows.length}</span> pipelines
+                      <span className="font-medium">{config.workflows?.length || 0}</span> pipelines
                     </div>
                     <div>
-                      <span className="font-medium">{config.targets.length}</span> platforms
+                      <span className="font-medium">{config.targets?.length || 0}</span> platforms
                     </div>
                     <div>
-                      <span className="font-medium">{config.scheduling.regressionSlots.length}</span> slots
+                      <span className="font-medium">{config.scheduling?.regressionSlots?.length || 0}</span> slots
                     </div>
                   </Group>
                 </div>

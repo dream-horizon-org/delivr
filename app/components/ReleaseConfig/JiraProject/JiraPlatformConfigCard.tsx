@@ -5,18 +5,14 @@
 
 import { Card, TextInput, Select, Stack, Text, Badge } from '@mantine/core';
 import type { JiraPlatformConfig } from '~/types/release-config';
+import type { JiraPlatformConfigCardProps } from '~/types/release-config-props';
 import {
   JIRA_PLATFORM_CONFIG,
   JIRA_ISSUE_TYPES,
   JIRA_COMPLETION_STATUSES,
   JIRA_PRIORITIES,
-} from '../release-config-constants';
-
-interface JiraPlatformConfigCardProps {
-  platform: 'WEB' | 'IOS' | 'ANDROID';
-  config: JiraPlatformConfig;
-  onChange: (config: JiraPlatformConfig) => void;
-}
+} from '~/constants/release-config';
+import { JIRA_LABELS, JIRA_FIELD_NAMES, VALIDATION_MESSAGES } from '~/constants/release-config-ui';
 
 export function JiraPlatformConfigCard({
   platform,
@@ -48,57 +44,51 @@ export function JiraPlatformConfigCard({
       <Stack gap="md">
         {/* Project Key - Required */}
         <TextInput
-          label="Project Key"
-          placeholder="e.g., APP, FE, MOBILE"
-          description="JIRA project key (uppercase letters and numbers)"
+          label={JIRA_LABELS.PROJECT_KEY}
+          placeholder={JIRA_LABELS.PROJECT_KEY_PLACEHOLDER}
+          description={JIRA_LABELS.PROJECT_KEY_DESCRIPTION}
           value={config.projectKey}
-          onChange={(e) => handleChange('projectKey', e.target.value.toUpperCase())}
+          onChange={(e) => handleChange(JIRA_FIELD_NAMES.PROJECT_KEY, e.target.value.toUpperCase())}
           required
           error={
             config.projectKey && !/^[A-Z][A-Z0-9]*$/.test(config.projectKey)
-              ? 'Must be uppercase letters and numbers'
+              ? VALIDATION_MESSAGES.JIRA_PROJECT_KEY_INVALID
               : undefined
           }
         />
 
         {/* Issue Type - Optional */}
         <Select
-          label="Issue Type"
-          placeholder="Select issue type"
-          description="Type of JIRA issue to create for releases"
+          label={JIRA_LABELS.ISSUE_TYPE}
+          placeholder={JIRA_LABELS.ISSUE_TYPE_PLACEHOLDER}
+          description={JIRA_LABELS.ISSUE_TYPE_DESCRIPTION}
           data={JIRA_ISSUE_TYPES}
           value={config.issueType || null}
-          onChange={(value) => handleChange('issueType', value || undefined)}
+          onChange={(value) => handleChange(JIRA_FIELD_NAMES.ISSUE_TYPE, value || undefined)}
           clearable
           searchable
         />
 
         {/* Completion Status - Required */}
         <Select
-          label="Completion Status"
-          placeholder="Select completion status"
-          description="Status that indicates work is complete"
+          label={JIRA_LABELS.COMPLETION_STATUS}
+          placeholder={JIRA_LABELS.COMPLETION_STATUS_PLACEHOLDER}
+          description={JIRA_LABELS.COMPLETION_STATUS_DESCRIPTION}
           data={JIRA_COMPLETION_STATUSES}
           value={config.completedStatus}
-          onChange={(value) => handleChange('completedStatus', value || 'Done')}
+          onChange={(value) => handleChange(JIRA_FIELD_NAMES.COMPLETED_STATUS, value || 'Done')}
           required
           searchable
-          creatable
-          getCreateLabel={(query) => `+ Create "${query}"`}
-          onCreate={(query) => {
-            const item = { value: query, label: query };
-            return item;
-          }}
         />
 
         {/* Priority - Optional */}
         <Select
-          label="Priority"
-          placeholder="Select default priority"
-          description="Default priority for created issues"
+          label={JIRA_LABELS.PRIORITY}
+          placeholder={JIRA_LABELS.PRIORITY_PLACEHOLDER}
+          description={JIRA_LABELS.PRIORITY_DESCRIPTION}
           data={JIRA_PRIORITIES}
           value={config.priority || null}
-          onChange={(value) => handleChange('priority', value || undefined)}
+          onChange={(value) => handleChange(JIRA_FIELD_NAMES.PRIORITY, value || undefined)}
           clearable
         />
       </Stack>

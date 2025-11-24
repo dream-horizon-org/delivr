@@ -6,21 +6,12 @@
 import { useState } from 'react';
 import { Stack, Button, Text, Group, SimpleGrid } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import type { Workflow } from '~/types/release-config';
+import type { Workflow, Platform } from '~/types/release-config';
+import type { PipelineListProps } from '~/types/release-config-props';
+import { PLATFORMS } from '~/types/release-config-constants';
 import { PipelineCard } from './PipelineCard';
 import { PipelineEditModal } from './PipelineEditModal';
 import { RequiredPipelinesCheck } from './RequiredPipelinesCheck';
-
-interface PipelineListProps {
-  pipelines: Workflow[];
-  onChange: (pipelines: Workflow[]) => void;
-  availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
-  };
-  selectedPlatforms?: Array<'WEB' | 'PLAY_STORE' | 'APP_STORE'>;
-  tenantId: string;
-}
 
 export function PipelineList({
   pipelines,
@@ -31,6 +22,18 @@ export function PipelineList({
 }: PipelineListProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [editingPipeline, setEditingPipeline] = useState<Workflow | undefined>();
+  
+  // Convert target platforms to platforms for RequiredPipelinesCheck
+  const getPlatformsFromTargets = (): Platform[] => {
+    const platforms: Platform[] = [];
+    if (selectedPlatforms.some(p => p === 'WEB' || p === 'PLAY_STORE')) {
+      platforms.push(PLATFORMS.ANDROID);
+    }
+    if (selectedPlatforms.includes('APP_STORE')) {
+      platforms.push(PLATFORMS.IOS);
+    }
+    return platforms;
+  };
   
   // Determine which platforms are needed based on selected targets
   const needsAndroid = selectedPlatforms.some(p => p === 'WEB' || p === 'PLAY_STORE');
@@ -103,7 +106,10 @@ export function PipelineList({
             </Text>
           </div>
         ) : (
-          <RequiredPipelinesCheck pipelines={pipelines} />
+          <RequiredPipelinesCheck 
+            pipelines={pipelines} 
+            selectedPlatforms={getPlatformsFromTargets()}
+          />
         )}
       </div>
       
@@ -115,7 +121,7 @@ export function PipelineList({
               pipeline={pipeline}
               onEdit={() => handleEdit(pipeline)}
               onDelete={() => handleDelete(pipeline.id)}
-              onToggle={() => handleToggle(pipeline.id)}
+              availableIntegrations={availableIntegrations}
             />
           ))}
         </SimpleGrid>
@@ -141,6 +147,7 @@ export function PipelineList({
         pipeline={editingPipeline}
         availableIntegrations={availableIntegrations}
         existingPipelines={pipelines}
+        workflows={[]}
         tenantId={tenantId}
       />
     </Stack>

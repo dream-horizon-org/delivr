@@ -3,16 +3,12 @@
  * Visual timeline of regression slots
  */
 
+import { useMemo } from 'react';
 import { Card, Text, Badge, Group, ActionIcon, Tooltip, Button } from '@mantine/core';
 import { IconEdit, IconTrash, IconPlus, IconClock } from '@tabler/icons-react';
-import type { RegressionSlot } from '~/types/release-config';
-
-interface RegressionSlotTimelineProps {
-  slots: RegressionSlot[];
-  onEdit: (slot: RegressionSlot) => void;
-  onDelete: (slotId: string) => void;
-  onAdd: () => void;
-}
+import type { RegressionSlotTimelineProps } from '~/types/release-config-props';
+import { ICON_SIZES } from '~/constants/release-config-ui';
+import { sortRegressionSlots, getSlotActivityLabels } from '~/utils/regression-slot';
 
 export function RegressionSlotTimeline({
   slots,
@@ -20,29 +16,15 @@ export function RegressionSlotTimeline({
   onDelete,
   onAdd,
 }: RegressionSlotTimelineProps) {
-  // Sort slots by offset days and time
-  const sortedSlots = [...slots].sort((a, b) => {
-    if (a.offsetDays !== b.offsetDays) {
-      return a.offsetDays - b.offsetDays;
-    }
-    return a.time.localeCompare(b.time);
-  });
-  
-  const getActivityBadges = (slot: RegressionSlot) => {
-    const activities = [];
-    if (slot.config.regressionBuilds) activities.push('Builds');
-    if (slot.config.postReleaseNotes) activities.push('Notes');
-    if (slot.config.automationBuilds) activities.push('Auto Builds');
-    if (slot.config.automationRuns) activities.push('Tests');
-    return activities;
-  };
+  // Memoize sorted slots to avoid unnecessary re-sorts
+  const sortedSlots = useMemo(() => sortRegressionSlots(slots), [slots]);
   
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" justify="apart" className="mb-4">
         <div>
           <Group gap="sm">
-            <IconClock size={20} className="text-blue-600" />
+            <IconClock size={ICON_SIZES.SMALL} className="text-blue-600" />
             <Text fw={600} size="sm">
               Regression Slots
             </Text>
@@ -55,7 +37,7 @@ export function RegressionSlotTimeline({
         <Button
           size="xs"
           variant="light"
-          leftSection={<IconPlus size={14} />}
+          leftSection={<IconPlus size={ICON_SIZES.EXTRA_SMALL} />}
           onClick={onAdd}
         >
           Add Slot
@@ -70,7 +52,7 @@ export function RegressionSlotTimeline({
           <Button
             variant="light"
             size="sm"
-            leftSection={<IconPlus size={16} />}
+            leftSection={<IconPlus size={ICON_SIZES.SMALL} />}
             onClick={onAdd}
           >
             Add First Slot
@@ -79,7 +61,7 @@ export function RegressionSlotTimeline({
       ) : (
         <div className="space-y-3">
           {sortedSlots.map((slot, index) => {
-            const activities = getActivityBadges(slot);
+            const activities = getSlotActivityLabels(slot);
             
             return (
               <div
@@ -99,7 +81,7 @@ export function RegressionSlotTimeline({
                           {slot.name}
                         </Text>
                         <Badge size="xs" variant="light" color="blue">
-                          Day {slot.offsetDays}
+                          Day {slot.regressionSlotOffsetFromKickoff}
                         </Badge>
                         <Badge size="xs" variant="outline" color="gray">
                           {slot.time}
@@ -125,7 +107,7 @@ export function RegressionSlotTimeline({
                           color="blue"
                           onClick={() => onEdit(slot)}
                         >
-                          <IconEdit size={16} />
+                          <IconEdit size={ICON_SIZES.SMALL} />
                         </ActionIcon>
                       </Tooltip>
                       
@@ -136,7 +118,7 @@ export function RegressionSlotTimeline({
                           color="red"
                           onClick={() => onDelete(slot.id)}
                         >
-                          <IconTrash size={16} />
+                          <IconTrash size={ICON_SIZES.SMALL} />
                         </ActionIcon>
                       </Tooltip>
                     </Group>

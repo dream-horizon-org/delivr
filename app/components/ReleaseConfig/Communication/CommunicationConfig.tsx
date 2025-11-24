@@ -5,18 +5,11 @@
 
 import { Stack, Text, Alert, Button } from '@mantine/core';
 import { IconAlertCircle, IconPlugConnected } from '@tabler/icons-react';
-import { useNavigate, useParams } from '@remix-run/react';
+import { useNavigate } from '@remix-run/react';
 import type { CommunicationConfig as CommunicationConfigType } from '~/types/release-config';
+import type { CommunicationConfigProps } from '~/types/release-config-props';
+import { COMMUNICATION_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 import { SlackChannelConfigEnhanced } from './SlackChannelConfigEnhanced';
-
-interface CommunicationConfigProps {
-  config: CommunicationConfigType;
-  onChange: (config: CommunicationConfigType) => void;
-  availableIntegrations: {
-    slack: Array<{ id: string; name: string }>;
-  };
-  tenantId: string;
-}
 
 export function CommunicationConfig({
   config,
@@ -25,7 +18,6 @@ export function CommunicationConfig({
   tenantId,
 }: CommunicationConfigProps) {
   const navigate = useNavigate();
-  const params = useParams();
 
   console.log('CommunicationConfig', config);
   
@@ -39,29 +31,29 @@ export function CommunicationConfig({
       <Stack gap="lg">
         <div>
           <Text fw={600} size="lg" className="mb-1">
-            Communication Channels
+            {COMMUNICATION_LABELS.SECTION_TITLE}
           </Text>
           <Text size="sm" c="dimmed">
-            Configure Slack notifications for your team
+            {COMMUNICATION_LABELS.SECTION_DESCRIPTION}
           </Text>
         </div>
         
         <Alert
-          icon={<IconAlertCircle size={16} />}
-          title="No Communication Integrations Configured"
+          icon={<IconAlertCircle size={ICON_SIZES.SMALL} />}
+          title={COMMUNICATION_LABELS.NO_INTEGRATIONS_TITLE}
           color="blue"
         >
           <Stack gap="sm">
             <Text size="sm">
-              You need to connect a communication integration (like Slack) before you can configure notifications.
+              {COMMUNICATION_LABELS.NO_INTEGRATIONS_MESSAGE}
             </Text>
             <Button
-              leftSection={<IconPlugConnected size={16} />}
+              leftSection={<IconPlugConnected size={ICON_SIZES.SMALL} />}
               variant="light"
               size="sm"
               onClick={() => navigate(`/dashboard/${tenantId}/integrations`)}
             >
-              Go to Integrations
+              {COMMUNICATION_LABELS.GO_TO_INTEGRATIONS}
             </Button>
           </Stack>
         </Alert>
@@ -73,10 +65,10 @@ export function CommunicationConfig({
     <Stack gap="lg">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Communication Channels
+          {COMMUNICATION_LABELS.SECTION_TITLE}
         </Text>
         <Text size="sm" c="dimmed">
-          Configure Slack notifications for your team
+          {COMMUNICATION_LABELS.SECTION_DESCRIPTION}
         </Text>
       </div>
       

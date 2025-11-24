@@ -20,6 +20,7 @@ import {
   Badge,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import type {
   CheckmateSettings,
   CheckmatePlatformConfiguration,
@@ -106,61 +107,42 @@ export function CheckmateConfigFormEnhanced({
     setError(null);
 
     try {
-      const response = await fetch(`/api/v1/integrations/${integrationId}/metadata/projects`);
-      console.log('response checkmate projects', response);
-      if (!response.ok) {
+      const result = await apiGet<{ projectsList: any[] }>(
+        `/api/v1/integrations/${integrationId}/metadata/projects`
+      );
+      
+      if (result.success && result.data?.projectsList) {
+        setProjects(result.data.projectsList || []);
+      } else {
         throw new Error('Failed to fetch projects');
       }
-
-      const result = await response.json();
-      console.log('result checkmate projects', result);
-      if (result.success && result.data?.projectsList) {
-        setProjects(result?.data?.projectsList || []);
-      } else {
-        throw new Error(result.error || 'Failed to fetch projects');
-      }
     } catch (error) {
-      console.error('[Checkmate] Error fetching projects:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch projects');
+      setError(getApiErrorMessage(error, 'Failed to fetch projects'));
     } finally {
       setIsLoadingProjects(false);
     }
-  }, []); // No dependencies - this function doesn't change
+  }, []);
 
   const fetchMetadata = useCallback(async (integrationId: string, projectId: number) => {
     setIsLoadingMetadata(true);
     setError(null);
 
     try {
-      const [sectionsRes, labelsRes, squadsRes] = await Promise.all([
-        fetch(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
-        fetch(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
-        fetch(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
-      ]);
-
-      if (!sectionsRes.ok || !labelsRes.ok || !squadsRes.ok) {
-        throw new Error('Failed to fetch metadata');
-      }
-
       const [sectionsData, labelsData, squadsData] = await Promise.all([
-        sectionsRes.json(),
-        labelsRes.json(),
-        squadsRes.json(),
+        apiGet<any[]>(`/api/v1/integrations/${integrationId}/metadata/sections?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/integrations/${integrationId}/metadata/labels?projectId=${projectId}`),
+        apiGet<any[]>(`/api/v1/integrations/${integrationId}/metadata/squads?projectId=${projectId}`),
       ]);
-      console.log('sectionsData', sectionsData);
-      console.log('labelsData', labelsData);
-      console.log('squadsData', squadsData);
 
       setSections(sectionsData.data || []);
       setLabels(labelsData.data || []);
       setSquads(squadsData.data || []);
     } catch (error) {
-      console.error('[Checkmate] Error fetching metadata:', error);
-      setError(error instanceof Error ? error.message : 'Failed to fetch metadata');
+      setError(getApiErrorMessage(error, 'Failed to fetch metadata'));
     } finally {
       setIsLoadingMetadata(false);
     }
-  }, []); // No dependencies - this function doesn't change
+  }, []);
 
   // Initialize selectedIntegrationId from config on mount
   useEffect(() => {

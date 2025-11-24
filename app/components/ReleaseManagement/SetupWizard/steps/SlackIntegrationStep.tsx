@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { WizardStep, FormField } from '../components';
 import { useSlackConnection } from '../hooks';
-import type { SlackIntegration } from '../types';
+import type { SlackIntegration } from '~/types/setup-wizard';
 
 interface SlackIntegrationStepProps {
   initialData?: SlackIntegration;

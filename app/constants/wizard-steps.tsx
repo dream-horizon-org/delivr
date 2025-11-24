@@ -3,5 +3,5 @@
  * Re-exports wizard steps from centralized constants
  */
 
-export { WIZARD_STEPS, STEP_INDEX } from '../release-config-constants';
+export { WIZARD_STEPS, STEP_INDEX } from '~/constants/release-config';
 

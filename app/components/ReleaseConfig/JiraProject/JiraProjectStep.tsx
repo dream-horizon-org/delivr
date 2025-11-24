@@ -8,16 +8,10 @@ import { Stack, Text, Switch, Select, Alert, Checkbox } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
 import type { JiraProjectStepProps } from '~/types/release-config-props';
-import { PLATFORMS, JIRA_PLATFORMS } from '~/types/release-config-constants';
+import { PLATFORMS } from '~/types/release-config-constants';
+import { JIRA_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 import { JiraPlatformConfigCard } from './JiraPlatformConfigCard';
 import { createDefaultPlatformConfigs } from '~/utils/jira-config-transformer';
-
-// Map frontend Platform to backend Platform
-function mapPlatform(platform: Platform): typeof JIRA_PLATFORMS.WEB | typeof JIRA_PLATFORMS.IOS | typeof JIRA_PLATFORMS.ANDROID {
-  if (platform === PLATFORMS.ANDROID) return JIRA_PLATFORMS.ANDROID;
-  if (platform === PLATFORMS.IOS) return JIRA_PLATFORMS.IOS;
-  return JIRA_PLATFORMS.WEB;
-}
 
 export function JiraProjectStep({
   config,
@@ -63,7 +57,7 @@ export function JiraProjectStep({
     });
   };
 
-  const handlePlatformConfigChange = (platform: 'WEB' | 'IOS' | 'ANDROID', platformConfig: JiraPlatformConfig) => {
+  const handlePlatformConfigChange = (platform: Platform, platformConfig: JiraPlatformConfig) => {
     const updatedConfigs = platformConfigurations.map(pc =>
       pc.platform === platform ? platformConfig : pc
     );
@@ -91,17 +85,17 @@ export function JiraProjectStep({
       {/* Header */}
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          JIRA Project Management
+          {JIRA_LABELS.SECTION_TITLE}
         </Text>
         <Text size="sm" c="dimmed">
-          Configure JIRA project tracking for each platform. Each platform can have different project settings.
+          {JIRA_LABELS.SECTION_DESCRIPTION}
         </Text>
       </div>
 
       {/* Enable/Disable Switch */}
       <Switch
-        label="Enable JIRA Integration"
-        description="Link releases and builds to JIRA issues"
+        label={JIRA_LABELS.ENABLE_INTEGRATION}
+        description={JIRA_LABELS.ENABLE_DESCRIPTION}
         checked={isEnabled}
         onChange={(event) => handleToggle(event.currentTarget.checked)}
         size="md"
@@ -111,8 +105,8 @@ export function JiraProjectStep({
         <>
           {/* No platforms selected warning */}
           {selectedPlatforms.length === 0 && (
-            <Alert icon={<IconAlertCircle size={16} />} title="No platforms selected" color="yellow">
-              Please select at least one platform in the "Target Platforms" step before configuring JIRA.
+            <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="No platforms selected" color="yellow">
+              {JIRA_LABELS.NO_PLATFORMS_WARNING}
             </Alert>
           )}
 
@@ -120,9 +114,9 @@ export function JiraProjectStep({
             <>
               {/* JIRA Integration Selector */}
               <Select
-                label="JIRA Integration"
-                placeholder="Select a connected JIRA integration"
-                description="Choose which JIRA instance to use"
+                label={JIRA_LABELS.INTEGRATION_LABEL}
+                placeholder={JIRA_LABELS.INTEGRATION_PLACEHOLDER}
+                description={JIRA_LABELS.INTEGRATION_DESCRIPTION}
                 data={integrationOptions}
                 value={config.integrationId || null}
                 onChange={handleIntegrationChange}
@@ -132,8 +126,8 @@ export function JiraProjectStep({
 
               {/* No integrations available warning */}
               {integrationOptions.length === 0 && (
-                <Alert icon={<IconAlertCircle size={16} />} title="No JIRA integrations" color="red">
-                  Please connect a JIRA integration first in the Integrations page.
+                <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="No JIRA integrations" color="red">
+                  {JIRA_LABELS.NO_INTEGRATIONS_WARNING}
                 </Alert>
               )}
 
@@ -142,15 +136,15 @@ export function JiraProjectStep({
                   {/* Platform Configurations */}
                   <div>
                     <Text fw={500} size="md" mb="md">
-                      Platform-Specific Settings
+                      {JIRA_LABELS.PLATFORM_SETTINGS_TITLE}
                     </Text>
                     <Text size="sm" c="dimmed" mb="lg">
-                      Configure JIRA project settings for each platform. Different platforms can use different projects, issue types, and completion statuses.
+                      {JIRA_LABELS.PLATFORM_SETTINGS_DESCRIPTION}
                     </Text>
 
                     <Stack gap="lg">
                       {config.platformConfigurations
-                        .filter(pc => selectedPlatforms.map(mapPlatform).includes(pc.platform))
+                        .filter(pc => selectedPlatforms.includes(pc.platform))
                         .map(platformConfig => (
                           <JiraPlatformConfigCard
                             key={platformConfig.platform}
@@ -159,6 +153,7 @@ export function JiraProjectStep({
                             onChange={(updatedConfig) =>
                               handlePlatformConfigChange(platformConfig.platform, updatedConfig)
                             }
+                            integrationId={config.integrationId || ''}
                           />
                         ))}
                     </Stack>
@@ -167,20 +162,20 @@ export function JiraProjectStep({
                   {/* Global Settings */}
                   <div>
                     <Text fw={500} size="md" mb="md">
-                      Global Settings
+                      {JIRA_LABELS.GLOBAL_SETTINGS_TITLE}
                     </Text>
                     <Stack gap="sm">
                       <Checkbox
-                        label="Auto-create release tickets"
-                        description="Automatically create JIRA tickets for each release"
+                        label={JIRA_LABELS.AUTO_CREATE_TICKETS}
+                        description={JIRA_LABELS.AUTO_CREATE_DESCRIPTION}
                         checked={config.createReleaseTicket ?? true}
                         onChange={(event) =>
                           handleGlobalSettingChange('createReleaseTicket', event.currentTarget.checked)
                         }
                       />
                       <Checkbox
-                        label="Link builds to JIRA issues"
-                        description="Automatically link build information to relevant JIRA issues"
+                        label={JIRA_LABELS.LINK_BUILDS}
+                        description={JIRA_LABELS.LINK_BUILDS_DESCRIPTION}
                         checked={config.linkBuildsToIssues ?? true}
                         onChange={(event) =>
                           handleGlobalSettingChange('linkBuildsToIssues', event.currentTarget.checked)

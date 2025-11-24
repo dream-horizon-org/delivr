@@ -5,22 +5,8 @@
 
 import { Stack, Text, Select, Card, Group, Switch, MultiSelect } from '@mantine/core';
 import { IconBrandSlack } from '@tabler/icons-react';
-
-interface SlackChannelMapperProps {
-  enabled: boolean;
-  integrationId: string;
-  channels: {
-    releases: Array<{ id: string; name: string }>;
-    builds: Array<{ id: string; name: string }>;
-    regression: Array<{ id: string; name: string }>;
-    critical: Array<{ id: string; name: string }>;
-  };
-  onToggle: (enabled: boolean) => void;
-  onChange: (channels: any) => void;
-  onIntegrationChange: (integrationId: string) => void;
-  availableIntegrations: Array<{ id: string; name: string }>;
-  availableChannels?: Array<{ id: string; name: string }>; // Available Slack channels
-}
+import type { SlackChannelMapperProps } from '~/types/release-config-props';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function SlackChannelMapper({
   enabled,
@@ -52,7 +38,7 @@ export function SlackChannelMapper({
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
-        <IconBrandSlack size={20} className="text-blue-600" />
+        <IconBrandSlack size={ICON_SIZES.SMALL} className="text-blue-600" />
         <Text fw={600} size="sm">
           Slack Integration
         </Text>

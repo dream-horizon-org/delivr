@@ -4,9 +4,14 @@
  */
 
 import type { JiraProjectConfig, JiraPlatformConfig, Platform } from '~/types/release-config';
+import { PLATFORMS } from '~/types/release-config-constants';
+import { JIRA_BACKEND_PARAMS } from '~/constants/release-config-ui';
 
 /**
  * Backend DTO structure (matches server-ota types)
+ * 
+ * Note: Backend Platform enum only includes ANDROID and IOS.
+ * WEB is not a valid platform for project management.
  */
 export interface CreateProjectManagementConfigDto {
   projectId: string; // Tenant ID
@@ -14,7 +19,7 @@ export interface CreateProjectManagementConfigDto {
   name: string; // Config name
   description?: string;
   platformConfigurations: Array<{
-    platform: 'WEB' | 'IOS' | 'ANDROID';
+    platform: Platform;
     parameters: {
       projectKey: string;
       issueType?: string;
@@ -28,6 +33,9 @@ export interface CreateProjectManagementConfigDto {
 
 /**
  * Backend response structure
+ * 
+ * Note: Legacy data may contain WEB platforms, but new backend
+ * only accepts ANDROID and IOS. Filter defensively when transforming.
  */
 export interface ProjectManagementConfigResponse {
   id: string;
@@ -36,23 +44,12 @@ export interface ProjectManagementConfigResponse {
   name: string;
   description: string | null;
   platformConfigurations: Array<{
-    platform: 'WEB' | 'IOS' | 'ANDROID';
+    platform: Platform; // WEB only for legacy data compatibility
     parameters: Record<string, unknown>;
   }>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-/**
- * Map frontend Platform to backend Platform
- */
-function mapPlatform(platform: Platform): 'WEB' | 'IOS' | 'ANDROID' {
-  // Frontend uses 'ANDROID' | 'IOS'
-  // Backend uses 'WEB' | 'IOS' | 'ANDROID'
-  if (platform === 'ANDROID') return 'ANDROID';
-  if (platform === 'IOS') return 'IOS';
-  return 'WEB'; // Fallback
 }
 
 /**
@@ -97,10 +94,10 @@ export function transformJiraConfigToBackendDTO(
     platformConfigurations: validPlatformConfigs.map(pc => ({
       platform: pc.platform,
       parameters: {
-        projectKey: pc.projectKey,
-        issueType: pc.issueType,
-        completedStatus: pc.completedStatus,
-        priority: pc.priority,
+        [JIRA_BACKEND_PARAMS.PROJECT_KEY]: pc.projectKey,
+        [JIRA_BACKEND_PARAMS.ISSUE_TYPE]: pc.issueType,
+        [JIRA_BACKEND_PARAMS.COMPLETED_STATUS]: pc.completedStatus,
+        [JIRA_BACKEND_PARAMS.PRIORITY]: pc.priority,
       }
     })),
     createdByAccountId: userId,
@@ -112,6 +109,9 @@ export function transformJiraConfigToBackendDTO(
  * 
  * @param backendConfig - Backend configuration response
  * @returns Frontend JIRA configuration
+ * 
+ * Note: Filters out 'WEB' platforms as they are not valid in the frontend system.
+ * Only ANDROID and IOS are supported platforms.
  */
 export function transformBackendDTOToJiraConfig(
   backendConfig: ProjectManagementConfigResponse
@@ -119,13 +119,15 @@ export function transformBackendDTOToJiraConfig(
   return {
     enabled: backendConfig.isActive,
     integrationId: backendConfig.integrationId,
-    platformConfigurations: backendConfig.platformConfigurations.map(pc => ({
-      platform: pc.platform,
-      projectKey: (pc.parameters.projectKey as string) || '',
-      issueType: pc.parameters.issueType as string | undefined,
-      completedStatus: (pc.parameters.completedStatus as string) || 'Done',
-      priority: pc.parameters.priority as string | undefined,
-    })),
+    platformConfigurations: backendConfig.platformConfigurations
+      .filter(pc => pc.platform === PLATFORMS.ANDROID || pc.platform === PLATFORMS.IOS) // Filter out WEB
+      .map(pc => ({
+        platform: pc.platform as Platform, // Safe cast after filter
+        projectKey: (pc.parameters[JIRA_BACKEND_PARAMS.PROJECT_KEY] as string) || '',
+        issueType: pc.parameters[JIRA_BACKEND_PARAMS.ISSUE_TYPE] as string | undefined,
+        completedStatus: (pc.parameters[JIRA_BACKEND_PARAMS.COMPLETED_STATUS] as string) || 'Done',
+        priority: pc.parameters[JIRA_BACKEND_PARAMS.PRIORITY] as string | undefined,
+      })),
     createReleaseTicket: true,
     linkBuildsToIssues: true,
   };
@@ -134,12 +136,12 @@ export function transformBackendDTOToJiraConfig(
 /**
  * Create default JIRA platform configurations based on selected platforms
  * 
- * @param platforms - Selected platforms (from earlier wizard step)
+ * @param platforms - Selected platforms (ANDROID | IOS from system)
  * @returns Array of default platform configurations
  */
 export function createDefaultPlatformConfigs(platforms: Platform[]): JiraPlatformConfig[] {
   return platforms.map(platform => ({
-    platform: mapPlatform(platform),
+    platform, // Use system platforms directly (ANDROID | IOS)
     projectKey: '',
     completedStatus: 'Done', // Default completion status
     priority: 'High', // Default priority

@@ -1,15 +1,5 @@
-/**
- * Release Configurations Hook
- * Provides cached release configurations using React Query
- * 
- * Features:
- * - Automatic caching with 5-minute freshness
- * - Background refetching for always-fresh data
- * - Cache invalidation for mutations
- * - Selectors for common queries
- */
-
 import { useQuery, useQueryClient } from 'react-query';
+import { apiGet } from '~/utils/api-client';
 import type { ReleaseConfiguration } from '~/types/release-config';
 
 interface ReleaseConfigsResponse {
@@ -35,19 +25,14 @@ export function useReleaseConfigs(tenantId?: string) {
         return { success: false, data: [] };
       }
       
-      console.log('[useReleaseConfigs] Fetching configs for tenant:', tenantId);
+      const result = await apiGet<ReleaseConfiguration[]>(
+        `/api/v1/tenants/${tenantId}/release-config`
+      );
       
-      const response = await fetch(`/api/v1/tenants/${tenantId}/release-config`);
-      
-      if (!response.ok) {
-        console.error('[useReleaseConfigs] Fetch failed:', response.status);
-        throw new Error(`Failed to fetch release configs: ${response.statusText}`);
-      }
-      
-      const result: ReleaseConfigsResponse = await response.json();
-      console.log('[useReleaseConfigs] Fetched', result.data?.length || 0, 'configs');
-      
-      return result;
+      return {
+        success: result.success,
+        data: result.data || [],
+      };
     },
     {
       enabled: !!tenantId, // Only fetch if tenantId exists
@@ -105,9 +90,9 @@ export function useReleaseConfigs(tenantId?: string) {
 
   // Selectors
   const configs = data?.data || [];
-  const activeConfigs = configs.filter(c => c.isActive);
-  const defaultConfig = configs.find(c => c.isDefault);
-  const archivedConfigs = configs.filter(c => !c.isActive);
+  const activeConfigs = configs.filter((c: ReleaseConfiguration) => c.isActive);
+  const defaultConfig = configs.find((c: ReleaseConfiguration) => c.isDefault);
+  const archivedConfigs = configs.filter((c: ReleaseConfiguration) => !c.isActive);
 
   return {
     // Data
@@ -134,7 +119,7 @@ export function useReleaseConfigs(tenantId?: string) {
 export function useReleaseConfigsByType(tenantId: string | undefined, releaseType: string) {
   const { configs, isLoading, error } = useReleaseConfigs(tenantId);
   
-  const configsByType = configs.filter(c => c.releaseType === releaseType);
+  const configsByType = configs.filter((c: ReleaseConfiguration) => c.releaseType === releaseType);
   
   return {
     configs: configsByType,
@@ -149,7 +134,7 @@ export function useReleaseConfigsByType(tenantId: string | undefined, releaseTyp
 export function useReleaseConfig(tenantId: string | undefined, configId: string | undefined) {
   const { configs, isLoading, error } = useReleaseConfigs(tenantId);
   
-  const config = configs.find(c => c.id === configId);
+  const config = configs.find((c: ReleaseConfiguration) => c.id === configId);
   
   return {
     config,

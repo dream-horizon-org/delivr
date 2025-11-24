@@ -25,17 +25,13 @@ import type {
   ReleaseFrequency,
   Platform,
 } from '~/types/release-config';
+import type { SchedulingConfigProps, RegressionSlotCardProps } from '~/types/release-config-props';
 import { ReleaseFrequencySelector } from './ReleaseFrequencySelector';
 import { WorkingDaysSelector } from './WorkingDaysSelector';
 import { TimezonePicker } from './TimezonePicker';
-import { PLATFORMS, PLATFORM_METADATA } from '../release-config-constants';
+import { PLATFORM_METADATA } from '~/constants/release-config';
 import { validateScheduling, formatValidationErrors } from './scheduling-validation';
-
-interface SchedulingConfigProps {
-  config: SchedulingConfigType;
-  onChange: (config: SchedulingConfigType) => void;
-  selectedPlatforms: Platform[]; // Platforms configured in the release
-}
+import { SCHEDULING_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function SchedulingConfig({ config, onChange, selectedPlatforms }: SchedulingConfigProps) {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
@@ -95,15 +91,15 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
     <Stack gap="lg">
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Release Scheduling
+          {SCHEDULING_LABELS.SECTION_TITLE}
         </Text>
         <Text size="sm" c="dimmed">
-          Configure release cadence, timing, and regression test slots
+          {SCHEDULING_LABELS.SECTION_DESCRIPTION}
         </Text>
       </div>
       
       {validationErrors.length > 0 && (
-        <Alert icon={<IconAlertCircle size={18} />} color="red" title="Validation Errors">
+        <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} color="red" title={SCHEDULING_LABELS.VALIDATION_ERRORS}>
           <Stack gap="xs">
             {validationErrors.map((error, i) => (
               <Text key={i} size="sm">
@@ -126,17 +122,17 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
         <Stack gap="md">
           <div>
             <Text fw={600} size="sm" className="mb-1">
-              First Release Kickoff Date
+              {SCHEDULING_LABELS.FIRST_KICKOFF_TITLE}
             </Text>
             <Text size="xs" c="dimmed">
-              The date when the first release cycle will start
+              {SCHEDULING_LABELS.FIRST_KICKOFF_DESCRIPTION}
             </Text>
           </div>
 
           <TextInput
-            label="Kickoff Date"
+            label={SCHEDULING_LABELS.KICKOFF_DATE_LABEL}
             type="date"
-            placeholder="Select date"
+            placeholder={SCHEDULING_LABELS.KICKOFF_DATE_PLACEHOLDER}
             value={
               config.firstReleaseKickoffDate
                 ? config.firstReleaseKickoffDate.split('T')[0]
@@ -152,7 +148,7 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
             }}
             required
             min={new Date().toISOString().split('T')[0]}
-            leftSection={<IconCalendar size={16} />}
+            leftSection={<IconCalendar size={ICON_SIZES.SMALL} />}
           />
         </Stack>
       </Card>
@@ -163,10 +159,10 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
           <Stack gap="md">
             <div>
               <Text fw={600} size="sm" className="mb-1">
-                Initial Release Versions
+                {SCHEDULING_LABELS.INITIAL_VERSIONS_TITLE}
               </Text>
               <Text size="xs" c="dimmed">
-                Starting version numbers for configured platforms (e.g., 1.0.0)
+                {SCHEDULING_LABELS.INITIAL_VERSIONS_DESCRIPTION}
               </Text>
             </div>
 
@@ -181,10 +177,10 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
                         <Badge color={metadata.color} size="sm" variant="filled">
                           {metadata.label}
                         </Badge>
-                        <Text size="sm">Initial Version</Text>
+                        <Text size="sm">{SCHEDULING_LABELS.INITIAL_VERSION_LABEL}</Text>
                       </Group>
                     }
-                    placeholder="1.0.0"
+                    placeholder={SCHEDULING_LABELS.INITIAL_VERSION_PLACEHOLDER}
                     value={config.initialVersions?.[platform] || ''}
                     onChange={(e) =>
                       onChange({
@@ -196,16 +192,15 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
                       })
                     }
                     required
-                    description={`Semantic version for ${metadata.label} (e.g., 1.0.0)`}
+                    description={SCHEDULING_LABELS.SEMANTIC_VERSION_DESCRIPTION.replace('{platform}', metadata.label)}
                   />
                 );
               })}
             </Group>
 
-            <Alert color="blue" variant="light" icon={<IconInfoCircle size={16} />}>
+            <Alert color="blue" variant="light" icon={<IconInfoCircle size={ICON_SIZES.SMALL} />}>
               <Text size="xs">
-                These versions will be used as the starting point for auto-incrementing release versions.
-                Use semantic versioning format (MAJOR.MINOR.PATCH).
+                {SCHEDULING_LABELS.INITIAL_VERSION_HINT}
               </Text>
             </Alert>
           </Stack>
@@ -331,25 +326,25 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
           <Group justify="space-between" align="center">
             <div>
               <Text fw={600} size="sm">
-                Regression Slots
+                {SCHEDULING_LABELS.REGRESSION_SLOTS_TITLE}
               </Text>
               <Text size="xs" c="dimmed">
-                Scheduled regression testing windows
+                {SCHEDULING_LABELS.REGRESSION_SLOTS_DESCRIPTION}
               </Text>
             </div>
             <Button
-              leftSection={<IconPlus size={16} />}
+              leftSection={<IconPlus size={ICON_SIZES.SMALL} />}
               variant="light"
               size="xs"
               onClick={handleAddSlot}
             >
-              Add Slot
+              {SCHEDULING_LABELS.ADD_SLOT}
             </Button>
           </Group>
 
           {config.regressionSlots.length === 0 ? (
-            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
-              <Text size="sm">No regression slots configured yet. Click "Add Slot" to create one.</Text>
+            <Alert icon={<IconInfoCircle size={ICON_SIZES.SMALL} />} color="blue" variant="light">
+              <Text size="sm">{SCHEDULING_LABELS.NO_SLOTS_MESSAGE}</Text>
             </Alert>
           ) : (
             <Stack gap="sm">
@@ -383,19 +378,7 @@ function timeToMinutes(time: string | undefined): number {
   return hours * 60 + minutes;
 }
 
-// Sub-component for Regression Slot Card
-interface RegressionSlotCardProps {
-  slot: RegressionSlot;
-  index: number;
-  isEditing: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-  onUpdate: (slot: RegressionSlot) => void;
-  onCollapse: () => void;
-  targetReleaseOffset: number;
-  targetReleaseTime: string;
-  kickoffTime: string;
-}
+// Sub-component for Regression Slot Card (interface moved to centralized props)
 
 function RegressionSlotCard({
   slot,

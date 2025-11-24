@@ -1,4 +1,4 @@
-import { WizardStepConfig } from "../types";
+import { WizardStepConfig } from '~/types/setup-wizard';
 
 
 interface OnboardingFlowNavigationProps {

@@ -1,19 +1,9 @@
-/**
- * Scheduling Step Wrapper
- * Provides opt-in toggle for scheduling configuration
- */
-
-import { useState } from 'react';
 import { Stack, Switch, Text, Alert, Card } from '@mantine/core';
 import { IconInfoCircle, IconCalendar } from '@tabler/icons-react';
 import type { SchedulingConfig as SchedulingConfigType, Platform } from '~/types/release-config';
+import type { SchedulingStepWrapperProps } from '~/types/release-config-props';
 import { SchedulingConfig } from './SchedulingConfig';
-
-interface SchedulingStepWrapperProps {
-  scheduling: SchedulingConfigType | undefined;
-  onChange: (scheduling: SchedulingConfigType | undefined) => void;
-  selectedPlatforms: Platform[];
-}
+import { SCHEDULING_LABELS, ICON_SIZES, DEFAULT_SCHEDULING_CONFIG } from '~/constants/release-config-ui';
 
 /**
  * Create default scheduling config when user opts in
@@ -21,21 +11,21 @@ interface SchedulingStepWrapperProps {
 const createDefaultSchedulingConfig = (platforms: Platform[]): SchedulingConfigType => {
   const initialVersions: Partial<Record<Platform, string>> = {};
   platforms.forEach(platform => {
-    initialVersions[platform] = '1.0.0'; // Default version
+    initialVersions[platform] = DEFAULT_SCHEDULING_CONFIG.INITIAL_VERSION;
   });
 
   return {
-    releaseFrequency: 'WEEKLY',
+    releaseFrequency: DEFAULT_SCHEDULING_CONFIG.RELEASE_FREQUENCY,
     customFrequencyDays: undefined,
     firstReleaseKickoffDate: '', // To be set by user
     initialVersions,
-    kickoffTime: '10:00',
-    kickoffReminderEnabled: true,
-    kickoffReminderTime: '09:00',
-    targetReleaseTime: '18:00',
-    targetReleaseDateOffsetFromKickoff: 5,
-    workingDays: [1, 2, 3, 4, 5], // Monday to Friday
-    timezone: 'Asia/Kolkata',
+    kickoffTime: DEFAULT_SCHEDULING_CONFIG.KICKOFF_TIME,
+    kickoffReminderEnabled: DEFAULT_SCHEDULING_CONFIG.KICKOFF_REMINDER_ENABLED,
+    kickoffReminderTime: DEFAULT_SCHEDULING_CONFIG.KICKOFF_REMINDER_TIME,
+    targetReleaseTime: DEFAULT_SCHEDULING_CONFIG.TARGET_RELEASE_TIME,
+    targetReleaseDateOffsetFromKickoff: DEFAULT_SCHEDULING_CONFIG.TARGET_RELEASE_OFFSET_DAYS,
+    workingDays: [...DEFAULT_SCHEDULING_CONFIG.WORKING_DAYS], // Clone array
+    timezone: DEFAULT_SCHEDULING_CONFIG.DEFAULT_TIMEZONE,
     regressionSlots: [],
   };
 };
@@ -65,23 +55,22 @@ export function SchedulingStepWrapper({
           <Switch
             label={
               <Text size="md" fw={500}>
-                Enable Release Train Scheduling
+                {SCHEDULING_LABELS.ENABLE_RELEASE_TRAIN}
               </Text>
             }
-            description="Automate release cycles with predefined schedules, regression slots, and working days"
+            description={SCHEDULING_LABELS.ENABLE_DESCRIPTION}
             checked={isEnabled}
             onChange={(e) => handleToggle(e.currentTarget.checked)}
             size="md"
           />
 
           {!isEnabled && (
-            <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light">
+            <Alert icon={<IconInfoCircle size={ICON_SIZES.SMALL} />} color="blue" variant="light">
               <Text size="sm">
-                <strong>Release train scheduling is optional.</strong> Enable it if you want to automate recurring releases
-                with predefined cycles, kickoff times, regression slots, and working days.
+                <strong>{SCHEDULING_LABELS.OPTIONAL_INFO}</strong> {SCHEDULING_LABELS.OPTIONAL_DETAIL}
               </Text>
               <Text size="sm" mt="xs" color="dimmed">
-                Without scheduling, you'll create releases manually when needed.
+                {SCHEDULING_LABELS.WITHOUT_SCHEDULING}
               </Text>
             </Alert>
           )}
@@ -91,9 +80,9 @@ export function SchedulingStepWrapper({
       {/* Full Scheduling Form (only shown when enabled) */}
       {isEnabled && scheduling && (
         <>
-          <Alert icon={<IconCalendar size={18} />} color="teal" variant="light">
+          <Alert icon={<IconCalendar size={ICON_SIZES.SMALL} />} color="teal" variant="light">
             <Text size="sm">
-              Configure your release train schedule below. All fields are required for automated release cycles.
+              {SCHEDULING_LABELS.CONFIGURE_BELOW}
             </Text>
           </Alert>
 

@@ -5,18 +5,8 @@
 
 import { Group, Text } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-
-interface Step {
-  id: string;
-  title: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}
-
-interface WizardStepIndicatorProps {
-  steps: Step[];
-  currentStep: number;
-  completedSteps: Set<number>;
-}
+import type { WizardStepIndicatorProps } from '~/types/release-config-props';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function WizardStepIndicator({
   steps,
@@ -49,9 +39,9 @@ export function WizardStepIndicator({
                   `}
                 >
                   {isCompleted || isPast ? (
-                    <IconCheck size={20} />
+                    <IconCheck size={ICON_SIZES.MEDIUM} />
                   ) : (
-                    <Icon size={20} />
+                    <Icon size={ICON_SIZES.MEDIUM} />
                   )}
                 </div>
                 

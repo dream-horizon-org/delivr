@@ -16,7 +16,7 @@ import {
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigSummaryProps } from '~/types/release-config-props';
 import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
-import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES } from '~/constants/release-config-ui';
+import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES, SUMMARY_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function ConfigSummary({ config }: ConfigSummaryProps) {
   return (
@@ -33,7 +33,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
       {/* Basic Info */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
-          <IconSettings size={20} className="text-blue-600" />
+          <IconSettings size={ICON_SIZES.MEDIUM} className="text-blue-600" />
           <Text fw={600} size="sm">
             {SECTION_TITLES.BASIC_INFORMATION}
           </Text>
@@ -70,7 +70,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
       {/* Build Upload Method */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
-          <IconSettings size={20} className="text-green-600" />
+          <IconSettings size={ICON_SIZES.MEDIUM} className="text-green-600" />
           <Text fw={600} size="sm">
             {SECTION_TITLES.BUILD_UPLOAD_METHOD}
           </Text>
@@ -97,9 +97,9 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 key={pipeline.id}
                 icon={
                   pipeline.enabled ? (
-                    <IconCheck size={16} className="text-green-600" />
+                    <IconCheck size={ICON_SIZES.SMALL} className="text-green-600" />
                   ) : (
-                    <IconX size={16} className="text-gray-400" />
+                    <IconX size={ICON_SIZES.SMALL} className="text-gray-400" />
                   )
                 }
               >
@@ -138,9 +138,9 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
       {/* Target Platforms */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
-          <IconTarget size={20} className="text-orange-600" />
+          <IconTarget size={ICON_SIZES.MEDIUM} className="text-orange-600" />
           <Text fw={600} size="sm">
-            Target Platforms
+            {SUMMARY_LABELS.TARGET_PLATFORMS}
           </Text>
         </Group>
         
@@ -154,7 +154,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </Group>
         ) : (
           <Text size="sm" c="dimmed">
-            No target platforms selected
+            {SUMMARY_LABELS.NO_TARGETS_SELECTED}
           </Text>
         )}
       </Card>

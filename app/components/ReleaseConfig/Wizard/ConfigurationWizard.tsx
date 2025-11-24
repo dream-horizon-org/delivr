@@ -11,16 +11,18 @@ import {
   saveDraftConfig,
   loadDraftConfig,
   clearDraftConfig,
-  validateConfiguration,
   saveWizardStep,
   loadWizardStep,
-  clearWizardStep,
 } from '~/utils/release-config-storage';
 import { createDefaultConfig } from '~/utils/default-config';
+import { apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { WizardNavigation } from './WizardNavigation';
 import { ConfigSummary } from './ConfigSummary';
 import { BasicInfoForm } from './BasicInfoForm';
-import { WIZARD_STEPS, STEP_INDEX } from './wizard-steps.constants';
+import { WIZARD_STEPS, STEP_INDEX } from '~/constants/wizard-steps';
+import { canProceedFromStep } from './wizard-validation';
 import { VerticalStepper } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
 import { BuildUploadSelector } from '../BuildUpload/BuildUploadSelector';
@@ -30,7 +32,7 @@ import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
 import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
 import { derivePlatformsFromTargets } from '~/utils/platform-utils';
-import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_UPLOAD_STEPS, TARGET_PLATFORMS } from '~/types/release-config-constants';
+import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
 import type { ConfigurationWizardProps } from '~/types/release-config-props';
 
 // Using ConfigurationWizardProps from centralized types
@@ -48,14 +50,7 @@ export function ConfigurationWizard({
   // Initialize step from saved draft step (if exists) or default to 0
   const [currentStep, setCurrentStep] = useState(() => {
     // Only restore step for draft configs, not in edit mode
-    if (!isEditMode) {
-      const savedStep = loadWizardStep(tenantId);
-      if (savedStep > 0) {
-        console.log('[ConfigWizard] Resuming from saved step:', savedStep);
-      }
-      return savedStep;
-    }
-    return 0;
+    return !isEditMode ? loadWizardStep(tenantId) : 0;
   });
   
   // Initialize completed steps based on saved step
@@ -73,26 +68,21 @@ export function ConfigurationWizard({
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // console.log('[ConfigurationWizard] Available integrations:', availableIntegrations);
   
   // Initialize configuration from existing, draft, or create new
   const [config, setConfig] = useState<Partial<ReleaseConfiguration>>(() => {
     // Edit Mode: Use existing config, NEVER touch drafts
     if (isEditMode && existingConfig) {
-      console.log('[ConfigWizard] Edit mode: Loading existing config:', existingConfig.id);
       return existingConfig;
     }
     
     // New Config Mode: Try to load draft (for resuming interrupted creation)
     const draft = loadDraftConfig(tenantId);
     if (draft) {
-      console.log('[ConfigWizard] New mode: Resuming from draft');
       return draft;
     }
     
     // Fresh start: Create default config
-    console.log('[ConfigWizard] New mode: Creating fresh config');
     return createDefaultConfig(tenantId);
   });
   
@@ -111,72 +101,8 @@ export function ConfigurationWizard({
     }
   }, [tenantId, currentStep, isEditMode]);
   
-  const canProceedFromStep = (stepIndex: number): boolean => {
-    switch (stepIndex) {
-      case STEP_INDEX.BASIC: // Basic Info
-        return !!(config.name && config.name.trim());
-        
-      case STEP_INDEX.PLATFORMS: // Target Platforms
-        return !!config.targets && config.targets.length > 0;
-        
-      case STEP_INDEX.BUILD_UPLOAD: // Build Upload Method Selection
-        // Must select a build upload method
-        return !!config.buildUploadStep;
-        
-      case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
-        // Only validate if CI/CD is selected
-        if (config.buildUploadStep !== BUILD_UPLOAD_STEPS.CI_CD) {
-          return true; // Skip validation if not using CI/CD
-        }
-        
-        if (!config.workflows || config.workflows.length === 0) {
-          return false;
-        }
-        
-        // Validate required pipelines based on selected distribution targets
-        const needsAndroid = config.targets?.includes(TARGET_PLATFORMS.PLAY_STORE);
-        const needsIOS = config.targets?.includes(TARGET_PLATFORMS.APP_STORE);
-        
-        if (needsAndroid) {
-          const hasAndroidRegression = config.workflows.some(
-            p => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
-          );
-          if (!hasAndroidRegression) return false;
-        }
-        
-        if (needsIOS) {
-          const hasIOSRegression = config.workflows.some(
-            p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
-          );
-          const hasTestFlight = config.workflows.some(
-            p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
-          );
-          if (!hasIOSRegression || !hasTestFlight) return false;
-        }
-        
-        return true;
-        
-      case STEP_INDEX.TESTING: // Test Management
-        return true; // Optional
-        
-      case STEP_INDEX.COMMUNICATION: // Communication
-        return true; // Optional
-        
-      case STEP_INDEX.SCHEDULING: // Scheduling (Optional - for release train automation)
-        return true; // Optional - users can skip if they don't want automated scheduling
-        
-      case STEP_INDEX.REVIEW: // Review
-        const validation = validateConfiguration(config);
-        console.log('validateConfiguration', validation);
-        return validation.isValid;
-        
-      default:
-        return true;
-    }
-  };
-  
   const handleNext = () => {
-    if (canProceedFromStep(currentStep)) {
+    if (canProceedFromStep(currentStep, config)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       
       // Auto-skip PIPELINES step if Manual upload is selected
@@ -201,79 +127,43 @@ export function ConfigurationWizard({
   };
   
   const handleFinish = async () => {
-    console.log('handleFinish', currentStep, canProceedFromStep(currentStep));
-    if (!canProceedFromStep(currentStep)) return;
+    if (!canProceedFromStep(currentStep, config)) return;
     
     setIsSubmitting(true);
     
     try {
-      // Create/Update Release Configuration
-      // BFF will transform this to backend format and handle all integration configs
       const completeConfig: ReleaseConfiguration = {
         ...config,
         status: 'ACTIVE',
         updatedAt: new Date().toISOString(),
-        // Keep existing createdAt if editing, otherwise set new
         createdAt: isEditMode ? config.createdAt! : new Date().toISOString(),
       } as ReleaseConfiguration;
       
-      console.log('[ConfigWizard] Submitting configuration:', completeConfig, {
-        name: completeConfig.name,
-        releaseType: completeConfig.releaseType,
-        targets: completeConfig.targets,
-        hasJira: !!completeConfig.jiraProject?.enabled,
-        hasTestManagement: !!completeConfig.testManagement?.enabled,
-        hasSlack: !!completeConfig.communication?.slack?.enabled,
-        hasScheduling: !!completeConfig.scheduling,
-      });
-      
-      // Submit to API (POST for create, PUT for update)
-      const method = isEditMode ? 'PUT' : 'POST';
       const endpoint = isEditMode && config.id
         ? `/api/v1/tenants/${tenantId}/release-config/${config.id}`
         : `/api/v1/tenants/${tenantId}/release-config`;
       
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(completeConfig), // Send config directly (not wrapped)
-      });
+      // Use API client utility
+      const result = isEditMode
+        ? await apiPut<ReleaseConfiguration>(endpoint, completeConfig)
+        : await apiPost<ReleaseConfiguration>(endpoint, completeConfig);
       
-      // Check if response is JSON before parsing
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('[ConfigWizard] Non-JSON response:', text.substring(0, 500));
-        throw new Error(`Server returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType || 'unknown'}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        console.error('[ConfigWizard] API error:', result);
-        throw new Error(result.error || `Failed to ${isEditMode ? 'update' : 'save'} configuration`);
-      }
-      
-      console.log(`[ConfigWizard] Configuration ${isEditMode ? 'updated' : 'created'} successfully:`, result.data?.id);
-      
-      // ✅ Invalidate cache to refresh configs across all routes
+      // Invalidate cache and clear draft
       invalidateReleaseConfigs();
-      console.log('[ConfigWizard] Release configs cache invalidated');
-      
-      // Clear draft after successful submission of NEW config
-      // (Edit mode never creates/modifies drafts, so nothing to clear)
       if (!isEditMode) {
         clearDraftConfig(tenantId);
-        console.log('[ConfigWizard] Draft cleared after successful submission');
       }
       
-      // Call parent onSubmit with the backend response data
-      await onSubmit({ ...completeConfig, id: result.data?.id });
+      const savedConfig: ReleaseConfiguration = {
+        ...completeConfig,
+        id: result.data?.id || completeConfig.id || '',
+      };
+      
+      await onSubmit(savedConfig);
     } catch (error) {
-      console.error('[ConfigWizard] Failed to save configuration:', error);
-      alert(`Failed to ${isEditMode ? 'update' : 'save'} configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const action = isEditMode ? 'update' : 'save';
+      const message = getApiErrorMessage(error, `Failed to ${action} configuration`);
+      showErrorToast(getErrorMessage(message, RELEASE_CONFIG_MESSAGES.SAVE_ERROR(action).title));
     } finally {
       setIsSubmitting(false);
     }
@@ -387,8 +277,6 @@ export function ConfigurationWizard({
         return null;
     }
   };
-
-  console.log('currentStep', currentStep, 'config', config, isEditMode, existingConfig );
   
   return (
     <Container size="xl" className="py-8">
@@ -435,7 +323,7 @@ export function ConfigurationWizard({
                 onNext={handleNext}
                 onFinish={handleFinish}
                 onCancel={onCancel}
-                canProceed={canProceedFromStep(currentStep)}
+                canProceed={canProceedFromStep(currentStep, config)}
                 isLoading={isSubmitting}
                 isEditMode={isEditMode}
               />

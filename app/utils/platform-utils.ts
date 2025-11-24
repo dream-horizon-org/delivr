@@ -4,6 +4,7 @@
  */
 
 import type { Platform, TargetPlatform } from '~/types/release-config';
+import { PLATFORMS } from '~/types/release-config-constants';
 
 /**
  * Derive mobile platforms from selected distribution targets
@@ -22,10 +23,10 @@ export function derivePlatformsFromTargets(targets: TargetPlatform[]): Platform[
   targets.forEach((target) => {
     switch (target) {
       case 'PLAY_STORE':
-        platforms.add('ANDROID');
+        platforms.add(PLATFORMS.ANDROID);
         break;
       case 'APP_STORE':
-        platforms.add('IOS');
+        platforms.add(PLATFORMS.IOS);
         break;
       case 'WEB':
         // WEB doesn't map to a mobile platform
@@ -51,8 +52,8 @@ export function targetRequiresPlatform(
   platform: Platform
 ): boolean {
   const mapping: Record<TargetPlatform, Platform | null> = {
-    PLAY_STORE: 'ANDROID',
-    APP_STORE: 'IOS',
+    PLAY_STORE: PLATFORMS.ANDROID,
+    APP_STORE: PLATFORMS.IOS,
     WEB: null,
   };
 
@@ -67,9 +68,9 @@ export function targetRequiresPlatform(
  */
 export function getTargetsForPlatform(platform: Platform): TargetPlatform[] {
   switch (platform) {
-    case 'ANDROID':
+    case PLATFORMS.ANDROID:
       return ['PLAY_STORE'];
-    case 'IOS':
+    case PLATFORMS.IOS:
       return ['APP_STORE'];
     default:
       return [];

@@ -6,14 +6,16 @@
 import { useState, useEffect } from 'react';
 import { Stack, Card, Text, Button, Badge, Group, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { apiGet } from '~/utils/api-client';
 import type { Workflow } from '~/types/release-config';
 import type { FixedPipelineCategoriesProps, PipelineCategoryConfig } from '~/types/release-config-props';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
-import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '../release-config-constants';
+import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '~/constants/release-config';
 import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
 import {
   PROVIDER_LABELS,
+  BUILD_UPLOAD_LABELS,
   STATUS_LABELS,
   BUTTON_LABELS,
   SECTION_TITLES,
@@ -57,16 +59,15 @@ export function FixedPipelineCategories({
     setLoadingWorkflows(true);
     
     try {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/workflows`);
-      const result = await response.json();
+      const result = await apiGet<{ workflows: CICDWorkflow[] }>(
+        `/api/v1/tenants/${tenantId}/workflows`
+      );
       
-      if (result.success && result.workflows) {
-        setWorkflows(result.workflows);
-      } else {
-        console.error('Failed to fetch workflows:', result.error);
+      if (result.success && result.data?.workflows) {
+        setWorkflows(result.data.workflows);
       }
     } catch (error) {
-      console.error('Error fetching workflows:', error);
+      // Silently fail - workflows may not be available
     } finally {
       setLoadingWorkflows(false);
     }
@@ -134,7 +135,7 @@ export function FixedPipelineCategories({
       case BUILD_PROVIDERS.GITHUB_ACTIONS:
         return PROVIDER_LABELS.GITHUB_ACTIONS;
       case BUILD_PROVIDERS.MANUAL_UPLOAD:
-        return PROVIDER_LABELS.MANUAL_UPLOAD;
+        return BUILD_UPLOAD_LABELS.MANUAL;
       default:
         return provider;
     }

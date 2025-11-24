@@ -1,6 +1,6 @@
 import type { OwnerTermsStatusResponse } from '~/.server/services/Codepush/types';
 import { DEFAULT_TERMS_CONFIG } from '../constants/termsConstants';
-import type { TermsConditionChecker, TermsConfig, TermsTriggerConditions } from '../types/termsTypes';
+import type { TermsConditionChecker, TermsConfig, TermsTriggerConditions } from '~/types/terms-types';
 
 /**
  * Merges user config with default config

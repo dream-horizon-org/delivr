@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Badge, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type { GitHubActionsConfig } from '~/types/release-config';
 import type { GitHubActionsConfigFormProps } from '~/types/release-config-props';
 import type { JobParameter } from '~/.server/services/ReleaseManagement/integrations';
@@ -69,26 +70,20 @@ export function GitHubActionsConfigForm({
     setFetchError(null);
     
     try {
-      const response = await fetch(
+      const result = await apiPost<{ parameters: JobParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            providerType: 'GITHUB_ACTIONS',
-            url: config.workflowPath,
-          }),
+          providerType: 'GITHUB_ACTIONS',
+          url: config.workflowPath,
         }
       );
       
-      const result = await response.json();
-      
-      if (result.success && result.parameters) {
-        setFetchedParameters(result.parameters);
+      if (result.success && result.data?.parameters) {
+        setFetchedParameters(result.data.parameters);
         
         // Initialize parameter values with defaults or existing values
         const newInputs: Record<string, string> = {};
-        result.parameters.forEach((param: JobParameter) => {
+        result.data.parameters.forEach((param: JobParameter) => {
           newInputs[param.name] = 
             inputs[param.name] || 
             param.defaultValue?.toString() || 
@@ -103,11 +98,10 @@ export function GitHubActionsConfigForm({
         
         setParametersFetched(true);
       } else {
-        setFetchError(result.error || 'Failed to fetch workflow inputs');
+        setFetchError('Failed to fetch workflow inputs');
       }
     } catch (error) {
-      setFetchError('Network error while fetching workflow inputs');
-      console.error('Error fetching workflow inputs:', error);
+      setFetchError(getApiErrorMessage(error, 'Failed to fetch workflow inputs'));
     } finally {
       setFetchingParams(false);
     }

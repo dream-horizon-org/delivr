@@ -9,6 +9,7 @@
 
 import { json } from '@remix-run/node';
 import { Outlet, useLoaderData } from '@remix-run/react';
+import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { ConfigProvider } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import type { Organization } from '~/.server/services/Codepush/types';
@@ -23,20 +24,20 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
   try {
     // Fetch tenant info via BFF API route
     const apiUrl = new URL(request.url);
-    const response = await fetch(`${apiUrl.origin}/api/v1/tenants/${tenantId}`, {
-      headers: {
-        'Cookie': request.headers.get('Cookie') || '',
-      },
-    });
+    const result = await apiGet<{ organisation: Organization; appDistributions?: any[] }>(
+      `${apiUrl.origin}/api/v1/tenants/${tenantId}`,
+      {
+        headers: {
+          'Cookie': request.headers.get('Cookie') || '',
+        }
+      }
+    );
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch tenant info: ${response.statusText}`);
+    const organisation = result.data?.organisation;
+
+    if (!organisation) {
+      throw new Error('Organization not found in response');
     }
-
-    const data = await response.json();
-    console.log('response', data?.organisation?.releaseManagement?.config);
-
-    const organisation = data.organisation;
 
     // 🔧 HARDCODED: Override setupComplete to always be true for development
     if (organisation?.releaseManagement) {
@@ -56,8 +57,9 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       }
     });
   } catch (error) {
-    console.error('[OrgLayout] Error loading tenant info:', error);
-    throw new Response('Failed to load organization', { status: 500 });
+    const errorMessage = getApiErrorMessage(error, 'Failed to load organization');
+    console.error('[OrgLayout] Error loading tenant info:', errorMessage);
+    throw new Response(errorMessage, { status: 500 });
   }
 });
 

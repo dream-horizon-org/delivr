@@ -7,6 +7,9 @@ import { json } from '@remix-run/node';
 import { useLoaderData, Link, useFetcher, useNavigate, useSearchParams } from '@remix-run/react';
 import { useState, useEffect, useMemo } from 'react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
+import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast, showInfoToast } from '~/utils/toast';
+import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
 import { getSetupData, saveSetupData } from '~/.server/services/ReleaseManagement/setup';
 import { VerificationBadge } from '~/components/ReleaseManagement/SetupWizard/components';
@@ -175,7 +178,7 @@ export default function ReleaseSettingsPage() {
   const handleDuplicate = async (config: ReleaseConfiguration) => {
     console.log('[Settings] Duplicate config:', config.id);
     // TODO: Implement duplicate via API
-    alert('Duplicate feature coming soon - will call API to duplicate configuration');
+    showInfoToast(RELEASE_CONFIG_MESSAGES.DUPLICATE_INFO);
   };
   
   const handleArchive = async (configId: string) => {
@@ -202,7 +205,7 @@ export default function ReleaseSettingsPage() {
         invalidateReleaseConfigs();
       } catch (error) {
         console.error('[Settings] Failed to delete draft:', error);
-        alert('Failed to delete draft');
+        showErrorToast(RELEASE_CONFIG_MESSAGES.DELETE_DRAFT_ERROR);
       }
       return;
     }
@@ -211,25 +214,25 @@ export default function ReleaseSettingsPage() {
     console.log('[Settings] Archive config:', configId);
     
     try {
-      const response = await fetch(`/api/v1/tenants/${org}/release-config/${configId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const result = await apiDelete<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${configId}`
+      );
       
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
+      if (result.data?.success) {
         // ✅ Invalidate cache to refresh all routes
         invalidateReleaseConfigs();
         console.log('[Settings] Configuration archived, cache invalidated');
+        showSuccessToast(RELEASE_CONFIG_MESSAGES.ARCHIVE_SUCCESS);
       } else {
-        alert(`Failed to archive: ${result.error || 'Unknown error'}`);
+        showErrorToast(getErrorMessage(
+          result.data?.error || 'Unknown error',
+          RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title
+        ));
       }
     } catch (error) {
-      console.error('[Settings] Archive failed:', error);
-      alert('Failed to archive configuration');
+      const errorMessage = getApiErrorMessage(error, 'Failed to archive configuration');
+      console.error('[Settings] Archive failed:', errorMessage);
+      showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title));
     }
   };
   
@@ -237,28 +240,28 @@ export default function ReleaseSettingsPage() {
     console.log('[Settings] Set default config:', configId);
     
     try {
-      const response = await fetch(`/api/v1/tenants/${org}/release-config/${configId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const result = await apiPut<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/release-config/${configId}`,
+        {
           isDefault: true,
-        }),
-      });
+        }
+      );
       
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
+      if (result.data?.success) {
         // ✅ Invalidate cache to refresh all routes
         invalidateReleaseConfigs();
         console.log('[Settings] Default configuration set, cache invalidated');
+        showSuccessToast(RELEASE_CONFIG_MESSAGES.SET_DEFAULT_SUCCESS);
       } else {
-        alert(`Failed to set default: ${result.error || 'Unknown error'}`);
+        showErrorToast(getErrorMessage(
+          result.data?.error || 'Unknown error',
+          RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title
+        ));
       }
     } catch (error) {
-      console.error('[Settings] Set default failed:', error);
-      alert('Failed to set as default');
+      const errorMessage = getApiErrorMessage(error, 'Failed to set as default');
+      console.error('[Settings] Set default failed:', errorMessage);
+      showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title));
     }
   };
   

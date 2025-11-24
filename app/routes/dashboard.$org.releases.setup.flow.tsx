@@ -5,8 +5,9 @@
 
 import { json, redirect } from '@remix-run/node';
 import { useNavigate, useRouteLoaderData } from '@remix-run/react';
+import { apiGet, apiPost } from '~/utils/api-client';
 import { authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
-import type { SetupWizardData } from '~/components/ReleaseManagement/SetupWizard/types';
+import type { SetupWizardData } from '~/types/setup-wizard';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
 
 // Import components
@@ -41,18 +42,20 @@ export const action = authenticateActionRequest({
       
       // Fetch latest tenant info via BFF API route
       const apiUrl = new URL(request.url);
-      const response = await fetch(`${apiUrl.origin}/api/v1/tenants/${org}`, {
-        headers: {
-          'Cookie': request.headers.get('Cookie') || '',
-        },
-      });
+      const result = await apiGet<{ organisation: any }>(
+        `${apiUrl.origin}/api/v1/tenants/${org}`,
+        {
+          headers: {
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tenant info: ${response.statusText}`);
+      if (!result.data?.organisation) {
+        throw new Error('Failed to fetch tenant info');
       }
 
-      const data = await response.json();
-      const organisation = data.organisation;
+      const organisation = result.data.organisation;
       
       if (organisation.releaseManagement?.setupComplete) {
         return redirect(`/dashboard/${org}/releases`);
@@ -126,12 +129,8 @@ export default function ReleaseSetupFlowPage() {
     
     // Mark setup as complete in the background (fire and forget)
     try {
-      await fetch(`/api/v1/tenants/${projectId}/release-management/complete-setup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ setupComplete: true }),
+      await apiPost(`/api/v1/tenants/${projectId}/release-management/complete-setup`, {
+        setupComplete: true
       });
     } catch (error) {
       // Silently handle errors - user is already on the dashboard

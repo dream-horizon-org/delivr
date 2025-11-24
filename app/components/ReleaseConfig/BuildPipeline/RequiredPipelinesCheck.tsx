@@ -90,7 +90,7 @@ export function RequiredPipelinesCheck({ pipelines, selectedPlatforms }: Require
         size="sm"
         center
         icon={
-          <ThemeIcon color="gray" size={16} radius="xl">
+          <ThemeIcon color="gray" size={ICON_SIZES.SMALL} radius="xl">
             <span className="text-xs">•</span>
           </ThemeIcon>
         }
@@ -100,12 +100,12 @@ export function RequiredPipelinesCheck({ pipelines, selectedPlatforms }: Require
             key={req.name}
             icon={
               req.met ? (
-                <ThemeIcon color="green" size={16} radius="xl">
-                  <IconCheck size={12} />
+                <ThemeIcon color="green" size={ICON_SIZES.SMALL} radius="xl">
+                  <IconCheck size={ICON_SIZES.EXTRA_SMALL} />
                 </ThemeIcon>
               ) : (
-                <ThemeIcon color="red" size={16} radius="xl">
-                  <IconX size={12} />
+                <ThemeIcon color="red" size={ICON_SIZES.SMALL} radius="xl">
+                  <IconX size={ICON_SIZES.EXTRA_SMALL} />
                 </ThemeIcon>
               )
             }

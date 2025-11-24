@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { WizardStep } from '../components';
-import type { TargetPlatforms } from '../types';
+import type { TargetPlatforms } from '~/types/setup-wizard';
 
 interface TargetPlatformsStepProps {
   initialData?: TargetPlatforms;

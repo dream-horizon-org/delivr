@@ -6,6 +6,7 @@
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation } from '@remix-run/react';
 import { useState, useEffect, useMemo } from 'react';
+import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { ConfigurationWizard } from '~/components/ReleaseConfig/Wizard/ConfigurationWizard';
 import { DraftReleaseDialog } from '~/components/ReleaseConfig/DraftReleaseDialog';
 import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storage';
@@ -34,50 +35,36 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const configIdToLoad = editConfigId || cloneConfigId;
   if (configIdToLoad) {
     try {
-      const apiUrl = `${url.protocol}//${url.host}/api/v1/tenants/${org}/release-config/${configIdToLoad}`;
-      console.log('[Configure Loader] Fetching config:', configIdToLoad);
-      
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Cookie': request.headers.get('Cookie') || '', // Forward cookies for auth
-        },
-      });
-      
-      if (response.ok) {
-        const contentType = response.headers.get('content-type');
-        if (contentType?.includes('application/json')) {
-          const data = await response.json();
-          existingConfig = data.data;
-          
-          // If cloning, modify the config to be a new one
-          if (cloneConfigId && existingConfig) {
-            existingConfig = {
-              ...existingConfig,
-              tenantId: existingConfig.tenantId || org,
-              id: '', // Will be generated on save
-              name: `${existingConfig.name} (Copy)`,
-              isDefault: false,
-              status: 'DRAFT' as any,
-              createdAt: new Date().toISOString(),
-            };
+      const endpoint = `/api/v1/tenants/${org}/release-config/${configIdToLoad}`;
+      const result = await apiGet<{ data: ReleaseConfiguration }>(
+        `${url.protocol}//${url.host}${endpoint}`,
+        {
+          headers: {
+            'Cookie': request.headers.get('Cookie') || '',
           }
-          
-          console.log('[Configure Loader] Config loaded successfully');
-        } else {
-          fetchError = 'Invalid response format from server';
-          console.error('[Configure Loader] Expected JSON but got:', contentType);
+        }
+      );
+      
+      if (result.data?.data) {
+        existingConfig = result.data.data;
+        
+        // If cloning, modify the config to be a new one
+        if (cloneConfigId && existingConfig) {
+          existingConfig = {
+            ...existingConfig,
+            tenantId: existingConfig.tenantId || org,
+            id: '', // Will be generated on save
+            name: `${existingConfig.name} (Copy)`,
+            isDefault: false,
+            status: 'DRAFT' as any,
+            createdAt: new Date().toISOString(),
+          };
         }
       } else {
-        const errorText = await response.text();
-        fetchError = `Failed to load configuration (${response.status})`;
-        console.error('[Configure Loader] Failed to fetch:', response.status, errorText.substring(0, 200));
+        fetchError = 'Configuration not found';
       }
     } catch (error: any) {
-      fetchError = error.message || 'Failed to load configuration';
-      console.error('[Configure Loader] Error fetching config:', error);
+      fetchError = getApiErrorMessage(error, 'Failed to load configuration');
     }
   }
   

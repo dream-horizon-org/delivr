@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import type { SetupBucket, SetupBucketConfig, SetupWizardData } from '../types';
+import type { SetupBucket, SetupBucketConfig, SetupWizardData } from '~/types/setup-wizard';
 import { 
   SetupStepsInfo, 
   Integration,

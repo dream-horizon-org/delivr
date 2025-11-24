@@ -12,6 +12,7 @@
 
 import { json } from '@remix-run/node';
 import { useLoaderData, useRouteLoaderData, Link } from '@remix-run/react';
+import { apiGet } from '~/utils/api-client';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { getReleases } from '~/.server/services/ReleaseManagement';
 import type { OrgLayoutLoaderData } from './dashboard.$org';
@@ -32,25 +33,35 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   // No need to fetch here - component will use useConfig() hook
   
   // Fetch releases and analytics from API
-  let releases = [];
+  let releases: any[] = [];
   let analyticsData = null;
   
   try {
     const url = new URL(request.url);
+    const baseUrl = `${url.protocol}//${url.host}`;
     
-    // Fetch analytics
-    const analyticsResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/releases?analytics=true`);
-    if (analyticsResponse.ok) {
-      const data = await analyticsResponse.json();
-      analyticsData = data.analytics;
-    }
+    // Fetch analytics and releases in parallel
+    const [analyticsResult, releasesResult] = await Promise.all([
+      apiGet<{ analytics: any }>(
+        `${baseUrl}/api/v1/tenants/${org}/releases?analytics=true`,
+        {
+          headers: {
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        }
+      ).catch(() => ({ data: null })),
+      apiGet<{ releases: any[] }>(
+        `${baseUrl}/api/v1/tenants/${org}/releases?recent=10`,
+        {
+          headers: {
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        }
+      ).catch(() => ({ data: null }))
+    ]);
     
-    // Fetch actual releases
-    const releasesResponse = await fetch(`${url.protocol}//${url.host}/api/v1/tenants/${org}/releases?recent=10`);
-    if (releasesResponse.ok) {
-      const releasesData = await releasesResponse.json();
-      releases = releasesData.releases || [];
-    }
+    analyticsData = analyticsResult.data?.analytics || null;
+    releases = releasesResult.data?.releases || [];
   } catch (error) {
     console.error('[Dashboard] Failed to fetch data:', error);
   }

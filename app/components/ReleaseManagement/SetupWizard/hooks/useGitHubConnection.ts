@@ -4,7 +4,8 @@
 
 import { useState, useCallback } from 'react';
 import { useParams } from '@remix-run/react';
-import type { GitHubConnection } from '../types';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import type { GitHubConnection } from '~/types/setup-wizard';
 
 interface UseGitHubConnectionProps {
   initialData?: GitHubConnection;
@@ -19,7 +20,7 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
   const [error, setError] = useState<string | null>(null);
   
   const updateField = useCallback((field: keyof GitHubConnection, value: any) => {
-    setConnection(prev => ({ ...prev, [field]: value }));
+    setConnection((prev: Partial<GitHubConnection>) => ({ ...prev, [field]: value }));
     setError(null); // Clear error when user types
   }, []);
   
@@ -35,24 +36,17 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
     setError(null);
     
     try {
-      console.log(`[useGitHubConnection] Calling verify endpoint for ${connection.owner}/${connection.repoName} (${scmType})`);
-      
-      // Call NEW SCM integration verify endpoint
-      const response = await fetch(`/api/v1/tenants/${org}/integrations/scm/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost<{ success: boolean; error?: string; message?: string }>(
+        `/api/v1/tenants/${org}/integrations/scm/verify`,
+        {
           scmType,
           owner: connection.owner,
           repo: connection.repoName,
           accessToken: connection.token,
-        }),
-      });
+        }
+      );
       
-      const result = await response.json();
-      console.log(`[useGitHubConnection] Verification result:`, result);
-      
-      if (result.success) {
+      if (result.data?.success) {
         const verifiedConnection: GitHubConnection = {
           scmType,
           owner: connection.owner,
@@ -66,12 +60,12 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
         onVerified?.(verifiedConnection);
         return true;
       } else {
-        setError(result.error || result.message || 'Verification failed');
+        setError(result.data?.error || result.data?.message || 'Verification failed');
         return false;
       }
     } catch (err) {
-      console.error('[useGitHubConnection] Verification error:', err);
-      setError('Failed to verify connection. Please try again.');
+      const errorMessage = getApiErrorMessage(err, 'Failed to verify connection');
+      setError(errorMessage);
       return false;
     } finally {
       setIsVerifying(false);
@@ -88,34 +82,26 @@ export function useGitHubConnection({ initialData, onVerified }: UseGitHubConnec
     setError(null);
     
     try {
-      console.log(`[useGitHubConnection] Saving SCM integration for ${connection.owner}/${connection.repoName}`);
-      
-      // Call CREATE SCM integration endpoint
-      const response = await fetch(`/api/v1/tenants/${org}/integrations/scm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost<{ integration?: { id: string }; error?: string }>(
+        `/api/v1/tenants/${org}/integrations/scm`,
+        {
           scmType: connection.scmType || 'GITHUB',
           owner: connection.owner,
           repo: connection.repoName,
           accessToken: connection.token,
           displayName: `${connection.owner}/${connection.repoName}`,
-        }),
-      });
+        }
+      );
       
-      const result = await response.json();
-      console.log(`[useGitHubConnection] Save result:`, result);
-      
-      if (response.ok && result.integration) {
-        console.log(`[useGitHubConnection] Successfully saved integration with ID: ${result.integration.id}`);
+      if (result.data?.integration) {
         return true;
       } else {
-        setError(result.error || 'Failed to save integration');
+        setError(result.data?.error || 'Failed to save integration');
         return false;
       }
     } catch (err) {
-      console.error('[useGitHubConnection] Save error:', err);
-      setError('Failed to save connection. Please try again.');
+      const errorMessage = getApiErrorMessage(err, 'Failed to save connection');
+      setError(errorMessage);
       return false;
     } finally {
       setIsSaving(false);

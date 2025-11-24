@@ -5,12 +5,9 @@
 
 import { Stack, Text, Checkbox, Group, Card } from '@mantine/core';
 import { IconCalendarEvent } from '@tabler/icons-react';
-import { DAYS_OF_WEEK } from '../release-config-constants';
-
-interface WorkingDaysSelectorProps {
-  workingDays: number[];
-  onChange: (days: number[]) => void;
-}
+import type { WorkingDaysSelectorProps } from '~/types/release-config-props';
+import { DAYS_OF_WEEK } from '~/constants/release-config';
+import { ICON_SIZES } from '~/constants/release-config-ui';
 
 export function WorkingDaysSelector({ workingDays, onChange }: WorkingDaysSelectorProps) {
   const handleToggle = (day: number) => {
@@ -32,7 +29,7 @@ export function WorkingDaysSelector({ workingDays, onChange }: WorkingDaysSelect
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
-        <IconCalendarEvent size={20} className="text-blue-600" />
+        <IconCalendarEvent size={ICON_SIZES.SMALL} className="text-blue-600" />
         <Text fw={600} size="sm">
           Working Days
         </Text>

@@ -65,21 +65,21 @@ export interface WizardNavigationProps {
   totalSteps: number;
   onNext: () => void;
   onPrevious: () => void;
-  onStepClick: (step: number) => void;
+  onFinish: () => void;
+  onCancel?: () => void;
   canProceed: boolean;
-  isFirstStep: boolean;
-  isLastStep: boolean;
+  isLoading?: boolean;
+  isEditMode?: boolean;
 }
 
 export interface WizardStepIndicatorProps {
   steps: Array<{
     id: string;
     title: string;
-    description: string;
-    icon: (props: { size?: number; className?: string }) => JSX.Element;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
   }>;
   currentStep: number;
-  onStepClick: (step: number) => void;
+  completedSteps: Set<number>;
 }
 
 export interface BasicInfoFormProps {
@@ -170,6 +170,7 @@ export interface JenkinsConfigFormProps {
   onChange: (config: Partial<JenkinsConfig>) => void;
   availableIntegrations: Array<{ id: string; name: string }>;
   workflows: CICDWorkflow[];
+  tenantId: string;
 }
 
 export interface GitHubActionsConfigFormProps {
@@ -177,6 +178,7 @@ export interface GitHubActionsConfigFormProps {
   onChange: (config: Partial<GitHubActionsConfig>) => void;
   availableIntegrations: Array<{ id: string; name: string }>;
   workflows: CICDWorkflow[];
+  tenantId: string;
 }
 
 export interface ManualUploadConfigFormProps {
@@ -225,16 +227,8 @@ export interface TestManagementSelectorProps {
   config: TestManagementConfig;
   onChange: (config: TestManagementConfig) => void;
   availableIntegrations: {
-    checkmate: Array<{ id: string; name: string }>;
+    checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
   };
-  selectedTargets: TargetPlatform[];
-}
-
-export interface CheckmateConfigFormEnhancedProps {
-  config: Partial<CheckmateSettings>;
-  onChange: (config: CheckmateSettings) => void;
-  integrationId: string;
-  selectedPlatforms?: Platform[];
   selectedTargets: TargetPlatform[];
 }
 
@@ -255,24 +249,30 @@ export interface CommunicationConfigProps {
   availableIntegrations: {
     slack: Array<{ id: string; name: string }>;
   };
+  tenantId: string;
 }
 
 export interface SlackChannelConfigEnhancedProps {
   config: CommunicationConfig;
   onChange: (config: CommunicationConfig) => void;
-  integrationId: string;
+  availableIntegrations: Array<{ id: string; name: string }>;
+  tenantId: string;
 }
 
 export interface SlackChannelMapperProps {
   enabled: boolean;
   integrationId: string;
-  channelData: {
+  channels: {
     releases: Array<{ id: string; name: string }>;
     builds: Array<{ id: string; name: string }>;
     regression: Array<{ id: string; name: string }>;
     critical: Array<{ id: string; name: string }>;
   };
-  onChange: (channelData: any) => void;
+  onToggle: (enabled: boolean) => void;
+  onChange: (channels: any) => void;
+  onIntegrationChange: (integrationId: string) => void;
+  availableIntegrations: Array<{ id: string; name: string }>;
+  availableChannels?: Array<{ id: string; name: string }>;
 }
 
 // ============================================================================
@@ -343,11 +343,71 @@ export interface JiraProjectStepProps {
 }
 
 export interface JiraPlatformConfigCardProps {
-  platform: Platform | 'WEB';
+  platform: Platform;
   config: JiraPlatformConfig;
   onChange: (config: JiraPlatformConfig) => void;
   integrationId: string;
   onRemove?: () => void;
+}
+
+// ============================================================================
+// Scheduling Components - Sub-components
+// ============================================================================
+
+export interface WorkingDaysSelectorProps {
+  workingDays: number[];
+  onChange: (days: number[]) => void;
+}
+
+export interface TimezonePickerProps {
+  timezone: string;
+  onChange: (timezone: string) => void;
+}
+
+export interface RegressionSlotEditorProps {
+  opened: boolean;
+  onClose: () => void;
+  onSave: (slot: RegressionSlot) => void;
+  slot?: RegressionSlot;
+}
+
+export interface RegressionSlotTimelineProps {
+  slots: RegressionSlot[];
+  onEdit: (slot: RegressionSlot) => void;
+  onDelete: (slotId: string) => void;
+  onAdd: () => void;
+}
+
+export interface RegressionSlotCardProps {
+  slot: RegressionSlot;
+  index: number;
+  isEditing: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onUpdate: (slot: RegressionSlot) => void;
+  onCollapse: () => void;
+  targetReleaseOffset: number;
+  targetReleaseTime: string;
+  kickoffTime: string;
+}
+
+// ============================================================================
+// Platform Card & Other UI Components
+// ============================================================================
+
+export interface PlatformCardProps {
+  platform: TargetPlatform;
+  selected: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}
+
+export interface DraftReleaseDialogProps {
+  opened: boolean;
+  onClose: () => void;
+  draftConfig: Partial<ReleaseConfiguration> | null;
+  onContinueDraft: () => void;
+  onStartNew: () => void;
 }
 
 // ============================================================================
@@ -357,16 +417,19 @@ export interface JiraPlatformConfigCardProps {
 export interface ConfigurationListProps {
   configurations: ReleaseConfiguration[];
   onEdit: (config: ReleaseConfiguration) => void;
-  onDelete: (configId: string) => void;
-  onClone: (config: ReleaseConfiguration) => void;
+  onDuplicate: (config: ReleaseConfiguration) => void;
+  onArchive: (configId: string) => void;
   onSetDefault: (configId: string) => void;
+  onCreate: () => void;
 }
+
 
 export interface ConfigurationListItemProps {
   config: ReleaseConfiguration;
   onEdit: () => void;
-  onDelete: () => void;
-  onClone: () => void;
+  onDuplicate: () => void;
+  onArchive: () => void;
+  onExport: () => void;
   onSetDefault: () => void;
 }
 
@@ -374,13 +437,6 @@ export interface ConfigurationListItemProps {
 // Dialog Components
 // ============================================================================
 
-export interface DraftReleaseDialogProps {
-  opened: boolean;
-  onClose: () => void;
-  onResume: () => void;
-  onDiscard: () => void;
-  draftConfig: Partial<ReleaseConfiguration>;
-}
 
 // ============================================================================
 // Shared/Utility Component Props

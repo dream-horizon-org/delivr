@@ -7,15 +7,17 @@ import { useState } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
-  Button,
-  Group,
   Alert,
-  Loader,
   PasswordInput,
   Switch,
   Stack,
   Text
 } from '@mantine/core';
+import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { JENKINS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { ActionButtons } from './shared/ActionButtons';
+import { ConnectionAlert } from './shared/ConnectionAlert';
 
 interface JenkinsConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -58,40 +60,33 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     setVerificationResult(null);
 
     try {
-      // Send data in request body with POST method (backend expects req.body)
-      const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins/verify`,
+      const result = await apiPost<{ verified: boolean; message?: string }>(
+        `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}/verify`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            displayName: formData.displayName || undefined,
-            hostUrl: formData.hostUrl,
-            username: formData.username,
-            apiToken: formData.apiToken,
-            providerConfig: {
-              useCrumb: formData.useCrumb,
-              crumbPath: formData.crumbPath
-            }
-          })
+          displayName: formData.displayName || undefined,
+          hostUrl: formData.hostUrl,
+          username: formData.username,
+          apiToken: formData.apiToken,
+          providerConfig: {
+            useCrumb: formData.useCrumb,
+            crumbPath: formData.crumbPath
+          }
         }
       );
 
-      const data = await response.json();
-
-      if (data.verified) {
+      if (result.data?.verified) {
         setVerificationResult({
           success: true,
-          message: data.message || 'Jenkins connection verified successfully!'
+          message: result.data.message || 'Jenkins connection verified successfully!'
         });
       } else {
         setVerificationResult({
           success: false,
-          message: data.message || 'Failed to verify Jenkins connection'
+          message: 'Failed to verify Jenkins connection'
         });
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify Jenkins connection');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Failed to verify Jenkins connection'));
     } finally {
       setIsVerifying(false);
     }
@@ -102,7 +97,6 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     setError(null);
 
     try {
-      const method = isEditMode ? 'PATCH' : 'POST';
       const payload: any = {
         displayName: formData.displayName || `${formData.hostUrl}`,
         hostUrl: formData.hostUrl,
@@ -127,24 +121,19 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         payload.integrationId = existingData.id;
       }
 
-      const response = await fetch(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`,
-        {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}`;
+      const result = isEditMode
+        ? await apiPatch(endpoint, payload)
+        : await apiPost(endpoint, payload);
 
-      const data = await response.json();
-
-      if (data.success) {
-        onConnect(data);
+      if (result.success) {
+        onConnect(result);
       } else {
-        setError(data.error || `Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
+        setError(`Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
       }
-    } catch (err: any) {
-      setError(err.message || `Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
+    } catch (err) {
+      const action = isEditMode ? 'update' : 'connect';
+      setError(getApiErrorMessage(err, `Failed to ${action} Jenkins integration`));
     } finally {
       setIsConnecting(false);
     }
@@ -155,11 +144,15 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
 
   return (
     <Stack gap="md">
-      <Alert color="blue" title={isEditMode ? "Edit Jenkins Connection" : "Connect Jenkins"} icon={<span>🔨</span>}>
+      <ConnectionAlert 
+        color="blue" 
+        title={isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${JENKINS_LABELS.JENKINS_DETAILS}` : JENKINS_LABELS.JENKINS_DETAILS} 
+        icon={<span>🔨</span>}
+      >
         {isEditMode 
           ? 'Update your Jenkins server connection details.'
           : 'Connect your Jenkins server to trigger builds and track deployment pipelines.'}
-      </Alert>
+      </ConnectionAlert>
 
       <TextInput
         label="Display Name (Optional)"
@@ -169,8 +162,8 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       />
 
       <TextInput
-        label="Jenkins Host URL"
-        placeholder="https://jenkins.example.com"
+        label={JENKINS_LABELS.SERVER_URL_LABEL}
+        placeholder={JENKINS_LABELS.SERVER_URL_PLACEHOLDER}
         required
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
@@ -178,8 +171,8 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       />
 
       <TextInput
-        label="Username"
-        placeholder="jenkins-user"
+        label={JENKINS_LABELS.USERNAME_LABEL}
+        placeholder={JENKINS_LABELS.USERNAME_PLACEHOLDER}
         required
         value={formData.username}
         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -187,8 +180,8 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       />
 
       <PasswordInput
-        label={isEditMode ? "API Token (leave blank to keep existing)" : "API Token"}
-        placeholder={isEditMode ? "Leave blank to keep existing token" : "Your Jenkins API token"}
+        label={isEditMode ? `${JENKINS_LABELS.API_TOKEN_LABEL} (leave blank to keep existing)` : JENKINS_LABELS.API_TOKEN_LABEL}
+        placeholder={isEditMode ? "Leave blank to keep existing token" : JENKINS_LABELS.API_TOKEN_PLACEHOLDER}
         required={!isEditMode}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
@@ -221,47 +214,52 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       )}
 
       {verificationResult && (
-        <Alert
+        <ConnectionAlert
           color={verificationResult.success ? 'green' : 'red'}
-          title={verificationResult.success ? 'Verification Successful' : 'Verification Failed'}
+          title={verificationResult.success ? ALERT_MESSAGES.VERIFICATION_SUCCESS : ALERT_MESSAGES.VERIFICATION_FAILED}
           icon={<span>{verificationResult.success ? '✅' : '❌'}</span>}
         >
           {verificationResult.message}
-        </Alert>
+        </ConnectionAlert>
       )}
 
-      <Group justify="space-between" className="mt-4">
-        <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
-          Cancel
-        </Button>
-        
-        <Group>
-          {!isEditMode && (
-            <Button
-              variant="light"
-              onClick={handleVerify}
-              disabled={!isFormValid || isVerifying || isConnecting}
-              leftSection={isVerifying ? <Loader size="xs" /> : null}
-            >
-              {isVerifying ? 'Verifying...' : 'Verify Connection'}
-            </Button>
+      {!isEditMode ? (
+        <>
+          {!verificationResult?.success ? (
+            <ActionButtons
+              onCancel={onCancel}
+              onPrimary={handleVerify}
+              primaryLabel={JENKINS_LABELS.VERIFY_CONNECTION}
+              cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+              isPrimaryLoading={isVerifying}
+              isPrimaryDisabled={!isFormValid || isVerifying || isConnecting}
+              primaryClassName="bg-gray-600 hover:bg-gray-700"
+            />
+          ) : (
+            <ActionButtons
+              onCancel={onCancel}
+              onPrimary={handleConnect}
+              primaryLabel={JENKINS_LABELS.CONNECT_JENKINS}
+              cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+              isPrimaryLoading={isConnecting}
+              isPrimaryDisabled={isConnecting}
+            />
           )}
-          
-          <Button
-            onClick={handleConnect}
-            disabled={!isFormValid || (isEditMode ? false : !verificationResult?.success) || isConnecting}
-            leftSection={isConnecting ? <Loader size="xs" /> : null}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isConnecting ? (isEditMode ? 'Updating...' : 'Connecting...') : (isEditMode ? 'Update' : 'Connect')}
-          </Button>
-        </Group>
-      </Group>
+        </>
+      ) : (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleConnect}
+          primaryLabel="Update"
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isConnecting}
+          isPrimaryDisabled={!isFormValid || isConnecting}
+        />
+      )}
 
       <Text size="xs" c="dimmed" className="mt-2">
-        <strong>How to get your API token:</strong> Go to Jenkins → User → Configure → API Token → Add new Token
+        <strong>{JENKINS_LABELS.HOW_TO_GET_TOKEN}</strong> {JENKINS_LABELS.INSTRUCTIONS.join(' → ')}
       </Text>
     </Stack>
   );
 }
-

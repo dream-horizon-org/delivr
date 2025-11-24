@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { WizardStep, FormField } from '../components';
 import { useCICDPipelines } from '../hooks';
-import type { CICDPipeline } from '../types';
+import type { CICDPipeline } from '~/types/setup-wizard';
 import { BUILD_PROVIDERS, PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 
 export interface CICDSetupStepProps {

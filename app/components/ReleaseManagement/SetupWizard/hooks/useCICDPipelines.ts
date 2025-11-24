@@ -3,7 +3,8 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { CICDPipeline } from '../types';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import type { CICDPipeline } from '~/types/setup-wizard';
 
 interface UseCICDPipelinesProps {
   initialPipelines?: CICDPipeline[];
@@ -27,15 +28,9 @@ export function useCICDPipelines({ initialPipelines = [], onPipelinesChange }: U
         ? '/api/v1/setup/verify-github-actions'
         : '/api/v1/setup/verify-jenkins';
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pipelineData),
-      });
+      const result = await apiPost<{ success: boolean; error?: string }>(endpoint, pipelineData);
       
-      const result = await response.json();
-      
-      if (result.success) {
+      if (result.data?.success) {
         const newPipeline: CICDPipeline = {
           ...pipelineData,
           id: `pipeline-${Date.now()}`,
@@ -48,11 +43,12 @@ export function useCICDPipelines({ initialPipelines = [], onPipelinesChange }: U
         onPipelinesChange?.(updatedPipelines);
         return true;
       } else {
-        setError(result.error || 'Verification failed');
+        setError(result.data?.error || 'Verification failed');
         return false;
       }
     } catch (err) {
-      setError('Failed to verify pipeline. Please try again.');
+      const errorMessage = getApiErrorMessage(err, 'Failed to verify pipeline');
+      setError(errorMessage);
       return false;
     } finally {
       setIsVerifying(false);

@@ -12,14 +12,13 @@ import {
   Button,
   Group,
   Alert,
-  Loader,
   Select,
-  Checkbox,
   Divider,
   Badge,
   Card,
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconDeviceMobile } from '@tabler/icons-react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import type {
   StoreType,
   Platform,
@@ -27,6 +26,8 @@ import type {
   AppStorePayload,
 } from '~/types/app-distribution';
 import { encrypt } from '~/utils/encryption';
+import { TARGET_PLATFORMS } from '~/types/release-config-constants';
+import { DEBUG_LABELS } from '~/constants/integration-ui';
 
 interface AppDistributionConnectionFlowProps {
   storeType: StoreType;
@@ -52,7 +53,7 @@ export function AppDistributionConnectionFlow({
   const selectedPlatforms = allowedPlatforms;
   
   if (allowedPlatforms.length === 0) {
-    console.error('[AppDistribution] No platforms provided from system metadata');
+    console.error(`${DEBUG_LABELS.APP_DIST_PREFIX} ${DEBUG_LABELS.APP_DIST_NO_PLATFORMS}`);
   }
 
   // Play Store form state
@@ -89,7 +90,7 @@ export function AppDistributionConnectionFlow({
       const platform = allowedPlatforms[0]; // Backend expects singular
 
       // Encrypt sensitive credentials before sending
-      if (storeType === 'PLAY_STORE') {
+      if (storeType === TARGET_PLATFORMS.PLAY_STORE) {
         const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson?.private_key || '');
         payload = {
           ...playStoreData,
@@ -108,28 +109,22 @@ export function AppDistributionConnectionFlow({
         };
       }
 
-      const response = await fetch(
+      const result = await apiPost<{ verified: boolean }>(
         `/api/v1/tenants/${tenantId}/distributions?action=verify`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            storeType,
-            platform,
-            payload,
-          }),
+          storeType,
+          platform,
+          payload,
         }
       );
 
-      const result = await response.json();
-
-      if (result.success && result.verified) {
+      if (result.success && result.data?.verified) {
         setIsVerified(true);
       } else {
-        setError(result.error || result.message || 'Verification failed');
+        setError('Verification failed');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to verify credentials');
+      setError(getApiErrorMessage(err, 'Failed to verify credentials'));
     } finally {
       setIsVerifying(false);
     }
@@ -149,7 +144,7 @@ export function AppDistributionConnectionFlow({
       const platform = allowedPlatforms[0]; // Backend expects singular
 
       // Encrypt sensitive credentials before sending
-      if (storeType === 'PLAY_STORE') {
+      if (storeType === TARGET_PLATFORMS.PLAY_STORE) {
         const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson?.private_key || '');
         payload = {
           ...playStoreData,
@@ -168,26 +163,23 @@ export function AppDistributionConnectionFlow({
         };
       }
 
-      const response = await fetch(`/api/v1/tenants/${tenantId}/distributions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        `/api/v1/tenants/${tenantId}/distributions`,
+        {
           storeType,
           platform,
           payload,
-        }),
-      });
-
-      const result = await response.json();
+        }
+      );
 
       if (result.success) {
         onConnect(result);
       } else {
-        setError(result.error || 'Failed to connect');
+        setError('Failed to connect');
         setIsSaving(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect');
+      setError(getApiErrorMessage(err, 'Failed to connect'));
       setIsSaving(false);
     }
   };
@@ -399,7 +391,7 @@ export function AppDistributionConnectionFlow({
             </div>
           </Group>
           <Text size="xs" c="dimmed" mt="xs">
-            {storeType === 'PLAY_STORE' 
+            {storeType === TARGET_PLATFORMS.PLAY_STORE 
               ? 'This integration will be used for Android app distribution via Google Play Store'
               : 'This integration will be used for iOS app distribution via Apple App Store'}
           </Text>
@@ -407,7 +399,7 @@ export function AppDistributionConnectionFlow({
       )}
 
       {/* Form */}
-      {storeType === 'PLAY_STORE' ? renderPlayStoreForm() : renderAppStoreForm()}
+      {storeType === TARGET_PLATFORMS.PLAY_STORE ? renderPlayStoreForm() : renderAppStoreForm()}
 
       {/* Error */}
       {error && (

@@ -8,18 +8,19 @@
  * - Endpoints: /projects/:projectId/integrations/test-management
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
-  Button,
-  Group,
-  Alert,
-  Loader,
   PasswordInput,
   Stack,
   Text
 } from '@mantine/core';
+import { apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
+import { TEST_PROVIDERS } from '~/types/release-config-constants';
+import { CHECKMATE_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { ActionButtons } from './shared/ActionButtons';
+import { ConnectionAlert } from './shared/ConnectionAlert';
 
 interface CheckmateConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -55,29 +56,23 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       try {
         // Use projectId (which equals tenantId) to match backend's project-level routes
         const projectId = tenantId;
-        const response = await fetch(
-          `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}/verify`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          }
+        const result = await apiPost<{ message: string }>(
+          `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}/verify`
         );
 
-        const data = await response.json();
-
-        if (data.success) {
+        if (result.success) {
           setVerificationResult({
             success: true,
-            message: data.message || 'Checkmate connection verified successfully!'
+            message: result.data?.message || CHECKMATE_LABELS.VERIFY_SUCCESS_MESSAGE
           });
         } else {
           setVerificationResult({
             success: false,
-            message: data.message || 'Failed to verify Checkmate connection'
+            message: ALERT_MESSAGES.VERIFICATION_FAILED
           });
         }
-      } catch (err: any) {
-        setError(err.message || 'Failed to verify Checkmate connection');
+      } catch (err) {
+        setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
       } finally {
         setIsVerifying(false);
       }
@@ -91,16 +86,15 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     setError(null);
 
     try {
-      const method = isEditMode && integrationId ? 'PUT' : 'POST';
       // Use projectId (which equals tenantId) to match backend's project-level routes
       const projectId = tenantId;
-      const url = isEditMode && integrationId 
+      const endpoint = isEditMode && integrationId 
         ? `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}`
         : `/api/v1/projects/${projectId}/integrations/test-management`;
 
       const payload: any = {
-        name: formData.name || `Checkmate - ${formData.baseUrl}`,
-        providerType: 'checkmate', // Required by API (lowercase)
+        name: formData.name || `${TEST_PROVIDERS.CHECKMATE} - ${formData.baseUrl}`,
+        providerType: TEST_PROVIDERS.CHECKMATE.toLowerCase(), // Required by API (lowercase)
         config: {
           baseUrl: formData.baseUrl,
           authToken: formData.authToken,
@@ -117,21 +111,18 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         return;
       }
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const result = isEditMode && integrationId
+        ? await apiPut(endpoint, payload)
+        : await apiPost(endpoint, payload);
 
-      const data = await response.json();
-
-      if (data.success) {
-        onConnect(data);
+      if (result.success) {
+        onConnect(result);
       } else {
-        setError(data.error || `Failed to ${isEditMode ? 'update' : 'connect'} Checkmate integration`);
+        setError(`Failed to ${isEditMode ? 'update' : 'connect'} ${TEST_PROVIDERS.CHECKMATE} integration`);
       }
-    } catch (err: any) {
-      setError(err.message || `Failed to ${isEditMode ? 'update' : 'connect'} Checkmate integration`);
+    } catch (err) {
+      const action = isEditMode ? 'update' : 'connect';
+      setError(getApiErrorMessage(err, `Failed to ${action} ${TEST_PROVIDERS.CHECKMATE} integration`));
     } finally {
       setIsConnecting(false);
     }
@@ -142,15 +133,19 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
 
   return (
     <Stack gap="md">
-      <Alert color="blue" title={isEditMode ? "Edit Checkmate Connection" : "Connect Checkmate"} icon={<span>✅</span>}>
+      <ConnectionAlert 
+        color="blue" 
+        title={isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${CHECKMATE_LABELS.CHECKMATE_CONNECTION}` : CHECKMATE_LABELS.CHECKMATE_CONNECTION} 
+        icon={<span>✅</span>}
+      >
         {isEditMode
-          ? 'Update your Checkmate test management connection details.'
-          : 'Connect your Checkmate test management system to track test runs and regression status.'}
-      </Alert>
+          ? CHECKMATE_LABELS.EDIT_DESCRIPTION
+          : CHECKMATE_LABELS.CONNECT_DESCRIPTION}
+      </ConnectionAlert>
 
       <TextInput
-        label="Display Name"
-        placeholder="My Checkmate Instance"
+        label={CHECKMATE_LABELS.DISPLAY_NAME_LABEL}
+        placeholder={CHECKMATE_LABELS.DISPLAY_NAME_PLACEHOLDER}
         required
         value={formData.name}
         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -158,85 +153,82 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       />
 
       <TextInput
-        label="Base URL"
-        placeholder="https://checkmate.example.com"
+        label={CHECKMATE_LABELS.BASE_URL_LABEL}
+        placeholder={CHECKMATE_LABELS.BASE_URL_PLACEHOLDER}
         required
         value={formData.baseUrl}
         onChange={(e) => setFormData({ ...formData, baseUrl: e.target.value })}
         error={!formData.baseUrl && 'Base URL is required'}
-        description="Your Checkmate base URL (e.g., https://checkmate.yourcompany.com)"
+        description={CHECKMATE_LABELS.BASE_URL_DESCRIPTION}
       />
 
       <TextInput
-        label="Organization ID"
-        placeholder="123"
+        label={CHECKMATE_LABELS.ORG_ID_LABEL}
+        placeholder={CHECKMATE_LABELS.ORG_ID_PLACEHOLDER}
         required
         type="number"
         value={formData.orgId}
         onChange={(e) => setFormData({ ...formData, orgId: e.target.value })}
         error={!formData.orgId && 'Organization ID is required'}
-        description="Your Checkmate organization/workspace ID (numeric)"
+        description={CHECKMATE_LABELS.ORG_ID_DESCRIPTION}
       />
 
       <PasswordInput
-        label={isEditMode ? "Auth Token (leave blank to keep existing)" : "Auth Token"}
-        placeholder={isEditMode ? "Leave blank to keep existing token" : "Your Checkmate auth token"}
+        label={isEditMode ? `${CHECKMATE_LABELS.AUTH_TOKEN_LABEL} (leave blank to keep existing)` : CHECKMATE_LABELS.AUTH_TOKEN_LABEL}
+        placeholder={isEditMode ? "Leave blank to keep existing token" : CHECKMATE_LABELS.AUTH_TOKEN_PLACEHOLDER}
         required={!isEditMode}
         value={formData.authToken}
         onChange={(e) => setFormData({ ...formData, authToken: e.target.value })}
         error={!isEditMode && !formData.authToken && 'Auth Token is required'}
-        description={isEditMode ? "Only provide a new token if you want to update it" : "Generate this from your Checkmate account settings"}
+        description={isEditMode ? "Only provide a new token if you want to update it" : CHECKMATE_LABELS.AUTH_TOKEN_DESCRIPTION}
       />
 
       {error && (
-        <Alert color="red" title="Error" icon={<span>❌</span>}>
+        <ConnectionAlert color="red" title="Error">
           {error}
-        </Alert>
+        </ConnectionAlert>
       )}
 
       {verificationResult && (
-        <Alert
+        <ConnectionAlert
           color={verificationResult.success ? 'green' : 'red'}
-          title={verificationResult.success ? 'Verification Successful' : 'Verification Failed'}
-          icon={<span>{verificationResult.success ? '✅' : '❌'}</span>}
+          title={verificationResult.success ? ALERT_MESSAGES.VERIFICATION_SUCCESS : ALERT_MESSAGES.VERIFICATION_FAILED}
         >
           {verificationResult.message}
-        </Alert>
+        </ConnectionAlert>
       )}
 
-      <Group justify="space-between" className="mt-4">
-        <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
-          Cancel
-        </Button>
-        
-        <Group>
-          {isEditMode && (
-            <Button
-              variant="light"
-              onClick={handleVerify}
-              disabled={!integrationId || isVerifying || isConnecting}
-              leftSection={isVerifying ? <Loader size="xs" /> : null}
-            >
-              {isVerifying ? 'Verifying...' : 'Verify Connection'}
-            </Button>
-          )}
-          
-          <Button
-            onClick={handleConnect}
-            disabled={!isFormValid || isConnecting}
-            leftSection={isConnecting ? <Loader size="xs" /> : null}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isConnecting ? (isEditMode ? 'Updating...' : 'Connecting...') : (isEditMode ? 'Update' : 'Connect')}
-          </Button>
-        </Group>
-      </Group>
+      {isEditMode ? (
+        <>
+          <ActionButtons
+            onCancel={onCancel}
+            onSecondary={handleVerify}
+            onPrimary={handleConnect}
+            primaryLabel={INTEGRATION_MODAL_LABELS.UPDATE}
+            secondaryLabel={CHECKMATE_LABELS.VERIFY_CONNECTION}
+            cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+            isPrimaryLoading={isConnecting}
+            isSecondaryLoading={isVerifying}
+            isPrimaryDisabled={!isFormValid || isConnecting}
+            isSecondaryDisabled={!integrationId || isVerifying || isConnecting}
+            isCancelDisabled={isVerifying || isConnecting}
+          />
+        </>
+      ) : (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleConnect}
+          primaryLabel={CHECKMATE_LABELS.CONNECT_CHECKMATE}
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isConnecting}
+          isPrimaryDisabled={!isFormValid || isConnecting}
+          isCancelDisabled={isVerifying || isConnecting}
+        />
+      )}
 
       <Text size="xs" c="dimmed" className="mt-2">
-        <strong>Note:</strong> Checkmate integration enables test run tracking, squad-based regression status, 
-        and automated testing workflows.
+        <strong>{CHECKMATE_LABELS.NOTE_TITLE}</strong> {CHECKMATE_LABELS.NOTE_MESSAGE}
       </Text>
     </Stack>
   );
 }
-

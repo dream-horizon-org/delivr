@@ -153,17 +153,6 @@ export const SLACK_CHANNEL_MODES = {
 
 export type SlackChannelModeValue = typeof SLACK_CHANNEL_MODES[keyof typeof SLACK_CHANNEL_MODES];
 
-// ============================================================================
-// Jira Platform Constants (includes WEB)
-// ============================================================================
-
-export const JIRA_PLATFORMS = {
-  WEB: 'WEB',
-  IOS: 'IOS',
-  ANDROID: 'ANDROID',
-} as const;
-
-export type JiraPlatformValue = typeof JIRA_PLATFORMS[keyof typeof JIRA_PLATFORMS];
 
 // ============================================================================
 // Workflow Config Modes

@@ -163,7 +163,7 @@ export interface RegressionSlot {
  * Each platform can have different project settings
  */
 export interface JiraPlatformConfig {
-  platform: 'WEB' | 'IOS' | 'ANDROID'; // Platform identifier
+  platform: Platform; // Platform identifier (ANDROID | IOS)
   projectKey: string; // JIRA project key (e.g., "FE", "APP", "MOBILE")
   issueType?: string; // Issue type (e.g., "Epic", "Story", "Task", "Bug")
   completedStatus: string; // Status indicating completion (e.g., "Done", "Released", "Closed")

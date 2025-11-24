@@ -97,7 +97,7 @@ export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) 
           </div>
         )}
         
-        {pipeline.provider === 'GITHUB_ACTIONS' && (
+        {pipeline.provider === BUILD_PROVIDERS.GITHUB_ACTIONS && (
           <div className="space-y-1">
             <div>
               <span className="font-medium">Workflow:</span>{' '}
@@ -110,7 +110,7 @@ export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) 
           </div>
         )}
         
-        {pipeline.provider === 'MANUAL_UPLOAD' && (
+        {pipeline.provider === BUILD_PROVIDERS.MANUAL_UPLOAD && (
           <div className="flex items-center gap-1 text-gray-500">
             <IconAlertCircle size={14} />
             <span>Manual upload required</span>

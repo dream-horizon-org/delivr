@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { TERMS_QUERY_KEYS } from '../constants/termsConstants';
+import { TERMS_QUERY_KEYS } from '~/constants/terms';
 import { acceptTerms } from '../data/acceptTerms';
 import { getOwnerTermsStatus } from '../data/getOwnerTermsStatus';
 

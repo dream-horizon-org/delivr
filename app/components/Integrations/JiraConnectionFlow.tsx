@@ -10,17 +10,17 @@ import { useState } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
-  Button,
-  Group,
-  Alert,
   PasswordInput,
   Select,
   Stack,
   Text
 } from '@mantine/core';
-import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import { JIRA_TYPES } from '~/types/jira-integration';
 import type { JiraType } from '~/types/jira-integration';
+import { JIRA_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { ActionButtons } from './shared/ActionButtons';
+import { ConnectionAlert } from './shared/ConnectionAlert';
 
 interface JiraConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -50,29 +50,23 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
     setIsVerified(false);
 
     try {
-      const response = await fetch(
+      const result = await apiPost<{ verified: boolean }>(
         `/api/v1/tenants/${tenantId}/integrations/jira/verify`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hostUrl: formData.hostUrl,
-            email: formData.email,
-            apiToken: formData.apiToken,
-            jiraType: formData.jiraType,
-          })
+          hostUrl: formData.hostUrl,
+          email: formData.email,
+          apiToken: formData.apiToken,
+          jiraType: formData.jiraType,
         }
       );
 
-      const data = await response.json();
-
-      if (data.verified || data.success) {
+      if (result.data?.verified || result.success) {
         setIsVerified(true);
       } else {
-        setError(data.message || data.error || 'Failed to verify Jira connection');
+        setError(ALERT_MESSAGES.VERIFICATION_FAILED);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to verify Jira connection');
+    } catch (err) {
+      setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
     } finally {
       setIsVerifying(false);
     }
@@ -83,27 +77,24 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
     setError(null);
 
     try {
-      const response = await fetch(`/api/v1/tenants/${tenantId}/integrations/jira`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await apiPost(
+        `/api/v1/tenants/${tenantId}/integrations/jira`,
+        {
           name: formData.displayName || `Jira - ${formData.hostUrl}`,
           hostUrl: formData.hostUrl,
           email: formData.email,
           apiToken: formData.apiToken,
           jiraType: formData.jiraType,
-        })
-      });
+        }
+      );
 
-      const data = await response.json();
-
-      if (data.success) {
-        onConnect(data);
+      if (result.success) {
+        onConnect(result);
       } else {
-        setError(data.error || 'Failed to connect Jira integration');
+        setError(ALERT_MESSAGES.CONNECTION_FAILED);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect Jira integration');
+    } catch (err) {
+      setError(getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED));
     } finally {
       setIsConnecting(false);
     }
@@ -118,14 +109,14 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
       {/* Header removed as it's in the modal title */}
       
       <TextInput
-        label="Display Name (Optional)"
-        placeholder="My Jira Workspace"
+        label={JIRA_LABELS.DISPLAY_NAME_LABEL}
+        placeholder={JIRA_LABELS.DISPLAY_NAME_PLACEHOLDER}
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
       />
 
       <Select
-        label="Jira Type"
+        label={JIRA_LABELS.JIRA_TYPE_LABEL}
         required
         value={formData.jiraType}
         onChange={(value) => setFormData({ ...formData, jiraType: value as JiraType })}
@@ -133,84 +124,84 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
           value: type.value,
           label: type.label,
         }))}
-        description="Select your Jira deployment type"
+        description={JIRA_LABELS.JIRA_TYPE_DESCRIPTION}
       />
 
       <TextInput
-        label="Jira Base URL"
-        placeholder={formData.jiraType === 'CLOUD' ? 'https://yourcompany.atlassian.net' : 'https://jira.yourcompany.com'}
+        label={JIRA_LABELS.BASE_URL_LABEL}
+        placeholder={formData.jiraType === 'CLOUD' ? JIRA_LABELS.BASE_URL_PLACEHOLDER_CLOUD : JIRA_LABELS.BASE_URL_PLACEHOLDER_SERVER}
         required
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
         error={!formData.hostUrl && 'Base URL is required'}
-        description={formData.jiraType === 'CLOUD' ? 'Your Atlassian Cloud URL' : 'Your self-hosted Jira URL'}
+        description={formData.jiraType === 'CLOUD' ? JIRA_LABELS.CLOUD_URL_DESCRIPTION : JIRA_LABELS.SERVER_URL_DESCRIPTION}
       />
 
       <TextInput
-        label="Email Address"
-        placeholder="your-email@company.com"
+        label={JIRA_LABELS.EMAIL_LABEL}
+        placeholder={JIRA_LABELS.EMAIL_PLACEHOLDER}
         type="email"
         required
         value={formData.email}
         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
         error={!formData.email && 'Email is required'}
-        description="Your Jira account email address"
+        description={JIRA_LABELS.EMAIL_DESCRIPTION}
       />
 
       <PasswordInput
-        label="API Token"
-        placeholder="Your Jira API token"
+        label={JIRA_LABELS.API_TOKEN_LABEL}
+        placeholder={JIRA_LABELS.API_TOKEN_PLACEHOLDER}
         required
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
         error={!formData.apiToken && 'API Token is required'}
-        description="Generate from Jira → Account Settings → Security → API Tokens"
+        description={JIRA_LABELS.API_TOKEN_DESCRIPTION}
       />
 
       {error && (
-        <Alert icon={<IconAlertCircle size={16} />} color="red">
+        <ConnectionAlert color="red" title="Error">
           {error}
-        </Alert>
+        </ConnectionAlert>
       )}
 
       {isVerified && (
-        <Alert icon={<IconCheck size={16} />} color="green">
-          Credentials verified successfully! Click "Connect" to save.
-        </Alert>
+        <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
+          {JIRA_LABELS.VERIFIED_MESSAGE}
+        </ConnectionAlert>
       )}
 
-      <Group justify="flex-end">
-        <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isConnecting}>
-          Cancel
-        </Button>
-        {!isVerified ? (
-          <Button
-            onClick={handleVerify}
-            loading={isVerifying}
-            disabled={!isFormValid()}
-          >
-            Verify Credentials
-          </Button>
-        ) : (
-          <Button
-            onClick={handleConnect}
-            loading={isConnecting}
-            color="green"
-          >
-            Connect
-          </Button>
-        )}
-      </Group>
+      {!isVerified ? (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleVerify}
+          primaryLabel={JIRA_LABELS.VERIFY_CREDENTIALS}
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isVerifying}
+          isPrimaryDisabled={!isFormValid()}
+          isCancelDisabled={isVerifying || isConnecting}
+          primaryClassName="bg-gray-600 hover:bg-gray-700"
+        />
+      ) : (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleConnect}
+          primaryLabel={JIRA_LABELS.CONNECT_JIRA}
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isConnecting}
+          isCancelDisabled={isVerifying || isConnecting}
+          primaryClassName="bg-green-600 hover:bg-green-700"
+        />
+      )}
 
       <Text size="xs" c="dimmed">
-        <strong>For Jira Cloud:</strong> Create an API token at{' '}
+        <strong>{JIRA_LABELS.FOR_CLOUD}</strong>{' '}
         <a
           href="https://id.atlassian.com/manage-profile/security/api-tokens"
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 hover:underline"
         >
-          Atlassian Account Settings
+          {JIRA_LABELS.ATLASSIAN_SETTINGS}
         </a>
       </Text>
     </Stack>

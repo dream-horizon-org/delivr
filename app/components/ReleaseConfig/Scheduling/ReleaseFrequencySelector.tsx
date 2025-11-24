@@ -6,13 +6,10 @@
 import { Stack, Select, NumberInput, Text, Group, Card } from '@mantine/core';
 import { IconCalendar } from '@tabler/icons-react';
 import type { ReleaseFrequency } from '~/types/release-config';
-import { RELEASE_FREQUENCY_OPTIONS } from '../release-config-constants';
-
-interface ReleaseFrequencySelectorProps {
-  frequency: ReleaseFrequency;
-  customDays?: number;
-  onChange: (frequency: ReleaseFrequency, customDays?: number) => void;
-}
+import type { ReleaseFrequencySelectorProps } from '~/types/release-config-props';
+import { RELEASE_FREQUENCY_OPTIONS } from '~/constants/release-config';
+import { RELEASE_FREQUENCIES } from '~/types/release-config-constants';
+import { SCHEDULING_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function ReleaseFrequencySelector({
   frequency,
@@ -24,16 +21,16 @@ export function ReleaseFrequencySelector({
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder>
       <Group gap="sm" className="mb-3">
-        <IconCalendar size={20} className="text-blue-600" />
+        <IconCalendar size={ICON_SIZES.MEDIUM} className="text-blue-600" />
         <Text fw={600} size="sm">
-          Release Frequency
+          {SCHEDULING_LABELS.FREQUENCY_TITLE}
         </Text>
       </Group>
       
       <Stack gap="md">
         <Select
-          label="Frequency"
-          placeholder="Select release frequency"
+          label={SCHEDULING_LABELS.FREQUENCY_LABEL}
+          placeholder={SCHEDULING_LABELS.FREQUENCY_PLACEHOLDER}
           data={RELEASE_FREQUENCY_OPTIONS.map(opt => ({
             value: opt.value,
             label: opt.label,
@@ -41,7 +38,7 @@ export function ReleaseFrequencySelector({
           value={frequency}
           onChange={(val) => onChange(val as any)}
           required
-          description="How often do you want to create releases?"
+          description={SCHEDULING_LABELS.FREQUENCY_DESCRIPTION}
         />
         
         {selectedOption && (
@@ -50,23 +47,23 @@ export function ReleaseFrequencySelector({
           </Text>
         )}
         
-        {frequency === 'CUSTOM' && (
+        {frequency === RELEASE_FREQUENCIES.CUSTOM && (
           <NumberInput
-            label="Custom Frequency (Days)"
-            placeholder="21"
+            label={SCHEDULING_LABELS.CUSTOM_FREQUENCY_LABEL}
+            placeholder={SCHEDULING_LABELS.CUSTOM_FREQUENCY_PLACEHOLDER}
             value={customDays}
-            onChange={(val) => onChange('CUSTOM', Number(val) || undefined)}
+            onChange={(val) => onChange(RELEASE_FREQUENCIES.CUSTOM, Number(val) || undefined)}
             required
             min={1}
             max={365}
-            description="Number of days between releases"
+            description={SCHEDULING_LABELS.CUSTOM_FREQUENCY_DESCRIPTION}
           />
         )}
         
-        {frequency !== 'CUSTOM' && (
+        {frequency !== RELEASE_FREQUENCIES.CUSTOM && (
           <div className="bg-blue-50 p-3 rounded-lg">
             <Text size="sm" fw={500} className="text-blue-900">
-              Estimated Days: {selectedOption?.days || 0}
+              {SCHEDULING_LABELS.ESTIMATED_DAYS}: {selectedOption?.days || 0}
             </Text>
           </div>
         )}
