@@ -37,6 +37,75 @@ function mapTestManagementPlatform(
 }
 
 /**
+ * Map UI BuildEnvironment to backend WorkflowType enum
+ */
+function mapWorkflowType(environment: string): string {
+  const mapping: Record<string, string> = {
+    'PRE_REGRESSION': 'PRE_REGRESSION_BUILD',
+    'REGRESSION': 'REGRESSION_BUILD',
+    'TESTFLIGHT': 'TEST_FLIGHT_BUILD',
+    'PRODUCTION': 'CUSTOM',
+  };
+  return mapping[environment] || environment;
+}
+
+/**
+ * Transform frontend Workflow to backend Workflow format
+ * Handles field renames, enum mappings, and config flattening
+ */
+function transformWorkflowToBackend(tenantId: string, userId: string) {
+  return (workflow: any): any => {
+    const { name, provider, environment, platform, providerConfig, id, ...rest } = workflow;
+    
+    // Extract integration-specific fields from providerConfig
+    let integrationId = '';
+    let workflowUrl = '';
+    let parameters: Record<string, unknown> = {};
+    let providerIdentifiers: Record<string, unknown> | undefined;
+    
+    // Handle provider-specific configurations
+    if (providerConfig.type === 'JENKINS') {
+      integrationId = providerConfig.integrationId || '';
+      workflowUrl = providerConfig.jobUrl || '';
+      parameters = {
+        jobName: providerConfig.jobName,
+        ...(providerConfig.buildParameters && { buildParameters: providerConfig.buildParameters }),
+      };
+      providerIdentifiers = {
+        jobName: providerConfig.jobName,
+      };
+    } else if (providerConfig.type === 'GITHUB_ACTIONS') {
+      integrationId = providerConfig.integrationId || '';
+      workflowUrl = providerConfig.workflowUrl || '';
+      parameters = {
+        workflowId: providerConfig.workflowId,
+        branch: providerConfig.branch,
+        ...(providerConfig.inputs && { inputs: providerConfig.inputs }),
+      };
+      providerIdentifiers = {
+        workflowId: providerConfig.workflowId,
+        workflowPath: providerConfig.workflowPath,
+      };
+    }
+    
+    return {
+      // Use existing ID if available (for edit mode), otherwise backend will generate
+      ...(id && { id }),
+      tenantId,
+      providerType: provider, // 'JENKINS' | 'GITHUB_ACTIONS'
+      integrationId,
+      displayName: name,
+      workflowUrl,
+      ...(providerIdentifiers && { providerIdentifiers }),
+      platform, // 'ANDROID' | 'IOS'
+      workflowType: mapWorkflowType(environment),
+      ...(parameters && Object.keys(parameters).length > 0 && { parameters }),
+      createdByAccountId: userId,
+    };
+  };
+}
+
+/**
  * Prepare release config payload for backend API
  */
 export function prepareReleaseConfigPayload(
@@ -173,12 +242,12 @@ export function prepareReleaseConfigPayload(
   }
 
   // ========================================================================
-  // TRANSFORMATION 6: Workflows (CI/CD)
-  // Why: UI uses workflows, backend expects workflows
+  // TRANSFORMATION 6: Workflows (CI/CD) - Transform UI structure to Backend API
+  // Why: UI has different field names and structure than backend expects
   // ========================================================================
   if (config.workflows && config.workflows.length > 0) {
-    payload.workflows = config.workflows;
-    console.log('[prepareReleaseConfigPayload] Added workflows:', payload.workflows.length);
+    payload.workflows = config.workflows.map(transformWorkflowToBackend(tenantId, userId));
+    console.log('[prepareReleaseConfigPayload] Transformed workflows:', payload.workflows.length);
   }
 
   // ========================================================================

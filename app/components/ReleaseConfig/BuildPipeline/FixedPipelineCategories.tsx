@@ -1,12 +1,12 @@
 /**
- * Fixed Pipeline Categories Component
- * Shows fixed pipeline categories based on selected platforms
+ * Fixed Workflow Categories Component
+ * Shows fixed workflow categories based on selected platforms
  */
 
 import { useState, useEffect } from 'react';
 import { Stack, Card, Text, Button, Badge, Group, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconPencil, IconTrash, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import type { Workflow, TargetPlatform } from '~/types/release-config';
+import type { Workflow, Platform } from '~/types/release-config';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
 import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '../release-config-constants';
@@ -18,8 +18,8 @@ interface FixedPipelineCategoriesProps {
     jenkins: Array<{ id: string; name: string }>;
     github: Array<{ id: string; name: string }>;
   };
-  selectedPlatforms: TargetPlatform[];
-  tenantId: string; // Add tenant ID prop
+  selectedPlatforms: Platform[]; // ✅ Workflows are platform-specific (ANDROID/IOS), not target-specific
+  tenantId: string;
 }
 
 interface PipelineCategory {
@@ -47,8 +47,8 @@ export function FixedPipelineCategories({
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
 
   // Determine which platforms are needed
-  const needsAndroid = selectedPlatforms.includes('PLAY_STORE');
-  const needsIOS = selectedPlatforms.includes('APP_STORE');
+  const needsAndroid = selectedPlatforms.includes('ANDROID');
+  const needsIOS = selectedPlatforms.includes('IOS');
   
   // Fetch workflows when component mounts
   useEffect(() => {
@@ -140,7 +140,7 @@ export function FixedPipelineCategories({
         <Group gap="sm">
           <IconAlertCircle size={20} className="text-yellow-600" />
           <Text size="sm" c="orange" className="font-medium">
-            Please select distribution targets first (previous step) to configure build pipelines.
+            Please select platforms first (previous step) to configure CI/CD workflows.
           </Text>
         </Group>
       </div>
@@ -155,10 +155,10 @@ export function FixedPipelineCategories({
       {/* Header with validation status */}
       <div>
         <Text fw={600} size="lg" className="mb-1">
-          Build Pipelines
+          CI/CD Workflows
         </Text>
         <Text size="sm" c="dimmed" className="mb-3">
-          Configure automated build pipelines for your distribution targets
+          Configure automated CI/CD workflows for your selected platforms
         </Text>
         
         <Group gap="sm" className="mb-4">

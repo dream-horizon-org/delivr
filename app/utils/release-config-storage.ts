@@ -15,6 +15,12 @@ const WIZARD_STEP_KEY = 'delivr_release_config_wizard_step';
 
 /**
  * Save draft configuration to local storage
+ * 
+ * IMPORTANT: Only call this for NEW configs being created!
+ * - ✅ NEW config creation: Auto-saves during wizard (allows resume)
+ * - ❌ EDIT mode: Should NEVER be called (separate flow)
+ * 
+ * Draft is automatically cleared after successful submission.
  */
 export function saveDraftConfig(
   organizationId: string,
@@ -37,6 +43,10 @@ export function saveDraftConfig(
 
 /**
  * Load draft configuration from local storage
+ * 
+ * IMPORTANT: Only call this for NEW configs!
+ * - ✅ NEW config creation: Checks for draft to resume
+ * - ❌ EDIT mode: Should NEVER be called (use existingConfig instead)
  */
 export function loadDraftConfig(
   organizationId: string
@@ -59,12 +69,21 @@ export function loadDraftConfig(
 /**
  * Clear draft configuration from local storage
  * Also clears the saved wizard step
+ * 
+ * Called when:
+ * - ✅ User successfully submits a NEW config
+ * - ✅ User explicitly chooses "Start New" (discarding draft)
+ * - ✅ User navigates to create with ?new=true query param
+ * 
+ * NOT called when:
+ * - ❌ User is in EDIT mode (edit never touches drafts)
  */
 export function clearDraftConfig(organizationId: string): void {
   if (typeof window === 'undefined') return;
   
   try {
     const key = `${CONFIG_STORAGE_KEY}_${organizationId}`;
+    console.log('[clearDraftConfig] Clearing draft config for organizationId:', organizationId, 'key:', key);
     localStorage.removeItem(key);
     
     // Also clear the wizard step

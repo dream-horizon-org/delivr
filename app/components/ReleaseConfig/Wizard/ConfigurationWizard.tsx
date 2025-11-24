@@ -23,12 +23,13 @@ import { BasicInfoForm } from './BasicInfoForm';
 import { WIZARD_STEPS, STEP_INDEX } from './wizard-steps.constants';
 import { VerticalStepper } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
-import { ManualUploadStep } from '../BuildUpload/ManualUploadStep';
+import { BuildUploadSelector } from '../BuildUpload/BuildUploadSelector';
 import { PlatformSelector } from '../TargetPlatform/PlatformSelector';
 import { TestManagementSelector } from '../TestManagement/TestManagementSelector';
 import { JiraProjectStep } from '../JiraProject/JiraProjectStep';
 import { SchedulingStepWrapper } from '../Scheduling/SchedulingStepWrapper';
 import { CommunicationConfig } from '../Communication/CommunicationConfig';
+import { derivePlatformsFromTargets } from '~/utils/platform-utils';
 
 interface ConfigurationWizardProps {
   tenantId: string;
@@ -90,28 +91,30 @@ export function ConfigurationWizard({
   
   // Initialize configuration from existing, draft, or create new
   const [config, setConfig] = useState<Partial<ReleaseConfiguration>>(() => {
-    // If editing, use existing config
+    // Edit Mode: Use existing config, NEVER touch drafts
     if (isEditMode && existingConfig) {
-      console.log('[ConfigWizard] Loading existing config for edit:', existingConfig.id);
+      console.log('[ConfigWizard] Edit mode: Loading existing config:', existingConfig.id);
       return existingConfig;
     }
     
-    // Otherwise, try to load draft
+    // New Config Mode: Try to load draft (for resuming interrupted creation)
     const draft = loadDraftConfig(tenantId);
     if (draft) {
-      console.log('[ConfigWizard] Loading draft config');
+      console.log('[ConfigWizard] New mode: Resuming from draft');
       return draft;
     }
     
-    // Create new config
-    console.log('[ConfigWizard] Creating new config');
-    return createDefaultConfig(tenantId); // tenantId param → config.tenantId
+    // Fresh start: Create default config
+    console.log('[ConfigWizard] New mode: Creating fresh config');
+    return createDefaultConfig(tenantId);
   });
   
-  // Auto-save draft to local storage
+  // Auto-save draft to local storage (ONLY for NEW configs, NOT in edit mode)
   useEffect(() => {
-    saveDraftConfig(tenantId, config);
-  }, [tenantId, config]);
+    if (!isEditMode) {
+      saveDraftConfig(tenantId, config);
+    }
+  }, [tenantId, config, isEditMode]);
   
   // Auto-save current wizard step to local storage
   useEffect(() => {
@@ -126,41 +129,44 @@ export function ConfigurationWizard({
       case STEP_INDEX.BASIC: // Basic Info
         return !!(config.name && config.name.trim());
         
-      case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP)
+      case STEP_INDEX.PLATFORMS: // Target Platforms
         return !!config.targets && config.targets.length > 0;
         
-      // ==================== COMMENTED OUT: CI/CD PIPELINE VALIDATION ====================
-      // TODO: Uncomment when CI/CD pipeline integration is ready
-      // case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN)
-      //   if (!config.workflows || config.workflows.length === 0) {
-      //     return false;
-      //   }
-      //   // Validate required pipelines based on selected distribution targets
-      //   const needsAndroid = config.targets?.includes('PLAY_STORE');
-      //   const needsIOS = config.targets?.includes('APP_STORE');
-      //   
-      //   if (needsAndroid) {
-      //     const hasAndroidRegression = config.workflows.some(
-      //       p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
-      //     );
-      //     if (!hasAndroidRegression) return false;
-      //   }
-      //   
-      //   if (needsIOS) {
-      //     const hasIOSRegression = config.workflows.some(
-      //       p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
-      //     );
-      //     const hasTestFlight = config.workflows.some(
-      //       p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
-      //     );
-      //     if (!hasIOSRegression || !hasTestFlight) return false;
-      //   }
-      //   
-      //   return true;
-      // =================================================================================
+      case STEP_INDEX.BUILD_UPLOAD: // Build Upload Method Selection
+        // Must select a build upload method
+        return !!config.buildUploadStep;
         
-      case STEP_INDEX.BUILD_UPLOAD: // Build Upload (Manual for now)
-        // Always valid - manual upload doesn't require configuration
+      case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
+        // Only validate if CI/CD is selected
+        if (config.buildUploadStep !== 'CI_CD') {
+          return true; // Skip validation if not using CI/CD
+        }
+        
+        if (!config.workflows || config.workflows.length === 0) {
+          return false;
+        }
+        
+        // Validate required pipelines based on selected distribution targets
+        const needsAndroid = config.targets?.includes('PLAY_STORE');
+        const needsIOS = config.targets?.includes('APP_STORE');
+        
+        if (needsAndroid) {
+          const hasAndroidRegression = config.workflows.some(
+            p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
+          );
+          if (!hasAndroidRegression) return false;
+        }
+        
+        if (needsIOS) {
+          const hasIOSRegression = config.workflows.some(
+            p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
+          );
+          const hasTestFlight = config.workflows.some(
+            p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
+          );
+          if (!hasIOSRegression || !hasTestFlight) return false;
+        }
+        
         return true;
         
       case STEP_INDEX.TESTING: // Test Management
@@ -185,13 +191,25 @@ export function ConfigurationWizard({
   const handleNext = () => {
     if (canProceedFromStep(currentStep)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
-      setCurrentStep(currentStep + 1);
+      
+      // Auto-skip PIPELINES step if Manual upload is selected
+      if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.buildUploadStep === 'MANUAL') {
+        setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
+        setCurrentStep(currentStep + 2); // Skip pipelines step
+      } else {
+        setCurrentStep(currentStep + 1);
+      }
     }
   };
   
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      // Auto-skip PIPELINES step backwards if Manual upload is selected
+      if (currentStep === STEP_INDEX.TESTING && config.buildUploadStep === 'MANUAL') {
+        setCurrentStep(currentStep - 2); // Skip back over pipelines step
+      } else {
+        setCurrentStep(currentStep - 1);
+      }
     }
   };
   
@@ -257,9 +275,11 @@ export function ConfigurationWizard({
       invalidateReleaseConfigs();
       console.log('[ConfigWizard] Release configs cache invalidated');
       
-      // Clear draft after successful submission (but not when editing)
+      // Clear draft after successful submission of NEW config
+      // (Edit mode never creates/modifies drafts, so nothing to clear)
       if (!isEditMode) {
         clearDraftConfig(tenantId);
+        console.log('[ConfigWizard] Draft cleared after successful submission');
       }
       
       // Call parent onSubmit with the backend response data
@@ -283,50 +303,52 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.PLATFORMS: // Target Platforms (MOVED UP - Select platforms FIRST)
+      case STEP_INDEX.PLATFORMS: // Target Platforms - Select platforms FIRST
         return (
           <PlatformSelector
             selectedPlatforms={config.targets || []}
             onChange={(targets) => {
-              // Derive platforms from selected targets
-              const platforms: Array<'ANDROID' | 'IOS'> = [];
-              
-              if (targets.includes('PLAY_STORE')) {
-                platforms.push('ANDROID');
-              }
-              if (targets.includes('APP_STORE')) {
-                platforms.push('IOS');
-              }
-              // WEB doesn't map to a mobile platform
+              const platforms = derivePlatformsFromTargets(targets);
               
               setConfig({ 
                 ...config, 
-                targets: targets,
-                platforms: platforms as any, // Update platforms based on targets
+                targets,
+                platforms,
               });
             }}
           />
         );
         
-      // ==================== COMMENTED OUT: CI/CD PIPELINE STEP ====================
-      // TODO: Uncomment when CI/CD pipeline integration is ready
-      // case STEP_INDEX.PIPELINES: // Build Pipelines (MOVED DOWN - Configure based on selected platforms)
-      //   return (
-      //     <FixedPipelineCategories
-      //       pipelines={config.workflows || []}
-      //       onChange={(pipelines) => setConfig({ ...config, workflows: pipelines })}
-      //       availableIntegrations={{
-      //         jenkins: availableIntegrations.jenkins,
-      //         github: availableIntegrations.github,
-      //       }}
-      //       selectedPlatforms={config.targets || []}
-      //       tenantId={tenantId}
-      //     />
-      //   );
-      // =================================================================================
+      case STEP_INDEX.BUILD_UPLOAD: // Build Upload Method Selection
+        return (
+          <BuildUploadSelector
+            selectedMode={config.buildUploadStep || 'MANUAL'}
+            onChange={(mode) => setConfig({ ...config, buildUploadStep: mode })}
+            hasIntegrations={
+              availableIntegrations.jenkins.length > 0 || 
+              availableIntegrations.github.length > 0
+            }
+          />
+        );
         
-      case STEP_INDEX.BUILD_UPLOAD: // Build Upload (Manual for now)
-        return <ManualUploadStep />;
+      case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
+        // Only show if CI/CD is selected
+        if (config.buildUploadStep !== 'CI_CD') {
+          // Skip this step - auto-proceed to next
+          return null;
+        }
+        return (
+          <FixedPipelineCategories
+            pipelines={config.workflows || []}
+            onChange={(pipelines) => setConfig({ ...config, workflows: pipelines })}
+            availableIntegrations={{
+              jenkins: availableIntegrations.jenkins,
+              github: availableIntegrations.github,
+            }}
+            selectedPlatforms={config.platforms || []}
+            tenantId={tenantId}
+          />
+        );
         
       case STEP_INDEX.TESTING: // Test Management
         return (

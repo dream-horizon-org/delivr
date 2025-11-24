@@ -8,6 +8,9 @@ import { generateConfigId } from './release-config-storage';
 
 /**
  * Create a default configuration object for a new release configuration
+ * 
+ * @param tenantId - Organization/Tenant ID
+ * @returns Partial release configuration with sensible defaults
  */
 export function createDefaultConfig(tenantId: string): Partial<ReleaseConfiguration> {
   return {
@@ -16,10 +19,10 @@ export function createDefaultConfig(tenantId: string): Partial<ReleaseConfigurat
     name: '',
     releaseType: 'PLANNED',
     isDefault: true,
-    platforms: [],
-    targets: [],
-    buildUploadStep: 'MANUAL', // Default to manual upload
-    workflows: [],
+    platforms: [], // Will be derived from targets
+    targets: [], // User must select distribution targets
+    buildUploadStep: 'MANUAL', // Default to manual upload (can switch to CI_CD)
+    workflows: [], // Empty - only populated if buildUploadStep = 'CI_CD'
     testManagement: {
       enabled: false,
       provider: 'none',

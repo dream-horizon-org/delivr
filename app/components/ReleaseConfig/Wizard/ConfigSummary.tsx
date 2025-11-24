@@ -68,51 +68,72 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         </Stack>
       </Card>
       
-      {/* Build Pipelines */}
+      {/* Build Upload Method */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
           <IconSettings size={20} className="text-green-600" />
           <Text fw={600} size="sm">
-            Build Pipelines
+            Build Upload Method
           </Text>
-          <Badge size="sm" variant="light">
-            {config.workflows?.length || 0} configured
-          </Badge>
         </Group>
         
-        {config.workflows && config.workflows.length > 0 ? (
-          <List spacing="xs" size="sm">
-            {config.workflows.map((pipeline) => (
-              <List.Item
-                key={pipeline.id}
-                icon={
-                  pipeline.enabled ? (
-                    <IconCheck size={16} className="text-green-600" />
-                  ) : (
-                    <IconX size={16} className="text-gray-400" />
-                  )
-                }
-              >
-                <Group gap="xs">
-                  <Text size="sm">{pipeline.name}</Text>
-                  <Badge size="xs" variant="outline">
-                    {pipeline.platform}
-                  </Badge>
-                  <Badge size="xs" variant="outline">
-                    {pipeline.environment}
-                  </Badge>
-                  <Badge size="xs" variant="light">
-                    {pipeline.provider.replace('_', ' ')}
-                  </Badge>
-                </Group>
-              </List.Item>
-            ))}
-          </List>
-        ) : (
-          <Text size="sm" c="dimmed">
-            No build pipelines configured
-          </Text>
-        )}
+        <Stack gap="sm">
+          <div className="flex items-center gap-2">
+            <Badge size="lg" variant="light" color={config.buildUploadStep === 'CI_CD' ? 'grape' : 'blue'}>
+              {config.buildUploadStep === 'CI_CD' ? 'CI/CD Workflows' : 'Manual Upload'}
+            </Badge>
+          </div>
+          
+          {config.buildUploadStep === 'CI_CD' && (
+            <>
+              <Divider />
+              <div>
+                <Text size="sm" fw={500} className="mb-2">
+                  Configured Workflows ({config.workflows?.length || 0})
+                </Text>
+                {config.workflows && config.workflows.length > 0 ? (
+                  <List spacing="xs" size="sm">
+                    {config.workflows.map((pipeline) => (
+                      <List.Item
+                        key={pipeline.id}
+                        icon={
+                          pipeline.enabled ? (
+                            <IconCheck size={16} className="text-green-600" />
+                          ) : (
+                            <IconX size={16} className="text-gray-400" />
+                          )
+                        }
+                      >
+                        <Group gap="xs">
+                          <Text size="sm">{pipeline.name}</Text>
+                          <Badge size="xs" variant="outline">
+                            {pipeline.platform}
+                          </Badge>
+                          <Badge size="xs" variant="outline">
+                            {pipeline.environment}
+                          </Badge>
+                          <Badge size="xs" variant="light">
+                            {pipeline.provider.replace('_', ' ')}
+                          </Badge>
+                        </Group>
+                      </List.Item>
+                    ))}
+                  </List>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    No workflows configured yet
+                  </Text>
+                )}
+              </div>
+            </>
+          )}
+          
+          {config.buildUploadStep === 'MANUAL' && (
+            <Text size="sm" c="dimmed">
+              Builds will be uploaded manually through the release dashboard
+            </Text>
+          )}
+        </Stack>
       </Card>
       
       {/* Target Platforms */}

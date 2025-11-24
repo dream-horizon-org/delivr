@@ -25,6 +25,11 @@ export function PipelineProviderSelect({
     label: BUILD_PROVIDER_LABELS[provider],
   }));
   
+  // Dynamic description based on available providers
+  const getDescription = () => {
+    return `Choose from your connected CI/CD providers (${availableProviders.length} available)`;
+  };
+  
   return (
     <Select
       label="Build Provider"
@@ -34,7 +39,7 @@ export function PipelineProviderSelect({
       onChange={(val) => onChange(val as BuildProvider)}
       required
       disabled={disabled}
-      description="Choose how builds will be triggered for this pipeline"
+      description={getDescription()}
     />
   );
 }

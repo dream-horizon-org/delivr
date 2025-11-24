@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Modal, Button, TextInput, Select, Stack, Group, SegmentedControl, Text, Card, Badge } from '@mantine/core';
-import { IconServer, IconBrandGithub } from '@tabler/icons-react';
+import { Modal, Button, TextInput, Select, Stack, Group, SegmentedControl, Text, Card, Badge, Alert } from '@mantine/core';
+import { IconServer, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import type { 
   Workflow, 
   BuildProvider, 
@@ -92,12 +92,15 @@ export function PipelineEditModal({
   });
   
   const selectedWorkflow = relevantWorkflows.find(w => w.id === selectedWorkflowId);
-  
-  // Determine available providers based on integrations
+  console.log('availableIntegrations', availableIntegrations);
+  // Determine available providers based on connected integrations
+  // NOTE: Manual Upload is NOT available in CI/CD workflows - only Jenkins and GitHub Actions
   const availableProviders: BuildProvider[] = [];
   if (availableIntegrations.jenkins.length > 0) availableProviders.push('JENKINS');
   if (availableIntegrations.github.length > 0) availableProviders.push('GITHUB_ACTIONS');
-  availableProviders.push('MANUAL_UPLOAD'); // Always available
+  
+  // Get the first available provider
+  const defaultProvider = availableProviders[0] || 'JENKINS'; // Fallback to JENKINS (will show error if not available)
   
   // Reset form when modal opens or pipeline/fixedPlatform/fixedEnvironment changes
   useEffect(() => {
@@ -105,14 +108,33 @@ export function PipelineEditModal({
       setName(pipeline?.name || '');
       setPlatform(pipeline?.platform || fixedPlatform || 'ANDROID');
       setEnvironment(pipeline?.environment || fixedEnvironment || 'PRE_REGRESSION');
-      setProvider(pipeline?.provider || 'JENKINS');
-      setProviderConfig(pipeline?.providerConfig || { type: 'JENKINS' });
+      
+      // Set provider: use existing pipeline's provider if valid, otherwise use first available
+      const initialProvider = pipeline?.provider && availableProviders.includes(pipeline.provider) 
+        ? pipeline.provider 
+        : defaultProvider;
+      setProvider(initialProvider);
+      
+      // Set provider config based on the selected provider
+      if (pipeline?.providerConfig && pipeline.provider === initialProvider) {
+        setProviderConfig(pipeline.providerConfig);
+      } else {
+        // Create default config for the selected provider
+        if (initialProvider === 'JENKINS') {
+          setProviderConfig({ type: 'JENKINS', parameters: {} });
+        } else if (initialProvider === 'GITHUB_ACTIONS') {
+          setProviderConfig({ type: 'GITHUB_ACTIONS', inputs: {}, branch: 'main' });
+        } else {
+          setProviderConfig({ type: 'MANUAL_UPLOAD' });
+        }
+      }
+      
       setErrors({});
       setSelectedWorkflowId(undefined);
       // Default to 'existing' if workflows available, otherwise 'new'
       setConfigMode(relevantWorkflows.length > 0 ? 'existing' : 'new');
     }
-  }, [opened, pipeline, fixedPlatform, fixedEnvironment, relevantWorkflows.length]);
+  }, [opened, pipeline, fixedPlatform, fixedEnvironment, relevantWorkflows.length, availableProviders, defaultProvider]);
   
   // Reset provider config when provider changes
   useEffect(() => {
@@ -240,18 +262,18 @@ export function PipelineEditModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={isEditing ? 'Edit Build Pipeline' : 'Add Build Pipeline'}
+      title={isEditing ? 'Edit Workflow' : 'Add Workflow'}
       size="lg"
     >
       <Stack gap="md">
         <TextInput
-          label="Pipeline Name"
+          label="Workflow Name"
           placeholder="e.g., Android Pre-Regression Build"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
           error={errors.name}
-          description="A descriptive name for this build pipeline"
+          description="A descriptive name for this CI/CD workflow"
         />
         
         <Group grow>
@@ -287,7 +309,7 @@ export function PipelineEditModal({
         {relevantWorkflows.length > 0 && (
           <div>
             <Text size="sm" fw={500} className="mb-2">
-              Pipeline Configuration
+              Workflow Configuration
             </Text>
             <SegmentedControl
               value={configMode}
@@ -384,11 +406,34 @@ export function PipelineEditModal({
         {/* New Configuration Form */}
         {configMode === 'new' && (
           <Stack gap="md">
-            <PipelineProviderSelect
-              value={provider}
-              onChange={setProvider}
-              availableProviders={availableProviders}
-            />
+            {/* Show error if no CI/CD integrations are available */}
+            {availableProviders.length === 0 && (
+              <Alert
+                icon={<IconInfoCircle size={18} />}
+                color="red"
+                variant="light"
+                title="No CI/CD Integrations Connected"
+              >
+                <Text size="sm" className="mb-2">
+                  To configure CI/CD workflows, you need to connect at least one provider:
+                </Text>
+                <ul className="list-disc list-inside text-sm mb-2">
+                  <li>Jenkins</li>
+                  <li>GitHub Actions</li>
+                </ul>
+                <Text size="sm">
+                  Go to <strong>Settings → Integrations</strong> to connect a provider.
+                </Text>
+              </Alert>
+            )}
+            
+            {availableProviders.length > 0 && (
+              <PipelineProviderSelect
+                value={provider}
+                onChange={setProvider}
+                availableProviders={availableProviders}
+              />
+            )}
             
             {errors.integration && (
               <div className="text-sm text-red-600">{errors.integration}</div>
@@ -413,12 +458,7 @@ export function PipelineEditModal({
               />
             )}
             
-            {provider === 'MANUAL_UPLOAD' && (
-              <ManualUploadConfigForm
-                config={providerConfig as Partial<ManualUploadConfig>}
-                onChange={setProviderConfig}
-              />
-            )}
+            {/* Manual Upload is not supported in CI/CD workflows */}
           </Stack>
         )}
         
@@ -426,8 +466,12 @@ export function PipelineEditModal({
           <Button variant="subtle" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-            {isEditing ? 'Save Changes' : 'Add Pipeline'}
+          <Button 
+            onClick={handleSave} 
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={availableProviders.length === 0}
+          >
+            {isEditing ? 'Save Changes' : 'Add Workflow'}
           </Button>
         </Group>
       </Stack>

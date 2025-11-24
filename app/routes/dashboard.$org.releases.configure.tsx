@@ -178,14 +178,26 @@ export default function ReleasesConfigurePage() {
   const [useDraft, setUseDraft] = useState(false);
   const [draftConfig, setDraftConfig] = useState<Partial<ReleaseConfiguration> | null>(null);
   
-  // Check for draft on mount (only if not editing and not forceNew)
+  // Check for draft on mount (ONLY for NEW configs, NOT in edit mode)
   useEffect(() => {
-    if (!isEditMode && !forceNew) {
-      const draft = loadDraftConfig(organizationId);
-      if (draft && draft.name) {
-        setDraftConfig(draft);
-        setShowDraftDialog(true);
-      }
+    // Edit mode: Never check for drafts (separate flow)
+    if (isEditMode) {
+      return;
+    }
+    
+    // Force new: Clear any existing draft and start fresh
+    if (forceNew) {
+      clearDraftConfig(organizationId);
+      console.log('[ReleasesConfigurePage] Force new: Cleared old draft');
+      return;
+    }
+    
+    // New config mode: Check if there's a draft to resume
+    const draft = loadDraftConfig(organizationId);
+    if (draft && draft.name) {
+      console.log('[ReleasesConfigurePage] Found draft, showing resume dialog');
+      setDraftConfig(draft);
+      setShowDraftDialog(true);
     }
   }, [organizationId, isEditMode, forceNew]);
   
@@ -214,7 +226,9 @@ export default function ReleasesConfigurePage() {
   };
   
   const handleStartNew = () => {
+    // Clear the draft and start fresh
     clearDraftConfig(organizationId);
+    console.log('[ReleasesConfigurePage] User chose to start new, draft cleared');
     setUseDraft(false);
     setShowDraftDialog(false);
     // Reload page with ?new=true to ensure fresh start

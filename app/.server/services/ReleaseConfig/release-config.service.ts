@@ -28,11 +28,8 @@ export class ReleaseConfigService {
       const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs`;
       const requestBody = JSON.stringify(payload);
       
-      console.log('[ReleaseConfigService] POST to:', url);
-      console.log('[ReleaseConfigService] Request body (first 1000 chars):', requestBody.substring(0, 1000));
-      console.log('[ReleaseConfigService] testManagement.tenantId:', payload.testManagement?.tenantId);
-      console.log('[ReleaseConfigService] testManagement.tenantId type:', typeof payload.testManagement?.tenantId);
-      
+      console.log('[ReleaseConfigService] POST to:', url, " payload: ", JSON.stringify(payload, null, 2));
+ 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
