@@ -5,12 +5,7 @@
 
 import { Textarea, Stack, Text, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import type { ManualUploadConfig } from '~/types/release-config';
-
-interface ManualUploadConfigFormProps {
-  config: Partial<ManualUploadConfig>;
-  onChange: (config: Partial<ManualUploadConfig>) => void;
-}
+import type { ManualUploadConfigFormProps } from '~/types/release-config-props';
 
 export function ManualUploadConfigForm({
   config,
@@ -36,4 +31,3 @@ export function ManualUploadConfigForm({
     </Stack>
   );
 }
-

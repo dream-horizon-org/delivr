@@ -187,6 +187,8 @@ export const FIELD_LABELS = {
   BUILD_PROVIDER: 'Build Provider',
   INTEGRATION: 'Integration',
   WORKFLOW_URL: 'Workflow URL',
+  WORKFLOW_NAME: 'Workflow Name',
+  SELECT_WORKFLOW: 'Select Workflow',
   JOB_URL: 'Job URL',
   JOB_NAME: 'Job Name',
   WORKFLOW_ID: 'Workflow ID',
@@ -205,7 +207,9 @@ export const FIELD_LABELS = {
 // ============================================================================
 
 export const PLACEHOLDERS = {
-  WORKFLOW_NAME: 'Enter workflow name',
+  WORKFLOW_NAME: 'e.g., Android Pre-Regression Build',
+  WORKFLOW_NAME_ENTER: 'Enter workflow name',
+  SELECT_WORKFLOW: 'Choose a pre-configured workflow',
   JOB_NAME: 'Enter Jenkins job name',
   JOB_URL: 'https://jenkins.example.com/job/build-job',
   WORKFLOW_ID: 'Enter GitHub workflow ID',
@@ -239,6 +243,22 @@ export const ICON_SIZES = {
   MEDIUM: 20,
   LARGE: 24,
   EXTRA_LARGE: 32,
+} as const;
+
+// ============================================================================
+// Pipeline Requirement Messages
+// ============================================================================
+
+export const PIPELINE_REQUIREMENTS = {
+  ANDROID_REGRESSION: 'Android Regression',
+  ANDROID_REGRESSION_DESC: 'Required for Play Store releases',
+  IOS_REGRESSION: 'iOS Regression',
+  IOS_REGRESSION_DESC: 'Required for App Store releases',
+  IOS_TESTFLIGHT: 'iOS TestFlight',
+  IOS_TESTFLIGHT_DESC: 'Required for TestFlight distribution',
+  ALL_CONFIGURED: 'All required pipelines configured ✓',
+  MISSING_PIPELINES: 'Required pipelines missing',
+  ADD_MISSING_HINT: 'Add the missing pipelines above to continue with the configuration.',
 } as const;
 
 // ============================================================================

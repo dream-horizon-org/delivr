@@ -91,36 +91,36 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 <Text size="sm" fw={500} className="mb-2">
                   Configured Workflows ({config.workflows?.length || 0})
                 </Text>
-                {config.workflows && config.workflows.length > 0 ? (
-                  <List spacing="xs" size="sm">
-                    {config.workflows.map((pipeline) => (
-                      <List.Item
-                        key={pipeline.id}
-                        icon={
-                          pipeline.enabled ? (
-                            <IconCheck size={16} className="text-green-600" />
-                          ) : (
-                            <IconX size={16} className="text-gray-400" />
-                          )
-                        }
-                      >
-                        <Group gap="xs">
-                          <Text size="sm">{pipeline.name}</Text>
-                          <Badge size="xs" variant="outline">
-                            {pipeline.platform}
-                          </Badge>
-                          <Badge size="xs" variant="outline">
-                            {pipeline.environment}
-                          </Badge>
-                          <Badge size="xs" variant="light">
-                            {pipeline.provider.replace('_', ' ')}
-                          </Badge>
-                        </Group>
-                      </List.Item>
-                    ))}
-                  </List>
-                ) : (
-                  <Text size="sm" c="dimmed">
+        {config.workflows && config.workflows.length > 0 ? (
+          <List spacing="xs" size="sm">
+            {config.workflows.map((pipeline) => (
+              <List.Item
+                key={pipeline.id}
+                icon={
+                  pipeline.enabled ? (
+                    <IconCheck size={16} className="text-green-600" />
+                  ) : (
+                    <IconX size={16} className="text-gray-400" />
+                  )
+                }
+              >
+                <Group gap="xs">
+                  <Text size="sm">{pipeline.name}</Text>
+                  <Badge size="xs" variant="outline">
+                    {pipeline.platform}
+                  </Badge>
+                  <Badge size="xs" variant="outline">
+                    {pipeline.environment}
+                  </Badge>
+                  <Badge size="xs" variant="light">
+                    {pipeline.provider.replace('_', ' ')}
+                  </Badge>
+                </Group>
+              </List.Item>
+            ))}
+          </List>
+        ) : (
+          <Text size="sm" c="dimmed">
                     No workflows configured yet
                   </Text>
                 )}
@@ -131,8 +131,8 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           {config.buildUploadStep === 'MANUAL' && (
             <Text size="sm" c="dimmed">
               Builds will be uploaded manually through the release dashboard
-            </Text>
-          )}
+          </Text>
+        )}
         </Stack>
       </Card>
       

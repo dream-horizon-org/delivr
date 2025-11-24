@@ -15,39 +15,35 @@ import type {
   GitHubActionsConfig,
   ManualUploadConfig,
 } from '~/types/release-config';
+import type { PipelineEditModalProps } from '~/types/release-config-props';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineProviderSelect } from './PipelineProviderSelect';
 import { JenkinsConfigForm } from './JenkinsConfigForm';
 import { GitHubActionsConfigForm } from './GitHubActionsConfigForm';
 import { ManualUploadConfigForm } from './ManualUploadConfigForm';
 import { generateConfigId } from '~/utils/release-config-storage';
-
-interface PipelineEditModalProps {
-  opened: boolean;
-  onClose: () => void;
-  onSave: (pipeline: Workflow) => void;
-  pipeline?: Workflow; // If editing existing pipeline
-  availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
-  };
-  existingPipelines: Workflow[]; // For validation
-  fixedPlatform?: 'ANDROID' | 'IOS'; // Fixed platform (cannot be changed)
-  fixedEnvironment?: BuildEnvironment; // Fixed environment (cannot be changed)
-  workflows?: CICDWorkflow[]; // Available workflows to select from
-  tenantId: string; // Tenant ID for API calls
-}
+import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS, CONFIG_MODES } from '~/types/release-config-constants';
+import {
+  PLATFORM_LABELS,
+  ENVIRONMENT_LABELS,
+  BUTTON_LABELS,
+  ERROR_MESSAGES,
+  INFO_MESSAGES,
+  SECTION_TITLES,
+  FIELD_LABELS,
+  PLACEHOLDERS,
+} from '~/constants/release-config-ui';
 
 const platformOptions = [
-  { value: 'ANDROID', label: 'Android' },
-  { value: 'IOS', label: 'iOS' },
+  { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
+  { value: PLATFORMS.IOS, label: PLATFORM_LABELS.IOS },
 ];
 
 const environmentOptions = [
-  { value: 'PRE_REGRESSION', label: 'Pre-Regression' },
-  { value: 'REGRESSION', label: 'Regression' },
-  { value: 'TESTFLIGHT', label: 'TestFlight' },
-  { value: 'PRODUCTION', label: 'Production' },
+  { value: BUILD_ENVIRONMENTS.PRE_REGRESSION, label: ENVIRONMENT_LABELS.PRE_REGRESSION },
+  { value: BUILD_ENVIRONMENTS.REGRESSION, label: ENVIRONMENT_LABELS.REGRESSION },
+  { value: BUILD_ENVIRONMENTS.TESTFLIGHT, label: ENVIRONMENT_LABELS.TESTFLIGHT },
+  { value: BUILD_ENVIRONMENTS.PRODUCTION, label: ENVIRONMENT_LABELS.PRODUCTION },
 ];
 
 export function PipelineEditModal({
@@ -64,23 +60,23 @@ export function PipelineEditModal({
 }: PipelineEditModalProps) {
   const isEditing = !!pipeline;
   
-  // Configuration mode: 'existing' or 'new'
-  const [configMode, setConfigMode] = useState<'existing' | 'new'>('existing');
+  // Configuration mode: existing or new
+  const [configMode, setConfigMode] = useState<typeof CONFIG_MODES[keyof typeof CONFIG_MODES]>(CONFIG_MODES.EXISTING);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>();
   
   const [name, setName] = useState(pipeline?.name || '');
   const [platform, setPlatform] = useState<Platform>(
-    pipeline?.platform || fixedPlatform || 'ANDROID'
+    pipeline?.platform || fixedPlatform || PLATFORMS.ANDROID
   );
   const [environment, setEnvironment] = useState<BuildEnvironment>(
-    pipeline?.environment || fixedEnvironment || 'PRE_REGRESSION'
+    pipeline?.environment || fixedEnvironment || BUILD_ENVIRONMENTS.PRE_REGRESSION
   );
   const [provider, setProvider] = useState<BuildProvider>(
-    pipeline?.provider || 'JENKINS'
+    pipeline?.provider || BUILD_PROVIDERS.JENKINS
   );
   const [providerConfig, setProviderConfig] = useState<
     Partial<JenkinsConfig> | Partial<GitHubActionsConfig> | Partial<ManualUploadConfig>
-  >(pipeline?.providerConfig || { type: 'JENKINS' });
+  >(pipeline?.providerConfig || { type: BUILD_PROVIDERS.JENKINS });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -96,18 +92,18 @@ export function PipelineEditModal({
   // Determine available providers based on connected integrations
   // NOTE: Manual Upload is NOT available in CI/CD workflows - only Jenkins and GitHub Actions
   const availableProviders: BuildProvider[] = [];
-  if (availableIntegrations.jenkins.length > 0) availableProviders.push('JENKINS');
-  if (availableIntegrations.github.length > 0) availableProviders.push('GITHUB_ACTIONS');
+  if (availableIntegrations.jenkins.length > 0) availableProviders.push(BUILD_PROVIDERS.JENKINS);
+  if (availableIntegrations.github.length > 0) availableProviders.push(BUILD_PROVIDERS.GITHUB_ACTIONS);
   
   // Get the first available provider
-  const defaultProvider = availableProviders[0] || 'JENKINS'; // Fallback to JENKINS (will show error if not available)
+  const defaultProvider = availableProviders[0] || BUILD_PROVIDERS.JENKINS; // Fallback to JENKINS (will show error if not available)
   
   // Reset form when modal opens or pipeline/fixedPlatform/fixedEnvironment changes
   useEffect(() => {
     if (opened) {
       setName(pipeline?.name || '');
-      setPlatform(pipeline?.platform || fixedPlatform || 'ANDROID');
-      setEnvironment(pipeline?.environment || fixedEnvironment || 'PRE_REGRESSION');
+      setPlatform(pipeline?.platform || fixedPlatform || PLATFORMS.ANDROID);
+      setEnvironment(pipeline?.environment || fixedEnvironment || BUILD_ENVIRONMENTS.PRE_REGRESSION);
       
       // Set provider: use existing pipeline's provider if valid, otherwise use first available
       const initialProvider = pipeline?.provider && availableProviders.includes(pipeline.provider) 
@@ -120,39 +116,39 @@ export function PipelineEditModal({
         setProviderConfig(pipeline.providerConfig);
       } else {
         // Create default config for the selected provider
-        if (initialProvider === 'JENKINS') {
-          setProviderConfig({ type: 'JENKINS', parameters: {} });
-        } else if (initialProvider === 'GITHUB_ACTIONS') {
-          setProviderConfig({ type: 'GITHUB_ACTIONS', inputs: {}, branch: 'main' });
+        if (initialProvider === BUILD_PROVIDERS.JENKINS) {
+          setProviderConfig({ type: BUILD_PROVIDERS.JENKINS, parameters: {} });
+        } else if (initialProvider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
+          setProviderConfig({ type: BUILD_PROVIDERS.GITHUB_ACTIONS, inputs: {}, branch: 'main' });
         } else {
-          setProviderConfig({ type: 'MANUAL_UPLOAD' });
+          setProviderConfig({ type: BUILD_PROVIDERS.MANUAL_UPLOAD });
         }
       }
       
       setErrors({});
       setSelectedWorkflowId(undefined);
-      // Default to 'existing' if workflows available, otherwise 'new'
-      setConfigMode(relevantWorkflows.length > 0 ? 'existing' : 'new');
+      // Default to existing if workflows available, otherwise new
+      setConfigMode(relevantWorkflows.length > 0 ? CONFIG_MODES.EXISTING : CONFIG_MODES.NEW);
     }
   }, [opened, pipeline, fixedPlatform, fixedEnvironment, relevantWorkflows.length, availableProviders, defaultProvider]);
   
   // Reset provider config when provider changes
   useEffect(() => {
-    if (provider === 'JENKINS') {
-      setProviderConfig({ type: 'JENKINS', parameters: {} } as Partial<JenkinsConfig>);
-    } else if (provider === 'GITHUB_ACTIONS') {
-      setProviderConfig({ type: 'GITHUB_ACTIONS', inputs: {}, branch: 'main' } as Partial<GitHubActionsConfig>);
+    if (provider === BUILD_PROVIDERS.JENKINS) {
+      setProviderConfig({ type: BUILD_PROVIDERS.JENKINS, parameters: {} } as Partial<JenkinsConfig>);
+    } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
+      setProviderConfig({ type: BUILD_PROVIDERS.GITHUB_ACTIONS, inputs: {}, branch: 'main' } as Partial<GitHubActionsConfig>);
     } else {
-      setProviderConfig({ type: 'MANUAL_UPLOAD' } as Partial<ManualUploadConfig>);
+      setProviderConfig({ type: BUILD_PROVIDERS.MANUAL_UPLOAD } as Partial<ManualUploadConfig>);
     }
   }, [provider]);
   
   // Filter environment options based on platform
   const filteredEnvironmentOptions = environmentOptions.filter(opt => {
-    if (platform === 'IOS') {
+    if (platform === PLATFORMS.IOS) {
       return true; // All environments available for iOS
     } else {
-      return opt.value !== 'TESTFLIGHT'; // No TestFlight for Android
+      return opt.value !== BUILD_ENVIRONMENTS.TESTFLIGHT; // No TestFlight for Android
     }
   });
   
@@ -176,13 +172,13 @@ export function PipelineEditModal({
     }
     
     // Validate based on config mode
-    if (configMode === 'existing') {
+    if (configMode === CONFIG_MODES.EXISTING) {
       if (!selectedWorkflowId) {
         newErrors.workflow = 'Please select a workflow';
       }
     } else {
       // Validate new configuration
-      if (provider === 'JENKINS') {
+      if (provider === BUILD_PROVIDERS.JENKINS) {
         const config = providerConfig as Partial<JenkinsConfig>;
         if (!config.integrationId) {
           newErrors.integration = 'Jenkins instance is required';
@@ -193,7 +189,7 @@ export function PipelineEditModal({
         if (!config.jobName) {
           newErrors.jobName = 'Job name is required';
         }
-      } else if (provider === 'GITHUB_ACTIONS') {
+      } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
         const config = providerConfig as Partial<GitHubActionsConfig>;
         if (!config.integrationId) {
           newErrors.integration = 'GitHub repository is required';
@@ -216,11 +212,11 @@ export function PipelineEditModal({
     
     if (configMode === 'existing' && selectedWorkflow) {
       // Use workflow configuration
-      finalProvider = selectedWorkflow.providerType === 'JENKINS' ? 'JENKINS' : 'GITHUB_ACTIONS';
+      finalProvider = selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS ? BUILD_PROVIDERS.JENKINS : BUILD_PROVIDERS.GITHUB_ACTIONS;
       
-      if (selectedWorkflow.providerType === 'JENKINS') {
+      if (selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
         finalProviderConfig = {
-          type: 'JENKINS',
+          type: BUILD_PROVIDERS.JENKINS,
           integrationId: selectedWorkflow.integrationId,
           jobUrl: selectedWorkflow.workflowUrl,
           jobName: selectedWorkflow.displayName,
@@ -228,7 +224,7 @@ export function PipelineEditModal({
         };
       } else {
         finalProviderConfig = {
-          type: 'GITHUB_ACTIONS',
+          type: BUILD_PROVIDERS.GITHUB_ACTIONS,
           integrationId: selectedWorkflow.integrationId,
           workflowId: selectedWorkflow.id,
           workflowPath: selectedWorkflow.workflowUrl,
@@ -267,8 +263,8 @@ export function PipelineEditModal({
     >
       <Stack gap="md">
         <TextInput
-          label="Workflow Name"
-          placeholder="e.g., Android Pre-Regression Build"
+          label={FIELD_LABELS.WORKFLOW_NAME}
+          placeholder={PLACEHOLDERS.WORKFLOW_NAME}
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -278,14 +274,14 @@ export function PipelineEditModal({
         
         <Group grow>
           <Select
-            label="Platform"
+            label={FIELD_LABELS.PLATFORM}
             data={platformOptions}
             value={platform}
             onChange={(val) => {
               setPlatform(val as Platform);
               // Reset environment if TestFlight selected for Android
-              if (val === 'ANDROID' && environment === 'TESTFLIGHT') {
-                setEnvironment('PRE_REGRESSION');
+              if (val === PLATFORMS.ANDROID && environment === BUILD_ENVIRONMENTS.TESTFLIGHT) {
+                setEnvironment(BUILD_ENVIRONMENTS.PRE_REGRESSION);
               }
             }}
             required
@@ -294,7 +290,7 @@ export function PipelineEditModal({
           />
           
           <Select
-            label="Environment"
+            label={FIELD_LABELS.ENVIRONMENT}
             data={filteredEnvironmentOptions}
             value={environment}
             onChange={(val) => setEnvironment(val as BuildEnvironment)}
@@ -313,10 +309,10 @@ export function PipelineEditModal({
             </Text>
             <SegmentedControl
               value={configMode}
-              onChange={(val) => setConfigMode(val as 'existing' | 'new')}
+              onChange={(val) => setConfigMode(val as typeof configMode)}
               data={[
-                { value: 'existing', label: `Use Existing (${relevantWorkflows.length})` },
-                { value: 'new', label: 'Create New' },
+                { value: CONFIG_MODES.EXISTING, label: `Use Existing (${relevantWorkflows.length})` },
+                { value: CONFIG_MODES.NEW, label: 'Create New' },
               ]}
               fullWidth
             />
@@ -324,11 +320,11 @@ export function PipelineEditModal({
         )}
         
         {/* Existing Workflow Selection */}
-        {configMode === 'existing' && relevantWorkflows.length > 0 && (
+          {configMode === CONFIG_MODES.EXISTING && relevantWorkflows.length > 0 && (
           <Stack gap="sm">
             <Select
-              label="Select Workflow"
-              placeholder="Choose a pre-configured workflow"
+              label={FIELD_LABELS.SELECT_WORKFLOW}
+              placeholder={PLACEHOLDERS.SELECT_WORKFLOW}
               data={relevantWorkflows.map(w => ({
                 value: w.id,
                 label: w.displayName,
@@ -352,7 +348,7 @@ export function PipelineEditModal({
               <Card withBorder className="bg-gray-50">
                 <Stack gap="xs">
                   <Group gap="xs">
-                    {selectedWorkflow.providerType === 'JENKINS' ? (
+                    {selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS ? (
                       <IconServer size={18} className="text-red-600" />
                     ) : (
                       <IconBrandGithub size={18} />
@@ -404,7 +400,7 @@ export function PipelineEditModal({
         )}
         
         {/* New Configuration Form */}
-        {configMode === 'new' && (
+          {configMode === CONFIG_MODES.NEW && (
           <Stack gap="md">
             {/* Show error if no CI/CD integrations are available */}
             {availableProviders.length === 0 && (
@@ -440,7 +436,7 @@ export function PipelineEditModal({
             )}
             
             {/* Provider-specific configuration forms */}
-            {provider === 'JENKINS' && (
+            {provider === BUILD_PROVIDERS.JENKINS && (
               <JenkinsConfigForm
                 config={providerConfig as Partial<JenkinsConfig>}
                 onChange={setProviderConfig}
@@ -449,7 +445,7 @@ export function PipelineEditModal({
               />
             )}
             
-            {provider === 'GITHUB_ACTIONS' && (
+            {provider === BUILD_PROVIDERS.GITHUB_ACTIONS && (
               <GitHubActionsConfigForm
                 config={providerConfig as Partial<GitHubActionsConfig>}
                 onChange={setProviderConfig}

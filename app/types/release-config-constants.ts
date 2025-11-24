@@ -166,6 +166,17 @@ export const JIRA_PLATFORMS = {
 export type JiraPlatformValue = typeof JIRA_PLATFORMS[keyof typeof JIRA_PLATFORMS];
 
 // ============================================================================
+// Workflow Config Modes
+// ============================================================================
+
+export const CONFIG_MODES = {
+  EXISTING: 'existing',
+  NEW: 'new',
+} as const;
+
+export type ConfigModeValue = typeof CONFIG_MODES[keyof typeof CONFIG_MODES];
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 

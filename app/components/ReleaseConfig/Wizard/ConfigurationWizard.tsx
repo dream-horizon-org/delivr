@@ -112,7 +112,7 @@ export function ConfigurationWizard({
   // Auto-save draft to local storage (ONLY for NEW configs, NOT in edit mode)
   useEffect(() => {
     if (!isEditMode) {
-      saveDraftConfig(tenantId, config);
+    saveDraftConfig(tenantId, config);
     }
   }, [tenantId, config, isEditMode]);
   
@@ -197,7 +197,7 @@ export function ConfigurationWizard({
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
         setCurrentStep(currentStep + 2); // Skip pipelines step
       } else {
-        setCurrentStep(currentStep + 1);
+      setCurrentStep(currentStep + 1);
       }
     }
   };
@@ -208,7 +208,7 @@ export function ConfigurationWizard({
       if (currentStep === STEP_INDEX.TESTING && config.buildUploadStep === 'MANUAL') {
         setCurrentStep(currentStep - 2); // Skip back over pipelines step
       } else {
-        setCurrentStep(currentStep - 1);
+      setCurrentStep(currentStep - 1);
       }
     }
   };

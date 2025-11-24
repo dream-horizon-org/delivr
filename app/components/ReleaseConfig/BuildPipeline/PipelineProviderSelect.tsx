@@ -5,14 +5,9 @@
 
 import { Select } from '@mantine/core';
 import type { BuildProvider } from '~/types/release-config';
+import type { PipelineProviderSelectProps } from '~/types/release-config-props';
 import { BUILD_PROVIDER_LABELS } from '../release-config-constants';
-
-interface PipelineProviderSelectProps {
-  value: BuildProvider;
-  onChange: (value: BuildProvider) => void;
-  availableProviders: BuildProvider[];
-  disabled?: boolean;
-}
+import { FIELD_LABELS, PLACEHOLDERS } from '~/constants/release-config-ui';
 
 export function PipelineProviderSelect({
   value,
@@ -32,8 +27,8 @@ export function PipelineProviderSelect({
   
   return (
     <Select
-      label="Build Provider"
-      placeholder="Select build provider"
+      label={FIELD_LABELS.BUILD_PROVIDER}
+      placeholder={PLACEHOLDERS.SELECT_PROVIDER}
       data={options}
       value={value}
       onChange={(val) => onChange(val as BuildProvider)}
@@ -43,4 +38,3 @@ export function PipelineProviderSelect({
     />
   );
 }
-

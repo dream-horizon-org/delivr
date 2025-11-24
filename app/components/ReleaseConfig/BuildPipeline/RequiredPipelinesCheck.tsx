@@ -5,11 +5,9 @@
 
 import { Alert, Text, List, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconX, IconAlertCircle } from '@tabler/icons-react';
-import type { Workflow } from '~/types/release-config';
-
-interface RequiredPipelinesCheckProps {
-  pipelines: Workflow[];
-}
+import type { RequiredPipelinesCheckProps } from '~/types/release-config-props';
+import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { ICON_SIZES, PIPELINE_REQUIREMENTS } from '~/constants/release-config-ui';
 
 interface RequirementStatus {
   name: string;
@@ -17,23 +15,23 @@ interface RequirementStatus {
   description: string;
 }
 
-export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProps) {
+export function RequiredPipelinesCheck({ pipelines, selectedPlatforms }: RequiredPipelinesCheckProps) {
   // Check which platforms are actually being used
-  const hasAnyAndroid = pipelines.some(p => p.platform === 'ANDROID');
-  const hasAnyIOS = pipelines.some(p => p.platform === 'IOS');
+  const hasAnyAndroid = pipelines.some(p => p.platform === PLATFORMS.ANDROID);
+  const hasAnyIOS = pipelines.some(p => p.platform === PLATFORMS.IOS);
   
   // Check Android requirements (only Regression is required, Pre-Regression is optional)
   const hasAndroidRegression = pipelines.some(
-    p => p.platform === 'ANDROID' && p.environment === 'REGRESSION' && p.enabled
+    p => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
   );
   
   // Check iOS requirements (Regression + TestFlight required, Pre-Regression is optional)
   const hasIOSRegression = pipelines.some(
-    p => p.platform === 'IOS' && p.environment === 'REGRESSION' && p.enabled
+    p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
   );
   
   const hasIOSTestFlight = pipelines.some(
-    p => p.platform === 'IOS' && p.environment === 'TESTFLIGHT' && p.enabled
+    p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
   );
   
   const requirements: RequirementStatus[] = [];
@@ -41,9 +39,9 @@ export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProp
   // Add Android requirements
   if (hasAnyAndroid) {
     requirements.push({
-      name: 'Android Regression',
+      name: PIPELINE_REQUIREMENTS.ANDROID_REGRESSION,
       met: hasAndroidRegression,
-      description: 'Required for Play Store releases',
+      description: PIPELINE_REQUIREMENTS.ANDROID_REGRESSION_DESC,
     });
   }
   
@@ -51,14 +49,14 @@ export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProp
   if (hasAnyIOS) {
     requirements.push(
       {
-        name: 'iOS Regression',
+        name: PIPELINE_REQUIREMENTS.IOS_REGRESSION,
         met: hasIOSRegression,
-        description: 'Required for App Store releases',
+        description: PIPELINE_REQUIREMENTS.IOS_REGRESSION_DESC,
       },
       {
-        name: 'iOS TestFlight',
+        name: PIPELINE_REQUIREMENTS.IOS_TESTFLIGHT,
         met: hasIOSTestFlight,
-        description: 'Required for TestFlight distribution',
+        description: PIPELINE_REQUIREMENTS.IOS_TESTFLIGHT_DESC,
       }
     );
   }
@@ -70,11 +68,11 @@ export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProp
     <Alert
       icon={
         allRequirementsMet ? (
-          <IconCheck size={20} />
+          <IconCheck size={ICON_SIZES.MEDIUM} />
         ) : someRequirementsMet ? (
-          <IconAlertCircle size={20} />
+          <IconAlertCircle size={ICON_SIZES.MEDIUM} />
         ) : (
-          <IconX size={20} />
+          <IconX size={ICON_SIZES.MEDIUM} />
         )
       }
       color={allRequirementsMet ? 'green' : someRequirementsMet ? 'yellow' : 'red'}
@@ -83,8 +81,8 @@ export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProp
     >
       <Text fw={600} size="sm" className="mb-2">
         {allRequirementsMet
-          ? 'All required pipelines configured ✓'
-          : 'Required pipelines missing'}
+          ? PIPELINE_REQUIREMENTS.ALL_CONFIGURED
+          : PIPELINE_REQUIREMENTS.MISSING_PIPELINES}
       </Text>
       
       <List
@@ -124,10 +122,9 @@ export function RequiredPipelinesCheck({ pipelines }: RequiredPipelinesCheckProp
       
       {!allRequirementsMet && (
         <Text size="xs" c="dimmed" className="mt-2">
-          Add the missing pipelines above to continue with the configuration.
+          {PIPELINE_REQUIREMENTS.ADD_MISSING_HINT}
         </Text>
       )}
     </Alert>
   );
 }
-

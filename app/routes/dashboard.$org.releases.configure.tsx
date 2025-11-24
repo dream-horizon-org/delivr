@@ -193,11 +193,11 @@ export default function ReleasesConfigurePage() {
     }
     
     // New config mode: Check if there's a draft to resume
-    const draft = loadDraftConfig(organizationId);
-    if (draft && draft.name) {
+      const draft = loadDraftConfig(organizationId);
+      if (draft && draft.name) {
       console.log('[ReleasesConfigurePage] Found draft, showing resume dialog');
-      setDraftConfig(draft);
-      setShowDraftDialog(true);
+        setDraftConfig(draft);
+        setShowDraftDialog(true);
     }
   }, [organizationId, isEditMode, forceNew]);
   
