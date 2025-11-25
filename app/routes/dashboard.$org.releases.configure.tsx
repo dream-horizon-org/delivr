@@ -36,7 +36,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   if (configIdToLoad) {
     try {
       const endpoint = `/api/v1/tenants/${org}/release-config/${configIdToLoad}`;
-      const result = await apiGet<{ data: ReleaseConfiguration }>(
+      const result = await apiGet<ReleaseConfiguration>(
         `${url.protocol}//${url.host}${endpoint}`,
         {
           headers: {
@@ -44,9 +44,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           }
         }
       );
+
+      console.log('[ReleasesConfigurePage] Loader result for config:', configIdToLoad, JSON.stringify(result, null, 2));
       
-      if (result.data?.data) {
-        existingConfig = result.data.data;
+      if (result.data) {
+        existingConfig = result.data;
         
         // If cloning, modify the config to be a new one
         if (cloneConfigId && existingConfig) {
