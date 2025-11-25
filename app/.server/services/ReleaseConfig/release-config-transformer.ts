@@ -242,13 +242,13 @@ export function transformToBackendPayload(
 ): CreateReleaseConfigRequest {
   const payload: CreateReleaseConfigRequest = {
     // Basic fields
-    tenantId: config.organizationId,
+    tenantId: config.tenantId,
     name: config.name,
     description: config.description,
     releaseType: config.releaseType,
     isDefault: config.isDefault ?? false,
-    platforms: getUniquePlatforms(config.defaultTargets), // Extract unique platforms
-    defaultTargets: config.defaultTargets,
+    platforms: getUniquePlatforms(config.targets), // Extract unique platforms
+    defaultTargets: config.targets,
     baseBranch: config.baseBranch,
   };
 
@@ -256,30 +256,31 @@ export function transformToBackendPayload(
   if (config.workflows && config.workflows.length > 0) {
     payload.workflows = config.workflows.map(w => ({
       id: w.id || generateId(),
-      tenantId: config.organizationId,
+      tenantId: config.tenantId,
       providerType: w.provider as any, // Cast to backend provider type
-      integrationId: w.integrationId,
+      integrationId: (w.providerConfig as any)?.integrationId || '',
       displayName: w.name,
-      workflowUrl: w.url || '',
-      providerIdentifiers: w.providerIdentifiers,
+      workflowUrl: (w.providerConfig as any)?.workflowUrl || (w.providerConfig as any)?.jobUrl || '',
+      providerIdentifiers: w.providerConfig as any,
       platform: w.platform, // Simple ANDROID/IOS (no transformation)
-      workflowType: w.type as any,
-      parameters: w.config,
+      workflowType: w.environment as any,
+      parameters: w.providerConfig as any,
       createdByAccountId: userId,
-    }));
+    })) as BackendWorkflow[];
   }
 
   // Transform Test Management
   if (config.testManagement?.enabled && config.testManagement.integrationId) {
+    const providerConfig = config.testManagement.providerConfig as any;
     payload.testManagement = {
-      tenantId: config.organizationId,
+      tenantId: config.tenantId,
       integrationId: config.testManagement.integrationId,
-      name: config.testManagement.name || `TCM Config for ${config.name}`,
-      passThresholdPercent: config.testManagement.passThresholdPercent ?? 100,
-      platformConfigurations: (config.testManagement.platformConfigurations || []).map(pc => {
+      name: providerConfig?.name || `TCM Config for ${config.name}`,
+      passThresholdPercent: providerConfig?.passThresholdPercent ?? 100,
+      platformConfigurations: (providerConfig?.platformConfigurations || []).map((pc: any) => {
         // Find the corresponding target to get the correct TestPlatform enum
-        const matchingTarget = config.defaultTargets.find(
-          target => getPlatformForTarget(target) === pc.platform
+        const matchingTarget = config.targets.find(
+          (target: TargetPlatform) => getPlatformForTarget(target) === pc.platform
         );
 
         return {
@@ -300,30 +301,30 @@ export function transformToBackendPayload(
   }
 
   // Transform Communication (Slack)
-  if (config.communication?.enabled && config.communication.slack?.channels) {
+  if (config.communication?.slack?.enabled && config.communication.slack?.channelData) {
     payload.communication = {
-      tenantId: config.organizationId,
-      channelData: config.communication.slack.channels,
+      tenantId: config.tenantId,
+      channelData: config.communication.slack.channelData as any,
     };
   }
 
   // Transform Project Management (JIRA)
   if (config.jiraProject?.enabled && config.jiraProject.integrationId) {
     payload.projectManagement = {
-      tenantId: config.organizationId,
+      tenantId: config.tenantId,
       integrationId: config.jiraProject.integrationId,
-      name: config.jiraProject.name || `PM Config for ${config.name}`,
-      description: config.jiraProject.description || config.description || '',
+      name: `PM Config for ${config.name}`,
+      description: config.description || '',
       platformConfigurations: (config.jiraProject.platformConfigurations || []).map(pc => ({
         platform: pc.platform, // Simple ANDROID/IOS (no transformation for JIRA)
         parameters: {
-          projectKey: pc.parameters.projectKey,
-          issueType: pc.parameters.issueType,
-          completedStatus: pc.parameters.completedStatus,
-          priority: pc.parameters.priority,
-          labels: pc.parameters.labels,
-          assignee: pc.parameters.assignee,
-          customFields: pc.parameters.customFields,
+          projectKey: pc.projectKey,
+          issueType: pc.issueType || '',
+          completedStatus: pc.completedStatus,
+          priority: pc.priority || '',
+          labels: (pc as any).labels || [],
+          assignee: (pc as any).assignee || '',
+          customFields: (pc as any).customFields || {},
         },
       })),
       createdByAccountId: userId,
@@ -335,7 +336,7 @@ export function transformToBackendPayload(
     payload.scheduling = {
       releaseFrequency: transformReleaseFrequency(config.scheduling.releaseFrequency),
       firstReleaseKickoffDate: config.scheduling.firstReleaseKickoffDate,
-      nextReleaseKickoffDate: config.scheduling.nextReleaseKickoffDate,
+      nextReleaseKickoffDate: config.scheduling.firstReleaseKickoffDate, // Use firstRelease as fallback
       initialVersions: config.scheduling.initialVersions as Record<string, string>,
       kickoffReminderTime: config.scheduling.kickoffReminderTime,
       kickoffTime: config.scheduling.kickoffTime,
@@ -343,7 +344,7 @@ export function transformToBackendPayload(
       targetReleaseDateOffsetFromKickoff: config.scheduling.targetReleaseDateOffsetFromKickoff,
       kickoffReminderEnabled: config.scheduling.kickoffReminderEnabled,
       timezone: config.scheduling.timezone,
-      regressionSlots: transformRegressionSlots(config.scheduling.regressionSlots),
+      regressionSlots: config.scheduling.regressionSlots ? transformRegressionSlots(config.scheduling.regressionSlots as any) : [],
       workingDays: transformWorkingDays(config.scheduling.workingDays),
     };
   }
@@ -363,34 +364,34 @@ export function transformFromBackendResponse(
 ): Partial<ReleaseConfiguration> {
   return {
     id: backendConfig.id,
-    organizationId: backendConfig.tenantId,
+    tenantId: backendConfig.tenantId,
     name: backendConfig.name,
     description: backendConfig.description || '',
     releaseType: backendConfig.releaseType,
-    defaultTargets: backendConfig.targets as TargetPlatform[],
-    platforms: backendConfig.platforms as Platform[] | undefined,
+    targets: backendConfig.targets as TargetPlatform[],
+    platforms: backendConfig.platforms as Platform[] || [],
     baseBranch: backendConfig.baseBranch || undefined,
     isDefault: backendConfig.isDefault,
-    isActive: backendConfig.isActive,
+    status: backendConfig.isActive ? 'ACTIVE' : 'ARCHIVED',
     scheduling: backendConfig.scheduling ? {
       ...backendConfig.scheduling,
       releaseFrequency: backendConfig.scheduling.releaseFrequency.toUpperCase() as any,
       workingDays: backendConfig.scheduling.workingDays, // Already numbers (1-7), keep as is
-      regressionSlots: backendConfig.scheduling.regressionSlots?.map(slot => ({
-        name: slot.name,
+      regressionSlots: backendConfig.scheduling.regressionSlots?.map((slot, idx) => ({
+        id: `slot_${idx}`,
+        name: slot.name || '',
         regressionSlotOffsetFromKickoff: slot.regressionSlotOffsetFromKickoff,
         time: slot.time,
-        regressionBuilds: [
-          slot.config.regressionBuilds && 'REGRESSION_BUILD',
-          slot.config.postReleaseNotes && 'POST_RELEASE_NOTES',
-          slot.config.automationBuilds && 'AUTOMATION_BUILD',
-          slot.config.automationRuns && 'AUTOMATION_RUN',
-        ].filter(Boolean) as string[],
-      })),
-    } : undefined,
+        config: {
+          regressionBuilds: slot.config.regressionBuilds,
+          postReleaseNotes: slot.config.postReleaseNotes,
+          automationBuilds: slot.config.automationBuilds,
+          automationRuns: slot.config.automationRuns,
+        }
+      })) || [],
+    } as any : undefined,
     createdAt: backendConfig.createdAt,
     updatedAt: backendConfig.updatedAt,
-    createdBy: backendConfig.createdBy,
   };
 }
 
@@ -409,9 +410,9 @@ export function transformToUpdatePayload(
   if (config.isDefault !== undefined) updatePayload.isDefault = config.isDefault;
   if (config.baseBranch !== undefined) updatePayload.baseBranch = config.baseBranch;
   
-  if (config.defaultTargets !== undefined) {
-    updatePayload.defaultTargets = config.defaultTargets;
-    updatePayload.platforms = getUniquePlatforms(config.defaultTargets);
+  if (config.targets !== undefined) {
+    updatePayload.defaultTargets = config.targets;
+    updatePayload.platforms = getUniquePlatforms(config.targets);
   }
 
   // Include other integration updates if provided
