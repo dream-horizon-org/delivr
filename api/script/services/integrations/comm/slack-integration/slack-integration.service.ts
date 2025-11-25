@@ -10,8 +10,7 @@ import type {
   TenantCommunicationIntegration
 } from '../../../../storage/integrations/comm/slack-types';
 import type {
-  CreateOrUpdateIntegrationDto,
-  UpdateIntegrationDataDto
+  CreateOrUpdateIntegrationDto
 } from '../../../../types/integrations/comm/slack-integration';
 
 /**
@@ -34,6 +33,7 @@ export class SlackIntegrationService {
    * Fetch Slack channels
    */
   async fetchChannels(botToken: string): Promise<SlackChannelsResult> {
+    console.log("fetching channels for bot token: ", botToken);
     return await slackApiService.fetchChannels(botToken);
   }
 

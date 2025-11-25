@@ -32,6 +32,9 @@ import {
 import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
 import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
 import {
+  SlackIntegrationRepository,
+} from "../models/integrations/comm";
+import {
   createReleaseConfigModel,
   ReleaseConfigRepository
 } from "../models/release-configs";
@@ -636,7 +639,8 @@ export class S3Storage implements storage.Storage {
     public releaseConfigService!: ReleaseConfigService;
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
-    public slackController!: SlackIntegrationController;  // Slack integration controller
+    public slackController!: SlackIntegrationController;  // Slack integration controller (OLD - for backwards compatibility)
+    public slackIntegrationRepository!: SlackIntegrationRepository;  // Slack integration repository (NEW - with delete method)
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public channelController!: ChannelController;  // Channel configuration controller
@@ -815,9 +819,13 @@ export class S3Storage implements storage.Storage {
           
           console.log("Project Management Integration initialized");
           
-          // Initialize Slack Integration Controller
+          // Initialize Slack Integration Controller (OLD - keeping for backwards compatibility)
           this.slackController = new SlackIntegrationController(models.SlackIntegrations);
           console.log("Slack Integration Controller initialized");
+          
+          // Initialize Slack Integration Repository (NEW - for service layer)
+          this.slackIntegrationRepository = new SlackIntegrationRepository(models.SlackIntegrations);
+          console.log("Slack Integration Repository initialized");
 
           // Initialize Store Integration Controllers
           this.storeIntegrationController = new StoreIntegrationController(
@@ -832,7 +840,7 @@ export class S3Storage implements storage.Storage {
           console.log("Channel Configuration Controller initialized");
           
           // Initialize Slack Services (similar to test-management services)
-          this.slackIntegrationService = new SlackIntegrationService(this.slackController);
+          this.slackIntegrationService = new SlackIntegrationService(this.slackIntegrationRepository);
           console.log("Slack Integration Service initialized");
           
           this.slackChannelConfigService = new SlackChannelConfigService(

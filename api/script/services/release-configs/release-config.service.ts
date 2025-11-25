@@ -76,7 +76,7 @@ export class ReleaseConfigService {
     if (integrationConfigs.communication && this.slackChannelConfigService?.validateConfig) {
       const commValidation = this.slackChannelConfigService.validateConfig({
         tenantId: requestData.tenantId,
-        channelData: integrationConfigs.communication.slack?.channels || {}
+        channelData: integrationConfigs.communication.channelData || {}
       });
       validationResults.push(commValidation);
     }
@@ -161,7 +161,7 @@ export class ReleaseConfigService {
       } else {
         const commConfig = await this.slackChannelConfigService.createConfig({
           tenantId: requestData.tenantId,
-          channelData: integrationConfigs.communication.slack?.channels || {}
+          channelData: integrationConfigs.communication.channelData || {}
         });
         integrationConfigIds.commsConfigId = commConfig.id;
         console.log('Created new Communication config:', integrationConfigIds.commsConfigId);
