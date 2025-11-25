@@ -10,6 +10,14 @@ import type {
 } from '~types/integrations/test-management/test-management-config';
 
 /**
+ * Platform-Target pair for release config
+ */
+export type PlatformTarget = {
+  platform: string;
+  target: string;
+};
+
+/**
  * Release Configuration
  */
 export type ReleaseConfiguration = {
@@ -18,8 +26,7 @@ export type ReleaseConfiguration = {
   name: string;
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms: string[] | null;
+  platformTargets: PlatformTarget[];
   baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
@@ -42,8 +49,7 @@ export type CreateReleaseConfigDto = {
   name: string;
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms?: string[];
+  platformTargets: PlatformTarget[];
   baseBranch?: string;
   ciConfigId?: string;
   testManagementConfigId?: string;
@@ -63,8 +69,7 @@ export type UpdateReleaseConfigDto = {
   name?: string;
   description?: string;
   releaseType?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets?: string[];
-  platforms?: string[] | null;
+  platformTargets?: PlatformTarget[];
   baseBranch?: string | null;
   ciConfigId?: string | null;
   testManagementConfigId?: string | null;
@@ -85,8 +90,7 @@ export type CreateReleaseConfigRequest = {
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   isDefault?: boolean;
-  platforms?: string[];        // Supported platforms (e.g., ["ANDROID", "IOS"])
-  defaultTargets: string[];    // Maps to targets
+  platformTargets: PlatformTarget[];  // New format: [{"platform": "ANDROID", "target": "PLAY_STORE"}, ...]
   
   // Integration configurations (will be processed to generate config IDs)
   ciConfigId?: string;         // Optional: existing CI config ID to reuse
@@ -111,8 +115,7 @@ export type SafeReleaseConfiguration = {
   name: string;
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms: string[] | null;
+  platformTargets: PlatformTarget[];
   baseBranch: string | null;
   isActive: boolean;
   isDefault: boolean;

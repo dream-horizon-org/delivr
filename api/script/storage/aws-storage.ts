@@ -36,6 +36,22 @@ import {
   ReleaseConfigRepository
 } from "../models/release-configs";
 import { ReleaseConfigService } from "../services/release-configs";
+import {
+  createReleaseModel,
+  createCronJobModel,
+  createReleaseTaskModel,
+  createStateHistoryModel,
+  createPlatformTargetMappingModel,
+  createPlatformModel,
+  createTargetModel,
+  ReleaseRepository,
+  ReleasePlatformTargetMappingRepository,
+  CronJobRepository,
+  ReleaseTaskRepository,
+  StateHistoryRepository
+} from "../models/release";
+import { ReleaseCreationService } from "../services/release/release-creation.service";
+import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
@@ -44,7 +60,7 @@ import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigMo
 import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
 import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
 import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
-import { createRelease } from "./release-models";
+// OLD: import { createRelease } from "./release-models"; // Replaced with new models from ../models/release
 import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
 import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
@@ -393,7 +409,15 @@ export function createModelss(sequelize: Sequelize) {
   const CICDIntegrations = createCICDIntegrationModel(sequelize);  // CI/CD integrations (Jenkins, etc.)
   const CICDWorkflows = createCICDWorkflowModel(sequelize);  // CI/CD workflows/jobs across providers
   const CICDConfig = createCICDConfigModel(sequelize);  // CI/CD configurations
-  const Release = createRelease(sequelize);  // Release management from Delivr
+  
+  // NEW: Release Management Models (standardized schema)
+  const Platform = createPlatformModel(sequelize);  // Reference table for platforms
+  const Target = createTargetModel(sequelize);  // Reference table for targets
+  const Release = createReleaseModel(sequelize);  // Main releases table
+  const ReleasePlatformTargetMapping = createPlatformTargetMappingModel(sequelize);  // Platform-target mapping
+  const CronJob = createCronJobModel(sequelize);  // Cron jobs for automation
+  const ReleaseTask = createReleaseTaskModel(sequelize);  // Release tasks
+  const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
 
   // ============================================
   const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
@@ -417,6 +441,7 @@ export function createModelss(sequelize: Sequelize) {
   Account.hasMany(Tenant, { foreignKey: 'createdBy' });
   Tenant.belongsTo(Account, { foreignKey: 'createdBy' });
   
+  // NEW: Release Management Associations (standardized schema)
   // Tenant and Release (One Tenant can have many Releases)
   Tenant.hasMany(Release, { foreignKey: 'tenantId' });
   Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
@@ -425,17 +450,29 @@ export function createModelss(sequelize: Sequelize) {
   Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
   Release.belongsTo(Account, { foreignKey: 'createdBy', as: 'creator' });
   
-  // Account and Release (Pilot relationship)
-  Account.hasMany(Release, { foreignKey: 'releasePilotId', as: 'pilotedReleases' });
-  Release.belongsTo(Account, { foreignKey: 'releasePilotId', as: 'pilot' });
-  
   // Account and Release (Last updater relationship)
   Account.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
   Release.belongsTo(Account, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
   
-  // Release self-referencing (Parent-child for hotfixes)
-  Release.hasMany(Release, { foreignKey: 'parentId', as: 'hotfixes' });
-  Release.belongsTo(Release, { foreignKey: 'parentId', as: 'parent' });
+  // Release self-referencing (Parent-child for hotfixes via baseReleaseId)
+  Release.hasMany(Release, { foreignKey: 'baseReleaseId', as: 'hotfixes' });
+  Release.belongsTo(Release, { foreignKey: 'baseReleaseId', as: 'parentRelease' });
+  
+  // Release and Platform-Target Mapping (One Release has many mappings)
+  Release.hasMany(ReleasePlatformTargetMapping, { foreignKey: 'releaseId', as: 'platformTargets' });
+  ReleasePlatformTargetMapping.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Release and CronJob (One Release has one CronJob)
+  Release.hasOne(CronJob, { foreignKey: 'releaseId', as: 'cronJob' });
+  CronJob.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Release and Tasks (One Release has many Tasks)
+  Release.hasMany(ReleaseTask, { foreignKey: 'releaseId', as: 'tasks' });
+  ReleaseTask.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Release and State History (One Release has many history entries)
+  Release.hasMany(StateHistory, { foreignKey: 'releaseId', as: 'history' });
+  StateHistory.belongsTo(Release, { foreignKey: 'releaseId' });
 
   // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
@@ -521,7 +558,14 @@ export function createModelss(sequelize: Sequelize) {
     CICDIntegrations,      // CI/CD connections (Jenkins, etc.)
     CICDWorkflows,         // CI/CD workflows/jobs across providers
     CICDConfig,            // CI/CD configurations
-    Release,
+    // Release Management (NEW standardized schema)
+    platform: Platform,    // Renamed for lowercase consistency
+    target: Target,        // Renamed for lowercase consistency
+    release: Release,      // Renamed for lowercase consistency
+    releasePlatformTargetMapping: ReleasePlatformTargetMapping,
+    cronJob: CronJob,
+    releaseTasks: ReleaseTask,
+    stateHistory: StateHistory,
     SlackIntegrations,  // Slack integrations
     StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
     StoreCredentials,   // Store credentials (encrypted)
@@ -590,6 +634,8 @@ export class S3Storage implements storage.Storage {
     public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
+    public releaseCreationService!: ReleaseCreationService;
+    public releaseRetrievalService!: ReleaseRetrievalService;
     public slackController!: SlackIntegrationController;  // Slack integration controller
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
@@ -806,6 +852,35 @@ export class S3Storage implements storage.Storage {
             this.projectManagementConfigService
           );
           console.log("Release Config Service initialized");
+          
+          // Initialize Release Management Services
+          const releaseRepo = new ReleaseRepository(this.sequelize.models.Release);
+          const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(
+            this.sequelize.models.PlatformTargetMapping
+          );
+          const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
+          const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          const stateHistoryRepo = new StateHistoryRepository(
+            this.sequelize.models.StateHistory
+          );
+          
+          this.releaseCreationService = new ReleaseCreationService(
+            releaseRepo,
+            platformTargetMappingRepo,
+            cronJobRepo,
+            releaseTaskRepo,
+            stateHistoryRepo,
+            this
+          );
+          console.log("Release Creation Service initialized");
+          
+          this.releaseRetrievalService = new ReleaseRetrievalService(
+            releaseRepo,
+            platformTargetMappingRepo,
+            cronJobRepo,
+            releaseTaskRepo
+          );
+          console.log("Release Retrieval Service initialized");
           
           // return this.sequelize.sync();
         })
