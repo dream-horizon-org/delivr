@@ -22,123 +22,100 @@ export class ReleaseRetrievalService {
    * Get all releases for a tenant with complete details
    * @param includeTasks - Optional flag to include tasks (default: false for performance)
    */
-  async getAllReleases(tenantId: string, includeTasks = false): Promise<ReleaseResponseBody[]> {
-    // Fetch all releases for the tenant
+  async getAllReleases(tenantId: string, includeTasks: boolean = false): Promise<ReleaseResponseBody[]> {
+    // Fetch all releases for tenant
     const releases = await this.releaseRepo.findAllByTenantId(tenantId);
 
-    // Fetch related data for each release
-    const releasesWithDetails = await Promise.all(
-      releases.map(async (release): Promise<ReleaseResponseBody> => {
-        // Fetch platform-target mappings
-        const mappingRecords = await this.platformTargetMappingRepo.getByReleaseId(release.id);
-        
-        // Extract unique platforms and targets
-        const platforms = [...new Set(mappingRecords.map(m => m.platform))];
-        const targets = [...new Set(mappingRecords.map(m => m.target))];
-        
-        // Build platformVersions map (platform -> version)
-        // Note: If same platform has multiple targets with different versions, last one wins
-        const platformVersions: Record<string, string> = {};
-        mappingRecords.forEach(m => {
-          platformVersions[m.platform] = m.version;
-        });
+    // Fetch platform-target mappings for all releases
+    const releaseResponses: ReleaseResponseBody[] = [];
 
-        // Fetch cron job
-        const cronJobRecord = await this.cronJobRepo.findByReleaseId(release.id);
+    for (const release of releases) {
+      // Fetch platform-target mappings
+      const mappings = await this.platformTargetMappingRepo.getByReleaseId(release.id);
 
-        // Base release response
-        const releaseResponse: ReleaseResponseBody = {
-          id: release.id,
-          releaseKey: release.releaseKey,
-          tenantId: release.tenantId,
-          type: release.type,
-          status: release.status,
-          platforms,
-          platformVersions,
-          targets,
-          targetReleaseDate: release.targetReleaseDate.toISOString(),
-          plannedDate: release.plannedDate.toISOString(),
-          baseBranch: release.baseBranch,
-          baseVersion: release.baseVersion,
-          parentId: release.parentId,
-          releasePilotAccountId: release.releasePilotAccountId,
-          createdByAccountId: release.createdByAccountId,
-          lastUpdateByAccountId: release.lastUpdateByAccountId,
-          kickOffReminderDate: release.kickOffReminderDate ? release.kickOffReminderDate.toISOString() : null,
-          branchRelease: release.branchRelease,
-          customIntegrationConfigs: release.customIntegrationConfigs,
-          regressionBuildSlots: release.regressionBuildSlots,
-          preCreatedBuilds: release.preCreatedBuilds,
-          hasManualBuildUpload: release.hasManualBuildUpload,
-          createdAt: release.createdAt.toISOString(),
-          updatedAt: release.updatedAt.toISOString()
+      // Fetch cron job
+      const cronJobRecord = await this.cronJobRepo.findByReleaseId(release.id);
+
+      const releaseResponse: ReleaseResponseBody = {
+        id: release.id,
+        releaseId: release.releaseId,
+        releaseConfigId: release.releaseConfigId,
+        tenantId: release.tenantId,
+        type: release.type,
+        status: release.status,
+        branch: release.branch,
+        baseBranch: release.baseBranch,
+        baseReleaseId: release.baseReleaseId,
+        platformTargetMappings: mappings,
+        kickOffReminderDate: release.kickOffReminderDate ? release.kickOffReminderDate.toISOString() : null,
+        kickOffDate: release.kickOffDate ? release.kickOffDate.toISOString() : null,
+        targetReleaseDate: release.targetReleaseDate ? release.targetReleaseDate.toISOString() : null,
+        releaseDate: release.releaseDate ? release.releaseDate.toISOString() : null,
+        hasManualBuildUpload: release.hasManualBuildUpload,
+        customIntegrationConfigs: release.customIntegrationConfigs || null,
+        preCreatedBuilds: release.preCreatedBuilds || null,
+        createdBy: release.createdBy,
+        lastUpdatedBy: release.lastUpdatedBy,
+        createdAt: release.createdAt.toISOString(),
+        updatedAt: release.updatedAt.toISOString()
+      };
+
+      // Add cron job if exists
+      if (cronJobRecord) {
+        releaseResponse.cronJob = {
+          id: cronJobRecord.id,
+          stage1Status: cronJobRecord.stage1Status,
+          stage2Status: cronJobRecord.stage2Status,
+          stage3Status: cronJobRecord.stage3Status,
+          cronStatus: cronJobRecord.cronStatus,
+          cronConfig: cronJobRecord.cronConfig,
+          regressionTimings: cronJobRecord.regressionTimings,
+          upcomingRegressions: cronJobRecord.upcomingRegressions,
+          cronCreatedAt: cronJobRecord.cronCreatedAt.toISOString(),
+          cronStoppedAt: cronJobRecord.cronStoppedAt ? cronJobRecord.cronStoppedAt.toISOString() : null,
+          cronCreatedByAccountId: cronJobRecord.cronCreatedByAccountId
         };
+      }
 
-        // Add cron job if exists
-        if (cronJobRecord) {
-          releaseResponse.cronJob = {
-            stage1Status: cronJobRecord.stage1Status,
-            stage2Status: cronJobRecord.stage2Status,
-            stage3Status: cronJobRecord.stage3Status,
-            cronStatus: cronJobRecord.cronStatus,
-            cronConfig: cronJobRecord.cronConfig,
-            upcomingRegressions: cronJobRecord.upcomingRegressions,
-            regressionTimings: cronJobRecord.regressionTimings,
-            autoTransitionToStage3: cronJobRecord.autoTransitionToStage3
-          };
-        }
+      // Optionally include tasks
+      if (includeTasks) {
+        const taskRecords = await this.releaseTaskRepo.findByReleaseId(release.id);
+        releaseResponse.tasks = taskRecords.map(t => ({
+          id: t.id,
+          taskId: t.taskId,
+          taskType: t.taskType,
+          stage: t.stage,
+          taskStatus: t.taskStatus,
+          taskConclusion: t.taskConclusion,
+          accountId: t.accountId,
+          regressionId: t.regressionId,
+          isReleaseKickOffTask: t.isReleaseKickOffTask,
+          isRegressionSubTasks: t.isRegressionSubTasks,
+          identifier: t.identifier,
+          externalId: t.externalId,
+          externalData: t.externalData,
+          branch: t.branch,
+          createdAt: t.createdAt.toISOString(),
+          updatedAt: t.updatedAt.toISOString()
+        }));
+      }
 
-        // Fetch tasks if requested
-        if (includeTasks) {
-          const taskRecords = await this.releaseTaskRepo.findByReleaseId(release.id);
-          releaseResponse.tasks = taskRecords.map(t => ({
-            id: t.id,
-            taskId: t.taskId,
-            taskType: t.taskType,
-            stage: t.stage,
-            taskStatus: t.taskStatus,
-            taskConclusion: t.taskConclusion,
-            accountId: t.accountId,
-            regressionId: t.regressionId,
-            isReleaseKickOffTask: t.isReleaseKickOffTask,
-            isRegressionSubTasks: t.isRegressionSubTasks,
-            identifier: t.identifier,
-            externalId: t.externalId,
-            externalData: t.externalData,
-            branch: t.branch,
-            createdAt: t.createdAt.toISOString(),
-            updatedAt: t.updatedAt.toISOString()
-          }));
-        }
+      releaseResponses.push(releaseResponse);
+    }
 
-        return releaseResponse;
-      })
-    );
-
-    return releasesWithDetails;
+    return releaseResponses;
   }
 
   /**
-   * Get a single release by ID with complete details (always includes tasks)
+   * Get a single release by ID with all details (always includes tasks)
    */
   async getReleaseById(releaseId: string): Promise<ReleaseResponseBody | null> {
+    // Fetch release
     const release = await this.releaseRepo.findById(releaseId);
-    if (!release) {
-      return null;
-    }
+    if (!release) return null;
 
     // Fetch platform-target mappings
-    const mappingRecords = await this.platformTargetMappingRepo.getByReleaseId(release.id);
-    
-    // Extract unique platforms and targets
-    const platforms = [...new Set(mappingRecords.map(m => m.platform))];
-    const targets = [...new Set(mappingRecords.map(m => m.target))];
-    
-    // Build platformVersions map (platform -> version)
-    const platformVersions: Record<string, string> = {};
-    mappingRecords.forEach(m => {
-      platformVersions[m.platform] = m.version;
-    });
+    const mappings = await this.platformTargetMappingRepo.getByReleaseId(release.id);
 
     // Fetch cron job
     const cronJobRecord = await this.cronJobRepo.findByReleaseId(release.id);
@@ -148,27 +125,24 @@ export class ReleaseRetrievalService {
 
     const releaseResponse: ReleaseResponseBody = {
       id: release.id,
-      releaseKey: release.releaseKey,
+      releaseId: release.releaseId,
+      releaseConfigId: release.releaseConfigId,
       tenantId: release.tenantId,
       type: release.type,
       status: release.status,
-      platforms,
-      platformVersions,
-      targets,
-      targetReleaseDate: release.targetReleaseDate.toISOString(),
-      plannedDate: release.plannedDate.toISOString(),
+      branch: release.branch,
       baseBranch: release.baseBranch,
-      baseVersion: release.baseVersion,
-      parentId: release.parentId,
-      releasePilotAccountId: release.releasePilotAccountId,
-      createdByAccountId: release.createdByAccountId,
-      lastUpdateByAccountId: release.lastUpdateByAccountId,
+      baseReleaseId: release.baseReleaseId,
+      platformTargetMappings: mappings,
       kickOffReminderDate: release.kickOffReminderDate ? release.kickOffReminderDate.toISOString() : null,
-      branchRelease: release.branchRelease,
-      customIntegrationConfigs: release.customIntegrationConfigs,
-      regressionBuildSlots: release.regressionBuildSlots,
-      preCreatedBuilds: release.preCreatedBuilds,
+      kickOffDate: release.kickOffDate ? release.kickOffDate.toISOString() : null,
+      targetReleaseDate: release.targetReleaseDate ? release.targetReleaseDate.toISOString() : null,
+      releaseDate: release.releaseDate ? release.releaseDate.toISOString() : null,
       hasManualBuildUpload: release.hasManualBuildUpload,
+      customIntegrationConfigs: release.customIntegrationConfigs || null,
+      preCreatedBuilds: release.preCreatedBuilds || null,
+      createdBy: release.createdBy,
+      lastUpdatedBy: release.lastUpdatedBy,
       createdAt: release.createdAt.toISOString(),
       updatedAt: release.updatedAt.toISOString(),
       tasks: taskRecords.map(t => ({
@@ -194,18 +168,20 @@ export class ReleaseRetrievalService {
     // Add cron job if exists
     if (cronJobRecord) {
       releaseResponse.cronJob = {
+        id: cronJobRecord.id,
         stage1Status: cronJobRecord.stage1Status,
         stage2Status: cronJobRecord.stage2Status,
         stage3Status: cronJobRecord.stage3Status,
         cronStatus: cronJobRecord.cronStatus,
         cronConfig: cronJobRecord.cronConfig,
-        upcomingRegressions: cronJobRecord.upcomingRegressions,
         regressionTimings: cronJobRecord.regressionTimings,
-        autoTransitionToStage3: cronJobRecord.autoTransitionToStage3
+        upcomingRegressions: cronJobRecord.upcomingRegressions,
+        cronCreatedAt: cronJobRecord.cronCreatedAt.toISOString(),
+        cronStoppedAt: cronJobRecord.cronStoppedAt ? cronJobRecord.cronStoppedAt.toISOString() : null,
+        cronCreatedByAccountId: cronJobRecord.cronCreatedByAccountId
       };
     }
 
     return releaseResponse;
   }
 }
-

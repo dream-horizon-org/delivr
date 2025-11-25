@@ -1,8 +1,8 @@
-import { CronJob, CreateCronJobDto } from './release.interface';
-import { StageStatus, CronStatus } from '../../storage/release/release-models';
+import type { CronJobModelType } from './cron-job.sequelize.model';
+import { CronJob, CreateCronJobDto, UpdateCronJobDto } from './release.interface';
 
 export class CronJobRepository {
-  constructor(private readonly model: any) {}
+  constructor(private readonly model: CronJobModelType) {}
 
   private toPlainObject(instance: any): CronJob {
     return instance.toJSON() as CronJob;
@@ -12,14 +12,16 @@ export class CronJobRepository {
     const cronJob = await this.model.create({
       id: data.id,
       releaseId: data.releaseId,
-      stage1Status: StageStatus.PENDING,
-      stage2Status: StageStatus.PENDING,
-      stage3Status: StageStatus.PENDING,
-      cronStatus: CronStatus.PENDING,
-      cronCreatedByAccountId: data.accountId,
+      stage1Status: data.stage1Status,
+      stage2Status: data.stage2Status,
+      stage3Status: data.stage3Status,
+      cronStatus: data.cronStatus,
+      cronCreatedByAccountId: data.cronCreatedByAccountId,
       cronConfig: data.cronConfig,
-      upcomingRegressions: data.upcomingRegressions || null,
       regressionTimings: data.regressionTimings || '09:00,17:00',
+      upcomingRegressions: data.upcomingRegressions || null,
+      regressionTimestamp: data.regressionTimestamp || null,
+      autoTransitionToStage3: data.autoTransitionToStage3 || false,
       cronCreatedAt: new Date()
     });
 
@@ -34,8 +36,20 @@ export class CronJobRepository {
     return this.toPlainObject(cronJob);
   }
 
-  async update(id: string, updates: Partial<CronJob>): Promise<void> {
+  async findById(id: string): Promise<CronJob | null> {
+    const cronJob = await this.model.findByPk(id);
+    if (!cronJob) return null;
+    return this.toPlainObject(cronJob);
+  }
+
+  async update(id: string, updates: UpdateCronJobDto): Promise<void> {
     await this.model.update(updates, {
+      where: { id }
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.model.destroy({
       where: { id }
     });
   }

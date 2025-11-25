@@ -1,15 +1,13 @@
 import { Model } from 'sequelize';
-import { Release, CreateReleaseDto } from './release.interface';
+import type { ReleaseModelType } from './release.sequelize.model';
+import { Release, CreateReleaseDto, UpdateReleaseDto } from './release.interface';
 
 /**
  * Release Repository
  * Data access layer for releases table
- * 
- * Note: Models are defined in storage/release/release-models.ts
- * This repository receives the model instance from Sequelize
  */
 export class ReleaseRepository {
-  constructor(private readonly model: any) {}
+  constructor(private readonly model: ReleaseModelType) {}
 
   private toPlainObject(instance: any): Release {
     return instance.toJSON() as Release;
@@ -18,22 +16,23 @@ export class ReleaseRepository {
   async create(data: CreateReleaseDto): Promise<Release> {
     const release = await this.model.create({
       id: data.id,
+      releaseId: data.releaseId,
+      releaseConfigId: data.releaseConfigId || null,
       tenantId: data.tenantId,
       type: data.type,
-      status: data.status || 'PENDING',
-      targetReleaseDate: data.targetReleaseDate,
-      plannedDate: data.plannedDate,
+      status: data.status,
+      branch: data.branch || null,
       baseBranch: data.baseBranch || null,
-      baseVersion: data.baseVersion || null,
-      parentId: data.parentId || null,
-      releasePilotAccountId: data.releasePilotAccountId,
-      createdByAccountId: data.accountId,
-      lastUpdateByAccountId: data.accountId,
+      baseReleaseId: data.baseReleaseId || null,
       kickOffReminderDate: data.kickOffReminderDate || null,
+      kickOffDate: data.kickOffDate || null,
+      targetReleaseDate: data.targetReleaseDate || null,
+      releaseDate: data.releaseDate || null,
+      hasManualBuildUpload: data.hasManualBuildUpload,
       customIntegrationConfigs: data.customIntegrationConfigs || null,
-      regressionBuildSlots: data.regressionBuildSlots || null,
       preCreatedBuilds: data.preCreatedBuilds || null,
-      releaseKey: data.releaseKey
+      createdBy: data.createdBy,
+      lastUpdatedBy: data.lastUpdatedBy
     });
 
     return this.toPlainObject(release);
@@ -45,17 +44,17 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
-  async findByReleaseKey(releaseKey: string, tenantId: string): Promise<Release | null> {
+  async findByReleaseId(releaseId: string, tenantId: string): Promise<Release | null> {
     const release = await this.model.findOne({
-      where: { releaseKey, tenantId }
+      where: { releaseId, tenantId }
     });
     if (!release) return null;
     return this.toPlainObject(release);
   }
 
-  async findByBaseVersion(baseVersion: string, tenantId: string): Promise<Release | null> {
+  async findByBaseReleaseId(baseReleaseId: string, tenantId: string): Promise<Release | null> {
     const release = await this.model.findOne({
-      where: { baseVersion, tenantId }
+      where: { baseReleaseId, tenantId }
     });
     if (!release) return null;
     return this.toPlainObject(release);
@@ -69,6 +68,17 @@ export class ReleaseRepository {
     return releases.map(this.toPlainObject.bind(this));
   }
 
-  // TODO: Add update, delete, etc. as needed
+  async update(id: string, data: UpdateReleaseDto): Promise<Release | null> {
+    await this.model.update(data, {
+      where: { id }
+    });
+    return this.findById(id);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.model.destroy({
+      where: { id }
+    });
+  }
 }
 

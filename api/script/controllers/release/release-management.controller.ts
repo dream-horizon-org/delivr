@@ -111,21 +111,31 @@ export class ReleaseManagementController {
         }
       }
 
-      // Validate dates
-      const targetReleaseDate = new Date(body.targetReleaseDate);
-      const plannedDate = new Date(body.plannedDate);
+      // Validate dates (optional)
+      const targetReleaseDate = body.targetReleaseDate ? new Date(body.targetReleaseDate) : undefined;
 
-      if (isNaN(targetReleaseDate.getTime())) {
+      if (targetReleaseDate && isNaN(targetReleaseDate.getTime())) {
         return res.status(400).json({
           success: false,
           error: 'Invalid targetReleaseDate format'
         });
       }
 
-      if (isNaN(plannedDate.getTime())) {
+      const kickOffDate = body.kickOffDate ? new Date(body.kickOffDate) : undefined;
+
+      if (kickOffDate && isNaN(kickOffDate.getTime())) {
         return res.status(400).json({
           success: false,
-          error: 'Invalid plannedDate format'
+          error: 'Invalid kickOffDate format'
+        });
+      }
+
+      const kickOffReminderDate = body.kickOffReminderDate ? new Date(body.kickOffReminderDate) : undefined;
+
+      if (kickOffReminderDate && isNaN(kickOffReminderDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid kickOffReminderDate format'
         });
       }
 
@@ -184,14 +194,14 @@ export class ReleaseManagementController {
           target: pt.target,
           version: pt.version
         })),
-        type: body.type as ReleaseType,
-        targetReleaseDate,
-        plannedDate,
+        type: body.type as 'PLANNED' | 'HOTFIX' | 'UNPLANNED',
+        releaseConfigId: body.releaseConfigId,
+        branch: body.branch,
         baseBranch: body.baseBranch,
-        baseVersion: body.baseVersion,
-        parentId: body.parentId,
-        releasePilotAccountId: body.releasePilotAccountId,
-        kickOffReminderDate: body.kickOffReminderDate ? new Date(body.kickOffReminderDate) : undefined,
+        baseReleaseId: body.baseReleaseId,
+        targetReleaseDate,
+        kickOffReminderDate,
+        kickOffDate,
         customIntegrationConfigs: body.customIntegrationConfigs,
         regressionBuildSlots: body.regressionBuildSlots,
         preCreatedBuilds: body.preCreatedBuilds,

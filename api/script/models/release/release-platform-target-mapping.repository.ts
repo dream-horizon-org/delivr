@@ -1,52 +1,42 @@
-import { Model } from 'sequelize';
+import type { PlatformTargetMappingModelType } from './platform-target-mapping.sequelize.model';
 import { ReleasePlatformTargetMapping, CreateReleasePlatformTargetMappingDto } from './release.interface';
-import { PlatformName, TargetName } from '../../storage/release/release-models';
 
 /**
  * Release Platform Target Mapping Repository
  * Data access layer for release_platforms_targets_mapping table
- * 
- * This consolidated table replaces the old releaseToPlatforms and releaseToTargets
- * junction tables, combining platform, target, version, and integration run IDs.
  */
-export type ReleasePlatformTargetMappingModelType = typeof Model & {
-  new(values?: object, options?: object): Model;
-  findAll: any;
-  findOne: any;
-  create: any;
-};
-
 export class ReleasePlatformTargetMappingRepository {
-  constructor(private readonly model: ReleasePlatformTargetMappingModelType) {}
+  constructor(private readonly model: PlatformTargetMappingModelType) {}
 
   private toPlainObject(instance: any): ReleasePlatformTargetMapping {
     return instance.toJSON() as ReleasePlatformTargetMapping;
   }
 
   /**
-   * Create a new platform-target mapping for a release
+   * Create a new platform-target mapping
    */
   async create(dto: CreateReleasePlatformTargetMappingDto): Promise<ReleasePlatformTargetMapping> {
-    const instance = await this.model.create({
+    const mapping = await this.model.create({
       id: dto.id,
       releaseId: dto.releaseId,
       platform: dto.platform,
       target: dto.target,
       version: dto.version,
-      projectManagementRunId: dto.projectManagementRunId ?? null,
-      testManagementRunId: dto.testManagementRunId ?? null
+      projectManagementRunId: dto.projectManagementRunId || null,
+      testManagementRunId: dto.testManagementRunId || null
     });
-    return this.toPlainObject(instance);
+
+    return this.toPlainObject(mapping);
   }
 
   /**
    * Get all platform-target mappings for a release
    */
   async getByReleaseId(releaseId: string): Promise<ReleasePlatformTargetMapping[]> {
-    const instances = await this.model.findAll({
+    const mappings = await this.model.findAll({
       where: { releaseId }
     });
-    return instances.map((instance: any) => this.toPlainObject(instance));
+    return mappings.map((m: any) => this.toPlainObject(m));
   }
 
   /**
@@ -54,65 +44,70 @@ export class ReleasePlatformTargetMappingRepository {
    */
   async getByReleasePlatformTarget(
     releaseId: string,
-    platform: PlatformName,
-    target: TargetName
+    platform: ReleasePlatformTargetMapping['platform'],
+    target: ReleasePlatformTargetMapping['target']
   ): Promise<ReleasePlatformTargetMapping | null> {
-    const instance = await this.model.findOne({
+    const mapping = await this.model.findOne({
       where: { releaseId, platform, target }
     });
-    return instance ? this.toPlainObject(instance) : null;
+    if (!mapping) return null;
+    return this.toPlainObject(mapping);
   }
 
   /**
-   * Update integration run IDs for a platform-target mapping
+   * Update integration run IDs for a specific mapping
    */
   async updateIntegrationRunIds(
     releaseId: string,
-    platform: PlatformName,
-    target: TargetName,
+    platform: ReleasePlatformTargetMapping['platform'],
+    target: ReleasePlatformTargetMapping['target'],
     updates: {
-      projectManagementRunId?: string | null;
-      testManagementRunId?: string | null;
+      projectManagementRunId?: string;
+      testManagementRunId?: string;
     }
-  ): Promise<ReleasePlatformTargetMapping | null> {
-    const [affectedCount] = await this.model.update(updates, {
+  ): Promise<void> {
+    await this.model.update(updates, {
       where: { releaseId, platform, target }
     });
-
-    if (affectedCount === 0) {
-      return null;
-    }
-
-    return this.getByReleasePlatformTarget(releaseId, platform, target);
   }
 
   /**
-   * Get all mappings with a specific project management run ID
+   * Find mapping by project management run ID
    */
-  async getByProjectManagementRunId(projectManagementRunId: string): Promise<ReleasePlatformTargetMapping[]> {
-    const instances = await this.model.findAll({
+  async getByProjectManagementRunId(projectManagementRunId: string): Promise<ReleasePlatformTargetMapping | null> {
+    const mapping = await this.model.findOne({
       where: { projectManagementRunId }
     });
-    return instances.map((instance: any) => this.toPlainObject(instance));
+    if (!mapping) return null;
+    return this.toPlainObject(mapping);
   }
 
   /**
-   * Get all mappings with a specific test management run ID
+   * Find mapping by test management run ID
    */
-  async getByTestManagementRunId(testManagementRunId: string): Promise<ReleasePlatformTargetMapping[]> {
-    const instances = await this.model.findAll({
+  async getByTestManagementRunId(testManagementRunId: string): Promise<ReleasePlatformTargetMapping | null> {
+    const mapping = await this.model.findOne({
       where: { testManagementRunId }
     });
-    return instances.map((instance: any) => this.toPlainObject(instance));
+    if (!mapping) return null;
+    return this.toPlainObject(mapping);
+  }
+
+  /**
+   * Delete a specific mapping
+   */
+  async delete(id: string): Promise<void> {
+    await this.model.destroy({
+      where: { id }
+    });
   }
 
   /**
    * Delete all mappings for a release
    */
-  async deleteByReleaseId(releaseId: string): Promise<number> {
-    return await this.model.destroy({
+  async deleteByReleaseId(releaseId: string): Promise<void> {
+    await this.model.destroy({
       where: { releaseId }
     });
   }
 }
-

@@ -38,43 +38,44 @@ export class ReleaseCreationService {
   async createRelease(payload: CreateReleasePayload): Promise<CreateReleaseResult> {
     // Step 3: baseBranch resolution for HOTFIX
     let baseBranch = payload.baseBranch;
-    let parentId = payload.parentId;
+    let baseReleaseId = payload.baseReleaseId;
 
-    if (payload.type === ReleaseType.HOTFIX && payload.baseVersion) {
-      const baseRelease = await this.releaseRepo.findByBaseVersion(payload.baseVersion, payload.tenantId);
+    if (payload.type === 'HOTFIX' && payload.baseReleaseId) {
+      const baseRelease = await this.releaseRepo.findByBaseReleaseId(payload.baseReleaseId, payload.tenantId);
       if (baseRelease) {
-        baseBranch = baseRelease.branchRelease || payload.baseBranch;
-        parentId = baseRelease.id;
+        baseBranch = baseRelease.branch || payload.baseBranch;
+        baseReleaseId = baseRelease.id;
       }
     }
 
     // Step 4: Create release record
-    const releaseId = uuidv4();
-    // Generate a unique release key (e.g., "REL-ABC123")
-    const releaseKey = `REL-${uuidv4().substring(0, 8).toUpperCase()}`;
-    const releasePilotAccountId = payload.releasePilotAccountId || payload.accountId;
+    const id = uuidv4();
+    // Generate a unique user-facing release ID (e.g., "REL-ABC123")
+    const releaseId = `REL-${uuidv4().substring(0, 8).toUpperCase()}`;
 
     const release = await this.releaseRepo.create({
-      id: releaseId,
+      id,
+      releaseId,
+      releaseConfigId: payload.releaseConfigId || null,
       tenantId: payload.tenantId,
-      accountId: payload.accountId,
       type: payload.type,
-      targetReleaseDate: payload.targetReleaseDate,
-      plannedDate: payload.plannedDate,
+      status: 'IN_PROGRESS',
+      branch: payload.branch || null,
       baseBranch,
-      baseVersion: payload.baseVersion,
-      parentId: parentId || null,
-      releasePilotAccountId,
-      kickOffReminderDate: payload.kickOffReminderDate,
-      customIntegrationConfigs: payload.customIntegrationConfigs,
-      regressionBuildSlots: payload.regressionBuildSlots,
-      preCreatedBuilds: payload.preCreatedBuilds,
-      releaseKey,
-      hasManualBuildUpload: payload.hasManualBuildUpload
+      baseReleaseId: baseReleaseId || null,
+      kickOffReminderDate: payload.kickOffReminderDate || null,
+      kickOffDate: payload.kickOffDate || null,
+      targetReleaseDate: payload.targetReleaseDate || null,
+      releaseDate: null, // Will be set when release is marked as COMPLETED
+      hasManualBuildUpload: payload.hasManualBuildUpload,
+      customIntegrationConfigs: payload.customIntegrationConfigs || null,
+      preCreatedBuilds: payload.preCreatedBuilds || null,
+      createdBy: payload.accountId,
+      lastUpdatedBy: payload.accountId
     });
 
     // Step 5: Link platform-target combinations to release
-    const mappingRecords = await this.linkPlatformTargetsToRelease(releaseId, payload.platformTargets);
+    const mappingRecords = await this.linkPlatformTargetsToRelease(id, payload.platformTargets);
 
     // Step 6: Create cron job
     const cronJobId = uuidv4();
@@ -87,22 +88,26 @@ export class ReleaseCreationService {
 
     const cronJob = await this.cronJobRepo.create({
       id: cronJobId,
-      releaseId,
-      accountId: payload.accountId,
+      releaseId: id,
+      stage1Status: 'PENDING',
+      stage2Status: 'PENDING',
+      stage3Status: 'PENDING',
+      cronStatus: 'PENDING',
+      cronCreatedByAccountId: payload.accountId,
       cronConfig,
-      upcomingRegressions: payload.regressionBuildSlots,
-      regressionTimings: payload.regressionTimings
+      upcomingRegressions: payload.regressionBuildSlots || null,
+      regressionTimings: payload.regressionTimings || null
     });
 
     // Step 7: Create Stage 1 tasks
     const stage1TaskIds = await this.createStage1Tasks(
-      releaseId,
+      id,
       payload.accountId,
       cronConfig
     );
 
     // Step 8: Create state history
-    await this.createStateHistory(releaseId, payload.accountId, releaseKey, payload.platformTargets);
+    await this.createStateHistory(id, payload.accountId, releaseId, payload.platformTargets);
 
     return {
       release,
@@ -237,7 +242,7 @@ export class ReleaseCreationService {
   private async createStateHistory(
     releaseId: string,
     accountId: string,
-    releaseKey: string,
+    userFacingReleaseId: string,
     platformTargets: Array<{ platform: string; target: string; version: string }>
   ): Promise<void> {
     const historyId = uuidv4();
@@ -249,29 +254,8 @@ export class ReleaseCreationService {
       action: StateChangeType.CREATE
     });
 
-    // Record release key
-    await this.stateHistoryRepo.createHistoryItem({
-      id: uuidv4(),
-      historyId,
-      group: 'creation',
-      type: StateChangeType.CREATE,
-      key: 'releaseKey',
-      value: JSON.stringify(releaseKey),
-      oldValue: null,
-      metadata: null
-    });
-
-    // Record platform-target-version mappings
-    await this.stateHistoryRepo.createHistoryItem({
-      id: uuidv4(),
-      historyId,
-      group: 'creation',
-      type: StateChangeType.CREATE,
-      key: 'platformTargets',
-      value: JSON.stringify(platformTargets),
-      oldValue: null,
-      metadata: null
-    });
+    // TODO: If needed, create state history items in a separate table
+    // For now, we just create the main state history record
   }
 }
 

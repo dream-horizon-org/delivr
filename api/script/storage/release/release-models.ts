@@ -406,7 +406,8 @@ export function createReleaseModel(sequelize: Sequelize) {
     releaseKey: {
       type: DataTypes.STRING(255),
       unique: true,
-      allowNull: false
+      allowNull: false,
+      field: 'releaseKey' // Explicitly use camelCase in DB
     },
     updatedAt: {
       type: DataTypes.DATE,
@@ -587,6 +588,7 @@ export function createReleaseModel(sequelize: Sequelize) {
     }
   }, {
     tableName: 'releases',
+    underscored: false, // Keep camelCase field names (DB has camelCase columns)
     timestamps: true,
     indexes: [
       { fields: ['tenantId'] },

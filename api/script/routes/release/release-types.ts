@@ -56,14 +56,14 @@ export interface CreateReleasePayload {
   tenantId: string;
   accountId: string;
   platformTargets: PlatformTargetVersion[]; // Array of platform-target-version combinations
-  type: ReleaseType;
-  targetReleaseDate: Date;
-  plannedDate: Date;
-  baseBranch: string;
-  baseVersion?: string;
-  parentId?: string;
-  releasePilotAccountId?: string;
+  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  releaseConfigId?: string;
+  branch?: string;
+  baseBranch?: string;
+  baseReleaseId?: string;
+  targetReleaseDate?: Date;
   kickOffReminderDate?: Date;
+  kickOffDate?: Date;
   customIntegrationConfigs?: Record<string, unknown>;
   regressionBuildSlots?: any[];
   preCreatedBuilds?: any[];
@@ -91,16 +91,20 @@ export interface CreateReleaseResult {
  * Release creation request body (HTTP API)
  */
 export interface CreateReleaseRequestBody {
-  targetReleaseDate: string;
-  plannedDate: string;
   type: string;
-  baseBranch: string;
   platformTargets: Array<{
     platform: string;  // e.g., "ANDROID", "IOS"
     target: string;    // e.g., "PLAY_STORE", "APP_STORE"
     version: string;   // e.g., "v6.5.0"
   }>;
-  hasManualBuildUpload?: boolean; // Whether manual build upload is enabled for this release
+  releaseConfigId?: string;
+  branch?: string;
+  baseBranch?: string;
+  baseReleaseId?: string;
+  targetReleaseDate?: string;
+  kickOffReminderDate?: string;
+  kickOffDate?: string;
+  hasManualBuildUpload?: boolean;
   regressionBuildSlots?: Array<{
     date: string;
     config: Record<string, unknown>;
@@ -119,10 +123,6 @@ export interface CreateReleaseRequestBody {
     automationRuns?: boolean;
   };
   regressionTimings?: string;
-  releasePilotAccountId?: string;
-  baseVersion?: string;
-  kickOffReminderDate?: string;
-  parentId?: string;
 }
 
 /**
@@ -147,14 +147,17 @@ export interface PreCreatedBuild {
  * Cron job configuration in release response
  */
 export interface CronJobResponse {
-  stage1Status: string;
-  stage2Status: string;
-  stage3Status: string;
-  cronStatus: string;
+  id: string;
+  stage1Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage2Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: Record<string, unknown>;
-  upcomingRegressions?: unknown;
-  regressionTimings?: string;
-  autoTransitionToStage3?: boolean;
+  regressionTimings: string | null;
+  upcomingRegressions: any[] | null;
+  cronCreatedAt: string;
+  cronStoppedAt: string | null;
+  cronCreatedByAccountId: string;
 }
 
 /**
@@ -184,27 +187,24 @@ export interface ReleaseTaskResponse {
  */
 export interface ReleaseResponseBody {
   id: string;
-  releaseKey: string;
+  releaseId: string;
+  releaseConfigId: string | null;
   tenantId: string;
-  type: string;
-  status: string;
-  platforms: string[];
-  platformVersions: Record<string, string>;
-  targets: string[];
-  targetReleaseDate: string;
-  plannedDate: string;
+  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  branch: string | null;
   baseBranch: string | null;
-  baseVersion: string;
-  parentId: string | null;
-  releasePilotAccountId: string;
-  createdByAccountId: string | null;
-  lastUpdateByAccountId: string;
+  baseReleaseId: string | null;
+  platformTargetMappings: any[];
   kickOffReminderDate: string | null;
-  branchRelease: string | null;
-  customIntegrationConfigs: Record<string, unknown> | null;
-  regressionBuildSlots: any[] | null;
-  preCreatedBuilds: any[] | null;
+  kickOffDate: string | null;
+  targetReleaseDate: string | null;
+  releaseDate: string | null;
   hasManualBuildUpload: boolean;
+  customIntegrationConfigs: Record<string, unknown> | null;
+  preCreatedBuilds: any[] | null;
+  createdBy: string;
+  lastUpdatedBy: string;
   createdAt: string;
   updatedAt: string;
   cronJob?: CronJobResponse;

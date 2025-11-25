@@ -1,41 +1,51 @@
-import { StateHistory, CreateStateHistoryDto, CreateStateHistoryItemDto } from './release.interface';
+import type { StateHistoryModelType } from './state-history.sequelize.model';
+import { StateHistory, CreateStateHistoryDto } from './release.interface';
 
 export class StateHistoryRepository {
-  constructor(
-    private readonly stateHistoryModel: any,
-    private readonly stateHistoryItemModel: any
-  ) {}
+  constructor(private readonly model: StateHistoryModelType) {}
 
   private toPlainObject(instance: any): StateHistory {
     return instance.toJSON() as StateHistory;
   }
 
   async create(data: CreateStateHistoryDto): Promise<StateHistory> {
-    const history = await this.stateHistoryModel.create({
+    const history = await this.model.create({
       id: data.id,
-      releaseId: data.releaseId,
-      accountId: data.accountId,
       action: data.action,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      accountId: data.accountId,
+      releaseId: data.releaseId || null,
+      codepushId: data.codepushId || null,
+      settingsId: data.settingsId || null
     });
 
     return this.toPlainObject(history);
   }
 
-  async createHistoryItem(data: CreateStateHistoryItemDto): Promise<void> {
-    await this.stateHistoryItemModel.create({
-      id: data.id,
-      historyId: data.historyId,
-      group: data.group,
-      type: data.type,
-      key: data.key,
-      value: data.value,
-      oldValue: data.oldValue,
-      metadata: data.metadata,
-      createdAt: new Date(),
-      updatedAt: new Date()
+  async findById(id: string): Promise<StateHistory | null> {
+    const history = await this.model.findByPk(id);
+    if (!history) return null;
+    return this.toPlainObject(history);
+  }
+
+  async findByReleaseId(releaseId: string): Promise<StateHistory[]> {
+    const histories = await this.model.findAll({
+      where: { releaseId },
+      order: [['createdAt', 'DESC']]
+    });
+    return histories.map((h: any) => this.toPlainObject(h));
+  }
+
+  async findByAccountId(accountId: string): Promise<StateHistory[]> {
+    const histories = await this.model.findAll({
+      where: { accountId },
+      order: [['createdAt', 'DESC']]
+    });
+    return histories.map((h: any) => this.toPlainObject(h));
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.model.destroy({
+      where: { id }
     });
   }
 }
-
