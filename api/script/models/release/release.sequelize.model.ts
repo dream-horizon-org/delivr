@@ -20,8 +20,9 @@ export type ReleaseAttributes = {
   targetReleaseDate: Date | null; // Target/planned release date
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
-  createdBy: string; // Account ID who created release
-  lastUpdatedBy: string; // Account ID who last updated release
+  createdByAccountId: string; // Account ID who created release
+  releasePilotAccountId: string | null; // Account ID of release pilot
+  lastUpdatedByAccountId: string; // Account ID who last updated release
   createdAt: Date;
   updatedAt: Date;
 };
@@ -119,16 +120,34 @@ export const createReleaseModel = (
         field: 'hasManualBuildUpload',
         comment: 'Whether manual build upload is enabled'
       },
-      createdBy: {
+      createdByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'createdBy',
+        field: 'createdByAccountId',
+        references: {
+          model: 'accounts',
+          key: 'id'
+        },
         comment: 'Account ID who created release'
       },
-      lastUpdatedBy: {
+      releasePilotAccountId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'releasePilotAccountId',
+        references: {
+          model: 'accounts',
+          key: 'id'
+        },
+        comment: 'Account ID of release pilot'
+      },
+      lastUpdatedByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'lastUpdatedBy',
+        field: 'lastUpdatedByAccountId',
+        references: {
+          model: 'accounts',
+          key: 'id'
+        },
         comment: 'Account ID who last updated release'
       },
       createdAt: {

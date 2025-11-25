@@ -20,6 +20,8 @@ export class CronJobRepository {
       cronConfig: data.cronConfig,
       upcomingRegressions: data.upcomingRegressions || null,
       autoTransitionToStage3: data.autoTransitionToStage3 || false,
+      autoTransitionToStage2: data.autoTransitionToStage2 || false,
+      stageData: data.stageData || null,
       cronCreatedAt: new Date()
     });
 

@@ -1484,7 +1484,7 @@ export function createReleaseModels(sequelize: Sequelize) {
   if (sequelize.models.account) {
     models.Release.belongsTo(sequelize.models.account, { foreignKey: 'createdByAccountId', as: 'creator' });
     models.Release.belongsTo(sequelize.models.account, { foreignKey: 'releasePilotAccountId', as: 'releasePilot' });
-    models.Release.belongsTo(sequelize.models.account, { foreignKey: 'lastUpdateByAccountId', as: 'lastUpdater' });
+    models.Release.belongsTo(sequelize.models.account, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdater' });
   }
   models.Release.belongsTo(models.Release, { foreignKey: 'parentId', as: 'parent' });
   models.Release.hasMany(models.Release, { foreignKey: 'parentId', as: 'hotfixes' });

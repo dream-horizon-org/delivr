@@ -83,8 +83,9 @@ export class ReleaseCreationService {
       targetReleaseDate: payload.targetReleaseDate || null,
       releaseDate: null, // Will be set when release is marked as COMPLETED
       hasManualBuildUpload: payload.hasManualBuildUpload,
-      createdBy: payload.accountId,
-      lastUpdatedBy: payload.accountId
+      createdByAccountId: payload.accountId,
+      releasePilotAccountId: payload.releasePilotAccountId?.trim() || payload.accountId,
+      lastUpdatedByAccountId: payload.accountId
     });
 
     // Step 4: Link platform-target combinations to release
@@ -108,7 +109,9 @@ export class ReleaseCreationService {
       cronStatus: 'PENDING',
       cronCreatedByAccountId: payload.accountId,
       cronConfig,
-      upcomingRegressions: payload.regressionBuildSlots || null
+      upcomingRegressions: payload.regressionBuildSlots || null,
+      autoTransitionToStage2: false, // Default to false, can be configured later
+      stageData: {} // Initialize with empty object
     });
 
     // Step 6: Create Stage 1 tasks

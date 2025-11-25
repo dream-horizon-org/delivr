@@ -21,6 +21,8 @@ export type CronJobAttributes = {
   lockedAt: Date | null; // When lock was acquired
   lockTimeout: number; // Lock timeout in seconds
   autoTransitionToStage3: boolean; // Controls automatic Stage 2 → Stage 3 transition
+  autoTransitionToStage2: boolean; // Controls automatic Stage 1 → Stage 2 transition
+  stageData: any; // JSON object for stage-specific data
 };
 
 export type CronJobModelType = typeof Model & {
@@ -120,6 +122,19 @@ export const createCronJobModel = (
         defaultValue: false,
         field: 'autoTransitionToStage3',
         comment: 'Controls automatic Stage 2 → Stage 3 transition'
+      },
+      autoTransitionToStage2: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'autoTransitionToStage2',
+        comment: 'Controls automatic Stage 1 → Stage 2 transition'
+      },
+      stageData: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        field: 'stageData',
+        comment: 'JSON object for stage-specific data'
       }
     },
     {

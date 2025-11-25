@@ -48,8 +48,9 @@ export interface Release {
   targetReleaseDate: Date | null; // Target/planned release date
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
-  createdBy: string;
-  lastUpdatedBy: string;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
   createdAt: Date;
   updatedAt: Date;
   // Associations
@@ -71,8 +72,9 @@ export interface CreateReleaseDto {
   targetReleaseDate: Date | null;
   releaseDate: Date | null;
   hasManualBuildUpload: boolean;
-  createdBy: string;
-  lastUpdatedBy: string;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
 }
 
 export interface UpdateReleaseDto {
@@ -83,7 +85,8 @@ export interface UpdateReleaseDto {
   kickOffDate?: Date | null;
   plannedDate?: Date | null;
   hasManualBuildUpload?: boolean;
-  lastUpdatedBy?: string;
+  releasePilotAccountId?: string | null;
+  lastUpdatedByAccountId?: string;
 }
 
 // --- Platform Target Mapping ---
@@ -128,6 +131,8 @@ export interface CronJob {
   lockedAt: Date | null;
   lockTimeout: number;
   autoTransitionToStage3: boolean;
+  autoTransitionToStage2: boolean;
+  stageData: any;
 }
 
 export interface CreateCronJobDto {
@@ -141,6 +146,8 @@ export interface CreateCronJobDto {
   upcomingRegressions?: any[] | null;
   cronCreatedByAccountId: string;
   autoTransitionToStage3?: boolean;
+  autoTransitionToStage2?: boolean;
+  stageData?: any;
 }
 
 export interface UpdateCronJobDto {
@@ -154,6 +161,8 @@ export interface UpdateCronJobDto {
   lockedBy?: string | null;
   lockedAt?: Date | null;
   autoTransitionToStage3?: boolean;
+  autoTransitionToStage2?: boolean;
+  stageData?: any;
 }
 
 // --- Release Task ---

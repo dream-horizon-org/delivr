@@ -64,6 +64,7 @@ export interface CreateReleasePayload {
   targetReleaseDate?: Date;
   kickOffReminderDate?: Date;
   kickOffDate?: Date;
+  releasePilotAccountId?: string;
   regressionBuildSlots?: any[];
   cronConfig?: {
     kickOffReminder?: boolean;
@@ -101,6 +102,7 @@ export interface CreateReleaseRequestBody {
   targetReleaseDate?: string;
   kickOffReminderDate?: string;
   kickOffDate?: string;
+  releasePilotAccountId?: string;
   hasManualBuildUpload?: boolean;
   regressionBuildSlots?: Array<{
     date: string;
@@ -137,6 +139,8 @@ export interface CronJobResponse {
   cronCreatedAt: string;
   cronStoppedAt: string | null;
   cronCreatedByAccountId: string;
+  autoTransitionToStage2: boolean;
+  stageData: any;
 }
 
 /**
@@ -180,8 +184,9 @@ export interface ReleaseResponseBody {
   targetReleaseDate: string | null;
   releaseDate: string | null;
   hasManualBuildUpload: boolean;
-  createdBy: string;
-  lastUpdatedBy: string;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
   createdAt: string;
   updatedAt: string;
   cronJob?: CronJobResponse;

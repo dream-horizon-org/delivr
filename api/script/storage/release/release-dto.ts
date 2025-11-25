@@ -76,7 +76,7 @@ export class ReleaseDTO {
       baseVersion: data.baseVersion || data.version,
       releasePilotAccountId: data.releasePilotAccountId,
       createdByAccountId: data.accountId,
-      lastUpdateByAccountId: data.accountId,
+      lastUpdatedByAccountId: data.accountId,
       status: ReleaseStatus.PENDING,
       kickOffReminderDate: data.kickOffReminderDate || null,
       parentId: data.parentId || null,
