@@ -8,7 +8,7 @@ import { ReleaseRepository } from '../../models/release/release.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
-import { ReleaseResponseBody } from '../../routes/release/release-types';
+import type { ReleaseResponseBody } from '~types/release';
 
 export class ReleaseRetrievalService {
   constructor(

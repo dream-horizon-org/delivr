@@ -9,12 +9,12 @@ import { Request, Response } from 'express';
 import { ReleaseCreationService } from '../../services/release/release-creation.service';
 import { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
 import { ReleaseType } from '../../storage/release/release-models';
-import { 
+import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
   ReleaseListResponseBody, 
   SingleReleaseResponseBody 
-} from '../../routes/release/release-types';
+} from '~types/release';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;

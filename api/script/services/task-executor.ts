@@ -11,7 +11,8 @@ import { ReleaseTasksDTO } from '../storage/release/release-tasks-dto';
 import { ReleaseDTO } from '../storage/release/release-dto';
 import { TaskType, TaskStatus, ReleaseStatus, TaskStage } from '../storage/release/release-models';
 import { getStorage } from '../storage/storage-instance';
-import { hasSequelize, StorageWithSequelize } from '../routes/release/release-types';
+import { hasSequelize } from '~types/release';
+import type { StorageWithSequelize } from '~types/release';
 
 // Phase 6: Real integration services (DI)
 import { SCMService } from './integrations/scm/scm.service';

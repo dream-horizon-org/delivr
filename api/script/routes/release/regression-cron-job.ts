@@ -26,7 +26,8 @@ import { startCronJob, stopCronJob, isCronJobRunning } from '~services/cron-sche
 import { getOrderedTasks, canExecuteTask, OptionalTaskConfig, isTaskRequired, arePreviousTasksComplete, TASK_ORDER } from '~utils/task-sequencing';
 import { isRegressionSlotTime } from '~utils/time-utils';
 import { TaskStage, StageStatus, RegressionCycleStatus, TaskType } from '~storage/release/release-models';
-import { hasSequelize, StorageWithSequelize } from './release-types';
+import { hasSequelize } from '~types/release';
+import type { StorageWithSequelize } from '~types/release';
 import { TaskExecutor } from '~services/task-executor';
 import { getMockIntegrations } from '~services/integration-mocks';
 import { createRegressionCycleWithTasks } from '~utils/regression-cycle-creation';

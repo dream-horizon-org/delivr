@@ -19,7 +19,9 @@ import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { StateHistoryRepository } from '../../models/release/state-history.repository';
 import { ReleaseType, PlatformName, TargetName, TaskType, TaskStage, TaskIdentifier, StateChangeType } from '../../storage/release/release-models';
-import { hasSequelize, StorageWithSequelize, CreateReleasePayload, CreateReleaseResult } from '../../routes/release/release-types';
+import type { CreateReleasePayload, CreateReleaseResult } from '~types/release';
+import { hasSequelize } from '~types/release';
+import type { StorageWithSequelize } from '~types/release';
 import * as storageTypes from '../../storage/storage';
 
 export class ReleaseCreationService {

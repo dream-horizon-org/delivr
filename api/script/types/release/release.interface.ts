@@ -1,5 +1,5 @@
 /**
- * Type definitions for Release Management routes
+ * Type definitions for Release Management
  * 
  * Follows cursorrules: No 'any' types - use explicit types or 'unknown'
  */
