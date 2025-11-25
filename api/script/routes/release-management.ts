@@ -208,7 +208,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const releaseRoutes = getReleaseRoutes({
     storage,
     releaseCreationService: (storage as any).releaseCreationService,
-    releaseRetrievalService: (storage as any).releaseRetrievalService
+    releaseRetrievalService: (storage as any).releaseRetrievalService,
+    releaseStatusService: (storage as any).releaseStatusService
   });
   router.use(releaseRoutes);
 

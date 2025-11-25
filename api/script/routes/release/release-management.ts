@@ -11,11 +11,13 @@ import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
 import type { ReleaseCreationService } from "../../services/release/release-creation.service";
 import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
+import type { ReleaseStatusService } from "../../services/release/release-status.service";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
   releaseCreationService: ReleaseCreationService;
   releaseRetrievalService: ReleaseRetrievalService;
+  releaseStatusService: ReleaseStatusService;
 }
 
 /**
@@ -26,7 +28,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const router: Router = Router();
   const controller = new ReleaseManagementController(
     config.releaseCreationService,
-    config.releaseRetrievalService
+    config.releaseRetrievalService,
+    config.releaseStatusService
   );
 
   // ============================================================================
@@ -229,6 +232,20 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         message: "Cherry pick status endpoint coming soon"
       });
     }
+  );
+
+  // Check project management run status
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/project-management-run-status",
+    tenantPermissions.requireOwner({ storage }),
+    controller.checkProjectManagementRunStatus
+  );
+
+  // Check test management run status
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
+    tenantPermissions.requireOwner({ storage }),
+    controller.checkTestManagementRunStatus
   );
 
   return router;
