@@ -116,6 +116,19 @@ export function prepareReleaseConfigPayload(
   console.log('[prepareReleaseConfigPayload] Inputs:', { tenantId, userId, configName: config.name });
   console.log('[prepareReleaseConfigPayload] tenantId type:', typeof tenantId, 'value:', JSON.stringify(tenantId));
   
+  // ========================================================================
+  // CRITICAL: Extract platformTargets from config
+  // NEW API CONTRACT: Backend expects platformTargets array, not separate targets/platforms
+  // ========================================================================
+  const platformTargets = (config as any).platformTargets || 
+    // Fallback: derive from old format if new format not available
+    (config.targets && config.platforms ? 
+      config.targets.map((target: any) => {
+        const platform = config.platforms?.includes('ANDROID' as any) ? 'ANDROID' : 'IOS';
+        return { platform, target };
+      }) : 
+      []);
+  
   const payload: any = {
     // ========================================================================
     // BASIC FIELDS - Direct pass-through (UI already matches backend)
@@ -125,17 +138,17 @@ export function prepareReleaseConfigPayload(
     releaseType: config.releaseType,
     
     // ========================================================================
-    // TRANSFORMATION 1: Field Rename - targets → defaultTargets
-    // Why: Backend API inconsistency (REQUEST uses "defaultTargets", RESPONSE uses "targets")
+    // TRANSFORMATION 1: Platform Targets - NEW FORMAT
+    // Why: Backend now uses platformTargets array instead of separate targets/platforms
+    // Format: [{ platform: 'ANDROID', target: 'PLAY_STORE' }]
     // ========================================================================
-    defaultTargets: config.targets,
+    platformTargets,
     
     // ========================================================================
     // NULL-VALIDATION - Only include if provided (optional fields)
     // ========================================================================
     ...(config.description && { description: config.description }),
     ...(config.isDefault !== undefined && { isDefault: config.isDefault }),
-    ...(config.platforms && config.platforms.length > 0 && { platforms: config.platforms }),
     ...(config.baseBranch && { baseBranch: config.baseBranch }),
   };
 
@@ -260,10 +273,11 @@ export function prepareReleaseConfigPayload(
   // - createdAt (backend generates)
   // - updatedAt (backend generates)
   // - buildUploadStep (not in API contract)
-  // - targets (renamed to defaultTargets)
+  // - targets, platforms (replaced by platformTargets)
   // - jiraProject (renamed to projectManagement)
   // 
   // These fields ARE included if present:
+  // - platformTargets (NEW: combines platforms + targets)
   // - workflows (CI/CD configuration)
 
   console.log('[prepareReleaseConfigPayload] Final payload.tenantId:', payload.tenantId);
@@ -279,8 +293,16 @@ export function prepareReleaseConfigPayload(
 export function transformFromBackend(backendConfig: any): Partial<ReleaseConfiguration> {
   const frontendConfig: any = {
     ...backendConfig,
-    // Backend RESPONSE uses "targets" - matches frontend perfectly
   };
+
+  // Reverse transformation for platformTargets → derive old format for UI compatibility
+  if (backendConfig.platformTargets && Array.isArray(backendConfig.platformTargets)) {
+    // Extract unique platforms and targets from platformTargets
+    frontendConfig.platforms = [...new Set(backendConfig.platformTargets.map((pt: any) => pt.platform))];
+    frontendConfig.targets = backendConfig.platformTargets.map((pt: any) => pt.target);
+    // Keep platformTargets for new UI components
+    frontendConfig.platformTargets = backendConfig.platformTargets;
+  }
 
   // Reverse transformation for projectManagement → jiraProject
   if (backendConfig.projectManagement) {
@@ -335,8 +357,10 @@ export function logTransformation(before: any, after: any, operation: 'create' |
   
   const transformations: string[] = [];
   
-  if (before.targets && after.defaultTargets) {
-    transformations.push('  • targets → defaultTargets');
+  if (before.platformTargets && after.platformTargets) {
+    transformations.push('  • platformTargets: passed through (NEW API format)');
+  } else if (before.targets && after.platformTargets) {
+    transformations.push('  • targets → platformTargets (legacy fallback)');
   }
   if (before.jiraProject && after.projectManagement) {
     transformations.push('  • jiraProject → projectManagement (flattened)');
