@@ -11,6 +11,10 @@ import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
 import type { ReleaseCreationService } from "../../services/release/release-creation.service";
 import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
+import { fileUploadMiddleware } from "../../file-upload-manager";
+import { createManualBuildUploadHandler } from "~controllers/release-management/builds/manual-upload.controller";
+import { createListBuildArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
+import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -229,6 +233,32 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         message: "Cherry pick status endpoint coming soon"
       });
     }
+  );
+
+  // Manual build upload (artifact upload to S3 + DB record)
+  // Uses file upload middleware only for this route
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/builds/manual-upload",
+    tenantPermissions.requireOwner({ storage }),
+    fileUploadMiddleware,
+    createManualBuildUploadHandler(storage)
+  );
+
+  // List artifact paths for a release filtered by platform (query param)
+  // POST /tenants/:tenantId/releases/:releaseId/builds/artifacts?platform=ANDROID|IOS
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
+    tenantPermissions.requireOwner({ storage }),
+    createListBuildArtifactsHandler(storage)
+  );
+
+  // CI artifact upload using ci_run_id lookup
+  // POST /builds/ci/:ciRunId/artifact
+  router.post(
+    "/builds/ci/:ciRunId/artifact",
+    tenantPermissions.allowAll({ storage }),
+    fileUploadMiddleware,
+    createCiArtifactUploadHandler(storage)
   );
 
   return router;

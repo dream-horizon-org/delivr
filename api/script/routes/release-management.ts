@@ -23,10 +23,6 @@ import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
 import { createReleaseConfigRoutes } from "./release-config-routes";
 import { getReleaseManagementRouter as getReleaseRoutes } from "./release/release-management";
-import { fileUploadMiddleware } from "../file-upload-manager";
-import { createManualBuildUploadHandler } from "~controllers/release-management/builds/manual-upload.controller";
-import { createListBuildArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
-import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
