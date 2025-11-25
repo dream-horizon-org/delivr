@@ -12,6 +12,8 @@ import type {
   VerifyStoreResponse,
   AppDistributionIntegration,
   ListDistributionsResponse,
+  StoreType,
+  Platform,
 } from '~/types/app-distribution';
 
 class AppDistributionIntegrationService extends IntegrationService {
