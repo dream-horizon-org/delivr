@@ -5,29 +5,29 @@
 
 import { Stack, Text, Card, Switch, Alert, Group, Badge } from '@mantine/core';
 import { IconSettings, IconTestPipe, IconInfoCircle } from '@tabler/icons-react';
-import type { ReleaseCustomizations } from '~/types/release-creation';
+import type { CronConfig } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
 
 interface ReleaseConfigurePanelProps {
   config?: ReleaseConfiguration; // The selected configuration
-  customizations: Partial<ReleaseCustomizations>;
-  onChange: (customizations: Partial<ReleaseCustomizations>) => void;
+  cronConfig: Partial<CronConfig>;
+  onChange: (cronConfig: Partial<CronConfig>) => void;
 }
 
 export function ReleaseConfigurePanel({
   config,
-  customizations,
+  cronConfig,
   onChange,
 }: ReleaseConfigurePanelProps) {
   // Check if config has pre-regression builds
   const hasPreRegressionBuilds = config
-    ? config.workflows.some((p) => p.environment === 'PRE_REGRESSION')
+    ? (config.workflows || []).some((p) => p.environment === 'PRE_REGRESSION')
     : false;
 
   // Check if config has Checkmate enabled
   const hasCheckmateEnabled = config
-    ? config.testManagement.enabled &&
-      config.testManagement.provider === 'checkmate'
+    ? config.testManagement?.enabled &&
+      config.testManagement?.provider === 'checkmate'
     : false;
 
   // Manual mode - no configuration
@@ -80,10 +80,10 @@ export function ReleaseConfigurePanel({
             <br />
             <strong>Release Type:</strong> {config.releaseType}
             <br />
-            <strong>Build Pipelines:</strong> {config.workflows.length} configured
+            <strong>Build Pipelines:</strong> {config.workflows?.length || 0} configured
             <br />
             <strong>Test Management:</strong>{' '}
-            {config.testManagement.enabled
+            {config.testManagement?.enabled
               ? config.testManagement.provider
               : 'Disabled'}
           </Text>
@@ -125,17 +125,17 @@ export function ReleaseConfigurePanel({
           <Switch
             label="Enable Pre-Regression Builds"
             description="Run initial sanity builds before full regression testing. This helps catch critical issues early in the release cycle."
-            checked={customizations.enablePreRegressionBuilds ?? true}
+            checked={cronConfig.preRegressionBuilds ?? true}
             onChange={(e) =>
               onChange({
-                ...customizations,
-                enablePreRegressionBuilds: e.currentTarget.checked,
+                ...cronConfig,
+                preRegressionBuilds: e.currentTarget.checked,
               })
             }
             size="md"
           />
 
-          {customizations.enablePreRegressionBuilds === false && (
+          {cronConfig.preRegressionBuilds === false && (
             <Alert color="orange" variant="light" className="mt-3">
               <Text size="xs">
                 ⚠️ Pre-regression builds are disabled for this release. You will go
@@ -144,11 +144,11 @@ export function ReleaseConfigurePanel({
             </Alert>
           )}
 
-          {customizations.enablePreRegressionBuilds !== false && (
+          {cronConfig.preRegressionBuilds !== false && (
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
                 ✓ Pre-regression builds will run according to your configuration (
-                {config.workflows.filter((p) => p.environment === 'PRE_REGRESSION').length}{' '}
+                {(config.workflows || []).filter((p) => p.environment === 'PRE_REGRESSION').length}{' '}
                 pipeline(s))
               </Text>
             </Alert>
@@ -170,34 +170,39 @@ export function ReleaseConfigurePanel({
           </Group>
 
           <Switch
-            label="Enable Checkmate Integration"
-            description="Automatically create test runs and track test results in Checkmate for this release."
-            checked={customizations.enableCheckmate ?? true}
+            label="Enable Automation Runs"
+            description="Automatically trigger automation test runs for this release."
+            checked={cronConfig.automationRuns ?? true}
             onChange={(e) =>
               onChange({
-                ...customizations,
-                enableCheckmate: e.currentTarget.checked,
+                ...cronConfig,
+                automationRuns: e.currentTarget.checked,
               })
             }
             size="md"
           />
 
-          {customizations.enableCheckmate === false && (
+          {cronConfig.automationRuns === false && (
             <Alert color="orange" variant="light" className="mt-3">
               <Text size="xs">
-                ⚠️ Checkmate integration is disabled for this release. Test management
-                will need to be done manually.
+                ⚠️ Automation runs are disabled for this release. Test runs
+                will need to be triggered manually.
               </Text>
             </Alert>
           )}
 
-          {customizations.enableCheckmate !== false && (
+          {cronConfig.automationRuns !== false && (
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
-                ✓ Test runs will be automatically created in Checkmate. Project:{' '}
-                {config.testManagement.providerConfig &&
-                  'projectId' in config.testManagement.providerConfig &&
-                  config.testManagement.providerConfig.projectId}
+                ✓ Automation runs will be automatically triggered for this release.
+                {config.testManagement?.enabled && config.testManagement.provider === 'checkmate' && (
+                  <>
+                    {' '}Project:{' '}
+                    {config.testManagement.providerConfig &&
+                      'projectId' in config.testManagement.providerConfig &&
+                      config.testManagement.providerConfig.projectId}
+                  </>
+                )}
               </Text>
             </Alert>
           )}

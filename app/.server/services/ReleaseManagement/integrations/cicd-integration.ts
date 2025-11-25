@@ -288,9 +288,10 @@ export class CICDIntegrationServiceClass extends IntegrationService {
   async fetchGitHubActionsInputs(
     tenantId: string,
     userId: string,
+    integrationId: string,
     workflowUrl: string
   ): Promise<JobParametersResponse> {
-    return GitHubActionsIntegrationService.fetchWorkflowInputs(tenantId, userId, workflowUrl);
+    return GitHubActionsIntegrationService.fetchWorkflowInputs(tenantId, userId, integrationId, workflowUrl);
   }
 
   /**

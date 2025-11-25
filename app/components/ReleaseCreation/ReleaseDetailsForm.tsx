@@ -1,6 +1,10 @@
 /**
  * Release Details Form Component
- * Basic release information (version, type, branch, targets, description)
+ * 
+ * Backend-compatible release details form.
+ * Uses PlatformTargetsSelector for platform/target selection with per-platform versions.
+ * 
+ * Follows cursor rules: No 'any' or 'unknown' types, uses constants
  */
 
 import { useEffect, useState } from 'react';
@@ -11,29 +15,38 @@ import {
   Stack,
   Text,
   Group,
-  Checkbox,
   Card,
   Badge,
-  Alert,
   Loader as MantineLoader,
 } from '@mantine/core';
-import { IconTarget } from '@tabler/icons-react';
 import { apiGet } from '~/utils/api-client';
-import type { ReleaseBasicDetails } from '~/types/release-creation';
-import type { ReleaseConfiguration, TargetPlatform } from '~/types/release-config';
-import { RELEASE_TYPES } from '~/constants/release-creation';
+import type { ReleaseCreationState, ReleaseType } from '~/types/release-creation-backend';
+import type { ReleaseConfiguration, Platform } from '~/types/release-config';
+import { RELEASE_TYPES as RELEASE_TYPE_CONSTANTS } from '~/types/release-config-constants';
+import { PlatformTargetsSelector } from './PlatformTargetsSelector';
+import { convertConfigTargetsToPlatformTargets } from '~/utils/release-creation-converter';
 
 interface ReleaseDetailsFormProps {
-  details: Partial<ReleaseBasicDetails>;
-  onChange: (details: Partial<ReleaseBasicDetails>) => void;
+  state: Partial<ReleaseCreationState>;
+  onChange: (state: Partial<ReleaseCreationState>) => void;
   config?: ReleaseConfiguration; // Configuration template (if WITH_CONFIG mode)
   latestVersion?: string; // For auto-generating version
   tenantId: string; // For fetching branches
   errors?: Record<string, string>;
 }
 
+/**
+ * Increment version for planned releases
+ */
+function incrementVersion(version: string): string {
+  const match = version.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return 'v1.0.0';
+  const [, major, minor] = match;
+  return `v${major}.${parseInt(minor, 10) + 1}.0`;
+}
+
 export function ReleaseDetailsForm({
-  details,
+  state,
   onChange,
   config,
   latestVersion,
@@ -78,45 +91,65 @@ export function ReleaseDetailsForm({
     }
   }, [tenantId]);
 
-  // Auto-generate version on mount if not set (for PLANNED releases)
+  // Pre-fill baseBranch from config
   useEffect(() => {
-    if (!details.version && latestVersion && details.releaseType === 'PLANNED') {
-      const nextVersion = incrementVersion(latestVersion);
-      onChange({ ...details, version: nextVersion });
-    }
-  }, [latestVersion]);
-
-  // Prefill from config if available
-  useEffect(() => {
-    if (config && !details.releaseType) {
+    if (config && !state.baseBranch) {
+      const baseBranch = config.baseBranch || defaultBranch;
       onChange({
-        ...details,
-        releaseType: config.releaseType as any,
-        baseBranch: defaultBranch, // Use default branch from SCM
-        releaseTargets: {
-          web: config.targets.includes('WEB' as TargetPlatform),
-          playStore: config.targets.includes('PLAY_STORE' as TargetPlatform),
-          appStore: config.targets.includes('APP_STORE' as TargetPlatform),
-        },
+        ...state,
+        baseBranch,
       });
     }
   }, [config, defaultBranch]);
 
-  const incrementVersion = (version: string): string => {
-    const match = version.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
-    if (!match) return 'v1.0.0';
-    const [, major, minor, patch] = match;
-    return `v${major}.${parseInt(minor) + 1}.0`;
-  };
+  // Pre-fill platformTargets from config
+  useEffect(() => {
+    if (config && (!state.platformTargets || state.platformTargets.length === 0)) {
+      const defaultVersion = latestVersion ? incrementVersion(latestVersion) : 'v1.0.0';
+      const versions: Record<Platform, string> = {
+        ANDROID: defaultVersion,
+        IOS: defaultVersion,
+      };
+      const platformTargets = convertConfigTargetsToPlatformTargets(config.targets, versions);
+      onChange({
+        ...state,
+        platformTargets,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, latestVersion]);
 
-  // Available target platforms based on config (or all if manual)
-  const availableTargets = config
-    ? {
-        web: config.targets.includes('WEB' as TargetPlatform),
-        playStore: config.targets.includes('PLAY_STORE' as TargetPlatform),
-        appStore: config.targets.includes('APP_STORE' as TargetPlatform),
+  // Pre-fill release type from config
+  useEffect(() => {
+    if (config && !state.type) {
+      // Map config release type to backend release type
+      let releaseType: ReleaseType = RELEASE_TYPE_CONSTANTS.PLANNED;
+      if (config.releaseType === RELEASE_TYPE_CONSTANTS.HOTFIX) {
+        releaseType = RELEASE_TYPE_CONSTANTS.HOTFIX;
+      } else if (config.releaseType === RELEASE_TYPE_CONSTANTS.PLANNED) {
+        releaseType = RELEASE_TYPE_CONSTANTS.PLANNED;
       }
-    : { web: true, playStore: true, appStore: true };
+      // UNPLANNED is not in config, so it stays as default
+
+      onChange({
+        ...state,
+        type: releaseType,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]);
+
+  // Get default version for platformTargetsSelector
+  const getDefaultVersion = (): string => {
+    if (latestVersion) {
+      return incrementVersion(latestVersion);
+    }
+    // Use version from first platformTarget if available
+    if (state.platformTargets && state.platformTargets.length > 0) {
+      return state.platformTargets[0].version;
+    }
+    return 'v1.0.0';
+  };
 
   const isReleaseTypeDisabled = !!config; // Disabled if from config
 
@@ -127,40 +160,31 @@ export function ReleaseDetailsForm({
           Release Details
         </Text>
         <Text size="sm" c="dimmed">
-          Configure release version, type, targets, and timeline
+          Configure release type, base branch, platform targets, and description
         </Text>
       </div>
 
-      {/* Version & Release Type */}
+      {/* Release Type & Base Branch */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group grow>
-          <TextInput
-            label="Release Version"
-            placeholder="e.g., v1.2.0"
-            value={details.version || ''}
-            onChange={(e) => onChange({ ...details, version: e.target.value })}
-            required
-            error={errors.version}
-            description={
-              latestVersion ? `Latest: ${latestVersion} (auto-generated)` : 'Editable'
-            }
-            rightSection={
-              <Badge size="xs" variant="light">
-                Editable
-              </Badge>
-            }
-          />
-
           <Select
             label="Release Type"
-            data={RELEASE_TYPES}
-            value={details.releaseType || 'PLANNED'}
-            onChange={(val) => onChange({ ...details, releaseType: val as any })}
+            data={[
+              { value: RELEASE_TYPE_CONSTANTS.PLANNED, label: 'Planned Release' },
+              { value: RELEASE_TYPE_CONSTANTS.HOTFIX, label: 'Hotfix' },
+              { value: 'UNPLANNED', label: 'Unplanned' },
+            ]}
+            value={state.type || RELEASE_TYPE_CONSTANTS.PLANNED}
+            onChange={(val) => {
+              if (val) {
+                onChange({ ...state, type: val as ReleaseType });
+              }
+            }}
             required
             disabled={isReleaseTypeDisabled}
-            error={errors.releaseType}
+            error={errors.type}
             description={
-              isReleaseTypeDisabled ? 'Prefilled from configuration' : 'Select type'
+              isReleaseTypeDisabled ? 'Prefilled from configuration' : 'Select release type'
             }
             rightSection={
               isReleaseTypeDisabled && (
@@ -170,117 +194,46 @@ export function ReleaseDetailsForm({
               )
             }
           />
-        </Group>
 
-        <Select
-          label="Base Branch"
-          placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
-          data={branches}
-          value={details.baseBranch || ''}
-          onChange={(val) => onChange({ ...details, baseBranch: val || '' })}
-          required
-          error={errors.baseBranch}
-          searchable
-          clearable
-          disabled={loadingBranches}
-          rightSection={loadingBranches ? <MantineLoader size="xs" /> : null}
-          className="mt-3"
-        />
+          <Select
+            label="Base Branch"
+            placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
+            data={branches}
+            value={state.baseBranch || ''}
+            onChange={(val) => onChange({ ...state, baseBranch: val || '' })}
+            required
+            error={errors.baseBranch}
+            searchable
+            clearable
+            disabled={loadingBranches}
+            rightSection={loadingBranches ? <MantineLoader size="xs" /> : null}
+            description={
+              config?.baseBranch
+                ? `Prefilled from config: ${config.baseBranch}`
+                : 'Select base branch to fork from'
+            }
+          />
+        </Group>
       </Card>
 
-      {/* Release Targets */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconTarget size={20} className="text-blue-600" />
-          <Text fw={600} size="sm">
-            Release Targets
-          </Text>
-          {config && (
-            <Badge size="xs" variant="light">
-              From Config
-            </Badge>
-          )}
-        </Group>
-
-        <Stack gap="sm">
-          {availableTargets.web && (
-            <Checkbox
-              label="Web Platform"
-              description="Deploy to web platform"
-              checked={details.releaseTargets?.web || false}
-              onChange={(e) =>
-                onChange({
-                  ...details,
-                  releaseTargets: {
-                    ...details.releaseTargets,
-                    web: e.currentTarget.checked,
-                    playStore: details.releaseTargets?.playStore || false,
-                    appStore: details.releaseTargets?.appStore || false,
-                  },
-                })
-              }
-              disabled={!config && !availableTargets.web}
-            />
-          )}
-
-          {availableTargets.playStore && (
-            <Checkbox
-              label="Play Store (Android)"
-              description="Release to Google Play Store"
-              checked={details.releaseTargets?.playStore || false}
-              onChange={(e) =>
-                onChange({
-                  ...details,
-                  releaseTargets: {
-                    ...details.releaseTargets,
-                    playStore: e.currentTarget.checked,
-                    web: details.releaseTargets?.web || false,
-                    appStore: details.releaseTargets?.appStore || false,
-                  },
-                })
-              }
-              disabled={!config && !availableTargets.playStore}
-            />
-          )}
-
-          {availableTargets.appStore && (
-            <Checkbox
-              label="App Store (iOS)"
-              description="Release to Apple App Store"
-              checked={details.releaseTargets?.appStore || false}
-              onChange={(e) =>
-                onChange({
-                  ...details,
-                  releaseTargets: {
-                    ...details.releaseTargets,
-                    appStore: e.currentTarget.checked,
-                    web: details.releaseTargets?.web || false,
-                    playStore: details.releaseTargets?.playStore || false,
-                  },
-                })
-              }
-              disabled={!config && !availableTargets.appStore}
-            />
-          )}
-
-          {errors.releaseTargets && (
-            <Alert color="red" variant="light">
-              <Text size="xs">{errors.releaseTargets}</Text>
-            </Alert>
-          )}
-        </Stack>
-      </Card>
+      {/* Platform Targets with Versions */}
+      <PlatformTargetsSelector
+        platformTargets={state.platformTargets || []}
+        onChange={(platformTargets) => onChange({ ...state, platformTargets })}
+        config={config}
+        defaultVersion={getDefaultVersion()}
+        errors={errors}
+      />
 
       {/* Description */}
       <Textarea
         label="Release Description"
         placeholder="What's new in this release..."
-        value={details.description || ''}
-        onChange={(e) => onChange({ ...details, description: e.target.value })}
+        value={state.description || ''}
+        onChange={(e) => onChange({ ...state, description: e.target.value })}
         rows={4}
         description="Optional: Release highlights and notes"
       />
     </Stack>
   );
 }
-

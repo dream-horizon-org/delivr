@@ -1,23 +1,25 @@
 /**
  * Release Review Summary Component
  * Final review before creating the release
+ * Updated to use backend-compatible state structure
  */
 
 import { Card, Text, Stack, Group, Badge, Divider } from '@mantine/core';
 import { IconCheck, IconX, IconCalendar, IconSettings } from '@tabler/icons-react';
-import type { ReleaseBasicDetails, ReleaseCustomizations } from '~/types/release-creation';
+import type { ReleaseCreationState, CronConfig } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
+import { PLATFORM_LABELS, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
 
 interface ReleaseReviewSummaryProps {
   config?: ReleaseConfiguration;
-  details: Partial<ReleaseBasicDetails>;
-  customizations: Partial<ReleaseCustomizations>;
+  state: Partial<ReleaseCreationState>;
+  cronConfig?: Partial<CronConfig>;
 }
 
 export function ReleaseReviewSummary({
   config,
-  details,
-  customizations,
+  state,
+  cronConfig,
 }: ReleaseReviewSummaryProps) {
   return (
     <Stack gap="lg">
@@ -29,55 +31,74 @@ export function ReleaseReviewSummary({
           Review all details before creating the release
         </Text>
       </div>
-      
+
       {/* Basic Details */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Text fw={600} size="sm" className="mb-3">
           Release Information
         </Text>
-        
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <Text size="xs" c="dimmed">Version</Text>
-            <Text fw={500}>{details.version || 'Not set'}</Text>
-          </div>
-          
-          <div>
-            <Text size="xs" c="dimmed">Release Type</Text>
+            <Text size="xs" c="dimmed">
+              Release Type
+            </Text>
             <Badge variant="light" size="sm">
-              {details.releaseType || 'PLANNED'}
+              {state.type || 'PLANNED'}
             </Badge>
           </div>
-          
+
           <div>
-            <Text size="xs" c="dimmed">Base Branch</Text>
-            <Text fw={500}>{details.baseBranch || 'Not set'}</Text>
+            <Text size="xs" c="dimmed">
+              Base Branch
+            </Text>
+            <Text fw={500}>{state.baseBranch || 'Not set'}</Text>
           </div>
-          
-          <div>
-            <Text size="xs" c="dimmed">Release Targets</Text>
+
+          <div className="col-span-2">
+            <Text size="xs" c="dimmed" className="mb-2">
+              Platform Targets
+            </Text>
             <Group gap="xs">
-              {details.releaseTargets?.web && <Badge size="xs">Web</Badge>}
-              {details.releaseTargets?.playStore && <Badge size="xs">Play Store</Badge>}
-              {details.releaseTargets?.appStore && <Badge size="xs">App Store</Badge>}
-              {!details.releaseTargets?.web && !details.releaseTargets?.playStore && !details.releaseTargets?.appStore && (
-                <Text size="xs" c="dimmed">None selected</Text>
+              {state.platformTargets && state.platformTargets.length > 0 ? (
+                state.platformTargets.map((pt, index) => (
+                  <Badge key={index} size="xs">
+                    {pt.platform === 'ANDROID'
+                      ? PLATFORM_LABELS.ANDROID
+                      : pt.platform === 'IOS'
+                      ? PLATFORM_LABELS.IOS
+                      : PLATFORM_LABELS.WEB}{' '}
+                    →{' '}
+                    {pt.target === 'PLAY_STORE'
+                      ? TARGET_PLATFORM_LABELS.PLAY_STORE
+                      : pt.target === 'APP_STORE'
+                      ? TARGET_PLATFORM_LABELS.APP_STORE
+                      : TARGET_PLATFORM_LABELS.WEB}{' '}
+                    ({pt.version})
+                  </Badge>
+                ))
+              ) : (
+                <Text size="xs" c="dimmed">
+                  None selected
+                </Text>
               )}
             </Group>
           </div>
         </div>
-        
-        {details.description && (
+
+        {state.description && (
           <>
             <Divider className="my-3" />
             <div>
-              <Text size="xs" c="dimmed" className="mb-1">Description</Text>
-              <Text size="sm">{details.description}</Text>
+              <Text size="xs" c="dimmed" className="mb-1">
+                Description
+              </Text>
+              <Text size="sm">{state.description}</Text>
             </div>
           </>
         )}
       </Card>
-      
+
       {/* Scheduling Details */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
@@ -86,53 +107,71 @@ export function ReleaseReviewSummary({
             Schedule
           </Text>
         </Group>
-        
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <Text size="xs" c="dimmed">Release Date</Text>
+            <Text size="xs" c="dimmed">
+              Target Release Date
+            </Text>
             <Text fw={500}>
-              {details.releaseDate ? new Date(details.releaseDate).toLocaleDateString() : 'Not set'}
-              {details.releaseTime && ` at ${details.releaseTime}`}
+              {state.targetReleaseDate
+                ? new Date(state.targetReleaseDate).toLocaleDateString()
+                : 'Not set'}
+              {state.targetReleaseTime && ` at ${state.targetReleaseTime}`}
             </Text>
           </div>
-          
+
           <div>
-            <Text size="xs" c="dimmed">Kickoff Date</Text>
+            <Text size="xs" c="dimmed">
+              Kickoff Date
+            </Text>
             <Text fw={500}>
-              {details.kickoffDate ? new Date(details.kickoffDate).toLocaleDateString() : 'Not set'}
-              {details.kickoffTime && ` at ${details.kickoffTime}`}
+              {state.kickOffDate
+                ? new Date(state.kickOffDate).toLocaleDateString()
+                : 'Not set'}
+              {state.kickOffTime && ` at ${state.kickOffTime}`}
             </Text>
           </div>
-          
+
           <div className="col-span-2">
-            <Text size="xs" c="dimmed" className="mb-2">Regression Builds</Text>
-            {details.hasRegressionBuilds ? (
+            <Text size="xs" c="dimmed" className="mb-2">
+              Regression Builds
+            </Text>
+            {state.regressionBuildSlots && state.regressionBuildSlots.length > 0 ? (
               <div className="space-y-2">
-                <Badge variant="light" color="green">Scheduled</Badge>
-                {details.regressionBuildSlots && details.regressionBuildSlots.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {details.regressionBuildSlots.map((slot) => {
-                      const slotDate = new Date(details.releaseDate!);
-                      slotDate.setDate(slotDate.getDate() - slot.regressionSlotOffsetFromKickoff);
-                      return (
-                        <div key={slot.id} className="text-xs bg-gray-50 p-2 rounded">
-                          <Text size="xs" fw={500}>{slot.name}</Text>
-                          <Text size="xs" c="dimmed">
-                            {slotDate.toLocaleDateString()} at {slot.time} (RD-{slot.regressionSlotOffsetFromKickoff} days)
-                          </Text>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <Badge variant="light" color="green">
+                  Scheduled ({state.regressionBuildSlots.length} slot
+                  {state.regressionBuildSlots.length !== 1 ? 's' : ''})
+                </Badge>
+                <div className="mt-2 space-y-1">
+                  {state.regressionBuildSlots.map((slot, index) => {
+                    const slotDate = new Date(slot.date);
+                    return (
+                      <div key={index} className="text-xs bg-gray-50 p-2 rounded">
+                        <Text size="xs" fw={500}>
+                          Slot {index + 1}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {slotDate.toLocaleDateString()} at{' '}
+                          {slotDate.toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Text>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              <Badge variant="light" color="orange">Manual Upload</Badge>
+              <Badge variant="light" color="orange">
+                Manual Upload
+              </Badge>
             )}
           </div>
         </div>
       </Card>
-      
+
       {/* Configuration Info */}
       {config && (
         <Card shadow="sm" padding="md" radius="md" withBorder className="bg-blue-50">
@@ -142,104 +181,100 @@ export function ReleaseReviewSummary({
               Configuration Applied
             </Text>
           </Group>
-          
+
           <div className="space-y-2 text-sm">
             <div>
-              <Text fw={500} className="text-blue-900">{config.name}</Text>
+              <Text fw={500} className="text-blue-900">
+                {config.name}
+              </Text>
               {config.description && (
-                <Text size="xs" c="dimmed">{config.description}</Text>
+                <Text size="xs" c="dimmed">
+                  {config.description}
+                </Text>
               )}
             </div>
-            
+
             <Group gap="md" className="text-xs">
               <div>
-                <span className="font-medium">{config.workflows.length}</span> build pipelines
+                <span className="font-medium">{config.workflows?.length || 0}</span> build pipelines
               </div>
               <div>
-                <span className="font-medium">{config.targets.length}</span> target platforms
+                <span className="font-medium">{config.targets?.length || 0}</span> target platforms
               </div>
               <div>
-                <span className="font-medium">{config.scheduling.regressionSlots.length}</span> regression slots
+                <span className="font-medium">
+                  {config.scheduling?.regressionSlots?.length || 0}
+                </span>{' '}
+                regression slots
               </div>
             </Group>
           </div>
         </Card>
       )}
-      
-      {/* Customizations Summary */}
-      {config && (
+
+      {/* Cron Config Summary */}
+      {cronConfig && Object.keys(cronConfig).length > 0 && (
         <Card shadow="sm" padding="md" radius="md" withBorder>
           <Text fw={600} size="sm" className="mb-3">
-            Configuration Overrides
+            Automation Settings
           </Text>
-          
+
           <Stack gap="sm">
-            {/* Check if config has pre-regression builds */}
-            {config.workflows.some(p => p.environment === 'PRE_REGRESSION') && (
+            {cronConfig.preRegressionBuilds !== undefined && (
               <Group gap="xs">
-                {customizations.enablePreRegressionBuilds !== false ? (
+                {cronConfig.preRegressionBuilds ? (
                   <IconCheck size={16} className="text-green-600" />
                 ) : (
                   <IconX size={16} className="text-red-600" />
                 )}
                 <Text size="sm">
-                  Pre-Regression Builds: {
-                    customizations.enablePreRegressionBuilds !== false ? 'Enabled' : 'Disabled'
-                  }
+                  Pre-Regression Builds:{' '}
+                  {cronConfig.preRegressionBuilds ? 'Enabled' : 'Disabled'}
                 </Text>
               </Group>
             )}
-            
-            {/* Check if config has Checkmate */}
-            {config.testManagement.enabled && config.testManagement.provider === 'checkmate' && (
+
+            {cronConfig.automationRuns !== undefined && (
               <Group gap="xs">
-                {customizations.enableCheckmate !== false ? (
+                {cronConfig.automationRuns ? (
                   <IconCheck size={16} className="text-green-600" />
                 ) : (
                   <IconX size={16} className="text-red-600" />
                 )}
                 <Text size="sm">
-                  Checkmate Integration: {
-                    customizations.enableCheckmate !== false ? 'Enabled' : 'Disabled'
-                  }
+                  Automation Runs: {cronConfig.automationRuns ? 'Enabled' : 'Disabled'}
                 </Text>
               </Group>
             )}
-            
-            {/* If no customizations available */}
-            {!config.workflows.some(p => p.environment === 'PRE_REGRESSION') &&
-             !(config.testManagement.enabled && config.testManagement.provider === 'checkmate') && (
-              <Text size="sm" c="dimmed" className="italic">
-                No configuration overrides available for this release configuration
-              </Text>
+
+            {cronConfig.automationBuilds !== undefined && (
+              <Group gap="xs">
+                {cronConfig.automationBuilds ? (
+                  <IconCheck size={16} className="text-green-600" />
+                ) : (
+                  <IconX size={16} className="text-red-600" />
+                )}
+                <Text size="sm">
+                  Automation Builds: {cronConfig.automationBuilds ? 'Enabled' : 'Disabled'}
+                </Text>
+              </Group>
             )}
-            
-            {/* Show defaults if everything is enabled */}
-            {customizations.enablePreRegressionBuilds !== false && 
-             customizations.enableCheckmate !== false &&
-             (config.workflows.some(p => p.environment === 'PRE_REGRESSION') ||
-              (config.testManagement.enabled && config.testManagement.provider === 'checkmate')) && (
-              <Text size="xs" c="dimmed" className="mt-2">
-                All features from configuration are enabled for this release
-              </Text>
+
+            {cronConfig.kickOffReminder !== undefined && (
+              <Group gap="xs">
+                {cronConfig.kickOffReminder ? (
+                  <IconCheck size={16} className="text-green-600" />
+                ) : (
+                  <IconX size={16} className="text-red-600" />
+                )}
+                <Text size="sm">
+                  Kickoff Reminder: {cronConfig.kickOffReminder ? 'Enabled' : 'Disabled'}
+                </Text>
+              </Group>
             )}
           </Stack>
-        </Card>
-      )}
-      
-      {/* Manual Mode Info */}
-      {!config && (
-        <Card shadow="sm" padding="md" radius="md" withBorder>
-          <Text fw={600} size="sm" className="mb-2">
-            Manual Release
-          </Text>
-          <Text size="sm" c="dimmed">
-            This release is being created manually without a configuration template.
-            You'll need to configure pipelines and schedules separately.
-          </Text>
         </Card>
       )}
     </Stack>
   );
 }
-
