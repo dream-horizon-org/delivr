@@ -7,7 +7,8 @@ import type {
   ReleaseConfiguration, 
   ProjectManagementConfig,
   TestManagementConfig,
-  CommunicationConfig 
+  CommunicationConfig,
+  Workflow
 } from '~/types/release-config';
 import { 
   PLATFORMS, 
@@ -170,6 +171,67 @@ export const validateProjectManagement = (
 };
 
 /**
+ * Validates Workflows (CI/CD Pipelines) configuration
+ * Returns array of error messages (empty if valid)
+ */
+export const validateWorkflows = (
+  config: Partial<ReleaseConfiguration>
+): string[] => {
+  const errors: string[] = [];
+  
+  // Skip validation if using manual upload (not CI/CD)
+  if (config.hasManualBuildUpload) {
+    return errors;
+  }
+  
+  // If using CI/CD, validate workflows exist
+  if (!config.workflows || config.workflows.length === 0) {
+    errors.push('At least one CI/CD workflow must be configured');
+    return errors;
+  }
+  
+  // Validate required pipelines based on selected distribution targets
+  const needsAndroid = config.targets?.includes(TARGET_PLATFORMS.PLAY_STORE);
+  const needsIOS = config.targets?.includes(TARGET_PLATFORMS.APP_STORE);
+  
+  if (needsAndroid) {
+    const hasAndroidRegression = config.workflows.some(
+      (p: Workflow) => 
+        p.platform === PLATFORMS.ANDROID && 
+        p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
+        p.enabled
+    );
+    if (!hasAndroidRegression) {
+      errors.push('Android Regression workflow is required for Play Store distribution');
+    }
+  }
+  
+  if (needsIOS) {
+    const hasIOSRegression = config.workflows.some(
+      (p: Workflow) => 
+        p.platform === PLATFORMS.IOS && 
+        p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
+        p.enabled
+    );
+    const hasTestFlight = config.workflows.some(
+      (p: Workflow) => 
+        p.platform === PLATFORMS.IOS && 
+        p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && 
+        p.enabled
+    );
+    
+    if (!hasIOSRegression) {
+      errors.push('iOS Regression workflow is required for App Store distribution');
+    }
+    if (!hasTestFlight) {
+      errors.push('iOS TestFlight workflow is required for App Store distribution');
+    }
+  }
+  
+  return errors;
+};
+
+/**
  * Validates if user can proceed from current wizard step
  * Each step has specific validation rules
  */
@@ -188,44 +250,9 @@ export const canProceedFromStep = (
       return true
       
     case STEP_INDEX.PIPELINES:
-      // Skip validation if using manual upload (not CI/CD)
-      if (config.hasManualBuildUpload) {
-        return true;
-      }
-      
-      // If using CI/CD, validate workflows exist
-      if (!config.workflows || config.workflows.length === 0) {
-        return false;
-      }
-      
-      // Validate required pipelines based on selected distribution targets
-      const needsAndroid = config.targets?.includes(TARGET_PLATFORMS.PLAY_STORE);
-      const needsIOS = config.targets?.includes(TARGET_PLATFORMS.APP_STORE);
-      
-      if (needsAndroid) {
-        const hasAndroidRegression = config.workflows.some(
-          p => p.platform === PLATFORMS.ANDROID && 
-               p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
-               p.enabled
-        );
-        if (!hasAndroidRegression) return false;
-      }
-      
-      if (needsIOS) {
-        const hasIOSRegression = config.workflows.some(
-          p => p.platform === PLATFORMS.IOS && 
-               p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
-               p.enabled
-        );
-        const hasTestFlight = config.workflows.some(
-          p => p.platform === PLATFORMS.IOS && 
-               p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && 
-               p.enabled
-        );
-        if (!hasIOSRegression || !hasTestFlight) return false;
-      }
-      
-      return true;
+      // Use the validation helper function for workflows
+      const workflowErrors = validateWorkflows(config);
+      return workflowErrors.length === 0;
       
     case STEP_INDEX.TESTING:
       // Use the validation helper function for test management

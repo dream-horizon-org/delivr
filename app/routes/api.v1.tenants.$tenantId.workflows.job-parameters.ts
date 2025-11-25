@@ -24,7 +24,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   
   const data = await request.json();
-  const { providerType, url } = data;
+  const { providerType, url, integrationId } = data;
   
   if (!providerType || !url) {
     return json({ 
@@ -34,10 +34,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }, { status: 400 });
   }
   
+  if (!integrationId) {
+    return json({ 
+      success: false, 
+      error: 'Integration ID is required',
+      parameters: []
+    }, { status: 400 });
+  }
+  
   const result = await CICDIntegrationService.fetchJobParameters(
     tenantId,
     userId,
     providerType as CICDProviderType,
+    integrationId,
     url
   );
   

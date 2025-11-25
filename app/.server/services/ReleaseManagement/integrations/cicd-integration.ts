@@ -254,12 +254,13 @@ export class CICDIntegrationServiceClass extends IntegrationService {
     tenantId: string,
     userId: string,
     providerType: CICDProviderType,
+    integrationId: string,
     url: string
   ): Promise<JobParametersResponse> {
     if (providerType === 'JENKINS') {
-      return JenkinsIntegrationService.fetchJobParameters(tenantId, userId, url);
+      return JenkinsIntegrationService.fetchJobParameters(tenantId, userId, integrationId, url);
     } else if (providerType === 'GITHUB_ACTIONS') {
-      return GitHubActionsIntegrationService.fetchWorkflowInputs(tenantId, userId, url);
+      return GitHubActionsIntegrationService.fetchWorkflowInputs(tenantId, userId, integrationId, url);
     }
 
     return {
@@ -275,9 +276,10 @@ export class CICDIntegrationServiceClass extends IntegrationService {
   async fetchJenkinsJobParameters(
     tenantId: string,
     userId: string,
+    integrationId: string,
     jobUrl: string
   ): Promise<JobParametersResponse> {
-    return JenkinsIntegrationService.fetchJobParameters(tenantId, userId, jobUrl);
+    return JenkinsIntegrationService.fetchJobParameters(tenantId, userId, integrationId, jobUrl);
   }
 
   /**

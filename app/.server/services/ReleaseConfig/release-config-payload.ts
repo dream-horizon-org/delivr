@@ -77,15 +77,24 @@ function transformWorkflowToBackend(tenantId: string, userId: string) {
       };
     } else if (providerConfig.type === 'GITHUB_ACTIONS') {
       integrationId = providerConfig.integrationId || '';
-      workflowUrl = providerConfig.workflowUrl || '';
+      // Use workflowUrl (preferred) or fallback to workflowPath for backward compatibility
+      workflowUrl = providerConfig.workflowUrl || providerConfig.workflowPath || '';
+      
+      // Extract branch from URL if not provided separately
+      let branch = providerConfig.branch || 'main';
+      if (workflowUrl && !providerConfig.branch) {
+        const branchMatch = workflowUrl.match(/\/blob\/([^/]+)\//);
+        if (branchMatch) {
+          branch = branchMatch[1];
+        }
+      }
+      
       parameters = {
-        workflowId: providerConfig.workflowId,
-        branch: providerConfig.branch,
+        branch: branch,
         ...(providerConfig.inputs && { inputs: providerConfig.inputs }),
       };
       providerIdentifiers = {
-        workflowId: providerConfig.workflowId,
-        workflowPath: providerConfig.workflowPath,
+        workflowPath: workflowUrl, // Store full URL as workflowPath in providerIdentifiers
       };
     }
     

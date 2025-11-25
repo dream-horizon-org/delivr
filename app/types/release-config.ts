@@ -48,9 +48,11 @@ export interface JenkinsConfig {
 export interface GitHubActionsConfig {
   type: 'GITHUB_ACTIONS';
   integrationId: string; // Reference to connected GitHub integration
-  workflowId: string;
-  workflowPath: string; // e.g., ".github/workflows/build.yml"
-  branch: string;
+  workflowUrl: string; // Full GitHub URL to workflow file (e.g., "https://github.com/owner/repo/blob/branch/.github/workflows/build.yml")
+  // Legacy fields (optional, for backward compatibility)
+  workflowId?: string; // Optional - not required by backend
+  workflowPath?: string; // Optional - kept for backward compatibility
+  branch?: string; // Optional - extracted from workflowUrl if not provided
   inputs: Record<string, string>; // Workflow inputs
 }
 

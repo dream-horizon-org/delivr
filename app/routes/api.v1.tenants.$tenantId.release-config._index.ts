@@ -109,7 +109,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return config;
     }) || [];
 
-    console.log('[BFF] List successful:', transformedConfigs.length, 'configs');
+    // console.log('[BFF] List successful:', transformedConfigs.length, 'configs');
     return json({ success: true, data: transformedConfigs }, { status: 200 });
   } catch (error: any) {
     console.error('[BFF] List error:', error);

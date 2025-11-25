@@ -239,11 +239,11 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
   /**
    * Fetch Jenkins job parameters
    */
-  async fetchJobParameters(tenantId: string, userId: string, jobUrl: string): Promise<any> {
+  async fetchJobParameters(tenantId: string, userId: string, integrationId: string, jobUrl: string): Promise<any> {
     try {
       return await this.post(
-        CICD.jobParameters(tenantId, 'jenkins'),
-        { jobUrl },
+        CICD.jobParameters(tenantId, integrationId),
+        { workflowUrl: jobUrl },
         userId
       );
     } catch (error: any) {

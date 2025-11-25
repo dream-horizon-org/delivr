@@ -140,10 +140,10 @@ export const CICD = {
   
   /**
    * Fetch job parameters (Jenkins/GitHub Actions)
-   * POST /tenants/:tenantId/integrations/ci-cd/:provider/job-parameters
+   * POST /tenants/:tenantId/integrations/ci-cd/:integrationId/job-parameters
    */
-  jobParameters: (tenantId: string, provider: string) => 
-    `/tenants/${tenantId}/integrations/ci-cd/${provider}/job-parameters`,
+  jobParameters: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/ci-cd/${integrationId}/job-parameters`,
   
   /**
    * List all workflows (with optional filters)

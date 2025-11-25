@@ -3,7 +3,7 @@
  * Captures GitHub Actions-specific build configuration with dynamic parameter fetching
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TextInput, Select, Stack, Button, Text, Alert, LoadingOverlay, Card, Badge, Group } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
@@ -31,6 +31,17 @@ export function GitHubActionsConfigForm({
   
   const inputs = config.inputs || {};
   
+  // Auto-select integration if only one exists
+  useEffect(() => {
+    if (availableIntegrations.length === 1 && !config.integrationId) {
+      onChange({
+        ...config,
+        integrationId: availableIntegrations[0].id,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableIntegrations.length, availableIntegrations[0]?.id]);
+  
   const handleAddInput = () => {
     if (newInputKey && newInputValue) {
       onChange({
@@ -56,8 +67,9 @@ export function GitHubActionsConfigForm({
   
   // Fetch workflow inputs from GitHub Actions
   const handleFetchParameters = async () => {
-    if (!config.workflowPath?.trim()) {
-      setFetchError('Please enter a workflow path first');
+    const workflowUrl = config.workflowUrl || config.workflowPath;
+    if (!workflowUrl?.trim()) {
+      setFetchError('Please enter a workflow URL first');
       return;
     }
     
@@ -69,14 +81,23 @@ export function GitHubActionsConfigForm({
     setFetchingParams(true);
     setFetchError(null);
     
+    if (!config.integrationId) {
+      setFetchError('Please select a GitHub integration first');
+      setFetchingParams(false);
+      return;
+    }
+    
     try {
       const result = await apiPost<{ parameters: JobParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
           providerType: 'GITHUB_ACTIONS',
-          url: config.workflowPath,
+          integrationId: config.integrationId,
+          url: workflowUrl,
         }
       );
+
+      console.log('result', result);
       
       if (result.success && result.data?.parameters) {
         setFetchedParameters(result.data.parameters);
@@ -122,41 +143,41 @@ export function GitHubActionsConfigForm({
       <LoadingOverlay visible={fetchingParams} />
       
       <Stack gap="md">
-      <Select
-        label="GitHub Repository"
-        placeholder="Select GitHub repository"
-        data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
-        value={config.integrationId}
-        onChange={(val) => onChange({ ...config, integrationId: val || '' })}
-        required
-        description="Choose the connected GitHub repository"
-      />
+      {/* Only show integration selector if multiple integrations exist */}
+      {availableIntegrations.length > 1 && (
+        <Select
+          label="GitHub Integration"
+          placeholder="Select GitHub Actions integration"
+          data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+          value={config.integrationId}
+          onChange={(val) => onChange({ ...config, integrationId: val || '' })}
+          required
+          description="Choose the connected GitHub Actions integration"
+        />
+      )}
+      
+      {/* Show integration name if only one exists */}
+      {availableIntegrations.length === 1 && (
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">GitHub Integration:</span> {availableIntegrations[0].name}
+        </div>
+      )}
       
       <TextInput
-        label="Workflow Path"
-        placeholder=".github/workflows/build.yml"
-        value={config.workflowPath || ''}
-        onChange={(e) => onChange({ ...config, workflowPath: e.target.value })}
+        label="Workflow URL"
+        placeholder="https://github.com/owner/repo/blob/main/.github/workflows/build.yml"
+        value={config.workflowUrl || config.workflowPath || ''}
+        onChange={(e) => {
+          const url = e.target.value;
+          onChange({ 
+            ...config, 
+            workflowUrl: url,
+            // Keep workflowPath for backward compatibility
+            workflowPath: url.startsWith('http') ? undefined : url,
+          });
+        }}
         required
-        description="Path to the GitHub Actions workflow file"
-      />
-      
-      <TextInput
-        label="Workflow ID"
-        placeholder="build.yml"
-        value={config.workflowId || ''}
-        onChange={(e) => onChange({ ...config, workflowId: e.target.value })}
-        required
-        description="Workflow file name"
-      />
-      
-      <TextInput
-        label="Branch"
-        placeholder="main"
-        value={config.branch || 'main'}
-        onChange={(e) => onChange({ ...config, branch: e.target.value })}
-        required
-        description="Branch to run the workflow on"
+        description="Full GitHub URL to the workflow file. Supports both formats: /blob/branch/path (recommended) or /actions/workflows/file.yml (uses default branch)"
       />
       
       {/* Fetch Parameters Button */}
@@ -165,7 +186,7 @@ export function GitHubActionsConfigForm({
           leftSection={<IconRefresh size={16} />}
           onClick={handleFetchParameters}
           loading={fetchingParams}
-          disabled={!config.workflowPath?.trim()}
+          disabled={!config.workflowUrl?.trim() && !config.workflowPath?.trim()}
           variant="light"
           fullWidth
         >

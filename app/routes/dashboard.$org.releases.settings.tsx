@@ -7,7 +7,7 @@ import { json } from '@remix-run/node';
 import { useLoaderData, Link, useFetcher, useNavigate, useSearchParams } from '@remix-run/react';
 import { useState, useEffect, useMemo } from 'react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
-import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
+import { apiDelete, apiPut, apiGet, apiPost, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast, showInfoToast } from '~/utils/toast';
 import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
@@ -20,6 +20,8 @@ import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import type { Integration } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
+import { WorkflowList } from '~/components/ReleaseConfig/Settings/WorkflowList';
+import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
@@ -143,6 +145,10 @@ export default function ReleaseSettingsPage() {
   const [activeTab, setActiveTab] = useState<'integrations' | 'configurations' | 'cicd' | 'general'>(
     tabFromUrl || 'integrations'
   );
+
+  // Workflows state
+  const [workflows, setWorkflows] = useState<CICDWorkflow[]>([]);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   
   // Sync activeTab with URL params
   useEffect(() => {
@@ -164,6 +170,103 @@ export default function ReleaseSettingsPage() {
     getConnectedIntegrations,
     getAvailableIntegrations 
   } = useConfig();
+
+  // Get CI/CD integrations
+  const cicdIntegrations = getConnectedIntegrations(IntegrationCategory.CI_CD);
+  const availableCICDIntegrations = getAvailableIntegrations(IntegrationCategory.CI_CD);
+  
+  // Extract Jenkins and GitHub integrations
+  const jenkinsIntegrations = cicdIntegrations
+    .filter(i => i.providerId.toLowerCase() === 'jenkins')
+    .map(i => ({ id: i.id, name: i.name || 'Jenkins' }));
+  
+  const githubIntegrations = cicdIntegrations
+    .filter(i => i.providerId.toLowerCase() === 'github_actions' || i.providerId.toLowerCase() === 'github')
+    .map(i => ({ id: i.id, name: i.name || 'GitHub Actions' }));
+
+  // Fetch workflows
+  const fetchWorkflows = async () => {
+    setLoadingWorkflows(true);
+    try {
+      const result = await apiGet<{ success: boolean; workflows?: CICDWorkflow[] }>(
+        `/api/v1/tenants/${org}/workflows`
+      );
+      
+      if (result.success && result.data?.workflows) {
+        setWorkflows(result.data.workflows);
+      }
+    } catch (error) {
+      console.error('[Settings] Failed to fetch workflows:', error);
+    } finally {
+      setLoadingWorkflows(false);
+    }
+  };
+
+  // Load workflows when cicd tab is active
+  useEffect(() => {
+    if (activeTab === 'cicd') {
+      fetchWorkflows();
+    }
+  }, [activeTab, org]);
+
+  // Handle workflow creation
+  const handleCreateWorkflow = async (workflowData: any) => {
+    try {
+      const result = await apiPost<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/workflows`,
+        workflowData
+      );
+
+      if (result.success) {
+        showSuccessToast({ title: 'Success', message: 'Workflow created successfully' });
+        await fetchWorkflows();
+      } else {
+        showErrorToast({ title: 'Error', message: result.data?.error || 'Failed to create workflow' });
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to create workflow');
+      showErrorToast({ title: 'Error', message: errorMessage });
+    }
+  };
+
+  // Handle workflow update
+  const handleUpdateWorkflow = async (workflowId: string, workflowData: any) => {
+    try {
+      const result = await apiPut<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/workflows/${workflowId}`,
+        workflowData
+      );
+
+      if (result.success) {
+        showSuccessToast({ title: 'Success', message: 'Workflow updated successfully' });
+        await fetchWorkflows();
+      } else {
+        showErrorToast({ title: 'Error', message: result.data?.error || 'Failed to update workflow' });
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to update workflow');
+      showErrorToast({ title: 'Error', message: errorMessage });
+    }
+  };
+
+  // Handle workflow deletion
+  const handleDeleteWorkflow = async (workflowId: string) => {
+    try {
+      const result = await apiDelete<{ success: boolean; error?: string }>(
+        `/api/v1/tenants/${org}/workflows/${workflowId}`
+      );
+
+      if (result.success) {
+        showSuccessToast({ title: 'Success', message: 'Workflow deleted successfully' });
+        await fetchWorkflows();
+      } else {
+        showErrorToast({ title: 'Error', message: result.data?.error || 'Failed to delete workflow' });
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to delete workflow');
+      showErrorToast({ title: 'Error', message: errorMessage });
+    }
+  };
   
   // Configuration handlers
   const handleCreate = () => {
@@ -519,68 +622,23 @@ export default function ReleaseSettingsPage() {
         
         {activeTab === 'cicd' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900">CI/CD Pipelines</h2>
-              <Link
-                to={`/dashboard/${org}/releases/setup?step=cicd`}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Add Pipeline
-              </Link>
-            </div>
-            
-            {setupData?.cicdPipelines && setupData.cicdPipelines.length > 0 ? (
-              <div className="space-y-4">
-                {setupData.cicdPipelines.map((pipeline: any) => (
-                  <div key={pipeline.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3">
-                          <h3 className="text-lg font-medium text-gray-900">{pipeline.name}</h3>
-                          <VerificationBadge isVerified={pipeline.isVerified} />
-                        </div>
-                        
-                        <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                          <span className={`px-2 py-1 rounded ${
-                            pipeline.type === 'GITHUB_ACTIONS' ? 'bg-purple-100 text-purple-800' : 'bg-orange-100 text-orange-800'
-                          }`}>
-                            {pipeline.type === 'GITHUB_ACTIONS' ? 'GitHub Actions' : 'Jenkins'}
-                          </span>
-                          <span>{pipeline.platform}</span>
-                          <span>{pipeline.environment}</span>
-                        </div>
-                        
-                        {pipeline.type === 'GITHUB_ACTIONS' && (
-                          <p className="mt-2 text-sm text-gray-600">Workflow: {pipeline.workflowPath}</p>
-                        )}
-                        {pipeline.type === 'JENKINS' && (
-                          <p className="mt-2 text-sm text-gray-600">Job: {pipeline.jenkinsJob}</p>
-                        )}
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // TODO: Implement remove pipeline
-                        }}
-                        className="ml-4 text-sm text-red-600 hover:text-red-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
+            {loadingWorkflows ? (
+              <div className="flex justify-center items-center min-h-[400px]">
+                <MantineLoader size="lg" />
               </div>
             ) : (
-              <div className="text-center bg-white rounded-lg border border-gray-200 p-12">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No pipelines configured</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Add CI/CD pipelines to automate your build process
-                </p>
-              </div>
+              <WorkflowList
+                workflows={workflows}
+                availableIntegrations={{
+                  jenkins: jenkinsIntegrations,
+                  github: githubIntegrations,
+                }}
+                tenantId={org}
+                onRefresh={fetchWorkflows}
+                onCreate={handleCreateWorkflow}
+                onUpdate={handleUpdateWorkflow}
+                onDelete={handleDeleteWorkflow}
+              />
             )}
           </div>
         )}

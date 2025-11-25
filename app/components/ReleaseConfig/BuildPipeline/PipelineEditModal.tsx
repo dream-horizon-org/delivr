@@ -3,7 +3,7 @@
  * Modal for creating or editing build pipelines
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, TextInput, Select, Stack, Group, SegmentedControl, Text, Card, Badge, Alert } from '@mantine/core';
 import { IconServer, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import type { 
@@ -90,13 +90,17 @@ export function PipelineEditModal({
   console.log('availableIntegrations', availableIntegrations);
   // Determine available providers based on connected integrations
   // NOTE: Manual Upload is NOT available in CI/CD workflows - only Jenkins and GitHub Actions
-  const availableProviders: BuildProvider[] = [];
-  if (availableIntegrations.jenkins.length > 0) availableProviders.push(BUILD_PROVIDERS.JENKINS);
-  if (availableIntegrations.github.length > 0) availableProviders.push(BUILD_PROVIDERS.GITHUB_ACTIONS);
+  const availableProviders: BuildProvider[] =  useMemo(() => {
+    let result: BuildProvider[] = [];
+    if (availableIntegrations.jenkins.length > 0) result.push(BUILD_PROVIDERS.JENKINS);
+    if (availableIntegrations.github.length > 0) result.push(BUILD_PROVIDERS.GITHUB_ACTIONS);
+    return result;
+  }, [availableIntegrations]);
+
   
   // Get the first available provider
   const defaultProvider = availableProviders[0] || BUILD_PROVIDERS.JENKINS; // Fallback to JENKINS (will show error if not available)
-  
+  // console.log('defaultProvider', defaultProvider);
   // Reset form when modal opens or pipeline/fixedPlatform/fixedEnvironment changes
   useEffect(() => {
     if (opened) {
@@ -118,7 +122,7 @@ export function PipelineEditModal({
         if (initialProvider === BUILD_PROVIDERS.JENKINS) {
           setProviderConfig({ type: BUILD_PROVIDERS.JENKINS, parameters: {} });
         } else if (initialProvider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
-          setProviderConfig({ type: BUILD_PROVIDERS.GITHUB_ACTIONS, inputs: {}, branch: 'main' });
+          setProviderConfig({ type: BUILD_PROVIDERS.GITHUB_ACTIONS, inputs: {} });
         } else {
           setProviderConfig({ type: BUILD_PROVIDERS.MANUAL_UPLOAD });
         }
@@ -131,16 +135,36 @@ export function PipelineEditModal({
     }
   }, [opened, pipeline, fixedPlatform, fixedEnvironment, relevantWorkflows.length, availableProviders, defaultProvider]);
   
-  // Reset provider config when provider changes
+  // Reset provider config when provider changes and auto-inject integrationId
   useEffect(() => {
     if (provider === BUILD_PROVIDERS.JENKINS) {
-      setProviderConfig({ type: BUILD_PROVIDERS.JENKINS, parameters: {} } as Partial<JenkinsConfig>);
+      // Auto-select integration if only one exists
+      const jenkinsIntegrations = availableIntegrations.jenkins || [];
+      const autoIntegrationId = jenkinsIntegrations.length === 1 
+        ? jenkinsIntegrations[0].id 
+        : '';
+      
+      setProviderConfig({ 
+        type: BUILD_PROVIDERS.JENKINS, 
+        integrationId: autoIntegrationId,
+        parameters: {} 
+      } as Partial<JenkinsConfig>);
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
-      setProviderConfig({ type: BUILD_PROVIDERS.GITHUB_ACTIONS, inputs: {}, branch: 'main' } as Partial<GitHubActionsConfig>);
+      // Auto-select integration if only one exists
+      const githubIntegrations = availableIntegrations.github || [];
+      const autoIntegrationId = githubIntegrations.length === 1 
+        ? githubIntegrations[0].id 
+        : '';
+      
+      setProviderConfig({ 
+        type: BUILD_PROVIDERS.GITHUB_ACTIONS, 
+        integrationId: autoIntegrationId,
+        inputs: {} 
+      } as Partial<GitHubActionsConfig>);
     } else {
       setProviderConfig({ type: BUILD_PROVIDERS.MANUAL_UPLOAD } as Partial<ManualUploadConfig>);
     }
-  }, [provider]);
+  }, [provider, availableIntegrations]);
   
   // Filter environment options based on platform
   const filteredEnvironmentOptions = environmentOptions.filter(opt => {
@@ -191,10 +215,13 @@ export function PipelineEditModal({
       } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
         const config = providerConfig as Partial<GitHubActionsConfig>;
         if (!config.integrationId) {
-          newErrors.integration = 'GitHub repository is required';
+          newErrors.integration = 'GitHub integration is required';
         }
-        if (!config.workflowPath) {
-          newErrors.workflowPath = 'Workflow path is required';
+        const workflowUrl = config.workflowUrl || config.workflowPath;
+        if (!workflowUrl || !workflowUrl.trim()) {
+          newErrors.workflowUrl = 'Workflow URL is required';
+        } else if (!workflowUrl.startsWith('http') && !workflowUrl.startsWith('https')) {
+          newErrors.workflowUrl = 'Workflow URL must be a full GitHub URL (starting with https://)';
         }
       }
     }
@@ -225,16 +252,24 @@ export function PipelineEditModal({
         finalProviderConfig = {
           type: BUILD_PROVIDERS.GITHUB_ACTIONS,
           integrationId: selectedWorkflow.integrationId,
-          workflowId: selectedWorkflow.id,
-          workflowPath: selectedWorkflow.workflowUrl,
-          branch: 'main',
-          inputs: selectedWorkflow.parameters || {},
+          workflowUrl: selectedWorkflow.workflowUrl,
+          inputs: (selectedWorkflow.parameters as any)?.inputs || {},
         };
       }
     } else {
-      // Use new configuration
+      // Use new configuration - ensure workflowUrl is set
+      const config = providerConfig as any;
+      if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
+        finalProviderConfig = {
+          type: BUILD_PROVIDERS.GITHUB_ACTIONS,
+          integrationId: config.integrationId,
+          workflowUrl: config.workflowUrl || config.workflowPath,
+          inputs: config.inputs || {},
+        };
+      } else {
+        finalProviderConfig = providerConfig as any;
+      }
       finalProvider = provider;
-      finalProviderConfig = providerConfig as any;
     }
     
     const pipelineData: Workflow = {

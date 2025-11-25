@@ -133,10 +133,10 @@ export class GitHubActionsIntegrationService extends IntegrationService {
   /**
    * Fetch GitHub Actions workflow inputs (job parameters)
    */
-  async fetchWorkflowInputs(tenantId: string, userId: string, workflowUrl: string): Promise<any> {
+  async fetchWorkflowInputs(tenantId: string, userId: string, integrationId: string, workflowUrl: string): Promise<any> {
     try {
       return await this.post(
-        CICD.jobParameters(tenantId, 'github-actions'),
+        CICD.jobParameters(tenantId, integrationId),
         { workflowUrl },
         userId
       );

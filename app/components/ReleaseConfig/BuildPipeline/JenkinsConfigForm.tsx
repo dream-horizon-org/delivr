@@ -3,7 +3,7 @@
  * Captures Jenkins-specific build configuration with dynamic parameter fetching
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TextInput, Select, Stack, Button, Text, Group, Alert, LoadingOverlay, Card, Badge } from '@mantine/core';
 import { IconPlus, IconTrash, IconRefresh, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, getApiErrorMessage } from '~/utils/api-client';
@@ -30,6 +30,17 @@ export function JenkinsConfigForm({
   const [fetchedParameters, setFetchedParameters] = useState<JobParameter[]>([]);
   
   const parameters = config.parameters || {};
+  
+  // Auto-select integration if only one exists
+  useEffect(() => {
+    if (availableIntegrations.length === 1 && !config.integrationId) {
+      onChange({
+        ...config,
+        integrationId: availableIntegrations[0].id,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableIntegrations.length, availableIntegrations[0]?.id]);
   
   const handleAddParameter = () => {
     if (newParamKey && newParamValue) {
@@ -69,11 +80,18 @@ export function JenkinsConfigForm({
     setFetchingParams(true);
     setFetchError(null);
     
+    if (!config.integrationId) {
+      setFetchError('Please select a Jenkins integration first');
+      setFetchingParams(false);
+      return;
+    }
+    
     try {
       const result = await apiPost<{ parameters: JobParameter[] }>(
         `/api/v1/tenants/${tenantId}/workflows/job-parameters`,
         {
           providerType: 'JENKINS',
+          integrationId: config.integrationId,
           url: config.jobUrl,
         }
       );
@@ -122,15 +140,25 @@ export function JenkinsConfigForm({
       <LoadingOverlay visible={fetchingParams} />
       
       <Stack gap="md">
-      <Select
-        label="Jenkins Instance"
-        placeholder="Select Jenkins instance"
-        data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
-        value={config.integrationId}
-        onChange={(val) => onChange({ ...config, integrationId: val || '' })}
-        required
-        description="Choose the connected Jenkins instance"
-      />
+      {/* Only show integration selector if multiple integrations exist */}
+      {availableIntegrations.length > 1 && (
+        <Select
+          label="Jenkins Instance"
+          placeholder="Select Jenkins instance"
+          data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+          value={config.integrationId}
+          onChange={(val) => onChange({ ...config, integrationId: val || '' })}
+          required
+          description="Choose the connected Jenkins instance"
+        />
+      )}
+      
+      {/* Show integration name if only one exists */}
+      {availableIntegrations.length === 1 && (
+        <div className="text-sm text-gray-600">
+          <span className="font-medium">Jenkins Instance:</span> {availableIntegrations[0].name}
+        </div>
+      )}
       
       <TextInput
         label="Job URL"

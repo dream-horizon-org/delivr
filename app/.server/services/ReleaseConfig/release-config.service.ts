@@ -103,7 +103,7 @@ export class ReleaseConfigService {
         };
       }
 
-      console.log('[ReleaseConfigService] List successful:', JSON.stringify(result.data, null, 2), result.data?.length || 0, 'configs');
+      console.log('[ReleaseConfigService] List successful:',result.data?.length || 0, 'configs');
 
       return {
         success: true,
