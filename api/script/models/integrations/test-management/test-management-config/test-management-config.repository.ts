@@ -29,6 +29,7 @@ export class TestManagementConfigRepository {
       tenantId: data.tenantId,
       integrationId: data.integrationId,
       name: data.name,
+      projectId: data.projectId, // Checkmate project ID
       passThresholdPercent: data.passThresholdPercent,
       platformConfigurations: data.platformConfigurations,
       createdByAccountId: createdByAccountIdValue
