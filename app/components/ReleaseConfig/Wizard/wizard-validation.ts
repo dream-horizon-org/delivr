@@ -12,6 +12,7 @@ import {
 } from '~/types/release-config-constants';
 import { validateConfiguration } from '~/utils/release-config-storage';
 import { STEP_INDEX } from '~/constants/wizard-steps';
+import { validateScheduling } from '~/components/ReleaseConfig/Scheduling/scheduling-validation';
 
 /**
  * Validates if user can proceed from current wizard step
@@ -72,8 +73,16 @@ export const canProceedFromStep = (
       
     case STEP_INDEX.TESTING:
     case STEP_INDEX.COMMUNICATION:
-    case STEP_INDEX.SCHEDULING:
       return true; // Optional steps
+      
+    case STEP_INDEX.SCHEDULING:
+      // If user opted out of scheduling, allow proceed
+      if (!config.scheduling) {
+        return true;
+      }
+      // If user opted in, validate scheduling config
+      const schedulingErrors = validateScheduling(config.scheduling);
+      return schedulingErrors.length === 0;
       
     case STEP_INDEX.REVIEW:
       const validation = validateConfiguration(config);
