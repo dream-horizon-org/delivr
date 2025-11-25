@@ -184,6 +184,7 @@ export function prepareReleaseConfigPayload(
       tenantId: tenantId,
       integrationId: providerConfig.integrationId,
       name: `Test Management for ${config.name}`,
+      projectId: providerConfig.projectId || 0, // ✅ ALWAYS include projectId (required for Checkmate)
       passThresholdPercent: providerConfig.passThresholdPercent || 100,
       platformConfigurations: transformedPlatformConfigs,
       createdByAccountId: userId,
@@ -212,51 +213,36 @@ export function prepareReleaseConfigPayload(
   // UI Structure: config.projectManagement with flat platformConfigurations
   // Backend Structure: projectManagement with nested parameters
   // ========================================================================
-  if (config.projectManagement) {
+  if (config.projectManagement?.enabled && config.projectManagement.integrationId) {
     const pmConfig = config.projectManagement;
     
-    // If disabled or no integrationId, send empty platformConfigurations
-    if (!pmConfig.enabled || !pmConfig.integrationId) {
-      payload.projectManagement = {
-        tenantId: tenantId,
-        integrationId: pmConfig.integrationId || '',
-        name: `PM Config for ${config.name}`,
-        ...(config.description && { description: config.description }),
-        platformConfigurations: [], // Empty array when disabled
-        createdByAccountId: userId,
+    // Transform platformConfigurations: UI sends flat structure, backend expects nested "parameters"
+    const transformedPMPlatformConfigs = (pmConfig.platformConfigurations || []).map((pc: any) => {
+      const { platform, projectKey, issueType, completedStatus, priority, labels, assignee, customFields } = pc;
+      return {
+        platform,
+        parameters: {
+          projectKey,
+          ...(issueType && { issueType }),
+          completedStatus,
+          ...(priority && { priority }),
+          ...(labels && { labels }),
+          ...(assignee && { assignee }),
+          ...(customFields && { customFields }),
+        },
       };
-      console.log('[ProjectManagement] Disabled - sending empty platformConfigurations');
-    } else {
-      // Transform platformConfigurations: UI sends flat structure, backend expects nested "parameters"
-      const transformedPMPlatformConfigs = (pmConfig.platformConfigurations || []).map((pc: any) => {
-        const { platform, projectKey, issueType, completedStatus, priority, labels, assignee, customFields } = pc;
-        return {
-          platform,
-          parameters: {
-            projectKey,
-            ...(issueType && { issueType }),
-            completedStatus,
-            ...(priority && { priority }),
-            ...(labels && { labels }),
-            ...(assignee && { assignee }),
-            ...(customFields && { customFields }),
-          },
-        };
-      });
-      
-      payload.projectManagement = {
-        tenantId: tenantId,
-        integrationId: pmConfig.integrationId,
-        name: `PM Config for ${config.name}`,
-        ...(config.description && { description: config.description }),
-        platformConfigurations: transformedPMPlatformConfigs,
-        createdByAccountId: userId,
-      };
-      
-      console.log('[ProjectManagement] Platform configurations:', JSON.stringify(transformedPMPlatformConfigs, null, 2));
-    }
+    });
+    
+    payload.projectManagement = {
+      tenantId: tenantId,
+      integrationId: pmConfig.integrationId,
+      name: `PM Config for ${config.name}`,
+      ...(config.description && { description: config.description }),
+      platformConfigurations: transformedPMPlatformConfigs,
+      createdByAccountId: userId,
+    };
   }
-  // If undefined, omit entirely (backend optional)
+  // If undefined or disabled, omit entirely (backend optional)
 
   // ========================================================================
   // TRANSFORMATION 5: Scheduling - Lowercase releaseFrequency

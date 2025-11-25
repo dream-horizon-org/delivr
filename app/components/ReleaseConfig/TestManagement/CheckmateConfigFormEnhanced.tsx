@@ -71,9 +71,12 @@ export function CheckmateConfigFormEnhanced({
   availableIntegrations,
   selectedTargets, // NEW: Receive selected targets
 }: CheckmateConfigFormEnhancedProps) {
-  const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('');
+  // ✅ Initialize selectedIntegrationId from config immediately
+  const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>(config?.integrationId || '');
   const [projects, setProjects] = useState<CheckmateProject[]>([]);
-  console.log('config CheckmateConfigFormEnhanced', config);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  // ✅ Initialize selectedProject from config.projectId
+  const [selectedProject, setSelectedProject] = useState<number | null>(config?.projectId || null);
   // Determine which platforms to show based on selected targets
   const hasAndroidTarget = selectedTargets.some(isAndroidTarget);
   const hasIOSTarget = selectedTargets.some(isIOSTarget);
@@ -104,6 +107,7 @@ export function CheckmateConfigFormEnhanced({
   // Define fetch functions BEFORE useEffect hooks that use them
   const fetchProjects = useCallback(async (integrationId: string) => {
     setIsLoadingProjects(true);
+    setProjectsLoaded(false); // ✅ Reset flag
     setError(null);
 
     try {
@@ -113,15 +117,20 @@ export function CheckmateConfigFormEnhanced({
       
       if (result.success && result.data?.projectsList) {
         setProjects(result.data.projectsList || []);
+        if(config.projectId && result.data.projectsList.some((p: any) => p.projectId === config.projectId)) {
+          setSelectedProject(config.projectId);
+        }
+        setProjectsLoaded(true); // ✅ Mark projects as loaded
       } else {
         throw new Error('Failed to fetch projects');
       }
     } catch (error) {
       setError(getApiErrorMessage(error, 'Failed to fetch projects'));
+      setProjectsLoaded(false);
     } finally {
       setIsLoadingProjects(false);
     }
-  }, []);
+  }, [config.projectId]); // ✅ Add config.projectId as dependency
 
   const fetchMetadata = useCallback(async (integrationId: string, projectId: number) => {
     setIsLoadingMetadata(true);
@@ -144,12 +153,13 @@ export function CheckmateConfigFormEnhanced({
     }
   }, []);
 
-  // Initialize selectedIntegrationId from config on mount
+  // ✅ Sync selectedIntegrationId with config.integrationId (for edit mode)
   useEffect(() => {
-    if (config?.integrationId && availableIntegrations.length > 0 && !selectedIntegrationId) {
+    
+    if (config?.integrationId && config.integrationId !== selectedIntegrationId) {
       setSelectedIntegrationId(config.integrationId);
     }
-  }, [config?.integrationId, availableIntegrations, selectedIntegrationId]);
+  }, [config?.integrationId, selectedIntegrationId]); // ✅ Added selectedIntegrationId to deps
 
   // Fetch projects when integration is selected
   useEffect(() => {
@@ -158,15 +168,22 @@ export function CheckmateConfigFormEnhanced({
     }
   }, [selectedIntegrationId, fetchProjects]);
 
-  // Fetch metadata when project is selected
+  // ✅ Fetch metadata ONLY AFTER projects are loaded and projectId is valid
   useEffect(() => {
-    if (selectedIntegrationId && config.projectId) {
+    if (
+      selectedIntegrationId &&
+      projectsLoaded && // ✅ Wait for projects to load first
+      config.projectId &&
+      config.projectId > 0
+    ) {
       fetchMetadata(selectedIntegrationId, config.projectId);
     }
-  }, [selectedIntegrationId, config.projectId, fetchMetadata]);
+  }, [selectedIntegrationId, projectsLoaded, config.projectId, fetchMetadata]);
 
   const handleIntegrationChange = (integrationId: string) => {
     setSelectedIntegrationId(integrationId);
+    setProjectsLoaded(false); // ✅ Reset when integration changes
+    setProjects([]); // ✅ Clear previous projects
     
     onChange(createCompleteConfig({
       integrationId: integrationId, // Store the integration ID
@@ -176,8 +193,10 @@ export function CheckmateConfigFormEnhanced({
   };
 
   const handleProjectChange = (projectId: string) => {
+    const parsedProjectId = parseInt(projectId, 10);
+    setSelectedProject(parsedProjectId); // ✅ Update selectedProject state
     onChange(createCompleteConfig({
-      projectId: parseInt(projectId, 10),
+      projectId: parsedProjectId,
       platformConfigurations: [],
     }));
   };
@@ -258,7 +277,7 @@ export function CheckmateConfigFormEnhanced({
                 label="Checkmate Project"
                 placeholder="Select project"
                 data={projects.map(p => ({ value: p.projectId.toString(), label: p.projectName }))}
-                value={config.projectId?.toString() || ''}
+                value={config.projectId?.toString() || selectedProject?.toString() || ''} 
                 onChange={(val) => handleProjectChange(val || '')}
                 required
                 description="Select the Checkmate project for this configuration"
