@@ -15,6 +15,7 @@ import type {
   ReleaseListResponseBody, 
   SingleReleaseResponseBody 
 } from '~types/release';
+import { validateCreateReleaseRequest } from './release-validation';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
@@ -50,140 +51,19 @@ export class ReleaseManagementController {
       const accountId = req.user.id;
       const body = req.body as CreateReleaseRequestBody;
 
-      // STEP 1: Mandatory field validation
-      const mandatoryFields = [
-        'targetReleaseDate',
-        'plannedDate',
-        'platformTargets',
-        'type',
-        'baseBranch'
-      ];
-
-      const missingFields = mandatoryFields.filter(field => !body[field]);
-      if (missingFields.length > 0) {
+      // Validate request using extracted validation functions
+      const validationResult = validateCreateReleaseRequest(body);
+      if (!validationResult.isValid) {
         return res.status(400).json({
           success: false,
-          error: `Missing required fields: ${missingFields.join(', ')}`
+          error: validationResult.error
         });
       }
 
-      // STEP 2: Optional field validation
-      
-      // Validate platformTargets format (array of platform-target-version objects)
-      if (!Array.isArray(body.platformTargets) || body.platformTargets.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'platformTargets must be a non-empty array'
-        });
-      }
-
-      // Validate each platform-target pair
-      const validPlatforms = ['IOS', 'ANDROID', 'WEB'];
-      const validTargets = ['WEB', 'PLAY_STORE', 'APP_STORE'];
-      
-      for (const pt of body.platformTargets) {
-        if (!pt.platform || !pt.target || !pt.version) {
-          return res.status(400).json({
-            success: false,
-            error: 'Each platformTarget must have platform, target, and version fields'
-          });
-        }
-
-        if (!validPlatforms.includes(pt.platform)) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid platform: ${pt.platform}. Must be one of: ${validPlatforms.join(', ')}`
-          });
-        }
-
-        if (!validTargets.includes(pt.target)) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid target: ${pt.target}. Must be one of: ${validTargets.join(', ')}`
-          });
-        }
-
-        if (typeof pt.version !== 'string' || !/^v?\d+\.\d+\.\d+/.test(pt.version)) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid version format for ${pt.platform}-${pt.target}. Expected format: vX.Y.Z (e.g., v1.0.0)`
-          });
-        }
-      }
-
-      // Validate dates (optional)
+      // Parse validated dates
       const targetReleaseDate = body.targetReleaseDate ? new Date(body.targetReleaseDate) : undefined;
-
-      if (targetReleaseDate && isNaN(targetReleaseDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid targetReleaseDate format'
-        });
-      }
-
       const kickOffDate = body.kickOffDate ? new Date(body.kickOffDate) : undefined;
-
-      if (kickOffDate && isNaN(kickOffDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid kickOffDate format'
-        });
-      }
-
       const kickOffReminderDate = body.kickOffReminderDate ? new Date(body.kickOffReminderDate) : undefined;
-
-      if (kickOffReminderDate && isNaN(kickOffReminderDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid kickOffReminderDate format'
-        });
-      }
-
-      // Validate type
-      const validTypes = ['PLANNED', 'HOTFIX', 'MAJOR'];
-      if (!validTypes.includes(body.type)) {
-        return res.status(400).json({
-          success: false,
-          error: `Invalid type. Must be one of: ${validTypes.join(', ')}`
-        });
-      }
-
-
-      // Validate regressionBuildSlots if provided
-      if (body.regressionBuildSlots) {
-        if (!Array.isArray(body.regressionBuildSlots)) {
-          return res.status(400).json({
-            success: false,
-            error: 'regressionBuildSlots must be an array'
-          });
-        }
-        for (const slot of body.regressionBuildSlots) {
-          if (!slot.date || isNaN(new Date(slot.date).getTime())) {
-            return res.status(400).json({
-              success: false,
-              error: 'Each regressionBuildSlots entry must have a valid date'
-            });
-          }
-        }
-      }
-
-      // Validate preCreatedBuilds if provided
-      if (body.preCreatedBuilds) {
-        if (!Array.isArray(body.preCreatedBuilds)) {
-          return res.status(400).json({
-            success: false,
-            error: 'preCreatedBuilds must be an array'
-          });
-        }
-        for (const build of body.preCreatedBuilds) {
-          if (!build.platform || !build.target || !build.buildNumber || !build.buildUrl) {
-            return res.status(400).json({
-              success: false,
-              error: 'Each preCreatedBuilds entry must have platform, target, buildNumber, and buildUrl'
-            });
-          }
-        }
-      }
 
       // STEP 3-8: Delegate to service
       const payload: CreateReleasePayload = {
