@@ -48,13 +48,14 @@ export function ConfigurationWizard({
     setFormData: setConfig,
     isDraftRestored,
     markSaveSuccessful,
+    saveDraft,
     metadata,
     updateMetadata,
   } = useDraftStorage<Partial<ReleaseConfiguration>>(
     {
       storageKey: generateStorageKey('release-config', tenantId),
       sensitiveFields: [], // No sensitive fields in config
-      shouldSaveDraft: (data) => !isEditMode && !!data.name, // Only save if not in edit mode and has name
+      shouldSaveDraft: () => false, // Manual save only - don't auto-save on unmount
       ttl: 30 * 24 * 60 * 60 * 1000, // 30 days for release configs
       enableMetadata: true, // Enable metadata to store wizard step
     },
@@ -62,27 +63,25 @@ export function ConfigurationWizard({
     isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
   );
   
-  // Initialize step from metadata (if draft was restored) or default to 0
-  const [currentStep, setCurrentStep] = useState(() => {
-    // Only restore step for draft configs, not in edit mode
-    return !isEditMode && metadata?.wizardStep ? metadata.wizardStep : 0;
-  });
+  // Initialize step state (will be updated from metadata in useEffect)
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Initialize completed steps based on saved step
-  // Mark all steps before the saved step as completed
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(() => {
-    const savedStep = !isEditMode && metadata?.wizardStep ? metadata.wizardStep : 0;
-    if (savedStep > 0) {
+  // Restore wizard step from metadata when draft is loaded
+  useEffect(() => {
+    if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined) {
+      console.log('[ConfigWizard] Restoring wizard step from metadata:', metadata.wizardStep);
+      setCurrentStep(metadata.wizardStep);
+      
+      // Mark all previous steps as completed
       const completed = new Set<number>();
-      for (let i = 0; i < savedStep; i++) {
+      for (let i = 0; i < metadata.wizardStep; i++) {
         completed.add(i);
       }
-      return completed;
+      setCompletedSteps(completed);
     }
-    return new Set();
-  });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  }, [isDraftRestored, metadata, isEditMode]);
   
   // Auto-save current wizard step to metadata
   useEffect(() => {
@@ -95,6 +94,12 @@ export function ConfigurationWizard({
   const handleNext = () => {
     if (canProceedFromStep(currentStep, config)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
+      
+      // Save draft after validation passes (only in create mode)
+      if (!isEditMode && config.name) {
+        saveDraft();
+        console.log('[ConfigWizard] Draft saved on Next click, step:', currentStep);
+      }
       
       // Auto-skip PIPELINES step if Manual upload is selected
       if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL) {

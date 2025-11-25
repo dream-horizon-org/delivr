@@ -77,7 +77,10 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
           { value: 'MAJOR', label: 'Major Release' },
         ]}
         value={config.releaseType || 'PLANNED'}
-        onChange={(val) => onChange({ ...config, releaseType: val as any })}
+        onChange={(val) => {
+          // Prevent null values - always default to PLANNED if somehow null
+          onChange({ ...config, releaseType: (val || 'PLANNED') as any });
+        }}
         required
         clearable={false}
         description="Type of releases this configuration is for"

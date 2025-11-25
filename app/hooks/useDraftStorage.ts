@@ -117,6 +117,7 @@ export function useDraftStorage<T extends Record<string, any>>(
       setTimeout(() => setMetadata(loadedMetadata), 0);
     }
     
+    // Merge draft with defaults (draft already has null values filtered out during save)
     return draft ? { ...initialData, ...draft } : initialData;
   });
 
