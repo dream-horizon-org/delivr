@@ -570,16 +570,6 @@ export function createReleaseModel(sequelize: Sequelize) {
       allowNull: true,
       comment: 'Stores integration responses per stage (JSON object)'
     },
-    customIntegrationConfigs: {
-      type: DataTypes.JSON,
-      allowNull: true,
-      comment: 'Per-release integration config overrides (JSON object)'
-    },
-    preCreatedBuilds: {
-      type: DataTypes.JSON,
-      allowNull: true,
-      comment: 'Array of pre-created builds: [{"platform": "IOS", "target": "APP_STORE", "buildNumber": "...", "buildUrl": "..."}]'
-    },
     hasManualBuildUpload: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -1275,10 +1265,6 @@ export function createCronJobModel(sequelize: Sequelize) {
         key: 'id'
       }
     },
-    regressionTimings: {
-      type: DataTypes.STRING(255),
-      defaultValue: '09:00,17:00'
-    },
     upcomingRegressions: {
       type: DataTypes.JSON,
       allowNull: true
@@ -1286,10 +1272,6 @@ export function createCronJobModel(sequelize: Sequelize) {
     cronConfig: {
       type: DataTypes.JSON,
       allowNull: false
-    },
-    regressionTimestamp: {
-      type: DataTypes.STRING(255),
-      allowNull: true
     },
     // Locking columns (NEW - for horizontal scaling)
     // Note: Using snake_case field mapping for compatibility

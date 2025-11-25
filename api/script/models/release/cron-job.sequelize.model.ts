@@ -13,9 +13,7 @@ export type CronJobAttributes = {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: any; // JSON configuration object
-  regressionTimings: string | null; // e.g., "09:00,17:00"
   upcomingRegressions: any; // JSON array of upcoming regression schedules
-  regressionTimestamp: string | null;
   cronCreatedAt: Date;
   cronStoppedAt: Date | null;
   cronCreatedByAccountId: string;
@@ -76,23 +74,11 @@ export const createCronJobModel = (
         field: 'cronConfig',
         comment: 'Cron configuration object'
       },
-      regressionTimings: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-        field: 'regressionTimings',
-        defaultValue: '09:00,17:00',
-        comment: 'Comma-separated regression timing slots (e.g., 09:00,17:00)'
-      },
       upcomingRegressions: {
         type: DataTypes.JSON,
         allowNull: true,
         field: 'upcomingRegressions',
         comment: 'Array of upcoming regression schedules'
-      },
-      regressionTimestamp: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-        field: 'regressionTimestamp'
       },
       cronCreatedAt: {
         type: DataTypes.DATE,

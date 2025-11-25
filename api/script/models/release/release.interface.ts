@@ -48,8 +48,6 @@ export interface Release {
   targetReleaseDate: Date | null; // Target/planned release date
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
-  customIntegrationConfigs: Record<string, unknown> | null;
-  preCreatedBuilds: any[] | null;
   createdBy: string;
   lastUpdatedBy: string;
   createdAt: Date;
@@ -73,8 +71,6 @@ export interface CreateReleaseDto {
   targetReleaseDate: Date | null;
   releaseDate: Date | null;
   hasManualBuildUpload: boolean;
-  customIntegrationConfigs: Record<string, unknown> | null;
-  preCreatedBuilds: any[] | null;
   createdBy: string;
   lastUpdatedBy: string;
 }
@@ -87,8 +83,6 @@ export interface UpdateReleaseDto {
   kickOffDate?: Date | null;
   plannedDate?: Date | null;
   hasManualBuildUpload?: boolean;
-  customIntegrationConfigs?: Record<string, unknown> | null;
-  preCreatedBuilds?: any[] | null;
   lastUpdatedBy?: string;
 }
 
@@ -126,9 +120,7 @@ export interface CronJob {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: Record<string, unknown>;
-  regressionTimings: string | null;
   upcomingRegressions: any[] | null;
-  regressionTimestamp: string | null;
   cronCreatedAt: Date;
   cronStoppedAt: Date | null;
   cronCreatedByAccountId: string;
@@ -146,9 +138,7 @@ export interface CreateCronJobDto {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: Record<string, unknown>;
-  regressionTimings?: string | null;
   upcomingRegressions?: any[] | null;
-  regressionTimestamp?: string | null;
   cronCreatedByAccountId: string;
   autoTransitionToStage3?: boolean;
 }
@@ -159,7 +149,6 @@ export interface UpdateCronJobDto {
   stage3Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus?: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig?: Record<string, unknown>;
-  regressionTimings?: string | null;
   upcomingRegressions?: any[] | null;
   cronStoppedAt?: Date | null;
   lockedBy?: string | null;

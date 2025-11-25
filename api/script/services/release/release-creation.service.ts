@@ -83,8 +83,6 @@ export class ReleaseCreationService {
       targetReleaseDate: payload.targetReleaseDate || null,
       releaseDate: null, // Will be set when release is marked as COMPLETED
       hasManualBuildUpload: payload.hasManualBuildUpload,
-      customIntegrationConfigs: payload.customIntegrationConfigs || null,
-      preCreatedBuilds: payload.preCreatedBuilds || null,
       createdBy: payload.accountId,
       lastUpdatedBy: payload.accountId
     });
@@ -110,8 +108,7 @@ export class ReleaseCreationService {
       cronStatus: 'PENDING',
       cronCreatedByAccountId: payload.accountId,
       cronConfig,
-      upcomingRegressions: payload.regressionBuildSlots || null,
-      regressionTimings: payload.regressionTimings || null
+      upcomingRegressions: payload.regressionBuildSlots || null
     });
 
     // Step 6: Create Stage 1 tasks

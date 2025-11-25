@@ -18,9 +18,7 @@ export class CronJobRepository {
       cronStatus: data.cronStatus,
       cronCreatedByAccountId: data.cronCreatedByAccountId,
       cronConfig: data.cronConfig,
-      regressionTimings: data.regressionTimings || '09:00,17:00',
       upcomingRegressions: data.upcomingRegressions || null,
-      regressionTimestamp: data.regressionTimestamp || null,
       autoTransitionToStage3: data.autoTransitionToStage3 || false,
       cronCreatedAt: new Date()
     });

@@ -19,7 +19,6 @@ export interface CreateCronJobData {
   accountId: string; // Creator account ID
   cronConfig: any;
   upcomingRegressions?: Array<{ date: Date; config: any }>;
-  regressionTimings?: string;
   autoTransitionToStage3?: boolean; // NEW: For manual Stage 3 trigger (Chunk 12.5)
 }
 
@@ -29,7 +28,6 @@ export interface UpdateCronJobData {
   stage3Status?: StageStatus;
   cronStatus?: CronStatus;
   upcomingRegressions?: Array<{ date: Date; config: any }>;
-  regressionTimings?: string;
   cronConfig?: any;
   cronStoppedAt?: Date;
   lockedBy?: string | null;
@@ -65,7 +63,6 @@ export class CronJobDTO {
       autoTransitionToStage3: data.autoTransitionToStage3 !== undefined ? data.autoTransitionToStage3 : false, // NEW: Default to false (Chunk 12.5)
       cronConfig: typeof data.cronConfig === 'string' ? data.cronConfig : JSON.stringify(data.cronConfig),
       upcomingRegressions: data.upcomingRegressions ? JSON.stringify(data.upcomingRegressions) : null,
-      regressionTimings: data.regressionTimings || '09:00,17:00',
       lockTimeout: 300 // Default 5 minutes
     };
 

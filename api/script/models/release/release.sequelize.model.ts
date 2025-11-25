@@ -20,8 +20,6 @@ export type ReleaseAttributes = {
   targetReleaseDate: Date | null; // Target/planned release date
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
-  customIntegrationConfigs: any; // Per-release integration config overrides
-  preCreatedBuilds: any; // Array of pre-created builds
   createdBy: string; // Account ID who created release
   lastUpdatedBy: string; // Account ID who last updated release
   createdAt: Date;
@@ -120,18 +118,6 @@ export const createReleaseModel = (
         defaultValue: false,
         field: 'hasManualBuildUpload',
         comment: 'Whether manual build upload is enabled'
-      },
-      customIntegrationConfigs: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        field: 'customIntegrationConfigs',
-        comment: 'Per-release integration config overrides (JSON object)'
-      },
-      preCreatedBuilds: {
-        type: DataTypes.JSON,
-        allowNull: true,
-        field: 'preCreatedBuilds',
-        comment: 'Array of pre-created builds'
       },
       createdBy: {
         type: DataTypes.STRING(255),
