@@ -10,6 +10,14 @@ import type {
 } from '~types/integrations/test-management/test-management-config';
 
 /**
+ * Platform-Target pair for release config
+ */
+export type PlatformTarget = {
+  platform: string;
+  target: string;
+};
+
+/**
  * Release Configuration
  */
 export type ReleaseConfiguration = {
@@ -18,14 +26,14 @@ export type ReleaseConfiguration = {
   name: string;
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms: string[] | null;
+  platformTargets: PlatformTarget[];
   baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
   projectManagementConfigId: string | null;
   commsConfigId: string | null;
   scheduling: ReleaseScheduling;
+  hasManualBuildUpload: boolean;
   isActive: boolean;
   isDefault: boolean;
   createdByAccountId: string;
@@ -41,14 +49,14 @@ export type CreateReleaseConfigDto = {
   name: string;
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms?: string[];
+  platformTargets: PlatformTarget[];
   baseBranch?: string;
   ciConfigId?: string;
   testManagementConfigId?: string;
   projectManagementConfigId?: string;
   commsConfigId?: string;
   scheduling?: ReleaseScheduling;
+  hasManualBuildUpload?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
   createdByAccountId: string;
@@ -61,14 +69,14 @@ export type UpdateReleaseConfigDto = {
   name?: string;
   description?: string;
   releaseType?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets?: string[];
-  platforms?: string[] | null;
+  platformTargets?: PlatformTarget[];
   baseBranch?: string | null;
   ciConfigId?: string | null;
   testManagementConfigId?: string | null;
   projectManagementConfigId?: string | null;
   commsConfigId?: string | null;
   scheduling?: ReleaseScheduling;
+  hasManualBuildUpload?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
 };
@@ -82,8 +90,7 @@ export type CreateReleaseConfigRequest = {
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   isDefault?: boolean;
-  platforms?: string[];        // Supported platforms (e.g., ["ANDROID", "IOS"])
-  defaultTargets: string[];    // Maps to targets
+  platformTargets: PlatformTarget[];  // New format: [{"platform": "ANDROID", "target": "PLAY_STORE"}, ...]
   
   // Integration configurations (will be processed to generate config IDs)
   ciConfigId?: string;         // Optional: existing CI config ID to reuse
@@ -94,6 +101,7 @@ export type CreateReleaseConfigRequest = {
   
   scheduling?: ReleaseScheduling;            // Stored directly as JSON
   baseBranch?: string;         // Base branch for releases
+  hasManualBuildUpload?: boolean;  // Whether manual build upload is enabled
   status?: string;             // Not stored in release config
 };
 
@@ -107,8 +115,7 @@ export type SafeReleaseConfiguration = {
   name: string;
   description: string | null;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
-  targets: string[];
-  platforms: string[] | null;
+  platformTargets: PlatformTarget[];
   baseBranch: string | null;
   isActive: boolean;
   isDefault: boolean;

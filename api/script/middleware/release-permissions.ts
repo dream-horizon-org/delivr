@@ -9,14 +9,14 @@ import { getUserTenantPermission } from './tenant-permissions';
  * Release-level permission middleware
  * 
  * Permission hierarchy:
- * 1. Release creator (createdBy) → automatic Owner
- * 2. Release pilot (releasePilotId) → automatic Owner (can be ANY tenant member, even Viewer)
+ * 1. Release creator (createdByAccountId) → automatic Owner
+ * 2. Release pilot (releasePilotAccountId) → automatic Owner (can be ANY tenant member, even Viewer)
  * 3. Tenant permission → fallback to tenant-level role (Owner/Editor/Viewer)
  * 
  * Note: 
  * - No app-level permissions are considered in release context
  * - This middleware is for FUTURE use when Delivr is migrated
- * - Currently uses simplified release model field names
+ * - Column names match remote database schema (createdByAccountId, releasePilotAccountId)
  */
 
 export interface ReleasePermissionConfig {
@@ -43,7 +43,7 @@ export async function getUserReleasePermission(
     }
     
     // Check if user is release creator
-    if (release.dataValues.createdBy === userId) {
+    if (release.dataValues.createdByAccountId === userId) {
       return {
         permission: 'Owner',
         isCreator: true,
@@ -53,7 +53,7 @@ export async function getUserReleasePermission(
     
     // Check if user is release pilot (can be ANY tenant member, even Viewer)
     // Release pilot = Release owner (same concept, same permissions)
-    if (release.dataValues.releasePilotId === userId) {
+    if (release.dataValues.releasePilotAccountId === userId) {
       return {
         permission: 'Owner',
         isCreator: false,
