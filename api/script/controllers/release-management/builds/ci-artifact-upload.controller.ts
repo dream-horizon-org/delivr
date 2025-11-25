@@ -12,6 +12,7 @@ import {
 import { BuildRepository } from '~models/build/build.repository';
 import { getFileWithField } from '../../../file-upload-manager';
 import { getOptionalTrimmedString } from '~utils/request.utils';
+ 
 
 export const createCiArtifactUploadHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -36,7 +37,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
       }
 
       // Fetch build info by ci_run_id
-      const repo = new BuildRepository();
+      const repo: BuildRepository = (storage as S3Storage).buildRepository;
       const build = await repo.findByCiRunId(ciRunId);
       const buildNotFound = !build;
       if (buildNotFound) {

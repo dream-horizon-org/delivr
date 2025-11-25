@@ -15,6 +15,7 @@ import { BuildRepository } from '~models/build/build.repository';
 import * as shortid from 'shortid';
 import { getFileWithField } from '../../../file-upload-manager';
 import { getOptionalTrimmedString } from '~utils/request.utils';
+ 
 
 export const createManualBuildUploadHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -163,7 +164,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       }
 
       try {
-        const repo = new BuildRepository();
+        const repo: BuildRepository = (storage as S3Storage).buildRepository;
         const now = new Date();
         const id = shortid.generate();
         await repo.create({

@@ -8,6 +8,7 @@ import { parseS3Uri } from '~utils/s3-path.utils';
 import { generatePresignedGetUrl } from '~utils/s3-upload.utils';
 import { getOptionalTrimmedString } from '~utils/request.utils';
 import type { BuildListItem } from '~types/release-management/builds/build.interface';
+ 
 
 export const createListBuildArtifactsHandler = (storage: unknown) => async (req: Request, res: Response): Promise<void> => {
   try {
@@ -43,7 +44,7 @@ export const createListBuildArtifactsHandler = (storage: unknown) => async (req:
       return;
     }
 
-    const repo = new BuildRepository();
+    const repo = (storage as S3Storage).buildRepository;
     const regressionId = getOptionalTrimmedString(regressionIdRaw);
     const builds = await repo.findBuilds({
       tenantId,

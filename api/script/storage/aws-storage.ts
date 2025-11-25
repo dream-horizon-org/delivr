@@ -64,6 +64,8 @@ import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
 import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
+import { createBuildModel } from "../models/build/build.sequelize.model";
+import { BuildRepository } from "../models/build/build.repository";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -642,6 +644,7 @@ export class S3Storage implements storage.Storage {
     public channelController!: ChannelController;  // Channel configuration controller
     public slackIntegrationService!: SlackIntegrationService;
     public slackChannelConfigService!: SlackChannelConfigService;// Slack channel config service
+    public buildRepository!: BuildRepository;
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -881,6 +884,11 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo
           );
           console.log("Release Retrieval Service initialized");
+          
+          // Initialize Build repository (for artifact listings/uploads)
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
           
           // return this.sequelize.sync();
         })
