@@ -31,14 +31,14 @@ export const SCM_PROVIDERS = [
     requiresOAuth: false,
     features: ['Repositories', 'Pull Requests', 'Pipelines', 'Jira Integration']
   },
-  {
-    id: 'azure-repos',
-    name: 'Azure Repos',
-    description: 'Git repositories in Azure DevOps',
-    enabled: false,
-    status: 'coming_soon',
-    requiresOAuth: true,
-    features: ['Git Repositories', 'Branch Policies', 'Code Search', 'Pull Requests']
-  }
+  // {
+  //   id: 'azure-repos',
+  //   name: 'Azure Repos',
+  //   description: 'Git repositories in Azure DevOps',
+  //   enabled: false,
+  //   status: 'coming_soon',
+  //   requiresOAuth: true,
+  //   features: ['Git Repositories', 'Branch Policies', 'Code Search', 'Pull Requests']
+  // }
 ] as const;
 

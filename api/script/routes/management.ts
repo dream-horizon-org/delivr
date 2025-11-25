@@ -72,6 +72,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       // Return all providers with isAvailable flag
       const SOURCE_CONTROL = SCM_PROVIDERS
         .map(p => ({ 
+          ...p,
           id: p.id, 
           name: p.name, 
           requiresOAuth: p.requiresOAuth,
@@ -80,6 +81,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       
       const CI_CD = CICD_PROVIDERS
         .map(p => ({ 
+          ...p,
           id: p.id, 
           name: p.name, 
           requiresOAuth: p.requiresOAuth,
@@ -88,6 +90,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
       
       const TEST_MANAGEMENT = TEST_MANAGEMENT_PROVIDERS
         .map(p => ({ 
+          ...p,
           id: p.type, 
           name: p.name, 
           requiresOAuth: false,
@@ -105,15 +108,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
       const PROJECT_MANAGEMENT = [
         { id: "jira", name: "Jira", requiresOAuth: false, isAvailable: true },
         { id: "linear", name: "Linear", requiresOAuth: false, isAvailable: false },
-        { id: "asana", name: "Asana", requiresOAuth: false, isAvailable: false },
+        // { id: "asana", name: "Asana", requiresOAuth: false, isAvailable: false },
       ];
       
       const APP_DISTRIBUTION = [
-        { id: "APP_STORE", name: "App Store", requiresOAuth: false, isAvailable: false },
+        { id: "APP_STORE", name: "App Store", requiresOAuth: false, isAvailable: true },
         { id: "PLAY_STORE", name: "Play Store", requiresOAuth: false, isAvailable: true },
-        { id: "TESTFLIGHT", name: "TestFlight", requiresOAuth: false, isAvailable: false },
-        { id: "FIREBASE", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
-        { id: "MICROSOFT_STORE", name: "Microsoft Store", requiresOAuth: false, isAvailable: false },
+        // { id: "TESTFLIGHT", name: "TestFlight", requiresOAuth: false, isAvailable: false },
+        // { id: "FIREBASE", name: "Firebase App Distribution", requiresOAuth: true, isAvailable: false },
+        // { id: "MICROSOFT_STORE", name: "Microsoft Store", requiresOAuth: false, isAvailable: false },
       ];
 
       const metadata = {
