@@ -245,7 +245,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   );
 
   // List artifact paths for a release filtered by platform (query param)
-  // GET /tenants/:tenantId/releases/:releaseId/builds/artifacts?platform=ANDROID|IOS
+  // GET /tenants/:tenantId/releases/:releaseId/builds/artifacts?platform=ANDROID&regression_id=123
   router.get(
     "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
     tenantPermissions.requireOwner({ storage }),
