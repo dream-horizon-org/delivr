@@ -20,24 +20,12 @@ export function createDefaultConfig(tenantId: string): Partial<ReleaseConfigurat
     isDefault: true,
     platforms: [], // Will be derived from targets
     targets: [], // User must select distribution targets
-    buildUploadStep: 'MANUAL', // Default to manual upload (can switch to CI_CD)
-    workflows: [], // Empty - only populated if buildUploadStep = 'CI_CD'
-    testManagement: {
-      enabled: false,
-      provider: 'none',
-    },
+    hasManualBuildUpload: true, // Default to manual upload (false = CI/CD)
+    workflows: [], // Empty - only populated if hasManualBuildUpload = false
+    testManagement: undefined, // Optional - user must enable
     scheduling: undefined, // Optional - user must opt-in
-    communication: {
-      slack: undefined,
-      email: undefined,
-    },
-    jiraProject: {
-      enabled: false,
-      integrationId: '',
-      platformConfigurations: [], // Will be populated when user enables JIRA and selects platforms
-      createReleaseTicket: true,
-      linkBuildsToIssues: true,
-    },
+    communication: undefined, // Optional - user must enable
+    projectManagement: undefined, // Optional - user must enable
     status: 'DRAFT',
   };
 }

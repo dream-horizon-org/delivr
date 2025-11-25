@@ -62,6 +62,7 @@ export function ConfigurationWizard({
     // Initial data: Use existing config (edit mode) or draft (create mode) or default
     isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
   );
+  console.log('[ConfigWizard] Config:', JSON.stringify(config, null, 2));
   
   // Initialize step state (will be updated from metadata in useEffect)
   const [currentStep, setCurrentStep] = useState(0);
@@ -102,7 +103,7 @@ export function ConfigurationWizard({
       }
       
       // Auto-skip PIPELINES step if Manual upload is selected
-      if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL) {
+      if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.hasManualBuildUpload) {
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
         setCurrentStep(currentStep + 2); // Skip pipelines step
       } else {
@@ -114,7 +115,7 @@ export function ConfigurationWizard({
   const handlePrevious = () => {
     if (currentStep > 0) {
       // Auto-skip PIPELINES step backwards if Manual upload is selected
-      if (currentStep === STEP_INDEX.TESTING && config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL) {
+      if (currentStep === STEP_INDEX.TESTING && config.hasManualBuildUpload) {
         setCurrentStep(currentStep - 2); // Skip back over pipelines step
       } else {
       setCurrentStep(currentStep - 1);
@@ -197,8 +198,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.BUILD_UPLOAD: // Build Upload Method Selection
         return (
           <BuildUploadSelector
-            selectedMode={config.buildUploadStep || BUILD_UPLOAD_STEPS.MANUAL}
-            onChange={(mode) => setConfig({ ...config, buildUploadStep: mode })}
+            hasManualBuildUpload={config.hasManualBuildUpload ?? true}
+            onChange={(hasManualBuildUpload) => setConfig({ ...config, hasManualBuildUpload })}
             hasIntegrations={
               availableIntegrations.jenkins.length > 0 || 
               availableIntegrations.github.length > 0
@@ -207,8 +208,8 @@ export function ConfigurationWizard({
         );
         
       case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
-        // Only show if CI/CD is selected
-        if (config.buildUploadStep !== BUILD_UPLOAD_STEPS.CI_CD) {
+        // Only show if CI/CD is selected (hasManualBuildUpload = false)
+        if (config.hasManualBuildUpload) {
           // Skip this step - auto-proceed to next
           return null;
         }
@@ -240,8 +241,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.PROJECT_MANAGEMENT: // Jira Project Management
         return (
           <JiraProjectStep
-            config={config.jiraProject!}
-            onChange={(jiraProject) => setConfig({ ...config, jiraProject })}
+            config={config.projectManagement!}
+            onChange={(projectManagement) => setConfig({ ...config, projectManagement })}
             availableIntegrations={availableIntegrations.jira}
             selectedPlatforms={config.platforms || []}
           />

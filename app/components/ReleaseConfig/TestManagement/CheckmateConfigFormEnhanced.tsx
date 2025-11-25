@@ -73,7 +73,7 @@ export function CheckmateConfigFormEnhanced({
 }: CheckmateConfigFormEnhancedProps) {
   const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>('');
   const [projects, setProjects] = useState<CheckmateProject[]>([]);
-  
+  console.log('config CheckmateConfigFormEnhanced', config);
   // Determine which platforms to show based on selected targets
   const hasAndroidTarget = selectedTargets.some(isAndroidTarget);
   const hasIOSTarget = selectedTargets.some(isIOSTarget);
@@ -89,12 +89,12 @@ export function CheckmateConfigFormEnhanced({
   const createCompleteConfig = (updates: Partial<CheckmateSettings>): CheckmateSettings => {
     return {
       type: 'checkmate',
-      integrationId: config.integrationId || '',
-      projectId: config.projectId || 0,
-      platformConfigurations: config.platformConfigurations || [],
-      autoCreateRuns: config.autoCreateRuns ?? false,
-      passThresholdPercent: config.passThresholdPercent ?? 100,
-      filterType: config.filterType || 'AND',
+      integrationId: config?.integrationId || '',
+      projectId: config?.projectId || 0,
+      platformConfigurations: config?.platformConfigurations || [],
+      autoCreateRuns: config?.autoCreateRuns ?? false,
+      passThresholdPercent: config?.passThresholdPercent ?? 100,
+      filterType: config?.filterType || 'AND',
       ...updates,
     };
   };
@@ -146,10 +146,10 @@ export function CheckmateConfigFormEnhanced({
 
   // Initialize selectedIntegrationId from config on mount
   useEffect(() => {
-    if (config.integrationId && availableIntegrations.length > 0 && !selectedIntegrationId) {
+    if (config?.integrationId && availableIntegrations.length > 0 && !selectedIntegrationId) {
       setSelectedIntegrationId(config.integrationId);
     }
-  }, [config.integrationId, availableIntegrations, selectedIntegrationId]);
+  }, [config?.integrationId, availableIntegrations, selectedIntegrationId]);
 
   // Fetch projects when integration is selected
   useEffect(() => {

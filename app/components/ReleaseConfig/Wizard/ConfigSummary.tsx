@@ -12,11 +12,12 @@ import {
   IconBell,
   IconCheck,
   IconX,
+  IconTicket,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigSummaryProps } from '~/types/release-config-props';
 import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
-import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES, SUMMARY_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
+import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES } from '~/constants/release-config-ui';
 
 export function ConfigSummary({ config }: ConfigSummaryProps) {
   return (
@@ -33,7 +34,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
       {/* Basic Info */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
-          <IconSettings size={ICON_SIZES.MEDIUM} className="text-blue-600" />
+          <IconSettings size={20} className="text-blue-600" />
           <Text fw={600} size="sm">
             {SECTION_TITLES.BASIC_INFORMATION}
           </Text>
@@ -70,7 +71,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
       {/* Build Upload Method */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
-          <IconSettings size={ICON_SIZES.MEDIUM} className="text-green-600" />
+          <IconSettings size={20} className="text-green-600" />
           <Text fw={600} size="sm">
             {SECTION_TITLES.BUILD_UPLOAD_METHOD}
           </Text>
@@ -78,12 +79,12 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         
         <Stack gap="sm">
           <div className="flex items-center gap-2">
-            <Badge size="lg" variant="light" color={config.buildUploadStep === BUILD_UPLOAD_STEPS.CI_CD ? 'grape' : 'blue'}>
-              {config.buildUploadStep === BUILD_UPLOAD_STEPS.CI_CD ? BUILD_UPLOAD_LABELS.CI_CD : BUILD_UPLOAD_LABELS.MANUAL}
+            <Badge size="lg" variant="light" color={!config.hasManualBuildUpload ? 'grape' : 'blue'}>
+              {!config.hasManualBuildUpload ? BUILD_UPLOAD_LABELS.CI_CD : BUILD_UPLOAD_LABELS.MANUAL}
             </Badge>
           </div>
           
-          {config.buildUploadStep === BUILD_UPLOAD_STEPS.CI_CD && (
+          {!config.hasManualBuildUpload && (
             <>
               <Divider />
               <div>
@@ -97,9 +98,9 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 key={pipeline.id}
                 icon={
                   pipeline.enabled ? (
-                    <IconCheck size={ICON_SIZES.SMALL} className="text-green-600" />
+                    <IconCheck size={16} className="text-green-600" />
                   ) : (
-                    <IconX size={ICON_SIZES.SMALL} className="text-gray-400" />
+                    <IconX size={16} className="text-gray-400" />
                   )
                 }
               >
@@ -127,7 +128,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
             </>
           )}
           
-          {config.buildUploadStep === BUILD_UPLOAD_STEPS.MANUAL && (
+          {config.hasManualBuildUpload && (
             <Text size="sm" c="dimmed">
               {INFO_MESSAGES.MANUAL_UPLOAD_DASHBOARD_INFO}
           </Text>
@@ -138,9 +139,9 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
       {/* Target Platforms */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Group gap="sm" className="mb-3">
-          <IconTarget size={ICON_SIZES.MEDIUM} className="text-orange-600" />
+          <IconTarget size={20} className="text-orange-600" />
           <Text fw={600} size="sm">
-            {SUMMARY_LABELS.TARGET_PLATFORMS}
+            Target Platforms
           </Text>
         </Group>
         
@@ -154,7 +155,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </Group>
         ) : (
           <Text size="sm" c="dimmed">
-            {SUMMARY_LABELS.NO_TARGETS_SELECTED}
+            No target platforms selected
           </Text>
         )}
       </Card>
@@ -187,6 +188,63 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           <Text size="sm" c="dimmed">
             Test management integration disabled
           </Text>
+        )}
+      </Card>
+      
+      {/* Project Management (JIRA) */}
+      <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Group gap="sm" className="mb-3">
+          <IconTicket size={20} className="text-blue-600" />
+          <Text fw={600} size="sm">
+            Project Management (JIRA)
+          </Text>
+        </Group>
+        
+        {config?.projectManagement?.enabled ? (
+          <Stack gap="xs">
+            <Group gap="xs">
+              <IconCheck size={16} className="text-green-600" />
+              <Text size="sm" fw={500}>
+                JIRA Integration Enabled
+              </Text>
+            </Group>
+            
+            {config?.projectManagement?.platformConfigurations && 
+             config.projectManagement.platformConfigurations.length > 0 ? (
+              <div className="ml-6">
+                <Text size="xs" c="dimmed" className="mb-1">
+                  Platform Configurations: {config.projectManagement.platformConfigurations.length}
+                </Text>
+                <List spacing="xs" size="xs">
+                  {config.projectManagement.platformConfigurations.map((pc: any) => (
+                    <List.Item key={pc.platform}>
+                      <Group gap="xs">
+                        <Badge size="xs" variant="outline">
+                          {pc.platform}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {pc.projectKey}
+                        </Text>
+                      </Group>
+                    </List.Item>
+                  ))}
+                </List>
+              </div>
+            ) : (
+              <div className="ml-6">
+                <Text size="xs" c="dimmed">
+                  No platform configurations
+                </Text>
+              </div>
+            )}
+          </Stack>
+        ) : (
+          <Group gap="xs">
+            <IconX size={16} className="text-gray-400" />
+            <Text size="sm" c="dimmed">
+              JIRA integration disabled
+            </Text>
+          </Group>
         )}
       </Card>
       

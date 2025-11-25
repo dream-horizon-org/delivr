@@ -162,29 +162,36 @@ export interface RegressionSlot {
  * Platform-specific JIRA configuration
  * Each platform can have different project settings
  */
-export interface JiraPlatformConfig {
+export interface ProjectManagementPlatformConfig {
   platform: Platform; // Platform identifier (ANDROID | IOS)
   projectKey: string; // JIRA project key (e.g., "FE", "APP", "MOBILE")
   issueType?: string; // Issue type (e.g., "Epic", "Story", "Task", "Bug")
   completedStatus: string; // Status indicating completion (e.g., "Done", "Released", "Closed")
   priority?: string; // Default priority (e.g., "High", "Medium", "Low")
+  labels?: string[]; // JIRA labels
+  assignee?: string; // Default assignee
+  customFields?: Record<string, any>; // Custom JIRA fields
 }
 
 /**
- * JIRA Project Management Configuration
- * Supports platform-level configuration for different release targets
+ * Project Management Configuration (JIRA)
+ * Flexible structure with enabled flag and platform configurations
  */
-export interface JiraProjectConfig {
+export interface ProjectManagementConfig {
   enabled: boolean;
   integrationId: string; // Reference to connected JIRA integration
   
   // Platform-specific configurations
-  platformConfigurations: JiraPlatformConfig[]; // One config per platform
+  platformConfigurations: ProjectManagementPlatformConfig[]; // One config per platform
   
   // Global settings
   createReleaseTicket?: boolean; // Auto-create release tickets
   linkBuildsToIssues?: boolean; // Link build info to Jira issues
 }
+
+// Legacy type aliases for backward compatibility
+export type JiraProjectConfig = ProjectManagementConfig;
+export type JiraPlatformConfig = ProjectManagementPlatformConfig;
 
 // ============================================================================
 // Communication Configuration
@@ -211,6 +218,10 @@ export interface StageWiseSlackChannels {
   production?: SlackChannelConfig;
 }
 
+/**
+ * Communication Configuration
+ * Flexible structure supporting multiple channels (Slack, Email, MS Teams, etc.)
+ */
 export interface CommunicationConfig {
   slack?: {
     enabled: boolean;
@@ -222,6 +233,8 @@ export interface CommunicationConfig {
     enabled: boolean;
     notificationEmails: string[];
   };
+  
+  // Future: msTeams, discord, etc.
 }
 
 // ============================================================================
@@ -248,21 +261,21 @@ export interface ReleaseConfiguration {
   targets: TargetPlatform[];
   
   // Build upload method
-  buildUploadStep: BuildUploadStep; // 'MANUAL' (default) or 'CI_CD' (when workflows configured)
+  hasManualBuildUpload: boolean; // true = manual upload, false = CI/CD
   
-  // Workflows (CI/CD pipelines - optional, only used when buildUploadStep = 'CI_CD')
+  // Workflows (CI/CD pipelines - optional, only used when hasManualBuildUpload = false)
   workflows: Workflow[];
   
-  // Test management
+  // Test management (field name matches backend POST/GET)
   testManagement: TestManagementConfig;
   
-  // Jira project management
-  jiraProject: JiraProjectConfig;
+  // Project management / JIRA (field name matches backend POST/GET)
+  projectManagement: ProjectManagementConfig;
   
   // Scheduling (Optional - for release train automation)
   scheduling?: SchedulingConfig;
   
-  // Communication
+  // Communication / Slack (field name matches backend POST/GET)
   communication: CommunicationConfig;
   
   // Metadata

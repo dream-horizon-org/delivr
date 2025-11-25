@@ -128,6 +128,7 @@ export default function ReleasesConfigurePage() {
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
+  console.log('[ReleasesConfigurePage] Existing config:', JSON.stringify(existingConfig, null, 2));
   
   // Show loading state during navigation
   const isLoading = navigation.state === 'loading';

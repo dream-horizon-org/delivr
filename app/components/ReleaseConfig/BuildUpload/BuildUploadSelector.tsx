@@ -17,10 +17,13 @@ import {
 } from '~/constants/release-config-ui';
 
 export function BuildUploadSelector({
-  selectedMode,
+  hasManualBuildUpload,
   onChange,
   hasIntegrations,
 }: BuildUploadSelectorProps) {
+  // Convert boolean to display mode
+  const selectedMode = hasManualBuildUpload ? BUILD_UPLOAD_STEPS.MANUAL : BUILD_UPLOAD_STEPS.CI_CD;
+  
   return (
     <Stack gap="xl">
       {/* Header */}
@@ -36,7 +39,7 @@ export function BuildUploadSelector({
       {/* Radio Button Selector */}
       <Radio.Group
         value={selectedMode}
-        onChange={(value) => onChange(value as typeof selectedMode)}
+        onChange={(value) => onChange(value === BUILD_UPLOAD_STEPS.MANUAL)}
       >
         <Stack gap="md">
           {/* Manual Upload Option */}
@@ -50,7 +53,7 @@ export function BuildUploadSelector({
                 ? 'border-blue-500 bg-blue-50'
                 : 'hover:border-gray-300'
             }`}
-            onClick={() => onChange(BUILD_UPLOAD_STEPS.MANUAL)}
+            onClick={() => onChange(true)}
           >
             <Group gap="md" align="flex-start">
               <Radio value={BUILD_UPLOAD_STEPS.MANUAL} size="md" className="mt-1" />
@@ -81,7 +84,7 @@ export function BuildUploadSelector({
                 ? 'border-grape-500 bg-grape-50'
                 : 'hover:border-gray-300'
             }`}
-            onClick={() => hasIntegrations && onChange(BUILD_UPLOAD_STEPS.CI_CD)}
+            onClick={() => hasIntegrations && onChange(false)}
           >
             <Group gap="md" align="flex-start">
               <Radio value={BUILD_UPLOAD_STEPS.CI_CD} size="md" disabled={!hasIntegrations} className="mt-1" />

@@ -59,7 +59,7 @@ export interface ProjectManagementConfigResponse {
  * @param tenantId - Tenant/Project ID
  * @param configName - Name for the configuration
  * @param userId - User ID creating the config
- * @returns Backend DTO or null if config is disabled
+ * @returns Backend DTO with empty platformConfigurations if disabled, null if not configured
  */
 export function transformJiraConfigToBackendDTO(
   jiraConfig: JiraProjectConfig,
@@ -67,24 +67,39 @@ export function transformJiraConfigToBackendDTO(
   configName: string,
   userId?: string
 ): CreateProjectManagementConfigDto | null {
-  // Don't create config if JIRA is disabled or no integration selected
-  if (!jiraConfig.enabled || !jiraConfig.integrationId) {
+  // If JIRA config doesn't exist at all, return null
+  if (!jiraConfig) {
     return null;
   }
 
-  // Don't create config if no platform configurations
+  // If disabled or no integration selected, return config with empty platformConfigurations
+  if (!jiraConfig.enabled || !jiraConfig.integrationId) {
+    return {
+      projectId: tenantId,
+      integrationId: jiraConfig.integrationId || '',
+      name: `${configName} - JIRA Config`,
+      description: `Project management configuration for ${configName}`,
+      platformConfigurations: [], // Empty array when disabled
+      createdByAccountId: userId,
+    };
+  }
+
+  // If no platform configurations, return config with empty array
   if (!jiraConfig.platformConfigurations || jiraConfig.platformConfigurations.length === 0) {
-    return null;
+    return {
+      projectId: tenantId,
+      integrationId: jiraConfig.integrationId,
+      name: `${configName} - JIRA Config`,
+      description: `Project management configuration for ${configName}`,
+      platformConfigurations: [], // Empty array when no configs
+      createdByAccountId: userId,
+    };
   }
 
   // Filter out invalid platform configurations (missing required fields)
   const validPlatformConfigs = jiraConfig.platformConfigurations.filter(
     pc => pc.projectKey && pc.projectKey.trim() && pc.completedStatus
   );
-
-  if (validPlatformConfigs.length === 0) {
-    return null;
-  }
 
   return {
     projectId: tenantId,

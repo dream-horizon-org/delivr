@@ -214,18 +214,18 @@ export default function ReleaseSettingsPage() {
     console.log('[Settings] Archive config:', configId);
     
     try {
-      const result = await apiDelete<{ success: boolean; error?: string }>(
+      const result = await apiDelete<{ message?: string }>(
         `/api/v1/tenants/${org}/release-config/${configId}`
       );
       
-      if (result.data?.success) {
+      if (result.success) {
         // ✅ Invalidate cache to refresh all routes
         invalidateReleaseConfigs();
         console.log('[Settings] Configuration archived, cache invalidated');
         showSuccessToast(RELEASE_CONFIG_MESSAGES.ARCHIVE_SUCCESS);
       } else {
         showErrorToast(getErrorMessage(
-          result.data?.error || 'Unknown error',
+          result.error || 'Unknown error',
           RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title
         ));
       }

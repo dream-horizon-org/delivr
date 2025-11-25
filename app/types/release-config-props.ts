@@ -191,8 +191,8 @@ export interface ManualUploadConfigFormProps {
 // ============================================================================
 
 export interface BuildUploadSelectorProps {
-  selectedMode: BuildUploadStep;
-  onChange: (mode: BuildUploadStep) => void;
+  hasManualBuildUpload: boolean;
+  onChange: (hasManualBuildUpload: boolean) => void;
   hasIntegrations: boolean;
 }
 
@@ -224,8 +224,8 @@ export interface PlatformCardProps {
 // ============================================================================
 
 export interface TestManagementSelectorProps {
-  config: TestManagementConfig;
-  onChange: (config: TestManagementConfig) => void;
+  config: TestManagementConfig | undefined;
+  onChange: (config: TestManagementConfig | undefined) => void;
   availableIntegrations: {
     checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
   };
@@ -427,9 +427,8 @@ export interface ConfigurationListProps {
 export interface ConfigurationListItemProps {
   config: ReleaseConfiguration;
   onEdit: () => void;
-  onDuplicate: () => void;
-  onArchive: () => void;
-  onExport: () => void;
+  onDelete: () => void;
+  onClone: () => void;
   onSetDefault: () => void;
 }
 

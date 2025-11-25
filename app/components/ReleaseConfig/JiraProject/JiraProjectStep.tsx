@@ -42,10 +42,11 @@ export function JiraProjectStep({
         platformConfigurations: defaultConfigs,
       });
     } else {
-      // When disabling, keep existing config but mark as disabled
+      // When disabling, clear platform configurations
       onChange({
         ...config,
         enabled: false,
+        platformConfigurations: [], // Clear configurations when disabled
       });
     }
   };

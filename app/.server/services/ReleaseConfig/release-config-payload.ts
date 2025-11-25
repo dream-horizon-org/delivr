@@ -1,16 +1,17 @@
 /**
  * Release Config Payload Preparation - BFF Transformation Layer
  * 
- * PURPOSE: Bridge UI structure (optimized for UX) with Backend API contract
+ * PURPOSE: Transform UI structure to Backend API contract
  * 
  * TRANSFORMATIONS PERFORMED:
- * 1. ✅ Remove UI-only fields (id, status, timestamps, buildUploadStep, workflows)
- * 2. ✅ Flatten testManagement (extract from providerConfig)
- * 3. ✅ Flatten projectManagement (add required fields, remove UI fields)
- * 4. ✅ Handle communication (only send if configured, proper structure)
- * 5. ✅ Field renames (targets → defaultTargets, jiraProject → projectManagement)
- * 6. ✅ Case transformations (scheduling.releaseFrequency)
- * 7. ✅ Security injection (createdByAccountId)
+ * 1. ✅ Platform mapping: testManagement platforms (ANDROID → ANDROID_PLAY_STORE)
+ * 2. ✅ Case transformation: scheduling.releaseFrequency (WEEKLY → weekly)
+ * 3. ✅ Inject system fields: tenantId, createdByAccountId, name (for nested configs)
+ * 4. ✅ platformTargets: Combine platforms + targets or pass through
+ * 5. ✅ Extract from UI wrappers: providerConfig, slack, etc.
+ * 6. ✅ Nest/Unnest: Project management parameters
+ * 
+ * FIELD NAMES NOW CONSISTENT: UI and Backend use same names (testManagement, communication, projectManagement)
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
@@ -145,6 +146,13 @@ export function prepareReleaseConfigPayload(
     platformTargets,
     
     // ========================================================================
+    // TRANSFORMATION 2: Build Upload Method - Boolean field
+    // Why: Backend expects hasManualBuildUpload (boolean), not buildUploadStep (string enum)
+    // true = manual upload, false = CI/CD
+    // ========================================================================
+    hasManualBuildUpload: config.hasManualBuildUpload,
+    
+    // ========================================================================
     // NULL-VALIDATION - Only include if provided (optional fields)
     // ========================================================================
     ...(config.description && { description: config.description }),
@@ -153,95 +161,102 @@ export function prepareReleaseConfigPayload(
   };
 
   // ========================================================================
-  // TRANSFORMATION 2: Test Management - Flatten providerConfig structure
-  // Why: UI nests config inside "providerConfig", backend expects flat structure
+  // TRANSFORMATION 2: Test Management - Extract from providerConfig wrapper
+  // UI Structure: config.testManagement.providerConfig (Checkmate/TestRail/etc)
+  // Backend Structure: flat testManagement with platform mapping
+  // Platform Transform: ANDROID → ANDROID_PLAY_STORE, IOS → IOS_APP_STORE
   // ========================================================================
   if (config.testManagement?.enabled && config.testManagement.providerConfig) {
     const providerConfig = config.testManagement.providerConfig as any;
     
-    // Type guard: Only Checkmate has the fields we need for backend
-    // TestRail would have different structure - handle when implemented
-    if (providerConfig.type === 'checkmate' && providerConfig.integrationId) {
-      // Transform platformConfigurations: UI sends "ANDROID"/"IOS", backend expects specific enums
-      const originalPlatformConfigs = providerConfig.platformConfigurations || [];
-      const transformedPlatformConfigs = originalPlatformConfigs.map((pc: any) => {
-        const originalPlatform = pc.platform;
-        const mappedPlatform = mapTestManagementPlatform(pc.platform, config.targets || []);
-        console.log(`[TestManagement] Platform mapping: ${originalPlatform} → ${mappedPlatform}`);
-        return {
-          ...pc,
-          platform: mappedPlatform,
-        };
-      });
-      
-      payload.testManagement = {
-        tenantId: tenantId,  // Use parameter
-        integrationId: providerConfig.integrationId,
-        name: `Test Management for ${config.name}`,
-        passThresholdPercent: providerConfig.passThresholdPercent || 100,
-        platformConfigurations: transformedPlatformConfigs,
-        createdByAccountId: userId,
-      };
-      
-      console.log('[TestManagement] Final payload:', JSON.stringify(payload.testManagement, null, 2));
-      
-      // Verify tenantId is not null/undefined/empty
-      if (!payload.testManagement.tenantId || payload.testManagement.tenantId.trim() === '') {
-        console.error('[TestManagement] ERROR: tenantId is blank!', payload.testManagement.tenantId);
-      }
-    }
-  }
-  // If not enabled or no config, omit entirely (backend optional)
-
-  // ========================================================================
-  // TRANSFORMATION 3: Communication - Extract channelData from slack config
-  // Why: UI has slack.channelData, backend expects top-level channelData
-  // ========================================================================
-  if (config.communication?.slack?.enabled && config.communication.slack.channelData) {
-    payload.communication = {
-      tenantId: tenantId,  // Use parameter
-      channelData: config.communication.slack.channelData,
-    };
-  }
-  // If not configured or empty, omit entirely (backend optional)
-
-  // ========================================================================
-  // TRANSFORMATION 4: Project Management - Clean and add required fields
-  // Why: UI has extra fields (enabled, createReleaseTicket), backend needs tenantId, name
-  // Also: Backend expects platformConfigurations with nested "parameters" object
-  // ========================================================================
-  if (config.jiraProject?.enabled && config.jiraProject.integrationId) {
-    // Transform platformConfigurations: UI sends flat structure, backend expects nested "parameters"
-    const transformedPMPlatformConfigs = (config.jiraProject.platformConfigurations || []).map((pc: any) => {
-      const { platform, projectKey, issueType, completedStatus, priority, labels, assignee, customFields, ...rest } = pc;
-      
+    // Transform platformConfigurations: Map platform enums
+    const transformedPlatformConfigs = (providerConfig.platformConfigurations || []).map((pc: any) => {
+      const originalPlatform = pc.platform;
+      const mappedPlatform = mapTestManagementPlatform(pc.platform, config.targets || []);
+      console.log(`[TestManagement] Platform mapping: ${originalPlatform} → ${mappedPlatform}`);
       return {
-        platform,
-        parameters: {
-          projectKey,
-          ...(issueType && { issueType }),
-          completedStatus,
-          ...(priority && { priority }),
-          ...(labels && { labels }),
-          ...(assignee && { assignee }),
-          ...(customFields && { customFields }),
-          ...rest, // Any other provider-specific fields
-        },
+        ...pc,
+        platform: mappedPlatform,
       };
     });
     
-    payload.projectManagement = {
-      tenantId: tenantId,  // Use parameter
-      integrationId: config.jiraProject.integrationId,
-      name: `PM Config for ${config.name}`,
-      ...(config.description && { description: config.description }),
-      platformConfigurations: transformedPMPlatformConfigs,
+    payload.testManagement = {
+      tenantId: tenantId,
+      integrationId: providerConfig.integrationId,
+      name: `Test Management for ${config.name}`,
+      passThresholdPercent: providerConfig.passThresholdPercent || 100,
+      platformConfigurations: transformedPlatformConfigs,
       createdByAccountId: userId,
     };
     
-    console.log('[ProjectManagement] Transformed platformConfigurations:', JSON.stringify(transformedPMPlatformConfigs, null, 2));
-    // Explicitly remove UI-only fields: enabled, createReleaseTicket, linkBuildsToIssues
+    console.log('[TestManagement] Final payload:', JSON.stringify(payload.testManagement, null, 2));
   }
+  // If undefined or disabled, omit entirely (backend optional)
+
+  // ========================================================================
+  // TRANSFORMATION 3: Communication - Extract from slack wrapper
+  // UI Structure: config.communication.slack (flexible for multiple providers)
+  // Backend Structure: flat communication
+  // ========================================================================
+  if (config.communication?.slack?.enabled && config.communication.slack.channelData) {
+    payload.communication = {
+      tenantId: tenantId,
+      integrationId: config.communication.slack.integrationId,
+      channelData: config.communication.slack.channelData,
+    };
+  }
+  // If undefined or disabled, omit entirely (backend optional)
+
+  // ========================================================================
+  // TRANSFORMATION 4: Project Management - Nest into parameters object
+  // UI Structure: config.projectManagement with flat platformConfigurations
+  // Backend Structure: projectManagement with nested parameters
+  // ========================================================================
+  if (config.projectManagement) {
+    const pmConfig = config.projectManagement;
+    
+    // If disabled or no integrationId, send empty platformConfigurations
+    if (!pmConfig.enabled || !pmConfig.integrationId) {
+      payload.projectManagement = {
+        tenantId: tenantId,
+        integrationId: pmConfig.integrationId || '',
+        name: `PM Config for ${config.name}`,
+        ...(config.description && { description: config.description }),
+        platformConfigurations: [], // Empty array when disabled
+        createdByAccountId: userId,
+      };
+      console.log('[ProjectManagement] Disabled - sending empty platformConfigurations');
+    } else {
+      // Transform platformConfigurations: UI sends flat structure, backend expects nested "parameters"
+      const transformedPMPlatformConfigs = (pmConfig.platformConfigurations || []).map((pc: any) => {
+        const { platform, projectKey, issueType, completedStatus, priority, labels, assignee, customFields } = pc;
+        return {
+          platform,
+          parameters: {
+            projectKey,
+            ...(issueType && { issueType }),
+            completedStatus,
+            ...(priority && { priority }),
+            ...(labels && { labels }),
+            ...(assignee && { assignee }),
+            ...(customFields && { customFields }),
+          },
+        };
+      });
+      
+      payload.projectManagement = {
+        tenantId: tenantId,
+        integrationId: pmConfig.integrationId,
+        name: `PM Config for ${config.name}`,
+        ...(config.description && { description: config.description }),
+        platformConfigurations: transformedPMPlatformConfigs,
+        createdByAccountId: userId,
+      };
+      
+      console.log('[ProjectManagement] Platform configurations:', JSON.stringify(transformedPMPlatformConfigs, null, 2));
+    }
+  }
+  // If undefined, omit entirely (backend optional)
 
   // ========================================================================
   // TRANSFORMATION 5: Scheduling - Lowercase releaseFrequency
@@ -264,21 +279,25 @@ export function prepareReleaseConfigPayload(
   }
 
   // ========================================================================
-  // CLEANUP - Remove UI-only fields that should NOT be sent to backend
-  // Why: Backend generates these (id, status, timestamps) or doesn't expect them
+  // CLEANUP - Field Exclusions
   // ========================================================================
-  // These fields are NOT included in payload by design:
+  // CONSISTENT FIELD NAMES: UI and Backend now use same names!
+  // - testManagement ✅
+  // - projectManagement ✅
+  // - communication ✅
+  // 
+  // Fields NOT included in payload (UI-only or backend-managed):
   // - id (backend generates)
   // - status (backend manages)
   // - createdAt (backend generates)
   // - updatedAt (backend generates)
-  // - buildUploadStep (not in API contract)
-  // - targets, platforms (replaced by platformTargets)
-  // - jiraProject (renamed to projectManagement)
+  // - targets, platforms (helper arrays, replaced by platformTargets)
   // 
-  // These fields ARE included if present:
-  // - platformTargets (NEW: combines platforms + targets)
+  // Fields included if present:
+  // - platformTargets (combines platforms + targets)
+  // - hasManualBuildUpload (boolean for build upload method)
   // - workflows (CI/CD configuration)
+  // - testManagement, projectManagement, communication (integration configs)
 
   console.log('[prepareReleaseConfigPayload] Final payload.tenantId:', payload.tenantId);
   console.log('[prepareReleaseConfigPayload] Final payload keys:', Object.keys(payload));
@@ -287,48 +306,125 @@ export function prepareReleaseConfigPayload(
 }
 
 /**
+ * Reverse map backend TestPlatform enum to UI platform
+ * ANDROID_PLAY_STORE → ANDROID
+ * IOS_APP_STORE → IOS
+ */
+function reverseMapTestManagementPlatform(backendPlatform: string): string {
+  if (backendPlatform.startsWith('ANDROID')) return 'ANDROID';
+  if (backendPlatform.startsWith('IOS')) return 'IOS';
+  return backendPlatform;
+}
+
+/**
  * Transform backend response to frontend schema
  * Reverse transformation: Backend → Frontend
+ * 
+ * SIMPLIFIED: UI structure now matches backend, minimal transformation needed
  */
 export function transformFromBackend(backendConfig: any): Partial<ReleaseConfiguration> {
   const frontendConfig: any = {
     ...backendConfig,
   };
 
-  // Reverse transformation for platformTargets → derive old format for UI compatibility
+  // ========================================================================
+  // 1. Reverse platformTargets → platforms + targets
+  // Derives UI helper arrays from backend's canonical platformTargets
+  // ========================================================================
   if (backendConfig.platformTargets && Array.isArray(backendConfig.platformTargets)) {
     // Extract unique platforms and targets from platformTargets
     frontendConfig.platforms = [...new Set(backendConfig.platformTargets.map((pt: any) => pt.platform))];
     frontendConfig.targets = backendConfig.platformTargets.map((pt: any) => pt.target);
-    // Keep platformTargets for new UI components
+    // Keep platformTargets for backward compatibility
     frontendConfig.platformTargets = backendConfig.platformTargets;
   }
 
-  // Reverse transformation for projectManagement → jiraProject
-  if (backendConfig.projectManagement) {
-    frontendConfig.jiraProject = {
-      enabled: true,
-      integrationId: backendConfig.projectManagement.integrationId,
-      platformConfigurations: backendConfig.projectManagement.platformConfigurations,
-      // Note: Backend doesn't store createReleaseTicket, linkBuildsToIssues - UI defaults will apply
-    };
-    delete frontendConfig.projectManagement;
-  }
-
-  // Reverse transformation for testManagement (if needed in future)
+  // ========================================================================
+  // 2. Reverse testManagement → testManagement.providerConfig
+  // Backend: flat testManagement
+  // UI: testManagement.enabled + providerConfig wrapper
+  // ========================================================================
   if (backendConfig.testManagement) {
-    // For now, keep it as-is since UI can handle flat structure
-    // If UI needs providerConfig wrapper, add transformation here
+    const backend = backendConfig.testManagement;
+    
+    // Reverse platform mapping: ANDROID_PLAY_STORE → ANDROID
+    const uiPlatformConfigurations = (backend.platformConfigurations || []).map((pc: any) => ({
+      ...pc,
+      platform: reverseMapTestManagementPlatform(pc.platform),
+    }));
+    
+    frontendConfig.testManagement = {
+      enabled: true,
+      provider: 'checkmate', // Inferred from backend having config
+      integrationId: backend.integrationId,
+      projectId: backend.projectId?.toString() || '0',
+      providerConfig: {
+        type: 'checkmate',
+        integrationId: backend.integrationId,
+        projectId: backend.projectId || 0,
+        passThresholdPercent: backend.passThresholdPercent,
+        platformConfigurations: uiPlatformConfigurations,
+        autoCreateRuns: false, // Not stored in backend
+        filterType: 'AND', // Not stored in backend
+      },
+    };
+  } else {
+    frontendConfig.testManagement = undefined;
   }
 
-  // Reverse transformation for communication
-  if (backendConfig.communication?.channelData) {
+  // ========================================================================
+  // 3. Reverse projectManagement → projectManagement (flatten parameters)
+  // Backend: nested parameters object
+  // UI: flat structure with enabled flag
+  // ========================================================================
+  if (backendConfig.projectManagement) {
+    const backend = backendConfig.projectManagement;
+    
+    // Flatten parameters object back to top level
+    const uiPlatformConfigurations = (backend.platformConfigurations || []).map((pc: any) => ({
+      platform: pc.platform,
+      ...(pc.parameters || {}), // Flatten parameters
+    }));
+    
+    frontendConfig.projectManagement = {
+      enabled: true,
+      integrationId: backend.integrationId,
+      platformConfigurations: uiPlatformConfigurations,
+      createReleaseTicket: true,
+      linkBuildsToIssues: true,
+    };
+  } else {
+    frontendConfig.projectManagement = undefined;
+  }
+
+  // ========================================================================
+  // 4. Reverse communication → communication.slack (wrap in slack)
+  // Backend: flat communication
+  // UI: nested in communication.slack wrapper
+  // ========================================================================
+  if (backendConfig.communication) {
+    const backend = backendConfig.communication;
+    
     frontendConfig.communication = {
       slack: {
         enabled: true,
-        integrationId: backendConfig.communication.integrationId || '',
-        channelData: backendConfig.communication.channelData,
+        integrationId: backend.integrationId || '',
+        channelData: backend.channelData || {},
       },
+      email: undefined,
+    };
+  } else {
+    frontendConfig.communication = undefined;
+  }
+
+  // ========================================================================
+  // 5. Reverse scheduling.releaseFrequency (uppercase)
+  // Backend: lowercase ("weekly") → UI: uppercase ("WEEKLY")
+  // ========================================================================
+  if (backendConfig.scheduling?.releaseFrequency) {
+    frontendConfig.scheduling = {
+      ...backendConfig.scheduling,
+      releaseFrequency: backendConfig.scheduling.releaseFrequency.toUpperCase(),
     };
   }
 
@@ -358,21 +454,24 @@ export function logTransformation(before: any, after: any, operation: 'create' |
   const transformations: string[] = [];
   
   if (before.platformTargets && after.platformTargets) {
-    transformations.push('  • platformTargets: passed through (NEW API format)');
+    transformations.push('  • platformTargets: passed through');
   } else if (before.targets && after.platformTargets) {
-    transformations.push('  • targets → platformTargets (legacy fallback)');
+    transformations.push('  • targets + platforms → platformTargets (derived)');
   }
-  if (before.jiraProject && after.projectManagement) {
-    transformations.push('  • jiraProject → projectManagement (flattened)');
+  if (before.testManagement && after.testManagement) {
+    transformations.push('  • testManagement: platform enum mapped (ANDROID → ANDROID_PLAY_STORE)');
   }
-  if (before.testManagement?.providerConfig && after.testManagement) {
-    transformations.push('  • testManagement.providerConfig → flattened structure');
+  if (before.projectManagement && after.projectManagement) {
+    transformations.push('  • projectManagement: parameters nested');
   }
   if (before.communication && after.communication) {
-    transformations.push('  • communication.slack.channelData → communication.channelData');
+    transformations.push('  • communication: extracted from slack wrapper');
   }
   if (before.scheduling?.releaseFrequency) {
-    transformations.push(`  • scheduling.releaseFrequency: ${before.scheduling.releaseFrequency} → ${after.scheduling?.releaseFrequency}`);
+    transformations.push(`  • scheduling.releaseFrequency: ${before.scheduling.releaseFrequency} → ${after.scheduling?.releaseFrequency} (case transform)`);
+  }
+  if (before.hasManualBuildUpload !== undefined && after.hasManualBuildUpload !== undefined) {
+    transformations.push('  • hasManualBuildUpload: direct pass-through');
   }
   if (before.id && !after.id) {
     transformations.push('  • Removed UI-only fields: id, status, timestamps');

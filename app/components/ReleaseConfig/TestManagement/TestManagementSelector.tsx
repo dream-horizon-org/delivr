@@ -1,26 +1,18 @@
 /**
  * Test Management Selector Component
  * Main component for selecting and configuring test management integration
+ * 
+ * ALIGNED WITH BACKEND: Uses TestManagementConfig structure directly
+ * - undefined config = disabled
+ * - defined config = enabled
  */
 
-import { Stack, Text, Switch, Select, Alert } from '@mantine/core';
+import { Stack, Text, Switch, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import type { 
-  TestManagementConfig, 
-  TestManagementProvider,
-  CheckmateSettings,
-  TestRailSettings,
-} from '~/types/release-config';
+import type { TestManagementConfig, CheckmateSettings } from '~/types/release-config';
 import type { TestManagementSelectorProps } from '~/types/release-config-props';
 import { CheckmateConfigFormEnhanced } from './CheckmateConfigFormEnhanced';
-import { TEST_MANAGEMENT_PROVIDER_OPTIONS } from '~/constants/release-config';
-import { TEST_PROVIDERS } from '~/types/release-config-constants';
 import { TEST_MANAGEMENT_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
-
-// Type guards for provider settings
-const isCheckmateSettings = (settings: unknown): settings is CheckmateSettings => {
-  return typeof settings === 'object' && settings !== null && 'type' in settings && settings.type === TEST_PROVIDERS.CHECKMATE;
-};
 
 export function TestManagementSelector({
   config,
@@ -28,31 +20,41 @@ export function TestManagementSelector({
   availableIntegrations,
   selectedTargets,
 }: TestManagementSelectorProps) {
-  // ✅ Safe access with default values
+  // Check if test management is actually enabled (not just if config exists)
   const isEnabled = config?.enabled ?? false;
-  const provider = config?.provider ?? TEST_PROVIDERS.NONE;
   
   const handleToggle = (enabled: boolean) => {
-    onChange({
-      ...config,
-      enabled,
-      provider: enabled ? (provider === TEST_PROVIDERS.NONE ? TEST_PROVIDERS.CHECKMATE : provider) : TEST_PROVIDERS.NONE,
-    });
+    if (enabled) {
+      // Enable: Create default config
+      onChange({
+        enabled: true,
+        provider: 'checkmate',
+        integrationId: '',
+        projectId: '',
+        providerConfig: {
+          type: 'checkmate',
+          integrationId: '',
+          projectId: 0,
+          platformConfigurations: [],
+          autoCreateRuns: false,
+          passThresholdPercent: 100,
+          filterType: 'AND',
+        },
+      });
+    } else {
+      // Disable: Set to undefined
+      onChange(undefined);
+    }
   };
   
-  const handleProviderChange = (provider: TestManagementProvider) => {
+  const handleProviderConfigChange = (updatedProviderConfig: CheckmateSettings) => {
+    if (!config) return;
     onChange({
       ...config,
-      provider,
-      enabled: provider !== TEST_PROVIDERS.NONE,
-      providerConfig: undefined,
-    });
-  };
-  
-  const handleProviderSettingsChange = (settings: CheckmateSettings | TestRailSettings) => {
-    onChange({
-      ...config,
-      providerConfig: settings,
+      providerConfig: updatedProviderConfig,
+      // Sync top-level fields from providerConfig
+      integrationId: updatedProviderConfig.integrationId,
+      projectId: updatedProviderConfig.projectId.toString(),
     });
   };
   
@@ -83,60 +85,28 @@ export function TestManagementSelector({
           className="mb-4"
         />
         
-        {isEnabled && (
+        {isEnabled && config && (
           <div className="mt-4">
-            <Select
-              label={TEST_MANAGEMENT_LABELS.PROVIDER_LABEL}
-              placeholder={TEST_MANAGEMENT_LABELS.PROVIDER_PLACEHOLDER}
-              data={TEST_MANAGEMENT_PROVIDER_OPTIONS}
-              value={provider}
-              onChange={(val) => handleProviderChange(val as TestManagementProvider)}
-              required
-              className="mb-4"
-            />
-            
-            {provider === TEST_PROVIDERS.CHECKMATE && (
-              <div className="bg-white p-4 rounded-lg border border-gray-200 mt-4">
-                <Text fw={500} size="sm" className="mb-3">
-                  {TEST_MANAGEMENT_LABELS.CHECKMATE_CONFIG_TITLE}
-                </Text>
-                
-                {availableIntegrations.checkmate.length > 0 ? (
-                  <CheckmateConfigFormEnhanced
-                    config={
-                      (config.providerConfig && isCheckmateSettings(config.providerConfig))
-                        ? config.providerConfig
-                        : {}
-                    }
-                    onChange={handleProviderSettingsChange}
-                    availableIntegrations={availableIntegrations.checkmate}
-                    selectedTargets={selectedTargets}
-                  />
-                ) : (
-                  <Alert color="yellow" variant="light">
-                    <Text size="sm">
-                      {TEST_MANAGEMENT_LABELS.NO_CHECKMATE_MESSAGE}
-                    </Text>
-                  </Alert>
-                )}
-              </div>
-            )}
-            
-            {config.provider === TEST_PROVIDERS.TESTRAIL && (
-              <Alert color="blue" variant="light">
-                <Text size="sm">
-                  {TEST_MANAGEMENT_LABELS.TESTRAIL_COMING_SOON}
-                </Text>
-              </Alert>
-            )}
-            
-            {config.provider === TEST_PROVIDERS.ZEPHYR && (
-              <Alert color="blue" variant="light">
-                <Text size="sm">
-                  {TEST_MANAGEMENT_LABELS.ZEPHYR_COMING_SOON}
-                </Text>
-              </Alert>
-            )}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <Text fw={500} size="sm" className="mb-3">
+                {TEST_MANAGEMENT_LABELS.CHECKMATE_CONFIG_TITLE}
+              </Text>
+              
+              {availableIntegrations.checkmate.length > 0 ? (
+                <CheckmateConfigFormEnhanced
+                  config={(config.providerConfig || {}) as Partial<CheckmateSettings>}
+                  onChange={handleProviderConfigChange}
+                  availableIntegrations={availableIntegrations.checkmate}
+                  selectedTargets={selectedTargets}
+                />
+              ) : (
+                <Alert color="yellow" variant="light">
+                  <Text size="sm">
+                    {TEST_MANAGEMENT_LABELS.NO_CHECKMATE_MESSAGE}
+                  </Text>
+                </Alert>
+              )}
+            </div>
           </div>
         )}
       </div>
