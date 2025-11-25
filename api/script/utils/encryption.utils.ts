@@ -25,8 +25,9 @@ export function decrypt(encryptedData: string): string {
   const encryptionKey = getEncryptionKey();
   
   if (!encryptionKey) {
-    console.warn('ENCRYPTION_KEY not set in environment, skipping decryption');
-    return encryptedData; // Fallback: return as-is if key not set
+    const errorMsg = 'ENCRYPTION_KEY environment variable is not set. Cannot decrypt sensitive data.';
+    console.error('[Encryption] ' + errorMsg);
+    throw new Error(errorMsg);
   }
 
   try {

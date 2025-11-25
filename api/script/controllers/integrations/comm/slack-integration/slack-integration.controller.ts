@@ -254,6 +254,42 @@ const updateIntegrationHandler = (service: SlackIntegrationService) =>
   };
 
 /**
+ * Handler: Get Channels for Stored Integration
+ * GET /tenants/:tenantId/integrations/slack/channels
+ * 
+ * Fetches Slack channels using the stored integration's bot token
+ */
+const getChannelsForIntegrationHandler = (service: SlackIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { tenantId } = req.params;
+
+      // Get the stored Slack integration WITH token (for internal use)
+      const integration = await service.getIntegrationWithToken(tenantId);
+
+      if (!integration) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Slack integration not found. Please connect Slack first.')
+        );
+        return;
+      }
+
+      // Use the stored bot token to fetch channels
+      const channelsResult = await service.fetchChannels(integration.slackBotToken);
+
+      res.status(HTTP_STATUS.OK).json(successResponse({
+        channels: channelsResult.channels ?? [],
+        metadata: channelsResult.metadata
+      }));
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, COMM_ERROR_MESSAGES.FETCH_CHANNELS_FAILED)
+      );
+    }
+  };
+
+/**
  * Handler: Delete Slack Integration
  * DELETE /tenants/:tenantId/integrations/slack
  */
@@ -281,6 +317,7 @@ const deleteIntegrationHandler = (service: SlackIntegrationService) =>
 export const createSlackIntegrationController = (service: SlackIntegrationService) => ({
   verifyToken: verifyTokenHandler(service),
   fetchChannels: fetchChannelsHandler(service),
+  getChannelsForIntegration: getChannelsForIntegrationHandler(service),
   createOrUpdateIntegration: createOrUpdateIntegrationHandler(service),
   getIntegration: getIntegrationHandler(service),
   updateIntegration: updateIntegrationHandler(service),
