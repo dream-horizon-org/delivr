@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useParams } from '@remix-run/react';
+import { useQueryClient } from 'react-query';
 import { Container, Title, Text, Tabs, Loader as MantineLoader } from '@mantine/core';
 import { showSuccessToast, showInfoToast } from '~/utils/toast';
 import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
+import { invalidateTenantConfig } from '~/utils/cache-invalidation';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
@@ -12,6 +14,7 @@ import { useConfig } from '~/contexts/ConfigContext';
 
 export default function IntegrationsPage() {
   const params = useParams();
+  const queryClient = useQueryClient();
   const { 
     isLoadingMetadata,
     isLoadingTenantConfig,
@@ -132,9 +135,9 @@ export default function IntegrationsPage() {
     if (integrationId === 'github') {
       // GitHub connection is handled by the modal with real API calls
       console.log('[GitHub] Operation successful:', data);
-      // Show success message and reload to update the integration status
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('GitHub', !!editingIntegration));
-      window.location.reload();
+      // Invalidate tenant config cache to refetch updated integrations
+      invalidateTenantConfig(queryClient, params.org!);
     } else if (integrationId === 'slack') {
       // Navigate to Slack setup in release management wizard
       console.log('[Slack] Navigating to setup wizard for Slack integration');
@@ -142,21 +145,21 @@ export default function IntegrationsPage() {
     } else if (integrationId === 'jenkins') {
       // Jenkins connection is handled by the modal with real API calls
       console.log('[Jenkins] Operation successful:', data);
-      // Show success message and reload to update the integration status
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('Jenkins', !!editingIntegration));
-      window.location.reload();
+      // Invalidate tenant config cache to refetch updated integrations
+      invalidateTenantConfig(queryClient, params.org!);
     } else if (integrationId === 'github_actions') {
       // GitHub Actions connection is handled by the modal with real API calls
       console.log('[GitHub Actions] Operation successful:', data);
-      // Show success message and reload to update the integration status
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('GitHub Actions', !!editingIntegration));
-      window.location.reload();
+      // Invalidate tenant config cache to refetch updated integrations
+      invalidateTenantConfig(queryClient, params.org!);
     } else if (integrationId === 'checkmate') {
       // Checkmate connection is handled by the modal with real API calls
       console.log('[Checkmate] Operation successful:', data);
-      // Show success message and reload to update the integration status
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('Checkmate', !!editingIntegration));
-      window.location.reload();
+      // Invalidate tenant config cache to refetch updated integrations
+      invalidateTenantConfig(queryClient, params.org!);
     } else {
       // For other integrations, show success message (demo)
       showInfoToast(INTEGRATION_MESSAGES.DEMO_MODE(integrationId));
@@ -173,8 +176,8 @@ export default function IntegrationsPage() {
   };
 
   const handleDisconnectComplete = () => {
-    // Callback after successful disconnect - refresh to show updated state
-    window.location.reload();
+    // Invalidate tenant config cache to trigger refetch
+    invalidateTenantConfig(queryClient, params.org!);
   };
 
   return (

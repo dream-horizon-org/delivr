@@ -47,7 +47,9 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
       );
     }
 
-    const channels = result.channels || [];
+    console.log(`[Slack Channels API] Result:`, result);
+
+    const channels = result?.data?.channels || [];
     
     console.log(`[Slack Channels API] Successfully fetched ${channels.length} channels from Slack API`);
     

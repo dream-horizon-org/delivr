@@ -150,9 +150,11 @@ const deleteSlackIntegration = async ({ params, user }: ActionFunctionArgs & { u
   try {
     console.log(`[Slack-Delete] Deleting integration for tenant: ${tenantId}`);
 
-    await SlackIntegrationService.deleteIntegration(tenantId, user.user.id);
+    const response = await SlackIntegrationService.deleteIntegration(tenantId, user.user.id);
 
-    return json({ success: true });
+    console.log(`[Slack-Delete] Response:`, response);
+
+    return json(response);
   } catch (error) {
     console.error('[Slack-Delete] Error:', error);
     return json(

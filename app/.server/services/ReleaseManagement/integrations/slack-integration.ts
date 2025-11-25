@@ -31,15 +31,12 @@ export interface VerifySlackResponse {
   error?: string;
 }
 
-export interface FetchSlackChannelsRequest {
-  tenantId: string;
-  botToken: string;
-  userId: string;
-}
-
 export interface FetchSlackChannelsResponse {
   success: boolean;
-  channels: SlackChannel[];
+  data:{
+    channels: SlackChannel[];
+  }
+  
   message?: string;
   error?: string;
 }
@@ -118,29 +115,6 @@ export class SlackIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Fetch Slack channels
-   */
-  async fetchChannels(data: FetchSlackChannelsRequest): Promise<FetchSlackChannelsResponse> {
-    try {
-      const endpoint = COMMUNICATION.slack.fetchChannels(data.tenantId);
-      const result = await this.post<FetchSlackChannelsResponse>(
-        endpoint,
-        { botToken: data.botToken },
-        data.userId
-      );
-
-      this.logResponse('POST', endpoint, result.success);
-      return result;
-    } catch (error: any) {
-      return {
-        success: false,
-        channels: [],
-        message: error.message || 'Failed to fetch Slack channels'
-      };
-    }
-  }
-
-  /**
    * Create or update Slack integration
    */
   async createOrUpdateIntegration(data: CreateSlackIntegrationRequest): Promise<SlackIntegrationResponse> {
@@ -204,7 +178,10 @@ export class SlackIntegrationServiceClass extends IntegrationService {
     } catch (error: any) {
       return {
         success: false,
-        channels: [],
+        data: {
+          channels: [],
+        },
+        
         error: error.message || 'Failed to fetch Slack channels'
       };
     }

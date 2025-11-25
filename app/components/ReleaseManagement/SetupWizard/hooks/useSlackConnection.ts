@@ -129,39 +129,13 @@ export function useSlackConnection(initialConnection?: Partial<SlackConnection>)
   };
 
   /**
-   * Fetch available Slack channels
-   * YOU WILL IMPLEMENT THE ACTUAL API CALL
+   * Fetch available Slack channels - REMOVED
+   * Channels should only be fetched in Release Config using stored integration
+   * Not needed during setup wizard
    */
   const fetchChannels = async (): Promise<ChannelsResult> => {
-    if (!connection.botToken) {
-      setChannelsError('Bot token is required');
-      return { success: false, channels: [], error: 'Bot token is required' };
-    }
-
-    setIsLoadingChannels(true);
-    setChannelsError('');
-
-    try {
-      const result = await apiPost<{
-        success: boolean;
-        channels: SlackChannel[];
-      }>(`/api/v1/tenants/${tenantId}/integrations/slack/channels`, {
-        botToken: connection.botToken
-      });
-
-      if (result.data?.success && result.data?.channels) {
-        setAvailableChannels(result.data.channels);
-        return { success: true, channels: result.data.channels };
-      } else {
-        throw new Error('Failed to fetch channels');
-      }
-    } catch (error: any) {
-      const errorMessage = getApiErrorMessage(error, 'Failed to fetch channels');
-      setChannelsError(errorMessage);
-      return { success: false, channels: [], error: errorMessage };
-    } finally {
-      setIsLoadingChannels(false);
-    }
+    console.warn('[useSlackConnection] fetchChannels is deprecated - channels should be fetched in Release Config');
+    return { success: false, channels: [], error: 'Channel fetching not available during setup' };
   };
 
   /**

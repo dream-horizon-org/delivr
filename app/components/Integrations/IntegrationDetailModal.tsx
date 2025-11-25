@@ -71,6 +71,7 @@ export function IntegrationDetailModal({
     try {
       // Get the endpoint URL
       const endpoint = config.endpoint(tenantId, integration.config);
+      console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Disconnecting from endpoint:`, endpoint);
       
       // Make DELETE request using API client
       await apiDelete(endpoint);

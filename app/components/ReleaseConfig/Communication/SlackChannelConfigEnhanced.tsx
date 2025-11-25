@@ -52,7 +52,7 @@ export function SlackChannelConfigEnhanced({
 
     try {
       const result = await apiGet<SlackChannel[]>(
-        `/api/v1/integrations/${integrationId}/channels?tenantId=${tenantId}`
+        `/api/v1/communication/slack/${integrationId}/channels?tenantId=${tenantId}`
       );
       
       if (result.success && result.data) {

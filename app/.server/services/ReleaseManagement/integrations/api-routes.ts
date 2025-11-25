@@ -195,13 +195,6 @@ export const COMMUNICATION = {
       `/tenants/${tenantId}/integrations/slack/verify`,
     
     /**
-     * Fetch Slack channels (with token in body)
-     * POST /tenants/:tenantId/integrations/slack/channels
-     */
-    fetchChannels: (tenantId: string) => 
-      `/tenants/${tenantId}/integrations/slack/channels`,
-    
-    /**
      * Get Slack channels (using stored integration)
      * GET /tenants/:tenantId/integrations/slack/channels
      */
