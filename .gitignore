@@ -33,6 +33,36 @@ setup-testing.sh
 TEST_*.md
 TESTING_*.md
 
+# Analysis, planning, and temporary documentation files
+*_ANALYSIS.md
+*_PLAN.md
+*_SUMMARY.md
+*_EVALUATION.md
+*_COMPLETE.md
+*_STRATEGY.md
+*_STATUS.md
+*_PROGRESS.md
+*_CLARIFICATION.md
+MERGE_*.md
+MIGRATION_*.md
+PHASE_*.md
+REFACTORING_*.md
+README_MERGE.md
+
+# Test helpers and consolidated test files
+api/test-all-consolidated.ts
+api/test-helpers/
+
+# Archive directory
+archive/
+
+# Backups directory
+backups/
+*.sql.bak
+
+# Tests directory (integration/system tests)
+tests/
+
 # Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
 
