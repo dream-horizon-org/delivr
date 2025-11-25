@@ -22,6 +22,10 @@ import { createTenantIntegrationRoutes } from "./integrations/test-management/te
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
 import { createReleaseConfigRoutes } from "./release-config-routes";
+import { fileUploadMiddleware } from "../file-upload-manager";
+import { createManualBuildUploadHandler } from "~controllers/release-management/builds/manual-upload.controller";
+import { createListBuildArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
+import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -359,6 +363,31 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     }
   );
 
+  // Manual build upload (artifact upload to S3 + DB record)
+  // Uses file upload middleware only for this route
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/builds/manual-upload",
+    tenantPermissions.requireOwner({ storage }),
+    fileUploadMiddleware,
+    createManualBuildUploadHandler(storage)
+  );
+
+  // List artifact paths for a release filtered by platform (query param)
+  // GET /tenants/:tenantId/releases/:releaseId/builds/artifacts?platform=ANDROID|IOS
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
+    tenantPermissions.requireOwner({ storage }),
+    createListBuildArtifactsHandler(storage)
+  );
+
+  // CI artifact upload using ci_run_id lookup
+  // POST /builds/ci/:ciRunId/artifact
+  router.post(
+    "/builds/ci/:ciRunId/artifact",
+    tenantPermissions.allowAll({ storage }),
+    fileUploadMiddleware,
+    createCiArtifactUploadHandler(storage)
+  );
   // ============================================================================
   // ROLLOUT MANAGEMENT
   // ============================================================================

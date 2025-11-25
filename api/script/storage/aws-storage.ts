@@ -2559,4 +2559,31 @@ export class S3Storage implements storage.Storage {
   
       return null;
     }
+
+    // ============================================================================
+    // Public helpers for S3 reuse
+    // ============================================================================
+    public async uploadBufferToS3(key: string, buffer: Buffer, contentType?: string): Promise<void> {
+      const finalContentType = contentType && contentType.trim().length > 0 ? contentType : 'application/octet-stream';
+      await this.s3
+        .putObject({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: buffer,
+          ContentType: finalContentType
+        })
+        .promise();
+    }
+
+    public getS3BucketName(): string {
+      return this.bucketName;
+    }
+
+    public async getSignedObjectUrl(key: string, expiresSeconds: number = 3600): Promise<string> {
+      return this.s3.getSignedUrlPromise('getObject', {
+        Bucket: this.bucketName,
+        Key: key,
+        Expires: expiresSeconds
+      });
+    }
   }
