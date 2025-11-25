@@ -8,12 +8,17 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
-import type { ReleaseConfiguration } from '~/types/release-config';
+import type { ReleaseConfiguration, Platform } from '~/types/release-config';
 import { 
   transformToPlatformTargetsArray,
   transformFromPlatformTargetsArray,
   type PlatformTarget,
 } from '~/utils/platform-mapper';
+
+// Backend response includes platformTargets which isn't in frontend ReleaseConfiguration type
+type BackendReleaseConfig = Partial<ReleaseConfiguration> & {
+  platformTargets?: PlatformTarget[];
+};
 
 /**
  * GET - Get specific release configuration
@@ -42,9 +47,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Transform backend format (platformTargets) to UI format (targets array)
     let transformedConfig = result.data;
-    if (result.data && result.data.platformTargets && Array.isArray(result.data.platformTargets)) {
-      const targets = transformFromPlatformTargetsArray(result.data.platformTargets);
-      const platforms = [...new Set(result.data.platformTargets.map((pt: PlatformTarget) => pt.platform))];
+    const backendData = result.data as BackendReleaseConfig;
+    if (result.data && backendData.platformTargets && Array.isArray(backendData.platformTargets)) {
+      const targets = transformFromPlatformTargetsArray(backendData.platformTargets);
+      const platforms = [...new Set(backendData.platformTargets.map(pt => pt.platform))] as Platform[];
       
       transformedConfig = {
         ...result.data,
@@ -88,7 +94,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       console.log('[BFF] Updating release config:', configId, Object.keys(updates));
 
       // Transform UI format to backend format if targets are present
-      let backendUpdates = { ...updates };
+      let backendUpdates: BackendReleaseConfig = { ...updates };
       if (updates.targets && Array.isArray(updates.targets)) {
         const platformTargets = transformToPlatformTargetsArray(updates.targets);
         backendUpdates = {
@@ -100,7 +106,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         console.log('[BFF] Transformed platformTargets:', platformTargets);
       }
 
-      const result = await ReleaseConfigService.update(configId, backendUpdates as any, tenantId, userId);
+      const result = await ReleaseConfigService.update(configId, backendUpdates, tenantId, userId);
 
       if (!result.success) {
         console.error('[BFF] Update failed:', result.error);
@@ -109,9 +115,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       // Transform backend response to UI format
       let transformedData = result.data;
-      if (result.data && result.data.platformTargets && Array.isArray(result.data.platformTargets)) {
-        const targets = transformFromPlatformTargetsArray(result.data.platformTargets);
-        const platforms = [...new Set(result.data.platformTargets.map((pt: PlatformTarget) => pt.platform))];
+      const backendResponse = result.data as BackendReleaseConfig;
+      if (result.data && backendResponse.platformTargets && Array.isArray(backendResponse.platformTargets)) {
+        const targets = transformFromPlatformTargetsArray(backendResponse.platformTargets);
+        const platforms = [...new Set(backendResponse.platformTargets.map(pt => pt.platform))] as Platform[];
         
         transformedData = {
           ...result.data,
