@@ -14,8 +14,8 @@ import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/au
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
 import type {
-  AppDistributionConnectRequest,
-  AppDistributionVerifyRequest,
+  ConnectStoreRequest,
+  VerifyStoreRequest,
 } from '~/types/app-distribution';
 
 /**
