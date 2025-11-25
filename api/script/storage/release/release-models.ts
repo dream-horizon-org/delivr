@@ -29,7 +29,8 @@ import { Sequelize, DataTypes, Model } from "sequelize";
 
 export enum PlatformName {
   ANDROID = 'ANDROID',
-  IOS = 'IOS'
+  IOS = 'IOS',
+  WEB = 'WEB'
 }
 
 export enum TargetName {
@@ -102,20 +103,30 @@ export enum CherryPickStatus {
 }
 
 export enum TaskType {
+  // Stage 1: Kickoff (5 tasks)
   PRE_KICK_OFF_REMINDER = 'PRE_KICK_OFF_REMINDER',
   FORK_BRANCH = 'FORK_BRANCH',
-  UPDATE_GITHUB_VARIABLES = 'UPDATE_GITHUB_VARIABLES',
-  PRE_RELEASE_CHERRY_PICKS_REMINDER = 'PRE_RELEASE_CHERRY_PICKS_REMINDER',
-  ADD_L6_APPROVAL_CHECK = 'ADD_L6_APPROVAL_CHECK',
-  FINAL_PRE_REGRESSION_BUILDS = 'FINAL_PRE_REGRESSION_BUILDS',
-  TRIGGER_REGRESSION_BUILDS = 'TRIGGER_REGRESSION_BUILDS',
-  AUTOMATION_RUNS = 'AUTOMATION_RUNS',
-  TRIGGER_AUTOMATION_RUNS = 'TRIGGER_AUTOMATION_RUNS',
-  RESET_TEST_RAIL_STATUS = 'RESET_TEST_RAIL_STATUS',
-  CHERRY_REMINDER = 'CHERRY_REMINDER',
+  CREATE_PROJECT_MANAGEMENT_TICKET = 'CREATE_PROJECT_MANAGEMENT_TICKET',
+  CREATE_TEST_SUITE = 'CREATE_TEST_SUITE',
+  TRIGGER_PRE_REGRESSION_BUILDS = 'TRIGGER_PRE_REGRESSION_BUILDS',
+  // Stage 2: Regression Testing (7 tasks)
+  RESET_TEST_SUITE = 'RESET_TEST_SUITE',
+  CREATE_RC_TAG = 'CREATE_RC_TAG',
   CREATE_RELEASE_NOTES = 'CREATE_RELEASE_NOTES',
-  TEST_FLIGHT_BUILD = 'TEST_FLIGHT_BUILD',
-  CREATE_RELEASE_TAG = 'CREATE_RELEASE_TAG'
+  TRIGGER_REGRESSION_BUILDS = 'TRIGGER_REGRESSION_BUILDS',
+  TRIGGER_AUTOMATION_RUNS = 'TRIGGER_AUTOMATION_RUNS',
+  AUTOMATION_RUNS = 'AUTOMATION_RUNS',
+  SEND_REGRESSION_BUILD_MESSAGE = 'SEND_REGRESSION_BUILD_MESSAGE',
+  // Stage 3: Post-Regression (6 tasks)
+  PRE_RELEASE_CHERRY_PICKS_REMINDER = 'PRE_RELEASE_CHERRY_PICKS_REMINDER',
+  CREATE_RELEASE_TAG = 'CREATE_RELEASE_TAG',
+  CREATE_FINAL_RELEASE_NOTES = 'CREATE_FINAL_RELEASE_NOTES', // Stage 3 final release notes (renamed from CREATE_GITHUB_RELEASE)
+  // Note: CREATE_RELEASE_NOTES is used in Stage 2 (regression cycles) only
+  TRIGGER_TEST_FLIGHT_BUILD = 'TRIGGER_TEST_FLIGHT_BUILD',
+  SEND_POST_REGRESSION_MESSAGE = 'SEND_POST_REGRESSION_MESSAGE',
+  CHECK_PROJECT_RELEASE_APPROVAL = 'CHECK_PROJECT_RELEASE_APPROVAL', // Renamed from ADD_L6_APPROVAL_CHECK
+  // Manual API (1 task)
+  SUBMIT_TO_TARGET = 'SUBMIT_TO_TARGET'
 }
 
 export enum TaskStatus {
@@ -149,6 +160,12 @@ export enum StageStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED'
+}
+
+export enum TaskStage {
+  KICKOFF = 'KICKOFF',
+  REGRESSION = 'REGRESSION',
+  POST_REGRESSION = 'POST_REGRESSION'
 }
 
 // ============================================================================
@@ -295,6 +312,76 @@ export function createTargetModel(sequelize: Sequelize) {
 }
 
 /**
+ * Release Platforms Targets Mapping (Consolidated)
+ * Links releases to platform-target combinations with version and integration run IDs
+ * Replaces the old releaseToPlatforms and releaseToTargets junction tables
+ */
+export function createReleasePlatformTargetMappingModel(sequelize: Sequelize) {
+  return sequelize.define('releasePlatformTargetMapping', {
+    id: {
+      type: DataTypes.STRING(255),
+      primaryKey: true
+    },
+    releaseId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      references: {
+        model: 'releases',
+        key: 'id'
+      }
+    },
+    platform: {
+      type: DataTypes.ENUM(...Object.values(PlatformName)),
+      allowNull: false
+    },
+    target: {
+      type: DataTypes.ENUM(...Object.values(TargetName)),
+      allowNull: false
+    },
+    version: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      comment: 'Version for this platform-target combination (e.g., v6.5.0)'
+    },
+    projectManagementRunId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Project management run ID (e.g., Jira epic ID for this platform-target)'
+    },
+    testManagementRunId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'Test management run ID (e.g., test suite run ID for this platform-target)'
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW
+    }
+  }, {
+    tableName: 'release_platforms_targets_mapping',
+    timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['releaseId', 'platform', 'target']
+      },
+      {
+        fields: ['projectManagementRunId']
+      },
+      {
+        fields: ['testManagementRunId']
+      }
+    ]
+  });
+}
+
+/**
  * Release Model (Core table - tenant-linked)
  */
 export function createReleaseModel(sequelize: Sequelize) {
@@ -319,7 +406,8 @@ export function createReleaseModel(sequelize: Sequelize) {
     releaseKey: {
       type: DataTypes.STRING(255),
       unique: true,
-      allowNull: false
+      allowNull: false,
+      field: 'releaseKey' // Explicitly use camelCase in DB
     },
     updatedAt: {
       type: DataTypes.DATE,
@@ -350,10 +438,6 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.TEXT,
       allowNull: true
     },
-    version: {
-      type: DataTypes.STRING(255),
-      allowNull: false
-    },
     type: {
       type: DataTypes.ENUM(...Object.values(ReleaseType)),
       defaultValue: ReleaseType.PLANNED
@@ -382,9 +466,10 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(UpdateType)),
       defaultValue: UpdateType.OPTIONAL
     },
-    createdBy: {
+    createdByAccountId: {
       type: DataTypes.STRING(255),
       allowNull: true,
+      field: 'createdByAccountId',
       references: {
         model: 'accounts',
         key: 'id'
@@ -398,17 +483,19 @@ export function createReleaseModel(sequelize: Sequelize) {
         key: 'id'
       }
     },
-    releasePilotId: {
+    releasePilotAccountId: {
       type: DataTypes.STRING(255),
       allowNull: false,
+      field: 'releasePilotAccountId',
       references: {
         model: 'accounts',
         key: 'id'
       }
     },
-    lastUpdatedBy: {
+    lastUpdateByAccountId: {
       type: DataTypes.STRING(255),
       allowNull: false,
+      field: 'lastUpdateByAccountId',
       references: {
         model: 'accounts',
         key: 'id'
@@ -458,10 +545,6 @@ export function createReleaseModel(sequelize: Sequelize) {
       type: DataTypes.INTEGER,
       defaultValue: 0
     },
-    autoPilot: {
-      type: DataTypes.ENUM(...Object.values(CronStatus)),
-      defaultValue: CronStatus.PENDING
-    },
     webFinalBuildNumber: {
       type: DataTypes.STRING(255),
       allowNull: true
@@ -473,18 +556,49 @@ export function createReleaseModel(sequelize: Sequelize) {
     IOSFinalBuildNumber: {
       type: DataTypes.STRING(255),
       allowNull: true
+    },
+    // Configuration reference (links to integration configs)
+    releaseConfigId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      comment: 'FK to release_configs table (links to integration configuration)'
+    },
+    // Orchestration-specific columns (NEW)
+    // Note: Using camelCase in DB to match remote's convention
+    stageData: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Stores integration responses per stage (JSON object)'
+    },
+    customIntegrationConfigs: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Per-release integration config overrides (JSON object)'
+    },
+    preCreatedBuilds: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Array of pre-created builds: [{"platform": "IOS", "target": "APP_STORE", "buildNumber": "...", "buildUrl": "..."}]'
+    },
+    hasManualBuildUpload: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: 'Whether manual build upload is enabled for this release'
     }
   }, {
     tableName: 'releases',
+    underscored: false, // Keep camelCase field names (DB has camelCase columns)
     timestamps: true,
     indexes: [
       { fields: ['tenantId'] },
       { fields: ['tenantId', 'createdAt'] },
       { fields: ['tenantId', 'status', 'plannedDate'] },
-      { fields: ['releasePilotId', 'status'] },
+      { fields: ['releasePilotAccountId', 'status'] },
       { fields: ['releaseKey'], unique: true },
-      { fields: ['lastUpdatedBy'] },
-      { fields: ['parentId'] }
+      { fields: ['lastUpdateByAccountId'] },
+      { fields: ['parentId'] },
+      { fields: ['releaseConfigId'] }
     ]
   });
 }
@@ -598,42 +712,13 @@ export function createBuildModel(sequelize: Sequelize) {
       { fields: ['platformId'] },
       { fields: ['targetId'] },
       { fields: ['regressionId'] },
-      { fields: ['releaseBuildsId'] }
-    ]
-  });
-}
-
-/**
- * PreReleaseTasks Model - Container for pre-release tasks
- */
-export function createPreReleaseTasksModel(sequelize: Sequelize) {
-  return sequelize.define('preReleaseTasks', {
-    id: {
-      type: DataTypes.STRING(255),
-      primaryKey: true
-    },
-    releaseId: {
-      type: DataTypes.STRING(255),
-      unique: true,
-      allowNull: true,
-      references: {
-        model: 'releases',
-        key: 'id'
+      { fields: ['releaseBuildsId'] },
+      { 
+        fields: ['regressionId', 'platformId'], 
+        unique: true,
+        name: 'idx_builds_regression_platform'
       }
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    }
-  }, {
-    tableName: 'pre_release_tasks',
-    timestamps: true
+    ]
   });
 }
 
@@ -667,14 +752,6 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
       type: DataTypes.ENUM(...Object.values(TaskIdentifier)),
       allowNull: true
     },
-    workflowStatus: {
-      type: DataTypes.ENUM(...Object.values(WorkFlowStatus)),
-      allowNull: true
-    },
-    isGithubWorkflow: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false
-    },
     taskType: {
       type: DataTypes.ENUM(...Object.values(TaskType)),
       allowNull: true
@@ -682,14 +759,6 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
     taskStatus: {
       type: DataTypes.ENUM(...Object.values(TaskStatus)),
       defaultValue: TaskStatus.PENDING
-    },
-    runId: {
-      type: DataTypes.STRING(255),
-      allowNull: true
-    },
-    workflowId: {
-      type: DataTypes.STRING(255),
-      allowNull: true
     },
     taskConclusion: {
       type: DataTypes.ENUM(...Object.values(ReleaseTaskConclusion)),
@@ -719,13 +788,22 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
         key: 'id'
       }
     },
-    preReleaseTasksId: {
+    // Orchestration-specific columns (NEW)
+    stage: {
+      type: DataTypes.ENUM(...Object.values(TaskStage)),
+      allowNull: true,
+      comment: 'Which stage this task belongs to (no RELEASE stage - submission is manual API)'
+    },
+    // Note: Using camelCase in DB to match remote's convention
+    externalId: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      references: {
-        model: 'pre_release_tasks',
-        key: 'id'
-      }
+      comment: 'ID returned by integration (e.g., JIRA ticket ID, build ID, suite ID)'
+    },
+    externalData: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Additional data from integration response (e.g., build URL, ticket details, suite status)'
     },
     createdAt: {
       type: DataTypes.DATE,
@@ -743,9 +821,10 @@ export function createReleaseTasksModel(sequelize: Sequelize) {
     indexes: [
       { fields: ['releaseId'] },
       { fields: ['regressionId'] },
-      { fields: ['preReleaseTasksId'] },
       { fields: ['accountId'] },
-      { fields: ['taskId'], unique: true }
+      { fields: ['taskId'], unique: true },
+      { fields: ['stage'] },
+      { fields: ['externalId'] }
     ]
   });
 }
@@ -1093,7 +1172,8 @@ export function createStateHistoryItemModel(sequelize: Sequelize) {
     },
     group: {
       type: DataTypes.STRING(255),
-      allowNull: true
+      allowNull: true,
+      field: 'group' // Explicitly map to database column (group is reserved word in MySQL)
     },
     type: {
       type: DataTypes.ENUM(...Object.values(StateChangeType)),
@@ -1135,6 +1215,7 @@ export function createStateHistoryItemModel(sequelize: Sequelize) {
     }
   }, {
     tableName: 'state_history_items',
+    underscored: false, // Keep camelCase field names
     timestamps: true,
     indexes: [
       { fields: ['historyId'] },
@@ -1209,13 +1290,41 @@ export function createCronJobModel(sequelize: Sequelize) {
     regressionTimestamp: {
       type: DataTypes.STRING(255),
       allowNull: true
+    },
+    // Locking columns (NEW - for horizontal scaling)
+    // Note: Using snake_case field mapping for compatibility
+    lockedBy: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'locked_by',
+      comment: 'Instance ID holding the lock (for horizontal scaling)'
+    },
+    lockedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'locked_at',
+      comment: 'When lock was acquired'
+    },
+    // lockExpiry removed - not in database schema, lockTimeout is used instead
+    lockTimeout: {
+      type: DataTypes.INTEGER,
+      defaultValue: 300,
+      field: 'lock_timeout',
+      comment: 'Lock timeout in seconds (default 300 = 5 minutes)'
+    },
+    autoTransitionToStage3: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true, // Allow null until migration is run
+      defaultValue: false,
+      comment: 'Controls automatic Stage 2 → Stage 3 transition (default: false, must be manually triggered)'
     }
   }, {
     tableName: 'cron_jobs',
     timestamps: false,
     indexes: [
       { fields: ['releaseId'], unique: true },
-      { fields: ['cronCreatedByAccountId'] }
+      { fields: ['cronCreatedByAccountId'] },
+      { fields: ['lockedBy', 'lockedAt'] }
     ]
   });
 }
@@ -1359,13 +1468,13 @@ export function createGlobalSettingsModel(sequelize: Sequelize) {
  */
 export function createReleaseModels(sequelize: Sequelize) {
   const models = {
-    TenantIntegrations: createTenantIntegrationsModel(sequelize),
+    // TenantIntegrations removed - each integration has its own table
     Platform: createPlatformModel(sequelize),
     Target: createTargetModel(sequelize),
+    ReleasePlatformTargetMapping: createReleasePlatformTargetMappingModel(sequelize),
     Release: createReleaseModel(sequelize),
     ReleaseBuilds: createReleaseBuildsModel(sequelize),
     Build: createBuildModel(sequelize),
-    PreReleaseTasks: createPreReleaseTasksModel(sequelize),
     ReleaseTasks: createReleaseTasksModel(sequelize),
     RegressionCycle: createRegressionCycleModel(sequelize),
     Rollout: createRolloutModel(sequelize),
@@ -1383,17 +1492,30 @@ export function createReleaseModels(sequelize: Sequelize) {
 
   // Set up associations
   
-  // TenantIntegrations associations
-  models.TenantIntegrations.belongsTo(sequelize.models.tenants, { foreignKey: 'tenantId', as: 'tenant' });
-  models.TenantIntegrations.belongsTo(sequelize.models.accounts, { foreignKey: 'configuredByAccountId', as: 'configuredBy' });
+  // Note: TenantIntegrations removed - each integration has its own table
   
   // Release associations
-  models.Release.belongsTo(sequelize.models.tenants, { foreignKey: 'tenantId', as: 'tenant' });
-  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'createdBy', as: 'creator' });
-  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'releasePilotId', as: 'releasePilot' });
-  models.Release.belongsTo(sequelize.models.accounts, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  // Note: Model names in sequelize.models are lowercase (e.g., 'tenant', 'account')
+  if (sequelize.models.tenant) {
+    models.Release.belongsTo(sequelize.models.tenant, { foreignKey: 'tenantId', as: 'tenant' });
+  }
+  if (sequelize.models.account) {
+    models.Release.belongsTo(sequelize.models.account, { foreignKey: 'createdByAccountId', as: 'creator' });
+    models.Release.belongsTo(sequelize.models.account, { foreignKey: 'releasePilotAccountId', as: 'releasePilot' });
+    models.Release.belongsTo(sequelize.models.account, { foreignKey: 'lastUpdateByAccountId', as: 'lastUpdater' });
+  }
   models.Release.belongsTo(models.Release, { foreignKey: 'parentId', as: 'parent' });
   models.Release.hasMany(models.Release, { foreignKey: 'parentId', as: 'hotfixes' });
+  
+  // Release ↔ ReleasePlatformTargetMapping (one-to-many)
+  models.Release.hasMany(models.ReleasePlatformTargetMapping, {
+    foreignKey: 'releaseId',
+    as: 'platformTargetMappings'
+  });
+  models.ReleasePlatformTargetMapping.belongsTo(models.Release, {
+    foreignKey: 'releaseId',
+    as: 'release'
+  });
   
   // ReleaseBuilds associations
   models.ReleaseBuilds.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
@@ -1406,15 +1528,12 @@ export function createReleaseModels(sequelize: Sequelize) {
   models.Build.belongsTo(models.RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
   models.Build.belongsTo(models.ReleaseBuilds, { foreignKey: 'releaseBuildsId', as: 'releaseBuilds' });
   
-  // PreReleaseTasks associations
-  models.PreReleaseTasks.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.PreReleaseTasks.hasMany(models.ReleaseTasks, { foreignKey: 'preReleaseTasksId', as: 'tasks' });
-  
   // ReleaseTasks associations
   models.ReleaseTasks.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
   models.ReleaseTasks.belongsTo(models.RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
-  models.ReleaseTasks.belongsTo(models.PreReleaseTasks, { foreignKey: 'preReleaseTasksId', as: 'preReleaseTasks' });
-  models.ReleaseTasks.belongsTo(sequelize.models.accounts, { foreignKey: 'accountId', as: 'account' });
+  if (sequelize.models.account) {
+    models.ReleaseTasks.belongsTo(sequelize.models.account, { foreignKey: 'accountId', as: 'account' });
+  }
   
   // RegressionCycle associations
   models.RegressionCycle.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
@@ -1436,12 +1555,16 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // CherryPicks associations
   models.CherryPicks.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.CherryPicks.belongsTo(sequelize.models.accounts, { foreignKey: 'authorAccountId', as: 'author' });
-  models.CherryPicks.belongsTo(sequelize.models.accounts, { foreignKey: 'approverAccountId', as: 'approver' });
+  if (sequelize.models.account) {
+    models.CherryPicks.belongsTo(sequelize.models.account, { foreignKey: 'authorAccountId', as: 'author' });
+    models.CherryPicks.belongsTo(sequelize.models.account, { foreignKey: 'approverAccountId', as: 'approver' });
+  }
   
   // StateHistory associations
   models.StateHistory.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.StateHistory.belongsTo(sequelize.models.accounts, { foreignKey: 'accountId', as: 'account' });
+  if (sequelize.models.account) {
+    models.StateHistory.belongsTo(sequelize.models.account, { foreignKey: 'accountId', as: 'account' });
+  }
   models.StateHistory.hasMany(models.StateHistoryItem, { foreignKey: 'historyId', as: 'changes' });
   
   // StateHistoryItem associations
@@ -1449,13 +1572,19 @@ export function createReleaseModels(sequelize: Sequelize) {
   
   // CronJob associations
   models.CronJob.belongsTo(models.Release, { foreignKey: 'releaseId', as: 'release' });
-  models.CronJob.belongsTo(sequelize.models.accounts, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
+  if (sequelize.models.account) {
+    models.CronJob.belongsTo(sequelize.models.account, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
+  }
   
   // CronChangeLogs associations
-  models.CronChangeLogs.belongsTo(sequelize.models.accounts, { foreignKey: 'updatedByAccountId', as: 'updater' });
+  if (sequelize.models.account) {
+    models.CronChangeLogs.belongsTo(sequelize.models.account, { foreignKey: 'updatedByAccountId', as: 'updater' });
+  }
   
   // GlobalSettings associations
-  models.GlobalSettings.belongsTo(sequelize.models.accounts, { foreignKey: 'updatedByAccountId', as: 'updater' });
+  if (sequelize.models.account) {
+    models.GlobalSettings.belongsTo(sequelize.models.account, { foreignKey: 'updatedByAccountId', as: 'updater' });
+  }
 
   return models;
 }
