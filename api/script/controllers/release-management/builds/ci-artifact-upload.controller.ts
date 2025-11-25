@@ -11,13 +11,14 @@ import {
 } from './build.constants';
 import { BuildRepository } from '~models/build/build.repository';
 import { getFileWithField } from '../../../file-upload-manager';
+import { getOptionalTrimmedString } from '~utils/request.utils';
 
 export const createCiArtifactUploadHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const ciRunId = req.params.ciRunId;
+      const ciRunId = getOptionalTrimmedString(req.params.ciRunId);
 
-      const ciRunIdInvalid = !ciRunId || typeof ciRunId !== 'string' || ciRunId.trim().length === 0;
+      const ciRunIdInvalid = !ciRunId;
       if (ciRunIdInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('ci_run_id', 'ci_run_id is required')

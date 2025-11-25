@@ -14,20 +14,21 @@ import {
 import { BuildRepository } from '~models/build/build.repository';
 import * as shortid from 'shortid';
 import { getFileWithField } from '../../../file-upload-manager';
+import { getOptionalTrimmedString } from '~utils/request.utils';
 
 export const createManualBuildUploadHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const tenantId = req.params.tenantId;
-      const releaseId = req.params.releaseId;
+      const tenantId = getOptionalTrimmedString(req.params.tenantId);
+      const releaseId = getOptionalTrimmedString(req.params.releaseId);
 
-      const artifactVersionName = req.body?.artifact_version_name;
-      const artifactVersionCode = req.body?.artifact_version_code;
-      const platformRaw = req.body?.platform;
-      const storeType = req.body?.storeType;
+      const artifactVersionName = getOptionalTrimmedString(req.body?.artifact_version_name);
+      const artifactVersionCode = getOptionalTrimmedString(req.body?.artifact_version_code);
+      const platformRawTrim = getOptionalTrimmedString(req.body?.platform);
+      const storeTypeRawTrim = getOptionalTrimmedString(req.body?.storeType);
       const artifactFile = getFileWithField(req, 'artifact');
 
-      const tenantIdInvalid = !tenantId || typeof tenantId !== 'string' || tenantId.trim().length === 0;
+      const tenantIdInvalid = !tenantId;
       if (tenantIdInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('tenantId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_TENANT_ID)
@@ -35,7 +36,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const releaseIdInvalid = !releaseId || typeof releaseId !== 'string' || releaseId.trim().length === 0;
+      const releaseIdInvalid = !releaseId;
       if (releaseIdInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('releaseId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_RELEASE_ID)
@@ -43,8 +44,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const versionNameInvalid =
-        !artifactVersionName || typeof artifactVersionName !== 'string' || artifactVersionName.trim().length === 0;
+      const versionNameInvalid = !artifactVersionName;
       if (versionNameInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('artifact_version_name', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_VERSION_NAME)
@@ -52,8 +52,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const versionCodeInvalid =
-        !artifactVersionCode || typeof artifactVersionCode !== 'string' || artifactVersionCode.trim().length === 0;
+      const versionCodeInvalid = !artifactVersionCode;
       if (versionCodeInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('artifact_version_code', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_VERSION_CODE)
@@ -69,7 +68,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const normalizedPlatform = typeof platformRaw === 'string' ? platformRaw.trim().toUpperCase() : '';
+      const normalizedPlatform = platformRawTrim ? platformRawTrim.toUpperCase() : '';
       const platformInvalid = normalizedPlatform !== 'ANDROID';
       if (platformInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -78,14 +77,14 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const storeTypeInvalid = !storeType || typeof storeType !== 'string' || storeType.trim().length === 0;
+      const storeTypeInvalid = !storeTypeRawTrim;
       if (storeTypeInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('storeType', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_STORE_TYPE)
         );
         return;
       }
-      const normalizedStoreTypeRaw = typeof storeType === 'string' ? storeType.trim().toUpperCase() : '';
+      const normalizedStoreTypeRaw = (storeTypeRawTrim || '').toUpperCase();
       const toStoreType = (
         value: string
       ):
@@ -118,7 +117,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         {
           tenantId,
           releaseId,
-          storeType,
+          storeType: storeTypeRawTrim,
           artifactVersionName
         },
         fileName

@@ -1,4 +1,5 @@
 import { DataTypes, Model, ModelStatic, Sequelize } from 'sequelize';
+import { getOptionalTrimmedString } from '~utils/request.utils';
 
 type BuildAttributes = {
   id: string;
@@ -126,6 +127,43 @@ export class BuildRepository {
       { artifact_path: artifactPath, updated_at: new Date() as unknown as any },
       { where: { id: buildId } }
     );
+  }
+
+  async findBuilds(params: {
+    tenantId: string;
+    releaseId: string;
+    platform: 'ANDROID' | 'IOS';
+    regressionId?: string | null;
+  }): Promise<BuildAttributes[]> {
+    const { tenantId, releaseId, platform, regressionId } = params;
+    const where: Record<string, unknown> = {
+      tenant_id: tenantId,
+      release_id: releaseId,
+      platform
+    };
+    const hasRegressionFilter = getOptionalTrimmedString(regressionId);
+    if (hasRegressionFilter) {
+      where['regression_id'] = hasRegressionFilter;
+    }
+
+    const rows = await this.model.findAll({
+      attributes: [
+        'id',
+        'tenant_id',
+        'created_at',
+        'updated_at',
+        'artifact_version_code',
+        'artifact_version_name',
+        'artifact_path',
+        'release_id',
+        'platform',
+        'storeType',
+        'regression_id',
+        'ci_run_id'
+      ],
+      where
+    });
+    return rows.map(r => r.get() as unknown as BuildAttributes);
   }
 }
 

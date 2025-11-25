@@ -6,12 +6,15 @@ import { BuildRepository } from '~models/build/build.repository';
 import { S3Storage } from '../../../storage/aws-storage';
 import { parseS3Uri } from '~utils/s3-path.utils';
 import { generatePresignedGetUrl } from '~utils/s3-upload.utils';
+import { getOptionalTrimmedString } from '~utils/request.utils';
+import type { BuildListItem } from '~types/release-management/builds/build.interface';
 
 export const createListBuildArtifactsHandler = (storage: unknown) => async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = req.params.tenantId;
     const releaseId = req.params.releaseId;
     const platformRaw = req.query.platform;
+    const regressionIdRaw = req.query.regression_id;
 
     const tenantIdInvalid = !tenantId || typeof tenantId !== 'string' || tenantId.trim().length === 0;
     if (tenantIdInvalid) {
@@ -41,29 +44,46 @@ export const createListBuildArtifactsHandler = (storage: unknown) => async (req:
     }
 
     const repo = new BuildRepository();
-    const artifactPaths = await repo.findArtifactPaths({
+    const regressionId = getOptionalTrimmedString(regressionIdRaw);
+    const builds = await repo.findBuilds({
       tenantId,
       releaseId,
-      platform: platformValue as 'ANDROID' | 'IOS'
+      platform: platformValue as 'ANDROID' | 'IOS',
+      regressionId
     });
 
-    const urls: string[] = [];
-    for (const uri of artifactPaths) {
+    const results: BuildListItem[] = [];
+    for (const build of builds) {
+      const uri = build.artifact_path ?? '';
+      let downloadUrl: string | null = null;
       try {
         const { bucket, key } = parseS3Uri(uri);
         if (storage instanceof S3Storage) {
-          const signed = await storage.getSignedObjectUrl(key, 3600);
-          urls.push(signed);
+          downloadUrl = await storage.getSignedObjectUrl(key, 3600);
         } else {
-          const signed = await generatePresignedGetUrl({ bucketName: bucket, key, expiresSeconds: 3600 });
-          urls.push(signed);
+          downloadUrl = await generatePresignedGetUrl({ bucketName: bucket, key, expiresSeconds: 3600 });
         }
       } catch {
         // Skip invalid URIs
       }
+      const buildResponse: BuildListItem = {
+        id: build.id,
+        artifactPath: build.artifact_path,
+        downloadUrl,
+        artifactVersionName: build.artifact_version_name,
+        artifactVersionCode: build.artifact_version_code,
+        releaseId: build.release_id,
+        platform: build.platform as 'ANDROID' | 'IOS',
+        storeType: build.storeType as 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE',
+        regressionId: build.regression_id ?? null,
+        ciRunId: build.ci_run_id ?? null,
+        createdAt: build.created_at,
+        updatedAt: build.updated_at
+      };
+      results.push(buildResponse);
     }
 
-    res.status(HTTP_STATUS.OK).json(successResponse<string[]>(urls));
+    res.status(HTTP_STATUS.OK).json(successResponse(results));
   } catch (err) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(errorResponse(err, 'Failed to list build artifacts'));
   }
