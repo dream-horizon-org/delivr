@@ -197,15 +197,13 @@ export const PLATFORM_CONFIGS = [
     id: PLATFORM_CONSTANTS.IOS,
     name: 'iOS',
     description: 'Build and distribute for iOS devices',
-    available: false,
-    comingSoon: true,
+    available: true,
     targets: [
       {
         id: TARGET_PLATFORMS.APP_STORE,
         name: 'Apple App Store',
         description: 'Distribute to App Store',
-        available: false,
-        comingSoon: true,
+        available: true,
       },
       // Future targets can be added here
       // {

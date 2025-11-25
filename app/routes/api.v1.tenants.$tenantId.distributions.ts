@@ -76,9 +76,29 @@ const postDistributionAction = async ({
           { status: 400 }
         );
       }
+      console.log('body for verifyStore', body);
       
       const result = await AppDistributionService.verifyStore(tenantId, user.user.id, body);
-      return json(result);
+      
+      // Transform backend response to match API client expectations
+      // Backend returns: {success, verified, message, details}
+      // API client expects: {success, data: {verified, message, details}}
+      if (result.success) {
+        return json({
+          success: true,
+          data: {
+            verified: result.verified,
+            message: result.message,
+            details: result.details,
+          },
+        });
+      } else {
+        return json({
+          success: false,
+          error: result.message || 'Verification failed',
+          data: result.details,
+        }, { status: 400 });
+      }
     } else {
       // Connect/Create store integration
       
@@ -92,7 +112,7 @@ const postDistributionAction = async ({
           { status: 400 }
         );
       }
-
+      console.log('body for connectStore', body);
       const result = await AppDistributionService.connectStore(tenantId, user.user.id, body);
       
       return json(result, { status: result.success ? 201 : 500 });

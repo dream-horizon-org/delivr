@@ -42,8 +42,8 @@ export async function encrypt(plaintext: string): Promise<string> {
   const encryptionKey = getEncryptionKey();
   
   if (!encryptionKey) {
-    console.warn('VITE_ENCRYPTION_KEY not set in environment, skipping encryption');
-    return plaintext; // Fallback: return plaintext if key not set
+    console.error('❌ VITE_ENCRYPTION_KEY not set in environment. Cannot encrypt sensitive data!');
+    throw new Error('VITE_ENCRYPTION_KEY is not configured. Please set it in your .env file.');
   }
 
   try {
@@ -80,6 +80,14 @@ export async function encrypt(plaintext: string): Promise<string> {
     console.error('Encryption failed:', error);
     throw new Error('Failed to encrypt data');
   }
+}
+
+/**
+ * Check if encryption is properly configured
+ * @returns true if VITE_ENCRYPTION_KEY is set
+ */
+export function isEncryptionConfigured(): boolean {
+  return !!getEncryptionKey();
 }
 
 /**

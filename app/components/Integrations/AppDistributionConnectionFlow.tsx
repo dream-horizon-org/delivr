@@ -1,9 +1,9 @@
 /**
  * App Distribution Connection Flow
- * Handles Play Store and App Store connection
+ * Handles Play Store and App Store connection with auto-save draft support
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Stack,
   Text,
@@ -25,9 +25,10 @@ import type {
   PlayStorePayload,
   AppStorePayload,
 } from '~/types/app-distribution';
-import { encrypt } from '~/utils/encryption';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 import { TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { DEBUG_LABELS } from '~/constants/integration-ui';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
 
 interface AppDistributionConnectionFlowProps {
   storeType: StoreType;
@@ -48,6 +49,7 @@ export function AppDistributionConnectionFlow({
   const [isSaving, setIsSaving] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   // Platforms are fixed based on store type (from system metadata)
   // Validate that we have at least one platform from metadata
   const selectedPlatforms = allowedPlatforms;
@@ -56,34 +58,101 @@ export function AppDistributionConnectionFlow({
     console.error(`${DEBUG_LABELS.APP_DIST_PREFIX} ${DEBUG_LABELS.APP_DIST_NO_PLATFORMS}`);
   }
 
-  // Play Store form state
-  const [playStoreData, setPlayStoreData] = useState<Partial<PlayStorePayload>>({
-    displayName: '',
-    appIdentifier: '',
-    defaultTrack: 'INTERNAL',
-    serviceAccountJson: {
-      type: 'service_account',
-      project_id: '',
-      client_email: '',
-      private_key: '',
-    },
-  });
+  // Play Store draft storage with auto-save
+  // Ref to track if we're in the middle of verify/connect flow
+  const isInFlowRef = useRef(false);
 
-  // App Store form state
-  const [appStoreData, setAppStoreData] = useState<Partial<AppStorePayload>>({
-    displayName: '',
-    targetAppId: '',
-    appIdentifier: '',
-    issuerId: '',
-    keyId: '',
-    privateKeyPem: '',
-    teamName: '',
-    defaultLocale: 'en-US',
-  });
+  const playStoreDraft = useDraftStorage<Partial<PlayStorePayload>>(
+    {
+      storageKey: generateStorageKey('playstore', tenantId),
+      sensitiveFields: ['serviceAccountJson.private_key'],
+      // Only save draft if NOT in verify/connect flow
+      shouldSaveDraft: (data) => !isInFlowRef.current && !!(data.displayName || data.appIdentifier),
+    },
+    {
+      displayName: '',
+      appIdentifier: '',
+      defaultTrack: 'INTERNAL',
+      serviceAccountJson: {
+        type: 'service_account',
+        project_id: '',
+        client_email: '',
+        private_key: '',
+      },
+    }
+  );
+
+  // App Store draft storage with auto-save
+  const appStoreDraft = useDraftStorage<Partial<AppStorePayload>>(
+    {
+      storageKey: generateStorageKey('appstore', tenantId),
+      sensitiveFields: ['privateKeyPem'],
+      // Only save draft if NOT in verify/connect flow
+      shouldSaveDraft: (data) => !isInFlowRef.current && !!(data.displayName || data.appIdentifier),
+    },
+    {
+      displayName: '',
+      targetAppId: '',
+      appIdentifier: '',
+      issuerId: '',
+      keyId: '',
+      privateKeyPem: '',
+      teamName: '',
+      defaultLocale: 'en-US',
+    }
+  );
+
+  // Select the appropriate draft based on store type
+  const { formData, setFormData, isDraftRestored, markSaveSuccessful } =
+    storeType === TARGET_PLATFORMS.PLAY_STORE ? playStoreDraft : appStoreDraft;
+
+  // Type-safe accessors for form data
+  const playStoreData = formData as Partial<PlayStorePayload>;
+  const appStoreData = formData as Partial<AppStorePayload>;
+  const setPlayStoreData = setFormData as typeof playStoreDraft.setFormData;
+  const setAppStoreData = setFormData as typeof appStoreDraft.setFormData;
+
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
+
+  // Validation functions
+  const validatePlayStoreData = (): boolean => {
+    return !!(
+      playStoreData.displayName &&
+      playStoreData.appIdentifier &&
+      playStoreData.defaultTrack &&
+      playStoreData.serviceAccountJson?.project_id &&
+      playStoreData.serviceAccountJson?.client_email &&
+      playStoreData.serviceAccountJson?.private_key
+    );
+  };
+
+  const validateAppStoreData = (): boolean => {
+    return !!(
+      appStoreData.displayName &&
+      appStoreData.targetAppId &&
+      appStoreData.appIdentifier &&
+      appStoreData.issuerId &&
+      appStoreData.keyId &&
+      appStoreData.privateKeyPem &&
+      appStoreData.teamName
+    );
+  };
+
+  const isFormValid =
+    storeType === TARGET_PLATFORMS.PLAY_STORE
+      ? validatePlayStoreData()
+      : validateAppStoreData();
 
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
+    isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
       let payload: any;
@@ -109,7 +178,7 @@ export function AppDistributionConnectionFlow({
         };
       }
 
-      const result = await apiPost<{ verified: boolean }>(
+      const result = await apiPost<{ verified: boolean; message?: string; details?: any }>(
         `/api/v1/tenants/${tenantId}/distributions?action=verify`,
         {
           storeType,
@@ -118,13 +187,18 @@ export function AppDistributionConnectionFlow({
         }
       );
 
+      // BFF returns: {success: true, data: {verified: true, message: "..."}}
       if (result.success && result.data?.verified) {
         setIsVerified(true);
+        // Keep isInFlowRef.current = true until Connect is clicked
       } else {
-        setError('Verification failed');
+        const errorMsg = result.data?.message || result.error || 'Verification failed';
+        setError(errorMsg);
+        isInFlowRef.current = false; // Reset flag on verification failure
       }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to verify credentials'));
+      isInFlowRef.current = false; // Reset flag on error
     } finally {
       setIsVerifying(false);
     }
@@ -173,13 +247,19 @@ export function AppDistributionConnectionFlow({
       );
 
       if (result.success) {
+        // Mark connection as successful and clear draft
+        markSaveSuccessful();
+        isInFlowRef.current = false; // Reset flag after successful connect
+        console.log(`[${storeType}] Connection successful, draft cleared`);
         onConnect(result);
       } else {
         setError('Failed to connect');
+        isInFlowRef.current = false; // Reset flag on connect failure
         setIsSaving(false);
       }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to connect'));
+      isInFlowRef.current = false; // Reset flag on error
       setIsSaving(false);
     }
   };
@@ -362,6 +442,13 @@ export function AppDistributionConnectionFlow({
 
   return (
     <Stack gap="lg">
+      {/* Draft Restored Alert */}
+      {isDraftRestored && (
+        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+          Your previously entered data has been restored. Note: Sensitive credentials (like private keys) are never saved for security.
+        </Alert>
+      )}
+      
       {/* Platform Information */}
       {allowedPlatforms.length === 0 ? (
         <Alert icon={<IconAlertCircle size={16} />} color="red">
@@ -421,11 +508,20 @@ export function AppDistributionConnectionFlow({
           Cancel
         </Button>
         {!isVerified ? (
-          <Button onClick={handleVerify} loading={isVerifying}>
+          <Button 
+            onClick={handleVerify} 
+            loading={isVerifying}
+            disabled={!isFormValid || allowedPlatforms.length === 0}
+          >
             Verify Credentials
           </Button>
         ) : (
-          <Button onClick={handleConnect} loading={isSaving} color="green">
+          <Button 
+            onClick={handleConnect} 
+            loading={isSaving} 
+            color="green"
+            disabled={allowedPlatforms.length === 0}
+          >
             Connect
           </Button>
         )}

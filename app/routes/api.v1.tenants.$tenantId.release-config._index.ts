@@ -8,6 +8,11 @@ import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-r
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
 import type { ReleaseConfiguration } from '~/types/release-config';
+import { 
+  transformToPlatformTargetsArray,
+  transformFromPlatformTargetsArray,
+  type PlatformTarget,
+} from '~/utils/platform-mapper';
 
 /**
  * POST - Create release configuration
@@ -32,9 +37,24 @@ export async function action({ request, params }: ActionFunctionArgs) {
       tenantId,
       name: config.name,
       releaseType: config.releaseType,
+      targets: config.targets,
     });
 
-    const result = await ReleaseConfigService.create(config, tenantId, userId);
+    // Transform UI format (targets array) to backend format (platformTargets array)
+    const platformTargets = transformToPlatformTargetsArray(config.targets);
+    
+    // Create backend payload with platformTargets
+    const backendConfig = {
+      ...config,
+      platformTargets,
+      // Remove old fields that are replaced by platformTargets
+      platforms: undefined,
+      targets: undefined,
+    };
+
+    console.log('[BFF] Transformed platformTargets:', platformTargets);
+
+    const result = await ReleaseConfigService.create(backendConfig as any, tenantId, userId);
 
     if (!result.success) {
       console.error('[BFF] Create failed:', result.error);
@@ -73,8 +93,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return json({ success: false, error: result.error }, { status: 400 });
     }
 
-    console.log('[BFF] List successful:', result.data?.length || 0, 'configs');
-    return json({ success: true, data: result.data }, { status: 200 });
+    // Transform backend format (platformTargets) to UI format (targets array)
+    const transformedConfigs = result.data?.map((config: any) => {
+      if (config.platformTargets && Array.isArray(config.platformTargets)) {
+        const targets = transformFromPlatformTargetsArray(config.platformTargets);
+        const platforms = [...new Set(config.platformTargets.map((pt: PlatformTarget) => pt.platform))];
+        
+        return {
+          ...config,
+          targets,
+          platforms,
+          // Keep platformTargets for backward compatibility if needed
+        };
+      }
+      return config;
+    }) || [];
+
+    console.log('[BFF] List successful:', transformedConfigs.length, 'configs');
+    return json({ success: true, data: transformedConfigs }, { status: 200 });
   } catch (error: any) {
     console.error('[BFF] List error:', error);
     return json(

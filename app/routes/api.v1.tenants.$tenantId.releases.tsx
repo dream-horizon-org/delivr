@@ -1,7 +1,7 @@
 /**
  * Releases API Route
  * Handle CRUD operations for releases
- * Accepts old UI format from create release wizard
+ * Accepts UI format and transforms to new backend API contract
  */
 
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
@@ -17,6 +17,8 @@ import {
   seedMockReleases,
 } from '~/.server/stores/release-store';
 import type { CreateReleaseInput, UpdateReleaseInput, ReleaseFilters } from '~/types/release';
+import { transformToReleaseCreationFormat, extractPlatformVersions, type PlatformTargetWithVersion } from '~/utils/platform-mapper';
+import type { TargetPlatform, Platform } from '~/types/release-config';
 
 /**
  * GET /api/v1/tenants/:tenantId/releases
@@ -162,56 +164,116 @@ export async function action({ request, params }: ActionFunctionArgs) {
     
     // CREATE
     if (method === 'POST') {
-      const releaseData = body.release;
+      const releaseData = body;
       
       if (!releaseData) {
         return json({ error: 'Release data required' }, { status: 400 });
       }
       
-      // Transform old UI format to CreateReleaseInput
-      const input: CreateReleaseInput = {
-        tenantId,
-        configId: releaseData.configId,
-        version: releaseData.version,
-        releaseType: releaseData.releaseType || 'PLANNED',
-        baseVersion: releaseData.baseVersion,
-        kickoffDate: releaseData.kickoffDate,
-        releaseDate: releaseData.releaseDate,
-        description: releaseData.description,
-        platforms: releaseData.platforms || { web: false, playStore: false, appStore: false },
-        customizations: releaseData.customizations,
-        createdBy: releaseData.createdBy || 'system',
-      };
+      console.log('[Releases API] Received release data:', JSON.stringify(releaseData, null, 2));
+      
+      // Extract basicDetails from new format
+      const basicDetails = releaseData.basicDetails || {};
+      
+      // NEW FORMAT: Transform platformTargets with versions to backend format
+      // Expected input: 
+      // 1. releaseTargets: TargetPlatform[] (e.g., ['PLAY_STORE', 'APP_STORE'])
+      // 2. platformVersions: Record<Platform, string> (e.g., { ANDROID: 'v6.5.0', IOS: 'v6.3.0' })
+      //
+      // OR OLD FORMAT (backward compatibility):
+      // releaseTargets: { web: boolean, playStore: boolean, appStore: boolean }
+      
+      let platformTargets: PlatformTargetWithVersion[] = [];
+      
+      // Check if new format (array of TargetPlatform)
+      if (Array.isArray(basicDetails.releaseTargets)) {
+        const targets: TargetPlatform[] = basicDetails.releaseTargets;
+        const versions: Record<Platform, string> = releaseData.platformVersions || {};
+        
+        // Transform to platformTargets array
+        platformTargets = transformToReleaseCreationFormat(targets, versions);
+      }
+      // Check if old format (boolean object) - for backward compatibility
+      else if (basicDetails.releaseTargets && typeof basicDetails.releaseTargets === 'object') {
+        const oldTargets = basicDetails.releaseTargets;
+        const targets: TargetPlatform[] = [];
+        
+        if (oldTargets.web) targets.push('WEB' as TargetPlatform);
+        if (oldTargets.playStore) targets.push('PLAY_STORE' as TargetPlatform);
+        if (oldTargets.appStore) targets.push('APP_STORE' as TargetPlatform);
+        
+        // Use version from basicDetails or default
+        const version = basicDetails.version || 'v1.0.0';
+        const versions: Record<Platform, string> = {
+          ANDROID: version,
+          IOS: version,
+        };
+        
+        platformTargets = transformToReleaseCreationFormat(targets, versions);
+      }
+      
+      console.log('[Releases API] Transformed platformTargets:', platformTargets);
       
       // Validation
-      if (!input.version || !input.kickoffDate || !input.releaseDate) {
+      if (!basicDetails.version || !basicDetails.kickoffDate || !basicDetails.releaseDate) {
         return json(
           { error: 'Version, kickoffDate, and releaseDate are required' },
           { status: 400 }
         );
       }
       
-      // Check if at least one platform is selected
-      const hasAtLeastOnePlatform = 
-        input.platforms.web || 
-        input.platforms.playStore || 
-        input.platforms.appStore;
-      
-      if (!hasAtLeastOnePlatform) {
+      if (platformTargets.length === 0) {
         return json(
-          { error: 'At least one platform must be selected' },
+          { error: 'At least one platform target must be selected' },
           { status: 400 }
         );
       }
       
+      // TODO: When integrating with real backend service, send this format:
+      // {
+      //   tenantId,
+      //   configId,
+      //   releaseType,
+      //   baseVersion,
+      //   baseBranch,
+      //   targetReleaseDate,
+      //   plannedDate,
+      //   platformTargets: [
+      //     { platform: 'ANDROID', target: 'PLAY_STORE', version: 'v6.5.0' },
+      //     { platform: 'IOS', target: 'APP_STORE', version: 'v6.3.0' }
+      //   ],
+      //   cronConfig: {...},
+      //   regressionBuildSlots: [...]
+      // }
+      
+      // For now, keep using old format for in-memory store
+      const input: CreateReleaseInput = {
+        tenantId,
+        configId: releaseData.configId,
+        version: basicDetails.version,
+        releaseType: basicDetails.releaseType || 'PLANNED',
+        baseVersion: releaseData.baseVersion,
+        kickoffDate: basicDetails.kickoffDate,
+        releaseDate: basicDetails.releaseDate,
+        description: basicDetails.description,
+        platforms: basicDetails.releaseTargets || { web: false, playStore: false, appStore: false },
+        customizations: releaseData.customizations,
+        createdBy: releaseData.createdBy || 'system',
+      };
+      
       const release = createRelease(input);
       
       console.log(`[Releases API] Created release: ${release.id} - ${release.releaseKey} v${release.version}`);
+      console.log(`[Releases API] PlatformTargets for backend: ${JSON.stringify(platformTargets)}`);
       
       return json({
         success: true,
         releaseId: release.id,
         release,
+        // Include transformed data for debugging
+        _transformedData: {
+          platformTargets,
+        },
       });
     }
     

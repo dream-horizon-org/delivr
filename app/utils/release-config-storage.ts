@@ -1,12 +1,17 @@
 /**
  * Local Storage Utility for Release Configuration
- * Manages persistence of draft configurations until final submission
+ * Provides helper functions for wizard step tracking and draft checking
+ * 
+ * Note: Draft config data is now managed by useDraftStorage hook.
+ * These utilities are for:
+ * - Wizard step persistence
+ * - Pre-wizard draft checking (for route-level dialogs)
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
+import { generateStorageKey } from '~/hooks/useDraftStorage';
 
-const CONFIG_STORAGE_KEY = 'delivr_release_config_draft';
 const CONFIG_LIST_KEY = 'delivr_release_configs';
 const WIZARD_STEP_KEY = 'delivr_release_config_wizard_step';
 
@@ -15,39 +20,10 @@ const WIZARD_STEP_KEY = 'delivr_release_config_wizard_step';
 // ============================================================================
 
 /**
- * Save draft configuration to local storage
- * 
- * IMPORTANT: Only call this for NEW configs being created!
- * - ✅ NEW config creation: Auto-saves during wizard (allows resume)
- * - ❌ EDIT mode: Should NEVER be called (separate flow)
- * 
- * Draft is automatically cleared after successful submission.
- */
-export function saveDraftConfig(
-  organizationId: string,
-  config: Partial<ReleaseConfiguration>
-): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const key = `${CONFIG_STORAGE_KEY}_${organizationId}`;
-    const data = {
-      ...config,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error('Failed to save draft config:', error);
-  }
-}
-
-/**
  * Load draft configuration from local storage
+ * Used by route to check if draft exists before showing resume dialog
  * 
- * IMPORTANT: Only call this for NEW configs!
- * - ✅ NEW config creation: Checks for draft to resume
- * - ❌ EDIT mode: Should NEVER be called (use existingConfig instead)
+ * Note: Uses same storage key as useDraftStorage hook for consistency
  */
 export function loadDraftConfig(
   organizationId: string
@@ -55,12 +31,14 @@ export function loadDraftConfig(
   if (typeof window === 'undefined') return null;
   
   try {
-    const key = `${CONFIG_STORAGE_KEY}_${organizationId}`;
+    const key = generateStorageKey('release-config', organizationId);
     const data = localStorage.getItem(key);
     
     if (!data) return null;
     
-    return JSON.parse(data);
+    // Parse the draft metadata structure used by useDraftStorage
+    const draft = JSON.parse(data);
+    return draft.data || draft; // Support both hook format and legacy format
   } catch (error) {
     console.error('Failed to load draft config:', error);
     return null;
@@ -72,19 +50,17 @@ export function loadDraftConfig(
  * Also clears the saved wizard step
  * 
  * Called when:
- * - ✅ User successfully submits a NEW config
- * - ✅ User explicitly chooses "Start New" (discarding draft)
- * - ✅ User navigates to create with ?new=true query param
+ * - User explicitly chooses "Start New" (discarding draft)
+ * - User navigates to create with ?new=true query param
  * 
- * NOT called when:
- * - ❌ User is in EDIT mode (edit never touches drafts)
+ * Note: useDraftStorage hook also clears draft on successful save
  */
 export function clearDraftConfig(organizationId: string): void {
   if (typeof window === 'undefined') return;
   
   try {
-    const key = `${CONFIG_STORAGE_KEY}_${organizationId}`;
-    console.log('[clearDraftConfig] Clearing draft config for organizationId:', organizationId, 'key:', key);
+    const key = generateStorageKey('release-config', organizationId);
+    console.log('[clearDraftConfig] Clearing draft config for organizationId:', organizationId);
     localStorage.removeItem(key);
     
     // Also clear the wizard step
@@ -101,7 +77,7 @@ export function hasDraftConfig(organizationId: string): boolean {
   if (typeof window === 'undefined') return false;
   
   try {
-    const key = `${CONFIG_STORAGE_KEY}_${organizationId}`;
+    const key = generateStorageKey('release-config', organizationId);
     return localStorage.getItem(key) !== null;
   } catch (error) {
     return false;

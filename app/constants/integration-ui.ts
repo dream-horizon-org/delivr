@@ -24,6 +24,8 @@ export const INTEGRATION_CARD_LABELS = {
   PLATFORMS: 'Platforms',
   STORE: 'Store',
   TEAM: 'Team',
+  TEAM_NAME: 'Team Name',
+  DEFAULT_LOCALE: 'Default Locale',
   
   // Store Types
   PLAY_STORE: 'Play Store',

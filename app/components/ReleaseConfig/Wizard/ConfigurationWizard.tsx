@@ -7,13 +7,7 @@ import { useState, useEffect } from 'react';
 import { Container, Paper, Text, Badge } from '@mantine/core';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
-import {
-  saveDraftConfig,
-  loadDraftConfig,
-  clearDraftConfig,
-  saveWizardStep,
-  loadWizardStep,
-} from '~/utils/release-config-storage';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
 import { createDefaultConfig } from '~/utils/default-config';
 import { apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
@@ -47,16 +41,37 @@ export function ConfigurationWizard({
 }: ConfigurationWizardProps) {
   const { invalidateReleaseConfigs } = useConfig(); // ✅ For cache invalidation after save
   
-  // Initialize step from saved draft step (if exists) or default to 0
+  // Draft storage for release config (only active in create mode)
+  // MUST be declared FIRST so we can use metadata in state initializers
+  const {
+    formData: config,
+    setFormData: setConfig,
+    isDraftRestored,
+    markSaveSuccessful,
+    metadata,
+    updateMetadata,
+  } = useDraftStorage<Partial<ReleaseConfiguration>>(
+    {
+      storageKey: generateStorageKey('release-config', tenantId),
+      sensitiveFields: [], // No sensitive fields in config
+      shouldSaveDraft: (data) => !isEditMode && !!data.name, // Only save if not in edit mode and has name
+      ttl: 30 * 24 * 60 * 60 * 1000, // 30 days for release configs
+      enableMetadata: true, // Enable metadata to store wizard step
+    },
+    // Initial data: Use existing config (edit mode) or draft (create mode) or default
+    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
+  );
+  
+  // Initialize step from metadata (if draft was restored) or default to 0
   const [currentStep, setCurrentStep] = useState(() => {
     // Only restore step for draft configs, not in edit mode
-    return !isEditMode ? loadWizardStep(tenantId) : 0;
+    return !isEditMode && metadata?.wizardStep ? metadata.wizardStep : 0;
   });
   
   // Initialize completed steps based on saved step
   // Mark all steps before the saved step as completed
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(() => {
-    const savedStep = !isEditMode ? loadWizardStep(tenantId) : 0;
+    const savedStep = !isEditMode && metadata?.wizardStep ? metadata.wizardStep : 0;
     if (savedStep > 0) {
       const completed = new Set<number>();
       for (let i = 0; i < savedStep; i++) {
@@ -69,37 +84,13 @@ export function ConfigurationWizard({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Initialize configuration from existing, draft, or create new
-  const [config, setConfig] = useState<Partial<ReleaseConfiguration>>(() => {
-    // Edit Mode: Use existing config, NEVER touch drafts
-    if (isEditMode && existingConfig) {
-      return existingConfig;
-    }
-    
-    // New Config Mode: Try to load draft (for resuming interrupted creation)
-    const draft = loadDraftConfig(tenantId);
-    if (draft) {
-      return draft;
-    }
-    
-    // Fresh start: Create default config
-    return createDefaultConfig(tenantId);
-  });
-  
-  // Auto-save draft to local storage (ONLY for NEW configs, NOT in edit mode)
-  useEffect(() => {
-    if (!isEditMode) {
-    saveDraftConfig(tenantId, config);
-    }
-  }, [tenantId, config, isEditMode]);
-  
-  // Auto-save current wizard step to local storage
+  // Auto-save current wizard step to metadata
   useEffect(() => {
     // Only save step for draft configs, not in edit mode
-    if (!isEditMode) {
-      saveWizardStep(tenantId, currentStep);
+    if (!isEditMode && updateMetadata) {
+      updateMetadata({ wizardStep: currentStep });
     }
-  }, [tenantId, currentStep, isEditMode]);
+  }, [currentStep, isEditMode, updateMetadata]);
   
   const handleNext = () => {
     if (canProceedFromStep(currentStep, config)) {
@@ -151,7 +142,7 @@ export function ConfigurationWizard({
       // Invalidate cache and clear draft
       invalidateReleaseConfigs();
       if (!isEditMode) {
-        clearDraftConfig(tenantId);
+        markSaveSuccessful(); // Clear draft (including metadata with wizard step)
       }
       
       const savedConfig: ReleaseConfiguration = {
@@ -290,7 +281,7 @@ export function ConfigurationWizard({
                   Editing: {config.name || 'Configuration'}
                 </Badge>
               )}
-              {!isEditMode && loadWizardStep(tenantId) > 0 && (
+              {!isEditMode && isDraftRestored && (
                 <Badge color="green" size="lg" className="mb-4">
                   📍 Resuming Draft (Step {currentStep + 1})
                 </Badge>

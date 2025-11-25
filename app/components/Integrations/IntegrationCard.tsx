@@ -200,6 +200,22 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
             </div>
           )}
           
+          {/* App Distribution - Team Name (App Store) */}
+          {integration.config.teamName && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.TEAM_NAME}</div>
+              <div className="text-sm text-gray-900">{integration.config.teamName}</div>
+            </div>
+          )}
+          
+          {/* App Distribution - Default Locale (App Store) */}
+          {integration.config.defaultLocale && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-0.5">{INTEGRATION_CARD_LABELS.DEFAULT_LOCALE}</div>
+              <div className="text-sm text-gray-900">{integration.config.defaultLocale}</div>
+            </div>
+          )}
+          
           {/* App Distribution - Platforms */}
           {integration.config.platforms && Array.isArray(integration.config.platforms) && (
             <div>
