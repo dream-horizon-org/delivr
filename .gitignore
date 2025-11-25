@@ -60,6 +60,12 @@ archive/
 backups/
 *.sql.bak
 
+# Backup files
+*.backup
+*-backup
+*.bak
+*~
+
 # Tests directory (integration/system tests)
 tests/
 
