@@ -4,7 +4,6 @@
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { generateConfigId } from './release-config-storage';
 
 /**
  * Create a default configuration object for a new release configuration
@@ -14,7 +13,7 @@ import { generateConfigId } from './release-config-storage';
  */
 export function createDefaultConfig(tenantId: string): Partial<ReleaseConfiguration> {
   return {
-    id: generateConfigId(),
+    // id is omitted - backend will generate it on save
     tenantId,
     name: '',
     releaseType: 'PLANNED',

@@ -44,7 +44,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       console.error('[BFF] Get failed:', result.error);
       return json({ success: false, error: result.error }, { status: 404 });
     }
-
+    console.log('[BFF] Get successful:', result.data);
     // Transform backend format (platformTargets) to UI format (targets array)
     let transformedConfig = result.data;
     const backendData = result.data as BackendReleaseConfig;
@@ -59,7 +59,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       };
     }
 
-    console.log('[BFF] Get successful:', transformedConfig?.name);
+    console.log('[BFF] Get successful in api route:', JSON.stringify(transformedConfig, null, 2), transformedConfig?.name);
     return json({ success: true, data: transformedConfig }, { status: 200 });
   } catch (error: any) {
     console.error('[BFF] Get error:', error);

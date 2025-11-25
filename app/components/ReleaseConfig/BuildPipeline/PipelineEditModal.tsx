@@ -21,7 +21,6 @@ import { PipelineProviderSelect } from './PipelineProviderSelect';
 import { JenkinsConfigForm } from './JenkinsConfigForm';
 import { GitHubActionsConfigForm } from './GitHubActionsConfigForm';
 import { ManualUploadConfigForm } from './ManualUploadConfigForm';
-import { generateConfigId } from '~/utils/release-config-storage';
 import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS, CONFIG_MODES } from '~/types/release-config-constants';
 import {
   PLATFORM_LABELS,
@@ -239,7 +238,7 @@ export function PipelineEditModal({
     }
     
     const pipelineData: Workflow = {
-      id: pipeline?.id || generateConfigId(),
+      id: pipeline?.id || `wf_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       name: name.trim(),
       platform,
       environment,

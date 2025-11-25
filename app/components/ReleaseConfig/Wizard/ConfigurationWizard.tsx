@@ -143,6 +143,8 @@ export function ConfigurationWizard({
       const result = isEditMode
         ? await apiPut<ReleaseConfiguration>(endpoint, completeConfig)
         : await apiPost<ReleaseConfiguration>(endpoint, completeConfig);
+
+      console.log('[ConfigWizard] Save result:', JSON.stringify(result, null, 2));
       
       // Invalidate cache and clear draft
       invalidateReleaseConfigs();

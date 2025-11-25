@@ -1,19 +1,17 @@
 /**
  * Local Storage Utility for Release Configuration
- * Provides helper functions for wizard step tracking and draft checking
+ * Provides helper functions for draft checking and validation
  * 
- * Note: Draft config data is now managed by useDraftStorage hook.
+ * Note: Draft config data and wizard steps are managed by useDraftStorage hook.
  * These utilities are for:
- * - Wizard step persistence
  * - Pre-wizard draft checking (for route-level dialogs)
+ * - Validation logic
+ * - Export/Import functionality
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 import { generateStorageKey } from '~/hooks/useDraftStorage';
-
-const CONFIG_LIST_KEY = 'delivr_release_configs';
-const WIZARD_STEP_KEY = 'delivr_release_config_wizard_step';
 
 // ============================================================================
 // Draft Configuration Management (Local Storage)
@@ -47,7 +45,6 @@ export function loadDraftConfig(
 
 /**
  * Clear draft configuration from local storage
- * Also clears the saved wizard step
  * 
  * Called when:
  * - User explicitly chooses "Start New" (discarding draft)
@@ -62,9 +59,6 @@ export function clearDraftConfig(organizationId: string): void {
     const key = generateStorageKey('release-config', organizationId);
     console.log('[clearDraftConfig] Clearing draft config for organizationId:', organizationId);
     localStorage.removeItem(key);
-    
-    // Also clear the wizard step
-    clearWizardStep(organizationId);
   } catch (error) {
     console.error('Failed to clear draft config:', error);
   }
@@ -82,172 +76,6 @@ export function hasDraftConfig(organizationId: string): boolean {
   } catch (error) {
     return false;
   }
-}
-
-/**
- * Save last active wizard step for draft configuration
- */
-export function saveWizardStep(
-  organizationId: string,
-  stepIndex: number
-): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const key = `${WIZARD_STEP_KEY}_${organizationId}`;
-    localStorage.setItem(key, stepIndex.toString());
-  } catch (error) {
-    console.error('Failed to save wizard step:', error);
-  }
-}
-
-/**
- * Load last active wizard step for draft configuration
- * Returns 0 (first step) if no saved step exists
- */
-export function loadWizardStep(organizationId: string): number {
-  if (typeof window === 'undefined') return 0;
-  
-  try {
-    const key = `${WIZARD_STEP_KEY}_${organizationId}`;
-    const saved = localStorage.getItem(key);
-    
-    if (!saved) return 0;
-    
-    const stepIndex = parseInt(saved, 10);
-    return isNaN(stepIndex) ? 0 : stepIndex;
-  } catch (error) {
-    console.error('Failed to load wizard step:', error);
-    return 0;
-  }
-}
-
-/**
- * Clear saved wizard step
- */
-export function clearWizardStep(organizationId: string): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const key = `${WIZARD_STEP_KEY}_${organizationId}`;
-    localStorage.removeItem(key);
-  } catch (error) {
-    console.error('Failed to clear wizard step:', error);
-  }
-}
-
-// ============================================================================
-// Configuration List Management (for multiple configs per org)
-// ============================================================================
-
-export interface ConfigListItem {
-  id: string;
-  name: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'EMERGENCY';
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-  status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
-}
-
-/**
- * Save configuration list
- */
-export function saveConfigList(
-  organizationId: string,
-  configs: ConfigListItem[]
-): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const key = `${CONFIG_LIST_KEY}_${organizationId}`;
-    localStorage.setItem(key, JSON.stringify(configs));
-  } catch (error) {
-    console.error('Failed to save config list:', error);
-  }
-}
-
-/**
- * Load configuration list
- */
-export function loadConfigList(organizationId: string): ConfigListItem[] {
-  if (typeof window === 'undefined') return [];
-  
-  try {
-    const key = `${CONFIG_LIST_KEY}_${organizationId}`;
-    const data = localStorage.getItem(key);
-    
-    if (!data) return [];
-    
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Failed to load config list:', error);
-    return [];
-  }
-}
-
-/**
- * Add configuration to list
- */
-export function addConfigToList(
-  organizationId: string,
-  config: ConfigListItem
-): void {
-  const configs = loadConfigList(organizationId);
-  configs.push(config);
-  saveConfigList(organizationId, configs);
-}
-
-/**
- * Update configuration in list
- */
-export function updateConfigInList(
-  organizationId: string,
-  configId: string,
-  updates: Partial<ConfigListItem>
-): void {
-  const configs = loadConfigList(organizationId);
-  const index = configs.findIndex(c => c.id === configId);
-  
-  if (index !== -1) {
-    configs[index] = { ...configs[index], ...updates };
-    saveConfigList(organizationId, configs);
-  }
-}
-
-/**
- * Remove configuration from list
- */
-export function removeConfigFromList(
-  organizationId: string,
-  configId: string
-): void {
-  const configs = loadConfigList(organizationId);
-  const filtered = configs.filter(c => c.id !== configId);
-  saveConfigList(organizationId, filtered);
-}
-
-/**
- * Get default configuration from list
- */
-export function getDefaultConfigFromList(
-  organizationId: string
-): ConfigListItem | null {
-  const configs = loadConfigList(organizationId);
-  return configs.find(c => c.isDefault && c.status === 'ACTIVE') || null;
-}
-
-// ============================================================================
-// Configuration ID Generation
-// ============================================================================
-
-/**
- * Generate unique configuration ID
- */
-export function generateConfigId(): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 9);
-  return `config_${timestamp}_${random}`;
 }
 
 // ============================================================================
@@ -429,29 +257,3 @@ export function importConfig(jsonString: string): ReleaseConfiguration | null {
     return null;
   }
 }
-
-/**
- * Load a specific configuration by ID
- */
-export function loadConfigById(
-  organizationId: string,
-  configId: string
-): ReleaseConfiguration | null {
-  const storageKey = `${CONFIG_LIST_KEY}_${organizationId}:${configId}`;
-  
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  
-  try {
-    const data = localStorage.getItem(storageKey);
-    if (data) {
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Failed to load configuration:', error);
-  }
-  
-  return null;
-}
-

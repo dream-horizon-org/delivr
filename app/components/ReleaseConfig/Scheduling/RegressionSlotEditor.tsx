@@ -7,7 +7,6 @@ import { useState } from 'react';
 import { Modal, TextInput, NumberInput, Stack, Group, Button, Switch, Text } from '@mantine/core';
 import type { RegressionSlot } from '~/types/release-config';
 import type { RegressionSlotEditorProps } from '~/types/release-config-props';
-import { generateConfigId } from '~/utils/release-config-storage';
 
 export function RegressionSlotEditor({
   opened,
@@ -31,7 +30,7 @@ export function RegressionSlotEditor({
   
   const handleSave = () => {
     const slotData: RegressionSlot = {
-      id: slot?.id || generateConfigId(),
+      id: slot?.id || `slot_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       name: name.trim(),
       regressionSlotOffsetFromKickoff: offsetDays,
       time,
