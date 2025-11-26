@@ -67,18 +67,49 @@ async function apiRequest<T = unknown>(
       );
     }
 
-    const result: ApiResponse<T> = await response.json();
+    const parsed = await response.json();
 
-    // Handle non-OK responses
-    if (!response.ok || !result.success) {
-      throw new ApiError(
-        result.error || result.message || `Request failed with status ${response.status}`,
-        response.status,
-        result
-      );
+    // If HTTP status is not OK, throw with best available message
+    if (!response.ok) {
+      const messageFromParsed =
+        (parsed && (parsed.error || parsed.message)) ||
+        `Request failed with status ${response.status}`;
+      throw new ApiError(messageFromParsed, response.status, parsed);
     }
 
-    return result;
+    // Support two response shapes:
+    // 1) Standard envelope: { success, data, message, error }
+    // 2) Raw JSON payloads (no 'success' boolean): e.g., { verified: true, message: '...' }
+    const hasSuccessBoolean = typeof parsed?.success === 'boolean';
+
+    if (hasSuccessBoolean) {
+      const envelope = parsed as ApiResponse<T>;
+      if (!envelope.success) {
+        const messageFromEnvelope =
+          envelope.error || envelope.message || `Request failed with status ${response.status}`;
+        throw new ApiError(messageFromEnvelope, response.status, envelope);
+      }
+      // Normalize shape when payload lives at top-level instead of in 'data'
+      const dataIsMissing = typeof (envelope as any).data === 'undefined';
+      if (dataIsMissing) {
+        const { success: _success, message, error, ...rest } = parsed as Record<string, unknown>;
+        const normalized: ApiResponse<T> = {
+          success: true,
+          data: rest as T,
+          message: typeof message === 'string' ? message : undefined,
+          // If success is true, prefer clearing error
+        };
+        return normalized;
+      }
+      return envelope;
+    }
+
+    // Raw payload → wrap into ApiResponse<T>
+    const wrapped: ApiResponse<T> = {
+      success: true,
+      data: parsed as T,
+    };
+    return wrapped;
   } catch (error) {
     clearTimeout(timeoutId);
 
