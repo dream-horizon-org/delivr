@@ -5,7 +5,7 @@
  * Backend API structure:
  * - Config: { baseUrl: string, authToken: string }
  * - Provider: CHECKMATE
- * - Endpoints: /projects/:projectId/integrations/test-management
+ * - Endpoints: /tenants/:tenantId/integrations/test-management
  */
 
 import { useState } from 'react';
