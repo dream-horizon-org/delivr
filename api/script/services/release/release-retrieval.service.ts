@@ -52,10 +52,9 @@ export class ReleaseRetrievalService {
         targetReleaseDate: release.targetReleaseDate ? release.targetReleaseDate.toISOString() : null,
         releaseDate: release.releaseDate ? release.releaseDate.toISOString() : null,
         hasManualBuildUpload: release.hasManualBuildUpload,
-        customIntegrationConfigs: release.customIntegrationConfigs || null,
-        preCreatedBuilds: release.preCreatedBuilds || null,
-        createdBy: release.createdBy,
-        lastUpdatedBy: release.lastUpdatedBy,
+        createdByAccountId: release.createdByAccountId,
+        releasePilotAccountId: release.releasePilotAccountId,
+        lastUpdatedByAccountId: release.lastUpdatedByAccountId,
         createdAt: release.createdAt.toISOString(),
         updatedAt: release.updatedAt.toISOString()
       };
@@ -69,11 +68,12 @@ export class ReleaseRetrievalService {
           stage3Status: cronJobRecord.stage3Status,
           cronStatus: cronJobRecord.cronStatus,
           cronConfig: cronJobRecord.cronConfig,
-          regressionTimings: cronJobRecord.regressionTimings,
           upcomingRegressions: cronJobRecord.upcomingRegressions,
           cronCreatedAt: cronJobRecord.cronCreatedAt.toISOString(),
           cronStoppedAt: cronJobRecord.cronStoppedAt ? cronJobRecord.cronStoppedAt.toISOString() : null,
-          cronCreatedByAccountId: cronJobRecord.cronCreatedByAccountId
+          cronCreatedByAccountId: cronJobRecord.cronCreatedByAccountId,
+          autoTransitionToStage2: cronJobRecord.autoTransitionToStage2,
+          stageData: cronJobRecord.stageData
         };
       }
 
@@ -139,10 +139,9 @@ export class ReleaseRetrievalService {
       targetReleaseDate: release.targetReleaseDate ? release.targetReleaseDate.toISOString() : null,
       releaseDate: release.releaseDate ? release.releaseDate.toISOString() : null,
       hasManualBuildUpload: release.hasManualBuildUpload,
-      customIntegrationConfigs: release.customIntegrationConfigs || null,
-      preCreatedBuilds: release.preCreatedBuilds || null,
-      createdBy: release.createdBy,
-      lastUpdatedBy: release.lastUpdatedBy,
+      createdByAccountId: release.createdByAccountId,
+      releasePilotAccountId: release.releasePilotAccountId,
+      lastUpdatedByAccountId: release.lastUpdatedByAccountId,
       createdAt: release.createdAt.toISOString(),
       updatedAt: release.updatedAt.toISOString(),
       tasks: taskRecords.map(t => ({
@@ -174,11 +173,12 @@ export class ReleaseRetrievalService {
         stage3Status: cronJobRecord.stage3Status,
         cronStatus: cronJobRecord.cronStatus,
         cronConfig: cronJobRecord.cronConfig,
-        regressionTimings: cronJobRecord.regressionTimings,
         upcomingRegressions: cronJobRecord.upcomingRegressions,
         cronCreatedAt: cronJobRecord.cronCreatedAt.toISOString(),
         cronStoppedAt: cronJobRecord.cronStoppedAt ? cronJobRecord.cronStoppedAt.toISOString() : null,
-        cronCreatedByAccountId: cronJobRecord.cronCreatedByAccountId
+        cronCreatedByAccountId: cronJobRecord.cronCreatedByAccountId,
+        autoTransitionToStage2: cronJobRecord.autoTransitionToStage2,
+        stageData: cronJobRecord.stageData
       };
     }
 

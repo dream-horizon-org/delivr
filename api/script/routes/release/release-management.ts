@@ -11,11 +11,13 @@ import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
 import type { ReleaseCreationService } from "../../services/release/release-creation.service";
 import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
+import type { ReleaseUpdateService } from "../../services/release/release-update.service";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
   releaseCreationService: ReleaseCreationService;
   releaseRetrievalService: ReleaseRetrievalService;
+  releaseUpdateService: ReleaseUpdateService;
 }
 
 /**
@@ -26,7 +28,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const router: Router = Router();
   const controller = new ReleaseManagementController(
     config.releaseCreationService,
-    config.releaseRetrievalService
+    config.releaseRetrievalService,
+    config.releaseUpdateService
   );
 
   // ============================================================================
@@ -69,13 +72,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.patch(
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.updateRelease
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Release update endpoint coming soon"
-      });
-    }
+    controller.updateRelease
   );
 
   // Delete a release

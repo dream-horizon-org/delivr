@@ -55,6 +55,7 @@ import {
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
+import { ReleaseUpdateService } from "../services/release/release-update.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
@@ -450,12 +451,12 @@ export function createModelss(sequelize: Sequelize) {
   Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
   
   // Account and Release (Creator relationship)
-  Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
-  Release.belongsTo(Account, { foreignKey: 'createdBy', as: 'creator' });
+  Account.hasMany(Release, { foreignKey: 'createdByAccountId', as: 'createdReleases' });
+  Release.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
   
   // Account and Release (Last updater relationship)
-  Account.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
-  Release.belongsTo(Account, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  Account.hasMany(Release, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdatedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdater' });
   
   // Release self-referencing (Parent-child for hotfixes via baseReleaseId)
   Release.hasMany(Release, { foreignKey: 'baseReleaseId', as: 'hotfixes' });
@@ -641,6 +642,7 @@ export class S3Storage implements storage.Storage {
     public releaseRetrievalService!: ReleaseRetrievalService;
     public slackController!: SlackIntegrationController;  // Slack integration controller (OLD - for backwards compatibility)
     public slackIntegrationRepository!: SlackIntegrationRepository;  // Slack integration repository (NEW - with delete method)
+    public releaseUpdateService!: ReleaseUpdateService;  // Slack integration controller
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public channelController!: ChannelController;  // Channel configuration controller
@@ -878,7 +880,8 @@ export class S3Storage implements storage.Storage {
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
-            this
+            this,
+            this.releaseConfigService
           );
           console.log("Release Creation Service initialized");
           
@@ -889,6 +892,13 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo
           );
           console.log("Release Retrieval Service initialized");
+          
+          this.releaseUpdateService = new ReleaseUpdateService(
+            releaseRepo,
+            cronJobRepo,
+            platformTargetMappingRepo
+          );
+          console.log("Release Update Service initialized");
           
           // return this.sequelize.sync();
         })
