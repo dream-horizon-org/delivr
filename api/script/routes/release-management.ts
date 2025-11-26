@@ -7,7 +7,7 @@ import * as tenantPermissions from "../middleware/tenant-permissions";
 import { S3Storage } from "../storage/aws-storage";
 import * as storageTypes from "../storage/storage";
 import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
-import { createCommIntegrationRoutes } from "./integrations/comm";
+import { createCommIntegrationRoutes, createCommConfigRoutes } from "./integrations/comm";
 import {
   createConfigurationRoutes as createPMConfigurationRoutes,
   createIntegrationRoutes as createPMIntegrationRoutes,
@@ -145,8 +145,32 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  const commRoutes = createCommIntegrationRoutes(storage);
-  router.use(commRoutes);
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if services are initialized
+    if (s3Storage.commIntegrationService && s3Storage.commConfigService) {
+      // All comm routes under /comm/ prefix
+      const commRouter = Router();
+      
+      // Integration Management (Credentials)
+      const commIntegrationRoutes = createCommIntegrationRoutes(s3Storage.commIntegrationService);
+      commRouter.use(commIntegrationRoutes);
+      
+      // Configuration Management (Channel configs)
+      const commConfigRoutes = createCommConfigRoutes(s3Storage.commConfigService);
+      commRouter.use(commConfigRoutes);
+      
+      // Mount all comm routes under /comm
+      router.use('/comm', commRouter);
+      
+      console.log('[Release Management] Communication routes mounted successfully under /comm');
+    } else {
+      console.warn('[Release Management] Communication services not yet initialized, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Communication services not available (S3Storage required), routes not mounted');
+  }
 
   // ============================================================================
   // RELEASE CONFIGURATION ROUTES
@@ -228,9 +252,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         const scmController = (storage as any).scmController;
         const scmIntegration = await scmController.findActiveByTenant(tenantId);
 
-        // Check Slack integration
-        const slackController = (storage as any).slackController;
-        const slackIntegration = await slackController.findByTenant(tenantId);
+        // Check Comm/Slack integration
+        const commIntegrationRepository = (storage as any).commIntegrationRepository;
+        const slackIntegration = await commIntegrationRepository.findByTenant(tenantId, 'SLACK');
 
         // TODO: Check other required integrations (targets, pipelines, etc.)
         // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);

@@ -1,7 +1,8 @@
 import { CommType } from '../comm-types';
 import type { CommConfig } from '../comm-types';
 import type { ICommService } from './provider.interface';
-import { SlackService } from './slack/slack.service';
+import { SlackProvider } from './slack/slack.provider';
+import type { SlackConfig } from './slack/slack.interface';
 
 /**
  * Provider Factory
@@ -19,7 +20,7 @@ export class ProviderFactory {
   static getProvider(providerType: CommType, config: CommConfig): ICommService {
     switch (providerType) {
       case CommType.SLACK:
-        return new SlackService(config);
+        return new SlackProvider(config as SlackConfig);
       // Future providers:
       // case CommType.TEAMS:
       //   return new TeamsService(config);

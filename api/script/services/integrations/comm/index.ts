@@ -4,12 +4,12 @@
  */
 
 // Services
-export { SlackIntegrationService } from './slack-integration';
-export { SlackChannelConfigService } from './slack-channel-config';
+export { CommIntegrationService } from './comm-integration';
+export { CommConfigService } from './comm-config';
 export { MessagingService } from './messaging';
 
 // Providers
-export { SlackService } from './providers/slack';
+export { SlackProvider } from './providers/slack';
 export type { ICommService } from './providers/provider.interface';
 export { ProviderFactory } from './providers/provider.factory';
 

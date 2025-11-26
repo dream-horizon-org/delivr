@@ -1,9 +1,9 @@
 import type { MessageResponse } from '../comm-types';
 import type { Task, Platform } from './messaging.interface';
 import { ProviderFactory } from '../providers/provider.factory';
-import type { SlackIntegrationService } from '../slack-integration';
-import type { SlackChannelConfigService } from '../slack-channel-config';
-import { CommunicationType } from '../../../../storage/integrations/comm/slack-types';
+import type { CommIntegrationService } from '../comm-integration';
+import type { CommConfigService } from '../comm-config';
+import { CommunicationType } from '~types/integrations/comm/comm-integration';
 import { CommType } from '../comm-types';
 
 /**
@@ -22,8 +22,8 @@ import { CommType } from '../comm-types';
  */
 export class MessagingService {
   constructor(
-    private slackIntegrationService: SlackIntegrationService,
-    private slackChannelConfigService: SlackChannelConfigService
+    private readonly commIntegrationService: CommIntegrationService,
+    private readonly commConfigService: CommConfigService
   ) {}
 
   /**
@@ -44,14 +44,14 @@ export class MessagingService {
     platform?: Platform
   ): Promise<Map<string, MessageResponse>> {
     // 1. Get channel configuration by configId
-    const channelConfig = await this.slackChannelConfigService.getConfig(configId);
+    const channelConfig = await this.commConfigService.getConfigById(configId);
     
     if (!channelConfig) {
       throw new Error(`Channel configuration not found: ${configId}`);
     }
 
     // 2. Get integration by config.integrationId (NOT by tenantId!)
-    const integration = await this.slackIntegrationService.getIntegrationById(
+    const integration = await this.commIntegrationService.getIntegrationById(
       channelConfig.integrationId
     );
     
@@ -126,14 +126,14 @@ export class MessagingService {
    */
   async listChannels(configId: string) {
     // 1. Get channel configuration
-    const channelConfig = await this.slackChannelConfigService.getConfig(configId);
+    const channelConfig = await this.commConfigService.getConfigById(configId);
     
     if (!channelConfig) {
       throw new Error(`Channel configuration not found: ${configId}`);
     }
 
     // 2. Get integration by config.integrationId
-    const integration = await this.slackIntegrationService.getIntegrationById(
+    const integration = await this.commIntegrationService.getIntegrationById(
       channelConfig.integrationId
     );
     
@@ -158,14 +158,14 @@ export class MessagingService {
    */
   async verifyIntegration(configId: string) {
     // 1. Get channel configuration
-    const channelConfig = await this.slackChannelConfigService.getConfig(configId);
+    const channelConfig = await this.commConfigService.getConfigById(configId);
     
     if (!channelConfig) {
       throw new Error(`Channel configuration not found: ${configId}`);
     }
 
     // 2. Get integration by config.integrationId
-    const integration = await this.slackIntegrationService.getIntegrationById(
+    const integration = await this.commIntegrationService.getIntegrationById(
       channelConfig.integrationId
     );
     
@@ -190,14 +190,14 @@ export class MessagingService {
    */
   async healthCheck(configId: string) {
     // 1. Get channel configuration
-    const channelConfig = await this.slackChannelConfigService.getConfig(configId);
+    const channelConfig = await this.commConfigService.getConfigById(configId);
     
     if (!channelConfig) {
       throw new Error(`Channel configuration not found: ${configId}`);
     }
 
     // 2. Get integration by config.integrationId
-    const integration = await this.slackIntegrationService.getIntegrationById(
+    const integration = await this.commIntegrationService.getIntegrationById(
       channelConfig.integrationId
     );
     

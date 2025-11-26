@@ -8,7 +8,7 @@ import * as semver from "semver";
 import * as stream from "stream";
 import * as streamifier from "streamifier";
 import { CICD_PROVIDERS } from "../controllers/integrations/ci-cd/providers.constants";
-import { COMM_PROVIDERS } from "../controllers/integrations/comm/providers.constants";
+import { COMM_PROVIDERS } from "../controllers/integrations/comm/comm-integration/comm-integration.constants";
 import { SCM_PROVIDERS } from "../controllers/integrations/scm/providers.constants";
 import { TEST_MANAGEMENT_PROVIDERS } from "../controllers/integrations/test-management/tenant-integration/tenant-integration.constants";
 import * as error from "../error";
@@ -458,15 +458,15 @@ export function getManagementRouter(config: ManagementConfig): Router {
 
       // Get all integrations for this tenant
       const scmController = (storage as any).scmController;
-      const slackController = (storage as any).slackController;
+      const commIntegrationRepository = (storage as any).commIntegrationRepository;
       const cicdIntegrationRepository = (storage as any).cicdIntegrationRepository;
       const projectManagementIntegrationRepository = (storage as any).projectManagementIntegrationRepository;
       
       // SCM integrations (GitHub, GitLab, Bitbucket)
       const scmIntegrations = await scmController.findAll({ tenantId, isActive: true });
       
-      // Slack integrations
-      const slackIntegration = await slackController.findByTenant(tenantId);
+      // Comm/Slack integrations
+      const slackIntegration = await commIntegrationRepository.findByTenant(tenantId, 'SLACK');
 
       // CI CD integrations (Jenkins, Github Actions, Circle CI, GitLab CI, etc.)
       const cicdIntegrations = await cicdIntegrationRepository.findAll({ tenantId });

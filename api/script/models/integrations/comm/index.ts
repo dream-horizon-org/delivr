@@ -1,14 +1,13 @@
-// Integration (Slack integration CRUD)
+// Integration (Communication integration CRUD)
 export {
-  SlackIntegrationRepository,
-  createSlackIntegrationModel,
-  type SlackIntegrationModelType
-} from './slack-integration';
+  CommIntegrationRepository,
+  createCommIntegrationModel,
+  type CommIntegrationModelType
+} from './comm-integration';
 
 // Channel Configuration (slack_configuration table)
 export {
-  ChannelConfigRepository,
-  createChannelConfigModel,
-  type ChannelConfigModelType
-} from './slack-channel-config';
-
+  CommConfigRepository,
+  createCommConfigModel,
+  type CommConfigModelType
+} from './comm-config';
