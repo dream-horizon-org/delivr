@@ -472,6 +472,10 @@ export function createModelss(sequelize: Sequelize) {
   Release.hasOne(CronJob, { foreignKey: 'releaseId', as: 'cronJob' });
   CronJob.belongsTo(Release, { foreignKey: 'releaseId' });
   
+  // Account and CronJob (Creator relationship)
+  Account.hasMany(CronJob, { foreignKey: 'cronCreatedByAccountId', as: 'createdCronJobs' });
+  CronJob.belongsTo(Account, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
+  
   // Release and Tasks (One Release has many Tasks)
   Release.hasMany(ReleaseTask, { foreignKey: 'releaseId', as: 'tasks' });
   ReleaseTask.belongsTo(Release, { foreignKey: 'releaseId' });
