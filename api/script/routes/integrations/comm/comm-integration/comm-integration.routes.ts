@@ -1,63 +1,72 @@
+/**
+ * Communication Integration Routes
+ * API endpoints for Slack integration management
+ */
 import { Router } from 'express';
+import { Storage } from '~storage/storage';
+import * as tenantPermissions from '~middleware/tenant-permissions';
 import { createCommIntegrationController } from '~controllers/integrations/comm/comm-integration';
-import type { CommIntegrationService } from '~services/integrations/comm/comm-integration';
 
-export const createCommIntegrationRoutes = (service: CommIntegrationService): Router => {
+/**
+ * Create integration routes
+ */
+export const createCommIntegrationRoutes = (storage: Storage): Router => {
   const router = Router();
-  const controller = createCommIntegrationController(service);
+  
+  // Lazy controller creation - services are created on first request
+  let controller: ReturnType<typeof createCommIntegrationController> | null = null;
+  const getController = () => {
+    if (!controller) {
+      // Access service from storage
+      const s3Storage = storage as any;
+      if (!s3Storage.commIntegrationService) {
+        throw new Error('Communication integration service not initialized');
+      }
+      controller = createCommIntegrationController(s3Storage.commIntegrationService);
+    }
+    return controller;
+  };
 
-  // List available providers (no authentication needed - public info)
-  router.get(
-    '/providers',
-    controller.getAvailableProviders
-  );
-
-  // Verify credentials without saving (stateless - no tenantId or integrationId needed)
+  // Verify Slack Bot Token
   router.post(
-    '/integrations/verify',
-    controller.verifyCredentials
+    '/tenants/:tenantId/integrations/slack/verify',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().verifyCredentials(req, res)
   );
 
-  // Fetch channels without saving (stateless - for UI selection)
+  // Fetch Slack Channels (with token in body)
   router.post(
-    '/integrations/channels',
-    controller.fetchChannels
+    '/tenants/:tenantId/integrations/slack/channels',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().fetchChannels(req, res)
   );
 
-  // Create integration for a tenant (need tenantId)
+  // Create or Update Slack Integration
   router.post(
-    '/tenants/:tenantId/integrations',
-    controller.createIntegration
+    '/tenants/:tenantId/integrations/slack',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().createIntegration(req, res)
   );
 
-  // List all integrations for a tenant (need tenantId)
+  // Get Slack Integration for Tenant
   router.get(
-    '/tenants/:tenantId/integrations',
-    controller.listIntegrations
+    '/tenants/:tenantId/integrations/slack',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().getIntegration(req, res)
   );
 
-  // Get specific integration (integrationId is enough)
-  router.get(
-    '/integrations/:integrationId',
-    controller.getIntegration
+  // Update Slack Integration
+  router.patch(
+    '/tenants/:tenantId/integrations/slack',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().updateIntegration(req, res)
   );
 
-  // Update specific integration (integrationId is enough)
-  router.put(
-    '/integrations/:integrationId',
-    controller.updateIntegration
-  );
-
-  // Delete specific integration (integrationId is enough)
+  // Delete Slack Integration
   router.delete(
-    '/integrations/:integrationId',
-    controller.deleteIntegration
-  );
-
-  // Verify integration credentials (integrationId is enough)
-  router.post(
-    '/integrations/:integrationId/verify',
-    controller.verifyIntegration
+    '/tenants/:tenantId/integrations/slack',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().deleteIntegration(req, res)
   );
 
   return router;

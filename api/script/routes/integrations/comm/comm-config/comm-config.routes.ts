@@ -1,39 +1,58 @@
+/**
+ * Communication Channel Configuration Routes
+ * API endpoints for Slack channel configuration management
+ */
 import { Router } from 'express';
+import { Storage } from '~storage/storage';
+import * as tenantPermissions from '~middleware/tenant-permissions';
 import { createCommConfigController } from '~controllers/integrations/comm/comm-config';
-import type { CommConfigService } from '~services/integrations/comm/comm-config';
 
-export const createCommConfigRoutes = (service: CommConfigService): Router => {
+/**
+ * Create channel config routes
+ */
+export const createCommConfigRoutes = (storage: Storage): Router => {
   const router = Router();
-  const controller = createCommConfigController(service);
 
-  // Create config for a tenant (need tenantId)
+  // Lazy controller creation - services are created on first request
+  let controller: ReturnType<typeof createCommConfigController> | null = null;
+  const getController = () => {
+    if (!controller) {
+      // Access service from storage
+      const s3Storage = storage as any;
+      if (!s3Storage.commConfigService) {
+        throw new Error('Communication config service not initialized');
+      }
+      controller = createCommConfigController(s3Storage.commConfigService);
+    }
+    return controller;
+  };
+
+  // Create channel configuration
   router.post(
-    '/tenants/:tenantId/configs',
-    controller.createConfig
+    '/tenants/:tenantId/integrations/slack/channel-config',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().createConfig(req, res)
   );
 
-  // List all configs for a tenant (need tenantId)
-  router.get(
-    '/tenants/:tenantId/configs',
-    controller.listConfigs
+  // Get channel configuration by ID (id in body)
+  router.post(
+    '/tenants/:tenantId/integrations/slack/channel-config/get',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().getConfig(req, res)
   );
 
-  // Get specific config (configId is enough)
-  router.get(
-    '/configs/:configId',
-    controller.getConfig
+  // Delete channel configuration by ID (id in body)
+  router.post(
+    '/tenants/:tenantId/integrations/slack/channel-config/delete',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().deleteConfig(req, res)
   );
 
-  // Update specific config (configId is enough)
-  router.put(
-    '/configs/:configId',
-    controller.updateConfig
-  );
-
-  // Delete specific config (configId is enough)
-  router.delete(
-    '/configs/:configId',
-    controller.deleteConfig
+  // Update channel configuration - add/remove channels from stage
+  router.post(
+    '/tenants/:tenantId/integrations/slack/channel-config/update',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().updateConfig(req, res)
   );
 
   return router;

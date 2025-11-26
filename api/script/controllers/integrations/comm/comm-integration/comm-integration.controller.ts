@@ -190,7 +190,7 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Get Slack Integration by Tenant
- * GET /comm/tenants/:tenantId/integrations
+ * GET /tenants/:tenantId/integrations/slack
  */
 const getIntegrationHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -405,7 +405,7 @@ const deleteIntegrationHandler = (service: CommIntegrationService) =>
 
 /**
  * Handler: Get Available Providers
- * GET /comm/providers
+ * GET /providers
  * 
  * Returns list of available communication providers
  */
@@ -425,17 +425,12 @@ const getAvailableProvidersHandler = () =>
  * Create integration controller with service dependencies
  */
 export const createCommIntegrationController = (service: CommIntegrationService) => ({
-  // RESTful handlers (new pattern)
+  // Tenant-scoped handlers
   getAvailableProviders: getAvailableProvidersHandler(),
   verifyCredentials: verifyTokenHandler(service),
   fetchChannels: fetchChannelsHandler(service),
   createIntegration: createOrUpdateIntegrationHandler(service),
-  listIntegrations: listIntegrationsHandler(service),
-  getIntegration: getIntegrationByIdHandler(service),
+  getIntegration: getIntegrationHandler(service),  // Uses tenantId
   updateIntegration: updateIntegrationHandler(service),
-  deleteIntegration: deleteIntegrationHandler(service),
-  verifyIntegration: verifyIntegrationHandler(service),
-  // Legacy handlers (deprecated - for backwards compatibility)
-  verifyToken: verifyTokenHandler(service),
-  createOrUpdateIntegration: createOrUpdateIntegrationHandler(service)
+  deleteIntegration: deleteIntegrationHandler(service)
 });

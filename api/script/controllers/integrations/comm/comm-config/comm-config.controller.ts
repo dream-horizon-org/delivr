@@ -30,7 +30,7 @@ import {
 
 /**
  * Handler: Create channel configuration
- * POST /comm/tenants/:tenantId/configs
+ * POST /tenants/:tenantId/integrations/slack/channel-config
  */
 const createConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -66,7 +66,7 @@ const createConfigHandler = (service: CommConfigService) =>
 
 /**
  * Handler: List Configs for Tenant
- * GET /comm/tenants/:tenantId/configs
+ * GET /tenants/:tenantId/integrations/slack/channel-config
  */
 const listConfigsHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -92,21 +92,21 @@ const listConfigsHandler = (service: CommConfigService) =>
 
 /**
  * Handler: Get channel configuration by ID
- * GET /comm/configs/:configId
+ * POST /tenants/:tenantId/integrations/slack/channel-config/get
  */
 const getConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { configId } = req.params;
+      const { id } = req.body;
 
-      if (!configId) {
+      if (!id) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('configId', 'Configuration ID is required')
+          validationErrorResponse('id', 'Configuration ID is required')
         );
         return;
       }
 
-      const config = await service.getConfigById(configId);
+      const config = await service.getConfigById(id);
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -126,21 +126,21 @@ const getConfigHandler = (service: CommConfigService) =>
 
 /**
  * Handler: Delete channel configuration
- * DELETE /comm/configs/:configId
+ * POST /tenants/:tenantId/integrations/slack/channel-config/delete
  */
 const deleteConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { configId } = req.params;
+      const { id } = req.body;
 
-      if (!configId) {
+      if (!id) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('configId', 'Configuration ID is required')
+          validationErrorResponse('id', 'Configuration ID is required')
         );
         return;
       }
 
-      const deleted = await service.deleteConfig(configId);
+      const deleted = await service.deleteConfig(id);
 
       if (!deleted) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -162,17 +162,16 @@ const deleteConfigHandler = (service: CommConfigService) =>
 
 /**
  * Handler: Update channel configuration (add/remove channels)
- * PUT /comm/configs/:configId
+ * POST /tenants/:tenantId/integrations/slack/channel-config/update
  */
 const updateConfigHandler = (service: CommConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { configId } = req.params;
-      const { stage, action, channels } = req.body;
+      const { id, stage, action, channels } = req.body;
 
-      if (!configId) {
+      if (!id) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('configId', 'Configuration ID is required')
+          validationErrorResponse('id', 'Configuration ID is required')
         );
         return;
       }
@@ -202,7 +201,7 @@ const updateConfigHandler = (service: CommConfigService) =>
       }
 
       const data: UpdateStageChannelsDto = {
-        id: configId,
+        id,
         stage,
         action: action as 'add' | 'remove',
         channels: channels as SlackChannel[]

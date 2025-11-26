@@ -150,21 +150,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     
     // Check if services are initialized
     if (s3Storage.commIntegrationService && s3Storage.commConfigService) {
-      // All comm routes under /comm/ prefix
-      const commRouter = Router();
-      
       // Integration Management (Credentials)
-      const commIntegrationRoutes = createCommIntegrationRoutes(s3Storage.commIntegrationService);
-      commRouter.use(commIntegrationRoutes);
+      const commIntegrationRoutes = createCommIntegrationRoutes(storage);
+      router.use(commIntegrationRoutes);
       
       // Configuration Management (Channel configs)
-      const commConfigRoutes = createCommConfigRoutes(s3Storage.commConfigService);
-      commRouter.use(commConfigRoutes);
+      const commConfigRoutes = createCommConfigRoutes(storage);
+      router.use(commConfigRoutes);
       
-      // Mount all comm routes under /comm
-      router.use('/comm', commRouter);
-      
-      console.log('[Release Management] Communication routes mounted successfully under /comm');
+      console.log('[Release Management] Communication routes mounted successfully');
     } else {
       console.warn('[Release Management] Communication services not yet initialized, routes not mounted');
     }
