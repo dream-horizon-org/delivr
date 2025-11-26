@@ -258,7 +258,7 @@ const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * Verify credentials without saving (stateless verification)
- * POST /projects/:projectId/integrations/project-management/verify
+ * POST /tenants/:tenantId/integrations/project-management/verify
  */
 const verifyCredentialsHandler = (_service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {

@@ -13,7 +13,7 @@ export const createIntegrationRoutes = (
 
   // Verify credentials without saving (stateless)
   router.post(
-    '/projects/:projectId/integrations/project-management/verify',
+    '/tenants/:tenantId/integrations/project-management/verify',
     controller.verifyCredentials
   );
 
