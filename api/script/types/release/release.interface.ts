@@ -210,6 +210,77 @@ export interface SingleReleaseResponseBody {
 }
 
 /**
+ * Update release request body (HTTP API)
+ */
+export interface UpdateReleaseRequestBody {
+  id?: string;
+  releaseId?: string;
+  releaseConfigId?: string;
+  tenantId?: string;
+  type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  branch?: string;
+  baseBranch?: string;
+  baseReleaseId?: string;
+  kickOffReminderDate?: string;
+  kickOffDate?: string;
+  targetReleaseDate?: string;
+  releaseDate?: string;
+  hasManualBuildUpload?: boolean;
+  createdByAccountId?: string;
+  releasePilotAccountId?: string;
+  lastUpdatedByAccountId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  platformTargetMappings?: Array<{
+    id: string;
+    releaseId?: string;
+    platform: string;
+    target: string;
+    version: string;
+    projectManagementRunId?: string | null;
+    testManagementRunId?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
+  tasks?: Array<{
+    id: string;
+    taskId: string;
+    taskType: string;
+    stage: string;
+    taskStatus: string;
+    taskConclusion?: string | null;
+    accountId: string;
+    regressionId?: string | null;
+    isReleaseKickOffTask: boolean;
+    isRegressionSubTasks: boolean;
+    identifier: string;
+    externalId?: string | null;
+    externalData?: any;
+    branch?: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  cronJob?: {
+    id?: string;
+    stage1Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    stage2Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    stage3Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    cronStatus?: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+    cronConfig?: Record<string, unknown>;
+    upcomingRegressions?: Array<{
+      date: string;
+      config: Record<string, unknown>;
+    }>;
+    cronCreatedAt?: string;
+    cronStoppedAt?: string | null;
+    cronCreatedByAccountId?: string;
+    autoTransitionToStage2?: boolean;
+    stageData?: any;
+  };
+}
+
+/**
  * Type guard to check if storage has Sequelize
  */
 export function hasSequelize(storage: storageTypes.Storage): storage is StorageWithSequelize {

@@ -10,6 +10,7 @@ export type {
   CreateReleasePayload,
   CreateReleaseResult,
   CreateReleaseRequestBody,
+  UpdateReleaseRequestBody,
   RegressionBuildSlot,
   CronJobResponse,
   ReleaseTaskResponse,

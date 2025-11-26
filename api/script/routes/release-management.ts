@@ -164,6 +164,29 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   }
 
   // ============================================================================
+  // RELEASE MANAGEMENT ROUTES (CRUD Operations)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if release services are available
+    if (s3Storage.releaseCreationService) {
+      const releaseRoutes = getReleaseRoutes({
+        storage: s3Storage,
+        releaseCreationService: s3Storage.releaseCreationService,
+        releaseRetrievalService: s3Storage.releaseRetrievalService,
+        releaseUpdateService: s3Storage.releaseUpdateService
+      });
+      router.use(releaseRoutes);
+      console.log('[Release Management] Release CRUD routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Release services not available, CRUD routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Release services not available (S3Storage required), CRUD routes not mounted');
+  }
+
+  // ============================================================================
   // SETUP MANAGEMENT
   // ============================================================================
   
@@ -207,7 +230,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const releaseRoutes = getReleaseRoutes({
     storage,
     releaseCreationService: (storage as any).releaseCreationService,
-    releaseRetrievalService: (storage as any).releaseRetrievalService
+    releaseRetrievalService: (storage as any).releaseRetrievalService,
+    releaseUpdateService: (storage as any).releaseUpdateService
   });
   router.use(releaseRoutes);
 
