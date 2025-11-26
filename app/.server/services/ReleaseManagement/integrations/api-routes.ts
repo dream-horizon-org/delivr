@@ -16,52 +16,52 @@
 export const PROJECT_MANAGEMENT = {
   /**
    * Verify credentials (stateless - no save)
-   * POST /projects/:projectId/integrations/project-management/verify
+   * POST /tenants/:tenantId/integrations/project-management/verify
    */
-  verify: (projectId: string) => 
-    `/projects/${projectId}/integrations/project-management/verify`,
+  verify: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/project-management/verify`,
   
   /**
    * List all project management integrations
-   * GET /projects/:projectId/integrations/project-management
+   * GET /tenants/:tenantId/integrations/project-management
    */
-  list: (projectId: string) => 
-    `/projects/${projectId}/integrations/project-management`,
+  list: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/project-management`,
   
   /**
    * Create project management integration
-   * POST /projects/:projectId/integrations/project-management
+   * POST /tenants/:tenantId/integrations/project-management
    */
-  create: (projectId: string) => 
-    `/projects/${projectId}/integrations/project-management`,
+  create: (tenantId: string) => 
+    `/tenants/${tenantId}/integrations/project-management`,
   
   /**
    * Get single integration
-   * GET /projects/:projectId/integrations/project-management/:integrationId
+   * GET /tenants/:tenantId/integrations/project-management/:integrationId
    */
-  get: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/project-management/${integrationId}`,
+  get: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/project-management/${integrationId}`,
   
   /**
    * Update integration
-   * PUT /projects/:projectId/integrations/project-management/:integrationId
+   * PUT /tenants/:tenantId/integrations/project-management/:integrationId
    */
-  update: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/project-management/${integrationId}`,
+  update: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/project-management/${integrationId}`,
   
   /**
    * Delete integration
-   * DELETE /projects/:projectId/integrations/project-management/:integrationId
+   * DELETE /tenants/:tenantId/integrations/project-management/:integrationId
    */
-  delete: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/project-management/${integrationId}`,
+  delete: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/project-management/${integrationId}`,
   
   /**
    * Verify existing integration
-   * POST /projects/:projectId/integrations/project-management/:integrationId/verify
+   * POST /tenants/:tenantId/integrations/project-management/:integrationId/verify
    */
-  verifyExisting: (projectId: string, integrationId: string) => 
-    `/projects/${projectId}/integrations/project-management/${integrationId}/verify`,
+  verifyExisting: (tenantId: string, integrationId: string) => 
+    `/tenants/${tenantId}/integrations/project-management/${integrationId}/verify`,
   
   /**
    * Project Management Config Routes
@@ -70,31 +70,31 @@ export const PROJECT_MANAGEMENT = {
   config: {
     /**
      * Create PM configuration
-     * POST /projects/:projectId/integrations/project-management/config
+     * POST /tenants/:tenantId/integrations/project-management/config
      */
-    create: (projectId: string) => 
-      `/projects/${projectId}/integrations/project-management/config`,
+    create: (tenantId: string) => 
+      `/tenants/${tenantId}/integrations/project-management/config`,
     
     /**
      * Get PM configuration
-     * GET /projects/:projectId/integrations/project-management/config/:configId
+     * GET /tenants/:tenantId/integrations/project-management/config/:configId
      */
-    get: (projectId: string, configId: string) => 
-      `/projects/${projectId}/integrations/project-management/config/${configId}`,
+    get: (tenantId: string, configId: string) => 
+      `/tenants/${tenantId}/integrations/project-management/config/${configId}`,
     
     /**
      * Update PM configuration
-     * PUT /projects/:projectId/integrations/project-management/config/:configId
+     * PUT /tenants/:tenantId/integrations/project-management/config/:configId
      */
-    update: (projectId: string, configId: string) => 
-      `/projects/${projectId}/integrations/project-management/config/${configId}`,
+    update: (tenantId: string, configId: string) => 
+      `/tenants/${tenantId}/integrations/project-management/config/${configId}`,
     
     /**
      * Delete PM configuration
-     * DELETE /projects/:projectId/integrations/project-management/config/:configId
+     * DELETE /tenants/:tenantId/integrations/project-management/config/:configId
      */
-    delete: (projectId: string, configId: string) => 
-      `/projects/${projectId}/integrations/project-management/config/${configId}`,
+    delete: (tenantId: string, configId: string) => 
+      `/tenants/${tenantId}/integrations/project-management/config/${configId}`,
   },
 } as const;
 

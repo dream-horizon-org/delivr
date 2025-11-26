@@ -23,15 +23,15 @@ class JiraIntegrationServiceClass extends IntegrationService {
    * Verify Jira credentials without saving
    */
   async verifyCredentials(
-    data: VerifyJiraRequest,
+    data: VerifyJiraRequest & { tenantId?: string },
     userId: string
   ): Promise<JiraVerifyResponse> {
     try {
-      // Use projectId from data or default
-      const projectId = data.projectId || 'default-project';
+      // Use tenantId from data (tenantId = projectId in our system)
+      const tenantId = data.tenantId || data.projectId || 'default-tenant';
       
       return await this.post<JiraVerifyResponse>(
-        PROJECT_MANAGEMENT.verify(projectId),
+        PROJECT_MANAGEMENT.verify(tenantId),
         {
           providerType: 'JIRA',
           config: data.config,
@@ -51,12 +51,12 @@ class JiraIntegrationServiceClass extends IntegrationService {
    * List all integrations and filter for JIRA
    */
   async listIntegrations(
-    projectId: string,
+    tenantId: string,
     userId: string
   ): Promise<JiraListResponse> {
     try {
       const response = await this.get<{ success: boolean; data: any[] }>(
-        PROJECT_MANAGEMENT.list(projectId),
+        PROJECT_MANAGEMENT.list(tenantId),
         userId
       );
       
@@ -79,7 +79,7 @@ class JiraIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Get Jira integration for tenant/project (tenant = project in our system)
+   * Get Jira integration for tenant
    */
   async getIntegration(tenantId: string, userId: string): Promise<JiraIntegrationResponse> {
     try {
@@ -106,10 +106,10 @@ class JiraIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Create Jira integration for tenant/project
+   * Create Jira integration for tenant
    */
   async createIntegration(
-    projectId: string,
+    tenantId: string,
     userId: string,
     data: {
       name: string;
@@ -124,7 +124,7 @@ class JiraIntegrationServiceClass extends IntegrationService {
   ): Promise<JiraIntegrationResponse> {
     try {
       return await this.post<JiraIntegrationResponse>(
-        PROJECT_MANAGEMENT.create(projectId),
+        PROJECT_MANAGEMENT.create(tenantId),
         {
           name: data.name,
           providerType: 'JIRA',
@@ -141,10 +141,10 @@ class JiraIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Update Jira integration for tenant/project
+   * Update Jira integration for tenant
    */
   async updateIntegration(
-    projectId: string,
+    tenantId: string,
     integrationId: string,
     userId: string,
     data: {
@@ -159,7 +159,7 @@ class JiraIntegrationServiceClass extends IntegrationService {
   ): Promise<JiraIntegrationResponse> {
     try {
       return await this.put<JiraIntegrationResponse>(
-        PROJECT_MANAGEMENT.update(projectId, integrationId),
+        PROJECT_MANAGEMENT.update(tenantId, integrationId),
         data,
         userId
       );
@@ -172,16 +172,16 @@ class JiraIntegrationServiceClass extends IntegrationService {
   }
 
   /**
-   * Delete Jira integration for tenant/project
+   * Delete Jira integration for tenant
    */
   async deleteIntegration(
-    projectId: string,
+    tenantId: string,
     integrationId: string,
     userId: string
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       return await this.delete<{ success: boolean; message?: string }>(
-        PROJECT_MANAGEMENT.delete(projectId, integrationId),
+        PROJECT_MANAGEMENT.delete(tenantId, integrationId),
         userId
       );
     } catch (error: any) {

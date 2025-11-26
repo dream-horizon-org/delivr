@@ -30,6 +30,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     }
 
     const result = await JiraIntegrationService.verifyCredentials({
+      projectId: tenantId, // tenantId is used as projectId for backward compatibility
+      tenantId: tenantId,
       config: {
         baseUrl,
         email,

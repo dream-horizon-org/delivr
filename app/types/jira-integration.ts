@@ -36,7 +36,8 @@ export interface UpdateJiraIntegrationRequest {
 }
 
 export interface VerifyJiraRequest {
-  projectId?: string;
+  projectId?: string; // Deprecated: use tenantId instead
+  tenantId?: string;
   config: JiraIntegrationConfig;
 }
 
