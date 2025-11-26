@@ -4,19 +4,24 @@
  */
 
 // Services
-export { SlackIntegrationService } from './slack-integration';
-export { SlackChannelConfigService } from './slack-channel-config';
-export { SlackService } from './messaging';
+export { CommIntegrationService } from './comm-integration';
+export { CommConfigService } from './comm-config';
+export { MessagingService } from './messaging';
 
 // Providers
-export { SlackApiService } from './providers/slack';
+export { SlackProvider } from './providers/slack';
 export type { ICommService } from './providers/provider.interface';
-export {
-  getSlackIntegrationService,
-  getSlackChannelConfigService
-} from './providers/provider.factory';
+export { ProviderFactory } from './providers/provider.factory';
 
-// Types
+// Messaging Types & Enums
+export {
+  Task,
+  Platform,
+  ChannelBucket,
+  BUCKET_TASK_MAPPING
+} from './messaging';
+
+// Communication Types
 export { CommType } from './comm-types';
 export type {
   CommConfig,

@@ -1,0 +1,163 @@
+{
+  "templates": {
+    "pre-kickoff-reminder": {
+      "metadata": {
+        "name": "Gentle Reminder",
+        "emoji": "📅",
+        "color": "#0066CC",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "For the {0} release *{1}*, the release branch will be forked *{2}*.\n\nPlease merge your features/bug fixes before this.\n\nFor more details please visit *{3}*"
+    },
+    "kickoff-details": {
+      "metadata": {
+        "name": "Release Kickoff Details",
+        "emoji": "🚀",
+        "color": "#0066CC",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "*branch-forkout:* {0}\n\n*jira-epics:*\n{1}\n\n*checkmate-links:*\n{2}"
+    },
+    "preregression-builds": {
+      "platforms": {
+        "ios": {
+          "metadata": {
+            "name": "iOS Pre-Regression Build",
+            "emoji": "🍎",
+            "color": "#000000",
+            "category": "build"
+          },
+          "fields": [],
+          "description": "Version: {0}\nDownload the build from {1}\nThis build includes the following:\n\n*Lane*\n{2}\n\n*Result*\n{3}\n\n*Git Branch*\n{4}\n\n*Git Author*\n{5}\n\n*Git Commit*\n{6}\n\n*Git Commit Hash*\n{7}\n\n*Build Type*\n{8}\n\n*Machine*\n{9}"
+        },
+        "android-playstore": {
+          "metadata": {
+            "name": "Android Playstore Pre-Regression Build",
+            "emoji": "🤖",
+            "color": "#3DDC84",
+            "category": "build"
+          },
+          "fields": [],
+          "description": "Please download the latest pre-regression build from the Playstore: {0}\n\nRelease Branch: {1}\n\nVersion: {2}\n\nTriggered By: {3}\n\nCodePush Environment: {4}"
+        },
+        "android-web": {
+          "metadata": {
+            "name": "Android Web Pre-Regression Build",
+            "emoji": "🌐",
+            "color": "#3DDC84",
+            "category": "build"
+          },
+          "fields": [],
+          "description": "Release Branch: {0}\n\nVersion: {1}\n\nTriggered By: {2}\n\nCodePush Environment: {3}"
+        }
+      }
+    },
+    "regression-kickoff-reminder": {
+      "metadata": {
+        "name": "Gentle Reminder!",
+        "emoji": "⚡",
+        "color": "#FF6600",
+        "category": "testing"
+      },
+      "fields": [],
+      "description": "Next set of builds will be triggered at *{0}* for Release *{1}*\n\nPlease make sure your changes are merged in release branch *{2}* before that\n\nFor more details, visit delivr."
+    },
+    "regression-build-triggered": {
+      "metadata": {
+        "name": "Regression Build Triggered",
+        "emoji": "🚨",
+        "color": "#FF6600",
+        "category": "build"
+      },
+      "fields": [],
+      "description": "*Regression Builds Triggered!* at {0} for Release *{1}*"
+    },
+    "regression-builds": {
+      "platforms": {
+        "ios": {
+          "metadata": {
+            "name": "iOS Regression Build",
+            "emoji": "🍎",
+            "color": "#000000",
+            "category": "build"
+          },
+          "fields": [],
+          "description": "Version: {0}\nDownload the build from {1}\nThis build includes the following:\n\n*Lane*\n{2}\n\n*Result*\n{3}\n\n*Git Branch*\n{4}\n\n*Git Author*\n{5}\n\n*Git Commit*\n{6}\n\n*Git Commit Hash*\n{7}\n\n*Build Type*\n{8}\n\n*Machine*\n{9}"
+        },
+        "android-playstore": {
+          "metadata": {
+            "name": "Android Playstore Regression Build",
+            "emoji": "🤖",
+            "color": "#3DDC84",
+            "category": "build"
+          },
+          "fields": [],
+          "description": "Please download the latest regression build from the Playstore: {0}\n\nRelease Branch: {1}\n\nVersion: {2}\n\nTriggered By: {3}\n\nCodePush Environment: {4}"
+        },
+        "android-web": {
+          "metadata": {
+            "name": "Android Web Regression Build",
+            "emoji": "🌐",
+            "color": "#3DDC84",
+            "category": "build"
+          },
+          "fields": [],
+          "description": "Release Branch: {0}\n\nVersion: {1}\n\nTriggered By: {2}\n\nCodePush Environment: {3}"
+        }
+      }
+    },
+    "release-notes": {
+      "metadata": {
+        "name": "Release Notes",
+        "emoji": "📝",
+        "color": "#0066CC",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "*PR Titles between tags:* {0} and {1}\n\n*Features*\n{2}\n\n*Fixes*\n{3}\n\n*Improvements*\n{4}",
+      "usage": {
+        "parameters": [
+          "{0} = Start tag (e.g., pi_6.4.0)",
+          "{1} = End tag (e.g., v6.5.0_rc_0)",
+          "{2} = Features list (bullet points with •)",
+          "{3} = Fixes list (bullet points with •)",
+          "{4} = Improvements list (bullet points with •)"
+        ],
+        "example": "Use with structured PR data categorized by type"
+      }
+    },
+    "whats-new": {
+      "metadata": {
+        "name": "What's New",
+        "emoji": "✨",
+        "color": "#28a745",
+        "category": "release"
+      },
+      "fields": [],
+      "description": "*We have a *{0}* release *{1}*, please help with the what's new copy.\nBelow are the List of changes going live:*\n\n*Features*\n{2}\n\n*Fixes*\n{3}\n\n*Improvements*\n{4}"
+    },
+    "new-slot-added": {
+      "metadata": {
+        "name": "New Slot Added",
+        "emoji": "➕",
+        "color": "#28a745",
+        "category": "notification",
+        "showTitle": false
+      },
+      "fields": [],
+      "description": "With new cherry-pick requests in place, We have scheduled the next build slot at *{0}*."
+    },
+    "ios-test-flight-build": {
+      "metadata": {
+        "name": "iOS TestFlight Build",
+        "emoji": "✈️",
+        "color": "#0066CC",
+        "category": "build"
+      },
+      "fields": [],
+      "description": "iOS Test Flight build has been triggered. Please perform the necessary sanity checks at your earliest convenience.\nOnce you have completed the checks, kindly provide your go-aheads."
+    }
+  }
+}
