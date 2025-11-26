@@ -643,9 +643,9 @@ export class S3Storage implements storage.Storage {
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
     public releaseCreationService!: ReleaseCreationService;
-    public releaseRetrievalService!: ReleaseRetrievalService;
+    public releaseRetrievalService!: ReleaseRetrievalService; // Slack integration controller (OLD - for backwards compatibility)  // Slack integration repository (NEW - with delete method)
+    public releaseUpdateService!: ReleaseUpdateService;  // Slack integration controller
     public releaseStatusService!: ReleaseStatusService;
-    public releaseUpdateService!: ReleaseUpdateService;
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
