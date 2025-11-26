@@ -29,6 +29,7 @@ export class IntegrationConfigMapper {
     return {
       tenantId: requestData.tenantId,
       integrationId: requestData.testManagement.integrationId,
+      projectId: requestData.testManagement.projectId, // Checkmate project ID
       passThresholdPercent: requestData.testManagement.passThresholdPercent ?? 100,
       platformConfigurations: requestData.testManagement.platformConfigurations ?? [],
       createdByAccountId: currentUserId

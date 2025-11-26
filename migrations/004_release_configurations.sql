@@ -149,13 +149,13 @@ ALTER TABLE release_configurations
     ON DELETE RESTRICT
     ON UPDATE CASCADE;
 
--- Link to SCM integrations (already exists)
-ALTER TABLE release_configurations
-  ADD CONSTRAINT fk_release_config_scm
-    FOREIGN KEY (sourceCodeManagementConfigId)
-    REFERENCES tenant_scm_integrations(id)
-    ON DELETE SET NULL
-    ON UPDATE CASCADE;
+-- Link to SCM integrations (column doesn't exist - SCM removed from this design)
+-- ALTER TABLE release_configurations
+--   ADD CONSTRAINT fk_release_config_scm
+--     FOREIGN KEY (sourceCodeManagementConfigId)
+--     REFERENCES tenant_scm_integrations(id)
+--     ON DELETE SET NULL
+--     ON UPDATE CASCADE;
 
 -- Note: Foreign keys for other integrations will be added when those tables are created:
 -- - fk_release_config_ci -> tenant_ci_integrations

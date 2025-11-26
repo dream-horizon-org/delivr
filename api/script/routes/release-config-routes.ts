@@ -6,7 +6,6 @@
 import { Router } from 'express';
 import { createReleaseConfigController } from '~controllers/release-configs';
 import type { ReleaseConfigService } from '~services/release-configs';
-import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import * as tenantPermissions from '../middleware/tenant-permissions';
 import { Storage } from '../storage/storage';
 
@@ -15,11 +14,10 @@ import { Storage } from '../storage/storage';
  */
 export const createReleaseConfigRoutes = (
   service: ReleaseConfigService,
-  storage: Storage,
-  testManagementConfigService?: TestManagementConfigService
+  storage: Storage
 ): Router => {
   const router = Router();
-  const controller = createReleaseConfigController(service, testManagementConfigService);
+  const controller = createReleaseConfigController(service);
 
   // Create release config
   router.post(

@@ -878,7 +878,8 @@ export class S3Storage implements storage.Storage {
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
-            this
+            this,
+            this.releaseConfigService
           );
           console.log("Release Creation Service initialized");
           
@@ -945,7 +946,7 @@ export class S3Storage implements storage.Storage {
       }
   
     public getAccount(accountId: string): Promise<storage.Account> {
-      console.log("Fetching account for accountId:", accountId); // Debug log
+      // console.log("Fetching account for accountId:", accountId); // Debug log
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.ACCOUNT].findByPk(accountId)

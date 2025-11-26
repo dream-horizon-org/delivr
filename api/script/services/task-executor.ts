@@ -397,9 +397,7 @@ export class TaskExecutor {
     );
 
     // Get repository URL from config (dynamic, not hardcoded)
-    const repoUrl = release.customIntegrationConfigs?.SCM?.repoUrl || 
-                    release.customIntegrationConfigs?.SCM?.repo || 
-                    'repository';
+    const repoUrl = 'repository'; // Default fallback since customIntegrationConfigs removed
     const branchUrl = repoUrl.includes('http') 
       ? `${repoUrl}/tree/${releaseBranch}` 
       : `https://${repoUrl}/tree/${releaseBranch}`;
