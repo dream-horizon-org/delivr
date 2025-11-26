@@ -21,21 +21,21 @@ export const TEST_MANAGEMENT_PROVIDERS = [
     status: 'coming_soon',
     features: ['Projects', 'Test Suites', 'Milestones', 'Test Runs']
   },
-  {
-    type: TestManagementProviderType.XRAY,
-    name: 'Xray',
-    description: 'Test management for Jira',
-    enabled: false,
-    status: 'coming_soon',
-    features: ['Projects', 'Test Sets', 'Test Executions']
-  },
-  {
-    type: TestManagementProviderType.ZEPHYR,
-    name: 'Zephyr',
-    description: 'Test management for Jira',
-    enabled: false,
-    status: 'coming_soon',
-    features: ['Projects', 'Test Cycles', 'Test Executions']
-  }
+  // {
+  //   type: TestManagementProviderType.XRAY,
+  //   name: 'Xray',
+  //   description: 'Test management for Jira',
+  //   enabled: false,
+  //   status: 'coming_soon',
+  //   features: ['Projects', 'Test Sets', 'Test Executions']
+  // },
+  // {
+  //   type: TestManagementProviderType.ZEPHYR,
+  //   name: 'Zephyr',
+  //   description: 'Test management for Jira',
+  //   enabled: false,
+  //   status: 'coming_soon',
+  //   features: ['Projects', 'Test Cycles', 'Test Executions']
+  // }
 ] as const;
 

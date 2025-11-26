@@ -68,6 +68,10 @@ const generateAppStoreConnectJWT = (
   const now = Math.floor(Date.now() / 1000);
   const expirationTime = now + 120; // 2 minutes (20 min max allowed by Apple)
 
+  // Replace literal \n with actual newlines if needed
+  // This handles cases where PEM is stored/transmitted with escaped newlines
+  const formattedKey = privateKeyPem.replace(/\\n/g, '\n');
+
   const token = jwt.sign(
     {
       iss: issuerId,
@@ -75,7 +79,7 @@ const generateAppStoreConnectJWT = (
       exp: expirationTime,
       aud: 'appstoreconnect-v1',
     },
-    privateKeyPem,
+    formattedKey,
     {
       algorithm: 'ES256',
       header: {
@@ -103,10 +107,33 @@ const verifyAppStoreConnect = async (
     // Decrypt private key if encrypted (check if it's not a PEM format)
     if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
       try {
-        privateKeyPem = decrypt(privateKeyPem);
+        console.log('[AppStore] Encrypted privateKeyPem detected, attempting decryption...');
+        const decrypted = decrypt(privateKeyPem);
+        
+        // Verify decryption worked (should now start with -----BEGIN)
+        if (!decrypted.startsWith('-----BEGIN')) {
+          return {
+            isValid: false,
+            message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
+            details: {
+              error: 'Decryption did not produce valid PEM format',
+              hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
+            },
+          };
+        }
+        
+        privateKeyPem = decrypted;
+        console.log('[AppStore] Private key decrypted successfully');
       } catch (error) {
-        // If decryption fails, assume it's not encrypted
-        console.warn('Failed to decrypt privateKeyPem, using as-is:', error);
+        console.error('[AppStore] Failed to decrypt privateKeyPem:', error);
+        return {
+          isValid: false,
+          message: 'Failed to decrypt private key. ENCRYPTION_KEY may be missing or incorrect.',
+          details: {
+            error: error instanceof Error ? error.message : 'Unknown decryption error',
+            hint: 'Check backend .env file for ENCRYPTION_KEY',
+          },
+        };
       }
     }
 
@@ -127,20 +154,41 @@ const verifyAppStoreConnect = async (
       };
     }
 
+    // Validate that privateKeyPem is now in PEM format after decryption
+    if (!privateKeyPem.startsWith('-----BEGIN')) {
+      console.error('[AppStore] Private key is not in PEM format after decryption');
+      console.error('[AppStore] Key starts with:', privateKeyPem.substring(0, 50) + '...');
+      return {
+        isValid: false,
+        message: 'Private key is not in valid PEM format. Ensure you are providing a valid .p8 private key from App Store Connect.',
+        details: {
+          error: 'Expected PEM format starting with -----BEGIN PRIVATE KEY-----',
+          received: privateKeyPem.substring(0, 50) + '...',
+        },
+      };
+    }
+
     // Generate JWT token
     let jwtToken: string;
     try {
+      console.log('[AppStore] Generating JWT token...');
+      console.log('[AppStore] Issuer ID:', issuerId);
+      console.log('[AppStore] Key ID:', keyId);
+      console.log('[AppStore] Private Key format:', privateKeyPem.substring(0, 30) + '...' + privateKeyPem.substring(privateKeyPem.length - 30));
+      
       jwtToken = generateAppStoreConnectJWT(issuerId, keyId, privateKeyPem);
-      console.log('JWT Token:', jwtToken);
-      console.log('Issuer ID:', issuerId);
-      console.log('Key ID:', keyId);
-      console.log('Private Key:', privateKeyPem);
+      
+      console.log('[AppStore] JWT token generated successfully');
     } catch (jwtError: unknown) {
       const jwtErrorMessage = jwtError instanceof Error ? jwtError.message : 'Unknown JWT error';
+      console.error('[AppStore] JWT generation failed:', jwtErrorMessage);
       return {
         isValid: false,
         message: `Failed to generate JWT token: ${jwtErrorMessage}`,
-        details: { error: jwtErrorMessage },
+        details: { 
+          error: jwtErrorMessage,
+          hint: 'Ensure the private key is a valid ES256 key from App Store Connect (.p8 file)'
+        },
       };
     }
 
@@ -246,13 +294,22 @@ const verifyGooglePlayStore = async (
 
     // Decrypt service account private_key if encrypted
     if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
+      console.log('[PlayStore] Encrypted private_key detected, attempting decryption...');
+      console.log('[PlayStore] Encrypted key length:', serviceAccountJson.private_key.length);
       try {
-        serviceAccountJson.private_key = decrypt(serviceAccountJson.private_key);
+        const decrypted = decrypt(serviceAccountJson.private_key);
+        console.log('[PlayStore] Decryption successful, decrypted key length:', decrypted.length);
+        serviceAccountJson.private_key = decrypted;
         // Remove the encryption flag
         delete serviceAccountJson._encrypted;
       } catch (error) {
-        console.warn('Failed to decrypt service account private_key, using as-is:', error);
+        console.error('[PlayStore] Failed to decrypt service account private_key:', error);
         delete serviceAccountJson._encrypted;
+        return {
+          isValid: false,
+          message: `Failed to decrypt private_key: ${error instanceof Error ? error.message : 'Unknown decryption error'}`,
+          details: { error: String(error) },
+        };
       }
     }
 
@@ -262,6 +319,15 @@ const verifyGooglePlayStore = async (
     const isTypeMissing = !serviceAccountJson?.type || serviceAccountJson.type !== 'service_account';
     const isClientEmailMissing = !serviceAccountJson?.client_email || serviceAccountJson.client_email.trim().length === 0;
     const isPrivateKeyMissing = !serviceAccountJson?.private_key || serviceAccountJson.private_key.trim().length === 0;
+    
+    console.log('[PlayStore] Validation check:', {
+      hasServiceAccount: !isServiceAccountMissing,
+      hasAppIdentifier: !isAppIdentifierMissing,
+      hasType: !isTypeMissing,
+      hasClientEmail: !isClientEmailMissing,
+      hasPrivateKey: !isPrivateKeyMissing,
+      privateKeyLength: serviceAccountJson?.private_key?.length || 0,
+    });
     
     // project_id is optional for verification but should be in metadata
     const isProjectIdMissing = !serviceAccountJson?.project_id || serviceAccountJson.project_id.trim().length === 0;

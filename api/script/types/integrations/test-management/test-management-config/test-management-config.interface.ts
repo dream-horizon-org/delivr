@@ -21,6 +21,7 @@ export type TestManagementConfig = {
   tenantId: string;
   integrationId: string;
   name: string;
+  projectId?: number; // Checkmate project ID for metadata fetching
   passThresholdPercent: number;
   platformConfigurations: PlatformConfiguration[];
   createdByAccountId: string | null;
@@ -35,6 +36,7 @@ export type CreateTestManagementConfigDto = {
   tenantId: string;
   integrationId: string;
   name: string;
+  projectId?: number; // Checkmate project ID for metadata fetching
   passThresholdPercent: number;
   platformConfigurations: PlatformConfiguration[];
   createdByAccountId?: string;
@@ -45,6 +47,7 @@ export type CreateTestManagementConfigDto = {
  */
 export type UpdateTestManagementConfigDto = {
   name?: string;
+  projectId?: number; // Checkmate project ID for metadata fetching
   passThresholdPercent?: number;
   platformConfigurations?: PlatformConfiguration[];
 };

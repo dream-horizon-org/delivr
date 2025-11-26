@@ -72,7 +72,9 @@ export class CheckmateProvider implements ITestManagementProvider {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> => {
-    const url = `${checkmateConfig.baseUrl}${endpoint}`;
+    // Remove trailing slash from baseUrl to avoid double slashes
+    const baseUrl = checkmateConfig.baseUrl.replace(/\/$/, '');
+    const url = `${baseUrl}${endpoint}`;
     const authorizationValue = `${AUTH_SCHEMES.BEARER} ${checkmateConfig.authToken}`;
     
     const response = await fetch(url, {
@@ -132,19 +134,23 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Build run URL for Checkmate UI
    */
   private buildRunUrl = (baseUrl: string, projectId: number, runId: string): string => {
+    // Remove trailing slash from baseUrl
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
     const url = CHECKMATE_URL_TEMPLATES.PROJECT_RUN
       .replace(CHECKMATE_URL_PARAMS.PROJECT_ID, projectId.toString())
       .replace(CHECKMATE_URL_PARAMS.RUN_ID, runId);
-    return `${baseUrl}${url}`;
+    return `${normalizedBaseUrl}${url}`;
   };
 
   /**
    * Build simple run URL
    */
   private buildSimpleRunUrl = (baseUrl: string, runId: string): string => {
+    // Remove trailing slash from baseUrl
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
     const urlTemplate = CHECKMATE_URL_TEMPLATES.RUNS;
     const url = urlTemplate.replace(CHECKMATE_URL_PARAMS.RUN_ID, runId);
-    return `${baseUrl}${url}`;
+    return `${normalizedBaseUrl}${url}`;
   };
 
   /**
