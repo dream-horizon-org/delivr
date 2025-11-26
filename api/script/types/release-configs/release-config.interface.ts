@@ -81,6 +81,12 @@ export type UpdateReleaseConfigDto = {
 };
 
 /**
+ * Request body structure from client for updating release configuration
+ * Matches the GET verbose response format (nested integration configs)
+ */
+export type UpdateReleaseConfigRequest = Partial<CreateReleaseConfigRequest>;
+
+/**
  * Request body structure from client for creating release configuration
  */
 export type CreateReleaseConfigRequest = {

@@ -10,6 +10,7 @@ import type {
   CreateReleaseConfigRequest,
   ReleaseConfiguration,
   UpdateReleaseConfigDto,
+  UpdateReleaseConfigRequest,
   IntegrationValidationResult,
   ValidationResult,
   ServiceResult
@@ -339,24 +340,187 @@ export class ReleaseConfigService {
   }
 
   /**
-   * Update config
+   * Update config with integration management
    */
   async updateConfig(
     id: string,
-    data: UpdateReleaseConfigDto
+    data: any  // UpdateReleaseConfigRequest
   ): Promise<ReleaseConfiguration | null> {
-    const config = await this.configRepo.findById(id);
+    const existingConfig = await this.configRepo.findById(id);
 
-    if (!config) {
+    if (!existingConfig) {
       return null;
     }
 
+    // Build the update DTO for the main config
+    const configUpdate: UpdateReleaseConfigDto = {
+      name: data.name,
+      description: data.description,
+      releaseType: data.releaseType,
+      platformTargets: data.platformTargets,
+      baseBranch: data.baseBranch,
+      scheduling: data.scheduling,
+      hasManualBuildUpload: data.hasManualBuildUpload,
+      isDefault: data.isDefault,
+      isActive: data.isActive
+    };
+
+    // Set the integration config IDs (create new configs if needed)
+    configUpdate.ciConfigId = await this.getOrCreateCiConfigId(existingConfig, data, data.createdByAccountId || existingConfig.createdByAccountId);
+    configUpdate.testManagementConfigId = await this.getOrCreateTestManagementConfigId(existingConfig, data, data.createdByAccountId || existingConfig.createdByAccountId);
+    configUpdate.projectManagementConfigId = await this.getOrCreateProjectManagementConfigId(existingConfig, data, data.createdByAccountId || existingConfig.createdByAccountId);
+    configUpdate.commsConfigId = await this.getOrCreateCommsConfigId(existingConfig, data, data.createdByAccountId || existingConfig.createdByAccountId);
+
     // If setting as default, unset other defaults
     if (data.isDefault === true) {
-      await this.configRepo.unsetDefaultForTenant(config.tenantId, id);
+      await this.configRepo.unsetDefaultForTenant(existingConfig.tenantId, id);
     }
 
-    return this.configRepo.update(id, data);
+    return this.configRepo.update(id, configUpdate);
+  }
+
+  /**
+   * Get or create CI config ID
+   */
+  private async getOrCreateCiConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!updateData.ciConfig) {
+      return existingConfig.ciConfigId;
+    }
+
+    // If ciConfig has an id, reuse it (update scenario)
+    if (updateData.ciConfig.id || updateData.ciConfigId) {
+      return updateData.ciConfig.id || updateData.ciConfigId;
+    }
+
+    // No existing ID, create new
+    if (this.cicdConfigService) {
+      const ciResult = await this.cicdConfigService.createConfig({
+        tenantId: existingConfig.tenantId,
+        workflows: updateData.ciConfig.workflows || [],
+        createdByAccountId: currentUserId
+      });
+      return ciResult.configId;
+    }
+
+    return existingConfig.ciConfigId;
+  }
+
+  /**
+   * Get or create Test Management config ID
+   */
+  private async getOrCreateTestManagementConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!updateData.testManagement) {
+      return existingConfig.testManagementConfigId;
+    }
+
+    // If testManagement has an id, reuse it (update scenario)
+    if (updateData.testManagement.id || updateData.testManagementConfigId) {
+      return updateData.testManagement.id || updateData.testManagementConfigId;
+    }
+
+    // No existing ID, create new
+    if (this.testManagementConfigService) {
+      const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+        { ...updateData, tenantId: existingConfig.tenantId },
+        currentUserId
+      );
+
+      if (integrationConfigs.testManagement) {
+        const tcmConfigDto: CreateTestManagementConfigDto = {
+          tenantId: existingConfig.tenantId,
+          name: updateData.testManagement.name || `TCM Config for ${existingConfig.name}`,
+          ...integrationConfigs.testManagement
+        };
+
+        const tcmResult = await this.testManagementConfigService.createConfig(tcmConfigDto);
+        return tcmResult.id;
+      }
+    }
+
+    return existingConfig.testManagementConfigId;
+  }
+
+  /**
+   * Get or create Project Management config ID
+   */
+  private async getOrCreateProjectManagementConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!updateData.projectManagement) {
+      return existingConfig.projectManagementConfigId;
+    }
+
+    // If projectManagement has an id, reuse it (update scenario)
+    if (updateData.projectManagement.id || updateData.projectManagementConfigId) {
+      return updateData.projectManagement.id || updateData.projectManagementConfigId;
+    }
+
+    // No existing ID, create new
+    if (this.projectManagementConfigService) {
+      const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+        { ...updateData, tenantId: existingConfig.tenantId },
+        currentUserId
+      );
+
+      if (integrationConfigs.projectManagement) {
+        const pmResult = await this.projectManagementConfigService.createConfig({
+          tenantId: existingConfig.tenantId,
+          name: updateData.projectManagement.name || `PM Config for ${existingConfig.name}`,
+          ...integrationConfigs.projectManagement,
+          createdByAccountId: currentUserId
+        });
+        return pmResult.id;
+      }
+    }
+
+    return existingConfig.projectManagementConfigId;
+  }
+
+  /**
+   * Get or create Communication config ID
+   */
+  private async getOrCreateCommsConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!updateData.communication) {
+      return existingConfig.commsConfigId;
+    }
+
+    // If communication has an id, reuse it (update scenario)
+    if (updateData.communication.id || updateData.commsConfigId) {
+      return updateData.communication.id || updateData.commsConfigId;
+    }
+
+    // No existing ID, create new
+    if (this.slackChannelConfigService) {
+      const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+        { ...updateData, tenantId: existingConfig.tenantId },
+        currentUserId
+      );
+
+      if (integrationConfigs.communication) {
+        const commsResult = await this.slackChannelConfigService.createConfig({
+          tenantId: existingConfig.tenantId,
+          ...integrationConfigs.communication,
+          createdByAccountId: currentUserId
+        });
+        return commsResult.id;
+      }
+    }
+
+    return existingConfig.commsConfigId;
   }
 
   /**
