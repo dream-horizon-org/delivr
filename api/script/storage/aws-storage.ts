@@ -53,6 +53,7 @@ import {
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
 import { ReleaseStatusService } from "../services/release/release-status.service";
+import { ReleaseUpdateService } from "../services/release/release-update.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -452,12 +453,12 @@ export function createModelss(sequelize: Sequelize) {
   Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
   
   // Account and Release (Creator relationship)
-  Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
-  Release.belongsTo(Account, { foreignKey: 'createdBy', as: 'creator' });
+  Account.hasMany(Release, { foreignKey: 'createdByAccountId', as: 'createdReleases' });
+  Release.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
   
   // Account and Release (Last updater relationship)
-  Account.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
-  Release.belongsTo(Account, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  Account.hasMany(Release, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdatedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdater' });
   
   // Release self-referencing (Parent-child for hotfixes via baseReleaseId)
   Release.hasMany(Release, { foreignKey: 'baseReleaseId', as: 'hotfixes' });
@@ -644,6 +645,7 @@ export class S3Storage implements storage.Storage {
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseStatusService!: ReleaseStatusService;
+    public releaseUpdateService!: ReleaseUpdateService;
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
@@ -898,6 +900,13 @@ export class S3Storage implements storage.Storage {
             this.testManagementRunService
           );
           console.log("Release Status Service initialized");
+          
+          this.releaseUpdateService = new ReleaseUpdateService(
+            releaseRepo,
+            cronJobRepo,
+            platformTargetMappingRepo
+          );
+          console.log("Release Update Service initialized");
           
           // return this.sequelize.sync();
         })

@@ -55,6 +55,24 @@ export class ReleasePlatformTargetMappingRepository {
   }
 
   /**
+   * Update a platform-target mapping by ID
+   */
+  async update(
+    id: string,
+    updates: {
+      platform?: ReleasePlatformTargetMapping['platform'];
+      target?: ReleasePlatformTargetMapping['target'];
+      version?: string;
+      projectManagementRunId?: string;
+      testManagementRunId?: string;
+    }
+  ): Promise<void> {
+    await this.model.update(updates, {
+      where: { id }
+    });
+  }
+
+  /**
    * Update integration run IDs for a specific mapping
    */
   async updateIntegrationRunIds(

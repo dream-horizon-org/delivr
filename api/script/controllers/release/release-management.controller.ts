@@ -9,29 +9,34 @@ import { Request, Response } from 'express';
 import { ReleaseCreationService } from '../../services/release/release-creation.service';
 import { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
 import { ReleaseStatusService } from '../../services/release/release-status.service';
+import { ReleaseUpdateService } from '../../services/release/release-update.service';
 import { ReleaseType } from '../../storage/release/release-models';
 import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
+  UpdateReleaseRequestBody,
   ReleaseListResponseBody, 
   SingleReleaseResponseBody 
 } from '~types/release';
-import { validateCreateReleaseRequest } from './release-validation';
+import { validateCreateReleaseRequest, validateUpdateReleaseRequest } from './release-validation';
 import type { Platform } from '~types/integrations/project-management';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
   private retrievalService: ReleaseRetrievalService;
   private statusService: ReleaseStatusService;
+  private updateService: ReleaseUpdateService;
 
   constructor(
     creationService: ReleaseCreationService,
     retrievalService: ReleaseRetrievalService,
-    statusService: ReleaseStatusService
+    statusService: ReleaseStatusService,
+    updateService: ReleaseUpdateService
   ) {
     this.creationService = creationService;
     this.retrievalService = retrievalService;
     this.statusService = statusService;
+    this.updateService = updateService;
   }
 
   /**
@@ -181,6 +186,69 @@ export class ReleaseManagementController {
       });
     }
   }
+
+  /**
+   * Update Release (PATCH)
+   * Updates an existing release with business rule validations
+   */
+  updateRelease = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const releaseId = req.params.releaseId;
+      const body = req.body as UpdateReleaseRequestBody;
+      const accountId = (req as any).user?.id || 'system'; // Get from auth middleware
+
+      if (!releaseId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      // Validate request body
+      const validation = validateUpdateReleaseRequest(body);
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error
+        });
+      }
+
+      // Update the release
+      const updatedRelease = await this.updateService.updateRelease({
+        releaseId,
+        accountId,
+        updates: body
+      });
+
+      // Get the full release with all associations for response
+      const fullRelease = await this.retrievalService.getReleaseById(releaseId);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Release updated successfully',
+        release: fullRelease
+      });
+
+    } catch (error: any) {
+      console.error('Error updating release:', error);
+      
+      // Handle specific business rule errors
+      if (error.message.includes('Only IN_PROGRESS releases') || 
+          error.message.includes('not found') ||
+          error.message.includes('before kickoff')) {
+        return res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Error occured on server side'
+      });
+    }
+  };
+
 
   /**
    * Trigger Pre-Release (Stage 3)

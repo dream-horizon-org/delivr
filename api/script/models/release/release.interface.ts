@@ -82,7 +82,11 @@ export interface UpdateReleaseDto {
   type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
   branch?: string | null;
   baseBranch?: string | null;
+  baseReleaseId?: string | null;
+  releaseConfigId?: string | null;
   kickOffDate?: Date | null;
+  kickOffReminderDate?: Date | null;
+  targetReleaseDate?: Date | null;
   plannedDate?: Date | null;
   hasManualBuildUpload?: boolean;
   releasePilotAccountId?: string | null;
