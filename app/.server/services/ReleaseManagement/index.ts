@@ -93,7 +93,111 @@ class ReleaseManagementService {
     };
   }
 
-  async getReleaseDetails(releaseId: string): Promise<ReleaseDetailsResponse> {
+  async getReleaseDetails(releaseId: string, tenantId?: string): Promise<ReleaseDetailsResponse> {
+    // If tenantId is provided, call backend API
+    if (tenantId) {
+      const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
+      
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        console.log('[getReleaseDetails] Response:', response);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Release not found');
+          }
+          throw new Error(`Failed to fetch release: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.success || !data.release) {
+          throw new Error('Invalid response from backend');
+        }
+
+        // Transform backend response to frontend format
+        const backendRelease = data.release;
+        
+        // Map backend type to frontend ReleaseType
+        const typeMap: Record<string, 'PLANNED' | 'HOTFIX' | 'MAJOR'> = {
+          'PLANNED': 'PLANNED',
+          'HOTFIX': 'HOTFIX',
+          'UNPLANNED': 'MAJOR' // Map UNPLANNED to MAJOR for frontend compatibility
+        };
+        
+        return {
+          release: {
+            id: backendRelease.id,
+            tenantId: backendRelease.tenantId,
+            releaseKey: backendRelease.releaseId || backendRelease.id,
+            version: '', // Not provided by backend, use empty string
+            type: typeMap[backendRelease.type] || 'PLANNED',
+            status: backendRelease.status as ReleaseStatus,
+            updateType: 'OPTIONAL' as UpdateType,
+            baseVersion: '', // Not provided by backend
+            baseBranch: backendRelease.baseBranch || '',
+            branchRelease: backendRelease.branch || '',
+            branchCodepush: undefined,
+            plannedDate: backendRelease.targetReleaseDate || '',
+            targetReleaseDate: backendRelease.targetReleaseDate || '',
+            releaseDate: backendRelease.releaseDate || undefined,
+            kickOffReminderDate: backendRelease.kickOffReminderDate || undefined,
+            isDelayed: false,
+            delayedReason: undefined,
+            releasePilot: {
+              id: '',
+              name: '',
+              email: ''
+            },
+            createdBy: {
+              id: backendRelease.createdBy || '',
+              name: '',
+              email: ''
+            },
+            lastUpdatedBy: {
+              id: backendRelease.lastUpdatedBy || backendRelease.createdBy || '',
+              name: '',
+              email: ''
+            },
+            parentId: backendRelease.baseReleaseId || undefined,
+            releaseTag: undefined,
+            slackMessageTimestamps: undefined,
+            userAdoption: {
+              ios: 0,
+              android: 0,
+              web: 0
+            },
+            finalBuildNumbers: undefined,
+            epicIds: undefined,
+            testRunIds: undefined,
+            autoPilot: 'PENDING' as 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED',
+            createdAt: backendRelease.createdAt,
+            updatedAt: backendRelease.updatedAt
+          } as Release,
+          builds: [], // Backend doesn't return builds in this endpoint yet
+          tasks: (backendRelease.tasks || []).map((t: any) => ({
+            id: t.id,
+            name: t.taskType || 'Unknown Task',
+            description: t.taskId,
+            status: t.taskStatus as TaskStatus,
+            releaseId: t.releaseId,
+          })),
+          cherryPicks: [], // Backend doesn't return cherry picks in this endpoint yet
+          analytics: mockAnalytics
+        };
+      } catch (error) {
+        console.error('[getReleaseDetails] Backend API error:', error);
+        throw error;
+      }
+    }
+
+    // Fallback to mock data if no tenantId provided
     await this.delay();
 
     const release = mockReleases.find(r => r.id === releaseId);

@@ -312,7 +312,7 @@ function OrgSidebar({
   // Updated: Release Dashboard is now /releases (index), Releases List is /releases/list
   const isReleaseDashboardActive = location.pathname === `/dashboard/${org.id}/releases` || 
                                      location.pathname.includes("/release-management");
-  const isReleasesActive = location.pathname.includes("/releases/list") || 
+  const isReleasesActive = location.pathname.includes("/releases") || 
                            (location.pathname.includes("/releases/") && 
                             !location.pathname.includes("/releases/setup") &&
                             !location.pathname.includes("/releases/settings") &&
@@ -387,7 +387,7 @@ function OrgSidebar({
             icon={IconList}
             label="Releases"
             isActive={isReleasesActive}
-            onClick={() => navigate(`/dashboard/${org.id}/releases/list`)}
+            onClick={() => navigate(`/dashboard/${org.id}/releases/`)}
           />
 
           {/* Integrations */}

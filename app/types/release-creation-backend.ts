@@ -1,0 +1,173 @@
+/**
+ * Backend-Compatible Release Creation Types
+ * 
+ * These types match the exact backend API contract for release creation.
+ * No 'any' or 'unknown' types - all fields are explicitly typed.
+ * 
+ * Backend Endpoint: POST /tenants/:tenantId/releases
+ */
+
+import type { Platform, TargetPlatform } from '~/types/release-config';
+
+// ============================================================================
+// Core Types
+// ============================================================================
+
+/**
+ * Release type as expected by backend
+ */
+export type ReleaseType = 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+
+/**
+ * Platform name for platformTargets
+ */
+export type PlatformName = 'ANDROID' | 'IOS' | 'WEB';
+
+/**
+ * Target name for platformTargets
+ */
+export type TargetName = 'PLAY_STORE' | 'APP_STORE' | 'WEB';
+
+/**
+ * Platform-Target-Version combination
+ * Backend expects this exact structure
+ */
+export interface PlatformTargetWithVersion {
+  platform: PlatformName;
+  target: TargetName;
+  version: string; // Format: vX.Y.Z (e.g., 'v6.5.0')
+}
+
+/**
+ * Regression build slot in backend format
+ * Uses absolute ISO date strings (not offset-based like config)
+ */
+export interface RegressionBuildSlotBackend {
+  date: string; // ISO date string (e.g., '2024-01-17T09:00:00.000Z')
+  config: RegressionSlotConfig;
+}
+
+/**
+ * Configuration for a regression slot
+ */
+export interface RegressionSlotConfig {
+  regressionBuilds: boolean;
+  postReleaseNotes?: boolean;
+  automationBuilds?: boolean;
+  automationRuns?: boolean;
+  [key: string]: boolean | string | number | undefined; // Allow additional config fields
+}
+
+/**
+ * Pre-created build (optional)
+ */
+export interface PreCreatedBuild {
+  platform: string;
+  target: string;
+  buildNumber: string;
+  buildUrl: string;
+}
+
+/**
+ * Cron job configuration
+ */
+export interface CronConfig {
+  kickOffReminder?: boolean;
+  preRegressionBuilds?: boolean;
+  automationBuilds?: boolean;
+  automationRuns?: boolean;
+  testFlightBuilds?: boolean;
+}
+
+/**
+ * Complete backend-compatible release creation request
+ * Matches exact backend API contract
+ */
+export interface CreateReleaseBackendRequest {
+  // REQUIRED FIELDS
+  type: ReleaseType;
+  platformTargets: PlatformTargetWithVersion[];
+  releaseConfigId: string;
+  baseBranch: string;
+  kickOffDate: string; // ISO date string
+  targetReleaseDate: string; // ISO date string
+
+  // OPTIONAL FIELDS
+  branch?: string;
+  baseReleaseId?: string;
+  kickOffReminderDate?: string; // ISO date string
+  hasManualBuildUpload?: boolean;
+  regressionBuildSlots?: RegressionBuildSlotBackend[];
+  regressionTimings?: string;
+  preCreatedBuilds?: PreCreatedBuild[];
+  cronConfig?: CronConfig;
+  customIntegrationConfigs?: Record<string, string | number | boolean | null>;
+}
+
+// ============================================================================
+// Conversion Types (for UI state management)
+// ============================================================================
+
+/**
+ * UI state for release creation
+ * Used internally in components before converting to backend format
+ */
+export interface ReleaseCreationState {
+  // Basic Info
+  type: ReleaseType;
+  platformTargets: PlatformTargetWithVersion[];
+  releaseConfigId?: string;
+  baseBranch: string;
+
+  // Dates (can be separate date + time in UI, converted to ISO on submit)
+  kickOffDate: string; // Date string (YYYY-MM-DD)
+  kickOffTime?: string; // Time string (HH:MM)
+  targetReleaseDate: string; // Date string (YYYY-MM-DD)
+  targetReleaseTime?: string; // Time string (HH:MM)
+  kickOffReminderDate?: string; // Date string (YYYY-MM-DD)
+  kickOffReminderTime?: string; // Time string (HH:MM)
+
+  // Optional
+  branch?: string;
+  baseReleaseId?: string;
+  hasManualBuildUpload?: boolean;
+
+  // Regression Slots
+  regressionBuildSlots?: RegressionBuildSlotBackend[];
+  regressionTimings?: string;
+
+  // Cron Config
+  cronConfig?: CronConfig;
+
+  // Custom Integration Configs
+  customIntegrationConfigs?: Record<string, string | number | boolean | null>;
+
+  // Pre-created Builds
+  preCreatedBuilds?: PreCreatedBuild[];
+
+  // Description (UI-only, not sent to backend)
+  description?: string;
+}
+
+// ============================================================================
+// Helper Types
+// ============================================================================
+
+/**
+ * Validation result for form fields
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors: Record<string, string>;
+}
+
+/**
+ * Platform target selection state (for UI)
+ */
+export interface PlatformTargetSelection {
+  platform: PlatformName;
+  target: TargetName;
+  selected: boolean;
+  version: string;
+}
+

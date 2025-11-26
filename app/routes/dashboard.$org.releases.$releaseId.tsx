@@ -1,252 +1,298 @@
 /**
  * Release Details Page
  * Shows detailed information about a specific release
+ * 
+ * Data Flow:
+ * - Uses useRelease hook (React Query) for cached data
+ * - No refetching on navigation - uses cached data
+ * - Displays release details with backend data
  */
 
-import { json } from '@remix-run/node';
-import { useLoaderData, Link } from '@remix-run/react';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { getReleaseDetails } from '~/.server/services/ReleaseManagement';
+import { useParams, Link } from '@remix-run/react';
+import { Container, Title, Text, Paper, Badge, Group, Stack, Button, Loader } from '@mantine/core';
+import { IconArrowLeft } from '@tabler/icons-react';
+import { useRelease } from '~/hooks/useRelease';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
 
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
-  const { org, releaseId } = params;
-  
-  if (!org || !releaseId) {
-    throw new Response('Not found', { status: 404 });
-  }
-  
+/**
+ * Format date for display
+ */
+function formatDate(dateString: string | null): string {
+  if (!dateString) return 'Not set';
   try {
-    const releaseDetails = await getReleaseDetails(releaseId);
-    
-    return json({
-      org,
-      user,
-      release: releaseDetails.release,
-      builds: releaseDetails.builds,
-      tasks: releaseDetails.tasks,
-      cherryPicks: releaseDetails.cherryPicks,
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
-  } catch (error) {
-    throw new Response('Release not found', { status: 404 });
+  } catch {
+    return 'Invalid date';
   }
-});
+}
+
+/**
+ * Get status badge color
+ */
+function getStatusColor(status: string): string {
+  switch (status) {
+    case 'COMPLETED':
+      return 'green';
+    case 'ARCHIVED':
+      return 'gray';
+    case 'IN_PROGRESS':
+      return 'blue';
+    default:
+      return 'gray';
+  }
+}
+
+/**
+ * Get type badge color
+ */
+function getTypeColor(type: string): string {
+  switch (type) {
+    case 'HOTFIX':
+      return 'red';
+    case 'UNPLANNED':
+      return 'purple';
+    case 'PLANNED':
+      return 'blue';
+    default:
+      return 'gray';
+  }
+}
 
 export default function ReleaseDetailsPage() {
-  const { org, release, builds, tasks, cherryPicks } = useLoaderData<typeof loader>();
+  const params = useParams();
+  const org = params.org || '';
+  const releaseId = params.releaseId || '';
+
+  // Use cached hook - no refetching on navigation if data is fresh
+  const {
+    release,
+    isLoading,
+    error,
+  } = useRelease(org, releaseId);
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <Container size="xl" className="py-8">
+        <Paper p="xl" withBorder className="text-center">
+          <Loader size="md" className="mx-auto" />
+          <Text c="dimmed" mt="md">Loading release...</Text>
+        </Paper>
+      </Container>
+    );
+  }
+
+  // Error State
+  if (error || !release) {
+    return (
+      <Container size="xl" className="py-8">
+        <Paper p="xl" withBorder className="text-center">
+          <Title order={2} className="mb-2">Release not found</Title>
+          <Text c="dimmed" mb="md">
+            {error?.message || 'The release you\'re looking for doesn\'t exist or has been deleted.'}
+          </Text>
+          <Link to={`/dashboard/${org}/releases`}>
+            <Button leftSection={<IconArrowLeft size={16} />} variant="light">
+              Back to Releases
+            </Button>
+          </Link>
+        </Paper>
+      </Container>
+    );
+  }
+
+  const tasks = release.tasks || [];
+  const builds: any[] = []; // Backend doesn't return builds yet
+  const cherryPicks: any[] = []; // Backend doesn't return cherry picks yet
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <Container size="xl" className="py-8">
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Link
-                to={`/dashboard/${org}/releases`}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{release.releaseKey}</h1>
-                <p className="text-sm text-gray-500">Version {release.version}</p>
-              </div>
+      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
+        <Group justify="space-between" align="flex-start">
+          <Group>
+            <Link to={`/dashboard/${org}/releases`}>
+              <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+                Back
+              </Button>
+            </Link>
+            <div>
+              <Title order={2} className="mb-1">
+                {release.releaseId || release.id || 'Unknown Release'}
+              </Title>
+              {release.branch && (
+                <Text size="sm" c="dimmed" className="font-mono">
+                  {release.branch}
+                </Text>
+              )}
             </div>
-            
-            <div className="flex items-center space-x-3">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                release.status === 'RELEASED' ? 'bg-green-100 text-green-800' :
-                release.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
-                release.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-                'bg-blue-100 text-blue-800'
-              }`}>
-                {release.status}
-              </span>
-              
-              <button
-                type="button"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Edit Release
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Overview */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Overview</h2>
+          </Group>
           
-          <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Release Type</dt>
-              <dd className="mt-1 text-sm text-gray-900">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  release.releaseType === 'HOTFIX' ? 'bg-red-100 text-red-800' :
-                  release.releaseType === 'MAJOR' ? 'bg-purple-100 text-purple-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {release.releaseType}
-                </span>
-              </dd>
+          <Group>
+            <Badge color={getStatusColor(release.status)} variant="light" size="lg">
+              {release.status.replace('_', ' ')}
+            </Badge>
+            <Button variant="outline">
+              Edit Release
+            </Button>
+          </Group>
+        </Group>
+      </Paper>
+
+      {/* Overview */}
+      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
+        <Title order={3} className="mb-4">Overview</Title>
+        
+        <Stack gap="md">
+          <Group>
+            <div style={{ flex: 1 }}>
+              <Text size="sm" c="dimmed" className="mb-1">Release Type</Text>
+              <Badge color={getTypeColor(release.type)} variant="light">
+                {release.type}
+              </Badge>
             </div>
             
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Planned Date</dt>
-              <dd className="mt-1 text-sm text-gray-900">
-                {release.plannedDate ? new Date(release.plannedDate).toLocaleDateString() : 'Not set'}
-              </dd>
-            </div>
+            {release.kickOffDate && (
+              <div style={{ flex: 1 }}>
+                <Text size="sm" c="dimmed" className="mb-1">Kick Off Date</Text>
+                <Text size="sm">{formatDate(release.kickOffDate)}</Text>
+              </div>
+            )}
+          </Group>
+
+          <Group>
+            {release.targetReleaseDate && (
+              <div style={{ flex: 1 }}>
+                <Text size="sm" c="dimmed" className="mb-1">Target Release Date</Text>
+                <Text size="sm">{formatDate(release.targetReleaseDate)}</Text>
+              </div>
+            )}
             
             {release.releaseDate && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Release Date</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {new Date(release.releaseDate).toLocaleDateString()}
-                </dd>
+              <div style={{ flex: 1 }}>
+                <Text size="sm" c="dimmed" className="mb-1">Release Date</Text>
+                <Text size="sm">{formatDate(release.releaseDate)}</Text>
               </div>
             )}
-            
-            {release.releasePilotName && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Release Pilot</dt>
-                <dd className="mt-1 text-sm text-gray-900">{release.releasePilotName}</dd>
-              </div>
-            )}
-            
-            {release.description && (
-              <div className="sm:col-span-2">
-                <dt className="text-sm font-medium text-gray-500">Description</dt>
-                <dd className="mt-1 text-sm text-gray-900">{release.description}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
+          </Group>
 
-        {/* Builds */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900">Builds</h2>
-            <button
-              type="button"
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Trigger Build
-            </button>
-          </div>
-          
-          {builds.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-8">No builds yet</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Platform</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Build #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {builds.map((build) => (
-                    <tr key={build.id}>
-                      <td className="px-4 py-3 text-sm text-gray-900">{build.platform}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900">{build.buildNumber}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          build.status === 'SUCCESS' ? 'bg-green-100 text-green-800' :
-                          build.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                          build.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {build.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {new Date(build.createdAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <Group>
+            {release.branch && (
+              <div style={{ flex: 1 }}>
+                <Text size="sm" c="dimmed" className="mb-1">Branch</Text>
+                <Text size="sm" className="font-mono">{release.branch}</Text>
+              </div>
+            )}
+            
+            {release.baseBranch && (
+              <div style={{ flex: 1 }}>
+                <Text size="sm" c="dimmed" className="mb-1">Base Branch</Text>
+                <Text size="sm" className="font-mono">{release.baseBranch}</Text>
+              </div>
+            )}
+          </Group>
+
+          {/* Platform Targets */}
+          {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
+            <div>
+              <Text size="sm" c="dimmed" className="mb-2">Platform Targets</Text>
+              <Group gap="xs">
+                {release.platformTargetMappings.map((mapping: any, idx: number) => (
+                  <Badge key={idx} size="sm" variant="dot">
+                    {mapping.platform} → {mapping.target}
+                  </Badge>
+                ))}
+              </Group>
             </div>
           )}
-        </div>
 
-        {/* Tasks */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Tasks</h2>
-          
-          {tasks.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-8">No tasks yet</p>
-          ) : (
-            <div className="space-y-3">
-              {tasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{task.name}</p>
-                    {task.description && (
-                      <p className="text-xs text-gray-500 mt-1">{task.description}</p>
+          {/* Metadata */}
+          <div className="pt-2 border-t border-gray-200">
+            <Group gap="md">
+              <Text size="xs" c="dimmed">
+                Created {formatDate(release.createdAt)}
+              </Text>
+              {release.updatedAt && release.updatedAt !== release.createdAt && (
+                <Text size="xs" c="dimmed">
+                  Updated {formatDate(release.updatedAt)}
+                </Text>
+              )}
+            </Group>
+          </div>
+        </Stack>
+      </Paper>
+
+      {/* Tasks */}
+      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
+        <Title order={3} className="mb-4">Tasks</Title>
+        
+        {tasks.length === 0 ? (
+          <Text size="sm" c="dimmed" className="text-center py-8">No tasks yet</Text>
+        ) : (
+          <Stack gap="sm">
+            {tasks.map((task: any) => (
+              <Paper key={task.id} p="sm" withBorder radius="sm">
+                <Group justify="space-between">
+                  <div style={{ flex: 1 }}>
+                    <Text size="sm" fw={500}>{task.taskType || task.taskId || 'Unknown Task'}</Text>
+                    {task.taskId && (
+                      <Text size="xs" c="dimmed" className="font-mono mt-1">
+                        {task.taskId}
+                      </Text>
                     )}
                   </div>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                    task.status === 'IN_PROGRESS' ? 'bg-yellow-100 text-yellow-800' :
-                    task.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {task.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  {task.taskStatus && (
+                    <Badge 
+                      color={
+                        task.taskStatus === 'COMPLETED' ? 'green' :
+                        task.taskStatus === 'IN_PROGRESS' ? 'yellow' :
+                        task.taskStatus === 'FAILED' ? 'red' : 'gray'
+                      }
+                      variant="light"
+                      size="sm"
+                    >
+                      {task.taskStatus}
+                    </Badge>
+                  )}
+                </Group>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Paper>
 
-        {/* Cherry Picks */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900">Cherry Picks</h2>
-            <button
-              type="button"
-              className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Request Cherry Pick
-            </button>
-          </div>
-          
-          {cherryPicks.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-8">No cherry picks yet</p>
-          ) : (
-            <div className="space-y-3">
-              {cherryPicks.map((cp) => (
-                <div key={cp.id} className="flex items-start justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {cp.commitHash.substring(0, 7)} - {cp.title}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">By {cp.requestedBy.name}</p>
-                  </div>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    cp.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                    cp.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {cp.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      {/* Builds - Placeholder for future */}
+      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
+        <Group justify="space-between" className="mb-4">
+          <Title order={3}>Builds</Title>
+          <Button size="sm">Trigger Build</Button>
+        </Group>
+        
+        {builds.length === 0 ? (
+          <Text size="sm" c="dimmed" className="text-center py-8">No builds yet</Text>
+        ) : (
+          <div>Builds will be displayed here</div>
+        )}
+      </Paper>
+
+      {/* Cherry Picks - Placeholder for future */}
+      <Paper shadow="sm" p="md" radius="md" withBorder>
+        <Group justify="space-between" className="mb-4">
+          <Title order={3}>Cherry Picks</Title>
+          <Button size="sm" variant="outline">Request Cherry Pick</Button>
+        </Group>
+        
+        {cherryPicks.length === 0 ? (
+          <Text size="sm" c="dimmed" className="text-center py-8">No cherry picks yet</Text>
+        ) : (
+          <div>Cherry picks will be displayed here</div>
+        )}
+      </Paper>
+    </Container>
   );
 }
 

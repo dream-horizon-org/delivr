@@ -3,17 +3,18 @@
  * Single form with review modal
  */
 
-import { json, redirect } from '@remix-run/node';
-import { useLoaderData, useNavigate, useSubmit } from '@remix-run/react';
+import { json } from '@remix-run/node';
+import { useLoaderData, useNavigate } from '@remix-run/react';
 import { Container, Paper, Button } from '@mantine/core';
 import { IconSettings, IconArrowLeft } from '@tabler/icons-react';
-import { authenticateLoaderRequest, authenticateActionRequest, ActionMethods } from '~/utils/authenticate';
+import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { getSetupData } from '~/.server/services/ReleaseManagement/setup';
-import { createRelease } from '~/.server/services/ReleaseManagement/release-creation.service';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
 import { useConfig } from '~/contexts/ConfigContext';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
+import { useQueryClient } from 'react-query';
+import { invalidateReleases } from '~/utils/cache-invalidation';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
-import { validateReleaseCreationState } from '~/utils/release-creation-validation';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org } = params;
@@ -36,69 +37,6 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   });
 });
 
-export const action = authenticateActionRequest({
-  [ActionMethods.POST]: async ({ request, params, user }) => {
-    const { org } = params;
-
-    if (!org) {
-      throw new Response('Organization not found', { status: 404 });
-    }
-
-    const userId = (user as { id?: string })?.id || '';
-    if (!userId) {
-      throw new Response('Unauthorized', { status: 401 });
-    }
-
-    try {
-      // Parse JSON body
-      const body = await request.json();
-      const backendRequest = (body.body ? JSON.parse(body.body) : body) as CreateReleaseBackendRequest;
-
-      // Validate request
-      const validation = validateReleaseCreationState(backendRequest);
-      if (!validation.isValid) {
-        return json(
-          {
-            success: false,
-            error: 'Validation failed',
-            errors: validation.errors,
-          },
-          { status: 400 }
-        );
-      }
-
-      // Call backend service
-      const result = await createRelease(backendRequest, org, userId);
-
-      if (!result.success) {
-        return json(
-          {
-            success: false,
-            error: result.error || 'Failed to create release',
-          },
-          { status: 500 }
-        );
-      }
-
-      // Redirect to release detail page
-      if (result.release?.id) {
-        return redirect(`/dashboard/${org}/releases/${result.release.id}`);
-      }
-
-      return redirect(`/dashboard/${org}/releases`);
-    } catch (error) {
-      console.error('[CreateRelease Action] Error:', error);
-      return json(
-        {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error occurred',
-        },
-        { status: 500 }
-      );
-    }
-  },
-});
-
 export default function CreateReleasePage() {
   const loaderData = useLoaderData<typeof loader>();
   const org = (loaderData as { org: string }).org;
@@ -106,17 +44,40 @@ export default function CreateReleasePage() {
   const { activeReleaseConfigs } = useConfig();
   const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
-  const submit = useSubmit();
+  const queryClient = useQueryClient();
 
-  // Handle form submission
-  const handleSubmit = async (backendRequest: CreateReleaseBackendRequest) => {
-    submit(
-      { body: JSON.stringify(backendRequest) },
-      {
-        method: 'POST',
-        encType: 'application/json',
+  // Handle form submission - use BFF route (same pattern as release-config and integrations)
+  const handleSubmit = async (backendRequest: CreateReleaseBackendRequest): Promise<void> => {
+    try {
+      const endpoint = `/api/v1/tenants/${org}/releases`;
+      // apiPost returns ApiResponse<T> where T is the response type
+      // BFF route returns: { success: true, release: {...} }
+      // apiRequest returns the JSON response directly
+      const result = await apiPost<{ success: boolean; release?: { id: string }; error?: string }>(endpoint, backendRequest);
+
+      // apiPost throws if !result.success, so if we get here, result.success is true
+      // The BFF returns { success: true, release: {...} }
+      // apiRequest returns it as { success: true, data: { success: true, release: {...} } } or directly
+      // Check result.data first (if apiRequest wraps it), then fall back to result itself
+      const responseData = result.data || (result as unknown as { success: boolean; release?: { id: string }; error?: string });
+      
+      if (!responseData || !responseData.success) {
+        throw new Error(responseData?.error || result.error || 'Failed to create release');
       }
-    );
+
+      // Invalidate releases cache so list page shows the new release
+      await invalidateReleases(queryClient, org);
+
+      // Navigate to release detail page on success
+      if (responseData.release?.id) {
+        navigate(`/dashboard/${org}/releases/${responseData.release.id}`);
+      } else {
+        navigate(`/dashboard/${org}/releases`);
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to create release');
+      throw new Error(errorMessage);
+    }
   };
 
   // Handler to create new configuration

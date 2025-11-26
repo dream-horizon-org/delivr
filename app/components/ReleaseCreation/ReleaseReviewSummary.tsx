@@ -23,14 +23,6 @@ export function ReleaseReviewSummary({
 }: ReleaseReviewSummaryProps) {
   return (
     <Stack gap="lg">
-      <div>
-        <Text fw={600} size="lg" className="mb-2">
-          Review Release
-        </Text>
-        <Text size="sm" c="dimmed">
-          Review all details before creating the release
-        </Text>
-      </div>
 
       {/* Basic Details */}
       <Card shadow="sm" padding="md" radius="md" withBorder>

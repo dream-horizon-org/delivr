@@ -19,6 +19,7 @@ import "./tailwind.css";
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { mantineTheme } from "~/theme";
+import { ErrorBoundary } from "~/components/Common/ErrorBoundary";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -44,12 +45,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ColorSchemeScript />
       </head>
       <body>
-        <QueryClientProvider client={queryClient}>
-          <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
-            <Notifications />
-            {children}
-          </MantineProvider>
-        </QueryClientProvider>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
+              <Notifications />
+              {children}
+            </MantineProvider>
+          </QueryClientProvider>
+        </ErrorBoundary>
         <ScrollRestoration />
         <Scripts />
       </body>

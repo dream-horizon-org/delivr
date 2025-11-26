@@ -55,6 +55,20 @@ export async function invalidateSystemMetadata(
 }
 
 /**
+ * Invalidate releases cache
+ * This will trigger a refetch of all releases for a tenant
+ * 
+ * @param queryClient - React Query client instance
+ * @param tenantId - Tenant ID to invalidate cache for
+ */
+export async function invalidateReleases(
+  queryClient: QueryClient,
+  tenantId: string
+): Promise<void> {
+  await queryClient.invalidateQueries(['releases', tenantId]);
+}
+
+/**
  * Invalidate all tenant-related caches
  * Useful after major operations like switching tenants or updating global settings
  * 
@@ -68,6 +82,7 @@ export async function invalidateAllTenantCaches(
   await Promise.all([
     invalidateTenantConfig(queryClient, tenantId),
     invalidateReleaseConfigs(queryClient, tenantId),
+    invalidateReleases(queryClient, tenantId),
   ]);
 }
 
