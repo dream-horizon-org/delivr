@@ -3,7 +3,7 @@
  * DTOs and interfaces for channel configuration operations
  */
 
-import type { StageChannelMapping, SlackChannel } from '../../../../storage/integrations/comm/slack-types';
+import type { StageChannelMapping, SlackChannel } from '../comm-integration';
 
 /**
  * DTO for creating channel configuration
