@@ -11,7 +11,6 @@ export type TestManagementConfigAttributes = {
   tenantId: string;
   integrationId: string;
   name: string;
-  projectId?: number; // Checkmate project ID for metadata fetching
   passThresholdPercent: number;
   platformConfigurations: PlatformConfiguration[];
   createdByAccountId: string | null;
@@ -55,12 +54,6 @@ export const createTestManagementConfigModel = (
       name: {
         type: DataTypes.STRING(255),
         allowNull: false
-      },
-      projectId: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        field: 'project_id',
-        comment: 'Checkmate project ID for metadata fetching and UI display'
       },
       passThresholdPercent: {
         type: DataTypes.INTEGER,

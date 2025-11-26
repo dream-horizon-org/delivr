@@ -319,9 +319,9 @@ export class ReleaseConfigService {
     return {
       ...config,
       ciConfig,
-      testManagement: testManagementConfig,        // Consistent with POST field name
-      communication: commsConfig,                  // Consistent with POST field name
-      projectManagement: projectManagementConfig   // Consistent with POST field name
+      testManagementConfig,
+      commsConfig,
+      projectManagementConfig
     };
   }
 

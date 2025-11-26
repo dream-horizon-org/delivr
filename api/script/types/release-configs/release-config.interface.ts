@@ -5,7 +5,8 @@
 
 import type { TestPlatform } from '~types/integrations/test-management/platform.interface';
 import type { 
-  PlatformConfiguration as TestManagementPlatformConfiguration
+  PlatformConfiguration as TestManagementPlatformConfiguration,
+  CreateTestManagementConfigDto 
 } from '~types/integrations/test-management/test-management-config';
 
 /**
@@ -146,7 +147,6 @@ export interface TestManagementRequestConfig {
   id?: string;
   integrationId: string;
   name?: string;
-  projectId?: number; // Checkmate project ID
   passThresholdPercent?: number;
   platformConfigurations?: TestManagementPlatformConfiguration[];
 }
