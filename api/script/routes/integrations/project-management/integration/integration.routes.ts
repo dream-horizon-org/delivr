@@ -4,15 +4,6 @@ import type { ProjectManagementIntegrationService } from '~services/integrations
 import type { Storage } from '~storage/storage';
 import * as tenantPermissions from '~middleware/tenant-permissions';
 
-/**
- * Basic authentication middleware - requires authenticated user
- */
-const requireAuthentication = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user?.id) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-};
 
 export const createIntegrationRoutes = (
   service: ProjectManagementIntegrationService,
@@ -27,7 +18,7 @@ export const createIntegrationRoutes = (
   // Verify credentials without saving (stateless)
   router.post(
     '/tenants/:tenantId/integrations/project-management/verify',
-    requireAuthentication,
+    tenantPermissions.requireOwner({ storage }),
     controller.verifyCredentials
   );
 
