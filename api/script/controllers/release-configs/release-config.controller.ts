@@ -199,8 +199,17 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
     try {
       const { configId } = req.params;
       const updateData = req.body;
+      const currentUserId = req.user?.id;
 
-      const config = await service.updateConfig(configId, updateData);
+      if (!currentUserId) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json(
+          errorResponse(new Error('User ID not found'), 'Authentication required')
+        );
+        return;
+      }
+
+      // Update returns the basic config, but we need to return verbose format
+      const config = await service.updateConfig(configId, updateData, currentUserId);
 
       if (!config) {
         res.status(HTTP_STATUS.NOT_FOUND).json(
@@ -209,9 +218,11 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
         return;
       }
 
-      const safeConfig = toSafeConfig(config);
+      // Fetch the verbose version to match GET format
+      const verboseConfig = await service.getConfigByIdVerbose(configId);
+
       res.status(HTTP_STATUS.OK).json(
-        successResponse(safeConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_UPDATED)
+        successResponse(verboseConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_UPDATED)
       );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);

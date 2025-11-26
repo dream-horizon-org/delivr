@@ -35,7 +35,11 @@ export const createPlatformTargetMappingModel = (
       releaseId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'releaseId'
+        field: 'releaseId',
+        references: {
+          model: 'releases',
+          key: 'id'
+        }
       },
       platform: {
         type: DataTypes.ENUM('ANDROID', 'IOS', 'WEB'),

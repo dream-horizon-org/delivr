@@ -97,7 +97,8 @@ export class ReleaseCreationService {
       kickOffReminder: true,
       preRegressionBuilds: false,
       automationBuilds: false,
-      automationRuns: false
+      automationRuns: false,
+      testFlightBuilds: true
     };
 
     const cronJob = await this.cronJobRepo.create({

@@ -44,7 +44,11 @@ export const createCronJobModel = (
         type: DataTypes.STRING(255),
         allowNull: false,
         unique: true,
-        field: 'releaseId'
+        field: 'releaseId',
+        references: {
+          model: 'releases',
+          key: 'id'
+        }
       },
       stage1Status: {
         type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED'),
@@ -95,7 +99,11 @@ export const createCronJobModel = (
       cronCreatedByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'cronCreatedByAccountId'
+        field: 'cronCreatedByAccountId',
+        references: {
+          model: 'accounts',
+          key: 'id'
+        }
       },
       lockedBy: {
         type: DataTypes.STRING(255),

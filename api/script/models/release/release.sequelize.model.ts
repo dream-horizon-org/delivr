@@ -53,12 +53,20 @@ export const createReleaseModel = (
         type: DataTypes.STRING(255),
         allowNull: true,
         field: 'releaseConfigId',
+        references: {
+          model: 'release_configurations',
+          key: 'id'
+        },
         comment: 'FK to release_configurations table'
       },
       tenantId: {
         type: DataTypes.CHAR(36),
         allowNull: false,
-        field: 'tenantId'
+        field: 'tenantId',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        }
       },
       status: {
         type: DataTypes.ENUM('IN_PROGRESS', 'COMPLETED', 'ARCHIVED'),

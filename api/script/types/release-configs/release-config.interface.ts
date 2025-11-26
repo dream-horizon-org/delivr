@@ -5,7 +5,8 @@
 
 import type { TestPlatform } from '~types/integrations/test-management/platform.interface';
 import type { 
-  PlatformConfiguration as TestManagementPlatformConfiguration
+  PlatformConfiguration as TestManagementPlatformConfiguration,
+  CreateTestManagementConfigDto 
 } from '~types/integrations/test-management/test-management-config';
 
 /**
@@ -81,6 +82,12 @@ export type UpdateReleaseConfigDto = {
 };
 
 /**
+ * Request body structure from client for updating release configuration
+ * Matches the GET verbose response format (nested integration configs)
+ */
+export type UpdateReleaseConfigRequest = Partial<CreateReleaseConfigRequest>;
+
+/**
  * Request body structure from client for creating release configuration
  */
 export type CreateReleaseConfigRequest = {
@@ -140,7 +147,6 @@ export interface TestManagementRequestConfig {
   id?: string;
   integrationId: string;
   name?: string;
-  projectId?: number; // Checkmate project ID
   passThresholdPercent?: number;
   platformConfigurations?: TestManagementPlatformConfiguration[];
 }

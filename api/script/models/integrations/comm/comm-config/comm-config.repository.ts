@@ -73,6 +73,24 @@ export class CommConfigRepository {
   };
 
   /**
+   * Update channel configuration (general update)
+   */
+  update = async (
+    id: string,
+    data: Partial<{ channelData: StageChannelMapping }>
+  ): Promise<TenantCommChannel | null> => {
+    const channelConfig = await this.model.findByPk(id);
+
+    if (!channelConfig) {
+      return null;
+    }
+
+    await channelConfig.update(data);
+
+    return this.toPlainObject(channelConfig);
+  };
+
+  /**
    * Update stage channels - add or remove channels from a specific stage
    */
   updateStageChannels = async (

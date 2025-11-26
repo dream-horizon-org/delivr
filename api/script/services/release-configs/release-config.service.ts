@@ -10,6 +10,7 @@ import type {
   CreateReleaseConfigRequest,
   ReleaseConfiguration,
   UpdateReleaseConfigDto,
+  UpdateReleaseConfigRequest,
   IntegrationValidationResult,
   ValidationResult,
   ServiceResult
@@ -19,7 +20,7 @@ import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
-import type { CommConfigService } from '~services/integrations/comm/comm-config';
+import type { CommConfigService } from '../integrations/comm/comm-config/comm-config.service';
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
@@ -318,9 +319,9 @@ export class ReleaseConfigService {
     return {
       ...config,
       ciConfig,
-      testManagement: testManagementConfig,        // Consistent with POST field name
-      communication: commsConfig,                  // Consistent with POST field name
-      projectManagement: projectManagementConfig   // Consistent with POST field name
+      testManagementConfig,
+      commsConfig,
+      projectManagementConfig
     };
   }
 
@@ -339,24 +340,455 @@ export class ReleaseConfigService {
   }
 
   /**
-   * Update config
+   * Update config with integration management
    */
   async updateConfig(
     id: string,
-    data: UpdateReleaseConfigDto
+    data: any,  // UpdateReleaseConfigRequest
+    currentUserId: string
   ): Promise<ReleaseConfiguration | null> {
-    const config = await this.configRepo.findById(id);
+    const existingConfig = await this.configRepo.findById(id);
 
-    if (!config) {
+    if (!existingConfig) {
       return null;
     }
 
+    // Build the update DTO for the main config
+    const configUpdate: UpdateReleaseConfigDto = {
+      name: data.name,
+      description: data.description,
+      releaseType: data.releaseType,
+      platformTargets: data.platformTargets,
+      baseBranch: data.baseBranch,
+      scheduling: data.scheduling,
+      hasManualBuildUpload: data.hasManualBuildUpload,
+      isDefault: data.isDefault,
+      isActive: data.isActive
+    };
+
+    // Handle integration config IDs (create or update as needed)
+    configUpdate.ciConfigId = await this.handleCiConfigId(existingConfig, data, currentUserId);
+    configUpdate.testManagementConfigId = await this.handleTestManagementConfigId(existingConfig, data, currentUserId);
+    configUpdate.projectManagementConfigId = await this.handleProjectManagementConfigId(existingConfig, data, currentUserId);
+    configUpdate.commsConfigId = await this.handleCommsConfigId(existingConfig, data, currentUserId);
+
     // If setting as default, unset other defaults
     if (data.isDefault === true) {
-      await this.configRepo.unsetDefaultForTenant(config.tenantId, id);
+      await this.configRepo.unsetDefaultForTenant(existingConfig.tenantId, id);
     }
 
-    return this.configRepo.update(id, data);
+    return this.configRepo.update(id, configUpdate);
+  }
+
+  // ============================================================================
+  // CI/CD CONFIG HANDLERS (SRP: Separate orchestration, update, create)
+  // ============================================================================
+
+  /**
+   * Orchestrator: Handle CI config ID (decides whether to update or create)
+   */
+  private async handleCiConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!updateData.ciConfig) {
+      return existingConfig.ciConfigId;
+    }
+
+    const configId = updateData.ciConfig.id || updateData.ciConfigId;
+
+    if (configId) {
+      // Update existing config
+      await this.updateCiConfig(configId, existingConfig.tenantId, updateData);
+      return configId;
+    }
+
+    // Create new config
+    return await this.createCiConfig(existingConfig.tenantId, updateData, currentUserId);
+  }
+
+  /**
+   * Update existing CI config
+   */
+  private async updateCiConfig(
+    configId: string,
+    tenantId: string,
+    updateData: any
+  ): Promise<void> {
+    if (!this.cicdConfigService) return;
+
+    const ciUpdateDto = {
+      workflowIds: updateData.ciConfig.workflows || []
+    };
+
+    await this.cicdConfigService.updateConfig(configId, tenantId, ciUpdateDto);
+  }
+
+  /**
+   * Create new CI config
+   */
+  private async createCiConfig(
+    tenantId: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!this.cicdConfigService) return null;
+
+    const ciResult = await this.cicdConfigService.createConfig({
+      tenantId,
+      workflows: updateData.ciConfig.workflows || [],
+      createdByAccountId: currentUserId
+    });
+
+    return ciResult.configId;
+  }
+
+  // ============================================================================
+  // TEST MANAGEMENT CONFIG HANDLERS (SRP: Separate orchestration, update, create)
+  // ============================================================================
+
+  /**
+   * Orchestrator: Handle Test Management config ID (decides whether to update or create)
+   */
+  private async handleTestManagementConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    // Normalize field name: Check both 'testManagementConfig' (from GET) and 'testManagement' (from CREATE)
+    const testMgmtData = updateData.testManagementConfig || updateData.testManagement;
+
+    if (!testMgmtData) {
+      return existingConfig.testManagementConfigId;
+    }
+
+    const configId = testMgmtData.id || updateData.testManagementConfigId;
+
+    if (configId) {
+      // Update existing config
+      await this.updateTestManagementConfig(
+        configId,
+        existingConfig.tenantId,
+        updateData,
+        currentUserId
+      );
+      return configId;
+    }
+
+    // Create new config
+    return await this.createTestManagementConfig(
+      existingConfig.tenantId,
+      existingConfig.name,
+      updateData,
+      currentUserId
+    );
+  }
+
+  /**
+   * Update existing Test Management config
+   */
+  private async updateTestManagementConfig(
+    configId: string,
+    tenantId: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<void> {
+    if (!this.testManagementConfigService) return;
+
+    // Normalize field name: updateData might have 'testManagementConfig' (from GET response)
+    // but mapper expects 'testManagement'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      testManagement: updateData.testManagementConfig || updateData.testManagement
+    };
+
+    console.log('[updateTestManagementConfig] Normalized data:', JSON.stringify(normalizedData.testManagement, null, 2));
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    console.log('[updateTestManagementConfig] Integration configs:', JSON.stringify(integrationConfigs.testManagement, null, 2));
+
+    if (integrationConfigs.testManagement) {
+      const tcmUpdateDto = {
+        name: normalizedData.testManagement.name,
+        ...integrationConfigs.testManagement
+      };
+
+      console.log('[updateTestManagementConfig] Update DTO:', JSON.stringify(tcmUpdateDto, null, 2));
+
+      await this.testManagementConfigService.updateConfig(configId, tcmUpdateDto);
+      console.log('[updateTestManagementConfig] Update completed for configId:', configId);
+    } else {
+      console.log('[updateTestManagementConfig] No integration configs found - skipping update');
+    }
+  }
+
+  /**
+   * Create new Test Management config
+   */
+  private async createTestManagementConfig(
+    tenantId: string,
+    releaseConfigName: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!this.testManagementConfigService) return null;
+
+    // Normalize field name: updateData might have 'testManagementConfig' (from GET response)
+    // but mapper expects 'testManagement'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      testManagement: updateData.testManagementConfig || updateData.testManagement
+    };
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    if (!integrationConfigs.testManagement) return null;
+
+    const tcmConfigDto: CreateTestManagementConfigDto = {
+      tenantId,
+      name: normalizedData.testManagement.name || `TCM Config for ${releaseConfigName}`,
+      ...integrationConfigs.testManagement
+    };
+
+    const tcmResult = await this.testManagementConfigService.createConfig(tcmConfigDto);
+    return tcmResult.id;
+  }
+
+  // ============================================================================
+  // PROJECT MANAGEMENT CONFIG HANDLERS (SRP: Separate orchestration, update, create)
+  // ============================================================================
+
+  /**
+   * Orchestrator: Handle Project Management config ID (decides whether to update or create)
+   */
+  private async handleProjectManagementConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    // Normalize field name: Check both 'projectManagementConfig' (from GET) and 'projectManagement' (from CREATE)
+    const projectMgmtData = updateData.projectManagementConfig || updateData.projectManagement;
+
+    if (!projectMgmtData) {
+      return existingConfig.projectManagementConfigId;
+    }
+
+    const configId = projectMgmtData.id || updateData.projectManagementConfigId;
+
+    if (configId) {
+      // Update existing config
+      await this.updateProjectManagementConfig(
+        configId,
+        existingConfig.tenantId,
+        updateData,
+        currentUserId
+      );
+      return configId;
+    }
+
+    // Create new config
+    return await this.createProjectManagementConfig(
+      existingConfig.tenantId,
+      existingConfig.name,
+      updateData,
+      currentUserId
+    );
+  }
+
+  /**
+   * Update existing Project Management config
+   */
+  private async updateProjectManagementConfig(
+    configId: string,
+    tenantId: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<void> {
+    if (!this.projectManagementConfigService) return;
+
+    // Normalize field name: updateData might have 'projectManagementConfig' (from GET response)
+    // but mapper expects 'projectManagement'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      projectManagement: updateData.projectManagementConfig || updateData.projectManagement
+    };
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    if (integrationConfigs.projectManagement) {
+      const pmUpdateDto = {
+        name: normalizedData.projectManagement.name,
+        ...integrationConfigs.projectManagement
+      };
+
+      await this.projectManagementConfigService.updateConfig(configId, pmUpdateDto);
+    }
+  }
+
+  /**
+   * Create new Project Management config
+   */
+  private async createProjectManagementConfig(
+    tenantId: string,
+    releaseConfigName: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!this.projectManagementConfigService) return null;
+
+    // Normalize field name: updateData might have 'projectManagementConfig' (from GET response)
+    // but mapper expects 'projectManagement'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      projectManagement: updateData.projectManagementConfig || updateData.projectManagement
+    };
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    if (!integrationConfigs.projectManagement) return null;
+
+    const pmResult = await this.projectManagementConfigService.createConfig({
+      tenantId,
+      name: normalizedData.projectManagement.name || `PM Config for ${releaseConfigName}`,
+      ...integrationConfigs.projectManagement,
+      createdByAccountId: currentUserId
+    });
+
+    return pmResult.id;
+  }
+
+  // ============================================================================
+  // COMMUNICATION CONFIG HANDLERS (SRP: Separate orchestration, update, create)
+  // ============================================================================
+
+  /**
+   * Orchestrator: Handle Communication config ID (decides whether to update or create)
+   */
+  private async handleCommsConfigId(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    // Normalize field name: Check both 'commsConfig' (from GET) and 'communication' (from CREATE)
+    const commsData = updateData.commsConfig || updateData.communication;
+
+    if (!commsData) {
+      return existingConfig.commsConfigId;
+    }
+
+    const configId = commsData.id || updateData.commsConfigId;
+
+    if (configId) {
+      // Update existing config
+      await this.updateCommsConfig(
+        configId,
+        existingConfig.tenantId,
+        updateData,
+        currentUserId
+      );
+      return configId;
+    }
+
+    // Create new config
+    return await this.createCommsConfig(
+      existingConfig.tenantId,
+      updateData,
+      currentUserId
+    );
+  }
+
+  /**
+   * Update existing Communication config
+   */
+  private async updateCommsConfig(
+    configId: string,
+    tenantId: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<void> {
+    if (!this.commConfigService) return;
+
+    // Normalize field name: updateData might have 'commsConfig' (from GET response)
+    // but mapper expects 'communication'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      communication: updateData.commsConfig || updateData.communication
+    };
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    if (integrationConfigs.communication) {
+      const commsUpdateDto = {
+        channelData: integrationConfigs.communication.channelData
+      };
+
+      await this.commConfigService.updateConfig(configId, commsUpdateDto);
+    }
+  }
+
+  /**
+   * Create new Communication config
+   */
+  private async createCommsConfig(
+    tenantId: string,
+    updateData: any,
+    currentUserId: string
+  ): Promise<string | null> {
+    if (!this.commConfigService) return null;
+
+    // Normalize field name: updateData might have 'commsConfig' (from GET response)
+    // but mapper expects 'communication'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      communication: updateData.commsConfig || updateData.communication
+    };
+
+    console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communication, null, 2));
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    console.log('[createCommsConfig] Integration configs.communication:', JSON.stringify(integrationConfigs.communication, null, 2));
+
+    if (!integrationConfigs.communication) return null;
+
+    const createDto = {
+      tenantId,
+      channelData: integrationConfigs.communication.channelData
+    };
+
+    console.log('[createCommsConfig] CreateDTO being passed to createConfig:', JSON.stringify(createDto, null, 2));
+
+    const commsResult = await this.commConfigService.createConfig(createDto);
+
+    console.log('[createCommsConfig] Created comms config with ID:', commsResult.id);
+
+    return commsResult.id;
   }
 
   /**
