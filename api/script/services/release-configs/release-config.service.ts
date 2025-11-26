@@ -20,7 +20,7 @@ import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
-import type { CommConfigService } from '~services/integrations/comm/comm-config';
+import type { CommConfigService } from '../integrations/comm/comm-config/comm-config.service';
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
@@ -698,10 +698,12 @@ export class ReleaseConfigService {
 
     if (configId) {
       // Update existing config
-      // Note: SlackChannelConfigService doesn't have a general updateConfig method yet
-      // It only supports updateStageChannels for specific channel operations
-      // For now, we just return the existing ID without updating
-      // TODO: Implement updateCommsConfig when SlackChannelConfigService supports it
+      await this.updateCommsConfig(
+        configId,
+        existingConfig.tenantId,
+        updateData,
+        currentUserId
+      );
       return configId;
     }
 
@@ -715,7 +717,6 @@ export class ReleaseConfigService {
 
   /**
    * Update existing Communication config
-   * TODO: Implement when SlackChannelConfigService adds general update support
    */
   private async updateCommsConfig(
     configId: string,
@@ -723,9 +724,28 @@ export class ReleaseConfigService {
     updateData: any,
     currentUserId: string
   ): Promise<void> {
-    // Not implemented yet - SlackChannelConfigService only has updateStageChannels
-    // which is for specific channel add/remove operations, not general config updates
-    return;
+    if (!this.commConfigService) return;
+
+    // Normalize field name: updateData might have 'commsConfig' (from GET response)
+    // but mapper expects 'communication'
+    const normalizedData = {
+      ...updateData,
+      tenantId,
+      communication: updateData.commsConfig || updateData.communication
+    };
+
+    const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
+      normalizedData,
+      currentUserId
+    );
+
+    if (integrationConfigs.communication) {
+      const commsUpdateDto = {
+        channelData: integrationConfigs.communication.channelData
+      };
+
+      await this.commConfigService.updateConfig(configId, commsUpdateDto);
+    }
   }
 
   /**
@@ -736,7 +756,7 @@ export class ReleaseConfigService {
     updateData: any,
     currentUserId: string
   ): Promise<string | null> {
-    if (!this.slackChannelConfigService) return null;
+    if (!this.commConfigService) return null;
 
     // Normalize field name: updateData might have 'commsConfig' (from GET response)
     // but mapper expects 'communication'
@@ -764,7 +784,7 @@ export class ReleaseConfigService {
 
     console.log('[createCommsConfig] CreateDTO being passed to createConfig:', JSON.stringify(createDto, null, 2));
 
-    const commsResult = await this.slackChannelConfigService.createConfig(createDto);
+    const commsResult = await this.commConfigService.createConfig(createDto);
 
     console.log('[createCommsConfig] Created comms config with ID:', commsResult.id);
 

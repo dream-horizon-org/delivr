@@ -282,9 +282,8 @@ export class CommConfigService {
       }
     }
 
-    // Update the config (assuming repository has an update method)
-    // TODO: Implement proper update in repository
-    return config;
+    // Update the config using repository
+    return await this.configRepository.update(id, data);
   }
 
   /**
