@@ -111,15 +111,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         s3Storage.projectManagementTicketService) {
       
       // Project Management Integration Management (Credentials)
-      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService);
+      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService, s3Storage);
       router.use(pmIntegrationRoutes);
       
       // Project Management Configuration Management (Reusable configurations)
-      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService);
+      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService, s3Storage);
       router.use(pmConfigurationRoutes);
       
       // Project Management Ticket Operations (Stateless - Create, Check Status)
-      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService);
+      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService, s3Storage);
       router.use(pmTicketRoutes);
       
       console.log('[Release Management] Project Management routes mounted successfully');
