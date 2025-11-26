@@ -37,7 +37,7 @@ import { ProjectManagementIntegrationRepository } from '~models/integrations/pro
 import { TestManagementRunService } from '~services/integrations/test-management/test-run/test-run.service';
 import { TestManagementConfigRepository } from '~models/integrations/test-management/test-management-config/test-management-config.repository';
 import { TenantTestManagementIntegrationRepository } from '~models/integrations/test-management';
-import { SlackIntegrationService } from '~services/integrations/comm/slack-integration/slack-integration.service';
+import { CommIntegrationService } from '~services/integrations/comm/comm-integration';
 import { ReleaseConfigRepository } from '~models/release-configs/release-config.repository';
 import { getStorage } from '~storage/storage-instance';
 
@@ -58,7 +58,7 @@ function createTaskExecutor(sequelize: any): TaskExecutor {
   const scmService = new SCMService();
   const pmTicketService = new ProjectManagementTicketService(pmConfigRepo, pmIntegrationRepo);
   const testRunService = new TestManagementRunService(tmConfigRepo, tmIntegrationRepo);
-  const slackService = new SlackIntegrationService(undefined as any); // TODO: Add slack repository
+  const slackService = new CommIntegrationService(undefined as any); // TODO: Add slack repository
   
   // Create and return TaskExecutor
   return new TaskExecutor(

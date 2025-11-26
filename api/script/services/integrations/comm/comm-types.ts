@@ -29,25 +29,8 @@ export interface MessageFile {
 export interface SendMessageArgs {
   channelId: string | string[]; // Single channel or array of channels
   text: string;
-  blocks?: any[]; // Slack Block Kit or equivalent
-  attachments?: MessageAttachment[];
   files?: MessageFile[]; // Files to upload with message
   threadTs?: string; // For threaded messages
-}
-
-export interface MessageAttachment {
-  color?: string;
-  title?: string;
-  text?: string;
-  fields?: AttachmentField[];
-  footer?: string;
-  timestamp?: number;
-}
-
-export interface AttachmentField {
-  title: string;
-  value: string;
-  short?: boolean;
 }
 
 export interface MessageResponse {

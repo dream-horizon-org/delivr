@@ -20,7 +20,7 @@ import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
-import type { SlackChannelConfigService } from '~services/integrations/comm/slack-channel-config';
+import type { CommConfigService } from '~services/integrations/comm/comm-config';
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
@@ -34,7 +34,7 @@ export class ReleaseConfigService {
     private readonly configRepo: ReleaseConfigRepository,
     private readonly cicdConfigService?: CICDConfigService,
     private readonly testManagementConfigService?: TestManagementConfigService,
-    private readonly slackChannelConfigService?: SlackChannelConfigService,
+    private readonly commConfigService?: CommConfigService,
     private readonly projectManagementConfigService?: ProjectManagementConfigService
   ) {}
 
@@ -74,8 +74,8 @@ export class ReleaseConfigService {
     }
 
     // Validate Communication configuration
-    if (integrationConfigs.communication && this.slackChannelConfigService?.validateConfig) {
-      const commValidation = this.slackChannelConfigService.validateConfig({
+    if (integrationConfigs.communication && this.commConfigService?.validateConfig) {
+      const commValidation = this.commConfigService.validateConfig({
         tenantId: requestData.tenantId,
         channelData: integrationConfigs.communication.channelData || {}
       });
@@ -155,12 +155,12 @@ export class ReleaseConfigService {
     }
 
     // Create Communication config
-    if (integrationConfigs.communication && this.slackChannelConfigService) {
+    if (integrationConfigs.communication && this.commConfigService) {
       if (requestData.communication?.id?.trim()) {
         integrationConfigIds.commsConfigId = requestData.communication.id;
         console.log('Reusing existing Communication config:', integrationConfigIds.commsConfigId);
       } else {
-        const commConfig = await this.slackChannelConfigService.createConfig({
+        const commConfig = await this.commConfigService.createConfig({
           tenantId: requestData.tenantId,
           channelData: integrationConfigs.communication.channelData || {}
         });
@@ -307,8 +307,8 @@ export class ReleaseConfigService {
         ? this.testManagementConfigService.getConfigById(config.testManagementConfigId)
         : Promise.resolve(null),
       
-      config.commsConfigId && this.slackChannelConfigService
-        ? this.slackChannelConfigService.getConfig(config.commsConfigId)
+      config.commsConfigId && this.commConfigService
+        ? this.commConfigService.getConfigById(config.commsConfigId)
         : Promise.resolve(null),
       
       config.projectManagementConfigId && this.projectManagementConfigService

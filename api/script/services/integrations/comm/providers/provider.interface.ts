@@ -8,6 +8,7 @@
  */
 
 import type {
+  CommType,
   MessageResponse,
   MessageFile,
   SendMessageArgs,
@@ -16,6 +17,7 @@ import type {
   VerificationResult,
   HealthCheckResult
 } from '../comm-types';
+import type { Task, Platform } from '../messaging/messaging.interface';
 
 /**
  * ICommService - Interface for communication services
@@ -28,20 +30,22 @@ export interface ICommService {
   // ============================================================================
 
   /**
-   * Send a plain text message to channels configured for a specific stage
-   * Fetches channels based on configId and stageEnum, then sends the message
+   * Send a templated message to appropriate channels based on task
+   * Automatically maps task to buckets and sends to configured channels
    * 
-   * @param configId - Slack configuration ID (from slack_configuration table)
-   * @param stageEnum - Stage name (e.g., "development", "production")
-   * @param message - Plain text message to send
-   * @param files - Optional: files to attach to the message
+   * @param configId - Channel configuration ID (from respective integration table)
+   * @param task - Message template task type (e.g., Task.REGRESSION_BUILDS)
+   * @param parameters - Array of values to replace placeholders {0}, {1}, {2}...
+   * @param fileUrl - Optional: URL of file to download and attach to the message
+   * @param platform - Optional: platform for platform-specific templates (e.g., Platform.IOS)
    * @returns Map of channel IDs to message responses
    */
-  sendSlackMessage(
+  sendMessage(
     configId: string,
-    stageEnum: string,
-    message: string,
-    files?: MessageFile[]
+    task: Task,
+    parameters: string[],
+    fileUrl?: string,
+    platform?: Platform
   ): Promise<Map<string, MessageResponse>>;
 
   /**
@@ -63,23 +67,6 @@ export interface ICommService {
    * @returns List of channels with metadata
    */
   listChannels(): Promise<ListChannelsResponse>;
-
-  /**
-   * Get specific channel details
-   * 
-   * @param channelId - Channel ID
-   * @returns Channel details or null if not found
-   */
-  getChannel(channelId: string): Promise<Channel | null>;
-
-  /**
-   * Get the timestamp of the last message in a channel
-   * Used for auto-threading to the most recent message
-   * 
-   * @param channelId - Channel ID
-   * @returns Message timestamp or undefined if channel has no messages
-   */
-  getLastMessageTs(channelId: string): Promise<string | undefined>;
 
   // ============================================================================
   // VERIFICATION & HEALTH
