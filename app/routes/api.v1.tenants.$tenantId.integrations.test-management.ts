@@ -1,11 +1,11 @@
 /**
- * BFF API Routes: Test Management Integration CRUD (Project-Level)
- * Proxies to backend: /projects/:projectId/integrations/test-management
+ * BFF API Routes: Test Management Integration CRUD (Tenant-Level)
+ * Proxies to backend: /test-management/tenants/:tenantId/integrations
  * 
- * GET    /api/v1/projects/:projectId/integrations/test-management - List integrations
- * POST   /api/v1/projects/:projectId/integrations/test-management - Create integration
- * PUT    /api/v1/projects/:projectId/integrations/test-management/:integrationId - Update integration  
- * DELETE /api/v1/projects/:projectId/integrations/test-management/:integrationId - Delete integration
+ * GET    /api/v1/tenants/:tenantId/integrations/test-management - List integrations
+ * POST   /api/v1/tenants/:tenantId/integrations/test-management - Create integration
+ * PUT    /api/v1/tenants/:tenantId/integrations/test-management/:integrationId - Update integration  
+ * DELETE /api/v1/tenants/:tenantId/integrations/test-management/:integrationId - Delete integration
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -14,18 +14,18 @@ import { requireUserId } from '~/.server/services/Auth';
 import type { UpdateCheckmateIntegrationRequest } from '~/.server/services/ReleaseManagement/integrations/checkmate-integration';
 
 /**
- * GET - List all test management integrations for project
+ * GET - List all test management integrations for tenant
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const userId = await requireUserId(request);
-  const { projectId } = params;
+  const { tenantId } = params;
 
-  if (!projectId) {
-    return json({ success: false, error: 'Project ID is required' }, { status: 400 });
+  if (!tenantId) {
+    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
   }
 
   try {
-    const result = await CheckmateIntegrationService.listIntegrations(projectId, userId);
+    const result = await CheckmateIntegrationService.listIntegrations(tenantId, userId);
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error: any) {
     console.error('[Test Management] Error listing integrations:', error);
@@ -41,10 +41,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const userId = await requireUserId(request);
-  const { projectId } = params;
+  const { tenantId } = params;
 
-  if (!projectId) {
-    return json({ success: false, error: 'Project ID is required' }, { status: 400 });
+  if (!tenantId) {
+    return json({ success: false, error: 'Tenant ID is required' }, { status: 400 });
   }
 
   const method = request.method;
@@ -78,7 +78,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
 
       const result = await CheckmateIntegrationService.createIntegration({
-        tenantId: projectId, // projectId in URL is actually tenantId
+        tenantId,
         name,
         config: {
           baseUrl: config.baseUrl,

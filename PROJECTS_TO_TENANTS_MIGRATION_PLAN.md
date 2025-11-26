@@ -146,7 +146,7 @@ Frontend still uses old `projects`/`projectId` routes. This plan outlines the mi
 ### Phase 1: Update API Routes Configuration
 1. ✅ Update `api-routes.ts` with new backend routes
 2. ✅ Update `PROJECT_MANAGEMENT` routes (including verify) ✅ **COMPLETED**
-3. ⏳ Update `TEST_MANAGEMENT` routes
+3. ✅ Update `TEST_MANAGEMENT` routes ✅ **COMPLETED** (routes were already correct)
 
 ### Phase 2: Update Service Layer
 1. ✅ Update `jira-integration.ts` to use `tenantId`
@@ -154,15 +154,16 @@ Frontend still uses old `projects`/`projectId` routes. This plan outlines the mi
 3. ✅ Update all service function signatures
 
 ### Phase 3: Update BFF Routes
-1. ✅ Rename test management route files
-2. ✅ Update route paths from `/projects/:projectId` to `/tenants/:tenantId`
-3. ✅ Update param names from `projectId` to `tenantId`
-4. ✅ Verify project management routes are correct
+1. ✅ Create new test management route files with tenantId ✅ **COMPLETED**
+2. ✅ Update route paths from `/projects/:projectId` to `/tenants/:tenantId` ✅ **COMPLETED**
+3. ✅ Update param names from `projectId` to `tenantId` ✅ **COMPLETED**
+4. ✅ Delete old project-based route files ✅ **COMPLETED**
+5. ✅ Verify project management routes are correct ✅ **COMPLETED**
 
 ### Phase 4: Update Components
-1. ✅ Update `CheckmateConnectionFlow.tsx`
-2. ✅ Update `JiraConnectionFlow.tsx`
-3. ✅ Verify other integration components
+1. ✅ Update `CheckmateConnectionFlow.tsx` ✅ **COMPLETED**
+2. ✅ Update `JiraConnectionFlow.tsx` ✅ **COMPLETED** (already using correct routes)
+3. ✅ Verify other integration components ✅ **COMPLETED**
 
 ### Phase 5: Testing
 1. ✅ Test Checkmate integration CRUD operations

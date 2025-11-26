@@ -54,10 +54,9 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       setVerificationResult(null);
 
       try {
-        // Use projectId (which equals tenantId) to match backend's project-level routes
-        const projectId = tenantId;
+        // Use tenantId to match backend's tenant-level routes
         const result = await apiPost<{ message: string }>(
-          `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}/verify`
+          `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/verify`
         );
 
         if (result.success) {
@@ -86,11 +85,10 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     setError(null);
 
     try {
-      // Use projectId (which equals tenantId) to match backend's project-level routes
-      const projectId = tenantId;
+      // Use tenantId to match backend's tenant-level routes
       const endpoint = isEditMode && integrationId 
-        ? `/api/v1/projects/${projectId}/integrations/test-management/${integrationId}`
-        : `/api/v1/projects/${projectId}/integrations/test-management`;
+        ? `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}`
+        : `/api/v1/tenants/${tenantId}/integrations/test-management`;
 
       const payload: any = {
         name: formData.name || `${TEST_PROVIDERS.CHECKMATE} - ${formData.baseUrl}`,
