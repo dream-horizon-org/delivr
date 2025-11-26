@@ -9,7 +9,6 @@ import type { ReleaseConfigService } from '~services/release-configs';
 import type { CreateReleaseConfigRequest, CreateReleaseConfigDto, SafeReleaseConfiguration } from '~types/release-configs';
 import { errorResponse, getErrorStatusCode, notFoundResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
 import { RELEASE_CONFIG_ERROR_MESSAGES, RELEASE_CONFIG_SUCCESS_MESSAGES } from './constants';
-import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { ReleaseConfiguration } from '~types/release-configs';
 
 type AuthenticatedRequest = Request & {
@@ -53,7 +52,7 @@ const toSafeConfig = (config: ReleaseConfiguration): SafeReleaseConfiguration =>
 /**
  * Handler: Create release config
  */
-const createConfigHandler = (service: ReleaseConfigService, testManagementConfigService?: TestManagementConfigService) =>
+const createConfigHandler = (service: ReleaseConfigService) =>
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const requestBody: CreateReleaseConfigRequest = req.body;
@@ -254,10 +253,9 @@ const deleteConfigHandler = (service: ReleaseConfigService) =>
  * Factory: Create controller with all handlers
  */
 export const createReleaseConfigController = (
-  service: ReleaseConfigService,
-  testManagementConfigService?: TestManagementConfigService
+  service: ReleaseConfigService
 ) => ({
-  createConfig: createConfigHandler(service, testManagementConfigService),
+  createConfig: createConfigHandler(service),
   getConfigById: getConfigByIdHandler(service),
   listConfigsByTenant: listConfigsByTenantHandler(service),
   updateConfig: updateConfigHandler(service),

@@ -217,32 +217,6 @@ export const validateRegressionBuildSlots = (body: CreateReleaseRequestBody): Va
   return { isValid: true };
 };
 
-/**
- * Validates pre-created builds
- */
-export const validatePreCreatedBuilds = (body: CreateReleaseRequestBody): ValidationResult => {
-  if (!body.preCreatedBuilds) {
-    return { isValid: true };
-  }
-
-  if (!Array.isArray(body.preCreatedBuilds)) {
-    return {
-      isValid: false,
-      error: 'preCreatedBuilds must be an array'
-    };
-  }
-
-  for (const build of body.preCreatedBuilds) {
-    if (!build.platform || !build.target || !build.buildNumber || !build.buildUrl) {
-      return {
-        isValid: false,
-        error: 'Each preCreatedBuilds entry must have platform, target, buildNumber, and buildUrl'
-      };
-    }
-  }
-
-  return { isValid: true };
-};
 
 /**
  * Master validation function that runs all validations
@@ -254,8 +228,7 @@ export const validateCreateReleaseRequest = (body: CreateReleaseRequestBody): Va
     validatePlatformTargets(body),
     validateDates(body),
     validateType(body),
-    validateRegressionBuildSlots(body),
-    validatePreCreatedBuilds(body)
+    validateRegressionBuildSlots(body)
   ];
 
   // Return the first validation that fails

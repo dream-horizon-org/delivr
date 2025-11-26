@@ -13,9 +13,7 @@ export type CronJobAttributes = {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: any; // JSON configuration object
-  regressionTimings: string | null; // e.g., "09:00,17:00"
   upcomingRegressions: any; // JSON array of upcoming regression schedules
-  regressionTimestamp: string | null;
   cronCreatedAt: Date;
   cronStoppedAt: Date | null;
   cronCreatedByAccountId: string;
@@ -23,6 +21,8 @@ export type CronJobAttributes = {
   lockedAt: Date | null; // When lock was acquired
   lockTimeout: number; // Lock timeout in seconds
   autoTransitionToStage3: boolean; // Controls automatic Stage 2 → Stage 3 transition
+  autoTransitionToStage2: boolean; // Controls automatic Stage 1 → Stage 2 transition
+  stageData: any; // JSON object for stage-specific data
 };
 
 export type CronJobModelType = typeof Model & {
@@ -76,23 +76,11 @@ export const createCronJobModel = (
         field: 'cronConfig',
         comment: 'Cron configuration object'
       },
-      regressionTimings: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-        field: 'regressionTimings',
-        defaultValue: '09:00,17:00',
-        comment: 'Comma-separated regression timing slots (e.g., 09:00,17:00)'
-      },
       upcomingRegressions: {
         type: DataTypes.JSON,
         allowNull: true,
         field: 'upcomingRegressions',
         comment: 'Array of upcoming regression schedules'
-      },
-      regressionTimestamp: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-        field: 'regressionTimestamp'
       },
       cronCreatedAt: {
         type: DataTypes.DATE,
@@ -134,6 +122,19 @@ export const createCronJobModel = (
         defaultValue: false,
         field: 'autoTransitionToStage3',
         comment: 'Controls automatic Stage 2 → Stage 3 transition'
+      },
+      autoTransitionToStage2: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'autoTransitionToStage2',
+        comment: 'Controls automatic Stage 1 → Stage 2 transition'
+      },
+      stageData: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        field: 'stageData',
+        comment: 'JSON object for stage-specific data'
       }
     },
     {

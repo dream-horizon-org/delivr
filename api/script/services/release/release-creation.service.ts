@@ -2,14 +2,13 @@
  * Release Creation Service
  * 
  * Handles the complete release creation flow:
- * 1. Mandatory field validation
- * 2. Optional field validation  
- * 3. baseBranch resolution for hotfix
- * 4. create a release record
- * 5. link platforms and targets to release (with per-platform versioning)
- * 6. create cron job
- * 7. create stage 1 tasks
- * 8. state history for this release/cron
+ * 1. Validate release config exists and belongs to tenant
+ * 2. baseBranch resolution for hotfix
+ * 3. create a release record
+ * 4. link platforms and targets to release (with per-platform versioning)
+ * 5. create cron job
+ * 6. create stage 1 tasks
+ * 7. state history for this release/cron
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -23,6 +22,8 @@ import type { CreateReleasePayload, CreateReleaseResult } from '~types/release';
 import { hasSequelize } from '~types/release';
 import type { StorageWithSequelize } from '~types/release';
 import * as storageTypes from '../../storage/storage';
+import { ReleaseConfigService } from '../release-configs/release-config.service';
+import { validateReleaseCreation } from './release-creation.validation';
 
 export class ReleaseCreationService {
   constructor(
@@ -31,14 +32,26 @@ export class ReleaseCreationService {
     private readonly cronJobRepo: CronJobRepository,
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly stateHistoryRepo: StateHistoryRepository,
-    private readonly storage: storageTypes.Storage
+    private readonly storage: storageTypes.Storage,
+    private readonly releaseConfigService: ReleaseConfigService
   ) {}
 
   /**
    * Complete release creation flow
    */
   async createRelease(payload: CreateReleasePayload): Promise<CreateReleaseResult> {
-    // Step 3: baseBranch resolution for HOTFIX
+    // Step 1: Service-layer validations (business rules and data integrity)
+    const validationResult = await validateReleaseCreation(
+      payload,
+      this.releaseConfigService,
+      this.releaseRepo
+    );
+
+    if (!validationResult.isValid) {
+      throw new Error(validationResult.error);
+    }
+
+    // Step 2: baseBranch resolution for HOTFIX
     let baseBranch = payload.baseBranch;
     let baseReleaseId = payload.baseReleaseId;
 
@@ -50,7 +63,7 @@ export class ReleaseCreationService {
       }
     }
 
-    // Step 4: Create release record
+    // Step 3: Create release record
     const id = uuidv4();
     // Generate a unique user-facing release ID (e.g., "REL-ABC123")
     const releaseId = `REL-${uuidv4().substring(0, 8).toUpperCase()}`;
@@ -70,16 +83,15 @@ export class ReleaseCreationService {
       targetReleaseDate: payload.targetReleaseDate || null,
       releaseDate: null, // Will be set when release is marked as COMPLETED
       hasManualBuildUpload: payload.hasManualBuildUpload,
-      customIntegrationConfigs: payload.customIntegrationConfigs || null,
-      preCreatedBuilds: payload.preCreatedBuilds || null,
-      createdBy: payload.accountId,
-      lastUpdatedBy: payload.accountId
+      createdByAccountId: payload.accountId,
+      releasePilotAccountId: payload.releasePilotAccountId?.trim() || payload.accountId,
+      lastUpdatedByAccountId: payload.accountId
     });
 
-    // Step 5: Link platform-target combinations to release
+    // Step 4: Link platform-target combinations to release
     const mappingRecords = await this.linkPlatformTargetsToRelease(id, payload.platformTargets);
 
-    // Step 6: Create cron job
+    // Step 5: Create cron job
     const cronJobId = uuidv4();
     const cronConfig = payload.cronConfig || {
       kickOffReminder: true,
@@ -98,17 +110,18 @@ export class ReleaseCreationService {
       cronCreatedByAccountId: payload.accountId,
       cronConfig,
       upcomingRegressions: payload.regressionBuildSlots || null,
-      regressionTimings: payload.regressionTimings || null
+      autoTransitionToStage2: false, // Default to false, can be configured later
+      stageData: {} // Initialize with empty object
     });
 
-    // Step 7: Create Stage 1 tasks
+    // Step 6: Create Stage 1 tasks
     const stage1TaskIds = await this.createStage1Tasks(
       id,
       payload.accountId,
       cronConfig
     );
 
-    // Step 8: Create state history
+    // Step 7: Create state history
     await this.createStateHistory(id, payload.accountId, releaseId, payload.platformTargets);
 
     return {
@@ -119,7 +132,7 @@ export class ReleaseCreationService {
   }
 
   /**
-   * Step 5: Link platform-target combinations to release
+   * Step 4: Link platform-target combinations to release
    * Creates entries in release_platforms_targets_mapping table
    */
   private async linkPlatformTargetsToRelease(
@@ -145,7 +158,7 @@ export class ReleaseCreationService {
   }
 
   /**
-   * Step 7: Create Stage 1 (Kickoff) tasks
+   * Step 6: Create Stage 1 (Kickoff) tasks
    * 
    * Tasks:
    * 1. PRE_KICK_OFF_REMINDER (optional - if cronConfig.kickOffReminder == true)
@@ -239,7 +252,7 @@ export class ReleaseCreationService {
   }
 
   /**
-   * Step 8: Create state history for release creation
+   * Step 7: Create state history for release creation
    */
   private async createStateHistory(
     releaseId: string,

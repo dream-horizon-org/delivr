@@ -870,7 +870,8 @@ export class S3Storage implements storage.Storage {
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
-            this
+            this,
+            this.releaseConfigService
           );
           console.log("Release Creation Service initialized");
           

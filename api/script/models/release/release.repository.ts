@@ -29,10 +29,9 @@ export class ReleaseRepository {
       targetReleaseDate: data.targetReleaseDate || null,
       releaseDate: data.releaseDate || null,
       hasManualBuildUpload: data.hasManualBuildUpload,
-      customIntegrationConfigs: data.customIntegrationConfigs || null,
-      preCreatedBuilds: data.preCreatedBuilds || null,
-      createdBy: data.createdBy,
-      lastUpdatedBy: data.lastUpdatedBy
+      createdByAccountId: data.createdByAccountId,
+      releasePilotAccountId: data.releasePilotAccountId,
+      lastUpdatedByAccountId: data.lastUpdatedByAccountId
     });
 
     return this.toPlainObject(release);

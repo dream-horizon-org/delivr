@@ -82,11 +82,9 @@ export class ReleaseManagementController {
         targetReleaseDate,
         kickOffReminderDate,
         kickOffDate,
-        customIntegrationConfigs: body.customIntegrationConfigs,
+        releasePilotAccountId: body.releasePilotAccountId,
         regressionBuildSlots: body.regressionBuildSlots,
-        preCreatedBuilds: body.preCreatedBuilds,
         cronConfig: body.cronConfig,
-        regressionTimings: body.regressionTimings,
         hasManualBuildUpload: body.hasManualBuildUpload
       };
 

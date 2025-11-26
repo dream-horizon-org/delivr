@@ -11,7 +11,6 @@ export type {
   CreateReleaseResult,
   CreateReleaseRequestBody,
   RegressionBuildSlot,
-  PreCreatedBuild,
   CronJobResponse,
   ReleaseTaskResponse,
   ReleaseResponseBody,
