@@ -4,7 +4,28 @@ import "@mantine/notifications/styles.css";
 
 import { QueryClient, QueryClientProvider } from "react-query";
 
-const queryClient = new QueryClient();
+/**
+ * Configure QueryClient with sensible defaults
+ * These defaults apply to all queries unless overridden
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Default staleTime: 2 minutes - data stays fresh
+      staleTime: 2 * 60 * 1000,
+      // Default cacheTime: 10 minutes - keep in cache
+      cacheTime: 10 * 60 * 1000,
+      // Refetch on window focus for fresh data
+      refetchOnWindowFocus: true,
+      // Don't refetch on mount if data is fresh (saves API calls)
+      refetchOnMount: false,
+      // Retry failed requests once
+      retry: 1,
+      // Retry delay: exponential backoff starting at 1s
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+  },
+});
 
 import {
   Links,

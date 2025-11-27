@@ -1,4 +1,4 @@
-import { UnstyledButton, Avatar, Menu, rem, Modal, Text, Flex, Button, Tooltip } from "@mantine/core";
+import { UnstyledButton, Avatar, Menu, rem, Tooltip } from "@mantine/core";
 import {
   IconLogout,
   IconSettings,
@@ -9,6 +9,7 @@ import { User } from "~/.server/services/Auth/Auth.interface";
 import { route } from "routes-gen";
 import { text } from "~/theme";
 import { useState } from "react";
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 export type HeaderUserButtonProps = {
   user: User;
@@ -16,7 +17,7 @@ export type HeaderUserButtonProps = {
 
 export function HeaderUserButton({ user }: HeaderUserButtonProps) {
   const navigate = useNavigate();
-  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
   
   return (
     <>
@@ -82,7 +83,7 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
               <IconTrash style={{ width: rem(14), height: rem(14) }} />
             }
             onClick={() => {
-              setDeleteModalOpened(true);
+              setDeleteModalData({ type: 'profile' });
             }}
           >
             Delete Account
@@ -112,28 +113,15 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
       </Menu>
 
       {/* Delete Account Modal */}
-      <Modal
-        opened={deleteModalOpened}
-        onClose={() => setDeleteModalOpened(false)}
-        title="Delete Account"
-        centered
-      >
-        <Text>Are you sure you want to delete your account?</Text>
-        <Flex justify={"flex-end"} mt={"lg"} gap="sm">
-          <Button variant="default" onClick={() => setDeleteModalOpened(false)}>
-            Cancel
-          </Button>
-          <Button 
-            color="red" 
-            onClick={() => {
-              setDeleteModalOpened(false);
-              // Add actual delete logic here if needed
-            }}
-          >
-            Delete
-          </Button>
-        </Flex>
-      </Modal>
+      <DeleteModal
+        opened={!!deleteModalData}
+        onClose={() => setDeleteModalData(null)}
+        data={deleteModalData}
+        onSuccess={() => {
+          // Handle account deletion success (e.g., redirect to login)
+          navigate('/login');
+        }}
+      />
     </>
   );
 }

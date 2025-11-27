@@ -1,3 +1,4 @@
+import { json } from '@remix-run/node';
 import { Flex, Group, Text, Box, Skeleton, useMantineTheme } from "@mantine/core";
 import { IconRocket } from "@tabler/icons-react";
 import { Outlet, useLoaderData, useNavigate, useParams, useLocation } from "@remix-run/react";
@@ -10,12 +11,49 @@ import { ActionIcon, Tooltip } from "@mantine/core";
 import { IconHelp } from "@tabler/icons-react";
 import { CombinedSidebar } from "~/components/Pages/components/AppDetailPage/components/CombinedSidebar";
 import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
+import { CodepushService } from '~/.server/services/Codepush';
+import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
+import type { SystemMetadataBackend } from '~/types/system-metadata';
 
-export const loader = authenticateLoaderRequest();
+/**
+ * Dashboard layout loader
+ * Fetches system metadata globally so it's available to all child routes
+ */
+export const loader = authenticateLoaderRequest(async ({ user }) => {
+  try {
+    const response = await CodepushService.getSystemMetadata(user.user.id);
+    
+    // Enrich with app distribution metadata (same as API route)
+    const enrichedData: SystemMetadataBackend = {
+      ...response.data,
+      appDistribution: {
+        availableStoreTypes: STORE_TYPES,
+        allowedPlatforms: ALLOWED_PLATFORMS,
+      },
+    };
+    
+    return json({
+      user,
+      initialSystemMetadata: enrichedData,
+    });
+  } catch (error: any) {
+    console.error('[Dashboard] Error loading system metadata:', error.message);
+    // Return empty metadata on error - hooks will handle fallback
+    return json({
+      user,
+      initialSystemMetadata: null,
+    });
+  }
+});
+
+export type DashboardLoaderData = {
+  user: User;
+  initialSystemMetadata: SystemMetadataBackend | null;
+};
 
 export default function Dashboard() {
   const theme = useMantineTheme();
-  const user = useLoaderData<User>();
+  const { user } = useLoaderData<DashboardLoaderData>();
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();

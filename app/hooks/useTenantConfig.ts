@@ -2,6 +2,7 @@
  * React Query hook for fetching tenant-specific configuration
  * Uses the existing /api/v1/tenants/:tenantId endpoint
  * Extracts the releaseManagement.config from the response
+ * Supports initialData from server-side loader for faster initial load
  */
 
 import { useQuery } from 'react-query';
@@ -56,12 +57,16 @@ async function fetchTenantConfig(tenantId: string): Promise<TenantConfig | null>
   };
 }
 
-export function useTenantConfig(tenantId: string | undefined) {
+export function useTenantConfig(
+  tenantId: string | undefined,
+  initialData?: TenantConfig | null
+) {
   return useQuery<TenantConfig | null, Error>(
     ['tenant', tenantId, 'config'],
     () => fetchTenantConfig(tenantId!),
     {
       enabled: !!tenantId, // Only fetch if tenantId exists
+      initialData: initialData || undefined, // Use initialData if provided
       staleTime: 1000 * 60 * 5, // 5 minutes - can change more frequently
       cacheTime: 1000 * 60 * 30, // 30 minutes
       refetchOnWindowFocus: false,

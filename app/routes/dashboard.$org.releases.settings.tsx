@@ -1,6 +1,13 @@
 /**
  * Release Management Settings Page
  * Edit and manage Release Management configuration
+ * 
+ * Data Flow:
+ * - Uses ConfigContext (React Query) for all data
+ * - System metadata and tenant config: Cached via ConfigContext (with initialData from parent routes)
+ * - Release configs: Cached via useReleaseConfigs hook in ConfigContext
+ * - Fast tab switching: All data is cached, no refetching needed
+ * - Cache invalidation: Automatically handled by ConfigContext
  */
 
 import { json } from '@remix-run/node';

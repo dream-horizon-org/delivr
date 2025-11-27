@@ -35,15 +35,11 @@ export function OrgListWithActions() {
               org: org.id,
             }),
           },
-          {
-            label: "Delete",
-            link:
-              route("/dashboard/delete") +
-              `?type=org&id=${org.id}&name=${org.orgName}`,
-          },
+          // Delete functionality moved to state-based modal in OrgsPage
+          // Removed route-based delete link
         ].filter((_item) => {
-          // Only show "Manage Team" and "Delete" to owners
-          if (!org.isAdmin && (_item.label === "Delete" || _item.label === "Manage Team")) {
+          // Only show "Manage Team" to owners
+          if (!org.isAdmin && _item.label === "Manage Team") {
             return false;
           }
           return true;

@@ -20,13 +20,7 @@ import { CTAButton } from "~/components/Common/CTAButton";
 import { useState } from "react";
 import { CreateAppForm } from "../CreateApp";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
-import { Button } from "@mantine/core";
-import { useDeleteAppForOrg } from "../DeleteAction/hooks/useDeleteAppForOrg";
-
-type DeleteAppState = {
-  id: string;
-  name: string;
-} | null;
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 type AppListPageProps = {
   user: User;
@@ -37,8 +31,7 @@ export function AppListPage({ user }: AppListPageProps) {
   const params = useParams();
   const navigate = useNavigate();
   const [createAppOpen, setCreateAppOpen] = useState(false);
-  const [deleteAppState, setDeleteAppState] = useState<DeleteAppState>(null);
-  const { mutate: deleteApp, isLoading: isDeleting } = useDeleteAppForOrg();
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
   const { data, isLoading, isError, refetch } = useGetAppListForOrg({
     orgId: params.org ?? "",
@@ -171,7 +164,12 @@ export function AppListPage({ user }: AppListPageProps) {
                 );
               }}
               onDelete={() => {
-                setDeleteAppState({ id: app.id, name: app.name });
+                setDeleteModalData({
+                  type: 'app',
+                  appId: app.id,
+                  appName: app.name,
+                  tenant: params.org ?? '',
+                });
               }}
             />
           ))}
@@ -200,48 +198,15 @@ export function AppListPage({ user }: AppListPageProps) {
       </Modal>
 
       {/* Delete App Modal */}
-      {deleteAppState && (
-        <Modal
-          opened={true}
-          onClose={() => setDeleteAppState(null)}
-          title="Delete App"
-          centered
-        >
-          <Text>
-            Are you sure you want to delete this app ({deleteAppState.name})?
-          </Text>
-          <Group justify="flex-end" mt="lg">
-            <Button
-              variant="default"
-              onClick={() => setDeleteAppState(null)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              loading={isDeleting}
-              onClick={() => {
-                deleteApp(
-                  {
-                    tenant: params.org ?? "",
-                    appId: deleteAppState.id,
-                  },
-                  {
-                    onSuccess: () => {
-                      actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
-                      setDeleteAppState(null);
-                      refetch();
-                    },
-                  }
-                );
-              }}
-            >
-              Delete
-            </Button>
-          </Group>
-        </Modal>
-      )}
+      <DeleteModal
+        opened={!!deleteModalData}
+        onClose={() => setDeleteModalData(null)}
+        data={deleteModalData}
+        onSuccess={() => {
+          actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
+          refetch();
+        }}
+      />
     </Box>
   );
 }

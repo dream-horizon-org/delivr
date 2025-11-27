@@ -1,6 +1,13 @@
 /**
  * Create Release Page
  * Single form with review modal
+ * 
+ * Data Flow:
+ * - Uses ConfigContext (React Query) for release configs
+ * - Release configs: Cached via useReleaseConfigs hook in ConfigContext
+ * - System metadata: Cached via ConfigContext (with initialData from parent routes)
+ * - Fast form load: Configs available immediately from cache
+ * - Cache invalidation: Automatically handled after release creation
  */
 
 import { json } from '@remix-run/node';

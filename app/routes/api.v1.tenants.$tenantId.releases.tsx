@@ -9,7 +9,8 @@
  */
 
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
-import { requireUserId } from '~/.server/services/Auth';
+import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
+import type { User } from '~/.server/services/Auth/Auth.interface';
 import { listReleases, createRelease } from '~/.server/services/ReleaseManagement';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 
@@ -19,15 +20,16 @@ import type { CreateReleaseBackendRequest } from '~/types/release-creation-backe
  * 
  * BFF route that calls the release retrieval service
  */
-export async function loader({ params, request }: LoaderFunctionArgs) {
-  const { tenantId } = params;
+export const loader = authenticateLoaderRequest(
+  async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
+    const { tenantId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
-  }
+    if (!tenantId) {
+      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    }
 
-  try {
-    const userId = await requireUserId(request);
+    try {
+      const userId = user.user.id;
     const url = new URL(request.url);
     const includeTasks = url.searchParams.get('includeTasks') === 'true';
 
@@ -58,7 +60,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       { status: 500 }
     );
   }
-}
+  }
+);
 
 /**
  * POST /api/v1/tenants/:tenantId/releases
@@ -67,19 +70,16 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
  * BFF route that calls the release-creation service to create releases.
  * Follows the same pattern as release-config and integrations.
  */
-export async function action({ request, params }: ActionFunctionArgs) {
-  const { tenantId } = params;
+export const action = authenticateActionRequest({
+  POST: async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {
+    const { tenantId } = params;
 
-  if (!tenantId) {
-    return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
-  }
+    if (!tenantId) {
+      return json({ success: false, error: 'Tenant ID required' }, { status: 400 });
+    }
 
-  try {
-    const method = request.method;
-    const userId = await requireUserId(request);
-
-    // CREATE - Use service layer to call backend
-    if (method === 'POST') {
+    try {
+      const userId = user.user.id;
       const backendRequest = (await request.json()) as CreateReleaseBackendRequest;
 
       console.log('[BFF] Creating release:', {
@@ -110,33 +110,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
         },
         { status: 201 }
       );
-    }
-
-    // UPDATE - TODO: Implement when backend supports it
-    if (method === 'PUT') {
+    } catch (error) {
+      console.error('[Releases API] Error:', error);
       return json(
-        { success: false, error: 'Update not implemented yet' },
-        { status: 501 }
+        {
+          success: false,
+          error: 'Internal server error',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        { status: 500 }
       );
     }
-
-    // DELETE - TODO: Implement when backend supports it
-    if (method === 'DELETE') {
-      return json(
-        { success: false, error: 'Delete not implemented yet' },
-        { status: 501 }
-      );
-    }
-
-    return json({ error: 'Method not allowed' }, { status: 405 });
-  } catch (error) {
-    console.error('[Releases API] Error:', error);
-    return json(
-      {
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
-  }
-}
+  },
+});

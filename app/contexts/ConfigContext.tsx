@@ -14,6 +14,7 @@ import { useTenantConfig } from '~/hooks/useTenantConfig';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import type {
   SystemMetadata,
+  SystemMetadataBackend,
   TenantConfig,
   IntegrationProvider,
   ConnectedIntegration,
@@ -92,23 +93,29 @@ const ConfigContext = createContext<ConfigContextValue | null>(null);
 export function ConfigProvider({
   children,
   tenantId,
+  initialSystemMetadata,
+  initialTenantConfig,
 }: {
   children: ReactNode;
   tenantId?: string;
+  initialSystemMetadata?: SystemMetadataBackend | null;
+  initialTenantConfig?: TenantConfig | null;
 }) {
   // Fetch system metadata (global) - minimal backend data
+  // Use initialData from server-side loader if provided
   const {
     data: systemMetadataBackend,
     isLoading: isLoadingMetadata,
     error: metadataError,
-  } = useSystemMetadata();
+  } = useSystemMetadata(initialSystemMetadata);
   
   // Fetch tenant configuration (tenant-specific)
+  // Use initialData from server-side loader if provided
   const {
     data: tenantConfig,
     isLoading: isLoadingTenantConfig,
     error: tenantConfigError,
-  } = useTenantConfig(tenantId);
+  } = useTenantConfig(tenantId, initialTenantConfig);
   
   // Fetch release configurations (cached)
   const {

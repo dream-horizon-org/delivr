@@ -9,6 +9,8 @@ import classes from "./index.module.css";
 import { Form, useNavigate } from "@remix-run/react"; // Use Remix's Form for logout action
 import { User } from "~/.server/services/Auth/Auth.interface";
 import { route } from "routes-gen";
+import { useState } from "react";
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 export type UserButtonProps = {
   user: User;
@@ -16,40 +18,43 @@ export type UserButtonProps = {
 
 export function UserButton({ user }: UserButtonProps) {
   const navigate = useNavigate();
-  return (
-    <Menu shadow="md" width={200}>
-      <Menu.Target>
-        <UnstyledButton className={classes.user}>
-          <Group>
-            <Avatar name={user.user.name} radius="xl" />
-            <div style={{ flex: 1 }}>
-              <Text size="sm" fw={500}>
-                {user.user.name}
-              </Text>
-              <Text c="dimmed" size="xs">
-                {user.user.email}
-              </Text>
-            </div>
-            <IconChevronRight
-              style={{ width: rem(14), height: rem(14) }}
-              stroke={1.5}
-            />
-          </Group>
-        </UnstyledButton>
-      </Menu.Target>
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
-      <Menu.Dropdown>
-        <Menu.Item
-          color="red"
-          leftSection={
-            <IconTrash style={{ width: rem(14), height: rem(14) }} />
-          }
-          onClick={() => {
-            navigate(route("/dashboard/delete") + "?type=Profile");
-          }}
-        >
-          Delete Account
-        </Menu.Item>
+  return (
+    <>
+      <Menu shadow="md" width={200}>
+        <Menu.Target>
+          <UnstyledButton className={classes.user}>
+            <Group>
+              <Avatar name={user.user.name} radius="xl" />
+              <div style={{ flex: 1 }}>
+                <Text size="sm" fw={500}>
+                  {user.user.name}
+                </Text>
+                <Text c="dimmed" size="xs">
+                  {user.user.email}
+                </Text>
+              </div>
+              <IconChevronRight
+                style={{ width: rem(14), height: rem(14) }}
+                stroke={1.5}
+              />
+            </Group>
+          </UnstyledButton>
+        </Menu.Target>
+
+        <Menu.Dropdown>
+          <Menu.Item
+            color="red"
+            leftSection={
+              <IconTrash style={{ width: rem(14), height: rem(14) }} />
+            }
+            onClick={() => {
+              setDeleteModalData({ type: 'profile' });
+            }}
+          >
+            Delete Account
+          </Menu.Item>
         <Menu.Divider />
         <Menu.Item color="red">
           <Form
@@ -84,5 +89,17 @@ export function UserButton({ user }: UserButtonProps) {
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>
+
+    {/* Delete Account Modal */}
+    <DeleteModal
+      opened={!!deleteModalData}
+      onClose={() => setDeleteModalData(null)}
+      data={deleteModalData}
+      onSuccess={() => {
+        // Handle account deletion success (e.g., redirect to login)
+        navigate('/login');
+      }}
+    />
+    </>
   );
 }

@@ -6,6 +6,8 @@ import { route } from "routes-gen";
 import { Spotlight, SpotlightActionData } from "@mantine/spotlight";
 import { IconApps, IconSearch } from "@tabler/icons-react";
 import { User } from "~/.server/services/Auth/Auth.interface";
+import { useState } from "react";
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 type AppListForOrgProps = {
   user: User;
@@ -14,10 +16,11 @@ type AppListForOrgProps = {
 export function AppListForOrg({ user }: AppListForOrgProps) {
   const params = useParams();
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useGetAppListForOrg({
+  const { data, isLoading, isError, refetch } = useGetAppListForOrg({
     orgId: params.org ?? "",
     userEmail: user.user.email,
   });
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
   const _modData: AppCardProps[] =
     data?.map((item) => ({
@@ -26,9 +29,14 @@ export function AppListForOrg({ user }: AppListForOrgProps) {
         org: params.org ?? "",
         app: item.id,
       }),
-      deleteLink:
-        route("/dashboard/delete") +
-        `?type=app&app=${item.id}&tenant=${params.org}`,
+      onDelete: () => {
+        setDeleteModalData({
+          type: 'app',
+          appId: item.id,
+          appName: item.name,
+          tenant: params.org ?? '',
+        });
+      },
     })) ?? [];
 
   if (isLoading) {
@@ -70,30 +78,42 @@ export function AppListForOrg({ user }: AppListForOrgProps) {
   });
 
   return (
-    <Grid ml={30} mt={30}>
-      <Spotlight
-        actions={actions}
-        nothingFound="Nothing found..."
-        highlightQuery
-        searchProps={{
-          leftSection: (
-            <IconSearch
-              style={{ width: rem(20), height: rem(20) }}
-              stroke={1.5}
-            />
-          ),
-          placeholder: "Search...",
+    <>
+      <Grid ml={30} mt={30}>
+        <Spotlight
+          actions={actions}
+          nothingFound="Nothing found..."
+          highlightQuery
+          searchProps={{
+            leftSection: (
+              <IconSearch
+                style={{ width: rem(20), height: rem(20) }}
+                stroke={1.5}
+              />
+            ),
+            placeholder: "Search...",
+          }}
+        />
+        <Grid gutter={{ base: 5, xs: 'md', md: 'xl', xl: 50 }}>
+          {_modData.map((item) => {
+            return (
+              <Grid.Col key={item.id} span="content">
+                <AppCard {...item} key={item.id} />
+              </Grid.Col>
+            );
+          })}
+        </Grid>
+      </Grid>
+
+      {/* Delete App Modal */}
+      <DeleteModal
+        opened={!!deleteModalData}
+        onClose={() => setDeleteModalData(null)}
+        data={deleteModalData}
+        onSuccess={() => {
+          refetch();
         }}
       />
-      <Grid gutter={{ base: 5, xs: 'md', md: 'xl', xl: 50 }}>
-        {_modData.map((item) => {
-          return (
-            <Grid.Col key={item.id} span="content">
-              <AppCard {...item} key={item.id} />
-            </Grid.Col>
-          );
-        })}
-      </Grid>
-    </Grid>
+    </>
   );
 }

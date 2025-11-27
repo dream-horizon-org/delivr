@@ -16,7 +16,13 @@ interface ReleasesResponse {
 
 const QUERY_KEY = (tenantId: string) => ['releases', tenantId];
 
-export function useReleases(tenantId?: string, options?: { includeTasks?: boolean }) {
+export function useReleases(
+  tenantId?: string,
+  options?: {
+    includeTasks?: boolean;
+    initialData?: ReleasesResponse;
+  }
+) {
   const queryClient = useQueryClient();
 
   // Fetch all releases for tenant
@@ -47,11 +53,16 @@ export function useReleases(tenantId?: string, options?: { includeTasks?: boolea
     },
     {
       enabled: !!tenantId, // Only fetch if tenantId exists
+      initialData: options?.initialData, // Use initialData if provided
       staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh (releases change more frequently than configs)
       cacheTime: 10 * 60 * 1000, // 10 minutes - cache time
-      refetchOnWindowFocus: true, // Refetch when user returns to tab
+      refetchOnWindowFocus: true, // Refetch when user returns to tab (background refetch)
       refetchOnMount: false, // Don't refetch on component mount if data is fresh
+      refetchOnReconnect: true, // Refetch when network reconnects
       retry: 1, // Retry once on failure
+      // Background refetching: refetch in background when data becomes stale
+      // This ensures data is fresh without blocking UI
+      refetchInterval: false, // Don't auto-refetch on interval (releases are user-triggered)
     }
   );
 

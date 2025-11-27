@@ -16,14 +16,16 @@ import { useGetDeploymentsForApp } from "./hooks/getDeploymentsForApp";
 import { IconCheck, IconCopy, IconTrash, IconKey } from "@tabler/icons-react";
 import { ReleaseListForDeploymentTable } from "../components/ReleaseListForDeploymentTable";
 import { ReleaseDeatilCardModal } from "../components/ReleaseDetailCardModal";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
 export const DeploymentList = () => {
   const theme = useMantineTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const params = useParams();
-  const { data, isLoading } = useGetDeploymentsForApp();
+  const { data, isLoading, refetch: refetchDeployments } = useGetDeploymentsForApp();
+  const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
   const details = data?.find(
     (item) => item.name === searchParams.get("deployment")
@@ -49,8 +51,12 @@ export const DeploymentList = () => {
   const handleDelete = () => {
     const currentDeployment = searchParams.get("deployment");
     if (currentDeployment) {
-      // Use the existing modal pattern like organization deletion
-      navigate(`/dashboard/delete?type=deployment&name=${encodeURIComponent(currentDeployment)}&id=${encodeURIComponent(currentDeployment)}&appId=${encodeURIComponent(params.app ?? "")}&tenant=${encodeURIComponent(params.org ?? "")}`);
+      setDeleteModalData({
+        type: 'deployment',
+        deploymentName: currentDeployment,
+        appIdForDeployment: params.app ?? '',
+        tenantForDeployment: params.org ?? '',
+      });
     }
   };
 
@@ -167,8 +173,7 @@ export const DeploymentList = () => {
                         </Tooltip>
                       )}
                     </CopyButton>
-                    {/* Temporarily hidden - Delete Deployment functionality */}
-                    {/* <Tooltip label="Delete Deployment" withArrow position="top">
+                    <Tooltip label="Delete Deployment" withArrow position="top">
                       <ActionIcon
                         color="red"
                         variant="light"
@@ -180,7 +185,7 @@ export const DeploymentList = () => {
                       >
                         <IconTrash style={{ width: rem(18) }} />
                       </ActionIcon>
-                    </Tooltip> */}
+                    </Tooltip>
                   </Group>
                 </Group>
               </Card>
@@ -223,6 +228,23 @@ export const DeploymentList = () => {
           navigate(-1);
         }}
         deploymentName={details?.name}
+      />
+
+      {/* Delete Deployment Modal */}
+      <DeleteModal
+        opened={!!deleteModalData}
+        onClose={() => setDeleteModalData(null)}
+        data={deleteModalData}
+        onSuccess={() => {
+          refetchDeployments();
+          // Navigate to first deployment or clear selection if none left
+          const remainingDeployments = data?.filter(d => d.name !== deleteModalData?.deploymentName) ?? [];
+          if (remainingDeployments.length > 0) {
+            setSearchParams({ deployment: remainingDeployments[0].name });
+          } else {
+            setSearchParams({});
+          }
+        }}
       />
     </>
   );

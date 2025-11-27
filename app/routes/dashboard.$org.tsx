@@ -8,11 +8,13 @@
  */
 
 import { json } from '@remix-run/node';
-import { Outlet, useLoaderData } from '@remix-run/react';
+import { Outlet, useLoaderData, useRouteLoaderData } from '@remix-run/react';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { ConfigProvider } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import type { Organization } from '~/.server/services/Codepush/types';
+import type { TenantConfig } from '~/types/system-metadata';
+import type { SystemMetadataBackend } from '~/types/system-metadata';
 
 export const loader = authenticateLoaderRequest(async ({ request, params, user }) => {
   const { org: tenantId } = params;
@@ -44,11 +46,36 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       organisation.releaseManagement.setupComplete = true;
     }
 
+    // Extract tenant config from organisation response
+    const config = organisation?.releaseManagement?.config;
+    const initialTenantConfig: TenantConfig | null = config ? {
+      tenantId,
+      organization: {
+        id: organisation.id,
+        name: organisation.displayName,
+      },
+      releaseManagement: {
+        connectedIntegrations: config.connectedIntegrations || {
+          SOURCE_CONTROL: [],
+          COMMUNICATION: [],
+          CI_CD: [],
+          TEST_MANAGEMENT: [],
+          PROJECT_MANAGEMENT: [],
+          APP_DISTRIBUTION: [],
+        },
+        enabledPlatforms: config.enabledPlatforms || [],
+        enabledTargets: config.enabledTargets || [],
+        allowedReleaseTypes: config.allowedReleaseTypes || [],
+        customSettings: config.customSettings || {},
+      },
+    } : null;
+
     // Return with no-cache headers to ensure fresh data
     return json({
       tenantId,
       organisation,
-      user
+      user,
+      initialTenantConfig,
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, private',
@@ -67,6 +94,7 @@ export type OrgLayoutLoaderData = {
   tenantId: string;
   organisation: Organization;
   user: any;
+  initialTenantConfig: TenantConfig | null;
 };
 
 /**
@@ -75,11 +103,19 @@ export type OrgLayoutLoaderData = {
  * const { organisation } = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
  */
 export default function OrgLayout() {
-  // Wrap child routes with ConfigProvider to fetch and provide system metadata
-  const { tenantId } = useLoaderData<OrgLayoutLoaderData>();
+  const { tenantId, initialTenantConfig } = useLoaderData<OrgLayoutLoaderData>();
+  
+  // Get system metadata from dashboard.tsx loader (parent layout)
+  // This allows system metadata to be fetched at top level and shared
+  const dashboardData = useRouteLoaderData<{ initialSystemMetadata: SystemMetadataBackend | null }>('routes/dashboard');
+  const initialSystemMetadata = dashboardData?.initialSystemMetadata;
   
   return (
-    <ConfigProvider tenantId={tenantId}>
+    <ConfigProvider
+      tenantId={tenantId}
+      initialSystemMetadata={initialSystemMetadata}
+      initialTenantConfig={initialTenantConfig}
+    >
       <Outlet />
     </ConfigProvider>
   );

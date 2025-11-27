@@ -1,6 +1,7 @@
 /**
  * React Query hook for fetching system metadata
  * Fetches all available options (integrations, platforms, etc.)
+ * Supports initialData from server-side loader for faster initial load
  */
 
 import { useQuery } from 'react-query';
@@ -17,11 +18,12 @@ async function fetchSystemMetadata(): Promise<SystemMetadataBackend> {
   return result.data as SystemMetadataBackend;
 }
 
-export function useSystemMetadata() {
+export function useSystemMetadata(initialData?: SystemMetadataBackend | null) {
   return useQuery<SystemMetadataBackend, Error>(
     ['system', 'metadata'],
     fetchSystemMetadata,
     {
+      initialData: initialData || undefined, // Use initialData if provided
       staleTime: 1000 * 60 * 60, // 1 hour - metadata changes rarely
       cacheTime: 1000 * 60 * 60 * 24, // 24 hours
       refetchOnWindowFocus: false,

@@ -307,7 +307,6 @@ function OrgSidebar({
   const [otaExpanded, setOtaExpanded] = useState(true);
 
   const isManageActive = location.pathname.includes("/manage");
-  const isSettingsActive = location.pathname.includes("/delete"); // Delete is under settings
   const isOTAActive = location.pathname.includes("/apps") || !!currentAppId;
   // Updated: Release Dashboard is now /releases (index), Releases List is /releases/list
   const isReleaseDashboardActive = location.pathname === `/dashboard/${org.id}/releases` || 
@@ -448,19 +447,8 @@ function OrgSidebar({
             isOwner={org.isAdmin}
           />
 
-          {/* Settings - Owner Only */}
-          <NavItem
-            icon={IconSettings}
-            label="Settings"
-            isActive={isSettingsActive}
-            onClick={() =>
-              navigate(
-                route("/dashboard/delete") + `?type=org&id=${org.id}&name=${org.orgName}`
-              )
-            }
-            isOwnerOnly={true}
-            isOwner={org.isAdmin}
-          />
+          {/* Delete functionality moved to state-based modal in OrgsPage */}
+          {/* Removed Settings item that incorrectly navigated to delete route */}
         </Stack>
       </Box>
     </Box>
