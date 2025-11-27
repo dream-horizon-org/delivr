@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useParams } from '@remix-run/react';
 import { useQueryClient } from 'react-query';
-import { Container, Title, Text, Tabs, Loader as MantineLoader } from '@mantine/core';
+import { Container, Title, Text, Tabs } from '@mantine/core';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
+import { PageLoader } from '~/components/Common/PageLoader';
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
@@ -79,15 +80,9 @@ export default function IntegrationsPage() {
   }, [allIntegrations]);
 
   // Loading state
-  if (isLoadingMetadata || isLoadingTenantConfig) {
-    return (
-      <Container size="xl" className="py-8">
-        <div className="flex justify-center items-center min-h-[400px]">
-          <MantineLoader size="lg" />
-        </div>
-      </Container>
-    );
-  }
+  // if (isLoadingMetadata || isLoadingTenantConfig) {
+  //   return <PageLoader message="Loading integrations..." size="lg" />;
+  // }
 
   const tenantId = params.org!;
 
@@ -161,9 +156,9 @@ export default function IntegrationsPage() {
               {INTEGRATION_CATEGORY_LABELS[category] || category}
             </Tabs.Tab>
           ))}
-        </Tabs.List>
+        </Tabs.List> 
 
-        {Object.entries(integrationsByCategory).map(([category, integrations]) => (
+       {Object.entries(integrationsByCategory).map(([category, integrations]) => (
           <Tabs.Panel key={category} value={category}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {integrations.map((integration) => (
