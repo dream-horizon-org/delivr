@@ -1,0 +1,122 @@
+## Android Setup
+
+In order to integrate DOTA into your Android project, please perform the following steps:
+
+1. In your `android/settings.gradle` file, make the following additions at the end of the file:
+
+    ```gradle
+    ...
+    include ':app', ':d11_dota'
+    project(':d11_dota').projectDir = new File(rootProject.projectDir, '../node_modules/@d11/dota/android/app')
+    ```
+
+2. In your `android/app/build.gradle` file, add d11_dota as dependency:
+
+    ```gradle
+    dependencies {
+        ...
+        implementation project(':d11_dota')
+        ...
+    }
+    ```
+    
+3. In your `android/app/build.gradle` file, add the `codepush.gradle` file as an additional build task definition to the end of the file:
+
+    ```gradle
+    ...
+    apply from: "../../node_modules/@d11/dota/android/codepush.gradle"
+    ...
+    ```
+
+4. Update the `MainApplication` file to use DOTA via the following changes:
+
+    For React Native 0.73 and above: update the `MainApplication.kt`
+
+    ```kotlin
+    ...
+    // 1. Import the plugin class.
+    import com.microsoft.codepush.react.CodePush
+
+    class MainApplication : Application(), ReactApplication {
+
+    override val reactNativeHost: ReactNativeHost =
+        object : DefaultReactNativeHost(this) {
+            ...
+            // 2. Add DOTA package for manual linking
+              add(
+                CodePush.getInstance(
+                  resources.getString(R.string.CodePushDeploymentKey),
+                  applicationContext,
+                  BuildConfig.DEBUG
+                )
+              )
+            // 3. Override the getJSBundleFile method in order to let
+            // the DOTA runtime determine where to get the JS
+            // bundle location from on each app start
+            override fun getJSBundleFile(): String {
+                return CodePush.getJSBundleFile() 
+            }
+        };
+    }
+    ```
+
+    For React Native 0.72 and below: update the `MainApplication.java`
+
+    ```java
+    ...
+    // 1. Import the plugin class.
+    import com.microsoft.codepush.react.CodePush;
+
+    public class MainApplication extends Application implements ReactApplication {
+
+        private final ReactNativeHost mReactNativeHost = new ReactNativeHost(this) {
+            ...
+            // 2. Add DOTA package for manual linking
+            packages.add(CodePush.getInstance(
+                getResources().getString(R.string.CodePushDeploymentKey),
+                getApplicationContext(),
+                BuildConfig.DEBUG,
+            ));
+            // 3. Override the getJSBundleFile method in order to let
+            // the DOTA runtime determine where to get the JS
+            // bundle location from on each app start
+            @Override
+            protected String getJSBundleFile() {
+                return CodePush.getJSBundleFile();
+            }
+        };
+    }
+    ```
+
+5. Add the Deployment key and server url to `strings.xml`:
+
+   To let the DOTA runtime know which deployment it should query for updates, open your app's `strings.xml` file and add a new string named `CodePushDeploymentKey`, whose value is the key of the deployment you want to configure this app against (like the key for the `Staging` deployment for the `FooBar` app). You can retrieve this value using DOTA dashboard and copying the value of the `Key` column which corresponds to the deployment you want to use.
+
+   In order to effectively make use of the `Staging` and `Production` deployments that were created along with your DOTA app, refer to the [multi-deployment testing](./multi-deployment-testing.md) docs below before actually moving your app's usage of DOTA into production.
+
+   Your `strings.xml` should looks like this:
+
+   ```xml
+    <resources>
+        ...
+        <string moduleConfig="true" name="CodePushDeploymentKey">DeploymentKey</string>
+        <string moduleConfig="true" name="CodePushServerUrl">https://dota-sdk.delivr.live/</string>
+    </resources>
+    ```
+
+    *Note: If you need to dynamically use a different deployment, you can also override your deployment key in JS code using [Code-Push options](./api-js.md#CodePushOptions)*
+
+6. Disable autolinking for `@d11/dota` by adding a `react-native.config.js` at your app root:
+
+```javascript
+module.exports = {
+  dependencies: {
+    '@d11/dota': {
+      platforms: {
+        android: null,
+      },
+    },
+  },
+};
+```
+7. For react-native changes refer to [Usage](../README.md#usage)

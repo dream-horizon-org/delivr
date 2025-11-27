@@ -1,0 +1,15 @@
+appId: com.mycodepushapp
+device: android                  
+
+---
+- launchApp
+- assertVisible: "Update available"
+- assertVisible: "A new version of the app is available. Would you like to update?"
+- tapOn: "Install"
+- waitForAnimationToEnd:
+    timeout: 15000 
+- assertNotVisible:
+    text: "DOTA Updated bundle loaded successfully🚀"
+
+- launchApp
+- assertVisible: "💡 Open App.tsx to get started"
