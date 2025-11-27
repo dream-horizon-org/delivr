@@ -61,6 +61,7 @@ const properties = require("properties");
 
 const CLI_HEADERS: Headers = {
   "X-CodePush-CLI-Version": packageJson.version,
+  "User-Agent": "delivr-cli"
 };
 
 /** Deprecated */
@@ -1627,6 +1628,7 @@ function getSdk(accessKey: string, headers: Headers, customServerUrl: string): A
    * to delete the cached connection so the user can simply
    * login again instead of having to log out first.
    */
+  
   Object.getOwnPropertyNames(AccountManager.prototype).forEach((functionName: any) => {
     if (typeof sdk[functionName] === "function") {
       const originalFunction = sdk[functionName];
