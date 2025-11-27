@@ -1,368 +1,349 @@
 # Delivr
 
-Delivr is a monorepo containing the complete OTA (Over-The-Air) update solution with server, web panel, SDK, and CLI components.
+**Mobile DevOps Platform · Self-Hosted · Open Source**
 
-## 📋 Table of Contents
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.txt)
 
-- [Prerequisites](#prerequisites)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
-- [Setup Instructions](#setup-instructions)
-- [Running the Application](#running-the-application)
-  - [Option 1: Using Launch Script (Recommended)](#option-1-using-launch-script-recommended)
-  - [Option 2: Using Docker Compose](#option-2-using-docker-compose)
-  - [Running Individual Services](#running-individual-services)
-- [Accessing the Services](#accessing-the-services)
-- [Troubleshooting](#troubleshooting)
+[delivr.live](https://delivr.live)
 
-## Prerequisites
+---
 
-Before you begin, ensure you have the following installed:
+## What is Delivr?
 
-- **Docker Desktop** - [Download and install Docker Desktop](https://www.docker.com/products/docker-desktop)
-  - Make sure Docker Desktop is running before starting the services
-  - Docker Compose is included with Docker Desktop
+Delivr is an open-source Mobile DevOps platform for mobile applications. This monorepo contains all Delivr components unified into a single platform you can self-host on AWS, Azure, or your own infrastructure.
 
-## Project Structure
+**Platform Architecture:**
 
 ```
-delivr/
-├── delivr-server-ota/          # Backend API server
-│   └── api/
-│       ├── .env               # Server environment variables (required)
-│       └── docker-compose.yml # Server docker-compose file
-├── delivr-web-panel/          # Frontend web dashboard
-│   ├── .env                   # Web panel environment variables (required)
-│   └── docker-compose.yml     # Web panel docker-compose file
-├── delivr-sdk-ota/            # React Native SDK
-├── delivr-cli/                # Command-line interface
-├── docker-compose.yml         # Root docker-compose (orchestrates both services)
-└── launch_script.sh           # Automated launch script
+┌─────────────────────────────────────────────────┐
+│         Delivr Mobile DevOps Platform          │
+├─────────────────────────────────────────────────┤
+│  Build Orchestration  │  Release Management    │
+│   (Coming Soon)       │   (Coming Soon)        │
+│   Any Mobile App      │   Any Mobile App       │
+├─────────────────────────────────────────────────┤
+│      Over-the-Air Updates (Available Now)      │
+│            React Native                         │
+└─────────────────────────────────────────────────┘
 ```
+
+**Available Now:**
+- **Over-the-Air Updates** for React Native apps - Deploy JavaScript and asset updates instantly without app store approval
+
+**Coming Soon:**
+- **Build Orchestration** for all mobile apps - Automated builds for iOS and Android
+- **Release Management** for all mobile apps - Coordinate store and OTA releases with approval workflows
+
+---
+
+## Why Delivr?
+
+**🚀 Accelerated Velocity**
+- Deploy updates in minutes instead of days
+- Iterate rapidly without app store bottlenecks
+- Ship fixes immediately when they matter most
+
+**🏗️ Full Control**
+- Self-host on your infrastructure
+- Complete data ownership
+- No third-party processing
+
+**🔌 Flexible & Extensible**
+- Plugin architecture for storage, database, auth
+- Open source and customizable
+- API-first design
+
+**📊 Unified Platform**
+- Single dashboard for updates (now) + builds & releases (soon)
+- Consistent experience across teams
+- Reduced tool sprawl
+
+**🔒 Security & Compliance**
+- Self-hosted means your data stays yours
+- Code signing for verified updates
+- Audit trails and access control
+
+**⚡ Battle-Tested**
+- Production-proven in high-scale environments
+- Handles high request volumes with proper infrastructure
+- Designed for large user bases
+
+---
 
 ## Quick Start
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd delivr
-   ```
-
-2. **Create environment files** (see [Setup Instructions](#setup-instructions))
-
-3. **Run the application** using one of the methods below
-
-## Setup Instructions
-
-### 1. Create Server Environment File
-
-Create a `.env` file in `delivr-server-ota/api/` directory:
+**Prerequisites:** Docker Desktop (running), Node.js 18+
 
 ```bash
-cd delivr-server-ota/api
-touch .env
-```
+# 1. Clone this monorepo
+git clone https://github.com/ds-horizon/delivr.git
+cd delivr
 
-Add the following configuration (adjust values as needed):
+# 2. Configure environment (see SETUP.md for templates)
+# Create .env files for server and web panel
 
-```env
-# Server Configuration
-PORT=3010
-NODE_ENV=development
-
-# Database Configuration
-DB_HOST=db
-MYSQL_ROOT_PASSWORD=root
-MYSQL_DATABASE=codepushdb
-
-# Redis Configuration (optional)
-REDIS_HOST=redis
-REDIS_PORT=6379
-
-# Storage Configuration
-# For local development with LocalStack
-AWS_ACCESS_KEY_ID=localstack
-AWS_SECRET_ACCESS_KEY=localstack
-S3_ENDPOINT=http://localstack:4566
-S3_BUCKETNAME=delivr-ota-bucket
-S3_REGION=us-east-1
-MEMCACHED_SERVERS=memcached:11211
-LOGIN_AUTHORIZED_DOMAINS=gmail.com 
-
-# Add other required environment variables as per your setup
-```
-
-### 2. Create Web Panel Environment File
-
-Create a `.env` file in `delivr-web-panel/` directory:
-
-```bash
-cd delivr-web-panel
-touch .env
-```
-
-Add the following configuration:
-
-```env
-# Web Panel Configuration
-PORT=3000
-NODE_ENV=production
-
-# Backend API URL
-DELIVR_BACKEND_URL=http://localhost:3010
-
-# Add other required environment variables as per your setup
-```
-
-**Note:** When running with the root `docker-compose.yml`, the `DELIVR_BACKEND_URL` will be automatically converted to use the Docker service name `api` instead of `localhost`.
-
-## Running the Application
-
-### Option 1: Using Launch Script (Recommended)
-
-The `launch_script.sh` is an automated script that handles the entire startup process:
-
-**Features:**
-- ✅ Checks if Docker Desktop is installed and running
-- ✅ Validates that `.env` files exist
-- ✅ Reads port numbers from `.env` files
-- ✅ Checks for port conflicts and prompts to stop conflicting processes
-- ✅ Starts server first and waits for it to be healthy
-- ✅ Then starts the web panel
-
-**Usage:**
-
-```bash
+# 3. Launch all services
+chmod +x launch_script.sh
 ./launch_script.sh
 ```
 
-**What it does:**
-1. Validates Docker installation and status
-2. Checks for required `.env` files in both server and web panel directories
-3. Reads `PORT` from both `.env` files
-4. Checks if ports are already in use
-5. Prompts to stop conflicting processes if found
-6. Starts the server docker-compose (`delivr-server-ota/api/docker-compose.yml`)
-7. Waits 3 minutes for server initialization
-8. Monitors server healthcheck for up to 3 minutes
-9. Once server is healthy, starts the web panel docker-compose (`delivr-web-panel/docker-compose.yml`)
-10. Displays final summary with service URLs
+**Access:**
+- Dashboard: http://localhost:3000
+- API Server: http://localhost:3010
 
-**Example Output:**
+**→ Complete setup guide:** [SETUP.md](SETUP.md)
+
+---
+
+## What's Available
+
+### ✅ Production Ready (Available Now)
+
+**Pillar 1: Over-the-Air Updates**
+- ✅ **Instant Deployment** - Push JS/asset updates in minutes, not days
+- ✅ **Delta Patching** - Significantly smaller downloads with binary diffs
+- ✅ **Staged Rollouts** - Gradual releases with percentage control
+- ✅ **Mandatory Updates** - Force critical fixes immediately
+- ✅ **Automatic Rollback** - SDK auto-reverts crashes
+- ✅ **Version Targeting** - Deploy to specific app versions (semver)
+- ✅ **Multi-Deployment** - Separate staging and production environments
+- ✅ **Code Signing** - Cryptographic verification of updates
+- ✅ **Brotli Compression** - Additional size reduction on bundles
+- ✅ **Base Bytecode Optimization** - Hermes bytecode for smaller patches
+
+**Web Dashboard**
+- ✅ **App Management** - Create and manage multiple apps
+- ✅ **Deployment Control** - Manage staging and production deployments
+- ✅ **Release History** - Track all deployed versions
+- ✅ **Real-Time Analytics** - Monitor adoption, versions, and errors
+- ✅ **Rollout Control** - Adjust rollout percentages on the fly
+- ✅ **OAuth Authentication** - Google, GitHub, Microsoft login
+
+**CLI Tool**
+- ✅ **Automated Releases** - CI/CD-friendly deployment commands
+- ✅ **Binary Patching** - Create efficient patch bundles
+- ✅ **Release Management** - Promote, rollback, and clear releases
+- ✅ **Debug Tools** - Troubleshoot deployments and SDK integration
+- ✅ **Code Signing** - Sign releases for security
+
+**Infrastructure & Platform**
+- ✅ **Self-Hosted** - Deploy on your infrastructure
+- ✅ **Plugin System** - Pluggable storage (S3/Azure/Local), database (MySQL/Postgres), auth
+- ✅ **Multi-Cloud** - AWS, Azure, or on-premises deployment
+- ✅ **Docker-First** - Complete Docker Compose setup included
+- ✅ **CDN Support** - CloudFront and Azure CDN integration
+- ✅ **Caching** - Multi-layer Redis and Memcached
+- ✅ **Health Checks** - Monitoring and status endpoints
+- ✅ **Battle-Tested** - Production-proven at scale
+- ✅ **API Versioning** - Legacy and modern API support
+
+### 🔜 In Development (Coming Soon)
+
+**Pillar 2: Release Management**
+- 🔜 **Approval Workflows** - Multi-stage approval gates for release governance
+- 🔜 **Release Coordination** - Sync App Store, Play Store, and OTA releases
+- 🔜 **Release Trains** - Scheduled, predictable release cycles
+- 🔜 **Automated Guardrails** - Auto-rollback on error thresholds
+- 🔜 **Store Integration** - Track App Store and Play Store submission status
+
+**Pillar 3: Build Orchestration**
+- 🔜 **Git Integration** - Webhook-triggered builds from repository
+- 🔜 **Multi-Platform Builds** - iOS and Android from single source
+- 🔜 **Real-Time Logs** - Stream build logs to dashboard
+- 🔜 **Artifact Management** - Store and manage build artifacts
+- 🔜 **CI/CD Integration** - Jenkins, CircleCI, GitHub Actions support
+
+**Platform Enhancements**
+- 🔜 **GCP Deployment** - Google Cloud Platform support
+- 🔜 **Expo Plugin** - First-class Expo integration
+- 🔜 **Device Testing** - Cloud-based device farms for QA
+- 🔜 **Advanced Analytics** - Enhanced insights and metrics
+
+---
+
+## Use Cases
+
+**OTA Updates for React Native (Available Now):**
+- **Instant Bug Fixes** - Deploy critical fixes without app store review
+- **Security Patches** - Patch vulnerabilities immediately
+- **Feature Flags** - Enable/disable features remotely
+- **A/B Testing** - Test variants with different user segments
+- **Regional Rollouts** - Launch features in specific regions first
+- **Rapid Iteration** - Deploy updates multiple times per day
+
+**Build & Release for All Mobile Apps (Coming Soon):**
+- **Automated Build Pipelines** - Git push triggers iOS and Android builds
+- **Coordinated Releases** - Sync App Store and Play Store submissions
+- **Release Management** - Multi-stage approvals and automated guardrails
+- **Works with any framework** - Native, React Native, Flutter, Ionic, etc.
+
+---
+
+## How OTA Updates Work
+
+**For React Native apps:**
+
 ```
-🔍 Checking Docker installation and status...
-✅ Docker is installed
-✅ Docker Desktop is running
-✅ Docker Compose is available
+1. App Release
+   React Native app with Delivr SDK → Published to App Store/Play Store
 
-🔍 Checking for required .env files...
-✅ Server .env file found
-✅ Web panel .env file found
+2. Update Creation
+   Developer creates update → Via Web Dashboard or CLI
 
-🚀 Step 1: Starting Delivr API Server...
-✅ Server docker-compose started
+3. Bundle Storage
+   Update bundle stored → Your infrastructure (S3, Azure Blob, etc.)
 
-⏳ Step 2: Waiting for server to be healthy...
-✅ Server is UP and HEALTHY!
+4. Update Check
+   Mobile app checks for updates → Delivr Backend API
 
-🚀 Step 3: Starting Delivr Web Panel...
-✅ Web panel docker-compose started
-
-✅ All services started successfully!
-```
-
-### Option 2: Using Docker Compose
-
-The root `docker-compose.yml` orchestrates both services together with health checks and dependencies.
-
-**Usage:**
-
-```bash
-# Start both services
-docker-compose up
-
-# Start in detached mode (background)
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# View logs for specific service
-docker-compose logs -f api
-docker-compose logs -f web
-```
-
-**What it does:**
-- Starts all supporting services (MySQL, Redis, Memcached, LocalStack)
-- Starts the API server with healthcheck monitoring
-- Waits for API to be healthy before starting web panel
-- Both services run in the same Docker network
-
-**Services included:**
-- `api` - Backend API server (port from `.env`, default: 3010)
-- `web` - Frontend web panel (port from `.env`, default: 3000)
-- `db` - MySQL database (port: 3306)
-- `redis` - Redis cache (port: 6379)
-- `memcached` - Memcached cache (port: 11211)
-- `localstack` - LocalStack for S3 emulation (port: 4566)
-
-### Running Individual Services
-
-You can also run services individually:
-
-**Start only the API server:**
-```bash
-docker-compose up api
-```
-This will also start all dependencies (db, redis, memcached, localstack).
-
-**Start only the web panel:**
-```bash
-docker-compose up web
-```
-This will automatically start the API server and its dependencies first (due to `depends_on`).
-
-**Start specific services:**
-```bash
-# Start only database and Redis
-docker-compose up db redis
-
-# Start API with dependencies
-docker-compose up api
-```
-
-## Accessing the Services
-
-Once the services are running:
-
-- **Web Panel**: http://localhost:3000 (or port specified in `delivr-web-panel/.env`)
-- **API Server**: http://localhost:3010 (or port specified in `delivr-server-ota/api/.env`)
-- **API Healthcheck**: http://localhost:3010/healthcheck (or your configured port)
-- **MySQL**: localhost:3306
-- **Redis**: localhost:6379
-- **LocalStack S3**: http://localhost:4566
-
-## Troubleshooting
-
-### Port Already in Use
-
-If you get an error about ports being in use:
-
-**Using launch_script.sh:**
-- The script will automatically detect port conflicts and ask for permission to stop the process
-- Answer `y` to stop the conflicting process, or `n` to exit and stop it manually
-
-**Manual fix:**
-```bash
-# Find process using port 3010
-lsof -i :3010
-
-# Kill the process (replace PID with actual process ID)
-kill -9 <PID>
+5. Download & Apply
+   SDK downloads and applies → JavaScript/asset updates instantly
 ```
 
-### Docker Desktop Not Running
+**What Can Be Updated via OTA?**
 
-**Error:** `Docker Desktop is not running`
+✅ **No Store Review Required:**
+- JavaScript & TypeScript code
+- React components and UI
+- Images and assets
+- JSON configuration
+- Styling and themes
 
-**Solution:** Start Docker Desktop application on your machine.
+❌ **Requires App Store Submission:**
+- Native code (Swift, Java, Kotlin, Objective-C)
+- Native modules and dependencies
+- App permissions
+- App icons and launch screens
 
-### .env File Missing
+[Complete list of supported components](delivr-sdk-ota/docs/supported-components.md)
 
-**Error:** `.env file not found`
+**Future Expansion:** Build Orchestration and Release Management will support all mobile apps (iOS and Android) regardless of framework - native apps, React Native, Flutter, Ionic, or any other framework.
 
-**Solution:** Create the required `.env` files as described in [Setup Instructions](#setup-instructions).
+---
 
-### Server Not Becoming Healthy
+## Monorepo Structure
 
-**Symptoms:** Script waits for 6 minutes but server doesn't become healthy
+This repository contains all Delivr components:
 
-**Solutions:**
-1. Check server logs:
-   ```bash
-   docker-compose logs api
-   ```
-2. Verify database is running:
-   ```bash
-   docker-compose ps
-   ```
-3. Check if port is correct in `.env` file
-4. Ensure all required environment variables are set
+| Component | Purpose | Documentation |
+|-----------|---------|---------------|
+| **[delivr-server-ota/](delivr-server-ota/)** | Backend API server for OTA updates & orchestration | [README](delivr-server-ota/README.md) · [Setup](delivr-server-ota/docs/DEV_SETUP.md) · [Architecture](delivr-server-ota/docs/ARCHITECTURE.md) |
+| **[delivr-sdk-ota/](delivr-sdk-ota/)** | React Native SDK for OTA updates | [README](delivr-sdk-ota/README.md) · [iOS Setup](delivr-sdk-ota/docs/setup-ios.md) · [Android Setup](delivr-sdk-ota/docs/setup-android.md) · [API](delivr-sdk-ota/docs/api-js.md) |
+| **[delivr-web-panel/](delivr-web-panel/)** | Web dashboard for managing apps, deployments, and releases | [README](delivr-web-panel/README.md) |
+| **[delivr-cli/](delivr-cli/)** | CLI for release management and deployments | [README](delivr-cli/README.md) · [CLI Reference](delivr-cli/CLI_REFERENCE.md) · [bsdiff](delivr-cli/bsdiff/README.md) |
 
-### Web Panel Can't Connect to API
+---
 
-**Symptoms:** Web panel starts but shows connection errors
+## Deployment Options
 
-**Solutions:**
-1. Verify API is healthy:
-   ```bash
-   curl http://localhost:3010/healthcheck
-   ```
-2. Check `DELIVR_BACKEND_URL` in web panel `.env` file
-3. When using root `docker-compose.yml`, the URL is automatically converted to use service name `api`
+| Environment | Storage | Database | Guide |
+|-------------|---------|----------|-------|
+| **Local Dev** | LocalStack | MySQL | [Setup Guide](SETUP.md) |
+| **AWS** | S3 | RDS | [Server Setup Guide](delivr-server-ota/docs/DEV_SETUP.md) |
+| **Azure** | Blob Storage | Azure SQL | [Server Setup Guide](delivr-server-ota/docs/DEV_SETUP.md) |
+| **On-Premises** | NFS/Local | MySQL/Postgres | [Server Setup Guide](delivr-server-ota/docs/DEV_SETUP.md) |
 
-### Database Connection Issues
+---
 
-**Symptoms:** API fails to connect to database
+## App Store Compliance
 
-**Solutions:**
-1. Ensure MySQL container is running:
-   ```bash
-   docker-compose ps db
-   ```
-2. Check database credentials in server `.env` file
-3. Restart the database:
-   ```bash
-   docker-compose restart db
-   ```
+✅ **OTA updates comply with Apple and Google guidelines:**
 
-### Viewing Logs
+**Requirements:**
+- JavaScript and assets only (no native code)
+- Cannot change app's primary purpose
+- Updates must be transparent to users
 
-**View all logs:**
-```bash
-docker-compose logs -f
-```
+**Full compliance guide:** [Store Guidelines](delivr-sdk-ota/docs/store-guidelines.md)
 
-**View specific service logs:**
-```bash
-docker-compose logs -f api
-docker-compose logs -f web
-docker-compose logs -f db
-```
+---
 
-**View last 100 lines:**
-```bash
-docker-compose logs --tail=100 api
-```
+## Performance
 
-### Stopping Services
+**OTA Updates:**
+- Update checks are fast with multi-layer caching
+- Download times depend on patch size and network conditions
+- Patch application is near-instantaneous
 
-**Stop all services:**
-```bash
-docker-compose down
-```
+**Efficiency:**
+- Delta patches significantly reduce download sizes
+- Brotli compression provides additional size reduction
+- Typical result: Small patch bundles for incremental updates
 
-**Stop and remove volumes (⚠️ deletes database data):**
-```bash
-docker-compose down -v
-```
+**Scale:**
+- Battle-tested in production environments
+- Handles high request volumes with proper infrastructure
+- Multi-region CDN distribution supported
 
-**Stop specific service:**
-```bash
-docker-compose stop api
-docker-compose stop web
-```
+---
 
-## Additional Resources
+## Documentation
 
-- **Server Documentation**: See `delivr-server-ota/docs/`
-- **Web Panel Documentation**: See `delivr-web-panel/README.md`
-- **SDK Documentation**: See `delivr-sdk-ota/README.md`
-- **CLI Documentation**: See `delivr-cli/README.md`
+### Getting Started
 
-## Support
+- **[Setup Guide](SETUP.md)** - Get Delivr running locally in 10 minutes
+- **[Complete Setup Guide](https://delivr.live/dota/full-setup)** - End-to-end setup with SDK integration
 
-For issues and questions, please check the individual component README files or open an issue in the repository.
+### SDK Integration
+
+- [Delivr SDK Overview](delivr-sdk-ota/README.md)
+- [iOS Setup Guide](delivr-sdk-ota/docs/setup-ios.md)
+- [Android Setup Guide](delivr-sdk-ota/docs/setup-android.md)
+- [JavaScript API Reference](delivr-sdk-ota/docs/api-js.md)
+- [How OTA Updates Work](delivr-sdk-ota/docs/ota-updates.md)
+- [Multi-Deployment Testing](delivr-sdk-ota/docs/multi-deployment-testing.md)
+- [Store Guidelines](delivr-sdk-ota/docs/store-guidelines.md)
+
+### CLI Usage
+
+- [CLI Overview](delivr-cli/README.md)
+- [CLI Command Reference](delivr-cli/CLI_REFERENCE.md)
+- [Binary Patching (bsdiff)](delivr-cli/bsdiff/README.md)
+
+### Server & Infrastructure
+
+- [Server Overview](delivr-server-ota/README.md)
+- [Development Setup](delivr-server-ota/docs/DEV_SETUP.md)
+- [Environment Configuration](delivr-server-ota/api/ENVIRONMENT.md)
+- [Architecture Details](delivr-server-ota/docs/ARCHITECTURE.md)
+
+### Web Dashboard
+
+- [Web Panel Overview](delivr-web-panel/README.md)
+
+---
+
+## Community & Support
+
+- **GitHub Issues** → [Report bugs & request features](https://github.com/ds-horizon/delivr/issues)
+- **GitHub Discussions** → [Ask questions](https://github.com/ds-horizon/delivr/discussions)
+- **Website** → [delivr.live](https://delivr.live)
+
+---
+
+## Contributing
+
+We welcome contributions! Each component has its own contributing guide:
+
+- [CLI Contributing](delivr-cli/CONTRIBUTING.md)
+- [SDK Contributing](delivr-sdk-ota/CONTRIBUTING.md)
+- [Server Contributing](delivr-server-ota/CONTRIBUTING.md)
+
+---
+
+## License
+
+MIT License - see [LICENSE.txt](delivr-server-ota/LICENSE.txt)
+
+---
+
+## Security
+
+Report security vulnerabilities: [SECURITY.md](delivr-sdk-ota/SECURITY.md)
+
+---
+
+**Made with ❤️ by [DS Horizon](https://github.com/ds-horizon)**
+
+**[Get Started](SETUP.md)** · **[Documentation](https://delivr.live)**
+
