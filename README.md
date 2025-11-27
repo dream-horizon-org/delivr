@@ -10,7 +10,7 @@
 
 ## What is Delivr?
 
-Delivr is an open-source Mobile DevOps platform for mobile applications. This monorepo contains all Delivr components unified into a single platform you can self-host on AWS, Azure, or your own infrastructure.
+A distribution platform that simplifies how teams build, test, and release mobile apps through automated operations, integration with multiple channels and distribution analytics.
 
 **Platform Architecture:**
 
@@ -79,19 +79,21 @@ Delivr is an open-source Mobile DevOps platform for mobile applications. This mo
 git clone https://github.com/ds-horizon/delivr.git
 cd delivr
 
-# 2. Configure environment (see SETUP.md for templates)
-# Create .env files for server and web panel
-
-# 3. Launch all services
+# 2. Launch all services
 chmod +x launch_script.sh
 ./launch_script.sh
 ```
+
+The script will guide you through:
+- ✅ Environment setup and validation
+- ✅ Port conflict resolution
+- ✅ Starting all services (API, Dashboard, Database, Cache)
 
 **Access:**
 - Dashboard: http://localhost:3000
 - API Server: http://localhost:3010
 
-**→ Complete setup guide:** [SETUP.md](SETUP.md)
+**→ Complete setup guide:** [delivr.live/dota/full-setup](https://delivr.live/dota/full-setup)
 
 ---
 
@@ -238,7 +240,7 @@ This repository contains all Delivr components:
 
 | Environment | Storage | Database | Guide |
 |-------------|---------|----------|-------|
-| **Local Dev** | LocalStack | MySQL | [Setup Guide](SETUP.md) |
+| **Local Dev** | LocalStack | MySQL | [Complete Setup Guide](https://delivr.live/dota/full-setup) |
 | **AWS** | S3 | RDS | [Server Setup Guide](delivr-server-ota/docs/DEV_SETUP.md) |
 | **Azure** | Blob Storage | Azure SQL | [Server Setup Guide](delivr-server-ota/docs/DEV_SETUP.md) |
 | **On-Premises** | NFS/Local | MySQL/Postgres | [Server Setup Guide](delivr-server-ota/docs/DEV_SETUP.md) |
@@ -281,8 +283,7 @@ This repository contains all Delivr components:
 
 ### Getting Started
 
-- **[Setup Guide](SETUP.md)** - Get Delivr running locally in 10 minutes
-- **[Complete Setup Guide](https://delivr.live/dota/full-setup)** - End-to-end setup with SDK integration
+- **[Complete Setup Guide](https://delivr.live/dota/full-setup)** - End-to-end setup from installation to first deployment
 
 ### SDK Integration
 
@@ -343,7 +344,7 @@ Report security vulnerabilities: [SECURITY.md](delivr-sdk-ota/SECURITY.md)
 
 ---
 
-**Made with ❤️ by [DS Horizon](https://github.com/ds-horizon)**
+**Made with ❤️ by [Horizon](https://github.com/ds-horizon)**
 
-**[Get Started](SETUP.md)** · **[Documentation](https://delivr.live)**
+**[Get Started](https://delivr.live/dota/full-setup)** · **[Documentation](https://delivr.live)**
 
