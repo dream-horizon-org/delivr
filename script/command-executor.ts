@@ -1628,25 +1628,25 @@ function getSdk(accessKey: string, headers: Headers, customServerUrl: string): A
    * to delete the cached connection so the user can simply
    * login again instead of having to log out first.
    */
-  // Object.getOwnPropertyNames(AccountManager.prototype).forEach((functionName: any) => {
-  //   if (typeof sdk[functionName] === "function") {
-  //     const originalFunction = sdk[functionName];
-  //     sdk[functionName] = function () {
-  //       let maybePromise: Promise<any> = originalFunction.apply(sdk, arguments);
-  //       if (maybePromise && maybePromise.then !== undefined) {
-  //         maybePromise = maybePromise.catch((error: any) => {
-  //           if (error.statusCode && error.statusCode === AccountManager.ERROR_UNAUTHORIZED) {
-  //             deleteConnectionInfoCache(/* printMessage */ false);
-  //           }
+  Object.getOwnPropertyNames(AccountManager.prototype).forEach((functionName: any) => {
+    if (typeof sdk[functionName] === "function") {
+      const originalFunction = sdk[functionName];
+      sdk[functionName] = function () {
+        let maybePromise: Promise<any> = originalFunction.apply(sdk, arguments);
+        if (maybePromise && maybePromise.then !== undefined) {
+          maybePromise = maybePromise.catch((error: any) => {
+            if (error.statusCode && error.statusCode === AccountManager.ERROR_UNAUTHORIZED) {
+              deleteConnectionInfoCache(/* printMessage */ false);
+            }
 
-  //           throw error;
-  //         });
-  //       }
+            throw error;
+          });
+        }
 
-  //       return maybePromise;
-  //     };
-  //   }
-  // });
+        return maybePromise;
+      };
+    }
+  });
 
   return sdk;
 }
