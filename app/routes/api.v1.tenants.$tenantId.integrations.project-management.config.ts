@@ -10,10 +10,7 @@
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
-import { IntegrationService } from '~/.server/services/ReleaseManagement/integrations/integration-service';
-import { PROJECT_MANAGEMENT } from '~/.server/services/ReleaseManagement/integrations/api-routes';
-
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+import { ProjectManagementConfigService } from '~/.server/services/ReleaseManagement/integrations';
 
 /**
  * GET - Fetch a specific PM config
@@ -35,26 +32,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const endpoint = `${BACKEND_API_URL}${PROJECT_MANAGEMENT.config.get(tenantId, configId)}`;
-    
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Id': userId,
-      },
-    });
+    const result = await ProjectManagementConfigService.getConfig(tenantId, configId, userId);
 
-    const data = await response.json();
-    
-    if (!response.ok) {
+    if (!result.success) {
       return json(
-        { success: false, error: data.error || 'Failed to fetch PM config' },
-        { status: response.status }
+        { success: false, error: result.error || 'Failed to fetch PM config' },
+        { status: 404 }
       );
     }
 
-    return json(data, { status: 200 });
+    return json(result, { status: 200 });
   } catch (error: any) {
     console.error('[PM Config] Error fetching config:', error);
     return json(
@@ -98,38 +85,20 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
-      // Add userId to the DTO
-      const dto = {
-        ...body,
-        projectId: tenantId, // Backend expects projectId (which is tenantId in our context)
-        createdByAccountId: userId,
-      };
-
-      const endpoint = `${BACKEND_API_URL}${PROJECT_MANAGEMENT.config.create(tenantId)}`;
-      
-      console.log('[PM Config] Creating config:', { endpoint, dto });
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId,
-        },
-        body: JSON.stringify(dto),
+      const result = await ProjectManagementConfigService.createConfig(tenantId, userId, {
+        integrationId: body.integrationId,
+        name: body.name,
+        platformConfigurations: body.platformConfigurations,
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('[PM Config] Create failed:', data);
+      if (!result.success) {
         return json(
-          { success: false, error: data.error || 'Failed to create PM config' },
-          { status: response.status }
+          { success: false, error: result.error || 'Failed to create PM config' },
+          { status: 400 }
         );
       }
 
-      console.log('[PM Config] Created successfully:', data);
-      return json(data, { status: 201 });
+      return json(result, { status: 201 });
     }
 
     // PUT - Update existing PM config
@@ -141,27 +110,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ success: false, error: 'Config ID is required' }, { status: 400 });
       }
 
-      const endpoint = `${BACKEND_API_URL}${PROJECT_MANAGEMENT.config.update(tenantId, configId)}`;
-      
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId,
-        },
-        body: JSON.stringify(updateData),
-      });
+      const result = await ProjectManagementConfigService.updateConfig(
+        tenantId,
+        configId,
+        userId,
+        updateData
+      );
 
-      const data = await response.json();
-      
-      if (!response.ok) {
+      if (!result.success) {
         return json(
-          { success: false, error: data.error || 'Failed to update PM config' },
-          { status: response.status }
+          { success: false, error: result.error || 'Failed to update PM config' },
+          { status: 400 }
         );
       }
 
-      return json(data, { status: 200 });
+      return json(result, { status: 200 });
     }
 
     // DELETE - Delete PM config
@@ -173,26 +136,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return json({ success: false, error: 'Config ID is required' }, { status: 400 });
       }
 
-      const endpoint = `${BACKEND_API_URL}${PROJECT_MANAGEMENT.config.delete(tenantId, configId)}`;
-      
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': userId,
-        },
-      });
+      const result = await ProjectManagementConfigService.deleteConfig(tenantId, configId, userId);
 
-      const data = await response.json();
-      
-      if (!response.ok) {
+      if (!result.success) {
         return json(
-          { success: false, error: data.error || 'Failed to delete PM config' },
-          { status: response.status }
+          { success: false, error: result.error || 'Failed to delete PM config' },
+          { status: 404 }
         );
       }
 
-      return json(data, { status: 200 });
+      return json(result, { status: 200 });
     }
 
     return json({ success: false, error: 'Method not allowed' }, { status: 405 });

@@ -10,6 +10,7 @@ export interface JiraIntegrationConfig {
   email: string;
   apiToken: string;
   jiraType: JiraType;
+  [key: string]: unknown; // Index signature for compatibility with PMIntegrationConfig
 }
 
 export interface JiraIntegration {

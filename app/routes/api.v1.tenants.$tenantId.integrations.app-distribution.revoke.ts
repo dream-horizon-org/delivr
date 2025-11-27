@@ -5,10 +5,15 @@
  * DELETE /api/v1/tenants/:tenantId/integrations/app-distribution/revoke?storeType=X&platform=Y
  */
 
+/**
+ * BFF API Route: Revoke App Distribution Integration (Play Store / App Store)
+ * DELETE /api/v1/tenants/:tenantId/integrations/app-distribution/revoke?storeType=X&platform=Y
+ */
+
 import { json, type ActionFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
-
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
+import type { StoreType, Platform } from '~/types/app-distribution';
 
 /**
  * DELETE - Revoke app distribution integration
@@ -39,30 +44,21 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    const backendUrl = `${BACKEND_API_URL}/integrations/store/tenant/${tenantId}/revoke?storeType=${storeType}&platform=${platform}`;
-    
-    console.log(`[App Distribution Revoke] Revoking integration: ${backendUrl}`);
-    
-    const response = await fetch(backendUrl, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Id': userId,
-      },
-    });
+    const result = await AppDistributionService.revokeIntegration(
+      tenantId,
+      storeType as StoreType,
+      platform as Platform,
+      userId
+    );
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-      console.error('[App Distribution Revoke] Failed:', data);
+    if (!result.success) {
       return json(
-        { success: false, error: data.error || 'Failed to revoke integration' },
-        { status: response.status }
+        { success: false, error: result.error || 'Failed to revoke integration' },
+        { status: 500 }
       );
     }
 
-    console.log('[App Distribution Revoke] Successfully revoked:', data);
-    return json(data, { status: 200 });
+    return json(result, { status: 200 });
   } catch (error: any) {
     console.error('[App Distribution Revoke] Error:', error);
     return json(

@@ -253,6 +253,65 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
       };
     }
   }
+
+  /**
+   * Fetch Checkmate metadata (labels, projects, sections, squads)
+   */
+  async fetchMetadata(
+    integrationId: string,
+    metadataType: 'labels' | 'projects' | 'sections' | 'squads',
+    projectId?: string,
+    userId?: string
+  ): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    let endpoint: string;
+    
+    switch (metadataType) {
+      case 'labels':
+        endpoint = TEST_MANAGEMENT.checkmate.labels(integrationId);
+        break;
+      case 'projects':
+        endpoint = TEST_MANAGEMENT.checkmate.projects(integrationId);
+        break;
+      case 'sections':
+        endpoint = TEST_MANAGEMENT.checkmate.sections(integrationId);
+        break;
+      case 'squads':
+        endpoint = TEST_MANAGEMENT.checkmate.squads(integrationId);
+        break;
+      default:
+        return {
+          success: false,
+          error: `Unknown metadata type: ${metadataType}`
+        };
+    }
+
+    // Add projectId query param if provided
+    if (projectId && (metadataType === 'labels' || metadataType === 'sections' || metadataType === 'squads')) {
+      endpoint += `?projectId=${projectId}`;
+    }
+
+    this.logRequest('GET', endpoint);
+    
+    try {
+      // Use empty string as userId if not provided (metadata endpoints may not require auth)
+      const result = await this.get<{ success: boolean; data: any[]; error?: string }>(
+        endpoint,
+        userId || ''
+      );
+
+      this.logResponse('GET', endpoint, result.success);
+      return {
+        success: result.success,
+        data: result.data || [],
+        error: result.error
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || `Failed to fetch ${metadataType}`
+      };
+    }
+  }
 }
 
 // Export singleton instance

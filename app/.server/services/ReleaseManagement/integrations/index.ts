@@ -26,7 +26,19 @@ export { CheckmateIntegrationService } from './checkmate-integration';
 export type { CheckmateIntegration, CheckmateConfig, CheckmateIntegrationResponse } from './checkmate-integration';
 
 // Project Management Integrations
-export { JiraIntegrationService } from './jira-integration';
+export { ProjectManagementIntegrationService } from './project-management-integration-service';
+export type {
+  ProjectManagementProviderType,
+  PMIntegration,
+  PMIntegrationConfig,
+  CreatePMIntegrationRequest,
+  UpdatePMIntegrationRequest,
+  VerifyPMRequest,
+  PMIntegrationResponse,
+  PMVerifyResponse,
+  PMListResponse,
+} from './project-management-integration-service';
+export { ProjectManagementConfigService } from './project-management-config-service';
 
 // App Distribution Integrations
 export { AppDistributionService } from './app-distribution-integration';

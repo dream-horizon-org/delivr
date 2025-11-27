@@ -51,7 +51,7 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
 
     try {
       const result = await apiPost<{ verified: boolean }>(
-        `/api/v1/tenants/${tenantId}/integrations/jira/verify`,
+        `/api/v1/tenants/${tenantId}/integrations/project-management/verify?providerType=JIRA`,
         {
           hostUrl: formData.hostUrl,
           email: formData.email,
@@ -78,7 +78,7 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
 
     try {
       const result = await apiPost(
-        `/api/v1/tenants/${tenantId}/integrations/jira`,
+        `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`,
         {
           name: formData.displayName || `Jira - ${formData.hostUrl}`,
           hostUrl: formData.hostUrl,

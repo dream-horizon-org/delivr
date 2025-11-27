@@ -7,6 +7,7 @@ import { memo, useMemo, useCallback } from 'react';
 import { Container } from '@mantine/core';
 import { useNavigate } from '@remix-run/react';
 import { ConfigurationList } from '~/components/ReleaseConfig/Settings/ConfigurationList';
+import { ConfigurationStats } from './ConfigurationStats';
 import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast, showInfoToast } from '~/utils/toast';
 import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
@@ -173,36 +174,15 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
 
   return (
     <Container size="xl" className="p-0">
-      {stats && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-              <div className="text-sm text-gray-600">Total</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-              <div className="text-sm text-gray-600">Active</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.draft}</div>
-              <div className="text-sm text-gray-600">Draft</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-gray-600">{stats.archived}</div>
-              <div className="text-sm text-gray-600">Archived</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {stats && <ConfigurationStats stats={stats} />}
       
       <ConfigurationList
         configurations={configurations}
-        onEdit={onEdit}
-        onDuplicate={onDuplicate}
-        onArchive={onArchive}
-        onSetDefault={onSetDefault}
-        onCreate={onCreate}
+        onEdit={handleEdit}
+        onDuplicate={handleDuplicate}
+        onArchive={handleArchive}
+        onSetDefault={handleSetDefault}
+        onCreate={handleCreate}
       />
     </Container>
   );

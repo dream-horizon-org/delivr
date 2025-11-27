@@ -130,7 +130,7 @@ export const DISCONNECT_CONFIG: Record<
       'Are you sure you want to disconnect Jira? This will stop all project management integrations.',
     endpoint: (tenantId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Jira');
-      return `/api/v1/tenants/${tenantId}/integrations/jira?integrationId=${config.id}`;
+      return `/api/v1/tenants/${tenantId}/integrations/project-management?integrationId=${config.id}`;
     },
   },
   checkmate: {
