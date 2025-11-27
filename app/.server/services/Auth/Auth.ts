@@ -11,7 +11,6 @@ import {
   redirect,
   TypedResponse,
 } from "@remix-run/node";
-import { env } from "../config";
 import { CodepushService } from "../Codepush";
 import { redirectTo } from "../Cookie";
 
@@ -35,8 +34,8 @@ export class Auth {
     Auth.authenticator.use(
       new GoogleStrategy(
         {
-          clientID: env.GOOGLE_CLIENT_ID ?? "",
-          clientSecret: env.GOOGLE_CLIENT_SECRET ?? "",
+          clientID: process.env.GOOGLE_CLIENT_ID ?? "",
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
           callbackURL: getAuthenticatorCallbackUrl(SocialsProvider.GOOGLE),
           prompt: "consent",
         },
@@ -49,7 +48,8 @@ export class Auth {
             
             // Provide better error messages
             if (error?.code === "ECONNREFUSED") {
-              throw new Error("Cannot connect to backend server. Please ensure the server is running on " + env.DELIVR_BACKEND_URL);
+              const backendUrl = process.env.DELIVR_BACKEND_URL || process.env.BACKEND_API_URL || 'http://localhost:3010';
+              throw new Error("Cannot connect to backend server. Please ensure the server is running on " + backendUrl);
             } else if (error?.response?.status === 401) {
               throw new Error("Invalid authentication token");
             } else if (error?.response?.status === 404) {
