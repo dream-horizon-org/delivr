@@ -220,17 +220,18 @@ export class ReleaseConfigService {
     const integrationConfigIds = await this.createIntegrationConfigs(requestData, currentUserId);
 
     // Step 3: Validate business rules (after integration processing)
-    const hasIntegration = hasAtLeastOneIntegration(integrationConfigIds);
-    if (!hasIntegration) {
-      return {
-        success: false,
-        error: {
-          type: 'BUSINESS_RULE_ERROR',
-          message: 'At least one integration must be configured for a release profile',
-          code: 'NO_INTEGRATIONS_CONFIGURED'
-        }
-      };
-    }
+    // Note: Allowing release configs without integrations for flexibility
+    // const hasIntegration = hasAtLeastOneIntegration(integrationConfigIds);
+    // if (!hasIntegration) {
+    //   return {
+    //     success: false,
+    //     error: {
+    //       type: 'BUSINESS_RULE_ERROR',
+    //       message: 'At least one integration must be configured for a release profile',
+    //       code: 'NO_INTEGRATIONS_CONFIGURED'
+    //     }
+    //   };
+    // }
 
     // Step 4: Check if configuration name already exists for this tenant
     const existing = await this.configRepo.findByTenantIdAndName(requestData.tenantId, requestData.name);
