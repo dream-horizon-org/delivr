@@ -129,6 +129,33 @@ export const INTEGRATION_IDS = {
 } as const;
 
 // ============================================================================
+// Integration Display Names
+// ============================================================================
+
+export const INTEGRATION_DISPLAY_NAMES: Record<string, string> = {
+  [INTEGRATION_IDS.GITHUB]: 'GitHub',
+  [INTEGRATION_IDS.SLACK]: 'Slack',
+  [INTEGRATION_IDS.JENKINS]: 'Jenkins',
+  [INTEGRATION_IDS.GITHUB_ACTIONS]: 'GitHub Actions',
+  [INTEGRATION_IDS.CHECKMATE]: 'Checkmate',
+  [INTEGRATION_IDS.PLAY_STORE]: 'Play Store',
+  [INTEGRATION_IDS.APP_STORE]: 'App Store',
+} as const;
+
+// ============================================================================
+// Integration Category Labels
+// ============================================================================
+
+export const INTEGRATION_CATEGORY_LABELS: Record<string, string> = {
+  SOURCE_CONTROL: 'Source Control',
+  COMMUNICATION: 'Communication',
+  CI_CD: 'CI/CD',
+  TEST_MANAGEMENT: 'Test Management',
+  PROJECT_MANAGEMENT: 'Project Management',
+  APP_DISTRIBUTION: 'App Distribution',
+} as const;
+
+// ============================================================================
 // Connection Flow Steps
 // ============================================================================
 

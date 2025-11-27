@@ -3,6 +3,8 @@
  * Types for actual release instances matching old UI structure
  */
 
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+
 export type ReleaseType = 'PLANNED' | 'HOTFIX' | 'MAJOR';
 
 export type ReleaseStatus = 
@@ -134,5 +136,14 @@ export interface ReleaseListResponse {
   total: number;
   page: number;
   pageSize: number;
+}
+
+/**
+ * Props for ReleaseCard component
+ */
+export interface ReleaseCardProps {
+  release: BackendReleaseResponse;
+  org: string;
+  onDelete: (releaseId: string) => void;
 }
 

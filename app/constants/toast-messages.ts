@@ -97,6 +97,14 @@ export const RELEASE_MESSAGES = {
     title: 'Release Created',
     message: 'Release has been created successfully',
   },
+  DELETE_SUCCESS: {
+    title: 'Release Deleted',
+    message: 'Release has been deleted successfully',
+  },
+  DELETE_ERROR: {
+    title: 'Failed to Delete Release',
+    message: 'Unable to delete the release. Please try again.',
+  },
 } as const;
 
 // ============================================================================

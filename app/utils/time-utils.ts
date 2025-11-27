@@ -28,3 +28,4 @@ export function timeToMinutes(time: string | undefined): number {
   return hours * 60 + minutes;
 }
 
+

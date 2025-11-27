@@ -150,5 +150,112 @@ export class ReleaseRetrievalService {
       };
     }
   }
+
+  /**
+   * Delete a release by ID
+   */
+  static async delete(
+    releaseId: string,
+    tenantId: string,
+    userId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
+
+      console.log('[ReleaseRetrievalService] DELETE:', url);
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete release' }));
+        console.error('[ReleaseRetrievalService] Delete failed:', errorData);
+        return {
+          success: false,
+          error: errorData.error || 'Failed to delete release',
+        };
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to delete release',
+        };
+      }
+
+      console.log('[ReleaseRetrievalService] Delete successful:', releaseId);
+      return {
+        success: true,
+      };
+    } catch (error: any) {
+      console.error('[ReleaseRetrievalService] Delete error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
+    }
+  }
+
+  /**
+   * Update a release by ID
+   */
+  static async update(
+    releaseId: string,
+    tenantId: string,
+    userId: string,
+    updates: any
+  ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
+    try {
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
+
+      console.log('[ReleaseRetrievalService] PATCH:', url);
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update release' }));
+        console.error('[ReleaseRetrievalService] Update failed:', errorData);
+        return {
+          success: false,
+          error: errorData.error || 'Failed to update release',
+        };
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.release) {
+        return {
+          success: false,
+          error: data.error || 'Failed to update release',
+        };
+      }
+
+      console.log('[ReleaseRetrievalService] Update successful:', data.release.id);
+      return {
+        success: true,
+        release: data.release,
+      };
+    } catch (error: any) {
+      console.error('[ReleaseRetrievalService] Update error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
+    }
+  }
 }
 

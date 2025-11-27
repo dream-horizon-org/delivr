@@ -1,16 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams } from '@remix-run/react';
 import { useQueryClient } from 'react-query';
 import { Container, Title, Text, Tabs, Loader as MantineLoader } from '@mantine/core';
-import { showSuccessToast, showInfoToast } from '~/utils/toast';
-import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
-import { invalidateTenantConfig } from '~/utils/cache-invalidation';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
+import { invalidateTenantConfig } from '~/utils/cache-invalidation';
+import { INTEGRATION_DISPLAY_NAMES, INTEGRATION_CATEGORY_LABELS } from '~/constants/integration-ui';
+import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
+import { showSuccessToast, showInfoToast } from '~/utils/toast';
 
 export default function IntegrationsPage() {
   const params = useParams();
@@ -21,7 +22,6 @@ export default function IntegrationsPage() {
     getConnectedIntegrations,
     getAvailableIntegrations 
   } = useConfig();
-  console.log('[Integrations] Connected integrations:', isLoadingMetadata, isLoadingTenantConfig);
 
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
@@ -35,51 +35,48 @@ export default function IntegrationsPage() {
     const integrations: Integration[] = [];
     
     // Get all integration categories
-    const categories: IntegrationCategory[] = [
-      IntegrationCategory.SOURCE_CONTROL,
-      IntegrationCategory.COMMUNICATION,
-      IntegrationCategory.CI_CD,
-      IntegrationCategory.TEST_MANAGEMENT,
-      IntegrationCategory.PROJECT_MANAGEMENT,
-      IntegrationCategory.APP_DISTRIBUTION,
-    ];
+    const categories = Object.values(IntegrationCategory) as IntegrationCategory[];
 
     categories.forEach(category => {
-      // Get available integrations for this category
       const availableIntegrations = getAvailableIntegrations(category);
       const connectedIntegrations = getConnectedIntegrations(category);
 
-      console.log('[Integrations]  Available integrations for category:', category, availableIntegrations);
-      console.log('[Integrations] Connected integrations for category:', category, connectedIntegrations);
-      
-
       availableIntegrations.forEach((provider) => {
-        // Check if this provider is connected for this tenant
-        // Case-insensitive matching (backend sends lowercase, metadata has uppercase)
         const connected = connectedIntegrations.find(
           (c) => c.providerId.toLowerCase() === provider.id.toLowerCase()
         );
 
         integrations.push({
-          id: provider.id,
-          name: provider.name,
+          ...provider,
           description: provider.description || '',
-          category: category,
           icon: provider.icon || '',
+          category,
           status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
-          isAvailable: provider.isAvailable, // Use actual value from backend
-          config: connected ? {
-            id: connected.id, // Include integration ID from backend
-            ...connected.config
-          } : undefined,
-          connectedAt: connected?.connectedAt ? new Date(connected.connectedAt) : undefined,
-          connectedBy: connected?.connectedBy || undefined,
+          ...(connected && {
+            config: {
+              id: connected.id,
+              ...connected.config,
+            },
+            connectedAt: connected.connectedAt ? new Date(connected.connectedAt) : undefined,
+            connectedBy: connected.connectedBy,
+          }),
         });
       });
     });
           
     return integrations;
   }, [getAvailableIntegrations, getConnectedIntegrations]);
+
+  // Group integrations by category
+  const integrationsByCategory = useMemo(() => {
+    return allIntegrations.reduce((acc, integration) => {
+      if (!acc[integration.category]) {
+        acc[integration.category] = [];
+      }
+      acc[integration.category].push(integration);
+      return acc;
+    }, {} as Record<IntegrationCategory, Integration[]>);
+  }, [allIntegrations]);
 
   // Loading state
   if (isLoadingMetadata || isLoadingTenantConfig) {
@@ -91,94 +88,62 @@ export default function IntegrationsPage() {
       </Container>
     );
   }
-  
-  console.log('[Integrations] Total integrations:', allIntegrations.length);
-  console.log('[Integrations] Available integrations:', allIntegrations.filter(i => i.isAvailable).length);
-  console.log('[Integrations] Coming soon integrations:', allIntegrations.filter(i => !i.isAvailable).length);
-  console.log('[Integrations] APP_DISTRIBUTION integrations:', allIntegrations.filter(i => i.category === IntegrationCategory.APP_DISTRIBUTION));
-  console.log('[Integrations] Play Store:', allIntegrations.find(i => i.id === 'play_store'));
-  console.log('[Integrations] App Store:', allIntegrations.find(i => i.id === 'app_store'));
 
   const tenantId = params.org!;
 
-  // Group integrations by category
-  const integrationsByCategory = allIntegrations.reduce((acc, integration) => {
-    if (!acc[integration.category]) {
-      acc[integration.category] = [];
-    }
-    acc[integration.category].push(integration);
-    return acc;
-  }, {} as Record<IntegrationCategory, Integration[]>);
-
-  const handleCardClick = (integration: Integration) => {
+  const handleCardClick = useCallback((integration: Integration) => {
     if (integration.status === IntegrationStatus.CONNECTED) {
-      // Show details modal with actual integration data (no hardcoded features/permissions)
       const details: IntegrationDetails = {
         ...integration,
         lastSyncedAt: new Date(),
-        // GitHub-specific webhook info (when implemented)
-        webhookUrl: integration.id === 'github' 
-          ? `https://delivr.yourdomain.com/api/github-webhooks/${tenantId}` 
-          : undefined,
-        webhookStatus: integration.id === 'github' ? 'active' : undefined
       };
       setSelectedIntegration(details);
       setDetailModalOpened(true);
     } else {
-      // Show connect modal (handles all integration types)
       setConnectingIntegration(integration);
       setConnectModalOpened(true);
     }
-  };
+  }, []);
 
-  const handleConnect = (integrationId: string, data?: any) => {
-    if (integrationId === 'github') {
-      // GitHub connection is handled by the modal with real API calls
-      console.log('[GitHub] Operation successful:', data);
-      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('GitHub', !!editingIntegration));
-      // Invalidate tenant config cache to refetch updated integrations
-      invalidateTenantConfig(queryClient, params.org!);
-    } else if (integrationId === 'slack') {
-      // Navigate to Slack setup in release management wizard
-      console.log('[Slack] Navigating to setup wizard for Slack integration');
-      window.location.href = `/dashboard/${params.org}/releases/setup`;
-    } else if (integrationId === 'jenkins') {
-      // Jenkins connection is handled by the modal with real API calls
-      console.log('[Jenkins] Operation successful:', data);
-      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('Jenkins', !!editingIntegration));
-      // Invalidate tenant config cache to refetch updated integrations
-      invalidateTenantConfig(queryClient, params.org!);
-    } else if (integrationId === 'github_actions') {
-      // GitHub Actions connection is handled by the modal with real API calls
-      console.log('[GitHub Actions] Operation successful:', data);
-      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('GitHub Actions', !!editingIntegration));
-      // Invalidate tenant config cache to refetch updated integrations
-      invalidateTenantConfig(queryClient, params.org!);
-    } else if (integrationId === 'checkmate') {
-      // Checkmate connection is handled by the modal with real API calls
-      console.log('[Checkmate] Operation successful:', data);
-      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS('Checkmate', !!editingIntegration));
-      // Invalidate tenant config cache to refetch updated integrations
-      invalidateTenantConfig(queryClient, params.org!);
+  const handleConnect = useCallback((integrationId: string, data?: any) => {
+    if (!params.org) return;
+
+    const displayName = INTEGRATION_DISPLAY_NAMES[integrationId] || integrationId;
+    const isKnownIntegration = integrationId in INTEGRATION_DISPLAY_NAMES;
+
+    if (isKnownIntegration) {
+      showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS(displayName, !!editingIntegration));
+      invalidateTenantConfig(queryClient, params.org);
     } else {
-      // For other integrations, show success message (demo)
       showInfoToast(INTEGRATION_MESSAGES.DEMO_MODE(integrationId));
     }
-  };
+  }, [params.org, queryClient, editingIntegration]);
 
-  const handleEdit = (integrationId: string) => {
-    // Find the integration to edit
+
+  const handleEdit = useCallback((integrationId: string) => {
     const integration = allIntegrations.find(i => i.id === integrationId);
     if (integration) {
       setEditingIntegration(integration);
       setConnectModalOpened(true);
     }
-  };
+  }, [allIntegrations]);
 
-  const handleDisconnectComplete = () => {
-    // Invalidate tenant config cache to trigger refetch
-    invalidateTenantConfig(queryClient, params.org!);
-  };
+
+  const handleDisconnectComplete = useCallback(() => {
+    if (!params.org) return;
+    invalidateTenantConfig(queryClient, params.org);
+  }, [params.org, queryClient]);
+
+
+  const handleCloseDetailModal = useCallback(() => {
+    setDetailModalOpened(false);
+  }, []);
+
+
+  const handleCloseConnectModal = useCallback(() => {
+    setConnectModalOpened(false);
+    setEditingIntegration(null);
+  }, []);
 
   return (
     <Container size="xl" className="py-8">
@@ -191,23 +156,11 @@ export default function IntegrationsPage() {
 
       <Tabs defaultValue={IntegrationCategory.SOURCE_CONTROL}>
         <Tabs.List className="mb-6">
-          {Object.keys(integrationsByCategory).map((category) => {
-            // Convert enum values to human-readable labels
-            const categoryLabels: Record<string, string> = {
-              SOURCE_CONTROL: 'Source Control',
-              COMMUNICATION: 'Communication',
-              CI_CD: 'CI/CD',
-              TEST_MANAGEMENT: 'Test Management',
-              PROJECT_MANAGEMENT: 'Project Management',
-              APP_DISTRIBUTION: 'App Distribution',
-            };
-            
-            return (
-              <Tabs.Tab key={category} value={category}>
-                {categoryLabels[category] || category}
-              </Tabs.Tab>
-            );
-          })}
+          {Object.keys(integrationsByCategory).map((category) => (
+            <Tabs.Tab key={category} value={category}>
+              {INTEGRATION_CATEGORY_LABELS[category] || category}
+            </Tabs.Tab>
+          ))}
         </Tabs.List>
 
         {Object.entries(integrationsByCategory).map(([category, integrations]) => (
@@ -229,7 +182,7 @@ export default function IntegrationsPage() {
       <IntegrationDetailModal
         integration={selectedIntegration}
         opened={detailModalOpened}
-        onClose={() => setDetailModalOpened(false)}
+        onClose={handleCloseDetailModal}
         onDisconnectComplete={handleDisconnectComplete}
         onEdit={handleEdit}
         tenantId={tenantId}
@@ -238,13 +191,10 @@ export default function IntegrationsPage() {
       <IntegrationConnectModal
         integration={editingIntegration || connectingIntegration}
         opened={connectModalOpened}
-        onClose={() => {
-          setConnectModalOpened(false);
-          setEditingIntegration(null);
-        }}
+        onClose={handleCloseConnectModal}
         onConnect={handleConnect}
         isEditMode={!!editingIntegration}
-        existingData={editingIntegration?.config} // Now includes 'id' from backend
+        existingData={editingIntegration?.config}
       />
     </Container>
   );

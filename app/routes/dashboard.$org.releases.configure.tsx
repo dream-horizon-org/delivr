@@ -12,8 +12,8 @@ import { DraftReleaseDialog } from '~/components/ReleaseConfig/DraftReleaseDialo
 import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storage';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
-import { Loader, Alert, Center, Stack, Text } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Loader, Center, Stack, Text } from '@mantine/core';
+import { ConfigurationLoadError } from '~/components/Releases/ConfigurationLoadError';
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { org } = params;
@@ -247,44 +247,7 @@ export default function ReleasesConfigurePage() {
   
   // Show error if failed to load config in edit mode
   if (fetchError && (isEditMode || isCloneMode)) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="max-w-lg w-full">
-          <Alert 
-            icon={<IconAlertCircle size={24} />} 
-            title="Failed to Load Configuration" 
-            color="red"
-            variant="filled"
-          >
-            <div className="space-y-4">
-              <p>{fetchError}</p>
-              <p className="text-sm opacity-90">
-                The configuration could not be loaded from the server. This might be because:
-              </p>
-              <ul className="text-sm opacity-90 list-disc list-inside space-y-1">
-                <li>The configuration was deleted</li>
-                <li>You don't have permission to access it</li>
-                <li>There was a network error</li>
-              </ul>
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`)}
-                  className="px-4 py-2 bg-white text-red-600 rounded-md hover:bg-red-50 font-medium"
-                >
-                  Go to Configurations
-                </button>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 font-medium"
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          </Alert>
-        </div>
-      </div>
-    );
+    return <ConfigurationLoadError error={fetchError} organizationId={organizationId} />;
   }
   
   // Don't render wizard until draft decision is made
