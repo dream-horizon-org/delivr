@@ -6,7 +6,7 @@
 import { memo } from 'react';
 import { Paper, Title, Text, Badge, Group, Stack } from '@mantine/core';
 import { formatReleaseDate, getTypeColor } from '~/utils/release-utils';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
 interface ReleaseDetailsOverviewProps {
   release: BackendReleaseResponse;

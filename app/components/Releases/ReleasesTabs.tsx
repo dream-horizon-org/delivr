@@ -7,7 +7,7 @@ import { memo, useMemo } from 'react';
 import { Tabs } from '@mantine/core';
 import { RELEASE_TAB_CONFIGS } from '~/constants/release-tabs';
 import { ReleasesTabPanel } from './ReleasesTabPanel';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
 interface ReleasesTabsProps {
   activeTab: string;
@@ -16,7 +16,6 @@ interface ReleasesTabsProps {
   active: BackendReleaseResponse[];
   completed: BackendReleaseResponse[];
   org: string;
-  onDelete: (releaseId: string) => void;
 }
 
 export const ReleasesTabs = memo(function ReleasesTabs({
@@ -26,7 +25,6 @@ export const ReleasesTabs = memo(function ReleasesTabs({
   active,
   completed,
   org,
-  onDelete,
 }: ReleasesTabsProps) {
   const tabDataMap = useMemo(
     () => ({
@@ -65,7 +63,6 @@ export const ReleasesTabs = memo(function ReleasesTabs({
               releases={releases}
               org={org}
               emptyMessage={tabConfig.emptyMessage}
-              onDelete={onDelete}
             />
           </Tabs.Panel>
         );

@@ -6,7 +6,7 @@
 
 import { useQuery, useQueryClient } from 'react-query';
 import { apiGet } from '~/utils/api-client';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
 interface ReleasesResponse {
   success: boolean;

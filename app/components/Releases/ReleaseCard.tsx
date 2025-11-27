@@ -5,13 +5,9 @@
 
 import { memo } from 'react';
 import { Link } from '@remix-run/react';
-import { Badge, Group, Stack, Button, Modal, Card, Box, useMantineTheme, ActionIcon, Menu, Text } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconClock, IconTarget, IconFlag, IconSettings, IconDots, IconTrash, IconRocket, IconCheck } from '@tabler/icons-react';
+import { Badge, Group, Stack, Card, Box, useMantineTheme, Text } from '@mantine/core';
+import { IconClock, IconTarget, IconFlag, IconSettings, IconRocket, IconCheck } from '@tabler/icons-react';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
-import { apiDelete, getApiErrorMessage } from '~/utils/api-client';
-import { showSuccessToast, showErrorToast } from '~/utils/toast';
-import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { formatReleaseDate, getReleaseTypeGradient } from '~/utils/release-utils';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import type { ReleaseCardProps } from '~/types/release';
@@ -21,11 +17,9 @@ import type { ReleaseCardProps } from '~/types/release';
  */
 export const ReleaseCard = memo(function ReleaseCard({ 
   release, 
-  org, 
-  onDelete 
+  org
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
-  const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -33,35 +27,11 @@ export const ReleaseCard = memo(function ReleaseCard({
     ? configs.find((c) => c.id === release.releaseConfigId)
     : null;
 
-  const handleDelete = async () => {
-    try {
-      const result = await apiDelete(`/api/v1/tenants/${org}/releases/${release.id}`);
-
-      if (result.success) {
-        showSuccessToast(RELEASE_MESSAGES.DELETE_SUCCESS);
-        closeDelete();
-        // Notify parent to invalidate cache and refresh the list
-        onDelete(release.id);
-      } else {
-        showErrorToast({
-          title: RELEASE_MESSAGES.DELETE_ERROR.title,
-          message: result.error || RELEASE_MESSAGES.DELETE_ERROR.message,
-        });
-      }
-    } catch (error) {
-      showErrorToast({
-        title: RELEASE_MESSAGES.DELETE_ERROR.title,
-        message: getApiErrorMessage(error, RELEASE_MESSAGES.DELETE_ERROR.message),
-      });
-    }
-  };
-
   return (
-    <>
-      <Link
-        to={`/dashboard/${org}/releases/${release.id}`}
-        className="block no-underline"
-      >
+    <Link
+      to={`/dashboard/${org}/releases/${release.id}`}
+      className="block no-underline"
+    >
         <Card
           shadow="md"
           padding={0}
@@ -79,61 +49,25 @@ export const ReleaseCard = memo(function ReleaseCard({
             }}
           >
             <Group justify="space-between" align="center" wrap="nowrap">
-              <div className="flex-1 min-w-0">
-                <Group gap="md" align="center" wrap="nowrap">
-                  <Text fw={600} size="lg" c="white" className="truncate">
-                    {release.releaseId}
-                  </Text>
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    className="bg-white/20 text-white border-white/30"
-                  >
-                    {release.status.replace('_', ' ')}
-                  </Badge>
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    className="bg-white/20 text-white border-white/30"
-                  >
-                    {release.type}
-                  </Badge>
-                </Group>
-              </div>
-
-              {/* Three Dots Menu */}
-              <Menu shadow="md" width={180} position="bottom-end">
-                <Menu.Target>
-                  <ActionIcon
-                    variant="subtle"
-                    size="lg"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                    style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      backdropFilter: 'blur(10px)',
-                      color: 'white',
-                    }}
-                  >
-                    <IconDots size={20} />
-                  </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item
-                    color="red"
-                    leftSection={<IconTrash size={16} />}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openDelete();
-                    }}
-                  >
-                    Delete Release
-                  </Menu.Item>
-                </Menu.Dropdown>
-              </Menu>
+              <Group gap="md" align="center" wrap="nowrap">
+                <Text fw={600} size="lg" c="white" className="truncate">
+                  {release.releaseId}
+                </Text>
+                <Badge
+                  size="sm"
+                  variant="light"
+                  className="bg-white/20 text-white border-white/30"
+                >
+                  {release.status.replace('_', ' ')}
+                </Badge>
+                <Badge
+                  size="sm"
+                  variant="light"
+                  className="bg-white/20 text-white border-white/30"
+                >
+                  {release.type}
+                </Badge>
+              </Group>
             </Group>
           </Box>
 
@@ -292,30 +226,7 @@ export const ReleaseCard = memo(function ReleaseCard({
             </Stack>
           </Box>
         </Card>
-      </Link>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        opened={deleteOpened}
-        onClose={closeDelete}
-        title="Delete Release"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            Are you sure you want to delete <strong>{release.releaseId}</strong>? This action cannot be undone.
-          </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button variant="subtle" onClick={closeDelete}>
-              Cancel
-            </Button>
-            <Button color="red" onClick={handleDelete}>
-              Delete
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </>
+    </Link>
   );
 });
 

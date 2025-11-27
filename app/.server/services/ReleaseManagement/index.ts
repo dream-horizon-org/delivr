@@ -3,547 +3,308 @@
 
 /**
  * Release Management Service
- * Mock implementation for frontend development
- * TODO: Replace with actual backend API calls
+ * Consolidated service for all release operations
+ * Uses real backend API calls for release CRUD operations
  */
 
-import {
-  Release,
-  ReleasesResponse,
-  ReleaseDetailsResponse,
-  CreateReleaseRequest,
-  UpdateReleaseRequest,
-  CreateBuildRequest,
-  CreateCherryPickRequest,
-  ApproveCherryPickRequest,
-  TriggerBuildRequest,
-  IntegrationsResponse,
-  ReleaseCyclesResponse,
-  TenantIntegration,
-  Build,
-  ReleaseTask,
-  CherryPick,
-  ReleaseStatus,
-  UpdateType,
-  BuildStatus,
-  TaskStatus,
-  CherryPickStatus
-} from './integrations/types';
+import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 
-import {
-  mockReleases,
-  mockBuilds,
-  mockTasks,
-  mockCherryPicks,
-  mockAnalytics,
-  mockIntegrations,
-  mockReleaseCycles
-} from './mockData';
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+
+/**
+ * Backend release response structure
+ */
+export interface BackendReleaseResponse {
+  id: string;
+  releaseId: string;
+  releaseConfigId: string | null;
+  tenantId: string;
+  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  branch: string | null;
+  baseBranch: string | null;
+  baseReleaseId: string | null;
+  platformTargetMappings: any[];
+  kickOffReminderDate: string | null;
+  kickOffDate: string | null;
+  targetReleaseDate: string | null;
+  releaseDate: string | null;
+  hasManualBuildUpload: boolean;
+  customIntegrationConfigs: Record<string, unknown> | null;
+  preCreatedBuilds: any[] | null;
+  createdBy: string;
+  lastUpdatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  cronJob?: any;
+  tasks?: any[];
+}
+
+export interface ListReleasesResponse {
+  success: boolean;
+  releases?: BackendReleaseResponse[];
+  error?: string;
+}
+
+/**
+ * Response structure for release creation
+ */
+export interface CreateReleaseResponse {
+  success: boolean;
+  release?: {
+    id: string;
+    releaseId: string;
+    [key: string]: string | number | boolean | null | undefined;
+  };
+  error?: string;
+  message?: string;
+}
 
 class ReleaseManagementService {
-  private baseDelay = 500; // Simulate network delay
-
-  private delay() {
-    return new Promise(resolve => setTimeout(resolve, this.baseDelay));
-  }
-
   // ============================================================================
-  // RELEASES
+  // RELEASES - Real Backend API Calls
   // ============================================================================
 
-  async getReleases(
+  /**
+   * List all releases for a tenant
+   * Uses real backend API
+   */
+  async listReleases(
     tenantId: string,
-    page = 1,
-    pageSize = 20,
-    filters?: {
-      status?: string;
-      type?: string;
-      search?: string;
+    userId: string,
+    options?: {
+      includeTasks?: boolean;
     }
-  ): Promise<ReleasesResponse> {
-    await this.delay();
+  ): Promise<ListReleasesResponse> {
+    try {
+      const includeTasks = options?.includeTasks || false;
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases${includeTasks ? '?includeTasks=true' : ''}`;
 
-    let filtered = mockReleases.filter(r => r.tenantId === tenantId);
+      console.log('[ReleaseManagementService] GET:', url);
 
-    if (filters?.status) {
-      filtered = filtered.filter(r => r.status === filters.status);
-    }
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+      });
 
-    if (filters?.type) {
-      filtered = filtered.filter(r => r.type === filters.type);
-    }
-
-    if (filters?.search) {
-      const search = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        r => r.releaseKey.toLowerCase().includes(search) ||
-             r.version.toLowerCase().includes(search)
-      );
-    }
-
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const paginated = filtered.slice(start, end);
-
-    return {
-      releases: paginated,
-      total: filtered.length,
-      page,
-      pageSize
-    };
-  }
-
-  async getReleaseDetails(releaseId: string, tenantId?: string): Promise<ReleaseDetailsResponse> {
-    // If tenantId is provided, call backend API
-    if (tenantId) {
-      const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
-      
-      try {
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        console.log('[getReleaseDetails] Response:', response);
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Release not found');
-          }
-          throw new Error(`Failed to fetch release: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        if (!data.success || !data.release) {
-          throw new Error('Invalid response from backend');
-        }
-
-        // Transform backend response to frontend format
-        const backendRelease = data.release;
-        
-        // Map backend type to frontend ReleaseType
-        const typeMap: Record<string, 'PLANNED' | 'HOTFIX' | 'MAJOR'> = {
-          'PLANNED': 'PLANNED',
-          'HOTFIX': 'HOTFIX',
-          'UNPLANNED': 'MAJOR' // Map UNPLANNED to MAJOR for frontend compatibility
-        };
-        
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch releases' }));
+        console.error('[ReleaseManagementService] List failed:', errorData);
         return {
-          release: {
-            id: backendRelease.id,
-            tenantId: backendRelease.tenantId,
-            releaseKey: backendRelease.releaseId || backendRelease.id,
-            version: '', // Not provided by backend, use empty string
-            type: typeMap[backendRelease.type] || 'PLANNED',
-            status: backendRelease.status as ReleaseStatus,
-            updateType: 'OPTIONAL' as UpdateType,
-            baseVersion: '', // Not provided by backend
-            baseBranch: backendRelease.baseBranch || '',
-            branchRelease: backendRelease.branch || '',
-            branchCodepush: undefined,
-            plannedDate: backendRelease.targetReleaseDate || '',
-            targetReleaseDate: backendRelease.targetReleaseDate || '',
-            releaseDate: backendRelease.releaseDate || undefined,
-            kickOffReminderDate: backendRelease.kickOffReminderDate || undefined,
-            isDelayed: false,
-            delayedReason: undefined,
-            releasePilot: {
-              id: '',
-              name: '',
-              email: ''
-            },
-            createdBy: {
-              id: backendRelease.createdBy || '',
-              name: '',
-              email: ''
-            },
-            lastUpdatedBy: {
-              id: backendRelease.lastUpdatedBy || backendRelease.createdBy || '',
-              name: '',
-              email: ''
-            },
-            parentId: backendRelease.baseReleaseId || undefined,
-            releaseTag: undefined,
-            slackMessageTimestamps: undefined,
-            userAdoption: {
-              ios: 0,
-              android: 0,
-              web: 0
-            },
-            finalBuildNumbers: undefined,
-            epicIds: undefined,
-            testRunIds: undefined,
-            autoPilot: 'PENDING' as 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED',
-            createdAt: backendRelease.createdAt,
-            updatedAt: backendRelease.updatedAt
-          } as Release,
-          builds: [], // Backend doesn't return builds in this endpoint yet
-          tasks: (backendRelease.tasks || []).map((t: any) => ({
-            id: t.id,
-            name: t.taskType || 'Unknown Task',
-            description: t.taskId,
-            status: t.taskStatus as TaskStatus,
-            releaseId: t.releaseId,
-          })),
-          cherryPicks: [], // Backend doesn't return cherry picks in this endpoint yet
-          analytics: mockAnalytics
+          success: false,
+          error: errorData.error || 'Failed to fetch releases',
         };
-      } catch (error) {
-        console.error('[getReleaseDetails] Backend API error:', error);
-        throw error;
       }
-    }
 
-    // Fallback to mock data if no tenantId provided
-    await this.delay();
+      const data = await response.json();
 
-    const release = mockReleases.find(r => r.id === releaseId);
-    
-    if (!release) {
-      throw new Error('Release not found');
-    }
-
-    const builds = mockBuilds.filter(b => b.releaseId === releaseId);
-    const tasks = mockTasks.filter(t => t.releaseId === releaseId);
-    const cherryPicks = mockCherryPicks.filter(cp => cp.releaseId === releaseId);
-
-    return {
-      release,
-      builds,
-      tasks,
-      cherryPicks,
-      analytics: mockAnalytics
-    };
-  }
-
-  async createRelease(request: CreateReleaseRequest): Promise<Release> {
-    await this.delay();
-
-    const newRelease: Release = {
-      id: `rel_${Date.now()}`,
-      tenantId: request.tenantId,
-      releaseKey: `R-${new Date().getFullYear()}-${String(mockReleases.length + 1).padStart(2, '0')}`,
-      version: request.version,
-      type: request.type,
-      status: ReleaseStatus.PENDING,
-      updateType: request.updateType || UpdateType.OPTIONAL,
-      baseVersion: request.baseVersion,
-      baseBranch: request.baseBranch,
-      branchRelease: `release/${request.version}`,
-      plannedDate: request.plannedDate,
-      targetReleaseDate: request.targetReleaseDate,
-      kickOffReminderDate: request.kickOffReminderDate,
-      isDelayed: false,
-      releasePilot: {
-        id: request.releasePilotId,
-        name: 'Release Pilot',
-        email: 'pilot@example.com'
-      },
-      createdBy: {
-        id: 'current_user',
-        name: 'Current User',
-        email: 'user@example.com'
-      },
-      lastUpdatedBy: {
-        id: 'current_user',
-        name: 'Current User',
-        email: 'user@example.com'
-      },
-      parentId: request.parentId,
-      userAdoption: {
-        ios: 0,
-        android: 0,
-        web: 0
-      },
-      autoPilot: 'PENDING',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    // In real implementation, this would be saved to backend
-    mockReleases.unshift(newRelease);
-
-    return newRelease;
-  }
-
-  async updateRelease(releaseId: string, request: UpdateReleaseRequest): Promise<Release> {
-    await this.delay();
-
-    const release = mockReleases.find(r => r.id === releaseId);
-    
-    if (!release) {
-      throw new Error('Release not found');
-    }
-
-    // Update release
-    Object.assign(release, request, {
-      updatedAt: new Date().toISOString(),
-      lastUpdatedBy: {
-        id: 'current_user',
-        name: 'Current User',
-        email: 'user@example.com'
+      if (!data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to fetch releases',
+        };
       }
-    });
 
-    return release;
-  }
-
-  async deleteRelease(releaseId: string): Promise<void> {
-    await this.delay();
-
-    const index = mockReleases.findIndex(r => r.id === releaseId);
-    
-    if (index === -1) {
-      throw new Error('Release not found');
+      console.log('[ReleaseManagementService] List successful:', data.releases?.length || 0, 'releases');
+      return {
+        success: true,
+        releases: data.releases || [],
+      };
+    } catch (error: any) {
+      console.error('[ReleaseManagementService] List error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
     }
-
-    mockReleases.splice(index, 1);
   }
 
-  // ============================================================================
-  // BUILDS
-  // ============================================================================
+  /**
+   * Get a single release by ID
+   * Uses real backend API
+   */
+  async getReleaseById(
+    releaseId: string,
+    tenantId: string,
+    userId: string
+  ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
+    try {
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
 
-  async createBuild(request: CreateBuildRequest): Promise<Build> {
-    await this.delay();
+      console.log('[ReleaseManagementService] GET:', url);
 
-    const newBuild: Build = {
-      id: `build_${Date.now()}`,
-      releaseId: request.releaseId,
-      platform: request.platform,
-      target: request.target,
-      buildNumber: request.buildNumber,
-      status: BuildStatus.PENDING,
-      createdAt: new Date().toISOString()
-    };
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+      });
 
-    mockBuilds.push(newBuild);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Release not found' }));
+        console.error('[ReleaseManagementService] Get failed:', errorData);
+        return {
+          success: false,
+          error: errorData.error || 'Release not found',
+        };
+      }
 
-    return newBuild;
-  }
+      const data = await response.json();
 
-  async triggerBuild(request: TriggerBuildRequest): Promise<Build> {
-    await this.delay();
+      if (!data.success || !data.release) {
+        return {
+          success: false,
+          error: data.error || 'Release not found',
+        };
+      }
 
-    const newBuild: Build = {
-      id: `build_${Date.now()}`,
-      releaseId: request.releaseId,
-      platform: request.platform,
-      target: request.target,
-      buildNumber: 'auto-generated',
-      status: BuildStatus.IN_PROGRESS,
-      startedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString()
-    };
-
-    mockBuilds.push(newBuild);
-
-    return newBuild;
-  }
-
-  // ============================================================================
-  // CHERRY PICKS
-  // ============================================================================
-
-  async createCherryPick(request: CreateCherryPickRequest): Promise<CherryPick> {
-    await this.delay();
-
-    const newCherryPick: CherryPick = {
-      id: `cp_${Date.now()}`,
-      releaseId: request.releaseId,
-      commitId: request.commitId,
-      prLink: request.prLink,
-      jiraLink: request.jiraLink,
-      status: CherryPickStatus.PENDING,
-      isApprovalRequired: request.isApprovalRequired,
-      author: {
-        id: 'current_user',
-        name: 'Current User',
-        email: 'user@example.com'
-      },
-      approvalStatus: 'REQUESTED',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    mockCherryPicks.push(newCherryPick);
-
-    return newCherryPick;
-  }
-
-  async approveCherryPick(request: ApproveCherryPickRequest): Promise<CherryPick> {
-    await this.delay();
-
-    const cherryPick = mockCherryPicks.find(cp => cp.id === request.cherryPickId);
-    
-    if (!cherryPick) {
-      throw new Error('Cherry pick not found');
+      console.log('[ReleaseManagementService] Get successful:', data.release.id);
+      return {
+        success: true,
+        release: data.release,
+      };
+    } catch (error: any) {
+      console.error('[ReleaseManagementService] Get error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
     }
-
-    cherryPick.approvalStatus = request.approved ? 'APPROVED' : 'REJECTED';
-    cherryPick.status = request.approved ? CherryPickStatus.APPROVED : CherryPickStatus.REJECTED;
-    cherryPick.approver = {
-      id: 'current_user',
-      name: 'Current User',
-      email: 'user@example.com'
-    };
-    cherryPick.updatedAt = new Date().toISOString();
-
-    return cherryPick;
   }
 
-  // ============================================================================
-  // INTEGRATIONS
-  // ============================================================================
+  /**
+   * Create a new release
+   * Uses real backend API
+   */
+  async createRelease(
+    request: CreateReleaseBackendRequest,
+    tenantId: string,
+    userId: string
+  ): Promise<CreateReleaseResponse> {
+    try {
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases`;
+      
+      console.log('[ReleaseManagementService] POST to:', url);
+      console.log('[ReleaseManagementService] Payload:', JSON.stringify(request, null, 2));
 
-  async getTenantIntegrations(tenantId: string): Promise<IntegrationsResponse> {
-    await this.delay();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+        body: JSON.stringify(request),
+      });
 
-    const integrations = mockIntegrations.filter(i => i.tenantId === tenantId);
+      console.log('[ReleaseManagementService] Response status:', response.status, response.statusText);
 
-    return {
-      integrations
-    };
-  }
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('[ReleaseManagementService] Non-JSON response:', text);
+        return {
+          success: false,
+          error: `Invalid response format: ${response.statusText}`,
+        };
+      }
 
-  async createIntegration(tenantId: string, integration: Partial<TenantIntegration>): Promise<TenantIntegration> {
-    await this.delay();
+      const data = await response.json();
 
-    const newIntegration: TenantIntegration = {
-      id: `int_${Date.now()}`,
-      tenantId,
-      integrationType: integration.integrationType!,
-      isEnabled: integration.isEnabled ?? false,
-      isRequired: integration.isRequired ?? false,
-      config: integration.config || {},
-      verificationStatus: 'NOT_VERIFIED',
-      configuredBy: {
-        id: 'current_user',
-        name: 'Current User',
-        email: 'user@example.com'
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+      if (!response.ok) {
+        console.error('[ReleaseManagementService] Backend error:', data);
+        return {
+          success: false,
+          error: data.message || data.error || `Failed to create release: ${response.statusText}`,
+        };
+      }
 
-    mockIntegrations.push(newIntegration);
+      console.log('[ReleaseManagementService] Release created successfully:', data.release?.id);
 
-    return newIntegration;
-  }
-
-  async updateIntegration(integrationId: string, updates: Partial<TenantIntegration>): Promise<TenantIntegration> {
-    await this.delay();
-
-    const integration = mockIntegrations.find(i => i.id === integrationId);
-    
-    if (!integration) {
-      throw new Error('Integration not found');
+      return {
+        success: true,
+        release: data.release,
+      };
+    } catch (error) {
+      console.error('[ReleaseManagementService] Error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
     }
-
-    Object.assign(integration, updates, {
-      updatedAt: new Date().toISOString()
-    });
-
-    return integration;
   }
 
-  async verifyIntegration(integrationId: string): Promise<{ valid: boolean; message: string }> {
-    await this.delay();
+  /**
+   * Update a release by ID
+   * Uses real backend API
+   */
+  async updateRelease(
+    releaseId: string,
+    tenantId: string,
+    userId: string,
+    updates: any
+  ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
+    try {
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
 
-    const integration = mockIntegrations.find(i => i.id === integrationId);
-    
-    if (!integration) {
-      throw new Error('Integration not found');
+      console.log('[ReleaseManagementService] PATCH:', url);
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update release' }));
+        console.error('[ReleaseManagementService] Update failed:', errorData);
+        return {
+          success: false,
+          error: errorData.error || 'Failed to update release',
+        };
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.release) {
+        return {
+          success: false,
+          error: data.error || 'Failed to update release',
+        };
+      }
+
+      console.log('[ReleaseManagementService] Update successful:', data.release.id);
+      return {
+        success: true,
+        release: data.release,
+      };
+    } catch (error: any) {
+      console.error('[ReleaseManagementService] Update error:', error);
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+      };
     }
-
-    // Simulate verification
-    integration.verificationStatus = 'VALID';
-    integration.lastVerifiedAt = new Date().toISOString();
-
-    return {
-      valid: true,
-      message: 'Integration verified successfully'
-    };
   }
 
-  // ============================================================================
-  // RELEASE CYCLES
-  // ============================================================================
-
-  async getReleaseCycles(tenantId: string): Promise<ReleaseCyclesResponse> {
-    await this.delay();
-
-    const cycles = mockReleaseCycles.filter(c => c.tenantId === tenantId);
-
-    return {
-      cycles
-    };
-  }
-
-  async createReleaseCycle(tenantId: string, cycle: any): Promise<any> {
-    await this.delay();
-
-    const newCycle = {
-      id: `cycle_${Date.now()}`,
-      tenantId,
-      ...cycle,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    mockReleaseCycles.push(newCycle);
-
-    return newCycle;
-  }
-
-  // ============================================================================
-  // TASKS
-  // ============================================================================
-
-  async updateTask(taskId: string, updates: Partial<ReleaseTask>): Promise<ReleaseTask> {
-    await this.delay();
-
-    const task = mockTasks.find(t => t.id === taskId);
-    
-    if (!task) {
-      throw new Error('Task not found');
-    }
-
-    Object.assign(task, updates, {
-      updatedAt: new Date().toISOString()
-    });
-
-    return task;
-  }
-
-  async triggerTask(taskId: string): Promise<ReleaseTask> {
-    await this.delay();
-
-    const task = mockTasks.find(t => t.id === taskId);
-    
-    if (!task) {
-      throw new Error('Task not found');
-    }
-
-    task.status = TaskStatus.IN_PROGRESS;
-    task.updatedAt = new Date().toISOString();
-
-    return task;
-  }
 }
 
 const releaseManagementService = new ReleaseManagementService();
 
 // Export named functions for convenience (using arrow functions to maintain context)
-export const getReleases = (...args: Parameters<ReleaseManagementService['getReleases']>) => 
-  releaseManagementService.getReleases(...args);
+// Active methods (real backend API)
+export const listReleases = (...args: Parameters<ReleaseManagementService['listReleases']>) => 
+  releaseManagementService.listReleases(...args);
 
-export const getReleaseDetails = (...args: Parameters<ReleaseManagementService['getReleaseDetails']>) => 
-  releaseManagementService.getReleaseDetails(...args);
+export const getReleaseById = (...args: Parameters<ReleaseManagementService['getReleaseById']>) => 
+  releaseManagementService.getReleaseById(...args);
 
 export const createRelease = (...args: Parameters<ReleaseManagementService['createRelease']>) => 
   releaseManagementService.createRelease(...args);
@@ -551,44 +312,4 @@ export const createRelease = (...args: Parameters<ReleaseManagementService['crea
 export const updateRelease = (...args: Parameters<ReleaseManagementService['updateRelease']>) => 
   releaseManagementService.updateRelease(...args);
 
-export const deleteRelease = (...args: Parameters<ReleaseManagementService['deleteRelease']>) => 
-  releaseManagementService.deleteRelease(...args);
-
-export const createBuild = (...args: Parameters<ReleaseManagementService['createBuild']>) => 
-  releaseManagementService.createBuild(...args);
-
-export const triggerBuild = (...args: Parameters<ReleaseManagementService['triggerBuild']>) => 
-  releaseManagementService.triggerBuild(...args);
-
-export const createCherryPick = (...args: Parameters<ReleaseManagementService['createCherryPick']>) => 
-  releaseManagementService.createCherryPick(...args);
-
-export const approveCherryPick = (...args: Parameters<ReleaseManagementService['approveCherryPick']>) => 
-  releaseManagementService.approveCherryPick(...args);
-
-export const getTenantIntegrations = (...args: Parameters<ReleaseManagementService['getTenantIntegrations']>) => 
-  releaseManagementService.getTenantIntegrations(...args);
-
-export const createIntegration = (...args: Parameters<ReleaseManagementService['createIntegration']>) => 
-  releaseManagementService.createIntegration(...args);
-
-export const updateIntegration = (...args: Parameters<ReleaseManagementService['updateIntegration']>) => 
-  releaseManagementService.updateIntegration(...args);
-
-export const getReleaseCycles = (...args: Parameters<ReleaseManagementService['getReleaseCycles']>) => 
-  releaseManagementService.getReleaseCycles(...args);
-
-export const createReleaseCycle = (...args: Parameters<ReleaseManagementService['createReleaseCycle']>) => 
-  releaseManagementService.createReleaseCycle(...args);
-
-export const updateTask = (...args: Parameters<ReleaseManagementService['updateTask']>) => 
-  releaseManagementService.updateTask(...args);
-
-export const triggerTask = (...args: Parameters<ReleaseManagementService['triggerTask']>) => 
-  releaseManagementService.triggerTask(...args);
-
-// Export integration services
-
-
 export default releaseManagementService;
-

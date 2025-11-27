@@ -8,7 +8,7 @@ import { Link } from '@remix-run/react';
 import { Paper, Title, Text, Badge, Group, Button } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { getStatusColor } from '~/utils/release-utils';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
 interface ReleaseDetailsHeaderProps {
   release: BackendReleaseResponse;

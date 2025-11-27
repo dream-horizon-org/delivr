@@ -5,7 +5,7 @@ import { Container, Title, Text, Tabs } from '@mantine/core';
 import { IntegrationCard } from '~/components/Integrations/IntegrationCard';
 import { IntegrationDetailModal } from '~/components/Integrations/IntegrationDetailModal';
 import { IntegrationConnectModal } from '~/components/Integrations/IntegrationConnectModal';
-import { PageLoader } from '~/components/Common/PageLoader';
+
 import type { Integration, IntegrationDetails } from '~/types/integrations';
 import { IntegrationCategory, IntegrationStatus } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';

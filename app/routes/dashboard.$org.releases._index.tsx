@@ -11,7 +11,6 @@
 
 import { useSearchParams, useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
-import { useCallback } from 'react';
 import { useReleases } from '~/hooks/useReleases';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { PageError } from '~/components/Common/PageError';
@@ -40,8 +39,6 @@ export default function ReleasesListPage() {
     }
   };
 
-  const onReleaseDelete = useCallback(() => invalidateCache(),[invalidateCache]);
-
   return (
     <Container size="xl" className="py-8">
       <ReleasesListHeader org={org} />
@@ -58,7 +55,6 @@ export default function ReleasesListPage() {
           active={active}
           completed={completed}
           org={org}
-          onDelete={onReleaseDelete}
         />
       )}
     </Container>

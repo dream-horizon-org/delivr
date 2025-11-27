@@ -6,20 +6,18 @@
 import { memo } from 'react';
 import { Stack, Paper, Text } from '@mantine/core';
 import { ReleaseCard } from './ReleaseCard';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
 interface ReleasesTabPanelProps {
   releases: BackendReleaseResponse[];
   org: string;
   emptyMessage: string;
-  onDelete: (releaseId: string) => void;
 }
 
 export const ReleasesTabPanel = memo(function ReleasesTabPanel({
   releases,
   org,
   emptyMessage,
-  onDelete,
 }: ReleasesTabPanelProps) {
   if (releases.length === 0) {
     return (
@@ -36,7 +34,6 @@ export const ReleasesTabPanel = memo(function ReleasesTabPanel({
           key={release.id}
           release={release}
           org={release.tenantId}
-          onDelete={onDelete}
         />
       ))}
     </Stack>

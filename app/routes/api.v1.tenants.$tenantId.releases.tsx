@@ -10,8 +10,7 @@
 
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
-import { createRelease } from '~/.server/services/ReleaseManagement/release-creation.service';
-import { ReleaseRetrievalService } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import { listReleases, createRelease } from '~/.server/services/ReleaseManagement';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 
 /**
@@ -34,7 +33,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
     console.log('[BFF] Fetching releases for tenant:', tenantId);
 
-    const result = await ReleaseRetrievalService.list(tenantId, userId, { includeTasks });
+    const result = await listReleases(tenantId, userId, { includeTasks });
     console.log('[BFF] Result:', result);
 
     if (!result.success) {

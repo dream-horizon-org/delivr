@@ -7,7 +7,7 @@
 
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
-import { ReleaseRetrievalService } from '~/.server/services/ReleaseManagement/release-retrieval.service';
+import { getReleaseById, updateRelease } from '~/.server/services/ReleaseManagement';
 
 /**
  * GET /api/v1/tenants/:tenantId/releases/:releaseId
@@ -31,7 +31,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
     console.log('[BFF] Fetching release:', { tenantId, releaseId });
 
-    const result = await ReleaseRetrievalService.getById(releaseId, tenantId, userId);
+    const result = await getReleaseById(releaseId, tenantId, userId);
 
     if (!result.success) {
       console.error('[BFF] Get failed:', result.error);
@@ -59,9 +59,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 
 /**
  * PATCH/PUT /api/v1/tenants/:tenantId/releases/:releaseId - Update a release
- * DELETE /api/v1/tenants/:tenantId/releases/:releaseId - Delete a release
  * 
- * BFF route that calls the release retrieval service for update/delete operations
+ * BFF route that calls the release retrieval service for update operations
  */
 export async function action({ params, request }: ActionFunctionArgs) {
   const { tenantId, releaseId } = params;
@@ -84,7 +83,7 @@ export async function action({ params, request }: ActionFunctionArgs) {
 
       console.log('[BFF] Updating release:', { tenantId, releaseId, updates: Object.keys(updates) });
 
-      const result = await ReleaseRetrievalService.update(releaseId, tenantId, userId, updates);
+      const result = await updateRelease(releaseId, tenantId, userId, updates);
 
       if (!result.success) {
         console.error('[BFF] Update failed:', result.error);
@@ -99,27 +98,6 @@ export async function action({ params, request }: ActionFunctionArgs) {
         success: true,
         release: result.release,
         message: 'Release updated successfully',
-      });
-    }
-
-    // Handle DELETE
-    if (method === 'DELETE') {
-      console.log('[BFF] Deleting release:', { tenantId, releaseId });
-
-      const result = await ReleaseRetrievalService.delete(releaseId, tenantId, userId);
-
-      if (!result.success) {
-        console.error('[BFF] Delete failed:', result.error);
-        return json(
-          { success: false, error: result.error || 'Failed to delete release' },
-          { status: 400 }
-        );
-      }
-
-      console.log('[BFF] Delete successful:', releaseId);
-      return json({
-        success: true,
-        message: 'Release deleted successfully',
       });
     }
 
