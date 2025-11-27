@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # Database service
+  db:
+    image: mysql:5.7
+    platform: linux/amd64
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: codepushdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+
+  # Redis service
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Memcached service
+  memcached:
+    image: memcached:alpine
+    ports:
+      - "11211:11211"
+    restart: unless-stopped
+
+  # LocalStack service (for S3)
+  localstack:
+    image: localstack/localstack
+    environment:
+      - SERVICES=s3
+    ports:
+      - "4566:4566"
+    restart: unless-stopped
+
+  # Backend API service
+  api:
+    build:
+      context: ./delivr-server-ota
+      dockerfile: api/Dockerfile
+    container_name: delivr-api
+    ports:
+      - "3010:3010"
+    env_file:
+      - ./delivr-server-ota/api/.env
+    volumes:
+      - ./delivr-server-ota/api:/app/api
+      - ./delivr-server-ota/pm2:/app/pm2
+    depends_on:
+      - redis
+      - db
+      - memcached
+      - localstack
+    working_dir: /app/api
+    command: >
+            /bin/sh -c "
+              sleep 10 && 
+              npm run build && 
+              if [ \"$$NODE_ENV\" = \"production\" ]; then 
+                echo 'Starting in PRODUCTION mode...' && 
+                pm2-runtime start /app/pm2/pm2-prod.json; 
+              else 
+                echo 'Starting in DEVELOPMENT mode...' && 
+                echo 'Running database seeding...' && 
+                npx ts-node script/storage/seedData.ts && 
+                echo 'Starting PM2 with dev configuration...' && 
+                pm2-runtime start /app/pm2/pm2-dev.json; 
+              fi
+            "
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const port = process.env.PORT || '3010'; require('http').get('http://localhost:' + port + '/healthcheck', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    restart: unless-stopped
+
+  # Frontend web panel service
+  web:
+    build:
+      context: ./delivr-web-panel
+      dockerfile: Dockerfile
+    container_name: delivr-web-panel
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./delivr-web-panel/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Override DELIVR_BACKEND_URL to use Docker service name when running in docker-compose
+      # The entrypoint script will handle localhost/127.0.0.1 conversion for standalone runs
+      # But in docker-compose, we use the service name 'api' directly
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+    command: >
+            /bin/sh -c "
+              if [ -n \"$$DELIVR_BACKEND_URL\" ]; then
+                export DELIVR_BACKEND_URL=$$(echo \"$$DELIVR_BACKEND_URL\" | \
+                  sed 's|http://localhost:3010|http://api:3010|g' | \
+                  sed 's|https://localhost:3010|https://api:3010|g' | \
+                  sed 's|http://127.0.0.1:3010|http://api:3010|g' | \
+                  sed 's|https://127.0.0.1:3010|https://api:3010|g')
+                echo \"DELIVR_BACKEND_URL converted to: $$DELIVR_BACKEND_URL\"
+              fi &&
+              echo '🚀 Starting Delivr Web Panel...' &&
+              docker-entrypoint.sh pnpm start &
+              CMD_PID=$$! &&
+              PORT=$${PORT:-3000} &&
+              sleep 3 &&
+              for i in $$(seq 1 30); do
+                sleep 1 &&
+                if node -e \"require('http').get('http://localhost:' + process.env.PORT, (r) => { process.exit(r.statusCode ? 0 : 1) }).on('error', () => process.exit(1))\" 2>/dev/null; then
+                  echo '' &&
+                  echo '✅ ==========================================' &&
+                  echo '✅ Delivr Web Panel is UP and READY!' &&
+                  echo '✅ Web panel is running on port '$$PORT &&
+                  echo '✅ Access at: http://localhost:'$$PORT &&
+                  echo '✅ ==========================================' &&
+                  echo '' &&
+                  break
+                fi
+              done &&
+              wait $$CMD_PID
+            "
+    restart: unless-stopped
+
+volumes:
+  db_data:
+

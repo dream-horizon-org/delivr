@@ -1,0 +1,63 @@
+services:
+  db:
+    image: mysql:5.7
+    platform: linux/amd64
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: codepushdb
+    ports:
+      - "3306:3306"  # MySQL running on localhost:3306
+    volumes:
+      - db_data:/var/lib/mysql
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"  # Redis running on localhost:6379
+
+  memcached:
+    image: memcached:alpine
+    ports:
+      - "11211:11211"  # Memcached running on localhost:11211
+
+  localstack:
+    image: localstack/localstack
+    environment:
+      - SERVICES=s3
+    ports:
+      - "4566:4566"  # LocalStack running on localhost:4566
+
+  app:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    ports:
+      - "3010:3010"
+    env_file:
+      - .env
+    volumes:
+      - ../api:/app/api
+      - ../pm2:/app/pm2
+    depends_on:
+      - redis
+      - db
+      - memcached
+      - localstack
+    working_dir: /app/api
+    command: >
+            /bin/sh -c "
+              sleep 10 && 
+              npm run build && 
+              if [ \"$$NODE_ENV\" = \"production\" ]; then 
+                echo 'Starting in PRODUCTION mode...' && 
+                pm2-runtime start /app/pm2/pm2-prod.json; 
+              else 
+                echo 'Starting in DEVELOPMENT mode...' && 
+                echo 'Running database seeding...' && 
+                npx ts-node script/storage/seedData.ts && 
+                echo 'Starting PM2 with dev configuration...' && 
+                pm2-runtime start /app/pm2/pm2-dev.json; 
+              fi
+            "
+volumes:
+  db_data:
