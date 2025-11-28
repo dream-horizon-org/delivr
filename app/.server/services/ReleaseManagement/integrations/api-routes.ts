@@ -196,10 +196,18 @@ export const COMMUNICATION = {
     
     /**
      * Get Slack channels (using stored integration)
-     * GET /tenants/:tenantId/integrations/slack/channels
+     * Backend requires POST with botToken in body
+     * POST /tenants/:tenantId/integrations/slack/channels
      */
     getChannels: (tenantId: string) => 
       `/tenants/${tenantId}/integrations/slack/channels`,
+    
+    /**
+     * Get Slack channels by Integration ID (uses stored token)
+     * GET /tenants/:tenantId/integrations/slack/:integrationId/channels
+     */
+    getChannelsByIntegrationId: (tenantId: string, integrationId: string) => 
+      `/tenants/${tenantId}/integrations/slack/${integrationId}/channels`,
     
     /**
      * Create/Update Slack integration

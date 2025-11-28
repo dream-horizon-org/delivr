@@ -30,10 +30,11 @@ export const loader = authenticateLoaderRequest(async ({ params, request, user }
   }
 
   try {
-    console.log(`[Slack Channels API] Fetching LIVE channels from Slack API for tenant: ${tenantId}`);
+    console.log(`[Slack Channels API] Fetching LIVE channels from Slack API for tenant: ${tenantId}, integrationId: ${integrationId}`);
     
     // Use service to call backend (handles authentication properly)
-    const result = await SlackIntegrationService.fetchChannelsForIntegration(tenantId, user.user.id);
+    // Pass integrationId to use the new endpoint that retrieves token internally
+    const result = await SlackIntegrationService.fetchChannelsForIntegration(tenantId, user.user.id, integrationId);
     
     if (!result.success) {
       console.error(`[Slack Channels API] Error:`, result.error);
