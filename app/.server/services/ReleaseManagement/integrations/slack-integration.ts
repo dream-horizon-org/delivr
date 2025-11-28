@@ -168,9 +168,24 @@ export class SlackIntegrationServiceClass extends IntegrationService {
 
   /**
    * Fetch ALL Slack channels (live from Slack API using stored token)
+   * Can use either tenantId (legacy) or integrationId (new)
    */
-  async fetchChannelsForIntegration(tenantId: string, userId: string): Promise<FetchSlackChannelsResponse> {
+  async fetchChannelsForIntegration(
+    tenantId: string, 
+    userId: string, 
+    integrationId?: string
+  ): Promise<FetchSlackChannelsResponse> {
     try {
+      // If integrationId is provided, use the new endpoint
+      if (integrationId) {
+        return await this.get<FetchSlackChannelsResponse>(
+          COMMUNICATION.slack.getChannelsByIntegrationId(tenantId, integrationId),
+          userId
+        );
+      }
+      
+      // Otherwise, use the legacy endpoint (requires botToken in body, which we don't have)
+      // This will likely fail, but keeping for backward compatibility
       return await this.get<FetchSlackChannelsResponse>(
         COMMUNICATION.slack.getChannels(tenantId),
         userId
@@ -181,7 +196,6 @@ export class SlackIntegrationServiceClass extends IntegrationService {
         data: {
           channels: [],
         },
-        
         error: error.message || 'Failed to fetch Slack channels'
       };
     }
