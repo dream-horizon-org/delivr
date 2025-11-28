@@ -6,7 +6,6 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { CommIntegrationService } from '~services/integrations/comm/comm-integration';
-import type { CreateOrUpdateIntegrationDto } from '~types/integrations/comm/slack-integration';
 import {
   errorResponse,
   getErrorStatusCode,
@@ -79,6 +78,69 @@ const fetchChannelsHandler = (service: CommIntegrationService) =>
         return;
       }
 
+      const channelsResult = await service.fetchChannels('SLACK' as any, botToken);
+
+      res.status(HTTP_STATUS.OK).json(successResponse({
+        channels: channelsResult.channels ?? [],
+        metadata: {
+          total: channelsResult.total
+        }
+      }));
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, COMM_INTEGRATION_ERROR_MESSAGES.FETCH_CHANNELS_FAILED)
+      );
+    }
+  };
+
+/**
+ * Handler: Fetch Slack Channels by Integration ID
+ * GET /tenants/:tenantId/integrations/slack/:integrationId/channels
+ * 
+ * Fetches channels using stored token from the integration
+ */
+const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { tenantId, integrationId } = req.params;
+
+      if (!integrationId) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('integrationId', 'Integration ID is required')
+        );
+        return;
+      }
+
+      // Get integration with token
+      const integration = await service.getIntegrationById(integrationId);
+
+      if (!integration) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Slack integration not found')
+        );
+        return;
+      }
+
+      // Validate that integration belongs to the tenant
+      if (integration.tenantId !== tenantId) {
+        res.status(HTTP_STATUS.FORBIDDEN).json(
+          errorResponse(new Error('Integration does not belong to this tenant'), 'Access denied')
+        );
+        return;
+      }
+
+      // Extract botToken
+      const botToken = integration.slackBotToken;
+
+      if (!botToken) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(new Error('Bot token not found in integration'), 'Integration is missing bot token')
+        );
+        return;
+      }
+
+      // Fetch channels using the stored token
       const channelsResult = await service.fetchChannels('SLACK' as any, botToken);
 
       res.status(HTTP_STATUS.OK).json(successResponse({
@@ -429,6 +491,7 @@ export const createCommIntegrationController = (service: CommIntegrationService)
   getAvailableProviders: getAvailableProvidersHandler(),
   verifyCredentials: verifyTokenHandler(service),
   fetchChannels: fetchChannelsHandler(service),
+  fetchChannelsByIntegrationId: fetchChannelsByIntegrationIdHandler(service),
   createIntegration: createOrUpdateIntegrationHandler(service),
   getIntegration: getIntegrationHandler(service),  // Uses tenantId
   updateIntegration: updateIntegrationHandler(service),
