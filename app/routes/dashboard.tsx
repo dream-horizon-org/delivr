@@ -9,7 +9,7 @@ import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { HeaderUserButton } from "~/components/UserButton/HeaderUserButton";
 import { ActionIcon, Tooltip } from "@mantine/core";
 import { IconHelp } from "@tabler/icons-react";
-import { CombinedSidebar } from "~/components/Pages/components/AppDetailPage/components/CombinedSidebar";
+import { Sidebar } from "~/components/Pages/components/Sidebar/Sidebar";
 import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
 import { CodepushService } from '~/.server/services/Codepush';
 import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
@@ -135,7 +135,7 @@ export default function Dashboard() {
 
           <Flex style={{ flex: 1, overflow: "hidden" }}>
             {showSidebar && (
-              <CombinedSidebar
+              <Sidebar
                 organizations={orgs}
                 currentOrgId={params.org}
                 currentAppId={params.app}
