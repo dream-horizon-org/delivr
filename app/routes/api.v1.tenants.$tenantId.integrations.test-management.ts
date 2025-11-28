@@ -4,8 +4,8 @@
  * 
  * GET    /api/v1/tenants/:tenantId/integrations/test-management - List integrations
  * POST   /api/v1/tenants/:tenantId/integrations/test-management - Create integration
- * PUT    /api/v1/tenants/:tenantId/integrations/test-management/:integrationId - Update integration  
- * DELETE /api/v1/tenants/:tenantId/integrations/test-management/:integrationId - Delete integration
+ * PUT    /api/v1/tenants/:tenantId/integrations/test-management?integrationId=<id> - Update integration  
+ * DELETE /api/v1/tenants/:tenantId/integrations/test-management?integrationId=<id> - Delete integration
  */
 
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
@@ -94,9 +94,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // PUT - Update existing integration
     if (method === 'PUT') {
       const url = new URL(request.url);
-      const integrationId = url.pathname.split('/').pop();
+      const integrationId = url.searchParams.get('integrationId');
 
-      if (!integrationId || integrationId === 'test-management') {
+      if (!integrationId) {
         return json({ success: false, error: 'Integration ID is required for update' }, { status: 400 });
       }
 
@@ -125,9 +125,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // DELETE - Delete integration
     if (method === 'DELETE') {
       const url = new URL(request.url);
-      const integrationId = url.pathname.split('/').pop();
+      const integrationId = url.searchParams.get('integrationId');
 
-      if (!integrationId || integrationId === 'test-management') {
+      if (!integrationId) {
         return json({ success: false, error: 'Integration ID is required for delete' }, { status: 400 });
       }
 

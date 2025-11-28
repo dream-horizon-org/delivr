@@ -238,45 +238,45 @@ export const COMMUNICATION = {
 export const SCM = {
   /**
    * Verify SCM connection
-   * POST /tenants/:tenantId/integrations/scm/verify
+   * POST /tenants/:tenantId/integrations/scm/github/verify
    */
   verify: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm/verify`,
+    `/tenants/${tenantId}/integrations/scm/github/verify`,
   
   /**
    * Create SCM integration
-   * POST /tenants/:tenantId/integrations/scm
+   * POST /tenants/:tenantId/integrations/scm/github
    */
   create: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm`,
+    `/tenants/${tenantId}/integrations/scm/github`,
   
   /**
    * Get SCM integration
-   * GET /tenants/:tenantId/integrations/scm
+   * GET /tenants/:tenantId/integrations/scm/github
    */
   get: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm`,
+    `/tenants/${tenantId}/integrations/scm/github`,
   
   /**
    * Update SCM integration
-   * PATCH /tenants/:tenantId/integrations/scm/:integrationId
+   * PATCH /tenants/:tenantId/integrations/scm/github/:integrationId
    */
   update: (tenantId: string, integrationId: string) => 
-    `/tenants/${tenantId}/integrations/scm/${integrationId}`,
+    `/tenants/${tenantId}/integrations/scm/github/${integrationId}`,
   
   /**
    * Delete SCM integration
-   * DELETE /tenants/:tenantId/integrations/scm/:integrationId
+   * DELETE /tenants/:tenantId/integrations/scm/github/:integrationId
    */
   delete: (tenantId: string, integrationId: string) => 
-    `/tenants/${tenantId}/integrations/scm/${integrationId}`,
+    `/tenants/${tenantId}/integrations/scm/github/${integrationId}`,
   
   /**
    * Fetch branches from repository
-   * GET /tenants/:tenantId/integrations/scm/branches
+   * GET /tenants/:tenantId/integrations/scm/github/branches
    */
   branches: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm/branches`,
+    `/tenants/${tenantId}/integrations/scm/github/branches`,
 } as const;
 
 // ============================================================================

@@ -85,10 +85,11 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     setError(null);
 
     try {
-      // Use tenantId to match backend's tenant-level routes
+      // Use tenantId to match backend's tenant-level routes with query params
+      const baseEndpoint = `/api/v1/tenants/${tenantId}/integrations/test-management`;
       const endpoint = isEditMode && integrationId 
-        ? `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}`
-        : `/api/v1/tenants/${tenantId}/integrations/test-management`;
+        ? `${baseEndpoint}?integrationId=${integrationId}`
+        : baseEndpoint;
 
       const payload: any = {
         name: formData.name || `${TEST_PROVIDERS.CHECKMATE} - ${formData.baseUrl}`,

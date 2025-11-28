@@ -138,7 +138,7 @@ export const DISCONNECT_CONFIG: Record<
       'Are you sure you want to disconnect Checkmate? This will stop all test management integrations.',
     endpoint: (tenantId, config) => {
       if (!config?.id) throw new Error('Integration ID required for Checkmate');
-      return `/api/v1/tenants/${tenantId}/integrations/test-management/checkmate/${config.id}`;
+      return `/api/v1/tenants/${tenantId}/integrations/test-management?integrationId=${config.id}`;
     },
   },
   play_store: {
