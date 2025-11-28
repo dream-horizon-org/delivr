@@ -2,9 +2,15 @@
  * useReleases Hook
  * Fetches and caches releases data using React Query
  * Similar to useReleaseConfigs pattern
+ * 
+ * IMPORTANT: Syncs loader data with React Query cache on every navigation
+ * - initialData only works on first mount
+ * - useEffect syncs loader data → cache on subsequent navigations
+ * - This ensures loader data is always used, even when React Query has cache
  */
 
 import { useQuery, useQueryClient } from 'react-query';
+import { useEffect } from 'react';
 import { apiGet } from '~/utils/api-client';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
@@ -24,6 +30,25 @@ export function useReleases(
   }
 ) {
   const queryClient = useQueryClient();
+
+  // CRITICAL: Sync loader data with React Query cache on every navigation
+  // initialData only works on first mount, so we need to explicitly update cache
+  // when loader provides new data on subsequent navigations
+  useEffect(() => {
+    if (options?.initialData && tenantId) {
+      const queryKey = QUERY_KEY(tenantId);
+      const existingData = queryClient.getQueryData<ReleasesResponse>(queryKey);
+      
+      // Only update if loader data is different (avoid unnecessary updates)
+      const loaderDataString = JSON.stringify(options.initialData.releases || []);
+      const existingDataString = JSON.stringify(existingData?.releases || []);
+      
+      if (loaderDataString !== existingDataString) {
+        console.log('[useReleases] Syncing loader data to React Query cache');
+        queryClient.setQueryData<ReleasesResponse>(queryKey, options.initialData);
+      }
+    }
+  }, [options?.initialData, tenantId, queryClient]);
 
   // Fetch all releases for tenant
   const {

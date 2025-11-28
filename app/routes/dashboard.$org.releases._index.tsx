@@ -46,12 +46,22 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
         org: tenantId,
         initialReleases: [],
         error: result.error || 'Failed to load releases',
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache', // Don't cache errors
+        },
       });
     }
 
     return json({
       org: tenantId,
       initialReleases: result.releases || [],
+    }, {
+      headers: {
+        // Browser caches for 2 minutes
+        // After 2 minutes, serves stale while revalidating for 5 minutes
+        'Cache-Control': 'private, max-age=120, stale-while-revalidate=300',
+      },
     });
   } catch (error: any) {
     console.error('[ReleasesList] Loader error:', error.message);
@@ -61,6 +71,10 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
       org: tenantId,
       initialReleases: [],
       error: error.message || 'Failed to load releases',
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache', // Don't cache errors
+      },
     });
   }
 });

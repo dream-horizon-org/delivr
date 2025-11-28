@@ -79,31 +79,31 @@ export function AppListForOrg({ user }: AppListForOrgProps) {
 
   return (
     <>
-      <Grid ml={30} mt={30}>
-        <Spotlight
-          actions={actions}
-          nothingFound="Nothing found..."
-          highlightQuery
-          searchProps={{
-            leftSection: (
-              <IconSearch
-                style={{ width: rem(20), height: rem(20) }}
-                stroke={1.5}
-              />
-            ),
-            placeholder: "Search...",
-          }}
-        />
-        <Grid gutter={{ base: 5, xs: 'md', md: 'xl', xl: 50 }}>
-          {_modData.map((item) => {
-            return (
-              <Grid.Col key={item.id} span="content">
-                <AppCard {...item} key={item.id} />
-              </Grid.Col>
-            );
-          })}
-        </Grid>
+    <Grid ml={30} mt={30}>
+      <Spotlight
+        actions={actions}
+        nothingFound="Nothing found..."
+        highlightQuery
+        searchProps={{
+          leftSection: (
+            <IconSearch
+              style={{ width: rem(20), height: rem(20) }}
+              stroke={1.5}
+            />
+          ),
+          placeholder: "Search...",
+        }}
+      />
+      <Grid gutter={{ base: 5, xs: 'md', md: 'xl', xl: 50 }}>
+        {_modData.map((item) => {
+          return (
+            <Grid.Col key={item.id} span="content">
+              <AppCard {...item} key={item.id} />
+            </Grid.Col>
+          );
+        })}
       </Grid>
+    </Grid>
 
       {/* Delete App Modal */}
       <DeleteModal

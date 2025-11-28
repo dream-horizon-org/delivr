@@ -203,8 +203,8 @@ export function AppListPage({ user }: AppListPageProps) {
         onClose={() => setDeleteModalData(null)}
         data={deleteModalData}
         onSuccess={() => {
-          actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
-          refetch();
+                      actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
+                      refetch();
         }}
       />
     </Box>

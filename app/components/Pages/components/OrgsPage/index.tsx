@@ -435,7 +435,7 @@ export function OrgsPage() {
         onClose={() => setDeleteModalData(null)}
         data={deleteModalData}
         onSuccess={() => {
-          refetch();
+                      refetch();
         }}
       />
     </Container>
