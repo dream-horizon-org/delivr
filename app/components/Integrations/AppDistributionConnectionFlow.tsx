@@ -29,6 +29,12 @@ import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 import { TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { DEBUG_LABELS } from '~/constants/integration-ui';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { 
+  mapPlayStoreFormData, 
+  mapAppStoreFormData,
+  validatePlayStoreData,
+  validateAppStoreData 
+} from '~/utils/integration-helpers';
 
 interface AppDistributionConnectionFlowProps {
   storeType: StoreType;
@@ -36,6 +42,8 @@ interface AppDistributionConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
   allowedPlatforms: Platform[];
+  isEditMode?: boolean;
+  existingData?: any;
 }
 
 export function AppDistributionConnectionFlow({
@@ -44,6 +52,8 @@ export function AppDistributionConnectionFlow({
   onConnect,
   onCancel,
   allowedPlatforms,
+  isEditMode = false,
+  existingData,
 }: AppDistributionConnectionFlowProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -52,6 +62,7 @@ export function AppDistributionConnectionFlow({
   
   // Platforms are fixed based on store type (from system metadata)
   // Validate that we have at least one platform from metadata
+  console.log('existingData', existingData);
   const selectedPlatforms = allowedPlatforms;
   
   if (allowedPlatforms.length === 0) {
@@ -66,20 +77,11 @@ export function AppDistributionConnectionFlow({
     {
       storageKey: generateStorageKey('playstore', tenantId),
       sensitiveFields: ['serviceAccountJson.private_key'],
-      // Only save draft if NOT in verify/connect flow
-      shouldSaveDraft: (data) => !isInFlowRef.current && !!(data.displayName || data.appIdentifier),
+      // Only save draft if NOT in verify/connect flow and NOT in edit mode
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.displayName || data.appIdentifier),
     },
-    {
-      displayName: '',
-      appIdentifier: '',
-      defaultTrack: 'INTERNAL',
-      serviceAccountJson: {
-        type: 'service_account',
-        project_id: '',
-        client_email: '',
-        private_key: '',
-      },
-    }
+    mapPlayStoreFormData(existingData),
+    isEditMode ? existingData : undefined // Pass existingData to hook to prioritize over draft in edit mode
   );
 
   // App Store draft storage with auto-save
@@ -87,19 +89,11 @@ export function AppDistributionConnectionFlow({
     {
       storageKey: generateStorageKey('appstore', tenantId),
       sensitiveFields: ['privateKeyPem'],
-      // Only save draft if NOT in verify/connect flow
-      shouldSaveDraft: (data) => !isInFlowRef.current && !!(data.displayName || data.appIdentifier),
+      // Only save draft if NOT in verify/connect flow and NOT in edit mode
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.displayName || data.appIdentifier),
     },
-    {
-      displayName: '',
-      targetAppId: '',
-      appIdentifier: '',
-      issuerId: '',
-      keyId: '',
-      privateKeyPem: '',
-      teamName: '',
-      defaultLocale: 'en-US',
-    }
+    mapAppStoreFormData(existingData),
+    isEditMode ? existingData : undefined // Pass existingData to hook to prioritize over draft in edit mode
   );
 
   // Select the appropriate draft based on store type
@@ -121,33 +115,10 @@ export function AppDistributionConnectionFlow({
   }, []);
 
   // Validation functions
-  const validatePlayStoreData = (): boolean => {
-    return !!(
-      playStoreData.displayName &&
-      playStoreData.appIdentifier &&
-      playStoreData.defaultTrack &&
-      playStoreData.serviceAccountJson?.project_id &&
-      playStoreData.serviceAccountJson?.client_email &&
-      playStoreData.serviceAccountJson?.private_key
-    );
-  };
-
-  const validateAppStoreData = (): boolean => {
-    return !!(
-      appStoreData.displayName &&
-      appStoreData.targetAppId &&
-      appStoreData.appIdentifier &&
-      appStoreData.issuerId &&
-      appStoreData.keyId &&
-      appStoreData.privateKeyPem &&
-      appStoreData.teamName
-    );
-  };
-
   const isFormValid =
     storeType === TARGET_PLATFORMS.PLAY_STORE
-      ? validatePlayStoreData()
-      : validateAppStoreData();
+      ? validatePlayStoreData(playStoreData)
+      : validateAppStoreData(appStoreData);
 
   const handleVerify = async () => {
     setIsVerifying(true);

@@ -125,6 +125,16 @@ export const DISCONNECT_CONFIG: Record<
       'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
     endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`,
   },
+  github: {
+    message:
+      'Are you sure you want to disconnect GitHub? This will stop all source control integrations.',
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/scm`,
+  },
+  scm: {
+    message:
+      'Are you sure you want to disconnect Source Control? This will stop all repository integrations.',
+    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/scm`,
+  },
   jira: {
     message:
       'Are you sure you want to disconnect Jira? This will stop all project management integrations.',

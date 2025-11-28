@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import { useParams } from '@remix-run/react';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { CONNECTION_STEPS } from '~/constants/integration-ui';
 
 export interface SlackChannel {
@@ -29,13 +29,22 @@ export interface SlackConnectionData {
   channels: SlackChannel[];
 }
 
-export function useSlackConnection() {
+export function useSlackConnection(existingData?: any, isEditMode: boolean = false) {
   const { org } = useParams();
   const tenantId = org!;
 
-  const [botToken, setBotToken] = useState('');
-  const [workspaceInfo, setWorkspaceInfo] = useState<SlackWorkspaceInfo>({});
+  // Initialize workspace info from existing data in edit mode
+  const initialWorkspaceInfo: SlackWorkspaceInfo = isEditMode && existingData ? {
+    workspaceId: existingData.workspaceId || existingData.config?.workspaceId || '',
+    workspaceName: existingData.workspaceName || existingData.config?.workspaceName || '',
+    botUserId: existingData.botUserId || existingData.config?.botUserId || '',
+  } : {};
+
+  const [botToken, setBotToken] = useState(''); // Always empty for security
+  const [workspaceInfo, setWorkspaceInfo] = useState<SlackWorkspaceInfo>(initialWorkspaceInfo);
   
+  // Always start at token step to allow token updates in edit mode
+  // User can verify token and move to next step, or save without changing token
   const [step, setStep] = useState<typeof CONNECTION_STEPS.SLACK_TOKEN | typeof CONNECTION_STEPS.SLACK_CHANNELS>(CONNECTION_STEPS.SLACK_TOKEN);
   
   const [isVerifying, setIsVerifying] = useState(false);
@@ -102,23 +111,44 @@ export function useSlackConnection() {
    * (Channel selection now happens in Release Config)
    */
   const saveIntegrationWithoutChannels = useCallback(async (
-    token: string,
-    workspace: SlackWorkspaceInfo
+    token: string | null,
+    workspace: SlackWorkspaceInfo,
+    isUpdate: boolean = false
   ): Promise<boolean> => {
     setIsSaving(true);
     setError(null);
 
     try {
-      await apiPost(
-        `/api/v1/tenants/${tenantId}/integrations/slack`,
-        {
-          botToken: token,
-          botUserId: workspace.botUserId,
-          workspaceId: workspace.workspaceId,
-          workspaceName: workspace.workspaceName
-          // No channels array - channels selected in Release Config
+      const payload: any = {
+        botUserId: workspace.botUserId,
+        workspaceId: workspace.workspaceId,
+        workspaceName: workspace.workspaceName
+        // No channels array - channels selected in Release Config
+      };
+
+      // Only include botToken if provided (required for create, optional for update)
+      if (token) {
+        payload.botToken = token;
+      }
+
+      if (isUpdate) {
+        // Use PATCH for updates
+        await apiPatch(
+          `/api/v1/tenants/${tenantId}/integrations/slack`,
+          payload
+        );
+      } else {
+        // Use POST for creates
+        if (!token) {
+          setError('Bot token is required');
+          setIsSaving(false);
+          return false;
         }
-      );
+        await apiPost(
+          `/api/v1/tenants/${tenantId}/integrations/slack`,
+          payload
+        );
+      }
 
       setIsSaving(false);
       return true;
@@ -133,14 +163,32 @@ export function useSlackConnection() {
    * Step 3: Save Slack integration (without channel selection)
    */
   const saveIntegration = useCallback(async (): Promise<boolean> => {
-    // Validate we have the required info
-    if (!botToken || !workspaceInfo.workspaceId) {
+    // In edit mode, if no token is provided, we can still save (keeps existing token)
+    // In create mode, token is required
+    if (!isEditMode && !botToken) {
       setError('Token not verified. Please verify your token first.');
       return false;
     }
 
-    return await saveIntegrationWithoutChannels(botToken, workspaceInfo);
-  }, [botToken, workspaceInfo, saveIntegrationWithoutChannels]);
+    // In edit mode, if token is provided but not verified, we need to verify it first
+    // OR if we have workspace info, we can save without verifying (keeps existing token)
+    if (isEditMode && botToken && !workspaceInfo.workspaceId) {
+      // Token was entered but not verified - need to verify first
+      const verified = await verifyToken(botToken);
+      if (!verified) {
+        return false; // Error already set by verifyToken
+      }
+      // After verification, workspaceInfo is set, so we can proceed to save
+    }
+
+    // If we have workspace info, we can save (either from verification or existing data)
+    if (!workspaceInfo.workspaceId) {
+      setError('Token not verified. Please verify your token first.');
+      return false;
+    }
+
+    return await saveIntegrationWithoutChannels(botToken || null, workspaceInfo, isEditMode);
+  }, [botToken, workspaceInfo, isEditMode, saveIntegrationWithoutChannels, verifyToken]);
 
   /**
    * Reset the form

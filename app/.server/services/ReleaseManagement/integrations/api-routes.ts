@@ -238,38 +238,53 @@ export const COMMUNICATION = {
 export const SCM = {
   /**
    * Verify SCM connection
-   * POST /tenants/:tenantId/integrations/scm/github/verify
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github/verify)
+   * POST /tenants/:tenantId/integrations/scm/:provider/verify
    */
-  verify: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm/github/verify`,
+  verify: (tenantId: string, scmType: string = 'GITHUB') => {
+    const provider = scmType.toLowerCase();
+    return `/tenants/${tenantId}/integrations/scm/${provider}/verify`;
+  },
   
   /**
    * Create SCM integration
-   * POST /tenants/:tenantId/integrations/scm/github
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
+   * POST /tenants/:tenantId/integrations/scm/:provider
    */
-  create: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm/github`,
+  create: (tenantId: string, scmType: string = 'GITHUB') => {
+    const provider = scmType.toLowerCase();
+    return `/tenants/${tenantId}/integrations/scm/${provider}`;
+  },
   
   /**
    * Get SCM integration
-   * GET /tenants/:tenantId/integrations/scm/github
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
+   * GET /tenants/:tenantId/integrations/scm/:provider
    */
-  get: (tenantId: string) => 
-    `/tenants/${tenantId}/integrations/scm/github`,
+  get: (tenantId: string, scmType: string = 'GITHUB') => {
+    const provider = scmType.toLowerCase();
+    return `/tenants/${tenantId}/integrations/scm/${provider}`;
+  },
   
   /**
    * Update SCM integration
-   * PATCH /tenants/:tenantId/integrations/scm/github/:integrationId
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
+   * PATCH /tenants/:tenantId/integrations/scm/:provider
    */
-  update: (tenantId: string, integrationId: string) => 
-    `/tenants/${tenantId}/integrations/scm/github/${integrationId}`,
+  update: (tenantId: string, scmType: string = 'GITHUB') => {
+    const provider = scmType.toLowerCase();
+    return `/tenants/${tenantId}/integrations/scm/${provider}`;
+  },
   
   /**
    * Delete SCM integration
-   * DELETE /tenants/:tenantId/integrations/scm/github/:integrationId
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
+   * DELETE /tenants/:tenantId/integrations/scm/:provider
    */
-  delete: (tenantId: string, integrationId: string) => 
-    `/tenants/${tenantId}/integrations/scm/github/${integrationId}`,
+  delete: (tenantId: string, scmType: string = 'GITHUB') => {
+    const provider = scmType.toLowerCase();
+    return `/tenants/${tenantId}/integrations/scm/${provider}`;
+  },
   
   /**
    * Fetch branches from repository

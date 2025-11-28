@@ -50,7 +50,8 @@ const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
  * 
  * @template T - The type of form data
  * @param config - Draft storage configuration
- * @param initialData - Initial form data
+ * @param initialData - Initial form data (should include existingData values if in edit mode)
+ * @param existingData - Optional existing data to prioritize over draft (for edit mode)
  * 
  * @example
  * ```tsx
@@ -58,12 +59,13 @@ const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
  *   storageKey: 'release-config-draft-{tenantId}',
  *   sensitiveFields: ['githubToken', 'slackWebhook'],
  *   shouldSaveDraft: (data) => !!data.name || !!data.description,
- * }, initialFormData);
+ * }, initialFormData, isEditMode ? existingData : undefined);
  * ```
  */
 export function useDraftStorage<T extends Record<string, any>>(
   config: DraftStorageConfig<T>,
-  initialData: T
+  initialData: T,
+  existingData?: T
 ) {
   const { storageKey, sensitiveFields = [], shouldSaveDraft, ttl = DEFAULT_TTL, enableMetadata = false } = config;
 
@@ -107,8 +109,17 @@ export function useDraftStorage<T extends Record<string, any>>(
 
   /**
    * Initialize form data with draft if available
+   * Priority: existingData > draft > initialData
    */
   const [formData, setFormData] = useState<T>(() => {
+    // If existingData is provided (edit mode), prioritize it over draft
+    if (existingData) {
+      // Don't restore draft in edit mode - use existingData merged with initialData
+      // This ensures all fields are present, with existingData taking precedence
+      return { ...initialData, ...existingData };
+    }
+    
+    // In create mode, check for draft
     const { data: draft, metadata: loadedMetadata } = loadDraftFromStorage();
     
     // Restore metadata if enabled
@@ -122,6 +133,10 @@ export function useDraftStorage<T extends Record<string, any>>(
   });
 
   const [isDraftRestored, setIsDraftRestored] = useState<boolean>(() => {
+    // Don't mark as draft restored if we're in edit mode with existingData
+    if (existingData) {
+      return false;
+    }
     const { data: draft } = loadDraftFromStorage();
     return !!draft;
   });

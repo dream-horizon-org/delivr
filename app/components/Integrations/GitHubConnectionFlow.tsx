@@ -1,17 +1,27 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { TextInput, Alert, PasswordInput, Select } from '@mantine/core';
 import { useParams } from '@remix-run/react';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { SCM_TYPES } from '~/constants/integrations';
 import { GITHUB_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { showInfoToast } from '~/utils/toast';
+import { useEffect } from 'react';
 
 interface GitHubConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
   isEditMode?: boolean;
   existingData?: any;
+}
+
+interface GitHubConnectionFormData {
+  scmType: string;
+  owner: string;
+  repoName: string;
+  token: string; // Will be excluded from draft storage
 }
 
 export function GitHubConnectionFlow({
@@ -21,14 +31,59 @@ export function GitHubConnectionFlow({
   existingData
 }: GitHubConnectionFlowProps) {
   const { org } = useParams();
-  const [scmType, setScmType] = useState(existingData?.scmType || SCM_TYPES.GITHUB);
-  const [owner, setOwner] = useState(existingData?.owner || '');
-  const [repoName, setRepoName] = useState(existingData?.repoName || '');
-  const [token, setToken] = useState(existingData?.accessToken || '');
+  
+  // Ref to track if we're in the middle of verify/connect flow
+  const isInFlowRef = useRef(false);
+
+  // Draft storage with auto-save
+  // In edit mode, prioritize existingData over draft
+  const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<GitHubConnectionFormData>(
+    {
+      storageKey: generateStorageKey('github-scm', org || ''),
+      sensitiveFields: ['token'], // Never save token to draft
+      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.owner || data.repoName),
+    },
+    {
+      scmType: existingData?.scmType || existingData?.providerType || SCM_TYPES.GITHUB,
+      owner: existingData?.owner || '',
+      repoName: existingData?.repo || existingData?.repoName || '',
+      token: '', // Never prefill tokens
+    },
+    isEditMode ? {
+      scmType: existingData?.scmType || existingData?.providerType || SCM_TYPES.GITHUB,
+      owner: existingData?.owner || '',
+      repoName: existingData?.repo || existingData?.repoName || '',
+      token: '', // Never prefill tokens
+    } : undefined
+  );
+
+  // Extract form data
+  const { scmType, owner, repoName, token } = formData;
+
+  // State for UI
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isVerified, setIsVerified] = useState(!!existingData?.isVerified);
+  const [isVerified, setIsVerified] = useState(!!existingData?.isVerified || isEditMode);
   const [error, setError] = useState<string | null>(null);
+
+  // Check if owner or repo changed in edit mode
+  const hasOwnerOrRepoChanged = isEditMode && (
+    owner !== (existingData?.owner || '') ||
+    repoName !== (existingData?.repo || existingData?.repoName || '')
+  );
+
+  // Show notification when draft is restored (only once on mount)
+  const hasShownDraftToast = useRef(false);
+  useEffect(() => {
+    if (isDraftRestored && !isEditMode && !hasShownDraftToast.current) {
+      hasShownDraftToast.current = true;
+      showInfoToast({
+        title: 'Draft Restored',
+        message: 'Your previous GitHub connection form data has been restored.',
+      });
+    }
+  }, [isDraftRestored, isEditMode]);
 
   const handleVerify = async () => {
     if (!owner || !repoName || !token) {
@@ -36,6 +91,7 @@ export function GitHubConnectionFlow({
       return;
     }
 
+    isInFlowRef.current = true; // Prevent auto-save during verify
     setIsVerifying(true);
     setError(null);
 
@@ -62,45 +118,87 @@ export function GitHubConnectionFlow({
       setIsVerified(false);
     } finally {
       setIsVerifying(false);
+      isInFlowRef.current = false; // Re-enable auto-save
     }
   };
 
   const handleSaveAndConnect = async () => {
-    if (!isVerified) {
+    if (!isEditMode && !isVerified) {
       setError('Please verify the connection before saving');
       return;
     }
 
+    // In edit mode, if owner or repo changed, we need token to verify
+    if (isEditMode && hasOwnerOrRepoChanged && !token) {
+      setError('Access token is required when changing repository owner or name. Please verify first.');
+      setIsSaving(false);
+      return;
+    }
+
+    // In edit mode, if owner/repo changed but not verified yet, require verification
+    if (isEditMode && hasOwnerOrRepoChanged && !isVerified) {
+      setError('Please verify the connection before saving changes');
+      setIsSaving(false);
+      return;
+    }
+
+    isInFlowRef.current = true; // Prevent auto-save during save
     setIsSaving(true);
     setError(null);
 
     try {
-      const result = await apiPost<{ integration: any }>(
-        `/api/v1/tenants/${org}/integrations/scm`,
-        {
-          scmType,
-          owner,
-          repo: repoName,
-          accessToken: token,
-          displayName: `${owner}/${repoName}`,
-        }
-      );
+      const payload: any = {
+        scmType,
+        owner,
+        repo: repoName,
+        displayName: `${owner}/${repoName}`,
+      };
+
+      // Only include accessToken if provided (required for create, optional for update)
+      if (token) {
+        payload.accessToken = token;
+      } else if (!isEditMode) {
+        setError('Access token is required');
+        setIsSaving(false);
+        return;
+      }
+
+      let result;
+      if (isEditMode && existingData?.id) {
+        // Use PATCH for updates
+        payload.integrationId = existingData.id;
+        result = await apiPatch<{ integration: any }>(
+          `/api/v1/tenants/${org}/integrations/scm`,
+          payload
+        );
+      } else {
+        // Use POST for creates
+        result = await apiPost<{ integration: any }>(
+          `/api/v1/tenants/${org}/integrations/scm`,
+          payload
+        );
+      }
 
       if (result.success && result.data?.integration) {
+        // Mark save as successful to clear draft
+        markSaveSuccessful();
+        
         // Pass the saved data back
         onConnect({
           scmType,
           owner,
           repoName,
-          token,
+          token: token || '***', // Don't expose token
           repoUrl: `https://github.com/${owner}/${repoName}`,
           isVerified: true,
         });
       } else {
         setError('Failed to save integration');
+        isInFlowRef.current = false; // Re-enable auto-save on error
       }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to save connection'));
+      isInFlowRef.current = false; // Re-enable auto-save on error
     } finally {
       setIsSaving(false);
     }
@@ -114,9 +212,15 @@ export function GitHubConnectionFlow({
         </Alert>
       )}
 
-      {isVerified && (
+      {isVerified && !isEditMode && (
         <ConnectionAlert color="green" title={GITHUB_LABELS.REPO_VERIFIED} icon={<span>✓</span>}>
           Connection verified! Click &quot;Save & Connect&quot; to complete the setup.
+        </ConnectionAlert>
+      )}
+
+      {isEditMode && hasOwnerOrRepoChanged && !token && (
+        <ConnectionAlert color="yellow" title="Repository Changed" icon={<span>⚠</span>}>
+          You&apos;ve changed the repository owner or name. Please provide an access token to verify the new repository.
         </ConnectionAlert>
       )}
 
@@ -125,14 +229,19 @@ export function GitHubConnectionFlow({
         label="Source Control"
         placeholder="Select provider"
         value={scmType}
-        onChange={(value) => setScmType(value || SCM_TYPES.GITHUB)}
+        onChange={(value) => {
+          setFormData({ ...formData, scmType: value || SCM_TYPES.GITHUB });
+          if (isEditMode) {
+            setIsVerified(false);
+          }
+        }}
         data={[
           { value: SCM_TYPES.GITHUB, label: 'GitHub' },
           { value: SCM_TYPES.GITLAB, label: 'GitLab (Coming Soon)', disabled: true },
           { value: SCM_TYPES.BITBUCKET, label: 'Bitbucket (Coming Soon)', disabled: true },
         ]}
         required
-        disabled={isVerified}
+        disabled={!isEditMode && isVerified}
         description="Select your source control provider"
       />
 
@@ -142,12 +251,12 @@ export function GitHubConnectionFlow({
         placeholder="organization or username"
         value={owner}
         onChange={(e) => {
-          setOwner(e.currentTarget.value);
+          setFormData({ ...formData, owner: e.currentTarget.value });
           setIsVerified(false);
           setError(null);
         }}
         required
-        disabled={isVerified}
+        disabled={!isEditMode && isVerified}
         description="The GitHub organization or username that owns the repository"
       />
 
@@ -157,40 +266,44 @@ export function GitHubConnectionFlow({
         placeholder="repository-name"
         value={repoName}
         onChange={(e) => {
-          setRepoName(e.currentTarget.value);
+          setFormData({ ...formData, repoName: e.currentTarget.value });
           setIsVerified(false);
           setError(null);
         }}
         required
-        disabled={isVerified}
+        disabled={!isEditMode && isVerified}
         description="The name of your repository (without the owner)"
       />
 
       {/* Personal Access Token */}
       <PasswordInput
-        label={GITHUB_LABELS.ACCESS_TOKEN_LABEL}
-        placeholder={GITHUB_LABELS.ACCESS_TOKEN_PLACEHOLDER}
+        label={isEditMode ? `${GITHUB_LABELS.ACCESS_TOKEN_LABEL} (leave blank to keep existing)` : GITHUB_LABELS.ACCESS_TOKEN_LABEL}
+        placeholder={isEditMode ? 'Leave blank to keep existing token' : GITHUB_LABELS.ACCESS_TOKEN_PLACEHOLDER}
         value={token}
         onChange={(e) => {
-          setToken(e.currentTarget.value);
+          setFormData({ ...formData, token: e.currentTarget.value });
           setIsVerified(false);
           setError(null);
         }}
-        required
-        disabled={isVerified}
+        required={!isEditMode}
+        disabled={!isEditMode && isVerified}
         description={
-          <span>
-            Create a token at{' '}
-            <a
-              href="https://github.com/settings/tokens"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
-            >
-              github.com/settings/tokens
-            </a>
-            {' '}with &apos;repo&apos; scope
-          </span>
+          isEditMode ? (
+            <span>Only provide a new token if you want to update it</span>
+          ) : (
+            <span>
+              Create a token at{' '}
+              <a
+                href="https://github.com/settings/tokens"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                github.com/settings/tokens
+              </a>
+              {' '}with &apos;repo&apos; scope
+            </span>
+          )
         }
       />
 
@@ -210,7 +323,17 @@ export function GitHubConnectionFlow({
       )}
 
       {/* Action Buttons */}
-      {!isVerified ? (
+      {!isEditMode && !isVerified ? (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleVerify}
+          primaryLabel={GITHUB_LABELS.VERIFY_BUTTON}
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isVerifying}
+          isPrimaryDisabled={!owner || !repoName || !token || isVerifying}
+          primaryClassName="bg-gray-600 hover:bg-gray-700"
+        />
+      ) : isEditMode && hasOwnerOrRepoChanged && !token ? (
         <ActionButtons
           onCancel={onCancel}
           onPrimary={handleVerify}
@@ -227,7 +350,7 @@ export function GitHubConnectionFlow({
           primaryLabel={isEditMode ? 'Save Changes' : 'Save & Connect'}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isSaving}
-          isPrimaryDisabled={isSaving}
+          isPrimaryDisabled={isSaving || (!isEditMode && !isVerified)}
         />
       )}
 

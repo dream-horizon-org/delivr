@@ -354,22 +354,6 @@ export function IntegrationDetailModal({
           </div>
         </div>
 
-        {/* Features */}
-        {integration.features && integration.features.length > 0 && (
-          <>
-            <Divider />
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Enabled Features</h3>
-              <div className="flex flex-wrap gap-2">
-                {integration.features.map((feature, index) => (
-                  <Badge key={index} variant="light" color="blue">
-                    {feature}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
 
         {/* Permissions */}
         {integration.permissions && integration.permissions.length > 0 && (
@@ -427,7 +411,7 @@ export function IntegrationDetailModal({
           </Button>
           
           <Group>
-            {onEdit && (integration.id === 'jenkins' || integration.id === 'github_actions' || integration.id === 'checkmate') && (
+            {onEdit && (
               <Button
                 variant="filled"
                 color="blue"

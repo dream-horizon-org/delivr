@@ -60,6 +60,8 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       
@@ -111,6 +113,8 @@ export function IntegrationConnectModal({
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       
@@ -130,32 +134,40 @@ export function IntegrationConnectModal({
       case TARGET_PLATFORMS.PLAY_STORE:
       case 'play_store':
       case 'playstore':
+      case INTEGRATION_IDS.PLAY_STORE:
         return (
           <AppDistributionConnectionFlow
             storeType={TARGET_PLATFORMS.PLAY_STORE}
             tenantId={tenantId}
             allowedPlatforms={[PLATFORMS.ANDROID]}
             onConnect={(data) => {
-              onConnect(integration.id, data);
+              // Use INTEGRATION_IDS.PLAY_STORE to ensure proper revalidation
+              onConnect(INTEGRATION_IDS.PLAY_STORE, data);
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       
       case TARGET_PLATFORMS.APP_STORE:
       case 'app_store':
       case 'appstore':
+      case INTEGRATION_IDS.APP_STORE:
         return (
           <AppDistributionConnectionFlow
             storeType={TARGET_PLATFORMS.APP_STORE}
             tenantId={tenantId}
             allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
-              onConnect(integration.id, data);
+              // Use INTEGRATION_IDS.APP_STORE to ensure proper revalidation
+              onConnect(INTEGRATION_IDS.APP_STORE, data);
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       
@@ -167,10 +179,13 @@ export function IntegrationConnectModal({
             tenantId={tenantId}
             allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
-              onConnect(integration.id, data);
+              // Use INTEGRATION_IDS.APP_STORE for TestFlight as well
+              onConnect(INTEGRATION_IDS.APP_STORE, data);
               onClose();
             }}
             onCancel={onClose}
+            isEditMode={isEditMode}
+            existingData={existingData}
           />
         );
       

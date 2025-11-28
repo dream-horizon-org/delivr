@@ -112,7 +112,7 @@ const updateSCMIntegration: AuthenticatedActionFunction = async ({ request, para
 
   try {
     const body = await request.json();
-    const { integrationId, ...updateData } = body;
+    const { integrationId, token, ...updateData } = body; // Remove 'token' field if present
 
     if (!integrationId) {
       return json({ error: 'Integration ID required' }, { status: 400 });
@@ -147,14 +147,26 @@ const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, para
   }
 
   try {
-    const body = await request.json();
-    const { integrationId } = body;
-
-    if (!integrationId) {
-      return json({ error: 'Integration ID required' }, { status: 400 });
+    // For DELETE requests, body might be empty, so we'll fetch the integration first
+    // to get the scmType, or accept it from query params/body
+    let scmType = 'GITHUB'; // Default to GITHUB
+    
+    try {
+      const body = await request.json().catch(() => ({}));
+      scmType = body.scmType || scmType;
+    } catch {
+      // Body might be empty, try to get integration to determine scmType
+      try {
+        const integration = await SCMIntegrationService.getSCMIntegration(tenantId, user.user.id);
+        if (integration?.scmType) {
+          scmType = integration.scmType;
+        }
+      } catch {
+        // If we can't get integration, use default
+      }
     }
 
-    await SCMIntegrationService.deleteSCMIntegration(tenantId, user.user.id, integrationId);
+    await SCMIntegrationService.deleteSCMIntegration(tenantId, user.user.id, '', scmType);
 
     return json({ success: true });
   } catch (error) {

@@ -40,10 +40,11 @@ class SCMIntegrationServiceClass extends IntegrationService {
 
   /**
    * Verify SCM connection
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github/verify)
    */
   async verifySCM(data: VerifySCMRequest, userId: string): Promise<VerifySCMResponse> {
     const { tenantId, scmType, owner, repo, accessToken } = data;
-    const endpoint = SCM.verify(tenantId);
+    const endpoint = SCM.verify(tenantId, scmType);
     this.logRequest('POST', endpoint, { scmType, owner, repo });
     
     try {
@@ -68,9 +69,12 @@ class SCMIntegrationServiceClass extends IntegrationService {
 
   /**
    * Create SCM integration
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
    */
   async createSCMIntegration(tenantId: string, userId: string, data: any): Promise<any> {
-    const endpoint = SCM.create(tenantId);
+    // Determine provider type from data or use default (GitHub)
+    const scmType = data.scmType || 'GITHUB';
+    const endpoint = SCM.create(tenantId, scmType);
     this.logRequest('POST', endpoint, { ...data, accessToken: '[REDACTED]' });
     
     try {
@@ -90,9 +94,11 @@ class SCMIntegrationServiceClass extends IntegrationService {
 
   /**
    * Get SCM integration
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
+   * Defaults to GITHUB if provider type is unknown
    */
-  async getSCMIntegration(tenantId: string, userId: string): Promise<any> {
-    const endpoint = SCM.get(tenantId);
+  async getSCMIntegration(tenantId: string, userId: string, scmType: string = 'GITHUB'): Promise<any> {
+    const endpoint = SCM.get(tenantId, scmType);
     this.logRequest('GET', endpoint);
     
     try {
@@ -111,10 +117,13 @@ class SCMIntegrationServiceClass extends IntegrationService {
 
   /**
    * Update SCM integration
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
    */
   async updateSCMIntegration(tenantId: string, userId: string, integrationId: string, data: any): Promise<any> {
-    const endpoint = SCM.update(tenantId, integrationId);
-    this.logRequest('PATCH', endpoint, data);
+    // Determine provider type from data or use default (GitHub)
+    const scmType = data.scmType || 'GITHUB';
+    const endpoint = SCM.update(tenantId, scmType);
+    this.logRequest('PATCH', endpoint, { ...data, accessToken: '[REDACTED]' });
     
     try {
       const result = await this.patch<any>(
@@ -133,9 +142,10 @@ class SCMIntegrationServiceClass extends IntegrationService {
 
   /**
    * Delete SCM integration
+   * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
    */
-  async deleteSCMIntegration(tenantId: string, userId: string, integrationId: string): Promise<any> {
-    const endpoint = SCM.delete(tenantId, integrationId);
+  async deleteSCMIntegration(tenantId: string, userId: string, integrationId: string, scmType: string = 'GITHUB'): Promise<any> {
+    const endpoint = SCM.delete(tenantId, scmType);
     this.logRequest('DELETE', endpoint);
     
     try {

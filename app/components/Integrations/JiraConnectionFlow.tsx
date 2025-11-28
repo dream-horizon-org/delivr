@@ -15,7 +15,7 @@ import {
   Stack,
   Text
 } from '@mantine/core';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { JIRA_TYPES } from '~/types/jira-integration';
 import type { JiraType } from '~/types/jira-integration';
 import { JIRA_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
@@ -25,23 +25,25 @@ import { ConnectionAlert } from './shared/ConnectionAlert';
 interface JiraConnectionFlowProps {
   onConnect: (data: any) => void;
   onCancel: () => void;
+  isEditMode?: boolean;
+  existingData?: any;
 }
 
-export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowProps) {
+export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JiraConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
   const [formData, setFormData] = useState({
-    displayName: '',
-    hostUrl: '',
-    email: '',
-    apiToken: '',
-    jiraType: 'CLOUD' as JiraType,
+    displayName: existingData?.displayName || existingData?.name || '',
+    hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
+    email: existingData?.email || existingData?.config?.email || '',
+    apiToken: '', // Never prefill sensitive data
+    jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
   });
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(!!existingData?.isVerified || isEditMode);
   const [error, setError] = useState<string | null>(null);
 
   const handleVerify = async () => {
@@ -77,16 +79,30 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
     setError(null);
 
     try {
-      const result = await apiPost(
-        `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`,
-        {
-          name: formData.displayName || `Jira - ${formData.hostUrl}`,
-          hostUrl: formData.hostUrl,
-          email: formData.email,
-          apiToken: formData.apiToken,
-          jiraType: formData.jiraType,
-        }
-      );
+      const payload: any = {
+        name: formData.displayName || `Jira - ${formData.hostUrl}`,
+        hostUrl: formData.hostUrl,
+        email: formData.email,
+        jiraType: formData.jiraType,
+      };
+
+      // Only include apiToken if provided (required for create, optional for update)
+      if (formData.apiToken) {
+        payload.apiToken = formData.apiToken;
+      } else if (!isEditMode) {
+        setError('API Token is required');
+        setIsConnecting(false);
+        return;
+      }
+
+      // For updates, include integrationId as query parameter
+      const endpoint = isEditMode && existingData?.id
+        ? `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA&integrationId=${existingData.id}`
+        : `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`;
+      
+      const result = isEditMode && existingData?.id
+        ? await apiPatch(endpoint, payload)
+        : await apiPost(endpoint, payload);
 
       if (result.success) {
         onConnect(result);
@@ -101,7 +117,7 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
   };
 
   const isFormValid = () => {
-    return formData.hostUrl && formData.email && formData.apiToken;
+    return formData.hostUrl && formData.email && (isEditMode || formData.apiToken);
   };
 
   return (
@@ -149,13 +165,13 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
       />
 
       <PasswordInput
-        label={JIRA_LABELS.API_TOKEN_LABEL}
-        placeholder={JIRA_LABELS.API_TOKEN_PLACEHOLDER}
-        required
+        label={isEditMode ? `${JIRA_LABELS.API_TOKEN_LABEL} (leave blank to keep existing)` : JIRA_LABELS.API_TOKEN_LABEL}
+        placeholder={isEditMode ? 'Leave blank to keep existing token' : JIRA_LABELS.API_TOKEN_PLACEHOLDER}
+        required={!isEditMode}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-        error={!formData.apiToken && 'API Token is required'}
-        description={JIRA_LABELS.API_TOKEN_DESCRIPTION}
+        error={!isEditMode && !formData.apiToken && 'API Token is required'}
+        description={isEditMode ? 'Only provide a new token if you want to update it' : JIRA_LABELS.API_TOKEN_DESCRIPTION}
       />
 
       {error && (
@@ -185,7 +201,7 @@ export function JiraConnectionFlow({ onConnect, onCancel }: JiraConnectionFlowPr
         <ActionButtons
           onCancel={onCancel}
           onPrimary={handleConnect}
-          primaryLabel={JIRA_LABELS.CONNECT_JIRA}
+          primaryLabel={isEditMode ? 'Save Changes' : JIRA_LABELS.CONNECT_JIRA}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isConnecting}
           isCancelDisabled={isVerifying || isConnecting}
