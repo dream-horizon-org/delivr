@@ -43,6 +43,7 @@ function MyApp() {
 
 Additionally, complete the platform-specific setup to ensure full integration:
 
+- [Expo Setup using Plugin](docs/setup-expo.md) — if your app uses Expo (managed or prebuild) this wires up Android and iOS automatically via the config plugin.
 - [iOS Setup](docs/setup-ios.md)
 - [Android Setup](docs/setup-android.md)
 
@@ -137,6 +138,17 @@ Options:
 # Example with options
 yarn dota bundle --platform android --bundle-path ./custom-path --make-sourcemap
 ```
+
+### 3. Bundle Generation for Expo
+
+You can export the JavaScript and assets for your expo app using Metro bundler by running:
+```bash
+npx expo export
+```
+
+For more information refer to the Expo documentation:
+https://docs.expo.dev/more/expo-cli/#exporting
+
 
 > **Note**: When generating a patch bundle using this script, ensure that the base bundle shipped with the APK is identical to the one generated here. Any discrepancy in flags, especially if additional flags are passed to React Native during bundle generation, may lead to patch application issues. If uncertain, follow the Automated Bundle Generation step to maintain consistency.
 
@@ -289,7 +301,6 @@ See [Sync API](docs/api-js.md#codepushsync) and [SyncOptions](docs/api-js.md#syn
 * [Objective-C API Reference (iOS)](docs/api-ios.md)
 * [Swift API Reference (iOS)](docs/api-ios-swift.md)
 * [Java API Reference (Android)](docs/api-android.md)
-
 
 ## Contributing
 
