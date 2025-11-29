@@ -6,7 +6,7 @@ const { GoogleAuth } = require('google-auth-library');
 import { getStorage } from '../../storage/storage-instance';
 import { 
   StoreIntegrationController, 
-  StoreCredentialController 
+  StoreCredentialController
 } from '../../storage/integrations/store/store-controller';
 import {
   StoreType,
@@ -17,6 +17,8 @@ import {
   ConnectStoreResponse,
   AppStoreConnectPayload,
   GooglePlayStorePayload,
+  UpdateStoreIntegrationDto,
+  SafeStoreIntegration,
   mapStoreTypeFromApi,
   isValidTrackForStoreType,
   getInvalidTrackErrorMessage,
@@ -25,6 +27,13 @@ import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
 import { ERROR_MESSAGES } from '../../constants/store';
 import { getErrorMessage } from '../../utils/error.utils';
 import { decrypt } from '../../utils/encryption.utils';
+
+const isNonEmptyString = (value: unknown): value is string => {
+  const isString = typeof value === 'string';
+  const trimmed = isString ? value.trim() : '';
+  const isNonEmpty = trimmed.length > 0;
+  return isString && isNonEmpty;
+};
 
 const getStoreController = (): StoreIntegrationController => {
   const storage = getStorage();
@@ -619,12 +628,15 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Check if integration already exists
-    const existingIntegration = await integrationController.findByTenantStoreTypeAndAppIdentifier(
+    // Check if integration already exists by tenantId + storeType + platform
+    const integrations = await integrationController.findAll({
       tenantId,
-      mappedStoreType,
-      payload.appIdentifier
-    );
+      storeType: mappedStoreType,
+      platform: platformUpper,
+    });
+    
+    // If multiple found, take the first one (or could return error if multiple)
+    const existingIntegration = integrations.length > 0 ? integrations[0] : null;
 
     let integrationId: string;
     const integrationExists = !!existingIntegration;
@@ -778,6 +790,244 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
     });
   } catch (error) {
     const message = getErrorMessage(error, ERROR_MESSAGES.INTEGRATION_CREATE_FAILED);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: RESPONSE_STATUS.FAILURE,
+      error: message,
+    });
+  }
+};
+
+// ============================================================================
+// PATCH /integrations/store/:integrationId (Partial Update)
+// ============================================================================
+
+export const patchStoreIntegration = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { integrationId } = req.params;
+    const body = req.body || {};
+    const { payload } = body;
+
+    const integrationController = getStoreController();
+    const credentialController = getCredentialController();
+
+    // Find existing integration by ID
+    const existingIntegration = await integrationController.findById(integrationId);
+
+    const integrationNotFound = !existingIntegration;
+    if (integrationNotFound) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND,
+      });
+      return;
+    }
+
+    // If payload is empty or not provided, return success (no changes)
+    const isPayloadEmpty = !payload || Object.keys(payload).length === 0;
+    if (isPayloadEmpty) {
+      res.status(HTTP_STATUS.OK).json({
+        success: RESPONSE_STATUS.SUCCESS,
+        data: {
+          integrationId: existingIntegration.id,
+          status: existingIntegration.status,
+        },
+        message: 'No changes provided. Integration unchanged.',
+      });
+      return;
+    }
+
+    // Determine store type for credential handling
+    const isAppStoreType = existingIntegration.storeType === StoreType.APP_STORE || existingIntegration.storeType === StoreType.TESTFLIGHT;
+    const isPlayStoreType = existingIntegration.storeType === StoreType.PLAY_STORE;
+
+    // Build update data for store_integrations table - only include fields that are provided in payload
+    const updateData: Partial<UpdateStoreIntegrationDto> = {};
+
+    // Update displayName if provided
+    if (payload.displayName !== undefined) {
+      updateData.displayName = payload.displayName;
+    }
+
+    // Update appIdentifier if provided
+    if (payload.appIdentifier !== undefined) {
+      updateData.appIdentifier = payload.appIdentifier;
+    }
+
+    // Update App Store specific fields if provided
+    if (isAppStoreType) {
+      if (payload.targetAppId !== undefined) {
+        updateData.targetAppId = payload.targetAppId || null;
+      }
+      if (payload.defaultLocale !== undefined) {
+        updateData.defaultLocale = payload.defaultLocale || null;
+      }
+      if (payload.teamName !== undefined) {
+        updateData.teamName = payload.teamName || null;
+      }
+    }
+
+    // Update Play Store specific fields if provided
+    if (isPlayStoreType) {
+      if (payload.defaultTrack !== undefined) {
+        const defaultTrackValue = payload.defaultTrack
+          ? (payload.defaultTrack.toUpperCase() as DefaultTrack)
+          : null;
+        
+        const trackIsValid = isValidTrackForStoreType(existingIntegration.storeType, defaultTrackValue ?? DefaultTrack.INTERNAL);
+        
+        if (defaultTrackValue && !trackIsValid) {
+          const errorMessage = getInvalidTrackErrorMessage(existingIntegration.storeType, defaultTrackValue);
+          res.status(HTTP_STATUS.BAD_REQUEST).json({
+            success: RESPONSE_STATUS.FAILURE,
+            error: errorMessage,
+          });
+          return;
+        }
+        
+        updateData.defaultTrack = defaultTrackValue;
+      }
+    }
+
+    // Update store_integrations table if there are fields to update
+    const hasFieldsToUpdate = Object.keys(updateData).length > 0;
+    let updatedIntegration = existingIntegration;
+
+    if (hasFieldsToUpdate) {
+      updatedIntegration = await integrationController.update(existingIntegration.id, updateData);
+      
+      const updateFailed = !updatedIntegration;
+      if (updateFailed) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: RESPONSE_STATUS.FAILURE,
+          error: ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED,
+        });
+        return;
+      }
+    }
+
+    // Handle credential updates (partial updates supported)
+    const hasCredentialFields = (isAppStoreType && (payload.issuerId !== undefined || payload.keyId !== undefined || payload.privateKeyPem !== undefined)) ||
+                                (isPlayStoreType && payload.serviceAccountJson !== undefined);
+
+    if (hasCredentialFields) {
+      // Get existing credential
+      const existingCredential = await credentialController.findByIntegrationId(existingIntegration.id);
+
+      if (!existingCredential) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: RESPONSE_STATUS.FAILURE,
+          error: 'No existing credentials found for this integration. Use PUT /integrations/store/connect to create credentials.',
+        });
+        return;
+      }
+
+      // Read existing credential payload (stored as plain text in encryptedPayload column)
+      // The column name is encryptedPayload but data is stored as plain JSON text
+      // Read directly as UTF-8 string (no decryption needed)
+      let decryptedPayload: string;
+      try {
+        const buffer = existingCredential.encryptedPayload;
+        
+        // Since encryptCredentials() stores as plain Buffer (no encryption),
+        // read directly as UTF-8 string
+        if (Buffer.isBuffer(buffer)) {
+          decryptedPayload = buffer.toString('utf-8');
+        } else {
+          // Fallback: treat as string
+          decryptedPayload = String(buffer);
+        }
+      } catch (readError) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: RESPONSE_STATUS.FAILURE,
+          error: 'Failed to read existing credentials',
+        });
+        return;
+      }
+
+      // Parse decrypted JSON
+      let credentialData: any;
+      try {
+        credentialData = JSON.parse(decryptedPayload);
+      } catch (parseError) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: RESPONSE_STATUS.FAILURE,
+          error: 'Failed to parse existing credential data',
+        });
+        return;
+      }
+
+      // Update only the fields provided in payload (partial update)
+      if (isAppStoreType) {
+        if (payload.issuerId !== undefined) {
+          credentialData.issuerId = payload.issuerId;
+        }
+        if (payload.keyId !== undefined) {
+          credentialData.keyId = payload.keyId;
+        }
+        if (payload.privateKeyPem !== undefined) {
+          credentialData.privateKeyPem = payload.privateKeyPem;
+        }
+      } else if (isPlayStoreType && payload.serviceAccountJson) {
+        // Update serviceAccountJson fields
+        const serviceAccountJson = payload.serviceAccountJson;
+        if (serviceAccountJson.type !== undefined) {
+          credentialData.type = serviceAccountJson.type;
+        }
+        if (serviceAccountJson.project_id !== undefined) {
+          credentialData.project_id = serviceAccountJson.project_id;
+        }
+        if (serviceAccountJson.client_email !== undefined) {
+          credentialData.client_email = serviceAccountJson.client_email;
+        }
+        if (serviceAccountJson.private_key !== undefined) {
+          credentialData.private_key = serviceAccountJson.private_key;
+        }
+        // Update other service account fields if provided
+        if (serviceAccountJson.private_key_id !== undefined) {
+          credentialData.private_key_id = serviceAccountJson.private_key_id;
+        }
+        if (serviceAccountJson.client_id !== undefined) {
+          credentialData.client_id = serviceAccountJson.client_id;
+        }
+        if (serviceAccountJson.auth_uri !== undefined) {
+          credentialData.auth_uri = serviceAccountJson.auth_uri;
+        }
+        if (serviceAccountJson.token_uri !== undefined) {
+          credentialData.token_uri = serviceAccountJson.token_uri;
+        }
+        if (serviceAccountJson.auth_provider_x509_cert_url !== undefined) {
+          credentialData.auth_provider_x509_cert_url = serviceAccountJson.auth_provider_x509_cert_url;
+        }
+        if (serviceAccountJson.client_x509_cert_url !== undefined) {
+          credentialData.client_x509_cert_url = serviceAccountJson.client_x509_cert_url;
+        }
+      }
+
+      // Save updated credentials as plain text (no encryption)
+      // Note: encryptCredentials() just converts to Buffer, doesn't actually encrypt
+      const updatedCredentialPayload = JSON.stringify(credentialData);
+      const encryptedPayload = encryptCredentials(updatedCredentialPayload);
+
+      // Update the existing credential record
+      await credentialController.deleteByIntegrationId(existingIntegration.id);
+      await credentialController.create({
+        integrationId: existingIntegration.id,
+        credentialType: existingCredential.credentialType,
+        encryptedPayload,
+        encryptionScheme: existingCredential.encryptionScheme,
+      });
+    }
+
+    res.status(HTTP_STATUS.OK).json({
+      success: RESPONSE_STATUS.SUCCESS,
+      data: {
+        integrationId: updatedIntegration.id,
+        status: updatedIntegration.status,
+      },
+      message: 'Store integration updated successfully',
+    });
+  } catch (error) {
+    const message = getErrorMessage(error, ERROR_MESSAGES.INTEGRATION_UPDATE_FAILED);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message,
