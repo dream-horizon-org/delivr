@@ -51,7 +51,7 @@ export type PlatformRunError = {
 
 /**
  * Response from creating test runs
- * Keys are TestPlatform enum values (IOS_APP_STORE, ANDROID_PLAY_STORE, IOS_TESTFLIGHT, ANDROID_INTERNAL_TESTING)
+ * Keys are TestPlatform enum values (IOS, ANDROID)
  * Each platform can be either successful (with runId, url, status) or failed (with error)
  * 
  * This allows partial success - some platforms may succeed while others fail.

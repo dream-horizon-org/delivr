@@ -8,7 +8,7 @@ import {
   validationErrorResponse
 } from '~utils/response.utils';
 import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from '../constants';
-import { validatePlatforms } from './test-run.validation';
+import { validatePlatforms, validateRunDescription, validateRunName } from './test-run.validation';
 
 /**
  * Create test runs for platforms in a test management config
@@ -26,9 +26,8 @@ import { validatePlatforms } from './test-run.validation';
  * runName will be used for all created test runs.
  * 
  * Returns: {
- *   IOS_APP_STORE: { runId, url, status },              // Success
- *   ANDROID_PLAY_STORE: { error: "Network timeout" },  // Failure
- *   IOS_TESTFLIGHT: { runId, url, status }   // Success
+ *   IOS: { runId, url, status },      // Success
+ *   ANDROID: { error: "..." }         // Failure (some platforms may fail)
  * }
  * 
  * Note: Supports partial success - some platforms may succeed while others fail.
@@ -46,42 +45,20 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
         return;
       }
 
-      // Validate runName (REQUIRED)
-      if (!runName || typeof runName !== 'string') {
+      // Validate runName
+      const runNameError = validateRunName(runName);
+      if (runNameError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runName', 'runName is required and must be a string')
+          validationErrorResponse('runName', runNameError)
         );
         return;
       }
 
-      // Validate runName length (Checkmate requirement: 5-50 characters)
-      const runNameTrimmed = runName.trim();
-      
-      if (runNameTrimmed.length === 0) {
+      // Validate runDescription
+      const runDescriptionError = validateRunDescription(runDescription);
+      if (runDescriptionError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runName', 'runName cannot be empty')
-        );
-        return;
-      }
-
-      if (runNameTrimmed.length < 5) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runName', 'runName must be at least 5 characters')
-        );
-        return;
-      }
-
-      if (runNameTrimmed.length > 50) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runName', 'runName must be at most 50 characters')
-        );
-        return;
-      }
-
-      // Validate runDescription if provided
-      if (runDescription !== undefined && typeof runDescription !== 'string') {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('runDescription', 'runDescription must be a string')
+          validationErrorResponse('runDescription', runDescriptionError)
         );
         return;
       }
