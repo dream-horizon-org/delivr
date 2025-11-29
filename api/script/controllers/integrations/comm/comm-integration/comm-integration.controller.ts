@@ -6,6 +6,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { CommIntegrationService } from '~services/integrations/comm/comm-integration';
+import type { CreateOrUpdateIntegrationDto } from '~types/integrations/comm';
 import {
   errorResponse,
   getErrorStatusCode,

@@ -10,12 +10,11 @@ import type {
   CreateReleaseConfigRequest,
   ReleaseConfiguration,
   UpdateReleaseConfigDto,
-  UpdateReleaseConfigRequest,
   IntegrationValidationResult,
   ValidationResult,
   ServiceResult
 } from '~types/release-configs';
-import { hasAtLeastOneIntegration, validateScheduling } from './release-config.validation';
+import { validateScheduling } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
@@ -663,6 +662,7 @@ export class ReleaseConfigService {
   ): Promise<void> {
     if (!this.testManagementConfigService) return;
 
+
     // Prepare data for mapper: mapper expects { tenantId, testManagementConfig: {...} }
     // updateData is already the testManagementConfig object from the request
     const normalizedData = {
@@ -705,12 +705,11 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
 
-    // Normalize field name: updateData might have 'testManagementConfig' (from GET response)
-    // but mapper expects 'testManagement'
+    // Field names are now consistent: use testManagement directly
     const normalizedData = {
       ...updateData,
       tenantId,
-      testManagement: updateData.testManagementConfig || updateData.testManagement
+      testManagement: updateData.testManagement
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
@@ -871,12 +870,11 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.projectManagementConfigService) return null;
 
-    // Normalize field name: updateData might have 'projectManagementConfig' (from GET response)
-    // but mapper expects 'projectManagement'
+    // Field names are now consistent: use projectManagement directly
     const normalizedData = {
       ...updateData,
       tenantId,
-      projectManagement: updateData.projectManagementConfig || updateData.projectManagement
+      projectManagement: updateData.projectManagement
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
@@ -1023,12 +1021,11 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.commConfigService) return null;
 
-    // Normalize field name: updateData might have 'commsConfig' (from GET response)
-    // but mapper expects 'communication'
+    // Field names are now consistent: use communication directly
     const normalizedData = {
       ...updateData,
       tenantId,
-      communication: updateData.commsConfig || updateData.communication
+      communication: updateData.communication
     };
 
     console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communication, null, 2));
