@@ -23,9 +23,9 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
     const isArrayWorkflows = Array.isArray(body.workflows);
-    const workflows = isArrayWorkflows ? body.workflows : undefined;
+    const workflows = isArrayWorkflows ? body.workflows : [];
     const isArrayWorkflowIds = Array.isArray(body.workflowIds);
-    const workflowIds = isArrayWorkflowIds ? body.workflowIds : undefined;
+    const workflowIds = isArrayWorkflowIds ? body.workflowIds : [];
     const result = await service.createConfig({
       tenantId,
       createdByAccountId: accountId,
@@ -115,10 +115,10 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
   const accountId = req.user?.id;
 
   const isArrayWorkflowIds = Array.isArray(body.workflowIds);
-  const workflowIds = isArrayWorkflowIds ? body.workflowIds : undefined;
+  const workflowIds = isArrayWorkflowIds ? body.workflowIds : [];
 
   const isArrayWorkflows = Array.isArray(body.workflows);
-  const workflows = isArrayWorkflows ? body.workflows : undefined;
+  const workflows = isArrayWorkflows ? body.workflows : [];
   try {
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
