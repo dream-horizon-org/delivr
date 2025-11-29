@@ -33,11 +33,19 @@ const isPlatformConfiguration = (value: unknown): value is PlatformConfiguration
   }
 
   const parametersValue = value.parameters;
-  const parametersIsObject = typeof parametersValue === 'object';
-  const parametersNotNull = parametersValue !== null;
-  const parametersValid = parametersIsObject && parametersNotNull;
+  
+  // Validate parameters is an object and not null
+  if (typeof parametersValue !== 'object' || parametersValue === null) {
+    return false;
+  }
 
-  return parametersValid;
+  // Validate required field: projectId must be a positive number
+  const params = parametersValue as Record<string, unknown>;
+  if (typeof params.projectId !== 'number' || params.projectId <= 0) {
+    return false;
+  }
+
+  return true;
 };
 
 /**
@@ -68,7 +76,7 @@ export const validatePlatformConfigurations = (
 
     if (!configIsValid) {
       const validPlatforms = TEST_PLATFORMS.join(', ');
-      return `Invalid configuration at index ${i}: must have 'platform' (one of: ${validPlatforms}) and 'parameters' (object)`;
+      return `Invalid configuration at index ${i}: must have 'platform' (one of: ${validPlatforms}) and 'parameters' (object with required 'projectId' as positive number)`;
     }
     
     // Check for duplicate platform

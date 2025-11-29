@@ -3,14 +3,17 @@
  * Reusable test configurations for tenants
  */
 
+import type { PlatformConfigParameters } from '~services/integrations/test-management/providers/provider.interface';
 import type { TestPlatform } from '../platform.interface';
 
 /**
  * Platform-specific test configuration
+ * Uses PlatformConfigParameters for type safety and consistency with provider layer
+ * Note: runName and runDescription are NOT stored here - they are provided at test run creation time
  */
 export type PlatformConfiguration = {
   platform: TestPlatform;
-  parameters: Record<string, unknown>;
+  parameters: PlatformConfigParameters;
 };
 
 /**

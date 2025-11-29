@@ -2,11 +2,47 @@ import shortid = require('shortid');
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import { CICDProviderType, WorkflowType, type CreateWorkflowDto } from '~types/integrations/ci-cd';
 
-const isNonEmptyString = (value: unknown): value is string => {
+export const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
   const trimmed = isString ? value.trim() : '';
   const isNonEmpty = trimmed.length > 0;
   return isString && isNonEmpty;
+};
+
+const getTrimmedIdIfPresent = (wf: unknown): string | null => {
+  const maybeId = (wf as Record<string, unknown> | null | undefined)?.id;
+  const isIdString = typeof maybeId === 'string';
+  if (!isIdString) {
+    return null;
+  }
+  const trimmed = (maybeId as string).trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+export const splitWorkflows = (
+  inputWorkflows: CreateWorkflowDto[]
+): { existingIds: string[]; workflowsToCreate: CreateWorkflowDto[] } => {
+  const existingIds: string[] = [];
+  const workflowsToCreate: CreateWorkflowDto[] = [];
+
+  for (const wf of inputWorkflows) {
+    const trimmedId = getTrimmedIdIfPresent(wf);
+    const hasExistingId = isNonEmptyString(trimmedId);
+    if (hasExistingId) {
+      existingIds.push(trimmedId as string);
+    } else {
+      workflowsToCreate.push(wf);
+    }
+  }
+
+  return {
+    existingIds: Array.from(new Set(existingIds)),
+    workflowsToCreate
+  };
+};
+
+export const dedupeIds = (ids: string[]): string[] => {
+  return Array.from(new Set(ids));
 };
 
 export const validateAndNormalizeWorkflowsForConfig = (

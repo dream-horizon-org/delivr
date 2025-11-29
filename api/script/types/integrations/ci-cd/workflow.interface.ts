@@ -27,7 +27,7 @@ export interface TenantCICDWorkflow {
 }
 
 export interface CreateWorkflowDto {
-  id: string;
+  id?: string;
   tenantId: string;
   providerType: CICDProviderType;
   integrationId: string;
