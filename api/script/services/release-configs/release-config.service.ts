@@ -512,7 +512,7 @@ export class ReleaseConfigService {
 
       // IDs match - UPDATE existing config
       console.log('[handleCiConfigId] IDs match - updating existing config:', providedConfigId);
-      await this.updateCiConfig(providedConfigId, existingConfig.tenantId, ciConfig);
+      await this.updateCiConfig(providedConfigId, existingConfig.tenantId, ciConfig, currentUserId);
       return providedConfigId;
     }
 
@@ -529,19 +529,22 @@ export class ReleaseConfigService {
 
   /**
    * Update existing CI config
+   * Uses UpdateCICDConfigDto: { tenantId, configId, createdByAccountId, workflows }
    */
   private async updateCiConfig(
     configId: string,
     tenantId: string,
-    ciConfig: any
+    ciConfig: any,
+    currentUserId: string
   ): Promise<void> {
     if (!this.cicdConfigService) return;
 
-    const ciUpdateDto = {
-      workflowIds: ciConfig.workflows || []
-    };
-
-    await this.cicdConfigService.updateConfig(configId, tenantId, ciUpdateDto);
+    await this.cicdConfigService.updateConfig({
+      configId,
+      tenantId,
+      createdByAccountId: currentUserId,
+      workflows: ciConfig.workflows || []
+    });
   }
 
   /**
