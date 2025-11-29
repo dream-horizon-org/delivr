@@ -527,9 +527,13 @@ export class TaskExecutor {
     }
     
     // 4. Call service with correct signature
+    // Generate runName from release information (required parameter)
+    const runName = `Release ${release.releaseVersion || release.releaseId}`;
+    
     // Don't specify platforms - service will create for ALL platforms in config
     const results = await this.testRunService.createTestRuns({
-      testManagementConfigId: testConfigId
+      testManagementConfigId: testConfigId,
+      runName
     });
     
     // Extract run IDs (Category A: return string)
