@@ -230,7 +230,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       throw new Error(CHECKMATE_ERROR_MESSAGES.PROJECT_ID_REQUIRED);
     }
 
-    const runName = parameters.runName ?? CHECKMATE_DEFAULTS.RUN_NAME;
+    const runName = parameters.runName; // Required parameter (validated at API layer)
     const runDescription = parameters.runDescription;
     const sectionIds = parameters.sectionIds;
     const labelIds = parameters.labelIds;

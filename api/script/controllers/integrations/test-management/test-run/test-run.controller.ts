@@ -15,12 +15,15 @@ import { validatePlatforms } from './test-run.validation';
  * POST /test-management/test-runs
  * 
  * Body: {
- *   testManagementConfigId: string,
- *   platforms?: TestPlatform[]  // Optional: only create for these platforms
+ *   testManagementConfigId: string,  // REQUIRED: ID of test management config
+ *   runName: string,                 // REQUIRED: display name (5-50 chars)
+ *   runDescription?: string,         // Optional: description for test runs
+ *   platforms?: TestPlatform[]       // Optional: only create for these platforms
  * }
  * 
  * If platforms is not provided, creates runs for ALL platforms in config.
  * If platforms is provided, only creates runs for those specific platforms.
+ * runName will be used for all created test runs.
  * 
  * Returns: {
  *   IOS_APP_STORE: { runId, url, status },              // Success
@@ -34,11 +37,51 @@ import { validatePlatforms } from './test-run.validation';
 const createTestRunsHandler = (service: TestManagementRunService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { testManagementConfigId, platforms } = req.body;
+      const { testManagementConfigId, runName, runDescription, platforms } = req.body;
 
       if (!testManagementConfigId || typeof testManagementConfigId !== 'string') {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('testManagementConfigId', 'testManagementConfigId is required')
+        );
+        return;
+      }
+
+      // Validate runName (REQUIRED)
+      if (!runName || typeof runName !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('runName', 'runName is required and must be a string')
+        );
+        return;
+      }
+
+      // Validate runName length (Checkmate requirement: 5-50 characters)
+      const runNameTrimmed = runName.trim();
+      
+      if (runNameTrimmed.length === 0) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('runName', 'runName cannot be empty')
+        );
+        return;
+      }
+
+      if (runNameTrimmed.length < 5) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('runName', 'runName must be at least 5 characters')
+        );
+        return;
+      }
+
+      if (runNameTrimmed.length > 50) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('runName', 'runName must be at most 50 characters')
+        );
+        return;
+      }
+
+      // Validate runDescription if provided
+      if (runDescription !== undefined && typeof runDescription !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('runDescription', 'runDescription must be a string')
         );
         return;
       }
@@ -56,6 +99,8 @@ const createTestRunsHandler = (service: TestManagementRunService) =>
 
       const result = await service.createTestRuns({ 
         testManagementConfigId,
+        runName,
+        runDescription,
         platforms 
       });
 

@@ -18,6 +18,8 @@ export enum TestRunStatus {
  */
 export type CreateTestRunsRequest = {
   testManagementConfigId: string;
+  runName: string;             // REQUIRED: display name for test runs (5-50 characters)
+  runDescription?: string;     // Optional: description for test runs
   platforms?: TestPlatform[];  // Optional: filter to only these platforms (default: all)
 };
 
