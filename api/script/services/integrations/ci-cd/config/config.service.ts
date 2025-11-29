@@ -34,32 +34,44 @@ export class CICDConfigService {
     const tenantId = dto.tenantId;
     const createdByAccountId = dto.createdByAccountId;
 
-    const workflows = Array.isArray(dto.workflows) ? dto.workflows : [];
-    const noWorkflowsProvided = workflows.length === 0;
-
-    if (noWorkflowsProvided) {
+    const hasWorkflows = Array.isArray(dto.workflows) && dto.workflows.length > 0;
+    const providedIds = Array.isArray(dto.workflowIds) ? dto.workflowIds : [];
+    const neitherProvided = !hasWorkflows && providedIds.length === 0;
+    if (neitherProvided) {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED);
     }
 
-    // Validate and normalize all workflows before creating any
-    const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(workflows, tenantId, createdByAccountId);
+    let finalIds: string[] = providedIds;
 
-    const createdWorkflows: TenantCICDWorkflow[] = [];
-    for (const wf of validatedWorkflows) {
-      const created = await this.workflowRepository.create(wf);
-      createdWorkflows.push(created);
+    if (hasWorkflows) {
+      const validation = await validateWorkflowsForCreateConfig(dto.workflows ?? [], tenantId);
+      const hasValidationErrors = validation.errors.length > 0;
+      if (hasValidationErrors) {
+        throw new CICDConfigValidationError(validation.errors);
+      }
+
+      // Validate and normalize all workflows before creating any
+      const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(dto.workflows ?? [], tenantId, createdByAccountId);
+
+      const createdWorkflows: TenantCICDWorkflow[] = [];
+      for (const wf of validatedWorkflows) {
+        const created = await this.workflowRepository.create(wf);
+        createdWorkflows.push(created);
+      }
+
+      const newIds = createdWorkflows.map(w => w.id);
+      finalIds = Array.from(new Set([...providedIds, ...newIds]));
     }
 
-    const workflowIds = createdWorkflows.map(w => w.id);
     const configId = shortid.generate();
     const createdConfig = await this.configRepository.create({
       id: configId,
       tenantId,
-      workflowIds,
+      workflowIds: finalIds,
       createdByAccountId
     } as unknown as TenantCICDConfig);
 
-    return { configId: createdConfig.id, workflowIds };
+    return { configId: createdConfig.id, workflowIds: createdConfig.workflowIds };
   }
 
   async findById(id: string): Promise<TenantCICDConfig | null> {

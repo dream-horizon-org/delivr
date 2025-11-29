@@ -11,7 +11,8 @@ export interface TenantCICDConfig {
 
 export interface CreateCICDConfigDto {
   tenantId: string;
-  workflows: Array<CreateWorkflowDto>;
+  workflows?: Array<CreateWorkflowDto>;
+  workflowIds?: string[];
   createdByAccountId: string;
 }
 

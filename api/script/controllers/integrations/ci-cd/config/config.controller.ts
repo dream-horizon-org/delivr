@@ -23,11 +23,14 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
     const isArrayWorkflows = Array.isArray(body.workflows);
-    const workflows = isArrayWorkflows ? body.workflows : [];
+    const workflows = isArrayWorkflows ? body.workflows : undefined;
+    const isArrayWorkflowIds = Array.isArray(body.workflowIds);
+    const workflowIds = isArrayWorkflowIds ? body.workflowIds : undefined;
     const result = await service.createConfig({
       tenantId,
       createdByAccountId: accountId,
-      workflows
+      workflows,
+      workflowIds
     });
     return res.status(HTTP_STATUS.CREATED).json({
       success: RESPONSE_STATUS.SUCCESS,
