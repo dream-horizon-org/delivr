@@ -109,12 +109,23 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
   const tenantId = req.params.tenantId;
   const configId = req.params.configId;
   const body = req.body || {};
-  const isArrayWorkflows = Array.isArray(body.workflowIds);
-  const workflowIds = isArrayWorkflows ? body.workflowIds : undefined;
+  const accountId = req.user?.id;
+
+  const isArrayWorkflowIds = Array.isArray(body.workflowIds);
+  const workflowIds = isArrayWorkflowIds ? body.workflowIds : undefined;
+
+  const isArrayWorkflows = Array.isArray(body.workflows);
+  const workflows = isArrayWorkflows ? body.workflows : undefined;
   try {
     const storage = getStorage();
     const service = (storage as any).cicdConfigService as CICDConfigService;
-    const updated = await service.updateConfig(configId, tenantId, { workflowIds });
+    const updated = await service.updateConfig({
+      tenantId,
+      configId,
+      createdByAccountId: accountId,
+      workflows,
+      workflowIds
+    });
     const notFound = !updated;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -127,8 +138,15 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
       config: updated
     });
   } catch (e: unknown) {
+    if (e instanceof CICDConfigValidationError) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        integration: 'ci',
+        errors: e.errors
+      });
+    }
     const message = formatErrorMessage(e, ERROR_MESSAGES.CONFIG_UPDATE_FAILED);
-    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+    const statusCode = getErrorStatusCode(e);
+    return res.status(statusCode).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message
     });
