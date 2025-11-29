@@ -3,7 +3,7 @@ import type { CreateCICDConfigDto, FieldError, TenantCICDConfig, UpdateCICDConfi
 import type { TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
-import { validateAndNormalizeWorkflowsForConfig } from './config.utils';
+import { validateAndNormalizeWorkflowsForConfig, dedupeIds, splitWorkflows } from './config.utils';
 import { validateWorkflowsForCreateConfig, CICDConfigValidationError } from './config.validation';
 
 export class CICDConfigService {
@@ -22,7 +22,7 @@ export class CICDConfigService {
     if (noWorkflowsProvided) {
       return { "isValid": false, "errors": [{ field: 'workflows', message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED }], "integration": "ci" };
     }
-    const validation = await validateWorkflowsForCreateConfig(workflows as unknown[], tenantId);
+    const validation = await validateWorkflowsForCreateConfig(workflows, tenantId);
     const hasValidationErrors = validation.errors.length > 0;
     if (hasValidationErrors) {
       return { "isValid": false, "errors": validation.errors, "integration": "ci" };
@@ -34,24 +34,22 @@ export class CICDConfigService {
     const tenantId = dto.tenantId;
     const createdByAccountId = dto.createdByAccountId;
 
-    const hasWorkflows = Array.isArray(dto.workflows) && dto.workflows.length > 0;
-    const providedIds = Array.isArray(dto.workflowIds) ? dto.workflowIds : [];
-    const neitherProvided = !hasWorkflows && providedIds.length === 0;
-    if (neitherProvided) {
+    const inputWorkflows = Array.isArray(dto.workflows) ? dto.workflows : [];
+    if (inputWorkflows.length === 0) {
       throw new Error(CICD_CONFIG_ERROR_MESSAGES.WORKFLOWS_REQUIRED);
     }
+    const { existingIds, workflowsToCreate } = splitWorkflows(inputWorkflows);
+    let finalWorkflowIds: string[] = dedupeIds([...existingIds]);
 
-    let finalIds: string[] = providedIds;
-
-    if (hasWorkflows) {
-      const validation = await validateWorkflowsForCreateConfig(dto.workflows ?? [], tenantId);
+    if (workflowsToCreate.length > 0) {
+      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, tenantId);
       const hasValidationErrors = validation.errors.length > 0;
       if (hasValidationErrors) {
         throw new CICDConfigValidationError(validation.errors);
       }
 
       // Validate and normalize all workflows before creating any
-      const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(dto.workflows ?? [], tenantId, createdByAccountId);
+      const validatedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate, tenantId, createdByAccountId);
 
       const createdWorkflows: TenantCICDWorkflow[] = [];
       for (const wf of validatedWorkflows) {
@@ -59,15 +57,17 @@ export class CICDConfigService {
         createdWorkflows.push(created);
       }
 
-      const newIds = createdWorkflows.map(w => w.id);
-      finalIds = Array.from(new Set([...providedIds, ...newIds]));
+      const newlyCreatedIds = createdWorkflows.map(w => w.id);
+
+      finalWorkflowIds = dedupeIds([...finalWorkflowIds, ...newlyCreatedIds]);
     }
 
     const configId = shortid.generate();
+
     const createdConfig = await this.configRepository.create({
       id: configId,
       tenantId,
-      workflowIds: finalIds,
+      workflowIds: finalWorkflowIds,
       createdByAccountId
     } as unknown as TenantCICDConfig);
 
@@ -93,21 +93,20 @@ export class CICDConfigService {
       return null;
     }
 
-    const hasWorkflows = Array.isArray(dto.workflows) && dto.workflows.length > 0;
-    const hasProvidedIdsArray = Array.isArray(dto.workflowIds);
-    const providedIds = hasProvidedIdsArray ? dto.workflowIds : [];
+    const inputWorkflows = Array.isArray(dto.workflows) ? dto.workflows : [];
+    const { existingIds, workflowsToCreate } = splitWorkflows(inputWorkflows);
 
-    let finalWorkflowIds: string[] | undefined = providedIds;
+    let finalWorkflowIds: string[] = dedupeIds(existingIds);
 
-    if (hasWorkflows) {
+    if (workflowsToCreate.length > 0) {
       // Validate incoming workflows first; throw structured validation error if any
-      const validation = await validateWorkflowsForCreateConfig(dto.workflows ?? [], tenantId);
+      const validation = await validateWorkflowsForCreateConfig(workflowsToCreate, tenantId);
       const hasValidationErrors = validation.errors.length > 0;
       if (hasValidationErrors) {
         throw new CICDConfigValidationError(validation.errors);
       }
 
-      const normalizedWorkflows = validateAndNormalizeWorkflowsForConfig(dto.workflows ?? [], tenantId, createdByAccountId);
+      const normalizedWorkflows = validateAndNormalizeWorkflowsForConfig(workflowsToCreate as unknown[], tenantId, createdByAccountId);
 
       const createdWorkflows: TenantCICDWorkflow[] = [];
       for (const workflow of normalizedWorkflows) {
@@ -115,13 +114,12 @@ export class CICDConfigService {
         createdWorkflows.push(created);
       }
 
-      const newIds = createdWorkflows.map(w => w.id);
-      const combined = [...providedIds, ...newIds];
-      const unique = Array.from(new Set(combined));
-      finalWorkflowIds = unique;
+      const newlyCreatedIds = createdWorkflows.map(w => w.id);
+      
+      finalWorkflowIds = dedupeIds([...finalWorkflowIds, ...newlyCreatedIds]);
     }
 
-    const noIncomingChanges = !hasWorkflows && !hasProvidedIdsArray;
+    const noIncomingChanges = finalWorkflowIds.length === 0
     if (noIncomingChanges) {
       // Nothing to update; return the existing config unchanged
       return existing;
@@ -130,6 +128,7 @@ export class CICDConfigService {
     const updated = await this.configRepository.update(configId, {
       workflowIds: finalWorkflowIds
     });
+    
     return updated;
   }
 

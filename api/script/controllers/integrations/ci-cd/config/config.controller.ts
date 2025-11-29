@@ -24,13 +24,10 @@ export const createConfig = async (req: Request, res: Response): Promise<any> =>
     const service = (storage as any).cicdConfigService as CICDConfigService;
     const isArrayWorkflows = Array.isArray(body.workflows);
     const workflows = isArrayWorkflows ? body.workflows : [];
-    const isArrayWorkflowIds = Array.isArray(body.workflowIds);
-    const workflowIds = isArrayWorkflowIds ? body.workflowIds : [];
     const result = await service.createConfig({
       tenantId,
       createdByAccountId: accountId,
-      workflows,
-      workflowIds
+      workflows
     });
     return res.status(HTTP_STATUS.CREATED).json({
       success: RESPONSE_STATUS.SUCCESS,
@@ -114,9 +111,6 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
   const body = req.body || {};
   const accountId = req.user?.id;
 
-  const isArrayWorkflowIds = Array.isArray(body.workflowIds);
-  const workflowIds = isArrayWorkflowIds ? body.workflowIds : [];
-
   const isArrayWorkflows = Array.isArray(body.workflows);
   const workflows = isArrayWorkflows ? body.workflows : [];
   try {
@@ -126,8 +120,7 @@ export const updateConfigById = async (req: Request, res: Response): Promise<any
       tenantId,
       configId,
       createdByAccountId: accountId,
-      workflows,
-      workflowIds
+      workflows
     });
     const notFound = !updated;
     if (notFound) {
