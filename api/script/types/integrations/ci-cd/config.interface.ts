@@ -21,3 +21,9 @@ export interface CICDConfigFilters {
 
 export type FieldError = { field: string; message: string };
 
+export type UpdateCICDConfigDto = {
+  tenantId: string;
+  configId: string;
+  createdByAccountId: string;
+  workflows: Array<CreateWorkflowDto>;
+};
