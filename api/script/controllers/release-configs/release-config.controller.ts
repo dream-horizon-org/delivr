@@ -6,10 +6,9 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { ReleaseConfigService } from '~services/release-configs';
-import type { CreateReleaseConfigRequest, CreateReleaseConfigDto, SafeReleaseConfiguration } from '~types/release-configs';
+import type { CreateReleaseConfigRequest } from '~types/release-configs';
 import { errorResponse, getErrorStatusCode, notFoundResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
 import { RELEASE_CONFIG_ERROR_MESSAGES, RELEASE_CONFIG_SUCCESS_MESSAGES } from './constants';
-import type { ReleaseConfiguration } from '~types/release-configs';
 
 type AuthenticatedRequest = Request & {
   user?: {
@@ -20,34 +19,10 @@ type AuthenticatedRequest = Request & {
 };
 
 // ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Convert ReleaseConfiguration to SafeReleaseConfiguration (metadata only)
- */
-const toSafeConfig = (config: ReleaseConfiguration): SafeReleaseConfiguration => {
-  return {
-    id: config.id,
-    tenantId: config.tenantId,
-    name: config.name,
-    description: config.description,
-    releaseType: config.releaseType,
-    platformTargets: config.platformTargets,
-    baseBranch: config.baseBranch,
-    isActive: config.isActive,
-    isDefault: config.isDefault,
-    createdBy: {
-      id: config.createdByAccountId
-    },
-    createdAt: config.createdAt instanceof Date ? config.createdAt.toISOString() : new Date(config.createdAt).toISOString(),
-    updatedAt: config.updatedAt instanceof Date ? config.updatedAt.toISOString() : new Date(config.updatedAt).toISOString()
-  };
-};
-
-// ============================================================================
 // HANDLERS
 // ============================================================================
+// NOTE: All handlers return VERBOSE format (no more "safe" format)
+// Verbose format includes full nested integration config objects
 
 /**
  * Handler: Create release config
@@ -125,9 +100,10 @@ const createConfigHandler = (service: ReleaseConfigService) =>
         return;
       }
 
-      const safeConfig = toSafeConfig(result.data);
+      // Return verbose format to match GET and UPDATE responses
+      const verboseConfig = await service.getConfigByIdVerbose(result.data.id);
       res.status(HTTP_STATUS.CREATED).json(
-        successResponse(safeConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_CREATED)
+        successResponse(verboseConfig, RELEASE_CONFIG_SUCCESS_MESSAGES.CONFIG_CREATED)
       );
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
@@ -165,7 +141,7 @@ const getConfigByIdHandler = (service: ReleaseConfigService) =>
   };
 
 /**
- * Handler: List configs by tenant
+ * Handler: List configs by tenant (verbose format)
  */
 const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
@@ -179,10 +155,10 @@ const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
         return;
       }
 
-      const configs = await service.listConfigsByTenant(tenantId);
-      const safeConfigs = configs.map(toSafeConfig);
+      // Return verbose format to match other endpoints
+      const verboseConfigs = await service.listConfigsByTenantVerbose(tenantId);
 
-      res.status(HTTP_STATUS.OK).json(successResponse(safeConfigs));
+      res.status(HTTP_STATUS.OK).json(successResponse(verboseConfigs));
     } catch (error) {
       const statusCode = getErrorStatusCode(error);
       res.status(statusCode).json(
@@ -234,6 +210,10 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
 
 /**
  * Handler: Delete config
+ */
+/**
+ * Handler: Delete config (HARD DELETE)
+ * Permanently removes the config from the database
  */
 const deleteConfigHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {

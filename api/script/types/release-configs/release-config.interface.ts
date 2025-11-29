@@ -6,8 +6,12 @@
 import type { TestPlatform } from '~types/integrations/test-management/platform.interface';
 import type { 
   PlatformConfiguration as TestManagementPlatformConfiguration,
-  CreateTestManagementConfigDto 
+  CreateTestManagementConfigDto,
+  TestManagementConfig
 } from '~types/integrations/test-management/test-management-config';
+import type { TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
+import type { ProjectManagementConfig } from '~types/integrations/project-management/configuration';
+import type { TenantCommChannel } from '~types/integrations/comm/comm-integration';
 
 /**
  * Platform-Target pair for release config
@@ -18,7 +22,9 @@ export type PlatformTarget = {
 };
 
 /**
- * Release Configuration
+ * Release Configuration (Database Model)
+ * Contains integration config IDs for database relationships
+ * NOTE: For API responses, use VerboseReleaseConfiguration which has nested objects
  */
 export type ReleaseConfiguration = {
   id: string;
@@ -82,13 +88,8 @@ export type UpdateReleaseConfigDto = {
 };
 
 /**
- * Request body structure from client for updating release configuration
- * Matches the GET verbose response format (nested integration configs)
- */
-export type UpdateReleaseConfigRequest = Partial<CreateReleaseConfigRequest>;
-
-/**
  * Request body structure from client for creating release configuration
+ * STANDARDIZED: All integration keys have "Config" suffix (ciConfig, testManagementConfig, projectManagementConfig, communicationConfig)
  */
 export type CreateReleaseConfigRequest = {
   tenantId: string;
@@ -96,22 +97,82 @@ export type CreateReleaseConfigRequest = {
   description?: string;
   releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   isDefault?: boolean;
-  platformTargets: PlatformTarget[];  // New format: [{"platform": "ANDROID", "target": "PLAY_STORE"}, ...]
+  platformTargets: PlatformTarget[];
+  baseBranch?: string;
+  scheduling?: ReleaseScheduling;
+  hasManualBuildUpload?: boolean;
   
-  // Integration configurations (will be processed to generate config IDs)
-  ciConfigId?: string;         // Optional: existing CI config ID to reuse
-  workflows?: Workflow[];                // Will be sent to CI integration service if no ciConfigId
-  testManagement?: TestManagementRequestConfig;        // Will be sent to TCM integration service
-  communication?: any;         // TODO: Use proper Communication config type when implemented
-  projectManagement?: any;     // TODO: Use proper Project Management config type when implemented
-  
-  scheduling?: ReleaseScheduling;            // Stored directly as JSON
-  baseBranch?: string;         // Base branch for releases
-  hasManualBuildUpload?: boolean;  // Whether manual build upload is enabled
-  status?: string;             // Not stored in release config
+  // INTEGRATION CONFIGS (standardized keys with "Config" suffix, nested objects)
+  // These will be processed to create/link integration configs
+  ciConfig?: {
+    id?: string;  // Optional: reuse existing config
+    workflows: Workflow[];
+  };
+  testManagementConfig?: TestManagementRequestConfig;
+  projectManagementConfig?: any; // TODO: Use proper PM config type
+  communicationConfig?: any;     // TODO: Use proper Communication config type
 };
 
 /**
+ * Request body structure from client for updating release configuration
+ * Matches the GET verbose response format (nested integration configs)
+ * 
+ * Pattern 2 (Null Convention) - Three-state system for integration configs:
+ * - undefined (absent) = KEEP existing config (no change)
+ * - null = REMOVE config (detach from release config)
+ * - object = UPSERT config (update if id present, create if not)
+ * 
+ * STANDARDIZED: All integration keys have "Config" suffix
+ */
+export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest, 'tenantId'>> & {
+  // Integration configs with explicit null support for removal
+  ciConfig?: {
+    id?: string;
+    workflows: Workflow[];
+  } | null;
+  testManagementConfig?: TestManagementRequestConfig | null;
+  projectManagementConfig?: any | null;
+  communicationConfig?: any | null;
+};
+
+/**
+ * Verbose Release Configuration for API responses
+ * Contains full nested integration config objects
+ * NO integration config IDs at root level - only in nested objects
+ * STANDARDIZED: All integration keys have "Config" suffix
+ * 
+ * Uses types from respective integration services (single source of truth):
+ * - TenantCICDConfig from CI/CD service
+ * - TestManagementConfig from Test Management service
+ * - ProjectManagementConfig from Project Management service
+ * - TenantCommChannel from Communication service
+ */
+export type VerboseReleaseConfiguration = {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string | null;
+  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  platformTargets: PlatformTarget[];
+  baseBranch: string | null;
+  scheduling: ReleaseScheduling;
+  hasManualBuildUpload: boolean;
+  isActive: boolean;
+  isDefault: boolean;
+  createdByAccountId: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // NESTED INTEGRATION CONFIGS (standardized keys with "Config" suffix, null if not configured)
+  // Types imported from respective integration services (NOT duplicated here)
+  ciConfig: TenantCICDConfig | null;
+  testManagementConfig: TestManagementConfig | null;
+  projectManagementConfig: ProjectManagementConfig | null;
+  communicationConfig: TenantCommChannel | null;
+};
+
+/**
+ * @deprecated Use VerboseReleaseConfiguration instead
  * Safe version of ReleaseConfiguration for API responses
  * Contains only metadata without any integration details
  */
@@ -135,27 +196,26 @@ export type SafeReleaseConfiguration = {
 };
 
 // ============================================================================
-// CLIENT REQUEST TYPES
+// CLIENT REQUEST TYPES (for POST/PUT)
 // ============================================================================
+// NOTE: Response types are imported from respective integration services above
+// We do NOT duplicate them here to maintain single source of truth
 
 /**
  * Test Management Config from client request
  * Uses actual test-management types via mapper
  */
 export interface TestManagementRequestConfig {
-  enabled: boolean;
-  id?: string;
+  id?: string; // Optional: if updating existing config
   integrationId: string;
   name?: string;
   passThresholdPercent?: number;
   platformConfigurations?: TestManagementPlatformConfiguration[];
 }
 
-// NOTE: Other integration config types (CI, Communication, Project Management) 
-// will be imported from their respective integration type files once implemented:
-// - ~types/integrations/ci-cd/config
-// - ~types/integrations/comm/slack-channel-config
-// - ~types/integrations/project-management/configuration
+// NOTE: Other integration config request types will use the same pattern:
+// - Include optional `id` for updates
+// - Omit tenant/audit fields (added server-side)
 
 /**
  * Build Pipeline configuration
