@@ -123,8 +123,8 @@ export class ReleaseConfigService {
 
     // Create CI config
     if (integrationConfigs.ci && this.cicdConfigService) {
-      if (requestData.ciConfigId?.trim()) {
-        integrationConfigIds.ciConfigId = requestData.ciConfigId;
+      if (requestData.ciConfig?.id?.trim()) {
+        integrationConfigIds.ciConfigId = requestData.ciConfig.id;
         console.log('Reusing existing CI config:', integrationConfigIds.ciConfigId);
       } else {
         const ciResult = await this.cicdConfigService.createConfig({
@@ -139,13 +139,13 @@ export class ReleaseConfigService {
 
     // Create Test Management config
     if (integrationConfigs.testManagement && this.testManagementConfigService) {
-      if (requestData.testManagement?.id?.trim()) {
-        integrationConfigIds.testManagementConfigId = requestData.testManagement.id;
+      if (requestData.testManagementConfig?.id?.trim()) {
+        integrationConfigIds.testManagementConfigId = requestData.testManagementConfig.id;
         console.log('Reusing existing TCM config:', integrationConfigIds.testManagementConfigId);
       } else {
         const tcmConfigDto: CreateTestManagementConfigDto = {
           tenantId: requestData.tenantId,
-          name: requestData.testManagement?.name || `TCM Config for ${requestData.name}`,
+          name: requestData.testManagementConfig?.name || `TCM Config for ${requestData.name}`,
           ...integrationConfigs.testManagement
         };
         const tcmConfig = await this.testManagementConfigService.createConfig(tcmConfigDto);
@@ -156,8 +156,8 @@ export class ReleaseConfigService {
 
     // Create Communication config
     if (integrationConfigs.communication && this.commConfigService) {
-      if (requestData.communication?.id?.trim()) {
-        integrationConfigIds.commsConfigId = requestData.communication.id;
+      if (requestData.communicationConfig?.id?.trim()) {
+        integrationConfigIds.commsConfigId = requestData.communicationConfig.id;
         console.log('Reusing existing Communication config:', integrationConfigIds.commsConfigId);
       } else {
         const commConfig = await this.commConfigService.createConfig({
@@ -171,15 +171,15 @@ export class ReleaseConfigService {
 
     // Create Project Management config
     if (integrationConfigs.projectManagement && this.projectManagementConfigService) {
-      if (requestData.projectManagement?.id?.trim()) {
-        integrationConfigIds.projectManagementConfigId = requestData.projectManagement.id;
+      if (requestData.projectManagementConfig?.id?.trim()) {
+        integrationConfigIds.projectManagementConfigId = requestData.projectManagementConfig.id;
         console.log('Reusing existing Project Management config:', integrationConfigIds.projectManagementConfigId);
       } else {
         const pmConfig = await this.projectManagementConfigService.createConfig({
           tenantId: requestData.tenantId,
           integrationId: integrationConfigs.projectManagement.integrationId || '',
-          name: requestData.projectManagement?.name || `PM Config for ${requestData.name}`,
-          description: requestData.projectManagement?.description || '',
+          name: requestData.projectManagementConfig?.name || `PM Config for ${requestData.name}`,
+          description: requestData.projectManagementConfig?.description || '',
           createdByAccountId: currentUserId,
           ...integrationConfigs.projectManagement
         });
@@ -220,17 +220,18 @@ export class ReleaseConfigService {
     const integrationConfigIds = await this.createIntegrationConfigs(requestData, currentUserId);
 
     // Step 3: Validate business rules (after integration processing)
-    const hasIntegration = hasAtLeastOneIntegration(integrationConfigIds);
-    if (!hasIntegration) {
-      return {
-        success: false,
-        error: {
-          type: 'BUSINESS_RULE_ERROR',
-          message: 'At least one integration must be configured for a release profile',
-          code: 'NO_INTEGRATIONS_CONFIGURED'
-        }
-      };
-    }
+    // Note: Allowing release configs without integrations for flexibility
+    // const hasIntegration = hasAtLeastOneIntegration(integrationConfigIds);
+    // if (!hasIntegration) {
+    //   return {
+    //     success: false,
+    //     error: {
+    //       type: 'BUSINESS_RULE_ERROR',
+    //       message: 'At least one integration must be configured for a release profile',
+    //       code: 'NO_INTEGRATIONS_CONFIGURED'
+    //     }
+    //   };
+    // }
 
     // Step 4: Check if configuration name already exists for this tenant
     const existing = await this.configRepo.findByTenantIdAndName(requestData.tenantId, requestData.name);
@@ -290,6 +291,13 @@ export class ReleaseConfigService {
   /**
    * Get config by ID with verbose integration data
    */
+  /**
+   * Get config by ID with verbose integration details
+   * Returns VerboseReleaseConfiguration format:
+   * - NO config IDs at root level
+   * - Standardized keys with "Config" suffix: ciConfig, testManagementConfig, projectManagementConfig, communicationConfig
+   * - Each integration config has its own id
+   */
   async getConfigByIdVerbose(id: string): Promise<any | null> {
     const config = await this.configRepo.findById(id);
     
@@ -298,7 +306,7 @@ export class ReleaseConfigService {
     }
 
     // Fetch integration configs in parallel
-    const [ciConfig, testManagementConfig, commsConfig, projectManagementConfig] = await Promise.all([
+    const [ciConfig, testManagementConfig, communicationConfig, projectManagementConfig] = await Promise.all([
       config.ciConfigId && this.cicdConfigService 
         ? this.cicdConfigService.findById(config.ciConfigId)
         : Promise.resolve(null),
@@ -316,20 +324,53 @@ export class ReleaseConfigService {
         : Promise.resolve(null)
     ]);
 
+    // Return verbose format with standardized keys (all have "Config" suffix)
+    // IMPORTANT: Omit config IDs from root, they're in nested objects
     return {
-      ...config,
+      id: config.id,
+      tenantId: config.tenantId,
+      name: config.name,
+      description: config.description,
+      releaseType: config.releaseType,
+      platformTargets: config.platformTargets,
+      baseBranch: config.baseBranch,
+      scheduling: config.scheduling,
+      hasManualBuildUpload: config.hasManualBuildUpload,
+      isActive: config.isActive,
+      isDefault: config.isDefault,
+      createdByAccountId: config.createdByAccountId,
+      createdAt: config.createdAt instanceof Date ? config.createdAt.toISOString() : config.createdAt,
+      updatedAt: config.updatedAt instanceof Date ? config.updatedAt.toISOString() : config.updatedAt,
+      
+      // Nested integration configs with STANDARDIZED keys (all with "Config" suffix)
       ciConfig,
       testManagementConfig,
-      commsConfig,
-      projectManagementConfig
+      projectManagementConfig,
+      communicationConfig
     };
   }
 
   /**
-   * List configs by tenant ID
+   * List configs by tenant ID (basic format with config IDs)
+   * @deprecated Use listConfigsByTenantVerbose for API responses
    */
   async listConfigsByTenant(tenantId: string): Promise<ReleaseConfiguration[]> {
     return this.configRepo.findByTenantId(tenantId);
+  }
+
+  /**
+   * List configs by tenant ID with verbose integration details
+   * Returns array of VerboseReleaseConfiguration
+   */
+  async listConfigsByTenantVerbose(tenantId: string): Promise<any[]> {
+    const configs = await this.configRepo.findByTenantId(tenantId);
+    
+    // Fetch verbose details for each config in parallel
+    const verboseConfigs = await Promise.all(
+      configs.map(config => this.getConfigByIdVerbose(config.id))
+    );
+    
+    return verboseConfigs.filter(config => config !== null);
   }
 
   /**
@@ -354,23 +395,53 @@ export class ReleaseConfigService {
     }
 
     // Build the update DTO for the main config
-    const configUpdate: UpdateReleaseConfigDto = {
-      name: data.name,
-      description: data.description,
-      releaseType: data.releaseType,
-      platformTargets: data.platformTargets,
-      baseBranch: data.baseBranch,
-      scheduling: data.scheduling,
-      hasManualBuildUpload: data.hasManualBuildUpload,
-      isDefault: data.isDefault,
-      isActive: data.isActive
-    };
+    const configUpdate: UpdateReleaseConfigDto = {};
 
-    // Handle integration config IDs (create or update as needed)
-    configUpdate.ciConfigId = await this.handleCiConfigId(existingConfig, data, currentUserId);
-    configUpdate.testManagementConfigId = await this.handleTestManagementConfigId(existingConfig, data, currentUserId);
-    configUpdate.projectManagementConfigId = await this.handleProjectManagementConfigId(existingConfig, data, currentUserId);
-    configUpdate.commsConfigId = await this.handleCommsConfigId(existingConfig, data, currentUserId);
+    // Only include fields that are explicitly provided
+    if (data.name !== undefined) configUpdate.name = data.name;
+    if (data.description !== undefined) configUpdate.description = data.description;
+    if (data.releaseType !== undefined) configUpdate.releaseType = data.releaseType;
+    if (data.platformTargets !== undefined) configUpdate.platformTargets = data.platformTargets;
+    if (data.baseBranch !== undefined) configUpdate.baseBranch = data.baseBranch;
+    if (data.scheduling !== undefined) configUpdate.scheduling = data.scheduling;
+    if (data.hasManualBuildUpload !== undefined) configUpdate.hasManualBuildUpload = data.hasManualBuildUpload;
+    if (data.isDefault !== undefined) configUpdate.isDefault = data.isDefault;
+    if (data.isActive !== undefined) configUpdate.isActive = data.isActive;
+
+    // Handle integration config IDs (returns null for removal, id for keep/update/create)
+    const ciConfigId = await this.handleCiConfigId(existingConfig, data, currentUserId);
+    const testManagementConfigId = await this.handleTestManagementConfigId(existingConfig, data, currentUserId);
+    const projectManagementConfigId = await this.handleProjectManagementConfigId(existingConfig, data, currentUserId);
+    const commsConfigId = await this.handleCommsConfigId(existingConfig, data, currentUserId);
+
+    console.log('[updateConfig] Orchestrator results:', {
+      ciConfigId,
+      testManagementConfigId,
+      projectManagementConfigId,
+      commsConfigId
+    });
+
+    // Always set integration config IDs (even if null) when their orchestrators were called
+    // This ensures null values are persisted for removal
+    // Using STANDARDIZED keys with "Config" suffix
+    if ('ciConfig' in data) {
+      console.log('[updateConfig] Setting ciConfigId =', ciConfigId);
+      configUpdate.ciConfigId = ciConfigId;
+    }
+    if ('testManagementConfig' in data) {
+      console.log('[updateConfig] Setting testManagementConfigId =', testManagementConfigId);
+      configUpdate.testManagementConfigId = testManagementConfigId;
+    }
+    if ('projectManagementConfig' in data) {
+      console.log('[updateConfig] Setting projectManagementConfigId =', projectManagementConfigId);
+      configUpdate.projectManagementConfigId = projectManagementConfigId;
+    }
+    if ('communicationConfig' in data) {
+      console.log('[updateConfig] Setting commsConfigId =', commsConfigId);
+      configUpdate.commsConfigId = commsConfigId;
+    }
+
+    console.log('[updateConfig] Final configUpdate DTO:', JSON.stringify(configUpdate, null, 2));
 
     // If setting as default, unset other defaults
     if (data.isDefault === true) {
@@ -386,26 +457,74 @@ export class ReleaseConfigService {
 
   /**
    * Orchestrator: Handle CI config ID (decides whether to update or create)
+   * Pattern 2 (Null Convention):
+   * - undefined (absent) → KEEP existing config
+   * - null → REMOVE config
+   * - object with matching id → UPDATE existing config
+   * - object with different/missing id → NO ACTION (keep existing)
+   * 
+   * STANDARDIZED: Only checks 'ciConfig' key
    */
   private async handleCiConfigId(
     existingConfig: ReleaseConfiguration,
     updateData: any,
     currentUserId: string
   ): Promise<string | null> {
-    if (!updateData.ciConfig) {
+    // CRITICAL: Check for explicit presence using standardized key
+    let ciConfig;
+    if ('ciConfig' in updateData) {
+      ciConfig = updateData.ciConfig;
+    } else {
+      ciConfig = undefined;
+    }
+
+    // STATE 1: undefined (field absent) → KEEP existing
+    if (ciConfig === undefined) {
+      console.log('[handleCiConfigId] Field absent - keeping existing config');
       return existingConfig.ciConfigId;
     }
 
-    const configId = updateData.ciConfig.id || updateData.ciConfigId;
-
-    if (configId) {
-      // Update existing config
-      await this.updateCiConfig(configId, existingConfig.tenantId, updateData);
-      return configId;
+    // STATE 2: null (explicit null) → REMOVE (and delete from DB)
+    if (ciConfig === null) {
+      console.log('[handleCiConfigId] Explicit null - removing config');
+      
+      // Delete the actual integration config from its table if it exists
+      if (existingConfig.ciConfigId && this.cicdConfigService) {
+        console.log('[handleCiConfigId] Deleting config from DB:', existingConfig.ciConfigId);
+        await this.cicdConfigService.deleteConfig(existingConfig.ciConfigId, existingConfig.tenantId);
+        console.log('[handleCiConfigId] Config deleted successfully');
+      }
+      
+      return null;
     }
 
-    // Create new config
-    return await this.createCiConfig(existingConfig.tenantId, updateData, currentUserId);
+    // STATE 3: object → Validate ID matches existing
+    const providedConfigId = ciConfig.id;
+    const existingConfigId = existingConfig.ciConfigId;
+
+    // If object has an ID, it must match the existing ID
+    if (providedConfigId) {
+      if (providedConfigId !== existingConfigId) {
+        console.log('[handleCiConfigId] Provided ID does not match existing ID - keeping existing config');
+        console.log(`  Provided: ${providedConfigId}, Existing: ${existingConfigId}`);
+        return existingConfigId; // Keep existing, ignore the update
+      }
+
+      // IDs match - UPDATE existing config
+      console.log('[handleCiConfigId] IDs match - updating existing config:', providedConfigId);
+      await this.updateCiConfig(providedConfigId, existingConfig.tenantId, ciConfig);
+      return providedConfigId;
+    }
+
+    // Object without ID - only CREATE if there's no existing config
+    if (existingConfigId) {
+      console.log('[handleCiConfigId] No ID provided but existing config exists - keeping existing');
+      return existingConfigId;
+    }
+
+    // No existing config and no ID provided - CREATE new
+    console.log('[handleCiConfigId] Creating new config');
+    return await this.createCiConfig(existingConfig.tenantId, ciConfig, currentUserId);
   }
 
   /**
@@ -414,12 +533,12 @@ export class ReleaseConfigService {
   private async updateCiConfig(
     configId: string,
     tenantId: string,
-    updateData: any
+    ciConfig: any
   ): Promise<void> {
     if (!this.cicdConfigService) return;
 
     const ciUpdateDto = {
-      workflowIds: updateData.ciConfig.workflows || []
+      workflowIds: ciConfig.workflows || []
     };
 
     await this.cicdConfigService.updateConfig(configId, tenantId, ciUpdateDto);
@@ -430,14 +549,14 @@ export class ReleaseConfigService {
    */
   private async createCiConfig(
     tenantId: string,
-    updateData: any,
+    ciConfig: any,
     currentUserId: string
   ): Promise<string | null> {
     if (!this.cicdConfigService) return null;
 
     const ciResult = await this.cicdConfigService.createConfig({
       tenantId,
-      workflows: updateData.ciConfig.workflows || [],
+      workflows: ciConfig.workflows || [],
       createdByAccountId: currentUserId
     });
 
@@ -450,37 +569,82 @@ export class ReleaseConfigService {
 
   /**
    * Orchestrator: Handle Test Management config ID (decides whether to update or create)
+   * Pattern 2 (Null Convention):
+   * - undefined (absent) → KEEP existing config
+   * - null → REMOVE config
+   * - object with matching id → UPDATE existing config
+   * - object with different/missing id → NO ACTION (keep existing)
+   * 
+   * STANDARDIZED: Only checks 'testManagementConfig' key (with Config suffix)
    */
   private async handleTestManagementConfigId(
     existingConfig: ReleaseConfiguration,
     updateData: any,
     currentUserId: string
   ): Promise<string | null> {
-    // Normalize field name: Check both 'testManagementConfig' (from GET) and 'testManagement' (from CREATE)
-    const testMgmtData = updateData.testManagementConfig || updateData.testManagement;
+    // CRITICAL: Check for explicit presence using standardized key with Config suffix
+    let testMgmtData;
+    if ('testManagementConfig' in updateData) {
+      testMgmtData = updateData.testManagementConfig;
+    } else {
+      testMgmtData = undefined;
+    }
 
-    if (!testMgmtData) {
+    // STATE 1: undefined (field absent) → KEEP existing
+    if (testMgmtData === undefined) {
+      console.log('[handleTestManagementConfigId] Field absent - keeping existing config');
       return existingConfig.testManagementConfigId;
     }
 
-    const configId = testMgmtData.id || updateData.testManagementConfigId;
-
-    if (configId) {
-      // Update existing config
-      await this.updateTestManagementConfig(
-        configId,
-        existingConfig.tenantId,
-        updateData,
-        currentUserId
-      );
-      return configId;
+    // STATE 2: null (explicit null) → REMOVE (and delete from DB)
+    if (testMgmtData === null) {
+      console.log('[handleTestManagementConfigId] Explicit null - removing config');
+      
+      // Delete the actual integration config from its table if it exists
+      if (existingConfig.testManagementConfigId && this.testManagementConfigService) {
+        console.log('[handleTestManagementConfigId] Deleting config from DB:', existingConfig.testManagementConfigId);
+        await this.testManagementConfigService.deleteConfig(existingConfig.testManagementConfigId);
+        console.log('[handleTestManagementConfigId] Config deleted successfully');
+      }
+      
+      return null;
     }
 
-    // Create new config
+    // STATE 3: object → Validate ID matches existing
+    const providedConfigId = testMgmtData.id;
+    const existingConfigId = existingConfig.testManagementConfigId;
+
+    // If object has an ID, it must match the existing ID
+    if (providedConfigId) {
+      if (providedConfigId !== existingConfigId) {
+        console.log('[handleTestManagementConfigId] Provided ID does not match existing ID - keeping existing config');
+        console.log(`  Provided: ${providedConfigId}, Existing: ${existingConfigId}`);
+        return existingConfigId; // Keep existing, ignore the update
+      }
+
+      // IDs match - UPDATE existing config
+      console.log('[handleTestManagementConfigId] IDs match - updating existing config:', providedConfigId);
+      await this.updateTestManagementConfig(
+        providedConfigId,
+        existingConfig.tenantId,
+        testMgmtData,
+        currentUserId
+      );
+      return providedConfigId;
+    }
+
+    // Object without ID - only CREATE if there's no existing config
+    if (existingConfigId) {
+      console.log('[handleTestManagementConfigId] No ID provided but existing config exists - keeping existing');
+      return existingConfigId;
+    }
+
+    // No existing config and no ID provided - CREATE new
+    console.log('[handleTestManagementConfigId] Creating new config');
     return await this.createTestManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
-      updateData,
+      testMgmtData,
       currentUserId
     );
   }
@@ -496,18 +660,17 @@ export class ReleaseConfigService {
   ): Promise<void> {
     if (!this.testManagementConfigService) return;
 
-    // Normalize field name: updateData might have 'testManagementConfig' (from GET response)
-    // but mapper expects 'testManagement'
+    // Prepare data for mapper: mapper expects { tenantId, testManagementConfig: {...} }
+    // updateData is already the testManagementConfig object from the request
     const normalizedData = {
-      ...updateData,
       tenantId,
-      testManagement: updateData.testManagementConfig || updateData.testManagement
+      testManagementConfig: updateData  // Pass the updateData as testManagementConfig
     };
 
-    console.log('[updateTestManagementConfig] Normalized data:', JSON.stringify(normalizedData.testManagement, null, 2));
+    console.log('[updateTestManagementConfig] Normalized data:', JSON.stringify(normalizedData.testManagementConfig, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData,
+      normalizedData as any,  // Cast to any for update operations
       currentUserId
     );
 
@@ -515,7 +678,7 @@ export class ReleaseConfigService {
 
     if (integrationConfigs.testManagement) {
       const tcmUpdateDto = {
-        name: normalizedData.testManagement.name,
+        name: normalizedData.testManagementConfig.name || updateData.name,
         ...integrationConfigs.testManagement
       };
 
@@ -570,33 +733,78 @@ export class ReleaseConfigService {
 
   /**
    * Orchestrator: Handle Project Management config ID (decides whether to update or create)
+   * Pattern 2 (Null Convention):
+   * - undefined (absent) → KEEP existing config
+   * - null → REMOVE config
+   * - object with matching id → UPDATE existing config
+   * - object with different/missing id → NO ACTION (keep existing)
+   * 
+   * STANDARDIZED: Only checks 'projectManagementConfig' key (with Config suffix)
    */
   private async handleProjectManagementConfigId(
     existingConfig: ReleaseConfiguration,
     updateData: any,
     currentUserId: string
   ): Promise<string | null> {
-    // Normalize field name: Check both 'projectManagementConfig' (from GET) and 'projectManagement' (from CREATE)
-    const projectMgmtData = updateData.projectManagementConfig || updateData.projectManagement;
+    // CRITICAL: Check for explicit presence using standardized key with Config suffix
+    let projectMgmtData;
+    if ('projectManagementConfig' in updateData) {
+      projectMgmtData = updateData.projectManagementConfig;
+    } else {
+      projectMgmtData = undefined;
+    }
 
-    if (!projectMgmtData) {
+    // STATE 1: undefined (field absent) → KEEP existing
+    if (projectMgmtData === undefined) {
+      console.log('[handleProjectManagementConfigId] Field absent - keeping existing config');
       return existingConfig.projectManagementConfigId;
     }
 
-    const configId = projectMgmtData.id || updateData.projectManagementConfigId;
-
-    if (configId) {
-      // Update existing config
-      await this.updateProjectManagementConfig(
-        configId,
-        existingConfig.tenantId,
-        updateData,
-        currentUserId
-      );
-      return configId;
+    // STATE 2: null (explicit null) → REMOVE (and delete from DB)
+    if (projectMgmtData === null) {
+      console.log('[handleProjectManagementConfigId] Explicit null - removing config');
+      
+      // Delete the actual integration config from its table if it exists
+      if (existingConfig.projectManagementConfigId && this.projectManagementConfigService) {
+        console.log('[handleProjectManagementConfigId] Deleting config from DB:', existingConfig.projectManagementConfigId);
+        await this.projectManagementConfigService.deleteConfig(existingConfig.projectManagementConfigId);
+        console.log('[handleProjectManagementConfigId] Config deleted successfully');
+      }
+      
+      return null;
     }
 
-    // Create new config
+    // STATE 3: object → Validate ID matches existing
+    const providedConfigId = projectMgmtData.id || updateData.projectManagementConfigId;
+    const existingConfigId = existingConfig.projectManagementConfigId;
+
+    // If object has an ID, it must match the existing ID
+    if (providedConfigId) {
+      if (providedConfigId !== existingConfigId) {
+        console.log('[handleProjectManagementConfigId] Provided ID does not match existing ID - keeping existing config');
+        console.log(`  Provided: ${providedConfigId}, Existing: ${existingConfigId}`);
+        return existingConfigId; // Keep existing, ignore the update
+      }
+
+      // IDs match - UPDATE existing config
+      console.log('[handleProjectManagementConfigId] IDs match - updating existing config:', providedConfigId);
+      await this.updateProjectManagementConfig(
+        providedConfigId,
+        existingConfig.tenantId,
+        projectMgmtData,
+        currentUserId
+      );
+      return providedConfigId;
+    }
+
+    // Object without ID - only CREATE if there's no existing config
+    if (existingConfigId) {
+      console.log('[handleProjectManagementConfigId] No ID provided but existing config exists - keeping existing');
+      return existingConfigId;
+    }
+
+    // No existing config and no ID provided - CREATE new
+    console.log('[handleProjectManagementConfigId] Creating new config');
     return await this.createProjectManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
@@ -616,26 +824,36 @@ export class ReleaseConfigService {
   ): Promise<void> {
     if (!this.projectManagementConfigService) return;
 
-    // Normalize field name: updateData might have 'projectManagementConfig' (from GET response)
-    // but mapper expects 'projectManagement'
+    // Prepare data for mapper: mapper expects { tenantId, projectManagementConfig: {...} }
+    // updateData is already the projectManagementConfig object from the request
     const normalizedData = {
-      ...updateData,
       tenantId,
-      projectManagement: updateData.projectManagementConfig || updateData.projectManagement
+      projectManagementConfig: updateData  // Pass the updateData as projectManagementConfig
     };
 
+    console.log('[updateProjectManagementConfig] Normalized data:', JSON.stringify(normalizedData.projectManagementConfig, null, 2));
+
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData,
+      normalizedData as any,  // Cast to any for update operations
       currentUserId
     );
 
+    console.log('[updateProjectManagementConfig] Integration configs:', JSON.stringify(integrationConfigs.projectManagement, null, 2));
+
     if (integrationConfigs.projectManagement) {
+      // Extract only the fields that are in UpdateProjectManagementConfigDto
       const pmUpdateDto = {
-        name: normalizedData.projectManagement.name,
-        ...integrationConfigs.projectManagement
+        name: normalizedData.projectManagementConfig.name,
+        description: normalizedData.projectManagementConfig.description,
+        platformConfigurations: integrationConfigs.projectManagement.platformConfigurations,
+        isActive: normalizedData.projectManagementConfig.isActive
       };
 
+      console.log('[updateProjectManagementConfig] Calling updateConfig with:', JSON.stringify(pmUpdateDto, null, 2));
       await this.projectManagementConfigService.updateConfig(configId, pmUpdateDto);
+      console.log('[updateProjectManagementConfig] Update completed for configId:', configId);
+    } else {
+      console.log('[updateProjectManagementConfig] No integration configs found - skipping update');
     }
   }
 
@@ -681,33 +899,78 @@ export class ReleaseConfigService {
 
   /**
    * Orchestrator: Handle Communication config ID (decides whether to update or create)
+   * Pattern 2 (Null Convention):
+   * - undefined (absent) → KEEP existing config
+   * - null → REMOVE config
+   * - object with matching id → UPDATE existing config
+   * - object with different/missing id → NO ACTION (keep existing)
+   * 
+   * STANDARDIZED: Only checks 'communicationConfig' key (with Config suffix)
    */
   private async handleCommsConfigId(
     existingConfig: ReleaseConfiguration,
     updateData: any,
     currentUserId: string
   ): Promise<string | null> {
-    // Normalize field name: Check both 'commsConfig' (from GET) and 'communication' (from CREATE)
-    const commsData = updateData.commsConfig || updateData.communication;
+    // CRITICAL: Check for explicit presence using standardized key with Config suffix
+    let commsData;
+    if ('communicationConfig' in updateData) {
+      commsData = updateData.communicationConfig;
+    } else {
+      commsData = undefined;
+    }
 
-    if (!commsData) {
+    // STATE 1: undefined (field absent) → KEEP existing
+    if (commsData === undefined) {
+      console.log('[handleCommsConfigId] Field absent - keeping existing config');
       return existingConfig.commsConfigId;
     }
 
-    const configId = commsData.id || updateData.commsConfigId;
-
-    if (configId) {
-      // Update existing config
-      await this.updateCommsConfig(
-        configId,
-        existingConfig.tenantId,
-        updateData,
-        currentUserId
-      );
-      return configId;
+    // STATE 2: null (explicit null) → REMOVE (and delete from DB)
+    if (commsData === null) {
+      console.log('[handleCommsConfigId] Explicit null - removing config');
+      
+      // Delete the actual integration config from its table if it exists
+      if (existingConfig.commsConfigId && this.commConfigService) {
+        console.log('[handleCommsConfigId] Deleting config from DB:', existingConfig.commsConfigId);
+        await this.commConfigService.deleteConfig(existingConfig.commsConfigId);
+        console.log('[handleCommsConfigId] Config deleted successfully');
+      }
+      
+      return null;
     }
 
-    // Create new config
+    // STATE 3: object → Validate ID matches existing
+    const providedConfigId = commsData.id || updateData.commsConfigId;
+    const existingConfigId = existingConfig.commsConfigId;
+
+    // If object has an ID, it must match the existing ID
+    if (providedConfigId) {
+      if (providedConfigId !== existingConfigId) {
+        console.log('[handleCommsConfigId] Provided ID does not match existing ID - keeping existing config');
+        console.log(`  Provided: ${providedConfigId}, Existing: ${existingConfigId}`);
+        return existingConfigId; // Keep existing, ignore the update
+      }
+
+      // IDs match - UPDATE existing config
+      console.log('[handleCommsConfigId] IDs match - updating existing config:', providedConfigId);
+      await this.updateCommsConfig(
+        providedConfigId,
+        existingConfig.tenantId,
+        commsData,
+        currentUserId
+      );
+      return providedConfigId;
+    }
+
+    // Object without ID - only CREATE if there's no existing config
+    if (existingConfigId) {
+      console.log('[handleCommsConfigId] No ID provided but existing config exists - keeping existing');
+      return existingConfigId;
+    }
+
+    // No existing config and no ID provided - CREATE new
+    console.log('[handleCommsConfigId] Creating new config');
     return await this.createCommsConfig(
       existingConfig.tenantId,
       updateData,
@@ -726,16 +989,15 @@ export class ReleaseConfigService {
   ): Promise<void> {
     if (!this.commConfigService) return;
 
-    // Normalize field name: updateData might have 'commsConfig' (from GET response)
-    // but mapper expects 'communication'
+    // Prepare data for mapper: mapper expects { tenantId, communicationConfig: {...} }
+    // updateData is already the communicationConfig object from the request
     const normalizedData = {
-      ...updateData,
       tenantId,
-      communication: updateData.commsConfig || updateData.communication
+      communicationConfig: updateData  // Pass the updateData as communicationConfig
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData,
+      normalizedData as any,  // Cast to any for update operations
       currentUserId
     );
 
@@ -792,7 +1054,7 @@ export class ReleaseConfigService {
   }
 
   /**
-   * Delete config
+   * Delete config with cascade deletion of integration configs
    */
   async deleteConfig(id: string): Promise<boolean> {
     const config = await this.configRepo.findById(id);
@@ -801,13 +1063,86 @@ export class ReleaseConfigService {
       return false;
     }
 
+    console.log('[deleteConfig] Deleting release config and associated integration configs:', id);
+
+    // Delete associated integration configs before deleting the release config
+    await this.cascadeDeleteIntegrationConfigs(config);
+
     return this.configRepo.delete(id);
   }
 
   /**
-   * Soft delete config
+   * Cascade delete all integration configs associated with a release config
+   */
+  private async cascadeDeleteIntegrationConfigs(config: ReleaseConfiguration): Promise<void> {
+    console.log('[cascadeDeleteIntegrationConfigs] Starting cascade deletion for config:', config.id);
+
+    // Delete CI/CD config if exists
+    if (config.ciConfigId && this.cicdConfigService) {
+      console.log('[cascadeDeleteIntegrationConfigs] Deleting CI config:', config.ciConfigId);
+      try {
+        await this.cicdConfigService.deleteConfig(config.ciConfigId, config.tenantId);
+        console.log('[cascadeDeleteIntegrationConfigs] CI config deleted successfully');
+      } catch (error) {
+        console.error('[cascadeDeleteIntegrationConfigs] Failed to delete CI config:', error);
+        // Continue with other deletions even if one fails
+      }
+    }
+
+    // Delete Test Management config if exists
+    if (config.testManagementConfigId && this.testManagementConfigService) {
+      console.log('[cascadeDeleteIntegrationConfigs] Deleting Test Management config:', config.testManagementConfigId);
+      try {
+        await this.testManagementConfigService.deleteConfig(config.testManagementConfigId);
+        console.log('[cascadeDeleteIntegrationConfigs] Test Management config deleted successfully');
+      } catch (error) {
+        console.error('[cascadeDeleteIntegrationConfigs] Failed to delete Test Management config:', error);
+        // Continue with other deletions even if one fails
+      }
+    }
+
+    // Delete Project Management config if exists
+    if (config.projectManagementConfigId && this.projectManagementConfigService) {
+      console.log('[cascadeDeleteIntegrationConfigs] Deleting Project Management config:', config.projectManagementConfigId);
+      try {
+        await this.projectManagementConfigService.deleteConfig(config.projectManagementConfigId);
+        console.log('[cascadeDeleteIntegrationConfigs] Project Management config deleted successfully');
+      } catch (error) {
+        console.error('[cascadeDeleteIntegrationConfigs] Failed to delete Project Management config:', error);
+        // Continue with other deletions even if one fails
+      }
+    }
+
+    // Delete Communication config if exists
+    if (config.commsConfigId && this.commConfigService) {
+      console.log('[cascadeDeleteIntegrationConfigs] Deleting Communication config:', config.commsConfigId);
+      try {
+        await this.commConfigService.deleteConfig(config.commsConfigId);
+        console.log('[cascadeDeleteIntegrationConfigs] Communication config deleted successfully');
+      } catch (error) {
+        console.error('[cascadeDeleteIntegrationConfigs] Failed to delete Communication config:', error);
+        // Continue with other deletions even if one fails
+      }
+    }
+
+    console.log('[cascadeDeleteIntegrationConfigs] Cascade deletion completed for config:', config.id);
+  }
+
+  /**
+   * Soft delete config with cascade deletion of integration configs
    */
   async softDeleteConfig(id: string): Promise<boolean> {
+    const config = await this.configRepo.findById(id);
+
+    if (!config) {
+      return false;
+    }
+
+    console.log('[softDeleteConfig] Soft deleting release config and associated integration configs:', id);
+
+    // Delete associated integration configs before soft deleting the release config
+    await this.cascadeDeleteIntegrationConfigs(config);
+
     return this.configRepo.softDelete(id);
   }
 }

@@ -17,20 +17,21 @@ export class IntegrationConfigMapper {
   /**
    * Prepare test management config from request data
    * Returns CreateTestManagementConfigDto directly from test-management interface
+   * STANDARDIZED: Uses testManagementConfig key (with Config suffix)
    */
   static prepareTestManagementConfig(
     requestData: CreateReleaseConfigRequest,
     currentUserId: string
   ): Omit<CreateTestManagementConfigDto, 'name'> | null {
-    if (!requestData.testManagement) {
+    if (!requestData.testManagementConfig) {
       return null;
     }
 
     return {
       tenantId: requestData.tenantId,
-      integrationId: requestData.testManagement.integrationId,
-      passThresholdPercent: requestData.testManagement.passThresholdPercent ?? 100,
-      platformConfigurations: requestData.testManagement.platformConfigurations ?? [],
+      integrationId: requestData.testManagementConfig.integrationId,
+      passThresholdPercent: requestData.testManagementConfig.passThresholdPercent ?? 100,
+      platformConfigurations: requestData.testManagementConfig.platformConfigurations ?? [],
       createdByAccountId: currentUserId
     };
   }
@@ -43,13 +44,13 @@ export class IntegrationConfigMapper {
     requestData: CreateReleaseConfigRequest,
     currentUserId: string
   ): any | null {
-    if (!requestData.workflows || requestData.workflows.length === 0) {
+    if (!requestData.ciConfig || !requestData.ciConfig.workflows || requestData.ciConfig.workflows.length === 0) {
       return null;
     }
 
     return {
       tenantId: requestData.tenantId,
-      workflows: requestData.workflows,
+      workflows: requestData.ciConfig.workflows,
       createdByAccountId: currentUserId
     };
   }
@@ -57,15 +58,16 @@ export class IntegrationConfigMapper {
   /**
    * Prepare communication config from request data
    * TODO: Return proper CreateCommunicationConfigDto when Communication integration implements types
+   * STANDARDIZED: Uses communicationConfig key (with Config suffix)
    */
   static prepareCommunicationConfig(requestData: CreateReleaseConfigRequest): any | null {
-    if (!requestData.communication) {
+    if (!requestData.communicationConfig) {
       return null;
     }
 
     return {
       tenantId: requestData.tenantId,
-      channelData: requestData.communication.channelData
+      channelData: requestData.communicationConfig.channelData
     };
   }
 
@@ -73,21 +75,22 @@ export class IntegrationConfigMapper {
   /**
    * Prepare project management config from request data
    * TODO: Return proper CreateProjectManagementConfigDto when Project Management integration implements types
+   * STANDARDIZED: Uses projectManagementConfig key (with Config suffix)
    */
   static prepareProjectManagementConfig(
     requestData: CreateReleaseConfigRequest,
     currentUserId: string
   ): any | null {
-    if (!requestData.projectManagement) {
+    if (!requestData.projectManagementConfig) {
       return null;
     }
 
     return {
       tenantId: requestData.tenantId,
-      integrationId: requestData.projectManagement.integrationId,
-      name: requestData.projectManagement.name,
-      description: requestData.projectManagement.description,
-      platformConfigurations: requestData.projectManagement.platformConfigurations,
+      integrationId: requestData.projectManagementConfig.integrationId,
+      name: requestData.projectManagementConfig.name,
+      description: requestData.projectManagementConfig.description,
+      platformConfigurations: requestData.projectManagementConfig.platformConfigurations,
       createdByAccountId: currentUserId
     };
   }
