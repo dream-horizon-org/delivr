@@ -285,3 +285,326 @@ export const validateRevokeStoreIntegrationsQuery = (
 
   next();
 };
+
+export const validatePatchStoreBody = (req: Request, res: Response, next: NextFunction): void => {
+  const body = req.body || {};
+  const { storeType, platform, tenantId, userId, payload } = body;
+
+  // Validate required fields
+  const isStoreTypeInvalid = !isNonEmptyString(storeType);
+  const isPlatformInvalid = !isNonEmptyString(platform);
+  const isTenantIdInvalid = !isNonEmptyString(tenantId);
+  const isUserIdInvalid = !isNonEmptyString(userId);
+
+  const hasInvalidRequired = isStoreTypeInvalid || isPlatformInvalid || isTenantIdInvalid || isUserIdInvalid;
+
+  if (hasInvalidRequired) {
+    const missingFields: string[] = [];
+    if (isStoreTypeInvalid) missingFields.push('storeType');
+    if (isPlatformInvalid) missingFields.push('platform');
+    if (isTenantIdInvalid) missingFields.push('tenantId');
+    if (isUserIdInvalid) missingFields.push('userId');
+
+    const errorMessage = `Missing required fields: ${missingFields.join(', ')}`;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+      success: false, 
+      error: errorMessage 
+    });
+    return;
+  }
+
+  // Validate platform value
+  const platformUpper = platform.toUpperCase();
+  const isValidPlatform = platformUpper === 'ANDROID' || platformUpper === 'IOS';
+  if (!isValidPlatform) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+      success: false, 
+      error: 'platform must be either ANDROID or IOS (case-insensitive)' 
+    });
+    return;
+  }
+
+  // Validate storeType
+  const validStoreTypes = ['app_store', 'play_store', 'testflight', 'microsoft_store', 'firebase'];
+  const isValidStoreType = validStoreTypes.includes(storeType.toLowerCase());
+  if (!isValidStoreType) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+      success: false, 
+      error: ERROR_MESSAGES.INVALID_STORE_TYPE 
+    });
+    return;
+  }
+
+  // payload is optional - if provided, validate structure but allow empty object
+  const isPayloadProvided = payload !== undefined;
+  if (isPayloadProvided) {
+    const isPayloadInvalid = payload !== null && typeof payload !== 'object';
+    if (isPayloadInvalid) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        success: false, 
+        error: 'payload must be an object if provided (can be empty object {})' 
+      });
+      return;
+    }
+
+    // If payload is provided and not empty, validate fields based on storeType
+    const payloadKeys = payload ? Object.keys(payload) : [];
+    const isPayloadEmpty = payloadKeys.length === 0;
+    
+    if (!isPayloadEmpty) {
+      const storeTypeLower = storeType.toLowerCase();
+      const isAppStore = storeTypeLower === 'app_store' || storeTypeLower === 'testflight';
+      const isPlayStore = storeTypeLower === 'play_store';
+
+      // Validate App Store credential fields if provided
+      // For PATCH: Only validate individual fields if present, don't require all fields (allows partial updates)
+      if (isAppStore) {
+        const appStorePayload = payload as AppStoreConnectPayload;
+        
+        // For PATCH: Validate individual credential fields if present, but don't require all
+        if (appStorePayload.issuerId !== undefined && !isNonEmptyString(appStorePayload.issuerId)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.issuerId must be a non-empty string if provided' 
+          });
+          return;
+        }
+        
+        if (appStorePayload.keyId !== undefined && !isNonEmptyString(appStorePayload.keyId)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.keyId must be a non-empty string if provided' 
+          });
+          return;
+        }
+        
+        if (appStorePayload.privateKeyPem !== undefined && !isNonEmptyString(appStorePayload.privateKeyPem)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.privateKeyPem must be a non-empty string if provided' 
+          });
+          return;
+        }
+
+        // Validate displayName if provided
+        if (appStorePayload.displayName !== undefined && !isNonEmptyString(appStorePayload.displayName)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.displayName must be a non-empty string if provided' 
+          });
+          return;
+        }
+
+        // Validate appIdentifier if provided
+        if (appStorePayload.appIdentifier !== undefined && !isNonEmptyString(appStorePayload.appIdentifier)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.appIdentifier must be a non-empty string if provided' 
+          });
+          return;
+        }
+      }
+
+      // Validate Play Store credential fields if provided
+      if (isPlayStore) {
+        const playStorePayload = payload as GooglePlayStorePayload;
+        
+        // If serviceAccountJson is provided, validate it
+        // For PATCH: Only validate structure, not all required fields (allows partial updates)
+        if (playStorePayload.serviceAccountJson !== undefined) {
+          const isServiceAccountInvalid = !playStorePayload.serviceAccountJson || 
+            typeof playStorePayload.serviceAccountJson !== 'object';
+
+          if (isServiceAccountInvalid) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+              success: false, 
+              error: 'payload.serviceAccountJson must be an object if provided' 
+            });
+            return;
+          }
+
+          // For PATCH: If serviceAccountJson is provided, validate individual fields if present
+          // But don't require all fields - user might only want to update other fields
+          const serviceAccountJson = playStorePayload.serviceAccountJson;
+          if (serviceAccountJson.type !== undefined && !isNonEmptyString(serviceAccountJson.type)) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+              success: false, 
+              error: 'payload.serviceAccountJson.type must be a non-empty string if provided' 
+            });
+            return;
+          }
+          if (serviceAccountJson.project_id !== undefined && !isNonEmptyString(serviceAccountJson.project_id)) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+              success: false, 
+              error: 'payload.serviceAccountJson.project_id must be a non-empty string if provided' 
+            });
+            return;
+          }
+          if (serviceAccountJson.client_email !== undefined && !isNonEmptyString(serviceAccountJson.client_email)) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+              success: false, 
+              error: 'payload.serviceAccountJson.client_email must be a non-empty string if provided' 
+            });
+            return;
+          }
+          if (serviceAccountJson.private_key !== undefined && !isNonEmptyString(serviceAccountJson.private_key)) {
+            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+              success: false, 
+              error: 'payload.serviceAccountJson.private_key must be a non-empty string if provided' 
+            });
+            return;
+          }
+        }
+
+        // Validate defaultTrack if provided
+        if (playStorePayload.defaultTrack !== undefined && playStorePayload.defaultTrack) {
+          const mappedStoreType = mapStoreTypeFromApi(storeType);
+          const mappedTrack = playStorePayload.defaultTrack.toUpperCase() as DefaultTrack;
+          const trackIsValid = isValidTrackForStoreType(mappedStoreType, mappedTrack);
+          
+          if (!trackIsValid) {
+            const errorMessage = getInvalidTrackErrorMessage(mappedStoreType, mappedTrack);
+            res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+              success: false, 
+              error: errorMessage 
+            });
+            return;
+          }
+        }
+
+        // Validate displayName if provided
+        if (playStorePayload.displayName !== undefined && !isNonEmptyString(playStorePayload.displayName)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.displayName must be a non-empty string if provided' 
+          });
+          return;
+        }
+
+        // Validate appIdentifier if provided
+        if (playStorePayload.appIdentifier !== undefined && !isNonEmptyString(playStorePayload.appIdentifier)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.appIdentifier must be a non-empty string if provided' 
+          });
+          return;
+        }
+      }
+    }
+  }
+
+  next();
+};
+
+export const validatePatchStoreBodyByIntegrationId = (req: Request, res: Response, next: NextFunction): void => {
+  const body = req.body || {};
+  const { payload } = body;
+
+  // payload is optional - if provided, validate structure but allow empty object
+  const isPayloadProvided = payload !== undefined;
+  if (isPayloadProvided) {
+    const isPayloadInvalid = payload !== null && typeof payload !== 'object';
+    if (isPayloadInvalid) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        success: false, 
+        error: 'payload must be an object if provided (can be empty object {})' 
+      });
+      return;
+    }
+
+    // If payload is provided and not empty, validate individual fields
+    const payloadKeys = payload ? Object.keys(payload) : [];
+    const isPayloadEmpty = payloadKeys.length === 0;
+    
+    if (!isPayloadEmpty) {
+      // Validate App Store credential fields if provided (partial updates allowed)
+      if (payload.issuerId !== undefined && !isNonEmptyString(payload.issuerId)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: false, 
+          error: 'payload.issuerId must be a non-empty string if provided' 
+        });
+        return;
+      }
+      
+      if (payload.keyId !== undefined && !isNonEmptyString(payload.keyId)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: false, 
+          error: 'payload.keyId must be a non-empty string if provided' 
+        });
+        return;
+      }
+      
+      if (payload.privateKeyPem !== undefined && !isNonEmptyString(payload.privateKeyPem)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: false, 
+          error: 'payload.privateKeyPem must be a non-empty string if provided' 
+        });
+        return;
+      }
+
+      // Validate Play Store serviceAccountJson if provided
+      if (payload.serviceAccountJson !== undefined) {
+        const isServiceAccountInvalid = !payload.serviceAccountJson || 
+          typeof payload.serviceAccountJson !== 'object';
+
+        if (isServiceAccountInvalid) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.serviceAccountJson must be an object if provided' 
+          });
+          return;
+        }
+
+        // Validate individual serviceAccountJson fields if present
+        const serviceAccountJson = payload.serviceAccountJson;
+        if (serviceAccountJson.type !== undefined && !isNonEmptyString(serviceAccountJson.type)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.serviceAccountJson.type must be a non-empty string if provided' 
+          });
+          return;
+        }
+        if (serviceAccountJson.project_id !== undefined && !isNonEmptyString(serviceAccountJson.project_id)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.serviceAccountJson.project_id must be a non-empty string if provided' 
+          });
+          return;
+        }
+        if (serviceAccountJson.client_email !== undefined && !isNonEmptyString(serviceAccountJson.client_email)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.serviceAccountJson.client_email must be a non-empty string if provided' 
+          });
+          return;
+        }
+        if (serviceAccountJson.private_key !== undefined && !isNonEmptyString(serviceAccountJson.private_key)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+            success: false, 
+            error: 'payload.serviceAccountJson.private_key must be a non-empty string if provided' 
+          });
+          return;
+        }
+      }
+
+      // Validate other fields
+      if (payload.displayName !== undefined && !isNonEmptyString(payload.displayName)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: false, 
+          error: 'payload.displayName must be a non-empty string if provided' 
+        });
+        return;
+      }
+
+      if (payload.appIdentifier !== undefined && !isNonEmptyString(payload.appIdentifier)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+          success: false, 
+          error: 'payload.appIdentifier must be a non-empty string if provided' 
+        });
+        return;
+      }
+    }
+  }
+
+  next();
+};
