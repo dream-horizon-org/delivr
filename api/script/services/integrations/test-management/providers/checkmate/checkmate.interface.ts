@@ -71,8 +71,12 @@ export type CheckmateProject = {
 };
 
 export type CheckmateProjectsResponse = {
-  success: boolean;
-  data: CheckmateProject[];  // Checkmate returns projects directly as an array
+  data: {
+    projectsList: CheckmateProject[];
+    projectCount: Array<{ count: number }>;
+  };
+  error: string | null;
+  status: number;
 };
 
 export type CheckmateSection = {

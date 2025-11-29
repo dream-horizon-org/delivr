@@ -14,6 +14,7 @@ import { TEST_MANAGEMENT_ERROR_MESSAGES, TEST_MANAGEMENT_SUCCESS_MESSAGES } from
 import { TEST_MANAGEMENT_PROVIDERS } from './tenant-integration.constants';
 import {
   validateConfigStructure,
+  validatePartialConfigStructure,
   validateIntegrationName,
   validateProviderType
 } from './tenant-integration.validation';
@@ -163,7 +164,7 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
         }
       }
 
-      // Validate config if provided
+      // Validate config if provided (partial update - only validate fields present)
       if (config !== undefined) {
         // Need to get existing integration to know the providerType
         const existing = await service.getTenantIntegration(integrationId);
@@ -175,7 +176,7 @@ const updateIntegrationHandler = (service: TestManagementIntegrationService) =>
           return;
         }
 
-        const configError = validateConfigStructure(config, existing.providerType);
+        const configError = validatePartialConfigStructure(config, existing.providerType);
         if (configError) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
           return;

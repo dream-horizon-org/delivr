@@ -50,7 +50,7 @@ export const validateProviderType = (providerType: unknown): string | null => {
 };
 
 /**
- * Validate config structure based on provider type
+ * Validate config structure based on provider type (for CREATE operations)
  */
 export const validateConfigStructure = (
   config: unknown,
@@ -91,6 +91,72 @@ export const validateConfigStructure = (
       }
       if (typeof configObj.teamId !== 'string' || !configObj.teamId) {
         return 'Linear config must include teamId';
+      }
+      break;
+    }
+    // Add validation for other providers as needed
+    default:
+      break;
+  }
+
+  return null;
+};
+
+/**
+ * Validate partial config structure (for UPDATE operations)
+ * Only validates fields that are present - allows partial updates
+ */
+export const validatePartialConfigStructure = (
+  config: unknown,
+  providerType: ProjectManagementProviderType
+): string | null => {
+  if (typeof config !== 'object' || config === null) {
+    return 'Config must be an object';
+  }
+
+  const configObj = config as Record<string, unknown>;
+
+  // Validate baseUrl if provided
+  if ('baseUrl' in configObj) {
+    if (typeof configObj.baseUrl !== 'string' || !configObj.baseUrl) {
+      return 'baseUrl must be a non-empty string';
+    }
+  }
+
+  // Provider-specific validation (only validate fields that are present)
+  switch (providerType) {
+    case ProjectManagementProviderType.JIRA: {
+      if ('apiToken' in configObj) {
+        if (typeof configObj.apiToken !== 'string' || !configObj.apiToken) {
+          return 'apiToken must be a non-empty string';
+        }
+      }
+      if ('email' in configObj) {
+        if (typeof configObj.email !== 'string' || !configObj.email) {
+          return 'email must be a non-empty string';
+        }
+      }
+      if ('jiraType' in configObj) {
+        if (typeof configObj.jiraType !== 'string' || !configObj.jiraType) {
+          return 'jiraType must be a non-empty string';
+        }
+        const validJiraTypes = ['CLOUD', 'SERVER', 'DATA_CENTER'];
+        if (!validJiraTypes.includes(configObj.jiraType)) {
+          return `jiraType must be one of: ${validJiraTypes.join(', ')}`;
+        }
+      }
+      break;
+    }
+    case ProjectManagementProviderType.LINEAR: {
+      if ('apiKey' in configObj) {
+        if (typeof configObj.apiKey !== 'string' || !configObj.apiKey) {
+          return 'apiKey must be a non-empty string';
+        }
+      }
+      if ('teamId' in configObj) {
+        if (typeof configObj.teamId !== 'string' || !configObj.teamId) {
+          return 'teamId must be a non-empty string';
+        }
       }
       break;
     }

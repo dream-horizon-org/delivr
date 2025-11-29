@@ -142,6 +142,95 @@ const validateCheckmateConfig = (config: unknown): string | null => {
 };
 
 /**
+ * Validate partial config structure (for UPDATE operations)
+ * Only validates fields that are present - allows partial updates
+ */
+export const validatePartialConfigStructure = (
+  config: unknown,
+  providerType: string
+): string | null => {
+  const isObject = typeof config === 'object';
+  const isNotNull = config !== null;
+  const configIsValid = isObject && isNotNull;
+
+  if (!configIsValid) {
+    return 'config must be a non-null object';
+  }
+
+  // Provider-specific validation
+  if (providerType === TestManagementProviderType.CHECKMATE) {
+    return validatePartialCheckmateConfig(config);
+  }
+
+  return null;
+};
+
+/**
+ * Validate partial Checkmate config (for UPDATE operations)
+ * Only validates fields that are present
+ */
+const validatePartialCheckmateConfig = (config: unknown): string | null => {
+  // Validate baseUrl if provided
+  if (hasProperty(config, 'baseUrl')) {
+    const baseUrlValue = config.baseUrl;
+    const baseUrlIsString = typeof baseUrlValue === 'string';
+
+    if (!baseUrlIsString) {
+      return 'baseUrl must be a string';
+    }
+
+    const baseUrlString = String(baseUrlValue);
+    const baseUrlEmpty = baseUrlString.length === 0;
+
+    if (baseUrlEmpty) {
+      return 'baseUrl cannot be empty';
+    }
+
+    // Validate URL format
+    try {
+      new URL(baseUrlString);
+    } catch {
+      return 'baseUrl must be a valid URL';
+    }
+  }
+
+  // Validate authToken if provided
+  if (hasProperty(config, 'authToken')) {
+    const authTokenValue = config.authToken;
+    const authTokenIsString = typeof authTokenValue === 'string';
+
+    if (!authTokenIsString) {
+      return 'authToken must be a string';
+    }
+
+    const authTokenString = String(authTokenValue);
+    const authTokenEmpty = authTokenString.length === 0;
+
+    if (authTokenEmpty) {
+      return 'authToken cannot be empty';
+    }
+  }
+
+  // Validate orgId if provided
+  if (hasProperty(config, 'orgId')) {
+    const orgIdValue = config.orgId;
+    const orgIdIsNumber = typeof orgIdValue === 'number';
+
+    if (!orgIdIsNumber) {
+      return 'orgId must be a number';
+    }
+
+    const orgIdIsValid = orgIdValue > 0;
+
+    if (!orgIdIsValid) {
+      return 'orgId must be a positive number';
+    }
+  }
+
+  return null;
+};
+
+/**
  * Validate integration name
  * Returns error message if invalid, null if valid
  */

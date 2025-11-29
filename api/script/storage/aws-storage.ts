@@ -29,6 +29,7 @@ import {
   ProjectManagementConfigService,
   ProjectManagementTicketService
 } from "../services/integrations/project-management";
+import { JiraMetadataService } from "../services/integrations/project-management/metadata/jira";
 import { CommIntegrationService } from "../services/integrations/comm/comm-integration";
 import { CommConfigService } from "../services/integrations/comm/comm-config";
 import {
@@ -640,6 +641,7 @@ export class S3Storage implements storage.Storage {
     public projectManagementIntegrationService!: ProjectManagementIntegrationService;
     public projectManagementConfigService!: ProjectManagementConfigService;
     public projectManagementTicketService!: ProjectManagementTicketService;
+    public jiraMetadataService!: JiraMetadataService;
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
@@ -824,6 +826,11 @@ export class S3Storage implements storage.Storage {
           
           this.projectManagementTicketService = new ProjectManagementTicketService(
             this.projectManagementConfigRepository,
+            this.projectManagementIntegrationRepository
+          );
+          
+          // Service 4: Jira Metadata Service (fetches Jira projects)
+          this.jiraMetadataService = new JiraMetadataService(
             this.projectManagementIntegrationRepository
           );
           
