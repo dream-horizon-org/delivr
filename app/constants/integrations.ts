@@ -118,12 +118,18 @@ export const DISCONNECT_CONFIG: Record<
   },
   jenkins: {
     message: 'Are you sure you want to disconnect Jenkins? This will stop all CI/CD pipeline integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`,
+    endpoint: (tenantId, config) => {
+      if (!config?.id) throw new Error('Integration ID required for Jenkins');
+      return `/api/v1/tenants/${tenantId}/integrations/ci-cd/jenkins`;
+    },
   },
   github_actions: {
     message:
       'Are you sure you want to disconnect GitHub Actions? This will stop all workflow integrations.',
-    endpoint: (tenantId) => `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`,
+    endpoint: (tenantId, config) => {
+      if (!config?.id) throw new Error('Integration ID required for GitHub Actions');
+      return `/api/v1/tenants/${tenantId}/integrations/ci-cd/github-actions`;
+    },
   },
   github: {
     message:

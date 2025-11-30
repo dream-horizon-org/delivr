@@ -130,6 +130,57 @@ const postDistributionAction = async ({
 };
 
 /**
+ * PATCH - Update distribution
+ */
+const patchDistributionAction = async ({
+  params,
+  request,
+  user,
+}: ActionFunctionArgs & { user: User }) => {
+  const { tenantId } = params;
+  const url = new URL(request.url);
+  const integrationId = url.searchParams.get('integrationId');
+
+  if (!tenantId || !integrationId) {
+    return json({ success: false, error: 'Tenant ID and integration ID required' }, { status: 400 });
+  }
+
+  try {
+    const body = await request.json();
+    
+    // Validate required fields
+    if (!body.payload) {
+      return json(
+        {
+          success: false,
+          error: 'payload is required',
+        },
+        { status: 400 }
+      );
+    }
+    
+    console.log('[BFF-AppDistribution-Update] Updating integration:', integrationId);
+    
+    const result = await AppDistributionService.updateStore(
+      integrationId,
+      body.payload,
+      user.user.id
+    );
+    
+    return json(result, { status: result.success ? 200 : 500 });
+  } catch (error) {
+    console.error('[BFF-AppDistribution-Update] Error:', error);
+    return json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update distribution',
+      },
+      { status: 500 }
+    );
+  }
+};
+
+/**
  * DELETE - Revoke/Delete distribution
  */
 const deleteDistributionAction = async ({
@@ -168,6 +219,7 @@ const deleteDistributionAction = async ({
 
 export const action = authenticateActionRequest({
   POST: postDistributionAction,
+  PATCH: patchDistributionAction,
   DELETE: deleteDistributionAction,
 });
 

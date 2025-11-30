@@ -407,6 +407,13 @@ export const APP_DISTRIBUTION = {
   connect: '/integrations/store/connect',
   
   /**
+   * Update store integration
+   * PATCH /integrations/store/:integrationId
+   */
+  update: (integrationId: string) => 
+    `/integrations/store/${integrationId}`,
+  
+  /**
    * List all store integrations for tenant
    * GET /integrations/store/tenant/:tenantId
    */

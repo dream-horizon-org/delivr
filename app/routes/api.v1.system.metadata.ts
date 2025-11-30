@@ -10,6 +10,18 @@ import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
 
 export const loader = authenticateLoaderRequest(async ({ user }) => {
   try {
+    // Safety check for user object
+    if (!user || !user.user || !user.user.id) {
+      console.error('[BFF-SystemMetadata] Invalid user object:', user);
+      return json(
+        { 
+          success: false,
+          error: 'User not authenticated' 
+        },
+        { status: 401 }
+      );
+    }
+    
     const response = await CodepushService.getSystemMetadata(user.user.id);
     
     // Enrich with app distribution metadata

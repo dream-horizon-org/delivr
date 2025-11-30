@@ -67,16 +67,141 @@ export interface CheckmateIntegrationResponse {
   error?: string;
 }
 
+export interface CheckmateVerifyResponse {
+  success: boolean;
+  verified?: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface VerifyCheckmateCredentialsRequest {
+  baseUrl: string;
+  authToken: string;
+  orgId: number;
+}
+
 // ============================================================================
 // Service Class
 // ============================================================================
 
 export class CheckmateIntegrationServiceClass extends IntegrationService {
   /**
+   * Verify Checkmate credentials without saving
+   */
+  async verifyCredentials(
+    data: VerifyCheckmateCredentialsRequest,
+    userId: string
+  ): Promise<CheckmateVerifyResponse> {
+    const endpoint = TEST_MANAGEMENT.verifyCredentials;
+    
+    console.log('[CheckmateIntegrationService] Verifying credentials:', {
+      endpoint,
+      baseUrl: this.baseUrl,
+      fullUrl: `${this.baseUrl}${endpoint}`,
+      config: {
+        baseUrl: data.baseUrl,
+        orgId: data.orgId,
+        authToken: '[REDACTED]'
+      }
+    });
+    
+    this.logRequest('POST', endpoint, {
+      baseUrl: data.baseUrl,
+      orgId: data.orgId,
+      authToken: '[REDACTED]'
+    });
+    
+    try {
+      const result = await this.post<any>(
+        endpoint,
+        {
+          providerType: 'checkmate',
+          config: {
+            baseUrl: data.baseUrl,
+            authToken: data.authToken,
+            orgId: data.orgId,
+          },
+        },
+        userId
+      );
+      
+      console.log('[CheckmateIntegrationService] Raw backend response:', JSON.stringify(result, null, 2));
+      
+      // Handle both nested and flat response structures
+      // Checkmate backend returns: { success, data: { success, status: 'VALID'|'INVALID', message } }
+      let verificationResult: CheckmateVerifyResponse;
+      
+      if (result.data && typeof result.data === 'object') {
+        // Response is wrapped in data field
+        // Check for both 'verified' field and 'status' field (Checkmate uses 'status')
+        const isVerified = result.data.verified === true || result.data.status === 'VALID';
+        
+        verificationResult = {
+          success: result.data.success !== false,
+          verified: isVerified,
+          message: result.data.message,
+          error: result.data.error,
+        };
+      } else if (typeof result.verified !== 'undefined' || typeof result.status !== 'undefined') {
+        // Response has verified/status at top level
+        const isVerified = result.verified === true || result.status === 'VALID';
+        
+        verificationResult = {
+          success: result.success !== false,
+          verified: isVerified,
+          message: result.message,
+          error: result.error,
+        };
+      } else {
+        // Invalid response structure
+        console.error('[CheckmateIntegrationService] Invalid response from backend:', result);
+        return {
+          success: false,
+          verified: false,
+          error: 'Invalid response from backend - no verification status',
+        };
+      }
+      
+      console.log('[CheckmateIntegrationService] Parsed verification result:', verificationResult);
+      this.logResponse('POST', endpoint, verificationResult.verified === true);
+      
+      return verificationResult;
+    } catch (error: any) {
+      this.logResponse('POST', endpoint, false);
+      console.error('[CheckmateIntegrationService] Verification error:', error);
+      
+      // Check if this is a network/connection error
+      if (error.message === 'No response from server') {
+        return {
+          success: false,
+          verified: false,
+          error: 'Unable to connect to backend server. Please check your backend configuration.',
+        };
+      }
+      
+      return {
+        success: false,
+        verified: false,
+        error: error.message || 'Failed to verify credentials',
+      };
+    }
+  }
+
+  /**
    * Create Checkmate integration
    */
   async createIntegration(data: CreateCheckmateIntegrationRequest): Promise<CheckmateIntegrationResponse> {
     const endpoint = TEST_MANAGEMENT.create(data.tenantId);
+    
+    console.log('[CheckmateIntegrationService] Creating integration:', {
+      endpoint,
+      baseUrl: this.baseUrl,
+      fullUrl: `${this.baseUrl}${endpoint}`,
+      tenantId: data.tenantId,
+      name: data.name,
+      configKeys: Object.keys(data.config)
+    });
+    
     this.logRequest('POST', endpoint);
     
     try {
@@ -101,6 +226,16 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
         error: result.error
       };
     } catch (error: any) {
+      console.error('[CheckmateIntegrationService] Create integration error:', error.message);
+      
+      // Check if this is a network/connection error
+      if (error.message === 'No response from server') {
+        return {
+          success: false,
+          error: `Backend server (${this.baseUrl}) is not responding. Check if the backend is running and has the test-management endpoints implemented.`
+        };
+      }
+      
       return {
         success: false,
         error: error.message || 'Failed to create Checkmate integration'

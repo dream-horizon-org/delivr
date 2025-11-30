@@ -149,13 +149,23 @@ export function mapAppStoreFormData(existingData?: any): Partial<AppStorePayload
 /**
  * Validate Play Store form data
  * Checks that all required fields are present
+ * Note: client_email and private_key are only required for new connections
  */
-export function validatePlayStoreData(data: Partial<PlayStorePayload>): boolean {
-  return !!(
+export function validatePlayStoreData(data: Partial<PlayStorePayload>, isEditMode: boolean = false): boolean {
+  const baseFieldsValid = !!(
     data.displayName &&
     data.appIdentifier &&
     data.defaultTrack &&
-    data.serviceAccountJson?.project_id &&
+    data.serviceAccountJson?.project_id
+  );
+  
+  // In edit mode, credentials are optional (can keep existing ones)
+  if (isEditMode) {
+    return baseFieldsValid;
+  }
+  
+  // In create mode, require all fields including credentials
+  return baseFieldsValid && !!(
     data.serviceAccountJson?.client_email &&
     data.serviceAccountJson?.private_key
   );
@@ -164,16 +174,22 @@ export function validatePlayStoreData(data: Partial<PlayStorePayload>): boolean 
 /**
  * Validate App Store form data
  * Checks that all required fields are present
+ * Note: privateKeyPem is only required for new connections
  */
-export function validateAppStoreData(data: Partial<AppStorePayload>): boolean {
-  return !!(
+export function validateAppStoreData(data: Partial<AppStorePayload>, isEditMode: boolean = false): boolean {
+  const baseFieldsValid = !!(
     data.displayName &&
     data.targetAppId &&
     data.appIdentifier &&
-    data.issuerId &&
-    data.keyId &&
-    data.privateKeyPem &&
-    data.teamName
+    data.keyId
   );
+  
+  // In edit mode, privateKeyPem is optional (can keep existing one)
+  if (isEditMode) {
+    return baseFieldsValid;
+  }
+  
+  // In create mode, require all fields including privateKeyPem
+  return baseFieldsValid && !!data.privateKeyPem;
 }
 

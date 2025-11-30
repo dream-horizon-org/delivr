@@ -140,6 +140,7 @@ export const INTEGRATION_DISPLAY_NAMES: Record<string, string> = {
   [INTEGRATION_IDS.CHECKMATE]: 'Checkmate',
   [INTEGRATION_IDS.PLAY_STORE]: 'Play Store',
   [INTEGRATION_IDS.APP_STORE]: 'App Store',
+  [INTEGRATION_IDS.JIRA]: 'Jira',
 } as const;
 
 // ============================================================================

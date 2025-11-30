@@ -105,7 +105,6 @@ export default function IntegrationsPage() {
 
     const displayName = INTEGRATION_DISPLAY_NAMES[integrationId] || integrationId;
     const isKnownIntegration = integrationId in INTEGRATION_DISPLAY_NAMES;
-
     if (isKnownIntegration) {
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS(displayName, !!editingIntegration));
       invalidateTenantConfig(queryClient, params.org);

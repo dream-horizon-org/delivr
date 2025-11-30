@@ -7,7 +7,7 @@
  * Supports both create and edit modes
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
@@ -16,12 +16,13 @@ import {
   Text,
   Alert
 } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconInfoCircle, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { GITHUB_ACTIONS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
 
 interface GitHubActionsConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -36,6 +37,12 @@ interface GitHubActionsConnectionFlowProps {
   };
 }
 
+interface GitHubActionsConnectionFormData {
+  displayName: string;
+  hostUrl: string;
+  apiToken: string;
+}
+
 export function GitHubActionsConnectionFlow({ 
   onConnect, 
   onCancel, 
@@ -45,11 +52,28 @@ export function GitHubActionsConnectionFlow({
   const params = useParams();
   const tenantId = params.org;
 
-  const [formData, setFormData] = useState({
-    displayName: existingData?.displayName || '',
-    hostUrl: existingData?.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-    apiToken: '', // Never pre-populate token for security
-  });
+  // Ref to track if we're in the middle of verify/connect flow
+  const isInFlowRef = useRef(false);
+
+  // Draft storage with auto-save
+  const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<GitHubActionsConnectionFormData>(
+    {
+      storageKey: generateStorageKey('github-actions-cicd', tenantId || ''),
+      sensitiveFields: ['apiToken'], // Never save token to draft
+      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.displayName),
+    },
+    {
+      displayName: existingData?.displayName || '',
+      hostUrl: existingData?.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
+      apiToken: '', // Never pre-populate token for security
+    },
+    isEditMode ? {
+      displayName: existingData?.displayName || '',
+      hostUrl: existingData?.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
+      apiToken: '', // Never pre-populate token for security
+    } : undefined
+  );
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -60,6 +84,7 @@ export function GitHubActionsConnectionFlow({
     setIsVerifying(true);
     setError(null);
     setIsVerified(false);
+    isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
       const result = await apiPost<{ verified: boolean }>(
@@ -80,12 +105,14 @@ export function GitHubActionsConnectionFlow({
       setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
     } finally {
       setIsVerifying(false);
+      isInFlowRef.current = false; // Re-enable draft save after verify
     }
   };
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
+    isInFlowRef.current = true; // Prevent draft save during connect
 
     try {
       const payload: any = {
@@ -109,6 +136,7 @@ export function GitHubActionsConnectionFlow({
         : await apiPost(endpoint, payload);
 
       if (result.success) {
+        markSaveSuccessful(); // Clear draft on successful save
         onConnect(result);
       } else {
         setError(ALERT_MESSAGES.CONNECTION_FAILED);
@@ -117,6 +145,7 @@ export function GitHubActionsConnectionFlow({
       setError(getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED));
     } finally {
       setIsConnecting(false);
+      isInFlowRef.current = false; // Re-enable draft save after connect
     }
   };
 
@@ -126,6 +155,13 @@ export function GitHubActionsConnectionFlow({
 
   return (
     <Stack gap="lg">
+      {/* Draft Restored Alert */}
+      {isDraftRestored && !isEditMode && (
+        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+          Your previously entered data has been restored. Note: Sensitive credentials (like API tokens) are never saved for security.
+        </Alert>
+      )}
+
       {/* Info alert about token fallback (only for new connections) */}
       {!isEditMode && (
         <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
@@ -160,9 +196,15 @@ export function GitHubActionsConnectionFlow({
       />
 
       {error && (
-        <ConnectionAlert color="red" title="Error">
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red" 
+          title="Error"
+          onClose={() => setError(null)}
+          withCloseButton
+        >
           {error}
-        </ConnectionAlert>
+        </Alert>
       )}
 
       {isVerified && (

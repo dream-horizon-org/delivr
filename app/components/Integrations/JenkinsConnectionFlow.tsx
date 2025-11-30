@@ -3,7 +3,7 @@
  * Handles verification and connection of Jenkins integrations
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
@@ -13,11 +13,13 @@ import {
   Stack,
   Text
 } from '@mantine/core';
+import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { JENKINS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
 
 interface JenkinsConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -36,18 +38,47 @@ interface JenkinsConnectionFlowProps {
   };
 }
 
+interface JenkinsConnectionFormData {
+  displayName: string;
+  hostUrl: string;
+  username: string;
+  apiToken: string;
+  useCrumb: boolean;
+  crumbPath: string;
+}
+
 export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JenkinsConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
-  const [formData, setFormData] = useState({
-    displayName: existingData?.displayName || '',
-    hostUrl: existingData?.hostUrl || '',
-    username: existingData?.username || '',
-    apiToken: '', // Never pre-populate sensitive data
-    useCrumb: existingData?.providerConfig?.useCrumb ?? true,
-    crumbPath: existingData?.providerConfig?.crumbPath || '/crumbIssuer/api/json'
-  });
+  // Ref to track if we're in the middle of verify/connect flow
+  const isInFlowRef = useRef(false);
+
+  // Draft storage with auto-save
+  const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JenkinsConnectionFormData>(
+    {
+      storageKey: generateStorageKey('jenkins-cicd', tenantId || ''),
+      sensitiveFields: ['apiToken'], // Never save token to draft
+      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.username || data.displayName),
+    },
+    {
+      displayName: existingData?.displayName || '',
+      hostUrl: existingData?.hostUrl || '',
+      username: existingData?.username || '',
+      apiToken: '', // Never pre-populate sensitive data
+      useCrumb: existingData?.providerConfig?.useCrumb ?? true,
+      crumbPath: existingData?.providerConfig?.crumbPath || '/crumbIssuer/api/json'
+    },
+    isEditMode ? {
+      displayName: existingData?.displayName || '',
+      hostUrl: existingData?.hostUrl || '',
+      username: existingData?.username || '',
+      apiToken: '', // Never pre-populate sensitive data
+      useCrumb: existingData?.providerConfig?.useCrumb ?? true,
+      crumbPath: existingData?.providerConfig?.crumbPath || '/crumbIssuer/api/json'
+    } : undefined
+  );
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -58,6 +89,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     setIsVerifying(true);
     setError(null);
     setVerificationResult(null);
+    isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
       const result = await apiPost<{ verified: boolean; message?: string }>(
@@ -89,12 +121,14 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       setError(getApiErrorMessage(err, 'Failed to verify Jenkins connection'));
     } finally {
       setIsVerifying(false);
+      isInFlowRef.current = false; // Re-enable draft save after verify
     }
   };
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
+    isInFlowRef.current = true; // Prevent draft save during connect
 
     try {
       const payload: any = {
@@ -127,6 +161,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         : await apiPost(endpoint, payload);
 
       if (result.success) {
+        markSaveSuccessful(); // Clear draft on successful save
         onConnect(result);
       } else {
         setError(`Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
@@ -136,6 +171,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       setError(getApiErrorMessage(err, `Failed to ${action} Jenkins integration`));
     } finally {
       setIsConnecting(false);
+      isInFlowRef.current = false; // Re-enable draft save after connect
     }
   };
 
@@ -144,6 +180,13 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
 
   return (
     <Stack gap="md">
+      {/* Draft Restored Alert */}
+      {isDraftRestored && !isEditMode && (
+        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+          Your previously entered data has been restored. Note: Sensitive credentials (like API tokens) are never saved for security.
+        </Alert>
+      )}
+
       <ConnectionAlert 
         color="blue" 
         title={isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${JENKINS_LABELS.JENKINS_DETAILS}` : JENKINS_LABELS.JENKINS_DETAILS} 
@@ -208,7 +251,13 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       </Stack>
 
       {error && (
-        <Alert color="red" title="Error" icon={<span>❌</span>}>
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red" 
+          title="Error"
+          onClose={() => setError(null)}
+          withCloseButton
+        >
           {error}
         </Alert>
       )}

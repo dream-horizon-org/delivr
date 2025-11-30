@@ -1,7 +1,6 @@
 /**
- * BFF Route: Verify Project Management Credentials
- * Generic route for all PM providers (JIRA, LINEAR, ASANA, etc.)
- * POST /api/v1/tenants/:tenantId/integrations/project-management/verify?providerType=JIRA
+ * BFF Route: Verify Jira Credentials
+ * POST /api/v1/tenants/:tenantId/integrations/jira/verify
  */
 
 import { json } from '@remix-run/node';
@@ -9,9 +8,8 @@ import type { ActionFunctionArgs } from '@remix-run/node';
 import { authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { ProjectManagementIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
-import type { ProjectManagementProviderType } from '~/.server/services/ReleaseManagement/integrations';
 
-const verifyPMCredentials = async ({
+const verifyJiraCredentials = async ({
   request,
   params,
   user,
@@ -24,31 +22,27 @@ const verifyPMCredentials = async ({
 
   try {
     const body = await request.json();
-    const url = new URL(request.url);
-    const providerType = (url.searchParams.get('providerType') || body.providerType || 'JIRA').toUpperCase() as ProjectManagementProviderType;
-
-    // Transform Jira-specific fields to generic format
-    const config: any = body.config || {};
-    if (body.hostUrl) config.baseUrl = body.hostUrl;
-    if (body.baseUrl) config.baseUrl = body.baseUrl;
-    if (body.email) config.email = body.email;
-    if (body.username) config.email = body.username;
-    if (body.apiToken) config.apiToken = body.apiToken;
-    if (body.jiraType) config.jiraType = body.jiraType;
+    
+    const config = {
+      baseUrl: body.hostUrl || body.baseUrl || body.config?.baseUrl,
+      email: body.email || body.username || body.config?.email,
+      apiToken: body.apiToken || body.config?.apiToken,
+      jiraType: body.jiraType || body.config?.jiraType || 'CLOUD',
+    };
 
     // Validate required fields
     if (!config.baseUrl) {
       return json({ success: false, verified: false, error: 'Base URL is required' }, { status: 400 });
     }
     if (!config.email) {
-      return json({ success: false, verified: false, error: 'Email/Username is required' }, { status: 400 });
+      return json({ success: false, verified: false, error: 'Email is required' }, { status: 400 });
     }
     if (!config.apiToken) {
       return json({ success: false, verified: false, error: 'API Token is required' }, { status: 400 });
     }
 
-    console.log('[BFF-PM-Verify] Verifying credentials for provider:', providerType);
-    console.log('[BFF-PM-Verify] Config:', { 
+    console.log('[BFF-Jira-Verify] Verifying Jira credentials for tenant:', tenantId);
+    console.log('[BFF-Jira-Verify] Config:', { 
       baseUrl: config.baseUrl,
       email: config.email,
       jiraType: config.jiraType,
@@ -57,14 +51,14 @@ const verifyPMCredentials = async ({
 
     const result = await ProjectManagementIntegrationService.verifyCredentials(
       {
-        tenantId,
-        providerType,
+        tenantId: tenantId,
+        providerType: 'JIRA',
         config,
       },
       user.user.id
     );
 
-    console.log('[BFF-PM-Verify] Backend verification result:', {
+    console.log('[BFF-Jira-Verify] Verification result:', {
       success: result.success,
       verified: result.verified,
       error: result.error,
@@ -87,12 +81,12 @@ const verifyPMCredentials = async ({
       }, { status: 401 });
     }
   } catch (error) {
-    console.error('[BFF-PM-Verify] Error:', error);
+    console.error('[BFF-Jira-Verify] Error:', error);
     return json(
       {
         success: false,
         verified: false,
-        error: error instanceof Error ? error.message : 'Failed to verify credentials',
+        error: error instanceof Error ? error.message : 'Failed to verify Jira credentials',
       },
       { status: 500 }
     );
@@ -100,6 +94,6 @@ const verifyPMCredentials = async ({
 };
 
 export const action = authenticateActionRequest({
-  POST: verifyPMCredentials,
+  POST: verifyJiraCredentials,
 });
 

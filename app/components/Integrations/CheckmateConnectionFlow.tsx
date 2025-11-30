@@ -8,19 +8,22 @@
  * - Endpoints: /tenants/:tenantId/integrations/test-management
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
   PasswordInput,
   Stack,
-  Text
+  Text,
+  Alert
 } from '@mantine/core';
+import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { TEST_PROVIDERS } from '~/types/release-config-constants';
 import { CHECKMATE_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
 
 interface CheckmateConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -29,60 +32,86 @@ interface CheckmateConnectionFlowProps {
   existingData?: any;
 }
 
+interface CheckmateConnectionFormData {
+  name: string;
+  baseUrl: string;
+  authToken: string;
+  orgId: string;
+}
+
 export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: CheckmateConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
-  const [formData, setFormData] = useState({
-    name: existingData?.name || '',
-    baseUrl: existingData?.config?.baseUrl || '',
-    authToken: '', // Never pre-populate sensitive data
-    orgId: existingData?.config?.orgId || '',
-  });
+  // Ref to track if we're in the middle of verify/connect flow
+  const isInFlowRef = useRef(false);
+
+  // Draft storage with auto-save
+  const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<CheckmateConnectionFormData>(
+    {
+      storageKey: generateStorageKey('checkmate-tm', tenantId || ''),
+      sensitiveFields: ['authToken'], // Never save token to draft
+      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.baseUrl || data.name || data.orgId),
+    },
+    {
+      name: existingData?.name || '',
+      baseUrl: existingData?.config?.baseUrl || '',
+      authToken: '', // Never pre-populate sensitive data
+      orgId: existingData?.config?.orgId || '',
+    },
+    isEditMode ? {
+      name: existingData?.name || '',
+      baseUrl: existingData?.config?.baseUrl || '',
+      authToken: '', // Never pre-populate sensitive data
+      orgId: existingData?.config?.orgId || '',
+    } : undefined
+  );
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [verificationResult, setVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [integrationId, setIntegrationId] = useState<string | null>(existingData?.id || null);
 
   const handleVerify = async () => {
-    // For edit mode, verify the existing integration
-    if (isEditMode && integrationId) {
-      setIsVerifying(true);
-      setError(null);
-      setVerificationResult(null);
+    setIsVerifying(true);
+    setError(null);
+    setIsVerified(false);
+    isInFlowRef.current = true; // Prevent draft save during verify
 
-      try {
-        // Use tenantId to match backend's tenant-level routes
-        const result = await apiPost<{ message: string }>(
-          `/api/v1/tenants/${tenantId}/integrations/test-management/${integrationId}/verify`
-        );
-
-        if (result.success) {
-          setVerificationResult({
-            success: true,
-            message: result.data?.message || CHECKMATE_LABELS.VERIFY_SUCCESS_MESSAGE
-          });
-        } else {
-          setVerificationResult({
-            success: false,
-            message: ALERT_MESSAGES.VERIFICATION_FAILED
-          });
+    try {
+      const result = await apiPost<{ verified: boolean }>(
+        `/api/v1/tenants/${tenantId}/integrations/test-management/verify`,
+        {
+          baseUrl: formData.baseUrl,
+          authToken: formData.authToken,
+          orgId: parseInt(formData.orgId, 10),
         }
-      } catch (err) {
-        setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
-      } finally {
-        setIsVerifying(false);
+      );
+
+      console.log('[CheckmateConnectionFlow] Verification result:', result);
+
+      if (result.data?.verified || result.success) {
+        setIsVerified(true);
+      } else {
+        // Show the specific error message from backend
+        const errorMsg = (result as any).error || (result.data as any)?.error || ALERT_MESSAGES.VERIFICATION_FAILED;
+        setError(errorMsg);
       }
-    } else {
-      setError('Cannot verify without saving first');
+    } catch (err) {
+      console.error('[CheckmateConnectionFlow] Verification error:', err);
+      setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
+    } finally {
+      setIsVerifying(false);
+      isInFlowRef.current = false; // Re-enable draft save after verify
     }
   };
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
+    isInFlowRef.current = true; // Prevent draft save during connect
 
     try {
       // Use tenantId to match backend's tenant-level routes with query params
@@ -101,10 +130,29 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         }
       };
 
+      console.log('[CheckmateConnectionFlow] Connecting with payload:', {
+        endpoint,
+        name: payload.name,
+        providerType: payload.providerType,
+        config: {
+          baseUrl: payload.config.baseUrl,
+          orgId: payload.config.orgId,
+          authTokenLength: payload.config.authToken?.length,
+          hasAuthToken: !!payload.config.authToken
+        },
+        formData: {
+          name: formData.name,
+          baseUrl: formData.baseUrl,
+          orgId: formData.orgId,
+          authTokenLength: formData.authToken?.length
+        }
+      });
+
       // Only include authToken if provided (required for create, optional for update)
       if (!formData.authToken && isEditMode) {
         delete payload.config.authToken;
       } else if (!formData.authToken && !isEditMode) {
+        console.error('[CheckmateConnectionFlow] Auth token missing');
         setError('Auth Token is required');
         setIsConnecting(false);
         return;
@@ -114,24 +162,41 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         ? await apiPut(endpoint, payload)
         : await apiPost(endpoint, payload);
 
+      console.log('[CheckmateConnectionFlow] Connection result:', result);
+
       if (result.success) {
+        markSaveSuccessful(); // Clear draft on successful save
         onConnect(result);
       } else {
-        setError(`Failed to ${isEditMode ? 'update' : 'connect'} ${TEST_PROVIDERS.CHECKMATE} integration`);
+        const errorMsg = result.error || `Failed to ${isEditMode ? 'update' : 'connect'} ${TEST_PROVIDERS.CHECKMATE} integration`;
+        console.error('[CheckmateConnectionFlow] Connection failed:', errorMsg);
+        setError(errorMsg);
       }
     } catch (err) {
       const action = isEditMode ? 'update' : 'connect';
-      setError(getApiErrorMessage(err, `Failed to ${action} ${TEST_PROVIDERS.CHECKMATE} integration`));
+      const errorMsg = getApiErrorMessage(err, `Failed to ${action} ${TEST_PROVIDERS.CHECKMATE} integration`);
+      console.error('[CheckmateConnectionFlow] Connection error:', errorMsg, err);
+      setError(errorMsg);
     } finally {
       setIsConnecting(false);
+      isInFlowRef.current = false; // Re-enable draft save after connect
     }
   };
 
   // For edit mode, authToken is optional. For create mode, it's required
-  const isFormValid = formData.name && formData.baseUrl && formData.orgId && (isEditMode || formData.authToken);
+  const isFormValid = () => {
+    return formData.name && formData.baseUrl && formData.orgId && (isEditMode || formData.authToken);
+  };
 
   return (
     <Stack gap="md">
+      {/* Draft Restored Alert */}
+      {isDraftRestored && !isEditMode && (
+        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+          Your previously entered data has been restored. Note: Sensitive credentials (like auth tokens) are never saved for security.
+        </Alert>
+      )}
+
       <ConnectionAlert 
         color="blue" 
         title={isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${CHECKMATE_LABELS.CHECKMATE_CONNECTION}` : CHECKMATE_LABELS.CHECKMATE_CONNECTION} 
@@ -183,45 +248,45 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       />
 
       {error && (
-        <ConnectionAlert color="red" title="Error">
-          {error}
-        </ConnectionAlert>
-      )}
-
-      {verificationResult && (
-        <ConnectionAlert
-          color={verificationResult.success ? 'green' : 'red'}
-          title={verificationResult.success ? ALERT_MESSAGES.VERIFICATION_SUCCESS : ALERT_MESSAGES.VERIFICATION_FAILED}
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red" 
+          title="Error"
+          onClose={() => setError(null)}
+          withCloseButton
         >
-          {verificationResult.message}
+          {error}
+        </Alert>
+      )}
+
+      {isVerified && (
+        <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
+          Credentials verified successfully! Click "{isEditMode ? 'Save Changes' : 'Connect'}" to save.
         </ConnectionAlert>
       )}
 
-      {isEditMode ? (
-        <>
-          <ActionButtons
-            onCancel={onCancel}
-            onSecondary={handleVerify}
-            onPrimary={handleConnect}
-            primaryLabel={INTEGRATION_MODAL_LABELS.UPDATE}
-            secondaryLabel={CHECKMATE_LABELS.VERIFY_CONNECTION}
-            cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
-            isPrimaryLoading={isConnecting}
-            isSecondaryLoading={isVerifying}
-            isPrimaryDisabled={!isFormValid || isConnecting}
-            isSecondaryDisabled={!integrationId || isVerifying || isConnecting}
-            isCancelDisabled={isVerifying || isConnecting}
-          />
-        </>
+      {/* Show verify button for new connections, or save button for edits */}
+      {!isEditMode && !isVerified ? (
+        <ActionButtons
+          onCancel={onCancel}
+          onPrimary={handleVerify}
+          primaryLabel="Verify Credentials"
+          cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
+          isPrimaryLoading={isVerifying}
+          isPrimaryDisabled={!isFormValid()}
+          isCancelDisabled={isVerifying || isConnecting}
+          primaryClassName="bg-gray-600 hover:bg-gray-700"
+        />
       ) : (
         <ActionButtons
           onCancel={onCancel}
           onPrimary={handleConnect}
-          primaryLabel={CHECKMATE_LABELS.CONNECT_CHECKMATE}
+          primaryLabel={isEditMode ? 'Save Changes' : CHECKMATE_LABELS.CONNECT_CHECKMATE}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isConnecting}
-          isPrimaryDisabled={!isFormValid || isConnecting}
+          isPrimaryDisabled={!isFormValid()}
           isCancelDisabled={isVerifying || isConnecting}
+          primaryClassName="bg-green-600 hover:bg-green-700"
         />
       )}
 
