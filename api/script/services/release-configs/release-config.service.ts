@@ -870,11 +870,12 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.projectManagementConfigService) return null;
 
-    // Field names are now consistent: use projectManagement directly
+    // Field names are now consistent: use projectManagementConfig (with Config suffix)
+    // Map projectManagementConfig to projectManagement for the mapper
     const normalizedData = {
       ...updateData,
       tenantId,
-      projectManagement: updateData.projectManagement
+      projectManagementConfig: updateData.projectManagementConfig || updateData.projectManagement
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
@@ -884,9 +885,14 @@ export class ReleaseConfigService {
 
     if (!integrationConfigs.projectManagement) return null;
 
+    // Extract name from the projectManagementConfig if available, otherwise use fallback
+    const pmConfigName = updateData.projectManagementConfig?.name || 
+                        normalizedData.projectManagementConfig?.name || 
+                        `PM Config for ${releaseConfigName || 'Release Config'}`;
+
     const pmResult = await this.projectManagementConfigService.createConfig({
       tenantId,
-      name: normalizedData.projectManagement.name || `PM Config for ${releaseConfigName}`,
+      name: pmConfigName,
       ...integrationConfigs.projectManagement,
       createdByAccountId: currentUserId
     });
