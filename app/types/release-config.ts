@@ -41,7 +41,6 @@ export interface JenkinsConfig {
   type: 'JENKINS';
   integrationId: string; // Reference to connected Jenkins integration
   jobUrl: string;
-  jobName: string;
   parameters: Record<string, string>; // Key-value pairs for job parameters
 }
 

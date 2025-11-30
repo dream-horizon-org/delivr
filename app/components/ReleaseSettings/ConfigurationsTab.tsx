@@ -6,7 +6,7 @@
 import { memo, useMemo, useCallback } from 'react';
 import { Container } from '@mantine/core';
 import { useNavigate } from '@remix-run/react';
-import { ConfigurationList } from '~/components/ReleaseConfig/Settings/ConfigurationList';
+import { ConfigurationList } from '~/components/ReleaseSettings/ConfigurationList';
 import { ConfigurationStats } from './ConfigurationStats';
 import { apiDelete, apiPut, getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast, showInfoToast } from '~/utils/toast';

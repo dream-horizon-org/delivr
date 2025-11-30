@@ -100,7 +100,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    */
   async verifyJenkins(data: VerifyJenkinsRequest): Promise<VerifyJenkinsResponse> {
     const endpoint = CICD.verifyConnection(data.tenantId, 'JENKINS');
-    this.logRequest('POST', endpoint);
+    this.logRequest('POST', endpoint, data );
     
     try {
       // Send data in body with POST request (backend expects req.body)

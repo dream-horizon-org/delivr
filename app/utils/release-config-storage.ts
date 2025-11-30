@@ -139,9 +139,6 @@ export function validateBuildPipelines(
       if (!config.jobUrl) {
         errors.push(`Pipeline ${pipeline.name}: Jenkins job URL is required`);
       }
-      if (!config.jobName) {
-        errors.push(`Pipeline ${pipeline.name}: Jenkins job name is required`);
-      }
     } else if (pipeline.provider === 'GITHUB_ACTIONS') {
       const config = pipeline.providerConfig as any;
       if (!config.workflowPath) {

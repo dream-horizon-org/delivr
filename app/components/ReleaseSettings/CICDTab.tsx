@@ -5,8 +5,8 @@
 
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader as MantineLoader } from '@mantine/core';
-import { WorkflowList } from '~/components/ReleaseConfig/Settings/WorkflowList';
-import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage } from '~/utils/api-client';
+import { WorkflowList } from '~/components/ReleaseSettings/WorkflowList';
+import { apiGet, apiPost, apiDelete, getApiErrorMessage, apiPatch } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { IntegrationCategory } from '~/types/integrations';
 import { useConfig } from '~/contexts/ConfigContext';
@@ -80,7 +80,7 @@ export const CICDTab = memo(function CICDTab({ org }: CICDTabProps) {
   // Handle workflow update
   const handleUpdateWorkflow = useCallback(async (workflowId: string, workflowData: any) => {
     try {
-      const result = await apiPut<{ success: boolean; error?: string }>(
+      const result = await apiPatch<{ success: boolean; error?: string }>(
         `/api/v1/tenants/${org}/workflows/${workflowId}`,
         workflowData
       );

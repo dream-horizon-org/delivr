@@ -8,10 +8,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { Modal, Button, TextInput, Select, Stack, Group, Text, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
-import { PipelineProviderSelect } from '../BuildPipeline/PipelineProviderSelect';
-import { JenkinsConfigForm } from '../BuildPipeline/JenkinsConfigForm';
-import { GitHubActionsConfigForm } from '../BuildPipeline/GitHubActionsConfigForm';
+import { PipelineProviderSelect } from '~/components/ReleaseConfig/BuildPipeline/PipelineProviderSelect';
+import { JenkinsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/JenkinsConfigForm';
+import { GitHubActionsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/GitHubActionsConfigForm';
 import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import type { BuildProvider } from '~/types/release-config';
 import {
   PLATFORM_LABELS,
   ENVIRONMENT_LABELS,
@@ -76,23 +77,23 @@ export function WorkflowCreateModal({
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState<string>(PLATFORMS.ANDROID);
   const [environment, setEnvironment] = useState<string>(BUILD_ENVIRONMENTS.PRE_REGRESSION);
-  const [provider, setProvider] = useState<string>(BUILD_PROVIDERS.JENKINS);
+  const [provider, setProvider] = useState<BuildProvider>(BUILD_PROVIDERS.JENKINS as BuildProvider);
   const [providerConfig, setProviderConfig] = useState<any>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Determine available providers based on connected integrations
   const availableProviders = useMemo(() => {
-    const providers: string[] = [];
+    const providers: BuildProvider[] = [];
     if (availableIntegrations.jenkins.length > 0) {
-      providers.push(BUILD_PROVIDERS.JENKINS);
+      providers.push(BUILD_PROVIDERS.JENKINS as BuildProvider);
     }
     if (availableIntegrations.github.length > 0) {
-      providers.push(BUILD_PROVIDERS.GITHUB_ACTIONS);
+      providers.push(BUILD_PROVIDERS.GITHUB_ACTIONS as BuildProvider);
     }
     return providers;
   }, [availableIntegrations]);
 
-  const defaultProvider = availableProviders[0] || BUILD_PROVIDERS.JENKINS;
+  const defaultProvider: BuildProvider = (availableProviders[0] || BUILD_PROVIDERS.JENKINS) as BuildProvider;
 
   // Initialize form from existing workflow
   useEffect(() => {
@@ -101,7 +102,7 @@ export function WorkflowCreateModal({
         setName(existingWorkflow.displayName || '');
         setPlatform(existingWorkflow.platform || PLATFORMS.ANDROID);
         setEnvironment(workflowTypeToEnvironment[existingWorkflow.workflowType] || BUILD_ENVIRONMENTS.PRE_REGRESSION);
-        setProvider(existingWorkflow.providerType || defaultProvider);
+        setProvider((existingWorkflow.providerType || defaultProvider) as BuildProvider);
 
         // Reconstruct providerConfig from workflow data
         if (existingWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
@@ -109,7 +110,6 @@ export function WorkflowCreateModal({
             type: BUILD_PROVIDERS.JENKINS,
             integrationId: existingWorkflow.integrationId,
             jobUrl: existingWorkflow.workflowUrl,
-            jobName: existingWorkflow.displayName,
             parameters: existingWorkflow.parameters || {},
           });
         } else if (existingWorkflow.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS) {
@@ -150,7 +150,6 @@ export function WorkflowCreateModal({
         type: BUILD_PROVIDERS.JENKINS,
         integrationId: autoIntegrationId,
         jobUrl: providerConfig.jobUrl || '',
-        jobName: providerConfig.jobName || '',
         parameters: providerConfig.parameters || {},
       });
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
@@ -190,11 +189,8 @@ export function WorkflowCreateModal({
       if (!config.integrationId) {
         newErrors.integration = 'Jenkins instance is required';
       }
-      if (!config.jobUrl) {
+        if (!config.jobUrl) {
         newErrors.jobUrl = 'Job URL is required';
-      }
-      if (!config.jobName) {
-        newErrors.jobName = 'Job name is required';
       }
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
       const config = providerConfig as any;
@@ -227,13 +223,7 @@ export function WorkflowCreateModal({
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
       workflowData.workflowUrl = providerConfig.jobUrl;
-      workflowData.parameters = {
-        jobName: providerConfig.jobName,
-        ...(providerConfig.parameters && { buildParameters: providerConfig.parameters }),
-      };
-      workflowData.providerIdentifiers = {
-        jobName: providerConfig.jobName,
-      };
+      workflowData.parameters = providerConfig.parameters || {};
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
       // Use workflowUrl (full URL) - backend expects full GitHub URL
       const workflowUrl = providerConfig.workflowUrl || providerConfig.workflowPath;

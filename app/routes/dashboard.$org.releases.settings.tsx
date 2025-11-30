@@ -16,12 +16,12 @@ import { useState, useEffect, useCallback } from 'react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
-import { SettingsHeader } from '~/components/Releases/Settings/SettingsHeader';
-import { SettingsTabs, type SettingsTab } from '~/components/Releases/Settings/SettingsTabs';
-import { IntegrationsTab } from '~/components/Releases/Settings/IntegrationsTab';
-import { ConfigurationsTab } from '~/components/Releases/Settings/ConfigurationsTab';
-import { CICDTab } from '~/components/Releases/Settings/CICDTab';
-import { GeneralTab } from '~/components/Releases/Settings/GeneralTab';
+import { SettingsHeader } from '~/components/ReleaseSettings/SettingsHeader';
+import { SettingsTabs, type SettingsTab } from '~/components/ReleaseSettings/SettingsTabs';
+import { IntegrationsTab } from '~/components/ReleaseSettings/IntegrationsTab';
+import { ConfigurationsTab } from '~/components/ReleaseSettings/ConfigurationsTab';
+import { CICDTab } from '~/components/ReleaseSettings/CICDTab';
+import { GeneralTab } from '~/components/ReleaseSettings/GeneralTab';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;

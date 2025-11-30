@@ -86,10 +86,6 @@ export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) 
       <div className="text-xs text-gray-600">
         {pipeline.provider === BUILD_PROVIDERS.JENKINS && (
           <div className="space-y-1">
-            <div>
-              <span className="font-medium">Job:</span>{' '}
-              {(pipeline.providerConfig as any).jobName}
-            </div>
             <div className="truncate">
               <span className="font-medium">URL:</span>{' '}
               {(pipeline.providerConfig as any).jobUrl}

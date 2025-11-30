@@ -209,9 +209,6 @@ export function PipelineEditModal({
         if (!config.jobUrl) {
           newErrors.jobUrl = 'Job URL is required';
         }
-        if (!config.jobName) {
-          newErrors.jobName = 'Job name is required';
-        }
       } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
         const config = providerConfig as Partial<GitHubActionsConfig>;
         if (!config.integrationId) {
@@ -245,7 +242,6 @@ export function PipelineEditModal({
           type: BUILD_PROVIDERS.JENKINS,
           integrationId: selectedWorkflow.integrationId,
           jobUrl: selectedWorkflow.workflowUrl,
-          jobName: selectedWorkflow.displayName,
           parameters: selectedWorkflow.parameters || {},
         };
       } else {

@@ -169,15 +169,6 @@ export function JenkinsConfigForm({
         description="Full URL to the Jenkins job"
       />
       
-      <TextInput
-        label="Job Name"
-        placeholder="android-build"
-        value={config.jobName || ''}
-        onChange={(e) => onChange({ ...config, jobName: e.target.value })}
-        required
-        description="Jenkins job name"
-      />
-      
       {/* Fetch Parameters Button */}
       <div>
         <Button
