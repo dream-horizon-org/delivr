@@ -8,7 +8,6 @@ import * as shortid from 'shortid';
 type CreateInput = {
   displayName?: string;
   apiToken: string;
-  hostUrl: string;
 };
 
 export class GitHubActionsConnectionService extends ConnectionService<CreateInput> {
@@ -25,7 +24,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     }
     const verify = await this.verifyConnection({
       apiToken: input.apiToken,
-      githubApiBase: input.hostUrl,
+      githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
       userAgent: HEADERS.USER_AGENT,
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
@@ -35,7 +34,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       tenantId,
       providerType: CICDProviderType.GITHUB_ACTIONS,
       displayName: input.displayName ?? 'GitHub Actions',
-      hostUrl: input.hostUrl,
+      hostUrl: PROVIDER_DEFAULTS.GITHUB_API,
       authType: AuthType.BEARER,
       apiToken: input.apiToken,
       providerConfig: null as any,
@@ -62,21 +61,15 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     // Always verify on update
     const withSecrets = await this.repository.findById(existing.id);
     const tokenToCheck: string | undefined = updateData.apiToken ?? (withSecrets as any)?.apiToken as (string | undefined);
-    const hostUrlToCheck: string | undefined = updateData.hostUrl ?? (withSecrets as any)?.hostUrl as (string | undefined);
     const tokenMissing = !tokenToCheck;
-    const hostUrlMissing = !hostUrlToCheck;
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
       updateData.lastVerifiedAt = new Date();
       updateData.verificationError = ERROR_MESSAGES.MISSING_TOKEN_AND_SCM;
-    } else if (hostUrlMissing) {
-      updateData.verificationStatus = VerificationStatus.INVALID;
-      updateData.lastVerifiedAt = new Date();
-      updateData.verificationError = 'hostUrl is required';
     } else {
       const verify = await this.verifyConnection({
         apiToken: tokenToCheck,
-        githubApiBase: hostUrlToCheck,
+        githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
         userAgent: HEADERS.USER_AGENT,
         acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
         timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)

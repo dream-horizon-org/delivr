@@ -121,15 +121,10 @@ export const validateCreateWorkflowBody = (req: Request, res: Response, next: Ne
  * GitHub Actions verify body: apiToken must be present.
  */
 export const validateGHAVerifyBody = (req: Request, res: Response, next: NextFunction): void => {
-  const { apiToken, hostUrl } = req.body || {};
+  const { apiToken } = req.body || {};
   const tokenInvalid = !isNonEmptyString(apiToken);
   if (tokenInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: ERROR_MESSAGES.MISSING_TOKEN_AND_SCM });
-    return;
-  }
-  const hostUrlInvalid = !isNonEmptyString(hostUrl);
-  if (hostUrlInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ verified: false, message: 'hostUrl is required' });
     return;
   }
   next();
@@ -139,15 +134,10 @@ export const validateGHAVerifyBody = (req: Request, res: Response, next: NextFun
  * GitHub Actions create body: apiToken must be present.
  */
 export const validateCreateGHABody = (req: Request, res: Response, next: NextFunction): void => {
-  const { apiToken, hostUrl } = req.body || {};
+  const { apiToken } = req.body || {};
   const tokenInvalid = !isNonEmptyString(apiToken);
   if (tokenInvalid) {
     res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: ERROR_MESSAGES.GHA_CREATE_REQUIRED });
-    return;
-  }
-  const hostUrlInvalid = !isNonEmptyString(hostUrl);
-  if (hostUrlInvalid) {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, error: 'hostUrl is required' });
     return;
   }
   next();
