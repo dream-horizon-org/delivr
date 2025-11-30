@@ -330,6 +330,7 @@ export interface JiraProjectStepProps {
   onChange: (config: JiraProjectConfig) => void;
   availableIntegrations: Array<{ id: string; name: string }>;
   selectedPlatforms?: Platform[];
+  tenantId: string;
 }
 
 export interface JiraPlatformConfigCardProps {
@@ -338,6 +339,7 @@ export interface JiraPlatformConfigCardProps {
   onChange: (config: JiraPlatformConfig) => void;
   integrationId: string;
   onRemove?: () => void;
+  projects?: Array<{ key: string; name: string }>;
 }
 
 // ============================================================================

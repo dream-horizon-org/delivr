@@ -16,7 +16,7 @@ import {
   IconBrandApple,
 } from '@tabler/icons-react';
 import type { Step } from '~/components/Common/VerticalStepper/VerticalStepper';
-import type { BuildProvider, Platform } from '~/types/release-config';
+import type { BuildProvider, Platform, JiraProjectConfig } from '~/types/release-config';
 import { PLATFORMS as PLATFORM_CONSTANTS, BUILD_ENVIRONMENTS, TARGET_PLATFORMS } from '~/types/release-config-constants';
 import type { PipelineCategoryConfig } from '~/types/release-config-props';
 
@@ -130,6 +130,13 @@ export const JIRA_PRIORITIES = [
   { value: 'Low', label: 'Low' },
   { value: 'Lowest', label: 'Lowest' },
 ] as const;
+
+// Default project management configuration
+export const DEFAULT_PROJECT_MANAGEMENT_CONFIG: JiraProjectConfig = {
+  enabled: false,
+  integrationId: '',
+  platformConfigurations: [],
+} as const;
 
 // =============================================================================
 // PLATFORMS & DISTRIBUTION

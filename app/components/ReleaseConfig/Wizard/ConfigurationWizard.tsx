@@ -16,6 +16,7 @@ import { WizardNavigation } from './WizardNavigation';
 import { ConfigSummary } from './ConfigSummary';
 import { BasicInfoForm } from './BasicInfoForm';
 import { WIZARD_STEPS, STEP_INDEX } from '~/constants/wizard-steps';
+import { DEFAULT_PROJECT_MANAGEMENT_CONFIG } from '~/constants/release-config';
 import { canProceedFromStep } from './wizard-validation';
 import { VerticalStepper } from '~/components/Common/VerticalStepper/VerticalStepper';
 import { FixedPipelineCategories } from '../BuildPipeline/FixedPipelineCategories';
@@ -247,10 +248,11 @@ export function ConfigurationWizard({
       case STEP_INDEX.PROJECT_MANAGEMENT: // Jira Project Management
         return (
           <JiraProjectStep
-            config={config.projectManagementConfig!}
+            config={config.projectManagementConfig ?? DEFAULT_PROJECT_MANAGEMENT_CONFIG}
             onChange={(projectManagementConfig) => setConfig({ ...config, projectManagementConfig })}
             availableIntegrations={availableIntegrations.jira}
             selectedPlatforms={config.platforms || []}
+            tenantId={tenantId}
           />
         );
         

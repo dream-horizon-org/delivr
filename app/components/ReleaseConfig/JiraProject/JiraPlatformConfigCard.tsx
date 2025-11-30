@@ -18,6 +18,7 @@ export function JiraPlatformConfigCard({
   platform,
   config,
   onChange,
+  projects = [],
 }: JiraPlatformConfigCardProps) {
   const platformConfig = JIRA_PLATFORM_CONFIG[platform];
 
@@ -27,6 +28,12 @@ export function JiraPlatformConfigCard({
       [field]: value,
     });
   };
+
+  // Prepare project options for dropdown
+  const projectOptions = projects.map(project => ({
+    value: project.key,
+    label: `${project.key} - ${project.name}`,
+  }));
 
   return (
     <Card withBorder p="md" radius="md">
@@ -42,20 +49,38 @@ export function JiraPlatformConfigCard({
       </div>
 
       <Stack gap="md">
-        {/* Project Key - Required */}
-        <TextInput
-          label={JIRA_LABELS.PROJECT_KEY}
-          placeholder={JIRA_LABELS.PROJECT_KEY_PLACEHOLDER}
-          description={JIRA_LABELS.PROJECT_KEY_DESCRIPTION}
-          value={config.projectKey}
-          onChange={(e) => handleChange(JIRA_FIELD_NAMES.PROJECT_KEY, e.target.value.toUpperCase())}
-          required
-          error={
-            config.projectKey && !/^[A-Z][A-Z0-9]*$/.test(config.projectKey)
-              ? VALIDATION_MESSAGES.JIRA_PROJECT_KEY_INVALID
-              : undefined
-          }
-        />
+        {/* Project Key - Required - Now a dropdown if projects are available */}
+        {projects.length > 0 ? (
+          <Select
+            label={JIRA_LABELS.PROJECT_KEY}
+            placeholder={JIRA_LABELS.PROJECT_KEY_PLACEHOLDER}
+            description={JIRA_LABELS.PROJECT_KEY_DESCRIPTION}
+            data={projectOptions}
+            value={config.projectKey || null}
+            onChange={(value) => handleChange(JIRA_FIELD_NAMES.PROJECT_KEY, value || '')}
+            required
+            searchable
+            error={
+              config.projectKey && !/^[A-Z][A-Z0-9]*$/.test(config.projectKey)
+                ? VALIDATION_MESSAGES.JIRA_PROJECT_KEY_INVALID
+                : undefined
+            }
+          />
+        ) : (
+          <TextInput
+            label={JIRA_LABELS.PROJECT_KEY}
+            placeholder={JIRA_LABELS.PROJECT_KEY_PLACEHOLDER}
+            description={JIRA_LABELS.PROJECT_KEY_DESCRIPTION}
+            value={config.projectKey}
+            onChange={(e) => handleChange(JIRA_FIELD_NAMES.PROJECT_KEY, e.target.value.toUpperCase())}
+            required
+            error={
+              config.projectKey && !/^[A-Z][A-Z0-9]*$/.test(config.projectKey)
+                ? VALIDATION_MESSAGES.JIRA_PROJECT_KEY_INVALID
+                : undefined
+            }
+          />
+        )}
 
         {/* Issue Type - Optional */}
         <Select

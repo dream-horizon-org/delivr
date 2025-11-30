@@ -96,6 +96,19 @@ export const PROJECT_MANAGEMENT = {
     delete: (tenantId: string, configId: string) => 
       `/tenants/${tenantId}/integrations/project-management/config/${configId}`,
   },
+  
+  /**
+   * Jira Metadata Routes
+   * For fetching Jira-specific metadata (projects, etc.)
+   */
+  jiraMetadata: {
+    /**
+     * Get all Jira projects
+     * GET /tenants/:tenantId/integrations/project-management/:integrationId/jira/metadata/projects
+     */
+    getProjects: (tenantId: string, integrationId: string) =>
+      `/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/projects`,
+  },
 } as const;
 
 // ============================================================================

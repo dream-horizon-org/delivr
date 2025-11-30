@@ -307,6 +307,50 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
       };
     }
   }
+
+  /**
+   * Get Jira projects for a Jira integration
+   * Fetches all projects from Jira using the integration credentials
+   */
+  async getJiraProjects(
+    tenantId: string,
+    integrationId: string,
+    userId: string
+  ): Promise<{ success: boolean; data?: Array<{ key: string; name: string }>; error?: string }> {
+    try {
+      const endpoint = PROJECT_MANAGEMENT.jiraMetadata.getProjects(tenantId, integrationId);
+      
+      this.logRequest('GET', endpoint);
+      
+      const result = await this.get<{ success: boolean; data: Array<{ key: string; name: string }> }>(
+        endpoint,
+        userId
+      );
+      
+      this.logResponse('GET', endpoint, result.success);
+      
+      return {
+        success: result.success,
+        data: result.data || [],
+        error: (result as any).error
+      };
+    } catch (error: any) {
+      this.logResponse('GET', PROJECT_MANAGEMENT.jiraMetadata.getProjects(tenantId, integrationId), false);
+      
+      // Check if this is a network/connection error
+      if (error.message === 'No response from server') {
+        return {
+          success: false,
+          error: 'Unable to connect to backend server. Please check your backend configuration.',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch Jira projects'
+      };
+    }
+  }
 }
 
 export const ProjectManagementIntegrationService = new ProjectManagementIntegrationServiceClass();

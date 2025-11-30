@@ -4,24 +4,34 @@
  * Now supports platform-level configuration
  */
 
-import { Stack, Text, Switch, Select, Alert, Checkbox } from '@mantine/core';
+import { useState, useEffect, useCallback } from 'react';
+import { Stack, Text, Switch, Select, Alert, Checkbox, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
 import type { JiraProjectStepProps } from '~/types/release-config-props';
 import { PLATFORMS } from '~/types/release-config-constants';
 import { JIRA_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
+import { DEFAULT_PROJECT_MANAGEMENT_CONFIG } from '~/constants/release-config';
 import { JiraPlatformConfigCard } from './JiraPlatformConfigCard';
 import { createDefaultPlatformConfigs } from '~/utils/jira-config-transformer';
+import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 
 export function JiraProjectStep({
-  config,
+  config = DEFAULT_PROJECT_MANAGEMENT_CONFIG as JiraProjectConfig,
   onChange,
   availableIntegrations,
   selectedPlatforms = [],
+  tenantId,
 }: JiraProjectStepProps) {
-  // ✅ Safe access with default values
-  const isEnabled = config?.enabled ?? false;
-  const platformConfigurations = config?.platformConfigurations ?? [];
+  // ✅ Safe access with default values - ensure config is never undefined
+  const isEnabled = config.enabled ?? false;
+  const platformConfigurations = config.platformConfigurations ?? [];
+  
+  // State for fetching Jira projects
+  const [projects, setProjects] = useState<Array<{ key: string; name: string }>>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   
   // Initialize platform configurations if they don't exist
   if (isEnabled && platformConfigurations.length === 0) {
@@ -51,7 +61,50 @@ export function JiraProjectStep({
     }
   };
 
+  // Fetch Jira projects when integration is selected
+  const fetchProjects = useCallback(async (integrationId: string) => {
+    if (!tenantId || !integrationId) return;
+    
+    setIsLoadingProjects(true);
+    setProjectsError(null);
+    setProjectsLoaded(false);
+    
+    try {
+      const result = await apiGet<{ success: boolean; data: Array<{ key: string; name: string }> }>(
+        `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/projects`
+      );
+      
+      if (result.success && result.data) {
+        const projectsData = Array.isArray(result.data) ? result.data : [];
+        setProjects(projectsData);
+        setProjectsLoaded(true);
+        setProjectsError(null);
+      } else {
+        throw new Error('Failed to fetch projects');
+      }
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to fetch Jira projects');
+      setProjectsError(errorMessage);
+      setProjects([]);
+      setProjectsLoaded(false);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, [tenantId]);
+
+  // Fetch projects when integration is selected
+  useEffect(() => {
+    if (config.integrationId && !projectsLoaded && !isLoadingProjects) {
+      fetchProjects(config.integrationId);
+    }
+  }, [config.integrationId, fetchProjects, projectsLoaded, isLoadingProjects]);
+
   const handleIntegrationChange = (integrationId: string | null) => {
+    // Reset projects when integration changes
+    setProjects([]);
+    setProjectsLoaded(false);
+    setProjectsError(null);
+    
     onChange({
       ...config,
       integrationId: integrationId || '',
@@ -134,7 +187,33 @@ export function JiraProjectStep({
 
               {config.integrationId && (
                 <>
-                  {/* Platform Configurations */}
+                  {/* Loading Projects */}
+                  {isLoadingProjects && (
+                    <Alert icon={<Loader size={ICON_SIZES.SMALL} />} color="blue" variant="light">
+                      <Text size="sm">Fetching Jira projects...</Text>
+                    </Alert>
+                  )}
+
+                  {/* Projects Fetch Error - Show warning but still allow form entry */}
+                  {!isLoadingProjects && projectsError && (
+                    <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="Failed to fetch projects" color="yellow">
+                      <Text size="sm">{projectsError}</Text>
+                      <Text size="sm" mt="xs" c="dimmed">
+                        You can still manually enter project keys below. Please check your Jira integration credentials if you need to fetch projects automatically.
+                      </Text>
+                    </Alert>
+                  )}
+
+                  {/* No Projects Available - Show info but still allow form entry */}
+                  {!isLoadingProjects && !projectsError && projectsLoaded && projects.length === 0 && (
+                    <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="No projects found" color="yellow">
+                      <Text size="sm">
+                        No Jira projects were found for this integration. You can manually enter project keys below.
+                      </Text>
+                    </Alert>
+                  )}
+
+                  {/* Platform Configurations - Always show when integration is selected */}
                   <div>
                     <Text fw={500} size="md" mb="md">
                       {JIRA_LABELS.PLATFORM_SETTINGS_TITLE}
@@ -155,6 +234,7 @@ export function JiraProjectStep({
                               handlePlatformConfigChange(platformConfig.platform, updatedConfig)
                             }
                             integrationId={config.integrationId || ''}
+                            projects={projects}
                           />
                         ))}
                     </Stack>
