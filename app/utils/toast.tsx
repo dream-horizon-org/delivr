@@ -24,7 +24,7 @@ export function showSuccessToast(options: ToastOptions) {
     color: 'green',
     icon: <IconCheck size={18} />,
     autoClose: options.duration || 4000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -38,7 +38,7 @@ export function showErrorToast(options: ToastOptions) {
     color: 'red',
     icon: <IconX size={18} />,
     autoClose: options.duration || 6000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -52,7 +52,7 @@ export function showInfoToast(options: ToastOptions) {
     color: 'blue',
     icon: <IconInfoCircle size={18} />,
     autoClose: options.duration || 4000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -66,7 +66,7 @@ export function showWarningToast(options: ToastOptions) {
     color: 'yellow',
     icon: <IconAlertTriangle size={18} />,
     autoClose: options.duration || 5000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -99,7 +99,7 @@ export function showLoadingToast(options: ToastOptions): string {
     loading: true,
     autoClose: false,
     withCloseButton: false,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
   return id;
 }

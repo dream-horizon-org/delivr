@@ -23,7 +23,13 @@ export type {
 
 // Test Management Integrations
 export { CheckmateIntegrationService } from './checkmate-integration';
-export type { CheckmateIntegration, CheckmateConfig, CheckmateIntegrationResponse } from './checkmate-integration';
+export type { 
+  CheckmateIntegration, 
+  CheckmateConfig, 
+  CheckmateIntegrationResponse,
+  CheckmateVerifyResponse,
+  VerifyCheckmateCredentialsRequest
+} from './checkmate-integration';
 
 // Project Management Integrations
 export { ProjectManagementIntegrationService } from './project-management-integration-service';

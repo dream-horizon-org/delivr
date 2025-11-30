@@ -182,9 +182,14 @@ export async function apiPut<T = unknown>(
  */
 export async function apiDelete<T = unknown>(
   endpoint: string,
+  data?: unknown,
   options: Omit<ApiClientOptions, 'method' | 'body'> = {}
 ): Promise<ApiResponse<T>> {
-  return apiRequest<T>(endpoint, { ...options, method: 'DELETE' });
+  return apiRequest<T>(endpoint, {
+    ...options,
+    method: 'DELETE',
+    body: data ? JSON.stringify(data) : undefined,
+  });
 }
 
 /**

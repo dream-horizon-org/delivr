@@ -74,6 +74,30 @@ class AppDistributionIntegrationService extends IntegrationService {
   }
 
   /**
+   * Update store integration
+   * PATCH /integrations/store/:integrationId
+   */
+  async updateStore(
+    integrationId: string,
+    payload: any,
+    userId: string
+  ): Promise<{ success: boolean; data?: any; message?: string; error?: string }> {
+    try {
+      const response = await this.patch<{ success: boolean; data?: any; message?: string }>(
+        APP_DISTRIBUTION.update(integrationId),
+        { payload },
+        userId
+      );
+      return response;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to update store integration',
+      };
+    }
+  }
+
+  /**
    * List all store integrations for tenant (grouped by platform)
    * GET /integrations/store/tenant/:tenantId
    */

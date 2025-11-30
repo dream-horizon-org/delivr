@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { TextInput, Alert, PasswordInput, Select } from '@mantine/core';
+import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { useParams } from '@remix-run/react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { SCM_TYPES } from '~/constants/integrations';
@@ -7,8 +8,6 @@ import { GITHUB_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/const
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
-import { showInfoToast } from '~/utils/toast';
-import { useEffect } from 'react';
 
 interface GitHubConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -72,18 +71,6 @@ export function GitHubConnectionFlow({
     owner !== (existingData?.owner || '') ||
     repoName !== (existingData?.repo || existingData?.repoName || '')
   );
-
-  // Show notification when draft is restored (only once on mount)
-  const hasShownDraftToast = useRef(false);
-  useEffect(() => {
-    if (isDraftRestored && !isEditMode && !hasShownDraftToast.current) {
-      hasShownDraftToast.current = true;
-      showInfoToast({
-        title: 'Draft Restored',
-        message: 'Your previous GitHub connection form data has been restored.',
-      });
-    }
-  }, [isDraftRestored, isEditMode]);
 
   const handleVerify = async () => {
     if (!owner || !repoName || !token) {
@@ -206,8 +193,21 @@ export function GitHubConnectionFlow({
 
   return (
     <div className="space-y-4">
+      {/* Draft Restored Alert */}
+      {isDraftRestored && !isEditMode && (
+        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+          Your previously entered data has been restored. Note: Sensitive credentials (like tokens) are never saved for security.
+        </Alert>
+      )}
+
       {error && (
-        <Alert color="red" title="Error" onClose={() => setError(null)} withCloseButton>
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red" 
+          title="Error"
+          onClose={() => setError(null)}
+          withCloseButton
+        >
           {error}
         </Alert>
       )}

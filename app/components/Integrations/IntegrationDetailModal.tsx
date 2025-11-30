@@ -72,9 +72,20 @@ export function IntegrationDetailModal({
       // Get the endpoint URL
       const endpoint = config.endpoint(tenantId, integration.config);
       console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Disconnecting from endpoint:`, endpoint);
+      console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration config:`, integration.config);
+      
+      // For CI/CD integrations (Jenkins, GitHub Actions), pass integrationId in body
+      const needsIntegrationIdInBody = ['jenkins', 'github_actions'].includes(normalizedId);
+      const requestBody = needsIntegrationIdInBody && integration.config?.id
+        ? { integrationId: integration.config.id }
+        : undefined;
+      
+      if (requestBody) {
+        console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Sending DELETE with body:`, requestBody);
+      }
       
       // Make DELETE request using API client
-      await apiDelete(endpoint);
+      await apiDelete(endpoint, requestBody);
 
       showSuccessToast(INTEGRATION_MESSAGES.DISCONNECT_SUCCESS(integrationName));
       setShowConfirmDisconnect(false);

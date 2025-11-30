@@ -24,9 +24,16 @@ export type AuthenticatedLoaderFunction = (
 
 export const authenticateLoaderRequest = (cb?: AuthenticatedLoaderFunction) => {
   return async (args: LoaderFunctionArgs) => {
-    const user = (await AuthenticatorService.isAuthenticated(
-      args.request
-    )) as User;
+    const authResult = await AuthenticatorService.isAuthenticated(args.request);
+    
+    // If not authenticated, isAuthenticated returns a redirect Response
+    // Return it immediately instead of continuing
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+    
+    const user = authResult as User;
+    
     try {
       return (await cb?.({ ...args, user })) ?? user;
     } catch (e) {
@@ -59,9 +66,17 @@ export const authenticateActionRequest = (
         { status: 405 }
       );
     }
-    const user = (await AuthenticatorService.isAuthenticated(
-      args.request
-    )) as User;
+    
+    const authResult = await AuthenticatorService.isAuthenticated(args.request);
+    
+    // If not authenticated, isAuthenticated returns a redirect Response
+    // Return it immediately instead of continuing
+    if (authResult instanceof Response) {
+      return authResult;
+    }
+    
+    const user = authResult as User;
+    
     try {
       return await cb[method]({ ...args, user });
     } catch (e) {

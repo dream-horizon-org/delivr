@@ -1,4 +1,5 @@
 import { Alert, TextInput } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useSlackConnection } from '~/hooks/useSlackConnection';
 import { 
   SLACK_LABELS, 
@@ -187,7 +188,13 @@ export function SlackConnectionFlow({
               </div>
 
             {error && (
-              <Alert color="red">
+              <Alert 
+                icon={<IconAlertCircle size={16} />} 
+                color="red" 
+                title="Error"
+                onClose={() => setBotToken('')}
+                withCloseButton
+              >
                 {error}
               </Alert>
             )}

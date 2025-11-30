@@ -160,20 +160,44 @@ const updatePMAction = async ({
   try {
     const body = await request.json();
 
+    console.log('[BFF-PM-Update] Update request:', {
+      integrationId,
+      bodyKeys: Object.keys(body),
+      hasApiToken: !!body.apiToken,
+      hasName: !!(body.name || body.displayName),
+      hasHostUrl: !!body.hostUrl,
+      hasEmail: !!body.email
+    });
+
     const updateData: any = {};
     if (body.name || body.displayName) {
       updateData.name = body.name || body.displayName;
     }
-    if (body.config || body.hostUrl || body.apiToken) {
-      updateData.config = {
-        ...(body.config || {}),
-        ...(body.hostUrl && { baseUrl: body.hostUrl }),
-        ...(body.email && { email: body.email }),
-        ...(body.username && { email: body.username }),
-        ...(body.apiToken && { apiToken: body.apiToken }),
-        ...(body.jiraType && { jiraType: body.jiraType }),
-      };
+    
+    // Only build config if any fields are provided
+    const configUpdates: any = {
+      ...(body.config || {}),
+      ...(body.hostUrl && { baseUrl: body.hostUrl }),
+      ...(body.email && { email: body.email }),
+      ...(body.username && { email: body.username }),
+      ...(body.jiraType && { jiraType: body.jiraType }),
+    };
+    
+    // Only include apiToken if explicitly provided (not empty)
+    if (body.apiToken && body.apiToken.trim()) {
+      configUpdates.apiToken = body.apiToken;
     }
+    
+    // Only add config to updateData if there are actual config updates
+    if (Object.keys(configUpdates).length > 0) {
+      updateData.config = configUpdates;
+    }
+
+    console.log('[BFF-PM-Update] Prepared update data:', {
+      hasName: !!updateData.name,
+      hasConfig: !!updateData.config,
+      configKeys: updateData.config ? Object.keys(updateData.config) : []
+    });
 
     const result = await ProjectManagementIntegrationService.updateIntegration(
       tenantId,
@@ -181,6 +205,8 @@ const updatePMAction = async ({
       user.user.id,
       updateData
     );
+
+    console.log('[BFF-PM-Update] Result:', { success: result.success, error: result.error });
 
     return json(result, { status: result.success ? 200 : 500 });
   } catch (error) {

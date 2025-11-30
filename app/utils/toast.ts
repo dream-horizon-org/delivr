@@ -25,7 +25,7 @@ export function showSuccessToast(options: ToastOptions) {
     color: 'green',
     icon: React.createElement(IconCheck, { size: 18 }),
     autoClose: options.duration || 4000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -39,7 +39,7 @@ export function showErrorToast(options: ToastOptions) {
     color: 'red',
     icon: React.createElement(IconX, { size: 18 }),
     autoClose: options.duration || 6000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -53,7 +53,7 @@ export function showInfoToast(options: ToastOptions) {
     color: 'blue',
     icon: React.createElement(IconInfoCircle, { size: 18 }),
     autoClose: options.duration || 4000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -67,7 +67,7 @@ export function showWarningToast(options: ToastOptions) {
     color: 'yellow',
     icon: React.createElement(IconAlertTriangle, { size: 18 }),
     autoClose: options.duration || 5000,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
 }
 
@@ -100,7 +100,7 @@ export function showLoadingToast(options: ToastOptions): string {
     loading: true,
     autoClose: false,
     withCloseButton: false,
-    position: options.position || 'top-right',
+    position: options.position || 'bottom-right',
   });
   return id;
 }

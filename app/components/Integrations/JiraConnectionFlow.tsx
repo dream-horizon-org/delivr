@@ -6,21 +6,24 @@
  * Config: { baseUrl, email, apiToken, jiraType }
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
   PasswordInput,
   Select,
   Stack,
-  Text
+  Text,
+  Alert
 } from '@mantine/core';
+import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { JIRA_TYPES } from '~/types/jira-integration';
 import type { JiraType } from '~/types/jira-integration';
 import { JIRA_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
+import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
 
 interface JiraConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -29,27 +32,55 @@ interface JiraConnectionFlowProps {
   existingData?: any;
 }
 
+interface JiraConnectionFormData {
+  displayName: string;
+  hostUrl: string;
+  email: string;
+  apiToken: string;
+  jiraType: JiraType;
+}
+
 export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JiraConnectionFlowProps) {
   const params = useParams();
   const tenantId = params.org;
 
-  const [formData, setFormData] = useState({
-    displayName: existingData?.displayName || existingData?.name || '',
-    hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
-    email: existingData?.email || existingData?.config?.email || '',
-    apiToken: '', // Never prefill sensitive data
-    jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
-  });
+  // Ref to track if we're in the middle of verify/connect flow
+  const isInFlowRef = useRef(false);
+
+  // Draft storage with auto-save
+  const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JiraConnectionFormData>(
+    {
+      storageKey: generateStorageKey('jira-pm', tenantId || ''),
+      sensitiveFields: ['apiToken'], // Never save token to draft
+      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.email || data.displayName),
+    },
+    {
+      displayName: existingData?.displayName || existingData?.name || '',
+      hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
+      email: existingData?.email || existingData?.config?.email || '',
+      apiToken: '', // Never prefill sensitive data
+      jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
+    },
+    isEditMode ? {
+      displayName: existingData?.displayName || existingData?.name || '',
+      hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
+      email: existingData?.email || existingData?.config?.email || '',
+      apiToken: '', // Never prefill sensitive data
+      jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
+    } : undefined
+  );
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isVerified, setIsVerified] = useState(!!existingData?.isVerified || isEditMode);
+  const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
     setIsVerified(false);
+    isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
       const result = await apiPost<{ verified: boolean }>(
@@ -62,21 +93,28 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         }
       );
 
+      console.log('[JiraConnectionFlow] Verification result:', result);
+
       if (result.data?.verified || result.success) {
         setIsVerified(true);
       } else {
-        setError(ALERT_MESSAGES.VERIFICATION_FAILED);
+        // Show the specific error message from backend
+        const errorMsg = (result as any).error || (result.data as any)?.error || ALERT_MESSAGES.VERIFICATION_FAILED;
+        setError(errorMsg);
       }
     } catch (err) {
+      console.error('[JiraConnectionFlow] Verification error:', err);
       setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
     } finally {
       setIsVerifying(false);
+      isInFlowRef.current = false; // Re-enable draft save after verify
     }
   };
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
+    isInFlowRef.current = true; // Prevent draft save during connect
 
     try {
       const payload: any = {
@@ -95,6 +133,13 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         return;
       }
 
+      console.log('[JiraConnectionFlow] Saving with payload:', {
+        isEditMode,
+        hasApiToken: !!payload.apiToken,
+        payloadKeys: Object.keys(payload),
+        existingDataId: existingData?.id
+      });
+
       // For updates, include integrationId as query parameter
       const endpoint = isEditMode && existingData?.id
         ? `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA&integrationId=${existingData.id}`
@@ -104,15 +149,24 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         ? await apiPatch(endpoint, payload)
         : await apiPost(endpoint, payload);
 
+      console.log('[JiraConnectionFlow] Save result:', result);
+
       if (result.success) {
+        markSaveSuccessful(); // Clear draft on successful save
         onConnect(result);
       } else {
-        setError(ALERT_MESSAGES.CONNECTION_FAILED);
+        // Show the specific error from backend if available
+        const errorMsg = (result as any).error || result.message || ALERT_MESSAGES.CONNECTION_FAILED;
+        console.error('[JiraConnectionFlow] Save failed:', errorMsg);
+        setError(errorMsg);
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED));
+      const errorMsg = getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED);
+      console.error('[JiraConnectionFlow] Save error:', errorMsg, err);
+      setError(errorMsg);
     } finally {
       setIsConnecting(false);
+      isInFlowRef.current = false; // Re-enable draft save after connect
     }
   };
 
@@ -122,8 +176,13 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
 
   return (
     <Stack gap="lg">
-      {/* Header removed as it's in the modal title */}
-      
+      {/* Draft Restored Alert */}
+      {isDraftRestored && !isEditMode && (
+        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+          Your previously entered data has been restored. Note: Sensitive credentials (like API tokens) are never saved for security.
+        </Alert>
+      )}
+
       <TextInput
         label={JIRA_LABELS.DISPLAY_NAME_LABEL}
         placeholder={JIRA_LABELS.DISPLAY_NAME_PLACEHOLDER}
@@ -175,9 +234,15 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       />
 
       {error && (
-        <ConnectionAlert color="red" title="Error">
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red" 
+          title="Error"
+          onClose={() => setError(null)}
+          withCloseButton
+        >
           {error}
-        </ConnectionAlert>
+        </Alert>
       )}
 
       {isVerified && (
@@ -186,7 +251,8 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         </ConnectionAlert>
       )}
 
-      {!isVerified ? (
+      {/* Show verify button for new connections, or save button for edits */}
+      {!isEditMode && !isVerified ? (
         <ActionButtons
           onCancel={onCancel}
           onPrimary={handleVerify}
@@ -204,6 +270,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
           primaryLabel={isEditMode ? 'Save Changes' : JIRA_LABELS.CONNECT_JIRA}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isConnecting}
+          isPrimaryDisabled={!isFormValid()}
           isCancelDisabled={isVerifying || isConnecting}
           primaryClassName="bg-green-600 hover:bg-green-700"
         />
