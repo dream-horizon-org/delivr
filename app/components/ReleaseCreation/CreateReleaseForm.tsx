@@ -92,7 +92,7 @@ export function CreateReleaseForm({ org, userId, onSubmit }: CreateReleaseFormPr
     const hasPreRegression = (selectedConfig.workflows || []).some(
       (w) => w.environment === 'PRE_REGRESSION'
     );
-    const hasAutomation = selectedConfig.testManagement?.enabled === true;
+    const hasAutomation = selectedConfig.testManagementConfig?.enabled === true;
 
     return {
       preRegressionBuilds: hasPreRegression,

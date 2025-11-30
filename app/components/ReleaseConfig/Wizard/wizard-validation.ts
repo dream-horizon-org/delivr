@@ -52,14 +52,23 @@ export const validateTestManagement = (
     
     // Validate Checkmate-specific fields
     if (providerConfig.type === 'checkmate') {
-      // Check project ID
-      if (!providerConfig.projectId) {
-        errors.push('Checkmate project must be selected');
-      }
-      
-      // Check platform configurations
+      // Check platform configurations (projectId is now platform-specific)
       if (!providerConfig.platformConfigurations || providerConfig.platformConfigurations.length === 0) {
         errors.push('At least one platform configuration is required for Checkmate');
+      } else {
+        // Validate each platform configuration has a projectId
+        providerConfig.platformConfigurations.forEach((pc: any, index: number) => {
+          const platformName = pc.platform || `Platform ${index + 1}`;
+          
+          if (!pc.platform) {
+            errors.push(`${platformName}: Platform is required`);
+          }
+          
+          // ProjectId is now platform-specific (required for each platform)
+          if (!pc.projectId || pc.projectId === 0) {
+            errors.push(`${platformName}: Checkmate project must be selected`);
+          }
+        });
       }
       
       // Validate pass threshold
@@ -256,17 +265,17 @@ export const canProceedFromStep = (
       
     case STEP_INDEX.TESTING:
       // Use the validation helper function for test management
-      const testManagementErrors = validateTestManagement(config.testManagement);
+      const testManagementErrors = validateTestManagement(config.testManagementConfig);
       return testManagementErrors.length === 0;
     
     case STEP_INDEX.COMMUNICATION:
       // Use the validation helper function for communication
-      const communicationErrors = validateCommunication(config.communication);
+      const communicationErrors = validateCommunication(config.communicationConfig);
       return communicationErrors.length === 0;
       
     case STEP_INDEX.PROJECT_MANAGEMENT:
       // Use the validation helper function
-      const jiraErrors = validateProjectManagement(config.projectManagement);
+      const jiraErrors = validateProjectManagement(config.projectManagementConfig);
       return jiraErrors.length === 0;
       
     case STEP_INDEX.SCHEDULING:

@@ -169,16 +169,16 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </Text>
         </Group>
         
-        {config?.testManagement?.enabled ? (
+        {config?.testManagementConfig?.enabled ? (
           <Stack gap="xs">
             <Group gap="xs">
               <Text size="sm">Provider:</Text>
               <Badge variant="light" size="sm">
-                {config?.testManagement.provider}
+                {config?.testManagementConfig.provider}
               </Badge>
             </Group>
             
-            {config?.testManagement?.providerConfig && (
+            {config?.testManagementConfig?.providerConfig && (
               <div className="text-sm">
                 <Text c="dimmed">Settings configured</Text>
               </div>
@@ -200,7 +200,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
           </Text>
         </Group>
         
-        {config?.projectManagement?.enabled ? (
+        {config?.projectManagementConfig?.enabled ? (
           <Stack gap="xs">
             <Group gap="xs">
               <IconCheck size={16} className="text-green-600" />
@@ -209,14 +209,14 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               </Text>
             </Group>
             
-            {config?.projectManagement?.platformConfigurations && 
-             config.projectManagement.platformConfigurations.length > 0 ? (
+            {config?.projectManagementConfig?.platformConfigurations && 
+             config.projectManagementConfig.platformConfigurations.length > 0 ? (
               <div className="ml-6">
                 <Text size="xs" c="dimmed" className="mb-1">
-                  Platform Configurations: {config.projectManagement.platformConfigurations.length}
+                  Platform Configurations: {config.projectManagementConfig.platformConfigurations.length}
                 </Text>
                 <List spacing="xs" size="xs">
-                  {config.projectManagement.platformConfigurations.map((pc: any) => (
+                  {config.projectManagementConfig.platformConfigurations.map((pc: any) => (
                     <List.Item key={pc.platform}>
                       <Group gap="xs">
                         <Badge size="xs" variant="outline">
@@ -305,7 +305,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
         </Group>
         
         <Stack gap="sm">
-          {config.communication?.slack?.enabled && config.communication.slack.channelData ? (
+          {config.communicationConfig?.slack?.enabled && config.communicationConfig.slack.channelData ? (
             <div>
               <Group gap="xs" className="mb-2">
                 <IconCheck size={16} className="text-green-600" />
@@ -314,10 +314,10 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 </Text>
               </Group>
               <div className="ml-6 text-xs text-gray-600">
-                <div>• Releases: {config.communication.slack.channelData.releases?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-                <div>• Builds: {config.communication.slack.channelData.builds?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-                <div>• Regression: {config.communication.slack.channelData.regression?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-                <div>• Critical: {config.communication.slack.channelData.critical?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Releases: {config.communicationConfig.slack.channelData.releases?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Builds: {config.communicationConfig.slack.channelData.builds?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Regression: {config.communicationConfig.slack.channelData.regression?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
+                <div>• Critical: {config.communicationConfig.slack.channelData.critical?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
               </div>
             </div>
           ) : (
@@ -329,7 +329,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
             </Group>
           )}
           
-          {config.communication?.email?.enabled ? (
+          {config.communicationConfig?.email?.enabled ? (
             <div>
               <Group gap="xs" className="mb-2">
                 <IconCheck size={16} className="text-green-600" />
@@ -339,7 +339,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               </Group>
               <div className="ml-6">
                 <Text size="xs" c="dimmed">
-                  {config.communication.email.notificationEmails?.length || 0} recipient(s)
+                  {config.communicationConfig.email.notificationEmails?.length || 0} recipient(s)
                 </Text>
               </div>
             </div>

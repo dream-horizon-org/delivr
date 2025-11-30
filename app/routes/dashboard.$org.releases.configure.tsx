@@ -14,6 +14,7 @@ import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
 import { Loader, Center, Stack, Text } from '@mantine/core';
 import { ConfigurationLoadError } from '~/components/Releases/ConfigurationLoadError';
+import { transformFromBackend } from '~/.server/services/ReleaseConfig/release-config-payload';
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { org } = params;
@@ -48,7 +49,12 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       console.log('[ReleasesConfigurePage] Loader result for config:', configIdToLoad, JSON.stringify(result, null, 2));
       
       if (result.data) {
-        existingConfig = result.data;
+        // Transform API response to UI format
+        // API returns nested configs (testManagementConfig, commsConfig, projectManagementConfig)
+        // UI expects transformed format (testManagement, communication, projectManagement)
+        existingConfig = transformFromBackend(result.data) as ReleaseConfiguration;
+        
+        console.log('[ReleasesConfigurePage] Transformed config:', JSON.stringify(existingConfig, null, 2));
         
         // If cloning, modify the config to be a new one
         if (cloneConfigId && existingConfig) {
@@ -129,6 +135,8 @@ export default function ReleasesConfigurePage() {
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
   console.log('[ReleasesConfigurePage] Existing config:', JSON.stringify(existingConfig, null, 2));
+
+  
   
   // Show loading state during navigation
   const isLoading = navigation.state === 'loading';

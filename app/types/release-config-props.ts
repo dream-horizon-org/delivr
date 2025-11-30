@@ -466,6 +466,7 @@ export interface CheckmateConfigFormEnhancedProps {
     orgId?: string;
   }>;
   selectedTargets: TargetPlatform[];
+  integrationId?: string; // Optional: if provided, auto-select this integration (one-to-one mapping)
 }
 
 export interface ConfigSummaryProps {

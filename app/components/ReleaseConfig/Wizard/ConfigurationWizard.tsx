@@ -229,8 +229,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.TESTING: // Test Management
         return (
           <TestManagementSelector
-            config={config.testManagement!}
-            onChange={(testManagement) => setConfig({ ...config, testManagement })}
+            config={config.testManagementConfig!}
+            onChange={(testManagementConfig) => setConfig({ ...config, testManagementConfig })}
             availableIntegrations={{
               checkmate: availableIntegrations.checkmate,
             }}
@@ -241,8 +241,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.PROJECT_MANAGEMENT: // Jira Project Management
         return (
           <JiraProjectStep
-            config={config.projectManagement!}
-            onChange={(projectManagement) => setConfig({ ...config, projectManagement })}
+            config={config.projectManagementConfig!}
+            onChange={(projectManagementConfig) => setConfig({ ...config, projectManagementConfig })}
             availableIntegrations={availableIntegrations.jira}
             selectedPlatforms={config.platforms || []}
           />
@@ -251,8 +251,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.COMMUNICATION: // Communication
         return (
           <CommunicationConfig
-            config={config.communication!}
-            onChange={(communication) => setConfig({ ...config, communication })}
+            config={config.communicationConfig!}
+            onChange={(communicationConfig) => setConfig({ ...config, communicationConfig })}
             availableIntegrations={{
               slack: availableIntegrations.slack,
             }}

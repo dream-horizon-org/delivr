@@ -70,13 +70,12 @@ export function CheckmateConfigFormEnhanced({
   onChange,
   availableIntegrations,
   selectedTargets, // NEW: Receive selected targets
+  integrationId, // Optional: if provided, use this integration (one-to-one mapping)
 }: CheckmateConfigFormEnhancedProps) {
-  // ✅ Initialize selectedIntegrationId from config immediately
-  const [selectedIntegrationId, setSelectedIntegrationId] = useState<string>(config?.integrationId || '');
+  // ✅ Use provided integrationId or fallback to config
+  const selectedIntegrationId = integrationId || config?.integrationId || '';
   const [projects, setProjects] = useState<CheckmateProject[]>([]);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
-  // ✅ Initialize selectedProject from config.projectId
-  const [selectedProject, setSelectedProject] = useState<number | null>(config?.projectId || null);
   // Determine which platforms to show based on selected targets
   const hasAndroidTarget = selectedTargets.some(isAndroidTarget);
   const hasIOSTarget = selectedTargets.some(isIOSTarget);
@@ -92,8 +91,8 @@ export function CheckmateConfigFormEnhanced({
   const createCompleteConfig = (updates: Partial<CheckmateSettings>): CheckmateSettings => {
     return {
       type: 'checkmate',
-      integrationId: config?.integrationId || '',
-      projectId: config?.projectId || 0,
+      integrationId: selectedIntegrationId || config?.integrationId || '',
+      projectId: 0, // No global projectId - platform-specific now
       platformConfigurations: config?.platformConfigurations || [],
       autoCreateRuns: config?.autoCreateRuns ?? false,
       passThresholdPercent: config?.passThresholdPercent ?? 100,
@@ -105,9 +104,10 @@ export function CheckmateConfigFormEnhanced({
   // Using centralized PLATFORMS from constants
 
   // Define fetch functions BEFORE useEffect hooks that use them
+  // Single API call to fetch all projects (shared by both iOS and Android)
   const fetchProjects = useCallback(async (integrationId: string) => {
     setIsLoadingProjects(true);
-    setProjectsLoaded(false); // ✅ Reset flag
+    setProjectsLoaded(false);
     setError(null);
 
     try {
@@ -117,10 +117,7 @@ export function CheckmateConfigFormEnhanced({
       
       if (result.success && result.data?.projectsList) {
         setProjects(result.data.projectsList || []);
-        if(config.projectId && result.data.projectsList.some((p: any) => p.projectId === config.projectId)) {
-          setSelectedProject(config.projectId);
-        }
-        setProjectsLoaded(true); // ✅ Mark projects as loaded
+        setProjectsLoaded(true);
       } else {
         throw new Error('Failed to fetch projects');
       }
@@ -130,7 +127,7 @@ export function CheckmateConfigFormEnhanced({
     } finally {
       setIsLoadingProjects(false);
     }
-  }, [config.projectId]); // ✅ Add config.projectId as dependency
+  }, []);
 
   const fetchMetadata = useCallback(async (integrationId: string, projectId: number) => {
     setIsLoadingMetadata(true);
@@ -153,62 +150,168 @@ export function CheckmateConfigFormEnhanced({
     }
   }, []);
 
-  // ✅ Sync selectedIntegrationId with config.integrationId (for edit mode)
-  useEffect(() => {
-    
-    if (config?.integrationId && config.integrationId !== selectedIntegrationId) {
-      setSelectedIntegrationId(config.integrationId);
-    }
-  }, [config?.integrationId, selectedIntegrationId]); // ✅ Added selectedIntegrationId to deps
+  // Store platform-specific metadata (projects are shared, metadata is platform-specific)
+  const [platformSections, setPlatformSections] = useState<Record<string, CheckmateSection[]>>({});
+  const [platformLabels, setPlatformLabels] = useState<Record<string, CheckmateLabel[]>>({});
+  const [platformSquads, setPlatformSquads] = useState<Record<string, CheckmateSquad[]>>({});
+  const [loadingMetadataForPlatform, setLoadingMetadataForPlatform] = useState<Record<string, boolean>>({});
+  const [metadataErrorForPlatform, setMetadataErrorForPlatform] = useState<Record<string, boolean>>({});
 
-  // Fetch projects when integration is selected
+  // Fetch platform-specific projects when needed
+
+  // Fetch projects when integration is selected (single call, shared by all platforms)
   useEffect(() => {
-    if (selectedIntegrationId) {
+    if (selectedIntegrationId && !projectsLoaded) {
       fetchProjects(selectedIntegrationId);
     }
-  }, [selectedIntegrationId, fetchProjects]);
+  }, [selectedIntegrationId, fetchProjects, projectsLoaded]);
 
-  // ✅ Fetch metadata ONLY AFTER projects are loaded and projectId is valid
-  useEffect(() => {
-    if (
-      selectedIntegrationId &&
-      projectsLoaded && // ✅ Wait for projects to load first
-      config.projectId &&
-      config.projectId > 0
-    ) {
-      fetchMetadata(selectedIntegrationId, config.projectId);
-    }
-  }, [selectedIntegrationId, projectsLoaded, config.projectId, fetchMetadata]);
-
-  const handleIntegrationChange = (integrationId: string) => {
-    setSelectedIntegrationId(integrationId);
-    setProjectsLoaded(false); // ✅ Reset when integration changes
-    setProjects([]); // ✅ Clear previous projects
+  // Fetch platform-specific metadata (sequential calls to avoid parallelization issues)
+  const fetchPlatformMetadata = useCallback(async (platform: string, projectId: number) => {
+    if (!selectedIntegrationId || !projectId) return;
     
-    onChange(createCompleteConfig({
-      integrationId: integrationId, // Store the integration ID
-      projectId: 0,
-      platformConfigurations: [],
-    }));
-  };
+    setLoadingMetadataForPlatform(prev => ({ ...prev, [platform]: true }));
+    setMetadataErrorForPlatform(prev => ({ ...prev, [platform]: false }));
+    // Clear general error state - we'll use platform-specific error instead
+    setError(null);
+    
+    try {
+      // Sequential API calls instead of parallel to avoid failures
+      const sectionsData = await apiGet<any[]>(`/api/v1/integrations/${selectedIntegrationId}/metadata/sections?projectId=${projectId}`);
+      const labelsData = await apiGet<any[]>(`/api/v1/integrations/${selectedIntegrationId}/metadata/labels?projectId=${projectId}`);
+      const squadsData = await apiGet<any[]>(`/api/v1/integrations/${selectedIntegrationId}/metadata/squads?projectId=${projectId}`);
 
-  const handleProjectChange = (projectId: string) => {
+      // Only update if all calls succeeded
+      if (sectionsData.success && labelsData.success && squadsData.success) {
+        setPlatformSections(prev => ({ ...prev, [platform]: sectionsData.data || [] }));
+        setPlatformLabels(prev => ({ ...prev, [platform]: labelsData.data || [] }));
+        setPlatformSquads(prev => ({ ...prev, [platform]: squadsData.data || [] }));
+        setMetadataErrorForPlatform(prev => ({ ...prev, [platform]: false }));
+      } else {
+        throw new Error('One or more metadata API calls failed');
+      }
+    } catch (error) {
+      // Set platform-specific error (don't set general error to avoid duplicate messages)
+      setMetadataErrorForPlatform(prev => ({ ...prev, [platform]: true }));
+      // Clear metadata for this platform on error
+      setPlatformSections(prev => {
+        const updated = { ...prev };
+        delete updated[platform];
+        return updated;
+      });
+      setPlatformLabels(prev => {
+        const updated = { ...prev };
+        delete updated[platform];
+        return updated;
+      });
+      setPlatformSquads(prev => {
+        const updated = { ...prev };
+        delete updated[platform];
+        return updated;
+      });
+    } finally {
+      setLoadingMetadataForPlatform(prev => ({ ...prev, [platform]: false }));
+    }
+  }, [selectedIntegrationId]);
+
+  // In edit mode: Fetch metadata for existing platform configurations
+  // This ensures dropdowns show names instead of IDs when editing
+  useEffect(() => {
+    if (!selectedIntegrationId || !projectsLoaded || !config?.platformConfigurations) return;
+
+    // For each platform configuration that has a projectId, fetch its metadata
+    config.platformConfigurations.forEach((platformConfig) => {
+      if (platformConfig.platform && platformConfig.projectId) {
+        const projectId = typeof platformConfig.projectId === 'number' 
+          ? platformConfig.projectId 
+          : parseInt(String(platformConfig.projectId), 10);
+        
+        // Only fetch if we don't already have metadata for this platform
+        if (projectId && !loadingMetadataForPlatform[platformConfig.platform] && 
+            !platformSections[platformConfig.platform]) {
+          fetchPlatformMetadata(platformConfig.platform, projectId);
+        }
+      }
+    });
+  }, [selectedIntegrationId, projectsLoaded, config?.platformConfigurations, fetchPlatformMetadata, loadingMetadataForPlatform, platformSections]);
+
+  // Handle platform-specific project change
+  const handlePlatformProjectChange = (platform: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS, projectId: string) => {
     const parsedProjectId = parseInt(projectId, 10);
-    setSelectedProject(parsedProjectId); // ✅ Update selectedProject state
-    onChange(createCompleteConfig({
-      projectId: parsedProjectId,
-      platformConfigurations: [],
-    }));
+    const platformConfigs = config?.platformConfigurations || [];
+    const existingIndex = platformConfigs.findIndex(pc => pc.platform === platform);
+    const newPlatforms = [...platformConfigs];
+
+    if (existingIndex >= 0) {
+      // Update existing platform config with projectId
+      newPlatforms[existingIndex] = {
+        ...newPlatforms[existingIndex],
+        projectId: parsedProjectId,
+        // Reset filters when project changes
+        sectionIds: [],
+        labelIds: [],
+        squadIds: [],
+      };
+    } else {
+      // Add new platform config
+      newPlatforms.push({
+        platform,
+        projectId: parsedProjectId,
+        sectionIds: [],
+        labelIds: [],
+        squadIds: [],
+      });
+    }
+
+    // Create updated config with new platform configurations
+    // Use the newPlatforms directly, not from config prop (which might be stale)
+    const updatedConfig: CheckmateSettings = {
+      type: 'checkmate',
+      integrationId: selectedIntegrationId || config?.integrationId || '',
+      projectId: 0, // No global projectId - platform-specific now
+      platformConfigurations: newPlatforms, // Use the updated platforms
+      autoCreateRuns: config?.autoCreateRuns ?? false,
+      passThresholdPercent: config?.passThresholdPercent ?? 100,
+      filterType: config?.filterType || 'AND',
+    };
+    
+    // Update parent state
+    onChange(updatedConfig);
+
+    // Fetch metadata for the selected project
+    if (parsedProjectId > 0) {
+      fetchPlatformMetadata(platform, parsedProjectId);
+    }
   };
 
   // Get or initialize platform config for a specific platform
   const getPlatformConfig = (platform: typeof PLATFORMS.ANDROID | typeof PLATFORMS.IOS): CheckmatePlatformConfiguration => {
-    const platformConfigs = config.platformConfigurations || [];
-    return platformConfigs.find(pc => pc.platform === platform) || {
+    const platformConfigs = config?.platformConfigurations || [];
+    const found = platformConfigs.find(pc => pc.platform === platform);
+    if (found) {
+      return found;
+    }
+    // Return default config if not found
+    return {
       platform,
+      projectId: undefined,
       sectionIds: [],
       labelIds: [],
       squadIds: [],
+    };
+  };
+
+  // Get projects (shared by all platforms - same list for iOS and Android)
+  const getPlatformProjects = (): CheckmateProject[] => {
+    return projects;
+  };
+
+  // Get platform-specific metadata
+  const getPlatformMetadata = (platform: string) => {
+    return {
+      sections: platformSections[platform] || sections,
+      labels: platformLabels[platform] || labels,
+      squads: platformSquads[platform] || squads,
     };
   };
 
@@ -244,280 +347,222 @@ export function CheckmateConfigFormEnhanced({
     }));
   };
 
+  // Don't show form until projects are loaded
+  if (selectedIntegrationId && (!projectsLoaded || isLoadingProjects)) {
+    return (
+      <Stack gap="md">
+        <div className="flex items-center justify-center py-8">
+          <Loader size="md" />
+          <Text size="sm" c="dimmed" className="ml-3">
+            Loading projects...
+          </Text>
+        </div>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="md">
-      {/* Integration Selection */}
-      <Select
-        label="Checkmate Integration"
-        placeholder="Select Checkmate integration"
-        data={availableIntegrations.map((i: { id: string; name: string }) => ({ value: i.id, label: i.name }))}
-        value={selectedIntegrationId}
-        onChange={(val) => handleIntegrationChange(val || '')}
-        required
-        description="Choose the connected Checkmate integration"
-      />
-
-      {selectedIntegrationId && (
+      {selectedIntegrationId && projectsLoaded && (
         <>
-          {/* Project Selection */}
-          {isLoadingProjects ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader size="sm" />
-              <Text size="sm" c="dimmed" className="ml-2">
-                Loading projects...
+          {/* Platform Configurations - Project selection is now platform-specific */}
+          <div className="mt-4">
+            <div className="mb-3">
+              <Text fw={600} size="sm">
+                Platform Configurations
+              </Text>
+              <Text size="xs" c="dimmed">
+                Configure test filters for each platform. Each platform can select its own project.
               </Text>
             </div>
-          ) : error ? (
-            <Alert color="red" icon={<IconAlertCircle size={16} />}>
-              {error}
-            </Alert>
-          ) : projects.length > 0 ? (
-            <>
-              <Select
-                label="Checkmate Project"
-                placeholder="Select project"
-                data={projects.map(p => ({ value: p.projectId.toString(), label: p.projectName }))}
-                value={config.projectId?.toString() || selectedProject?.toString() || ''} 
-                onChange={(val) => handleProjectChange(val || '')}
+
+            <Stack gap="md">
+              {/* Map over platforms to avoid code duplication */}
+              {[
+                { platform: PLATFORMS.ANDROID, label: 'Android', color: 'green', hasTarget: hasAndroidTarget },
+                { platform: PLATFORMS.IOS, label: 'iOS', color: 'blue', hasTarget: hasIOSTarget },
+              ]
+                .filter(({ hasTarget }) => hasTarget)
+                .map(({ platform, label, color }) => {
+                  const platformConfig = getPlatformConfig(platform);
+                  const platformMetadata = getPlatformMetadata(platform);
+                  const isLoadingMetadata = loadingMetadataForPlatform[platform];
+
+                  return (
+                    <Card key={platform} shadow="sm" padding="md" radius="md" withBorder>
+                      <Group gap="xs" className="mb-3">
+                        <Badge color={color} size="lg" variant="filled">
+                          {label}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          Configure test selection for {label} builds
+                        </Text>
+                      </Group>
+
+                      <Stack gap="sm">
+                        {/* Project Selection (shared list for all platforms) */}
+                        <Select
+                          label="Checkmate Project"
+                          placeholder={`Select project for ${label}`}
+                          data={getPlatformProjects().map(p => ({ 
+                            value: p.projectId.toString(), 
+                            label: p.projectName 
+                          }))}
+                          value={platformConfig.projectId?.toString() || ''}
+                          onChange={(val) => {
+                            if (val) {
+                              handlePlatformProjectChange(platform, val);
+                            }
+                          }}
+                          required
+                          description={`Select the Checkmate project for ${label} tests`}
+                          searchable
+                        />
+                        
+                        {/* Show general error only if it's not a metadata error (to avoid duplicates) */}
+                        {error && !metadataErrorForPlatform[platform] && (
+                          <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                            {error}
+                          </Alert>
+                        )}
+
+                        {/* Metadata dropdowns - only show if project is selected and metadata loaded successfully */}
+                        {platformConfig.projectId && (
+                          <>
+                            {loadingMetadataForPlatform[platform] ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader size="sm" />
+                                <Text size="sm" c="dimmed" className="ml-2">
+                                  Loading metadata...
+                                </Text>
+                              </div>
+                            ) : metadataErrorForPlatform[platform] ? (
+                              <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                                <Text size="sm">
+                                  Failed to load metadata for {label}. Please try selecting the project again.
+                                </Text>
+                              </Alert>
+                            ) : (
+                              <Stack gap="sm">
+                                <MultiSelect
+                                  label="Sections"
+                                  placeholder={`Select sections for ${label}`}
+                                  data={platformMetadata.sections.map(s => ({ 
+                                    value: s.sectionId.toString(), 
+                                    label: s.sectionName 
+                                  }))}
+                                  value={platformConfig.sectionIds?.map(id => id.toString()) || []}
+                                  onChange={(val) =>
+                                    handlePlatformConfigChange(
+                                      platform,
+                                      'sectionIds',
+                                      val.map(v => parseInt(v, 10))
+                                    )
+                                  }
+                                  searchable
+                                  description="Filter tests by sections (optional)"
+                                />
+
+                                <MultiSelect
+                                  label="Labels"
+                                  placeholder={`Select labels for ${label}`}
+                                  data={platformMetadata.labels.map(l => ({ 
+                                    value: l.labelId.toString(), 
+                                    label: l.labelName 
+                                  }))}
+                                  value={platformConfig.labelIds?.map(id => id.toString()) || []}
+                                  onChange={(val) =>
+                                    handlePlatformConfigChange(
+                                      platform,
+                                      'labelIds',
+                                      val.map(v => parseInt(v, 10))
+                                    )
+                                  }
+                                  searchable
+                                  description="Filter tests by labels (optional)"
+                                />
+
+                                <MultiSelect
+                                  label="Squads"
+                                  placeholder={`Select squads for ${label}`}
+                                  data={platformMetadata.squads.map(s => ({ 
+                                    value: s.squadId.toString(), 
+                                    label: s.squadName 
+                                  }))}
+                                  value={platformConfig.squadIds?.map(id => id.toString()) || []}
+                                  onChange={(val) =>
+                                    handlePlatformConfigChange(
+                                      platform,
+                                      'squadIds',
+                                      val.map(v => parseInt(v, 10))
+                                    )
+                                  }
+                                  searchable
+                                  description="Filter tests by squads (optional)"
+                                />
+                              </Stack>
+                            )}
+                          </>
+                        )}
+                      </Stack>
+                    </Card>
+                  );
+                })}
+            </Stack>
+          </div>
+
+          {/* Test Configuration Settings */}
+          <Card shadow="sm" padding="md" radius="md" withBorder className="mt-4">
+            <Text fw={600} size="sm" className="mb-3">
+              Test Configuration Settings
+            </Text>
+
+            <Stack gap="md">
+              <NumberInput
+                label="Pass Threshold (%)"
+                placeholder="95"
+                value={config.passThresholdPercent ?? 100}
+                onChange={(val) =>
+                  onChange(createCompleteConfig({ passThresholdPercent: Number(val) }))
+                }
+                min={0}
+                max={100}
                 required
-                description="Select the Checkmate project for this configuration"
-                searchable
+                description="Minimum pass percentage to consider test run successful"
               />
 
-              {config.projectId? (
-                <>
-                  {isLoadingMetadata ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader size="sm" />
-                      <Text size="sm" c="dimmed" className="ml-2">
-                        Loading metadata...
-                      </Text>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Platform Configurations - FIXED (Android & iOS only) */}
-                      <div className="mt-4">
-                        <div className="mb-3">
-                          <Text fw={600} size="sm">
-                            Platform Configurations
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            Configure test filters for Android and iOS platforms
-                          </Text>
-                        </div>
+              <Radio.Group
+                label="Filter Type"
+                description="How to combine section, label, and squad filters"
+                value={config.filterType || 'AND'}
+                onChange={(val) =>
+                  onChange(createCompleteConfig({ filterType: val as 'AND' | 'OR' }))
+                }
+              >
+                <Stack gap="xs" className="mt-2">
+                  <Radio
+                    value="AND"
+                    label="AND - All filters must match"
+                    description="Tests must match all selected sections, labels, and squads"
+                  />
+                  <Radio
+                    value="OR"
+                    label="OR - Any filter matches"
+                    description="Tests can match any selected section, label, or squad"
+                  />
+                </Stack>
+              </Radio.Group>
 
-                        <Stack gap="md">
-                          {/* ANDROID Configuration - Only show if Android target is selected */}
-                          {hasAndroidTarget && (
-                            <Card shadow="sm" padding="md" radius="md" withBorder>
-                              <Group gap="xs" className="mb-3">
-                                <Badge color="green" size="lg" variant="filled">
-                                  Android
-                                </Badge>
-                                <Text size="xs" c="dimmed">
-                                  Configure test selection for Android builds
-                                </Text>
-                              </Group>
-
-                            <Stack gap="sm">
-                              <MultiSelect
-                                label="Sections"
-                                placeholder="Select sections for Android"
-                                data={sections.map(s => ({ 
-                                  value: s.sectionId.toString(), 
-                                  label: s.sectionName 
-                                }))}
-                                value={getPlatformConfig(PLATFORMS.ANDROID).sectionIds?.map(id => id.toString()) || []}
-                                onChange={(val) =>
-                                  handlePlatformConfigChange(
-                                    PLATFORMS.ANDROID,
-                                    'sectionIds',
-                                    val.map(v => parseInt(v, 10))
-                                  )
-                                }
-                                searchable
-                                description="Filter tests by sections (optional)"
-                              />
-
-                              <MultiSelect
-                                label="Labels"
-                                placeholder="Select labels for Android"
-                                data={labels.map(l => ({ 
-                                  value: l.labelId.toString(), 
-                                  label: l.labelName 
-                                }))}
-                                value={getPlatformConfig(PLATFORMS.ANDROID).labelIds?.map(id => id.toString()) || []}
-                                onChange={(val) =>
-                                  handlePlatformConfigChange(
-                                    PLATFORMS.ANDROID,
-                                    'labelIds',
-                                    val.map(v => parseInt(v, 10))
-                                  )
-                                }
-                                searchable
-                                description="Filter tests by labels (optional)"
-                              />
-
-                              <MultiSelect
-                                label="Squads"
-                                placeholder="Select squads for Android"
-                                data={squads.map(s => ({ 
-                                  value: s.squadId.toString(), 
-                                  label: s.squadName 
-                                }))}
-                                value={getPlatformConfig(PLATFORMS.ANDROID).squadIds?.map(id => id.toString()) || []}
-                                onChange={(val) =>
-                                  handlePlatformConfigChange(
-                                    PLATFORMS.ANDROID,
-                                    'squadIds',
-                                    val.map(v => parseInt(v, 10))
-                                  )
-                                }
-                                searchable
-                                description="Filter tests by squads (optional)"
-                              />
-                            </Stack>
-                          </Card>
-                          )}
-
-                          {/* iOS Configuration - Only show if iOS target is selected */}
-                          {hasIOSTarget && (
-                            <Card shadow="sm" padding="md" radius="md" withBorder>
-                              <Group gap="xs" className="mb-3">
-                                <Badge color="blue" size="lg" variant="filled">
-                                  iOS
-                                </Badge>
-                                <Text size="xs" c="dimmed">
-                                  Configure test selection for iOS builds
-                                </Text>
-                              </Group>
-
-                            <Stack gap="sm">
-                              <MultiSelect
-                                label="Sections"
-                                placeholder="Select sections for iOS"
-                                data={sections.map(s => ({ 
-                                  value: s.sectionId.toString(), 
-                                  label: s.sectionName 
-                                }))}
-                                value={getPlatformConfig(PLATFORMS.IOS).sectionIds?.map(id => id.toString()) || []}
-                                onChange={(val) =>
-                                  handlePlatformConfigChange(
-                                    PLATFORMS.IOS,
-                                    'sectionIds',
-                                    val.map(v => parseInt(v, 10))
-                                  )
-                                }
-                                searchable
-                                description="Filter tests by sections (optional)"
-                              />
-
-                              <MultiSelect
-                                label="Labels"
-                                placeholder="Select labels for iOS"
-                                data={labels.map(l => ({ 
-                                  value: l.labelId.toString(), 
-                                  label: l.labelName 
-                                }))}
-                                value={getPlatformConfig(PLATFORMS.IOS).labelIds?.map(id => id.toString()) || []}
-                                onChange={(val) =>
-                                  handlePlatformConfigChange(
-                                    PLATFORMS.IOS,
-                                    'labelIds',
-                                    val.map(v => parseInt(v, 10))
-                                  )
-                                }
-                                searchable
-                                description="Filter tests by labels (optional)"
-                              />
-
-                              <MultiSelect
-                                label="Squads"
-                                placeholder="Select squads for iOS"
-                                data={squads.map(s => ({ 
-                                  value: s.squadId.toString(), 
-                                  label: s.squadName 
-                                }))}
-                                value={getPlatformConfig(PLATFORMS.IOS).squadIds?.map(id => id.toString()) || []}
-                                onChange={(val) =>
-                                  handlePlatformConfigChange(
-                                    PLATFORMS.IOS,
-                                    'squadIds',
-                                    val.map(v => parseInt(v, 10))
-                                  )
-                                }
-                                searchable
-                                description="Filter tests by squads (optional)"
-                              />
-                            </Stack>
-                          </Card>
-                          )}
-                        </Stack>
-                      </div>
-
-                      {/* Test Configuration Settings */}
-                      <Card shadow="sm" padding="md" radius="md" withBorder className="mt-4">
-                        <Text fw={600} size="sm" className="mb-3">
-                          Test Configuration Settings
-                        </Text>
-
-                        <Stack gap="md">
-                          <NumberInput
-                            label="Pass Threshold (%)"
-                            placeholder="95"
-                            value={config.passThresholdPercent ?? 100}
-                            onChange={(val) =>
-                              onChange(createCompleteConfig({ passThresholdPercent: Number(val) }))
-                            }
-                            min={0}
-                            max={100}
-                            required
-                            description="Minimum pass percentage to consider test run successful"
-                          />
-
-                          <Radio.Group
-                            label="Filter Type"
-                            description="How to combine section, label, and squad filters"
-                            value={config.filterType || 'AND'}
-                            onChange={(val) =>
-                              onChange(createCompleteConfig({ filterType: val as 'AND' | 'OR' }))
-                            }
-                          >
-                            <Stack gap="xs" className="mt-2">
-                              <Radio
-                                value="AND"
-                                label="AND - All filters must match"
-                                description="Tests must match all selected sections, labels, and squads"
-                              />
-                              <Radio
-                                value="OR"
-                                label="OR - Any filter matches"
-                                description="Tests can match any selected section, label, or squad"
-                              />
-                            </Stack>
-                          </Radio.Group>
-
-                          <Switch
-                            label="Auto-create Test Runs"
-                            description="Automatically create test runs for each release"
-                            checked={config.autoCreateRuns ?? false}
-                            onChange={(e) =>
-                              onChange(createCompleteConfig({ autoCreateRuns: e.currentTarget.checked }))
-                            }
-                          />
-                        </Stack>
-                      </Card>
-
-                    </>
-                  )}
-                </>
-              ): null}
-            </>
-          ) : (
-            <Alert color="blue">
-              No projects found for this integration.
-            </Alert>
-          )}
+              <Switch
+                label="Auto-create Test Runs"
+                description="Automatically create test runs for each release"
+                checked={config.autoCreateRuns ?? false}
+                onChange={(e) =>
+                  onChange(createCompleteConfig({ autoCreateRuns: e.currentTarget.checked }))
+                }
+              />
+            </Stack>
+          </Card>
         </>
       )}
     </Stack>

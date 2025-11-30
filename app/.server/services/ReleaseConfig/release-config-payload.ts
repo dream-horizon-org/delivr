@@ -11,7 +11,7 @@
  * 5. ✅ Extract from UI wrappers: providerConfig, slack, etc.
  * 6. ✅ Nest/Unnest: Project management parameters
  * 
- * FIELD NAMES NOW CONSISTENT: UI and Backend use same names (testManagement, communication, projectManagement)
+ 
  */
 
 import type { ReleaseConfiguration } from '~/types/release-config';
@@ -171,59 +171,79 @@ export function prepareReleaseConfigPayload(
 
   // ========================================================================
   // TRANSFORMATION 2: Test Management - Extract from providerConfig wrapper
-  // UI Structure: config.testManagement.providerConfig (Checkmate/TestRail/etc)
-  // Backend Structure: flat testManagement with platform mapping
+  // UI Structure: config.testManagementConfig.providerConfig (Checkmate/TestRail/etc)
+  // Backend Structure: testManagementConfig (same field name - no conversion needed)
   // Platform Transform: ANDROID → ANDROID_PLAY_STORE, IOS → IOS_APP_STORE
+  // NOTE: projectId is now platform-specific (in platformConfigurations)
   // ========================================================================
-  if (config.testManagement?.enabled && config.testManagement.providerConfig) {
-    const providerConfig = config.testManagement.providerConfig as any;
+  if (config.testManagementConfig?.enabled && config.testManagementConfig.providerConfig) {
+    const providerConfig = config.testManagementConfig.providerConfig as any;
     
-    // Transform platformConfigurations: Map platform enums
+    // Transform platformConfigurations: Map platform enums and move fields to parameters
+    // Backend expects: { platform: 'ANDROID_PLAY_STORE', parameters: { projectId, sectionIds, labelIds, squadIds } }
     const transformedPlatformConfigs = (providerConfig.platformConfigurations || []).map((pc: any) => {
       const originalPlatform = pc.platform;
       const mappedPlatform = mapTestManagementPlatform(pc.platform, config.targets || []);
       console.log(`[TestManagement] Platform mapping: ${originalPlatform} → ${mappedPlatform}`);
+      
+      // Extract fields that should go into parameters
+      const { platform, projectId, sectionIds, labelIds, squadIds, ...rest } = pc;
+      
       return {
-        ...pc,
         platform: mappedPlatform,
+        parameters: {
+          // projectId is now platform-specific in parameters
+          ...(projectId && { projectId }),
+          ...(sectionIds && sectionIds.length > 0 && { sectionIds }),
+          ...(labelIds && labelIds.length > 0 && { labelIds }),
+          ...(squadIds && squadIds.length > 0 && { squadIds }),
+          ...rest, // Any other fields
+        },
       };
     });
     
-    payload.testManagement = {
+    // Backend expects testManagementConfig (with Config suffix)
+    payload.testManagementConfig = {
       tenantId: tenantId,
       integrationId: providerConfig.integrationId,
       name: `Test Management for ${config.name}`,
-      projectId: providerConfig.projectId || 0, // ✅ ALWAYS include projectId (required for Checkmate)
+      // No global projectId - it's now platform-specific in platformConfigurations
       passThresholdPercent: providerConfig.passThresholdPercent || 100,
       platformConfigurations: transformedPlatformConfigs,
       createdByAccountId: userId,
+      // Include id if it exists (needed for update operations)
+      ...((config.testManagementConfig as any).id && { id: (config.testManagementConfig as any).id }),
     };
     
-    console.log('[TestManagement] Final payload:', JSON.stringify(payload.testManagement, null, 2));
+    console.log('[TestManagement] Final payload:', JSON.stringify(payload.testManagementConfig, null, 2));
   }
   // If undefined or disabled, omit entirely (backend optional)
 
   // ========================================================================
   // TRANSFORMATION 3: Communication - Extract from slack wrapper
-  // UI Structure: config.communication.slack (flexible for multiple providers)
-  // Backend Structure: flat communication
+  // UI Structure: config.communicationConfig.slack (flexible for multiple providers)
+  // Backend Structure: communicationConfig (same field name - no conversion needed)
   // ========================================================================
-  if (config.communication?.slack?.enabled && config.communication.slack.channelData) {
-    payload.communication = {
+  if (config.communicationConfig?.slack?.enabled && config.communicationConfig.slack.channelData) {
+    // Backend expects communicationConfig (same field name)
+    payload.communicationConfig = {
       tenantId: tenantId,
-      integrationId: config.communication.slack.integrationId,
-      channelData: config.communication.slack.channelData,
+      integrationId: config.communicationConfig.slack.integrationId,
+      channelData: config.communicationConfig.slack.channelData,
+      // Include id if it exists (needed for update operations)
+      ...((config.communicationConfig as any).id && { id: (config.communicationConfig as any).id }),
     };
   }
   // If undefined or disabled, omit entirely (backend optional)
 
   // ========================================================================
   // TRANSFORMATION 4: Project Management - Nest into parameters object
-  // UI Structure: config.projectManagement with flat platformConfigurations
-  // Backend Structure: projectManagement with nested parameters
+  // UI Structure: config.projectManagementConfig with flat platformConfigurations
+  // Backend Structure: projectManagementConfig (same field name - no conversion needed)
   // ========================================================================
-  if (config.projectManagement?.enabled && config.projectManagement.integrationId) {
-    const pmConfig = config.projectManagement;
+  if (config.projectManagementConfig?.enabled && config.projectManagementConfig.integrationId) {
+    const pmConfig = config.projectManagementConfig;
+    const pmConfigId = (pmConfig as any).id; // Get id if it exists
     
     // Transform platformConfigurations: UI sends flat structure, backend expects nested "parameters"
     const transformedPMPlatformConfigs = (pmConfig.platformConfigurations || []).map((pc: any) => {
@@ -242,14 +262,19 @@ export function prepareReleaseConfigPayload(
       };
     });
     
-    payload.projectManagement = {
+    // Backend expects projectManagementConfig (with Config suffix)
+    payload.projectManagementConfig = {
       tenantId: tenantId,
       integrationId: pmConfig.integrationId,
       name: `PM Config for ${config.name}`,
       ...(config.description && { description: config.description }),
       platformConfigurations: transformedPMPlatformConfigs,
       createdByAccountId: userId,
+      // Include id if it exists (needed for update operations)
+      ...(pmConfigId && { id: pmConfigId }),
     };
+    
+    console.log('[ProjectManagement] Payload includes id:', pmConfigId ? 'YES' : 'NO', pmConfigId);
   }
   // If undefined or disabled, omit entirely (backend optional)
 
@@ -321,6 +346,10 @@ export function transformFromBackend(backendConfig: any): Partial<ReleaseConfigu
   const frontendConfig: any = {
     ...backendConfig,
   };
+  
+  // Remove backend-specific fields that will be transformed to UI format
+  // This prevents duplicates (e.g., both projectManagement and projectManagementConfig)
+  delete frontendConfig.projectManagement; // Remove if it exists (legacy or duplicate)
 
   // ========================================================================
   // 1. Reverse platformTargets → platforms + targets
@@ -335,81 +364,178 @@ export function transformFromBackend(backendConfig: any): Partial<ReleaseConfigu
   }
 
   // ========================================================================
-  // 2. Reverse testManagement → testManagement.providerConfig
-  // Backend: flat testManagement
-  // UI: testManagement.enabled + providerConfig wrapper
+  // 2. Reverse testManagementConfig → testManagementConfig.providerConfig
+  // Backend API Response: Uses 'testManagementConfig' (same field name - no conversion needed)
+  // UI: testManagementConfig.enabled + providerConfig wrapper
+  // NOTE: projectId is now platform-specific (in platformConfigurations)
+  // 
+  // IMPORTANT: Backend may return data in two formats:
+  // 1. Raw backend format: { integrationId, platformConfigurations: [...] }
+  // 2. Already transformed format: { enabled, provider, providerConfig: { platformConfigurations: [...] } }
   // ========================================================================
-  if (backendConfig.testManagement) {
-    const backend = backendConfig.testManagement;
+  const testManagementData = backendConfig.testManagementConfig;
+  if (testManagementData) {
+    // Check if data is already in UI format (has providerConfig) or raw backend format
+    const isAlreadyTransformed = testManagementData.providerConfig && testManagementData.providerConfig.platformConfigurations;
+    
+    let sourcePlatformConfigs: any[] = [];
+    let integrationId: string = '';
+    let passThresholdPercent: number = 100;
+    
+    if (isAlreadyTransformed) {
+      // Data is already in UI format - extract from providerConfig
+      sourcePlatformConfigs = testManagementData.providerConfig.platformConfigurations || [];
+      integrationId = testManagementData.integrationId || testManagementData.providerConfig.integrationId || '';
+      passThresholdPercent = testManagementData.providerConfig.passThresholdPercent || 100;
+    } else {
+      // Data is in raw backend format - extract directly
+      sourcePlatformConfigs = testManagementData.platformConfigurations || [];
+      integrationId = testManagementData.integrationId || '';
+      passThresholdPercent = testManagementData.passThresholdPercent || 100;
+    }
     
     // Reverse platform mapping: ANDROID_PLAY_STORE → ANDROID
-    const uiPlatformConfigurations = (backend.platformConfigurations || []).map((pc: any) => ({
-      ...pc,
-      platform: reverseMapTestManagementPlatform(pc.platform),
-    }));
+    // Extract fields from parameters back to direct fields (platform-specific)
+    // Backend may return fields directly OR nested in parameters (handle both formats)
+    const uiPlatformConfigurations = sourcePlatformConfigs.map((pc: any) => {
+      const { platform, parameters = {} } = pc;
+      
+      // Check if fields are in parameters (expected format) or directly on pc (actual backend response format)
+      const hasParametersWithData = parameters && typeof parameters === 'object' && Object.keys(parameters).length > 0;
+      
+      // Try parameters first (expected format), fallback to direct fields (actual format)
+      const projectId = hasParametersWithData ? parameters.projectId : (pc.projectId !== undefined ? pc.projectId : undefined);
+      const sectionIds = hasParametersWithData ? (parameters.sectionIds || []) : (pc.sectionIds || []);
+      const labelIds = hasParametersWithData ? (parameters.labelIds || []) : (pc.labelIds || []);
+      const squadIds = hasParametersWithData ? (parameters.squadIds || []) : (pc.squadIds || []);
+      
+      return {
+        platform: reverseMapTestManagementPlatform(platform),
+        // Extract projectId and other fields (support both formats)
+        projectId: projectId !== undefined && projectId !== null ? projectId : undefined,
+        sectionIds: Array.isArray(sectionIds) ? sectionIds : [],
+        labelIds: Array.isArray(labelIds) ? labelIds : [],
+        squadIds: Array.isArray(squadIds) ? squadIds : [],
+      };
+    });
     
-    frontendConfig.testManagement = {
-      enabled: true,
-      provider: 'checkmate', // Inferred from backend having config
-      integrationId: backend.integrationId,
-      projectId: backend.projectId?.toString() || '0',
+    frontendConfig.testManagementConfig = {
+      enabled: isAlreadyTransformed ? (testManagementData.enabled !== false) : true,
+      provider: isAlreadyTransformed ? (testManagementData.provider || 'checkmate') : 'checkmate',
+      integrationId: integrationId,
+      projectId: '', // No global projectId - platform-specific now
+      // Preserve id for update operations
+      ...(testManagementData.id && { id: testManagementData.id }),
       providerConfig: {
         type: 'checkmate',
-        integrationId: backend.integrationId,
-        projectId: backend.projectId || 0,
-        passThresholdPercent: backend.passThresholdPercent,
+        integrationId: integrationId,
+        projectId: 0, // No global projectId - platform-specific now
+        passThresholdPercent: passThresholdPercent,
         platformConfigurations: uiPlatformConfigurations,
-        autoCreateRuns: false, // Not stored in backend
-        filterType: 'AND', // Not stored in backend
+        autoCreateRuns: isAlreadyTransformed ? (testManagementData.providerConfig?.autoCreateRuns || false) : false,
+        filterType: isAlreadyTransformed ? (testManagementData.providerConfig?.filterType || 'AND') : 'AND',
       },
     };
   } else {
-    frontendConfig.testManagement = undefined;
+    frontendConfig.testManagementConfig = undefined;
   }
 
   // ========================================================================
-  // 3. Reverse projectManagement → projectManagement (flatten parameters)
-  // Backend: nested parameters object
-  // UI: flat structure with enabled flag
+  // 3. Reverse projectManagementConfig → projectManagementConfig (flatten parameters)
+  // Backend API Response: Uses 'projectManagementConfig' (with Config suffix)
+  // UI: projectManagementConfig with enabled flag and flattened parameters
+  // 
+  // IMPORTANT: Backend may return data in two formats:
+  // 1. Fields in parameters: { platform: "IOS", parameters: { priority, issueType, ... } }
+  // 2. Fields directly: { platform: "IOS", priority, issueType, ... }
   // ========================================================================
-  if (backendConfig.projectManagement) {
-    const backend = backendConfig.projectManagement;
+  const projectManagementData = backendConfig.projectManagementConfig;
+  if (projectManagementData) {
+    const backend = projectManagementData;
     
     // Flatten parameters object back to top level
-    const uiPlatformConfigurations = (backend.platformConfigurations || []).map((pc: any) => ({
-      platform: pc.platform,
-      ...(pc.parameters || {}), // Flatten parameters
-    }));
+    // Handle both formats: fields in parameters OR fields directly on the object
+    const uiPlatformConfigurations = (backend.platformConfigurations || []).map((pc: any) => {
+      const { platform, parameters = {} } = pc;
+      
+      // Check if fields are in parameters (expected format) or directly on pc (actual backend response format)
+      const hasParametersWithData = parameters && typeof parameters === 'object' && Object.keys(parameters).length > 0;
+      
+      if (hasParametersWithData) {
+        // Fields are in parameters - flatten them
+        return {
+          platform: platform,
+          ...parameters, // Flatten parameters
+        };
+      } else {
+        // Fields are directly on the object - use them as-is (excluding platform which we already extracted)
+        const { platform: _, ...restFields } = pc;
+        return {
+          platform: platform,
+          ...restFields, // Include all other fields directly
+        };
+      }
+    });
     
-    frontendConfig.projectManagement = {
+    // UI expects projectManagementConfig (not projectManagement)
+    frontendConfig.projectManagementConfig = {
       enabled: true,
       integrationId: backend.integrationId,
       platformConfigurations: uiPlatformConfigurations,
       createReleaseTicket: true,
       linkBuildsToIssues: true,
+      // Preserve id for update operations
+      ...(backend.id && { id: backend.id }),
     };
   } else {
-    frontendConfig.projectManagement = undefined;
+    frontendConfig.projectManagementConfig = undefined;
   }
+  
+  // Remove the duplicate projectManagement if it exists (from backend response)
+  delete frontendConfig.projectManagement;
 
   // ========================================================================
-  // 4. Reverse communication → communication.slack (wrap in slack)
-  // Backend: flat communication
+  // 4. Reverse communicationConfig → communication.slack (wrap in slack)
+  // Backend API Response: Uses 'communicationConfig' (with Config suffix)
   // UI: nested in communication.slack wrapper
+  // 
+  // IMPORTANT: Backend may return data in two formats:
+  // 1. Raw backend format: { integrationId, channelData, ... }
+  // 2. Already transformed format: { slack: { enabled, integrationId, channelData } }
   // ========================================================================
-  if (backendConfig.communication) {
-    const backend = backendConfig.communication;
+  const communicationData = backendConfig.communicationConfig;
+  if (communicationData) {
+    // Check if data is already in UI format (has slack wrapper) or raw backend format
+    const isAlreadyTransformed = communicationData.slack && communicationData.slack.integrationId;
     
-    frontendConfig.communication = {
+    let integrationId: string = '';
+    let channelData: any = {};
+    let enabled: boolean = true;
+    
+    if (isAlreadyTransformed) {
+      // Data is already in UI format - extract from slack wrapper
+      integrationId = communicationData.slack.integrationId || '';
+      channelData = communicationData.slack.channelData || {};
+      enabled = communicationData.slack.enabled !== false;
+    } else {
+      // Data is in raw backend format - extract directly
+      integrationId = communicationData.integrationId || '';
+      channelData = communicationData.channelData || {};
+      enabled = true; // Default to enabled if raw format
+    }
+    
+    frontendConfig.communicationConfig = {
       slack: {
-        enabled: true,
-        integrationId: backend.integrationId || '',
-        channelData: backend.channelData || {},
+        enabled: enabled,
+        integrationId: integrationId,
+        channelData: channelData,
       },
       email: undefined,
+      // Preserve id for update operations
+      ...(communicationData.id && { id: communicationData.id }),
     };
   } else {
-    frontendConfig.communication = undefined;
+    frontendConfig.communicationConfig = undefined;
   }
 
   // ========================================================================
@@ -443,7 +569,7 @@ export function prepareUpdatePayload(
 export function logTransformation(before: any, after: any, operation: 'create' | 'update') {
   console.log(`\n🔄 [BFF Transformation] ${operation.toUpperCase()}`);
   console.log('📤 UI Input:', JSON.stringify(before, null, 2).substring(0, 2000));
-  console.log('📦 Backend Payload:', JSON.stringify(after, null, 2).substring(0, 2000));
+  console.log('📦 Backend Payload:', JSON.stringify(after, null, 2).substring(0, 5000));
   console.log('✅ Transformations applied:');
   
   const transformations: string[] = [];
@@ -453,14 +579,14 @@ export function logTransformation(before: any, after: any, operation: 'create' |
   } else if (before.targets && after.platformTargets) {
     transformations.push('  • targets + platforms → platformTargets (derived)');
   }
-  if (before.testManagement && after.testManagement) {
-    transformations.push('  • testManagement: platform enum mapped (ANDROID → ANDROID_PLAY_STORE)');
+  if (before.testManagementConfig && after.testManagementConfig) {
+    transformations.push('  • testManagementConfig: platform enum mapped (ANDROID → ANDROID_PLAY_STORE)');
   }
-  if (before.projectManagement && after.projectManagement) {
-    transformations.push('  • projectManagement: parameters nested');
+  if (before.projectManagementConfig && after.projectManagementConfig) {
+    transformations.push('  • projectManagementConfig: parameters nested');
   }
-  if (before.communication && after.communication) {
-    transformations.push('  • communication: extracted from slack wrapper');
+  if (before.communicationConfig && after.communicationConfig) {
+    transformations.push('  • communicationConfig: extracted from slack wrapper');
   }
   if (before.scheduling?.releaseFrequency) {
     transformations.push(`  • scheduling.releaseFrequency: ${before.scheduling.releaseFrequency} → ${after.scheduling?.releaseFrequency} (case transform)`);

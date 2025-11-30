@@ -23,18 +23,25 @@ export function TestManagementSelector({
   // Check if test management is actually enabled (not just if config exists)
   const isEnabled = config?.enabled ?? false;
   
+  // Check if connection exists (one-to-one mapping - only one checkmate connection)
+  const hasConnection = availableIntegrations.checkmate.length > 0;
+  const connection = hasConnection ? availableIntegrations.checkmate[0] : null;
+  
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      // Enable: Create default config
+      // If connection exists, auto-select it
+      const integrationId = connection?.id || '';
+      
+      // Enable: Create default config with connection if available
       onChange({
         enabled: true,
         provider: 'checkmate',
-        integrationId: '',
-        projectId: '',
+        integrationId: integrationId,
+        projectId: '', // No global projectId - platform-specific now
         providerConfig: {
           type: 'checkmate',
-          integrationId: '',
-          projectId: 0,
+          integrationId: integrationId,
+          projectId: 0, // No global projectId - platform-specific now
           platformConfigurations: [],
           autoCreateRuns: false,
           passThresholdPercent: 100,
@@ -52,9 +59,8 @@ export function TestManagementSelector({
     onChange({
       ...config,
       providerConfig: updatedProviderConfig,
-      // Sync top-level fields from providerConfig
-      integrationId: updatedProviderConfig.integrationId,
-      projectId: updatedProviderConfig.projectId.toString(),
+      // Sync integrationId (projectId is now platform-specific, not top-level)
+      integrationId: updatedProviderConfig.integrationId,// No global projectId - platform-specific now
     });
   };
   
@@ -92,13 +98,26 @@ export function TestManagementSelector({
                 {TEST_MANAGEMENT_LABELS.CHECKMATE_CONFIG_TITLE}
               </Text>
               
-              {availableIntegrations.checkmate.length > 0 ? (
-                <CheckmateConfigFormEnhanced
-                  config={(config.providerConfig || {}) as Partial<CheckmateSettings>}
-                  onChange={handleProviderConfigChange}
-                  availableIntegrations={availableIntegrations.checkmate}
-                  selectedTargets={selectedTargets}
-                />
+              {hasConnection && connection ? (
+                <>
+                  {/* Show connection info instead of dropdown */}
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <Text size="sm" fw={500} className="mb-1">
+                      Connected: {connection.name}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Using your Checkmate integration
+                    </Text>
+                  </div>
+                  
+                  <CheckmateConfigFormEnhanced
+                    config={(config.providerConfig || {}) as Partial<CheckmateSettings>}
+                    onChange={handleProviderConfigChange}
+                    availableIntegrations={availableIntegrations.checkmate}
+                    selectedTargets={selectedTargets}
+                    integrationId={connection.id} // Pass integration ID directly
+                  />
+                </>
               ) : (
                 <Alert color="yellow" variant="light">
                   <Text size="sm">

@@ -80,6 +80,7 @@ export interface TestManagementConfig {
 export interface CheckmatePlatformConfiguration {
   // Platform is a global system constant (not distribution-specific)
   platform: 'ANDROID' | 'IOS';
+  projectId?: number; // Platform-specific project ID
   sectionIds?: number[];
   labelIds?: number[];
   squadIds?: number[];
@@ -268,17 +269,17 @@ export interface ReleaseConfiguration {
   // Workflows (CI/CD pipelines - optional, only used when hasManualBuildUpload = false)
   workflows: Workflow[];
   
-  // Test management (field name matches backend POST/GET)
-  testManagement: TestManagementConfig;
+  // Test management (field name matches backend POST/GET - with Config suffix)
+  testManagementConfig: TestManagementConfig;
   
-  // Project management / JIRA (field name matches backend POST/GET)
-  projectManagement: ProjectManagementConfig;
-  
+  // Project management / JIRA (field name matches backend POST/GET - with Config suffix)
+  projectManagementConfig: ProjectManagementConfig;
+
   // Scheduling (Optional - for release train automation)
   scheduling?: SchedulingConfig;
-  
-  // Communication / Slack (field name matches backend POST/GET)
-  communication: CommunicationConfig;
+
+  // Communication / Slack (field name matches backend POST/GET - with Config suffix)
+  communicationConfig: CommunicationConfig;
   
   // Metadata
   createdAt: string;

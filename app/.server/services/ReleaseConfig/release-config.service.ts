@@ -195,7 +195,7 @@ export class ReleaseConfigService {
       );
 
       const result = await response.json();
-      console.log('[ReleaseConfigService] Update result:', result);
+      console.log('[ReleaseConfigService] Update result:', JSON.stringify(result, null, 2));
 
       if (!response.ok) {
         console.error('[ReleaseConfigService] Update failed:', result);

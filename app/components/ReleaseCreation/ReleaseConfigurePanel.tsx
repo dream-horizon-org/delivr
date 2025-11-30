@@ -26,8 +26,8 @@ export function ReleaseConfigurePanel({
 
   // Check if config has Checkmate enabled
   const hasCheckmateEnabled = config
-    ? config.testManagement?.enabled &&
-      config.testManagement?.provider === 'checkmate'
+    ? config.testManagementConfig?.enabled &&
+      config.testManagementConfig?.provider === 'checkmate'
     : false;
 
   // Manual mode - no configuration
@@ -83,8 +83,8 @@ export function ReleaseConfigurePanel({
             <strong>Build Pipelines:</strong> {config.workflows?.length || 0} configured
             <br />
             <strong>Test Management:</strong>{' '}
-            {config.testManagement?.enabled
-              ? config.testManagement.provider
+            {config.testManagementConfig?.enabled
+              ? config.testManagementConfig.provider
               : 'Disabled'}
           </Text>
         </Card>
@@ -195,12 +195,12 @@ export function ReleaseConfigurePanel({
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
                 ✓ Automation runs will be automatically triggered for this release.
-                {config.testManagement?.enabled && config.testManagement.provider === 'checkmate' && (
+                {config.testManagementConfig?.enabled && config.testManagementConfig.provider === 'checkmate' && (
                   <>
                     {' '}Project:{' '}
-                    {config.testManagement.providerConfig &&
-                      'projectId' in config.testManagement.providerConfig &&
-                      config.testManagement.providerConfig.projectId}
+                    {config.testManagementConfig.providerConfig &&
+                      'projectId' in config.testManagementConfig.providerConfig &&
+                      config.testManagementConfig.providerConfig.projectId}
                   </>
                 )}
               </Text>
