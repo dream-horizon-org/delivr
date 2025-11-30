@@ -10,6 +10,7 @@ import type {
   TestManagementConfig
 } from '~types/integrations/test-management/test-management-config';
 import type { TenantCICDConfig } from '~types/integrations/ci-cd/config.interface';
+import type { CreateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
 import type { ProjectManagementConfig } from '~types/integrations/project-management/configuration';
 import type { TenantCommChannel } from '~types/integrations/comm/comm-integration';
 
@@ -105,8 +106,8 @@ export type CreateReleaseConfigRequest = {
   // INTEGRATION CONFIGS (standardized keys with "Config" suffix, nested objects)
   // These will be processed to create/link integration configs
   ciConfig?: {
-    id?: string;  // Optional: reuse existing config
-    workflows: Workflow[];
+    id?: string;  // Optional: reuse existing config by ID (if provided, workflows are ignored)
+    workflows?: CreateWorkflowDto[];  // Optional: workflows to create (required if id is not provided)
   };
   testManagementConfig?: TestManagementRequestConfig;
   projectManagementConfig?: any; // TODO: Use proper PM config type
@@ -127,8 +128,8 @@ export type CreateReleaseConfigRequest = {
 export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest, 'tenantId'>> & {
   // Integration configs with explicit null support for removal
   ciConfig?: {
-    id?: string;
-    workflows: Workflow[];
+    id?: string;  // Optional: reference existing config by ID
+    workflows?: CreateWorkflowDto[];  // Optional: workflows to create/reference
   } | null;
   testManagementConfig?: TestManagementRequestConfig | null;
   projectManagementConfig?: any | null;
@@ -218,20 +219,12 @@ export interface TestManagementRequestConfig {
 // - Omit tenant/audit fields (added server-side)
 
 /**
- * Build Pipeline configuration
- * Uses TestPlatform for consistency with test management
+ * Workflow type for CI config
+ * Re-exported from CI/CD workflow interface for convenience
+ * 
+ * @see CreateWorkflowDto in ~types/integrations/ci-cd/workflow.interface
  */
-export interface Workflow {
-  id?: string;
-  name: string;
-  platform: TestPlatform;
-  environment: string;
-  provider: 'GITHUB_ACTIONS' | 'JENKINS' | 'MANUAL_UPLOAD';
-  providerConfig: any;
-  enabled: boolean;
-  timeout: number;
-  retryAttempts: number;
-}
+export type Workflow = CreateWorkflowDto;
 
 /**
  * Platform Configuration for general use
