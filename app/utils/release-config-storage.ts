@@ -9,7 +9,7 @@
  * - Export/Import functionality
  */
 
-import type { ReleaseConfiguration } from '~/types/release-config';
+import type { ReleaseConfiguration, Workflow } from '~/types/release-config';
 import { PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 import { generateStorageKey } from '~/hooks/useDraftStorage';
 
@@ -86,7 +86,7 @@ export function hasDraftConfig(organizationId: string): boolean {
  * Validate build pipeline configuration based on target platforms
  */
 export function validateBuildPipelines(
-  workflows: ReleaseConfiguration['workflows'],
+  workflows: Workflow[],
   targetPlatforms: ReleaseConfiguration['targets']
 ): string[] {
   const errors: string[] = [];
@@ -103,7 +103,7 @@ export function validateBuildPipelines(
   // Android requirements: Regression is mandatory
   if (needsAndroid) {
     const hasAndroidRegression = workflows.some(
-      p => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
+      (p: Workflow) => p.platform === PLATFORMS.ANDROID && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
     );
     
     if (!hasAndroidRegression) {
@@ -114,10 +114,10 @@ export function validateBuildPipelines(
   // iOS requirements: Regression + TestFlight are mandatory
   if (needsIOS) {
     const hasIOSRegression = workflows.some(
-      p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
+      (p: Workflow) => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.REGRESSION && p.enabled
     );
     const hasTestFlight = workflows.some(
-      p => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
+      (p: Workflow) => p.platform === PLATFORMS.IOS && p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && p.enabled
     );
     
     if (!hasIOSRegression) {
@@ -129,7 +129,7 @@ export function validateBuildPipelines(
   }
   
   // Validate each pipeline configuration
-  workflows.forEach((pipeline, index) => {
+  workflows.forEach((pipeline: Workflow, index: number) => {
     if (!pipeline.name) {
       errors.push(`Pipeline ${index + 1}: Name is required`);
     }
@@ -141,8 +141,8 @@ export function validateBuildPipelines(
       }
     } else if (pipeline.provider === 'GITHUB_ACTIONS') {
       const config = pipeline.providerConfig as any;
-      if (!config.workflowPath) {
-        errors.push(`Pipeline ${pipeline.name}: GitHub Actions workflow path is required`);
+      if (!config.workflowUrl) {
+        errors.push(`Pipeline ${pipeline.name}: GitHub Actions workflow url is required`);
       }
     }
   });
@@ -204,13 +204,18 @@ export function validateConfiguration(
     errors.general = ['Configuration name is required'];
   }
   
+  if (!config.baseBranch || !config.baseBranch.trim()) {
+    errors.general = [...(errors.general || []), 'Base branch is required'];
+  }
+  
   if (!config.targets || config.targets.length === 0) {
     errors.targets = ['At least one target platform must be selected'];
   }
   
   // Validate build pipelines (optional - manual upload is the default)
-  if (config.workflows && config.workflows.length > 0 && config.targets) {
-    const pipelineErrors = validateBuildPipelines(config.workflows, config.targets);
+  const workflows = config.ciConfig?.workflows || [];
+  if (workflows.length > 0 && config.targets) {
+    const pipelineErrors = validateBuildPipelines(workflows, config.targets);
     if (pipelineErrors.length > 0) {
       errors.workflows = pipelineErrors;
     }

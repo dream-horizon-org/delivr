@@ -15,6 +15,7 @@ import { useConfig } from '~/contexts/ConfigContext';
 import { Loader, Center, Stack, Text } from '@mantine/core';
 import { ConfigurationLoadError } from '~/components/Releases/ConfigurationLoadError';
 import { transformFromBackend } from '~/.server/services/ReleaseConfig/release-config-payload';
+import { requireUserId } from '~/.server/services/Auth';
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { org } = params;
@@ -52,7 +53,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         // Transform API response to UI format
         // API returns nested configs (testManagementConfig, commsConfig, projectManagementConfig)
         // UI expects transformed format (testManagement, communication, projectManagement)
-        existingConfig = transformFromBackend(result.data) as ReleaseConfiguration;
+        const currentUserId = await requireUserId(request);
+        existingConfig = await transformFromBackend(result.data, currentUserId) as ReleaseConfiguration;
         
         console.log('[ReleasesConfigurePage] Transformed config:', JSON.stringify(existingConfig, null, 2));
         
@@ -150,7 +152,10 @@ export default function ReleasesConfigurePage() {
         .filter(i => i.providerId === 'jenkins')
         .map(i => ({ id: i.id, name: i.name })),
       github: allConnected
-        .filter(i => i.providerId === 'github')
+        .filter(i => i.providerId === 'github' || i.providerId === 'scm')
+        .map(i => ({ id: i.id, name: i.name })),
+      githubActions: allConnected
+        .filter(i => i.providerId?.toLowerCase() === 'github_actions' || i.providerId?.toLowerCase() === 'github-actions')
         .map(i => ({ id: i.id, name: i.name })),
       slack: allConnected
         .filter(i => i.providerId === 'slack')

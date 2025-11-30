@@ -14,7 +14,11 @@
  
  */
 
-import type { ReleaseConfiguration } from '~/types/release-config';
+import type { ReleaseConfiguration, Workflow, JenkinsConfig, GitHubActionsConfig } from '~/types/release-config';
+import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
+import { CICDIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
+import { BUILD_ENVIRONMENTS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
 
 /**
  * Map UI platform to backend TestPlatform enum
@@ -206,7 +210,7 @@ export function prepareReleaseConfigPayload(
     payload.testManagementConfig = {
       tenantId: tenantId,
       integrationId: providerConfig.integrationId,
-      name: `Test Management for ${config.name}`,
+      name: `Test Management for ${config.name || 'Release Config'}`,
       // No global projectId - it's now platform-specific in platformConfigurations
       passThresholdPercent: providerConfig.passThresholdPercent || 100,
       platformConfigurations: transformedPlatformConfigs,
@@ -266,7 +270,7 @@ export function prepareReleaseConfigPayload(
     payload.projectManagementConfig = {
       tenantId: tenantId,
       integrationId: pmConfig.integrationId,
-      name: `PM Config for ${config.name}`,
+      name: `PM Config for ${config.name || 'Release Config'}`,
       ...(config.description && { description: config.description }),
       platformConfigurations: transformedPMPlatformConfigs,
       createdByAccountId: userId,
@@ -290,12 +294,20 @@ export function prepareReleaseConfigPayload(
   }
 
   // ========================================================================
-  // TRANSFORMATION 6: Workflows (CI/CD) - Transform UI structure to Backend API
-  // Why: UI has different field names and structure than backend expects
+  // TRANSFORMATION 6: Workflows (CI/CD) - Direct pass-through
+  // UI now stores workflows in ciConfig.workflows (matches backend contract)
+  // Backend contract: ciConfig: { id?: string, workflows: [...] }
   // ========================================================================
-  if (config.workflows && config.workflows.length > 0) {
-    payload.workflows = config.workflows.map(transformWorkflowToBackend(tenantId, userId));
-    console.log('[prepareReleaseConfigPayload] Transformed workflows:', payload.workflows.length);
+  if (config.ciConfig?.workflows && config.ciConfig.workflows.length > 0) {
+    payload.ciConfig = {
+      // Include existing ciConfig.id if present (for updates)
+      ...(config.ciConfig.id && { id: config.ciConfig.id }),
+      workflows: config.ciConfig.workflows.map(transformWorkflowToBackend(tenantId, userId))
+    };
+    console.log('[prepareReleaseConfigPayload] Transformed workflows:', payload.ciConfig.workflows.length);
+    if (payload.ciConfig.id) {
+      console.log('[prepareReleaseConfigPayload] Including ciConfig.id for update:', payload.ciConfig.id);
+    }
   }
 
   // ========================================================================
@@ -337,12 +349,55 @@ function reverseMapTestManagementPlatform(backendPlatform: string): string {
 }
 
 /**
+ * Convert CICDWorkflow (backend) to Workflow (frontend config)
+ * Same logic as convertCICDWorkflowToWorkflow in PipelineEditModal
+ */
+function convertCICDWorkflowToWorkflow(cicdWorkflow: CICDWorkflow): Workflow {
+  const environment = workflowTypeToEnvironment[cicdWorkflow.workflowType] || BUILD_ENVIRONMENTS.PRE_REGRESSION;
+  
+  let providerConfig: JenkinsConfig | GitHubActionsConfig;
+  
+  if (cicdWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
+    providerConfig = {
+      type: BUILD_PROVIDERS.JENKINS,
+      integrationId: cicdWorkflow.integrationId,
+      jobUrl: cicdWorkflow.workflowUrl,
+      parameters: (cicdWorkflow.parameters as Record<string, string>) || {},
+    };
+  } else {
+    providerConfig = {
+      type: BUILD_PROVIDERS.GITHUB_ACTIONS,
+      integrationId: cicdWorkflow.integrationId,
+      workflowUrl: cicdWorkflow.workflowUrl,
+      inputs: ((cicdWorkflow.parameters as any)?.inputs || {}) as Record<string, string>,
+    };
+  }
+  
+  return {
+    id: cicdWorkflow.id,
+    name: cicdWorkflow.displayName,
+    platform: cicdWorkflow.platform as any,
+    environment: environment,
+    provider: cicdWorkflow.providerType as any,
+    providerConfig: providerConfig,
+    enabled: true,
+    timeout: 3600,
+    retryAttempts: 3,
+  };
+}
+
+/**
  * Transform backend response to frontend schema
  * Reverse transformation: Backend → Frontend
  * 
  * SIMPLIFIED: UI structure now matches backend, minimal transformation needed
+ * 
+ * NEW: Fetches workflows from workflowIds in ciConfig and populates workflows array
  */
-export function transformFromBackend(backendConfig: any): Partial<ReleaseConfiguration> {
+export async function transformFromBackend(
+  backendConfig: any,
+  userId?: string
+): Promise<Partial<ReleaseConfiguration>> {
   const frontendConfig: any = {
     ...backendConfig,
   };
@@ -547,6 +602,76 @@ export function transformFromBackend(backendConfig: any): Partial<ReleaseConfigu
       ...backendConfig.scheduling,
       releaseFrequency: backendConfig.scheduling.releaseFrequency.toUpperCase(),
     };
+  }
+
+  // ========================================================================
+  // 6. Fetch and populate workflows from ciConfig.workflowIds
+  // Backend returns: ciConfig: { id, workflowIds: [...] }
+  // UI expects: ciConfig: { id, workflowIds: [...], workflows: Workflow[] }
+  // ========================================================================
+  if (backendConfig.ciConfig) {
+    // Extract workflowIds early for use in error handling
+    const workflowIds = backendConfig.ciConfig.workflowIds || [];
+    
+    if (Array.isArray(workflowIds) && workflowIds.length > 0) {
+      try {
+        const tenantId = backendConfig.tenantId;
+        if (tenantId && userId) {
+          // Fetch all workflows for the tenant
+          const workflowsResult = await CICDIntegrationService.listAllWorkflows(tenantId, userId);
+          
+          if (workflowsResult.success && workflowsResult.workflows) {
+            // Filter workflows by the IDs in ciConfig.workflowIds
+            const matchingWorkflows = workflowsResult.workflows.filter(
+              (wf: CICDWorkflow) => workflowIds.includes(wf.id)
+            );
+            
+            // Convert CICDWorkflow[] to Workflow[]
+            const workflows = matchingWorkflows.map(convertCICDWorkflowToWorkflow);
+            
+            // Populate ciConfig with id, workflowIds (from backend), and workflows (populated for UI)
+            frontendConfig.ciConfig = {
+              ...(backendConfig.ciConfig.id && { id: backendConfig.ciConfig.id }),
+              workflowIds: workflowIds, // Preserve workflowIds from backend GET response
+              workflows: workflows // Populated workflows for UI (derived from workflowIds)
+            };
+            
+            console.log('[transformFromBackend] Populated ciConfig.workflows:', workflows.length, 'from', workflowIds.length, 'workflowIds');
+          } else {
+            console.warn('[transformFromBackend] Failed to fetch workflows:', workflowsResult.error);
+            // Still preserve ciConfig.id and workflowIds even if workflows fetch fails
+            frontendConfig.ciConfig = {
+              ...(backendConfig.ciConfig.id && { id: backendConfig.ciConfig.id }),
+              workflowIds: workflowIds,
+              workflows: []
+            };
+          }
+        } else {
+          console.warn('[transformFromBackend] Missing tenantId or userId, skipping workflow fetch');
+          // Still preserve ciConfig.id and workflowIds even if we can't fetch workflows
+          frontendConfig.ciConfig = {
+            ...(backendConfig.ciConfig.id && { id: backendConfig.ciConfig.id }),
+            workflowIds: workflowIds,
+            workflows: []
+          };
+        }
+      } catch (error) {
+        console.error('[transformFromBackend] Error fetching workflows:', error);
+        // Still preserve ciConfig.id and workflowIds even if there's an error
+        frontendConfig.ciConfig = {
+          ...(backendConfig.ciConfig.id && { id: backendConfig.ciConfig.id }),
+          workflowIds: workflowIds,
+          workflows: []
+        };
+      }
+    } else if (backendConfig.ciConfig.id) {
+      // ciConfig exists but no workflowIds - preserve id with empty arrays
+      frontendConfig.ciConfig = {
+        id: backendConfig.ciConfig.id,
+        workflowIds: [],
+        workflows: []
+      };
+    }
   }
 
   return frontendConfig;

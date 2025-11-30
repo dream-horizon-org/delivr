@@ -11,7 +11,7 @@ export type BuildUploadStep = 'MANUAL' | 'CI_CD';
 
 export type BuildProvider = 'JENKINS' | 'GITHUB_ACTIONS' | 'MANUAL_UPLOAD';
 
-export type BuildEnvironment = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT' | 'PRODUCTION';
+export type BuildEnvironment = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT';
 
 export type Platform = 'ANDROID' | 'IOS';
 
@@ -265,8 +265,12 @@ export interface ReleaseConfiguration {
   // Build upload method
   hasManualBuildUpload: boolean; // true = manual upload, false = CI/CD
   
-  // Workflows (CI/CD pipelines - optional, only used when hasManualBuildUpload = false)
-  workflows: Workflow[];
+  // CI/CD Configuration (matches backend contract: ciConfig: { id?, workflowIds?: [...], workflows: [...] })
+  ciConfig?: {
+    id?: string; // CI config ID (for updates)
+    workflowIds?: string[]; // Workflow IDs from backend GET response
+    workflows: Workflow[]; // CI/CD pipelines (populated from workflowIds, optional, only used when hasManualBuildUpload = false)
+  };
   
   // Test management (field name matches backend POST/GET - with Config suffix)
   testManagementConfig: TestManagementConfig;

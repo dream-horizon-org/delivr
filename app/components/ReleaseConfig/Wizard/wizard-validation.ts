@@ -194,7 +194,8 @@ export const validateWorkflows = (
   }
   
   // If using CI/CD, validate workflows exist
-  if (!config.workflows || config.workflows.length === 0) {
+  const workflows = config.ciConfig?.workflows || [];
+  if (!workflows || workflows.length === 0) {
     errors.push('At least one CI/CD workflow must be configured');
     return errors;
   }
@@ -204,7 +205,7 @@ export const validateWorkflows = (
   const needsIOS = config.targets?.includes(TARGET_PLATFORMS.APP_STORE);
   
   if (needsAndroid) {
-    const hasAndroidRegression = config.workflows.some(
+    const hasAndroidRegression = workflows.some(
       (p: Workflow) => 
         p.platform === PLATFORMS.ANDROID && 
         p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
@@ -216,13 +217,13 @@ export const validateWorkflows = (
   }
   
   if (needsIOS) {
-    const hasIOSRegression = config.workflows.some(
+    const hasIOSRegression = workflows.some(
       (p: Workflow) => 
         p.platform === PLATFORMS.IOS && 
         p.environment === BUILD_ENVIRONMENTS.REGRESSION && 
         p.enabled
     );
-    const hasTestFlight = config.workflows.some(
+    const hasTestFlight = workflows.some(
       (p: Workflow) => 
         p.platform === PLATFORMS.IOS && 
         p.environment === BUILD_ENVIRONMENTS.TESTFLIGHT && 
@@ -250,7 +251,7 @@ export const canProceedFromStep = (
 ): boolean => {
   switch (stepIndex) {
     case STEP_INDEX.BASIC:
-      return !!(config.name && config.name.trim());
+      return !!(config.name && config.name.trim() && config.baseBranch && config.baseBranch.trim());
       
     case STEP_INDEX.PLATFORMS:
       return !!config.targets && config.targets.length > 0;
@@ -289,6 +290,7 @@ export const canProceedFromStep = (
       
     case STEP_INDEX.REVIEW:
       const validation = validateConfiguration(config);
+      console.log('validation', validation);
       return validation.isValid;
       
     default:

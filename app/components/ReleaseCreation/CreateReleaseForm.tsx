@@ -89,8 +89,8 @@ export function CreateReleaseForm({ org, userId, onSubmit }: CreateReleaseFormPr
     }
 
     // Auto-generate cron config from selected config
-    const hasPreRegression = (selectedConfig.workflows || []).some(
-      (w) => w.environment === 'PRE_REGRESSION'
+    const hasPreRegression = (selectedConfig.ciConfig?.workflows || []).some(
+      (w: any) => w.environment === 'PRE_REGRESSION'
     );
     const hasAutomation = selectedConfig.testManagementConfig?.enabled === true;
 

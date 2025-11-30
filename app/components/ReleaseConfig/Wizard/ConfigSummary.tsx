@@ -89,11 +89,11 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               <Divider />
               <div>
                 <Text size="sm" fw={500} className="mb-2">
-                  {FIELD_LABELS.CONFIGURED_WORKFLOWS} ({config.workflows?.length || 0})
+                  {FIELD_LABELS.CONFIGURED_WORKFLOWS} ({config.ciConfig?.workflows?.length || 0})
                 </Text>
-        {config.workflows && config.workflows.length > 0 ? (
+        {config.ciConfig?.workflows && config.ciConfig.workflows.length > 0 ? (
           <List spacing="xs" size="sm">
-            {config.workflows.map((pipeline) => (
+            {config.ciConfig.workflows.map((pipeline) => (
               <List.Item
                 key={pipeline.id}
                 icon={

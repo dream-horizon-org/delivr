@@ -50,7 +50,8 @@ export interface ConfigurationWizardProps {
   onCancel: () => void;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
+    github: Array<{ id: string; name: string }>; // GitHub SCM (for branch fetching)
+    githubActions: Array<{ id: string; name: string }>; // GitHub Actions (for CI/CD workflows)
     slack: Array<{ id: string; name: string }>;
     jira: Array<{ id: string; name: string }>;
     checkmate: Array<{ id: string; name: string; workspaceId?: string }>;
@@ -101,7 +102,7 @@ export interface FixedPipelineCategoriesProps {
   onChange: (pipelines: Workflow[]) => void;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
+    githubActions: Array<{ id: string; name: string }>;
   };
   selectedPlatforms: Platform[];
   tenantId: string;
@@ -123,23 +124,12 @@ export interface PipelineEditModalProps {
   pipeline?: Workflow;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
+    githubActions: Array<{ id: string; name: string }>;
   };
   existingPipelines: Workflow[];
   fixedPlatform?: Platform;
   fixedEnvironment?: BuildEnvironment;
   workflows: CICDWorkflow[];
-  tenantId: string;
-}
-
-export interface PipelineListProps {
-  pipelines: Workflow[];
-  onChange: (pipelines: Workflow[]) => void;
-  availableIntegrations: {
-    jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
-  };
-  selectedPlatforms?: TargetPlatform[];
   tenantId: string;
 }
 
@@ -149,7 +139,7 @@ export interface PipelineCardProps {
   onDelete: () => void;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
+    githubActions: Array<{ id: string; name: string }>;
   };
 }
 

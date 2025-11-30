@@ -93,7 +93,8 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
         value={config.baseBranch || ''}
         onChange={(val) => onChange({ ...config, baseBranch: val || '' })}
         searchable
-        clearable
+        clearable={false}
+        required
         disabled={loadingBranches}
         rightSection={loadingBranches ? <Loader size="xs" /> : null}
         description="Default branch to fork from for releases (from SCM integration)"

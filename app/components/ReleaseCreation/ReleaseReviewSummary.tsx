@@ -188,7 +188,7 @@ export function ReleaseReviewSummary({
 
             <Group gap="md" className="text-xs">
               <div>
-                <span className="font-medium">{config.workflows?.length || 0}</span> build pipelines
+                <span className="font-medium">{config.ciConfig?.workflows?.length || 0}</span> build pipelines
               </div>
               <div>
                 <span className="font-medium">{config.targets?.length || 0}</span> target platforms

@@ -110,14 +110,27 @@ export function FixedPipelineCategories({
     setEditModalOpened(true);
   };
 
-  const handleDeletePipeline = (pipeline: Workflow) => {
-    onChange(pipelines.filter(p => p.id !== pipeline.id));
+  const handleDeletePipeline = (category: PipelineCategoryConfig, pipeline: Workflow) => {
+    // Remove pipeline by matching platform and environment (more reliable than ID)
+    onChange(pipelines.filter(p => 
+      !(p.platform === category.platform && p.environment === category.environment)
+    ));
   };
 
   const handleSavePipeline = (pipeline: Workflow) => {
     if (editingPipeline) {
-      // Update existing
-      onChange(pipelines.map(p => (p.id === pipeline.id ? pipeline : p)));
+      // Update existing - match by platform + environment (not ID, since ID changes when selecting different workflow)
+      // Find the pipeline that matches the category we were editing
+      const updatedPipelines = pipelines.map(p => {
+        // Match by platform and environment to find the pipeline we're editing
+        if (editingCategory && 
+            p.platform === editingCategory.platform && 
+            p.environment === editingCategory.environment) {
+          return pipeline; // Replace with new workflow
+        }
+        return p;
+      });
+      onChange(updatedPipelines);
     } else {
       // Add new
       onChange([...pipelines, pipeline]);
@@ -274,22 +287,20 @@ export function FixedPipelineCategories({
                       <Button
                         size="sm"
                         variant="light"
-                        leftSection={<IconPencil size={ICON_SIZES.SMALL} />}
                         onClick={() => handleEditPipeline(category, pipeline)}
+                        title={BUTTON_LABELS.EDIT}
                       >
-                        {BUTTON_LABELS.EDIT}
+                        <IconPencil size={ICON_SIZES.SMALL} />
                       </Button>
-                      {!category.required && (
-                        <Button
-                          size="sm"
-                          variant="light"
-                          color="red"
-                          leftSection={<IconTrash size={ICON_SIZES.SMALL} />}
-                          onClick={() => handleDeletePipeline(pipeline)}
-                        >
-                          {BUTTON_LABELS.REMOVE}
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="light"
+                        color="red"
+                        onClick={() => handleDeletePipeline(category, pipeline)}
+                        title={category.required ? 'Remove workflow (will show as missing)' : 'Remove workflow'}
+                      >
+                        <IconTrash size={ICON_SIZES.SMALL} />
+                      </Button>
                     </Group>
                   ) : (
                     <Button

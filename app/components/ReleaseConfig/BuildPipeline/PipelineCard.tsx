@@ -14,7 +14,6 @@ const environmentColors: Record<BuildEnvironment, string> = {
   [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'blue',
   [BUILD_ENVIRONMENTS.REGRESSION]: 'green',
   [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'orange',
-  [BUILD_ENVIRONMENTS.PRODUCTION]: 'red',
 };
 
 export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) {

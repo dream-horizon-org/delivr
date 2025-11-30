@@ -1,11 +1,12 @@
 /**
  * Pipeline Edit Modal Component
- * Modal for creating or editing build pipelines
+ * Modal for creating or editing build pipelines within a release config
+ * Uses WorkflowCreateModal internally for creating new workflows
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { Modal, Button, TextInput, Select, Stack, Group, SegmentedControl, Text, Card, Badge, Alert } from '@mantine/core';
-import { IconServer, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Modal, Button, Stack, Group, Alert, Text } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import type { 
   Workflow, 
   BuildProvider, 
@@ -13,37 +14,59 @@ import type {
   BuildEnvironment,
   JenkinsConfig,
   GitHubActionsConfig,
-  ManualUploadConfig,
 } from '~/types/release-config';
 import type { PipelineEditModalProps } from '~/types/release-config-props';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
-import { PipelineProviderSelect } from './PipelineProviderSelect';
-import { JenkinsConfigForm } from './JenkinsConfigForm';
-import { GitHubActionsConfigForm } from './GitHubActionsConfigForm';
-import { ManualUploadConfigForm } from './ManualUploadConfigForm';
+import { WorkflowCreateModal } from '~/components/ReleaseSettings/WorkflowCreateModal';
 import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS, CONFIG_MODES } from '~/types/release-config-constants';
 import {
   PLATFORM_LABELS,
   ENVIRONMENT_LABELS,
-  BUTTON_LABELS,
-  ERROR_MESSAGES,
-  INFO_MESSAGES,
-  SECTION_TITLES,
-  FIELD_LABELS,
-  PLACEHOLDERS,
 } from '~/constants/release-config-ui';
+import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
+import { WorkflowModeSelector } from './WorkflowModeSelector';
+import { ExistingWorkflowSelector } from './ExistingWorkflowSelector';
+import { CreateNewWorkflowInfo } from './CreateNewWorkflowInfo';
+import { NoIntegrationsAlert } from './NoIntegrationsAlert';
 
-const platformOptions = [
-  { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
-  { value: PLATFORMS.IOS, label: PLATFORM_LABELS.IOS },
-];
-
-const environmentOptions = [
-  { value: BUILD_ENVIRONMENTS.PRE_REGRESSION, label: ENVIRONMENT_LABELS.PRE_REGRESSION },
-  { value: BUILD_ENVIRONMENTS.REGRESSION, label: ENVIRONMENT_LABELS.REGRESSION },
-  { value: BUILD_ENVIRONMENTS.TESTFLIGHT, label: ENVIRONMENT_LABELS.TESTFLIGHT },
-  { value: BUILD_ENVIRONMENTS.PRODUCTION, label: ENVIRONMENT_LABELS.PRODUCTION },
-];
+/**
+ * Convert CICDWorkflow (backend) to Workflow (frontend config)
+ */
+const convertCICDWorkflowToWorkflow = (cicdWorkflow: CICDWorkflow, name?: string): Workflow => {
+  const environment = workflowTypeToEnvironment[cicdWorkflow.workflowType] || BUILD_ENVIRONMENTS.PRE_REGRESSION;
+  
+  let providerConfig: JenkinsConfig | GitHubActionsConfig;
+  
+  if (cicdWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
+    providerConfig = {
+      type: BUILD_PROVIDERS.JENKINS,
+      integrationId: cicdWorkflow.integrationId,
+      jobUrl: cicdWorkflow.workflowUrl,
+      parameters: (cicdWorkflow.parameters as Record<string, string>) || {},
+    };
+  } else {
+    providerConfig = {
+      type: BUILD_PROVIDERS.GITHUB_ACTIONS,
+      integrationId: cicdWorkflow.integrationId,
+      workflowUrl: cicdWorkflow.workflowUrl,
+      inputs: ((cicdWorkflow.parameters as any)?.inputs || {}) as Record<string, string>,
+    };
+  }
+  
+  return {
+    id: cicdWorkflow.id,
+    name: name || cicdWorkflow.displayName,
+    platform: cicdWorkflow.platform as Platform,
+    environment: environment,
+    provider: cicdWorkflow.providerType as BuildProvider,
+    providerConfig: providerConfig,
+    enabled: true,
+    timeout: 3600,
+    retryAttempts: 3,
+  };
+};
 
 export function PipelineEditModal({
   opened,
@@ -62,448 +85,246 @@ export function PipelineEditModal({
   // Configuration mode: existing or new
   const [configMode, setConfigMode] = useState<typeof CONFIG_MODES[keyof typeof CONFIG_MODES]>(CONFIG_MODES.EXISTING);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>();
-  
-  const [name, setName] = useState(pipeline?.name || '');
-  const [platform, setPlatform] = useState<Platform>(
-    pipeline?.platform || fixedPlatform || PLATFORMS.ANDROID
-  );
-  const [environment, setEnvironment] = useState<BuildEnvironment>(
-    pipeline?.environment || fixedEnvironment || BUILD_ENVIRONMENTS.PRE_REGRESSION
-  );
-  const [provider, setProvider] = useState<BuildProvider>(
-    pipeline?.provider || BUILD_PROVIDERS.JENKINS
-  );
-  const [providerConfig, setProviderConfig] = useState<
-    Partial<JenkinsConfig> | Partial<GitHubActionsConfig> | Partial<ManualUploadConfig>
-  >(pipeline?.providerConfig || { type: BUILD_PROVIDERS.JENKINS });
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [workflowCreateModalOpened, setWorkflowCreateModalOpened] = useState(false);
+  const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
+  console.log('availableIntegrations', availableIntegrations);
   
   // Filter workflows by platform and environment
-  const relevantWorkflows = workflows.filter(w => {
-    if (fixedPlatform && w.platform !== fixedPlatform) return false;
-    if (fixedEnvironment && w.workflowType !== fixedEnvironment) return false;
-    return true;
-  });
+  // System only supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only)
+  const relevantWorkflows = useMemo(() => {
+    return workflows.filter(w => {
+      const wfEnv = workflowTypeToEnvironment[w.workflowType];
+      
+      // Only include workflows with valid environments (exclude PRODUCTION)
+      const validEnvironments: BuildEnvironment[] = [
+        BUILD_ENVIRONMENTS.PRE_REGRESSION,
+        BUILD_ENVIRONMENTS.REGRESSION,
+        BUILD_ENVIRONMENTS.TESTFLIGHT,
+      ];
+      if (!validEnvironments.includes(wfEnv as BuildEnvironment)) return false;
+      
+      if (fixedPlatform && w.platform !== fixedPlatform) return false;
+      if (fixedEnvironment) {
+        if (wfEnv !== fixedEnvironment) return false;
+      }
+      return true;
+    });
+  }, [workflows, fixedPlatform, fixedEnvironment]);
   
   const selectedWorkflow = relevantWorkflows.find(w => w.id === selectedWorkflowId);
-  console.log('availableIntegrations', availableIntegrations);
+  
   // Determine available providers based on connected integrations
-  // NOTE: Manual Upload is NOT available in CI/CD workflows - only Jenkins and GitHub Actions
-  const availableProviders: BuildProvider[] =  useMemo(() => {
-    let result: BuildProvider[] = [];
+  const availableProviders: BuildProvider[] = useMemo(() => {
+    const result: BuildProvider[] = [];
     if (availableIntegrations.jenkins.length > 0) result.push(BUILD_PROVIDERS.JENKINS);
-    if (availableIntegrations.github.length > 0) result.push(BUILD_PROVIDERS.GITHUB_ACTIONS);
+    if (availableIntegrations.githubActions.length > 0) result.push(BUILD_PROVIDERS.GITHUB_ACTIONS);
     return result;
   }, [availableIntegrations]);
-
   
-  // Get the first available provider
-  const defaultProvider = availableProviders[0] || BUILD_PROVIDERS.JENKINS; // Fallback to JENKINS (will show error if not available)
-  // console.log('defaultProvider', defaultProvider);
-  // Reset form when modal opens or pipeline/fixedPlatform/fixedEnvironment changes
+
+  // Reset form when modal opens
   useEffect(() => {
     if (opened) {
-      setName(pipeline?.name || '');
-      setPlatform(pipeline?.platform || fixedPlatform || PLATFORMS.ANDROID);
-      setEnvironment(pipeline?.environment || fixedEnvironment || BUILD_ENVIRONMENTS.PRE_REGRESSION);
-      
-      // Set provider: use existing pipeline's provider if valid, otherwise use first available
-      const initialProvider = pipeline?.provider && availableProviders.includes(pipeline.provider) 
-        ? pipeline.provider 
-        : defaultProvider;
-      setProvider(initialProvider);
-      
-      // Set provider config based on the selected provider
-      if (pipeline?.providerConfig && pipeline.provider === initialProvider) {
-        setProviderConfig(pipeline.providerConfig);
-      } else {
-        // Create default config for the selected provider
-        if (initialProvider === BUILD_PROVIDERS.JENKINS) {
-          setProviderConfig({ type: BUILD_PROVIDERS.JENKINS, parameters: {} });
-        } else if (initialProvider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
-          setProviderConfig({ type: BUILD_PROVIDERS.GITHUB_ACTIONS, inputs: {} });
+      // If editing existing pipeline, check if it references a workflow
+      if (pipeline) {
+        // Try to find matching workflow
+        const matchingWorkflow = workflows.find(w => {
+          const wfEnv = workflowTypeToEnvironment[w.workflowType];
+          return w.platform === pipeline.platform && 
+                 wfEnv === pipeline.environment &&
+                 w.providerType === pipeline.provider;
+        });
+        
+        if (matchingWorkflow) {
+          setConfigMode(CONFIG_MODES.EXISTING);
+          setSelectedWorkflowId(matchingWorkflow.id);
         } else {
-          setProviderConfig({ type: BUILD_PROVIDERS.MANUAL_UPLOAD });
+          setConfigMode(CONFIG_MODES.NEW);
+          setSelectedWorkflowId(undefined);
         }
-      }
-      
-      setErrors({});
-      setSelectedWorkflowId(undefined);
-      // Default to existing if workflows available, otherwise new
-      setConfigMode(relevantWorkflows.length > 0 ? CONFIG_MODES.EXISTING : CONFIG_MODES.NEW);
-    }
-  }, [opened, pipeline, fixedPlatform, fixedEnvironment, relevantWorkflows.length, availableProviders, defaultProvider]);
-  
-  // Reset provider config when provider changes and auto-inject integrationId
-  useEffect(() => {
-    if (provider === BUILD_PROVIDERS.JENKINS) {
-      // Auto-select integration if only one exists
-      const jenkinsIntegrations = availableIntegrations.jenkins || [];
-      const autoIntegrationId = jenkinsIntegrations.length === 1 
-        ? jenkinsIntegrations[0].id 
-        : '';
-      
-      setProviderConfig({ 
-        type: BUILD_PROVIDERS.JENKINS, 
-        integrationId: autoIntegrationId,
-        parameters: {} 
-      } as Partial<JenkinsConfig>);
-    } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
-      // Auto-select integration if only one exists
-      const githubIntegrations = availableIntegrations.github || [];
-      const autoIntegrationId = githubIntegrations.length === 1 
-        ? githubIntegrations[0].id 
-        : '';
-      
-      setProviderConfig({ 
-        type: BUILD_PROVIDERS.GITHUB_ACTIONS, 
-        integrationId: autoIntegrationId,
-        inputs: {} 
-      } as Partial<GitHubActionsConfig>);
-    } else {
-      setProviderConfig({ type: BUILD_PROVIDERS.MANUAL_UPLOAD } as Partial<ManualUploadConfig>);
-    }
-  }, [provider, availableIntegrations]);
-  
-  // Filter environment options based on platform
-  const filteredEnvironmentOptions = environmentOptions.filter(opt => {
-    if (platform === PLATFORMS.IOS) {
-      return true; // All environments available for iOS
-    } else {
-      return opt.value !== BUILD_ENVIRONMENTS.TESTFLIGHT; // No TestFlight for Android
-    }
-  });
-  
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!name.trim()) {
-      newErrors.name = 'Pipeline name is required';
-    }
-    
-    // Check for duplicate pipeline (same platform + environment)
-    const duplicate = existingPipelines.find(
-      p => 
-        p.platform === platform && 
-        p.environment === environment && 
-        p.id !== pipeline?.id
-    );
-    
-    if (duplicate) {
-      newErrors.environment = `A pipeline for ${platform} ${environment} already exists`;
-    }
-    
-    // Validate based on config mode
-    if (configMode === CONFIG_MODES.EXISTING) {
-      if (!selectedWorkflowId) {
-        newErrors.workflow = 'Please select a workflow';
-      }
-    } else {
-      // Validate new configuration
-      if (provider === BUILD_PROVIDERS.JENKINS) {
-        const config = providerConfig as Partial<JenkinsConfig>;
-        if (!config.integrationId) {
-          newErrors.integration = 'Jenkins instance is required';
-        }
-        if (!config.jobUrl) {
-          newErrors.jobUrl = 'Job URL is required';
-        }
-      } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
-        const config = providerConfig as Partial<GitHubActionsConfig>;
-        if (!config.integrationId) {
-          newErrors.integration = 'GitHub integration is required';
-        }
-        const workflowUrl = config.workflowUrl || config.workflowPath;
-        if (!workflowUrl || !workflowUrl.trim()) {
-          newErrors.workflowUrl = 'Workflow URL is required';
-        } else if (!workflowUrl.startsWith('http') && !workflowUrl.startsWith('https')) {
-          newErrors.workflowUrl = 'Workflow URL must be a full GitHub URL (starting with https://)';
-        }
-      }
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
-  const handleSave = () => {
-    // if (!validate()) return;
-    
-    let finalProvider: BuildProvider;
-    let finalProviderConfig: JenkinsConfig | GitHubActionsConfig | ManualUploadConfig;
-    
-    if (configMode === 'existing' && selectedWorkflow) {
-      // Use workflow configuration
-      finalProvider = selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS ? BUILD_PROVIDERS.JENKINS : BUILD_PROVIDERS.GITHUB_ACTIONS;
-      
-      if (selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS) {
-        finalProviderConfig = {
-          type: BUILD_PROVIDERS.JENKINS,
-          integrationId: selectedWorkflow.integrationId,
-          jobUrl: selectedWorkflow.workflowUrl,
-          parameters: selectedWorkflow.parameters || {},
-        };
       } else {
-        finalProviderConfig = {
-          type: BUILD_PROVIDERS.GITHUB_ACTIONS,
-          integrationId: selectedWorkflow.integrationId,
-          workflowUrl: selectedWorkflow.workflowUrl,
-          inputs: (selectedWorkflow.parameters as any)?.inputs || {},
-        };
+        // New pipeline - default to existing if workflows available
+        setConfigMode(relevantWorkflows.length > 0 ? CONFIG_MODES.EXISTING : CONFIG_MODES.NEW);
+        setSelectedWorkflowId(undefined);
       }
-    } else {
-      // Use new configuration - ensure workflowUrl is set
-      const config = providerConfig as any;
-      if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
-        finalProviderConfig = {
-          type: BUILD_PROVIDERS.GITHUB_ACTIONS,
-          integrationId: config.integrationId,
-          workflowUrl: config.workflowUrl || config.workflowPath,
-          inputs: config.inputs || {},
+      setWorkflowCreateModalOpened(false);
+    }
+  }, [opened, pipeline, relevantWorkflows.length, workflows]);
+
+  // Handle creating a new workflow via WorkflowCreateModal
+  const handleCreateWorkflow = useCallback(async (workflowData: any) => {
+    if (!tenantId) return;
+    
+    setIsCreatingWorkflow(true);
+    try {
+      // Create workflow via API
+      const result = await apiPost<{ success: boolean; error?: string; workflow?: CICDWorkflow }>(
+        `/api/v1/tenants/${tenantId}/workflows`,
+        workflowData
+      );
+      console.log('result', result);
+
+      if (result.success) {
+        showSuccessToast({ title: 'Success', message: 'Workflow created successfully' });
+        
+        // Fetch the created workflow (we need the full object with ID)
+        const createdWorkflow: CICDWorkflow = {
+          id: workflowData.id || "",
+          tenantId,
+          providerType: workflowData.providerType,
+          integrationId: workflowData.integrationId,
+          displayName: workflowData.displayName,
+          workflowUrl: workflowData.workflowUrl,
+          providerIdentifiers: workflowData.providerIdentifiers || null,
+          platform: workflowData.platform,
+          workflowType: workflowData.workflowType,
+          parameters: workflowData.parameters || null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
+        
+        // Convert to Workflow and attach to pipeline config
+        const workflowConfig = convertCICDWorkflowToWorkflow(createdWorkflow);
+        
+        // If we have fixed platform/environment, ensure they match
+        if (fixedPlatform) {
+          workflowConfig.platform = fixedPlatform;
+        }
+        if (fixedEnvironment) {
+          workflowConfig.environment = fixedEnvironment;
+        }
+        
+        // Save the pipeline config
+        onSave(workflowConfig);
+        setWorkflowCreateModalOpened(false);
+        onClose();
       } else {
-        finalProviderConfig = providerConfig as any;
+        showErrorToast({ 
+          title: 'Error', 
+          message: result.data?.error || 'Failed to create workflow' 
+        });
       }
-      finalProvider = provider;
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to create workflow');
+      showErrorToast({ title: 'Error', message: errorMessage });
+    } finally {
+      setIsCreatingWorkflow(false);
+    }
+  }, [tenantId, fixedPlatform, fixedEnvironment, onSave, onClose]);
+
+  // Handle selecting existing workflow
+  const handleSelectExisting = () => {
+    if (!selectedWorkflow) return;
+    
+    // Convert CICDWorkflow to Workflow
+    // This already sets the correct ID from the selected workflow
+    const workflowConfig = convertCICDWorkflowToWorkflow(selectedWorkflow);
+    
+    // If we have fixed platform/environment, ensure they match
+    if (fixedPlatform) {
+      workflowConfig.platform = fixedPlatform;
+    }
+    if (fixedEnvironment) {
+      workflowConfig.environment = fixedEnvironment;
     }
     
-    const pipelineData: Workflow = {
-      id: pipeline?.id || `wf_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      name: name.trim(),
-      platform,
-      environment,
-      provider: finalProvider,
-      providerConfig: finalProviderConfig,
-      enabled: pipeline?.enabled ?? true,
-      timeout: pipeline?.timeout || 3600,
-      retryAttempts: pipeline?.retryAttempts || 3,
-    };
+    // Don't preserve old pipeline ID - use the selected workflow's ID
+    // This ensures the ID matches the actual workflow being used
     
-    onSave(pipelineData);
+    onSave(workflowConfig);
     onClose();
   };
-  
+
+  const validate = (): boolean => {
+    if (configMode === CONFIG_MODES.EXISTING) {
+      if (!selectedWorkflowId) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSave = () => {
+    if (configMode === CONFIG_MODES.EXISTING) {
+      handleSelectExisting();
+    } else {
+      // Open WorkflowCreateModal
+      setWorkflowCreateModalOpened(true);
+    }
+  };
+
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title={isEditing ? 'Edit Workflow' : 'Add Workflow'}
-      size="lg"
-    >
-      <Stack gap="md">
-        <TextInput
-          label={FIELD_LABELS.WORKFLOW_NAME}
-          placeholder={PLACEHOLDERS.WORKFLOW_NAME}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          error={errors.name}
-          description="A descriptive name for this CI/CD workflow"
-        />
-        
-        <Group grow>
-          <Select
-            label={FIELD_LABELS.PLATFORM}
-            data={platformOptions}
-            value={platform}
-            onChange={(val) => {
-              setPlatform(val as Platform);
-              // Reset environment if TestFlight selected for Android
-              if (val === PLATFORMS.ANDROID && environment === BUILD_ENVIRONMENTS.TESTFLIGHT) {
-                setEnvironment(BUILD_ENVIRONMENTS.PRE_REGRESSION);
-              }
+    <>
+      <Modal
+        opened={opened}
+        onClose={onClose}
+        title={isEditing ? 'Edit Pipeline' : 'Add Pipeline'}
+        size="lg"
+      >
+        <Stack gap="md">
+          {/* Show fixed platform/environment info */}
+          {(fixedPlatform || fixedEnvironment) && (
+            <Alert icon={<IconInfoCircle size={18} />} color="blue" variant="light">
+              <Text size="sm">
+                <strong>Category:</strong> {fixedPlatform && PLATFORM_LABELS[fixedPlatform]}{' '}
+                {fixedEnvironment && ENVIRONMENT_LABELS[fixedEnvironment]}
+              </Text>
+            </Alert>
+          )}
+          
+          {/* Configuration Mode Selection */}
+          <WorkflowModeSelector
+            configMode={configMode}
+            onChange={(mode) => {
+              setConfigMode(mode);
+              setSelectedWorkflowId(undefined);
             }}
-            required
-            disabled={!!fixedPlatform}
-            description={fixedPlatform ? 'Platform is fixed for this category' : undefined}
+            existingWorkflowCount={relevantWorkflows.length}
           />
           
-          <Select
-            label={FIELD_LABELS.ENVIRONMENT}
-            data={filteredEnvironmentOptions}
-            value={environment}
-            onChange={(val) => setEnvironment(val as BuildEnvironment)}
-            required
-            error={errors.environment}
-            disabled={!!fixedEnvironment}
-            description={fixedEnvironment ? 'Environment is fixed for this category' : undefined}
-          />
-        </Group>
-        
-        {/* Configuration Mode Selection */}
-        {relevantWorkflows.length > 0 && (
-          <div>
-            <Text size="sm" fw={500} className="mb-2">
-              Workflow Configuration
-            </Text>
-            <SegmentedControl
-              value={configMode}
-              onChange={(val) => setConfigMode(val as typeof configMode)}
-              data={[
-                { value: CONFIG_MODES.EXISTING, label: `Use Existing (${relevantWorkflows.length})` },
-                { value: CONFIG_MODES.NEW, label: 'Create New' },
-              ]}
-              fullWidth
+          {/* Existing Workflow Selection */}
+          {configMode === CONFIG_MODES.EXISTING && (
+            <ExistingWorkflowSelector
+              workflows={relevantWorkflows}
+              selectedWorkflowId={selectedWorkflowId}
+              onSelect={setSelectedWorkflowId}
             />
-          </div>
-        )}
-        
-        {/* Existing Workflow Selection */}
-          {configMode === CONFIG_MODES.EXISTING && relevantWorkflows.length > 0 && (
-          <Stack gap="sm">
-            <Select
-              label={FIELD_LABELS.SELECT_WORKFLOW}
-              placeholder={PLACEHOLDERS.SELECT_WORKFLOW}
-              data={relevantWorkflows.map(w => ({
-                value: w.id,
-                label: w.displayName,
-              }))}
-              value={selectedWorkflowId}
-              onChange={(val) => {
-                setSelectedWorkflowId(val || undefined);
-                // Auto-fill pipeline name if empty
-                const workflow = relevantWorkflows.find(w => w.id === val);
-                if (workflow && !name) {
-                  setName(workflow.displayName);
-                }
-              }}
-              required
-              error={errors.workflow}
-              searchable
-            />
-            
-            {/* Workflow Preview */}
-            {selectedWorkflow && (
-              <Card withBorder className="bg-gray-50">
-                <Stack gap="xs">
-                  <Group gap="xs">
-                    {selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS ? (
-                      <IconServer size={18} className="text-red-600" />
-                    ) : (
-                      <IconBrandGithub size={18} />
-                    )}
-                    <Text size="sm" fw={600}>
-                      {selectedWorkflow.displayName}
-                    </Text>
-                  </Group>
-                  
-                  <Group gap="xs">
-                    <Badge size="sm" color={selectedWorkflow.providerType === BUILD_PROVIDERS.JENKINS ? 'red' : 'dark'}>
-                      {selectedWorkflow.providerType.replace('_', ' ')}
-                    </Badge>
-                    <Badge size="sm" color="blue">
-                      {selectedWorkflow.platform}
-                    </Badge>
-                  </Group>
-                  
-                  <div className="bg-white rounded p-2 border border-gray-200">
-                    <Text size="xs" c="dimmed" className="font-mono break-all">
-                      {selectedWorkflow.workflowUrl}
-                    </Text>
-                  </div>
-                  
-                  {selectedWorkflow.parameters && Object.keys(selectedWorkflow.parameters).length > 0 && (
-                    <div>
-                      <Text size="xs" fw={500} c="dimmed" className="mb-1">
-                        Parameters:
-                      </Text>
-                      <div className="bg-white rounded p-2 border border-gray-200 space-y-1">
-                        {Object.entries(selectedWorkflow.parameters).slice(0, 3).map(([key, value]) => (
-                          <Text key={key} size="xs" className="font-mono">
-                            <span className="text-gray-600">{key}:</span>{' '}
-                            <span className="text-blue-600">{String(value)}</span>
-                          </Text>
-                        ))}
-                        {Object.keys(selectedWorkflow.parameters).length > 3 && (
-                          <Text size="xs" c="dimmed">
-                            +{Object.keys(selectedWorkflow.parameters).length - 3} more...
-                          </Text>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </Stack>
-              </Card>
-            )}
-          </Stack>
-        )}
-        
-        {/* New Configuration Form */}
-          {configMode === CONFIG_MODES.NEW && (
-          <Stack gap="md">
-            {/* Show error if no CI/CD integrations are available */}
-            {availableProviders.length === 0 && (
-              <Alert
-                icon={<IconInfoCircle size={18} />}
-                color="red"
-                variant="light"
-                title="No CI/CD Integrations Connected"
-              >
-                <Text size="sm" className="mb-2">
-                  To configure CI/CD workflows, you need to connect at least one provider:
-                </Text>
-                <ul className="list-disc list-inside text-sm mb-2">
-                  <li>Jenkins</li>
-                  <li>GitHub Actions</li>
-                </ul>
-                <Text size="sm">
-                  Go to <strong>Settings → Integrations</strong> to connect a provider.
-                </Text>
-              </Alert>
-            )}
-            
-            {availableProviders.length > 0 && (
-            <PipelineProviderSelect
-              value={provider}
-              onChange={setProvider}
-              availableProviders={availableProviders}
-            />
-            )}
-            
-            {errors.integration && (
-              <div className="text-sm text-red-600">{errors.integration}</div>
-            )}
-            
-            {/* Provider-specific configuration forms */}
-            {provider === BUILD_PROVIDERS.JENKINS && (
-              <JenkinsConfigForm
-                config={providerConfig as Partial<JenkinsConfig>}
-                onChange={setProviderConfig}
-                availableIntegrations={availableIntegrations.jenkins}
-                workflows={workflows}
-                tenantId={tenantId}
-              />
-            )}
-            
-            {provider === BUILD_PROVIDERS.GITHUB_ACTIONS && (
-              <GitHubActionsConfigForm
-                config={providerConfig as Partial<GitHubActionsConfig>}
-                onChange={setProviderConfig}
-                availableIntegrations={availableIntegrations.github}
-                workflows={workflows}
-                tenantId={tenantId}
-              />
-            )}
-            
-            {/* Manual Upload is not supported in CI/CD workflows */}
-          </Stack>
-        )}
-        
-        <Group justify="flex-end" className="mt-4">
-          <Button variant="subtle" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled={availableProviders.length === 0}
-          >
-            {isEditing ? 'Save Changes' : 'Add Workflow'}
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
+          )}
+          
+          {/* Create New Mode - Info */}
+          {configMode === CONFIG_MODES.NEW && <CreateNewWorkflowInfo />}
+          
+          {/* Show error if no CI/CD integrations are available */}
+          {availableProviders.length === 0 && <NoIntegrationsAlert />}
+          
+          <Group justify="flex-end" className="mt-4">
+            <Button variant="subtle" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={availableProviders.length === 0 || (configMode === CONFIG_MODES.EXISTING && !selectedWorkflowId)}
+              loading={isCreatingWorkflow}
+            >
+              {configMode === CONFIG_MODES.EXISTING ? 'Attach Workflow' : 'Create New Workflow'}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+      
+      {/* Nested WorkflowCreateModal */}
+      <WorkflowCreateModal
+        opened={workflowCreateModalOpened}
+        onClose={() => setWorkflowCreateModalOpened(false)}
+        onSave={handleCreateWorkflow}
+        availableIntegrations={availableIntegrations}
+        tenantId={tenantId || ''}
+        workflows={workflows}
+        existingWorkflow={null}
+        fixedPlatform={fixedPlatform}
+        fixedEnvironment={fixedEnvironment}
+      />
+    </>
   );
 }
-

@@ -7,6 +7,7 @@ import { Stack, Text, Card, Switch, Alert, Group, Badge } from '@mantine/core';
 import { IconSettings, IconTestPipe, IconInfoCircle } from '@tabler/icons-react';
 import type { CronConfig } from '~/types/release-creation-backend';
 import type { ReleaseConfiguration } from '~/types/release-config';
+import { BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 
 interface ReleaseConfigurePanelProps {
   config?: ReleaseConfiguration; // The selected configuration
@@ -21,7 +22,7 @@ export function ReleaseConfigurePanel({
 }: ReleaseConfigurePanelProps) {
   // Check if config has pre-regression builds
   const hasPreRegressionBuilds = config
-    ? (config.workflows || []).some((p) => p.environment === 'PRE_REGRESSION')
+    ? (config.ciConfig?.workflows || []).some((p) => p.environment === BUILD_ENVIRONMENTS.PRE_REGRESSION)
     : false;
 
   // Check if config has Checkmate enabled
@@ -80,7 +81,7 @@ export function ReleaseConfigurePanel({
             <br />
             <strong>Release Type:</strong> {config.releaseType}
             <br />
-            <strong>Build Pipelines:</strong> {config.workflows?.length || 0} configured
+            <strong>Build Pipelines:</strong> {config.ciConfig?.workflows?.length || 0} configured
             <br />
             <strong>Test Management:</strong>{' '}
             {config.testManagementConfig?.enabled
@@ -148,7 +149,7 @@ export function ReleaseConfigurePanel({
             <Alert color="green" variant="light" className="mt-3">
               <Text size="xs">
                 ✓ Pre-regression builds will run according to your configuration (
-                {(config.workflows || []).filter((p) => p.environment === 'PRE_REGRESSION').length}{' '}
+                {(config.ciConfig?.workflows || []).filter((p) => p.environment === BUILD_ENVIRONMENTS.PRE_REGRESSION).length}{' '}
                 pipeline(s))
               </Text>
             </Alert>

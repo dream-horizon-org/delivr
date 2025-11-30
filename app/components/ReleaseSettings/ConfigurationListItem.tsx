@@ -3,15 +3,17 @@
  * Display a single configuration in the list
  */
 
+import { useState } from 'react';
 import { Card, Text, Badge, Group, ActionIcon, Tooltip, Menu, Button, Box } from '@mantine/core';
 import { 
   IconDots, IconEdit, IconCopy, IconArchive, IconDownload, IconStar, IconStarFilled,
   IconDeviceMobile, IconBrandAndroid, IconBrandApple, IconCalendar, IconTarget,
-  IconLayersIntersect
+  IconLayersIntersect, IconEye
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigurationListItemProps } from '~/types/release-config-props';
 import { PLATFORMS } from '~/types/release-config-constants';
+import { ConfigurationPreviewModal } from './ConfigurationPreviewModal';
 
 // Helper to get status display from isActive field or draft status
 const getStatusDisplay = (config: any) => {
@@ -40,6 +42,8 @@ export function ConfigurationListItem({
   onExport,
   onSetDefault,
 }: ConfigurationListItemProps) {
+  const [previewOpened, setPreviewOpened] = useState(false);
+  
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -133,33 +137,35 @@ export function ConfigurationListItem({
             </Group>
           </div>
           
-          <Menu shadow="md" width={200}>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="white" size="lg">
-                <IconDots size={20} />
+          <Group gap="xs">
+            <Tooltip label="Preview Configuration">
+              <ActionIcon 
+                variant="subtle" 
+                color="white" 
+                size="lg"
+                onClick={() => setPreviewOpened(true)}
+              >
+                <IconEye size={20} />
               </ActionIcon>
-            </Menu.Target>
+            </Tooltip>
             
-            <Menu.Dropdown>
-              <Menu.Item leftSection={<IconEdit size={16} />} onClick={onEdit}>
-                {isDraft ? 'Continue Editing' : 'Edit Configuration'}
-              </Menu.Item>
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <ActionIcon variant="subtle" color="white" size="lg">
+                  <IconDots size={20} />
+                </ActionIcon>
+              </Menu.Target>
+              
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconEdit size={16} />} onClick={onEdit}>
+                  {isDraft ? 'Continue Editing' : 'Edit Configuration'}
+                </Menu.Item>
               
               {!isDraft && !config.isDefault && (
                 <Menu.Item leftSection={<IconStar size={16} />} onClick={onSetDefault}>
                   Set as Default
                 </Menu.Item>
               )}
-              
-              {!isDraft && (
-                <Menu.Item leftSection={<IconCopy size={16} />} onClick={onDuplicate}>
-                  Duplicate
-                </Menu.Item>
-              )}
-              
-              <Menu.Item leftSection={<IconDownload size={16} />} onClick={onExport}>
-                Export JSON
-              </Menu.Item>
               
               <Menu.Divider />
               
@@ -173,6 +179,7 @@ export function ConfigurationListItem({
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
+          </Group>
         </div>
       </Box>
       
@@ -273,6 +280,12 @@ export function ConfigurationListItem({
           </Group>
         </div>
       </div>
+      
+      <ConfigurationPreviewModal
+        opened={previewOpened}
+        onClose={() => setPreviewOpened(false)}
+        config={config}
+      />
     </Card>
   );
 }

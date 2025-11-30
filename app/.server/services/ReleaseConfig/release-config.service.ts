@@ -64,7 +64,7 @@ export class ReleaseConfigService {
       
       return {
         success: true,
-        data: transformFromBackend(result.data), // Transform response (targets field mapping)
+        data: await transformFromBackend(result.data, userId), // Transform response (targets field mapping)
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Create error:', error);
@@ -107,7 +107,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: (result.data || []).map(transformFromBackend), // Transform each config
+        data: await Promise.all((result.data || []).map((config: any) => transformFromBackend(config, userId))), // Transform each config
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] List error:', error);
@@ -154,7 +154,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: transformFromBackend(result.data), // Transform response
+        data: await transformFromBackend(result.data, userId), // Transform response
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Get error:', error);
@@ -209,7 +209,7 @@ export class ReleaseConfigService {
 
       return {
         success: true,
-        data: transformFromBackend(result.data), // Transform response
+        data: await transformFromBackend(result.data, userId), // Transform response
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Update error:', error);

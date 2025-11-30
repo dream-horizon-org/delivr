@@ -12,7 +12,7 @@ import { PipelineProviderSelect } from '~/components/ReleaseConfig/BuildPipeline
 import { JenkinsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/JenkinsConfigForm';
 import { GitHubActionsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/GitHubActionsConfigForm';
 import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS } from '~/types/release-config-constants';
-import type { BuildProvider } from '~/types/release-config';
+import type { BuildProvider, Platform, BuildEnvironment } from '~/types/release-config';
 import {
   PLATFORM_LABELS,
   ENVIRONMENT_LABELS,
@@ -20,34 +20,18 @@ import {
   FIELD_LABELS,
   PLACEHOLDERS,
 } from '~/constants/release-config-ui';
-
-// Map backend WorkflowType to UI BuildEnvironment
-const workflowTypeToEnvironment: Record<string, string> = {
-  PRE_REGRESSION_BUILD: BUILD_ENVIRONMENTS.PRE_REGRESSION,
-  REGRESSION_BUILD: BUILD_ENVIRONMENTS.REGRESSION,
-  TEST_FLIGHT_BUILD: BUILD_ENVIRONMENTS.TESTFLIGHT,
-  AUTOMATION_BUILD: BUILD_ENVIRONMENTS.PRODUCTION,
-  CUSTOM: BUILD_ENVIRONMENTS.PRODUCTION,
-};
-
-// Map UI BuildEnvironment to backend WorkflowType
-const environmentToWorkflowType: Record<string, string> = {
-  [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'PRE_REGRESSION_BUILD',
-  [BUILD_ENVIRONMENTS.REGRESSION]: 'REGRESSION_BUILD',
-  [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'TEST_FLIGHT_BUILD',
-  [BUILD_ENVIRONMENTS.PRODUCTION]: 'CUSTOM',
-};
+import { workflowTypeToEnvironment, environmentToWorkflowType, getEnvironmentsForPlatform } from '~/types/workflow-mappings';
 
 const platformOptions = [
   { value: PLATFORMS.ANDROID, label: PLATFORM_LABELS.ANDROID },
   { value: PLATFORMS.IOS, label: PLATFORM_LABELS.IOS },
 ];
 
+// System only supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only)
 const environmentOptions = [
   { value: BUILD_ENVIRONMENTS.PRE_REGRESSION, label: ENVIRONMENT_LABELS.PRE_REGRESSION },
   { value: BUILD_ENVIRONMENTS.REGRESSION, label: ENVIRONMENT_LABELS.REGRESSION },
   { value: BUILD_ENVIRONMENTS.TESTFLIGHT, label: ENVIRONMENT_LABELS.TESTFLIGHT },
-  { value: BUILD_ENVIRONMENTS.PRODUCTION, label: ENVIRONMENT_LABELS.PRODUCTION },
 ];
 
 export interface WorkflowCreateModalProps {
@@ -56,11 +40,13 @@ export interface WorkflowCreateModalProps {
   onSave: (workflowData: any) => Promise<void>;
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
+    githubActions: Array<{ id: string; name: string }>;
   };
   tenantId: string;
   existingWorkflow?: CICDWorkflow | null;
   workflows?: CICDWorkflow[];
+  fixedPlatform?: string; // Pre-fill platform (from PipelineEditModal)
+  fixedEnvironment?: string; // Pre-fill environment (from PipelineEditModal)
 }
 
 export function WorkflowCreateModal({
@@ -71,12 +57,14 @@ export function WorkflowCreateModal({
   tenantId,
   existingWorkflow,
   workflows = [],
+  fixedPlatform,
+  fixedEnvironment,
 }: WorkflowCreateModalProps) {
   const isEditing = !!existingWorkflow;
 
   const [name, setName] = useState('');
-  const [platform, setPlatform] = useState<string>(PLATFORMS.ANDROID);
-  const [environment, setEnvironment] = useState<string>(BUILD_ENVIRONMENTS.PRE_REGRESSION);
+  const [platform, setPlatform] = useState<string>(fixedPlatform || PLATFORMS.ANDROID);
+  const [environment, setEnvironment] = useState<string>(fixedEnvironment || BUILD_ENVIRONMENTS.PRE_REGRESSION);
   const [provider, setProvider] = useState<BuildProvider>(BUILD_PROVIDERS.JENKINS as BuildProvider);
   const [providerConfig, setProviderConfig] = useState<any>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -87,7 +75,7 @@ export function WorkflowCreateModal({
     if (availableIntegrations.jenkins.length > 0) {
       providers.push(BUILD_PROVIDERS.JENKINS as BuildProvider);
     }
-    if (availableIntegrations.github.length > 0) {
+    if (availableIntegrations.githubActions.length > 0) {
       providers.push(BUILD_PROVIDERS.GITHUB_ACTIONS as BuildProvider);
     }
     return providers;
@@ -123,8 +111,8 @@ export function WorkflowCreateModal({
       } else {
         // Reset for new workflow
         setName('');
-        setPlatform(PLATFORMS.ANDROID);
-        setEnvironment(BUILD_ENVIRONMENTS.PRE_REGRESSION);
+        setPlatform(fixedPlatform || PLATFORMS.ANDROID);
+        setEnvironment(fixedEnvironment || BUILD_ENVIRONMENTS.PRE_REGRESSION);
         setProvider(defaultProvider);
         setProviderConfig({
           type: defaultProvider,
@@ -135,7 +123,7 @@ export function WorkflowCreateModal({
       }
       setErrors({});
     }
-  }, [opened, existingWorkflow, defaultProvider]);
+  }, [opened, existingWorkflow, defaultProvider, fixedPlatform, fixedEnvironment]);
 
   // Reset provider config when provider changes and auto-inject integrationId
   useEffect(() => {
@@ -154,7 +142,7 @@ export function WorkflowCreateModal({
       });
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
       // Auto-select integration if only one exists
-      const githubIntegrations = availableIntegrations.github || [];
+      const githubIntegrations = availableIntegrations.githubActions || [];
       const autoIntegrationId = githubIntegrations.length === 1 
         ? githubIntegrations[0].id 
         : providerConfig.integrationId || '';
@@ -168,13 +156,16 @@ export function WorkflowCreateModal({
     }
   }, [provider, availableIntegrations]);
 
-  // Filter environment options based on platform
+  // Filter environment options based on platform using centralized mapping
   const filteredEnvironmentOptions = environmentOptions.filter((opt) => {
-    if (platform === PLATFORMS.IOS) {
-      return true; // All environments available for iOS
-    } else {
-      return opt.value !== BUILD_ENVIRONMENTS.TESTFLIGHT; // No TestFlight for Android
+    // If fixed environment is provided (from PipelineEditModal), only show that
+    if (fixedEnvironment) {
+      return opt.value === fixedEnvironment;
     }
+    
+    // Use centralized platform-to-environment mapping
+    const validEnvironments = getEnvironmentsForPlatform(platform as Platform);
+    return validEnvironments.includes(opt.value as BuildEnvironment);
   });
 
   const validate = (): boolean => {
@@ -218,7 +209,7 @@ export function WorkflowCreateModal({
       integrationId: providerConfig.integrationId,
       displayName: name.trim(),
       platform: platform,
-      workflowType: environmentToWorkflowType[environment] || 'CUSTOM',
+      workflowType: environmentToWorkflowType[environment] || 'REGRESSION_BUILD',
     };
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
@@ -284,13 +275,19 @@ export function WorkflowCreateModal({
             data={platformOptions}
             value={platform}
             onChange={(val) => {
-              setPlatform(val || PLATFORMS.ANDROID);
-              // Reset environment if TestFlight selected for Android
-              if (val === PLATFORMS.ANDROID && environment === BUILD_ENVIRONMENTS.TESTFLIGHT) {
-                setEnvironment(BUILD_ENVIRONMENTS.PRE_REGRESSION);
+              const newPlatform = (val || PLATFORMS.ANDROID) as Platform;
+              setPlatform(newPlatform);
+              
+              // Reset environment if current environment is not valid for new platform
+              const validEnvironments = getEnvironmentsForPlatform(newPlatform);
+              if (!validEnvironments.includes(environment as BuildEnvironment)) {
+                // Set to first valid environment for the new platform
+                setEnvironment(validEnvironments[0] || BUILD_ENVIRONMENTS.PRE_REGRESSION);
               }
             }}
             required
+            disabled={!!fixedPlatform}
+            description={fixedPlatform ? 'Platform is fixed for this category' : undefined}
           />
 
           <Select
@@ -300,6 +297,8 @@ export function WorkflowCreateModal({
             onChange={(val) => setEnvironment(val || BUILD_ENVIRONMENTS.PRE_REGRESSION)}
             required
             error={errors.environment}
+            disabled={!!fixedEnvironment}
+            description={fixedEnvironment ? 'Environment is fixed for this category' : undefined}
           />
         </Group>
 
@@ -351,7 +350,7 @@ export function WorkflowCreateModal({
               <GitHubActionsConfigForm
                 config={providerConfig}
                 onChange={setProviderConfig}
-                availableIntegrations={availableIntegrations.github}
+                availableIntegrations={availableIntegrations.githubActions}
                 workflows={workflows}
                 tenantId={tenantId}
               />

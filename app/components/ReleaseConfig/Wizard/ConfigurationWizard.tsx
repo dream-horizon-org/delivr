@@ -202,7 +202,7 @@ export function ConfigurationWizard({
             onChange={(hasManualBuildUpload) => setConfig({ ...config, hasManualBuildUpload })}
             hasIntegrations={
               availableIntegrations.jenkins.length > 0 || 
-              availableIntegrations.github.length > 0
+              availableIntegrations.githubActions.length > 0
             }
           />
         );
@@ -215,11 +215,17 @@ export function ConfigurationWizard({
         }
         return (
           <FixedPipelineCategories
-            pipelines={config.workflows || []}
-            onChange={(pipelines) => setConfig({ ...config, workflows: pipelines })}
+            pipelines={config.ciConfig?.workflows || []}
+            onChange={(pipelines) => setConfig({ 
+              ...config, 
+              ciConfig: {
+                ...config.ciConfig,
+                workflows: pipelines
+              }
+            })}
             availableIntegrations={{
               jenkins: availableIntegrations.jenkins,
-              github: availableIntegrations.github,
+              githubActions: availableIntegrations.githubActions,
             }}
             selectedPlatforms={config.platforms || []}
             tenantId={tenantId}
