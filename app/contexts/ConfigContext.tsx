@@ -183,7 +183,7 @@ export function ConfigProvider({
   
   const getConnectedIntegrations = useCallback((category?: string): ConnectedIntegration[] => {
     if (!tenantConfig?.releaseManagement?.connectedIntegrations) return [];
-    console.log('[ConfigContext] Connected integrations :' + "category" + category, tenantConfig?.releaseManagement?.connectedIntegrations);
+    //console.log('[ConfigContext] Connected integrations :' + "category" + category, tenantConfig?.releaseManagement?.connectedIntegrations);
     const connected = tenantConfig.releaseManagement.connectedIntegrations;
     
     ;

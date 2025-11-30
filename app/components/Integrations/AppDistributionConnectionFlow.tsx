@@ -18,7 +18,7 @@ import {
   Card,
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconDeviceMobile } from '@tabler/icons-react';
-import { apiPost, getApiErrorMessage } from '~/utils/api-client';
+import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import type {
   StoreType,
   Platform,
@@ -117,8 +117,8 @@ export function AppDistributionConnectionFlow({
   // Validation functions
   const isFormValid =
     storeType === TARGET_PLATFORMS.PLAY_STORE
-      ? validatePlayStoreData(playStoreData)
-      : validateAppStoreData(appStoreData);
+      ? validatePlayStoreData(playStoreData, isEditMode)
+      : validateAppStoreData(appStoreData, isEditMode);
 
   const handleVerify = async () => {
     setIsVerifying(true);
@@ -188,48 +188,86 @@ export function AppDistributionConnectionFlow({
       let payload: any;
       const platform = allowedPlatforms[0]; // Backend expects singular
 
-      // Encrypt sensitive credentials before sending
+      // Encrypt sensitive credentials before sending (only for new connections or when credentials are updated)
       if (storeType === TARGET_PLATFORMS.PLAY_STORE) {
-        const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson?.private_key || '');
-        payload = {
-          ...playStoreData,
-          serviceAccountJson: {
-            ...playStoreData.serviceAccountJson,
-            private_key: encryptedPrivateKey,
-            _encrypted: true, // Flag to indicate encryption
-          },
-        };
+        // For Play Store
+        if (playStoreData.serviceAccountJson?.private_key) {
+          // Encrypt private key if provided
+          const encryptedPrivateKey = await encrypt(playStoreData.serviceAccountJson.private_key);
+          payload = {
+            ...playStoreData,
+            serviceAccountJson: {
+              ...playStoreData.serviceAccountJson,
+              private_key: encryptedPrivateKey,
+              _encrypted: true, // Flag to indicate encryption
+            },
+          };
+        } else {
+          // In edit mode without new private key
+          payload = {
+            displayName: playStoreData.displayName,
+            appIdentifier: playStoreData.appIdentifier,
+            defaultTrack: playStoreData.defaultTrack,
+          };
+          // Only include serviceAccountJson fields if they exist (excluding private_key)
+          if (playStoreData.serviceAccountJson) {
+            const { private_key, ...restServiceAccount } = playStoreData.serviceAccountJson;
+            if (Object.keys(restServiceAccount).length > 0) {
+              payload.serviceAccountJson = restServiceAccount;
+            }
+          }
+        }
       } else {
-        // App Store - encrypt privateKeyPem
-        const encryptedPem = await encrypt(appStoreData.privateKeyPem || '');
-        payload = {
-          ...appStoreData,
-          privateKeyPem: encryptedPem,
-        };
+        // For App Store
+        if (appStoreData.privateKeyPem) {
+          // Encrypt privateKeyPem if provided
+          const encryptedPem = await encrypt(appStoreData.privateKeyPem);
+          payload = {
+            ...appStoreData,
+            privateKeyPem: encryptedPem,
+          };
+        } else {
+          // In edit mode without new privateKeyPem, only send other fields
+          const { privateKeyPem, ...restAppStoreData } = appStoreData;
+          payload = restAppStoreData;
+        }
       }
 
-      const result = await apiPost(
-        `/api/v1/tenants/${tenantId}/distributions`,
-        {
-          storeType,
-          platform,
-          payload,
-        }
-      );
+      let result;
+      
+      if (isEditMode && existingData?.id) {
+        // Update existing integration
+        console.log(`[${storeType}] Updating integration ${existingData.id}`);
+        result = await apiPatch(
+          `/api/v1/tenants/${tenantId}/distributions?integrationId=${existingData.id}`,
+          { payload }
+        );
+      } else {
+        // Create new integration
+        console.log(`[${storeType}] Creating new integration`);
+        result = await apiPost(
+          `/api/v1/tenants/${tenantId}/distributions`,
+          {
+            storeType,
+            platform,
+            payload,
+          }
+        );
+      }
 
       if (result.success) {
         // Mark connection as successful and clear draft
         markSaveSuccessful();
         isInFlowRef.current = false; // Reset flag after successful connect
-        console.log(`[${storeType}] Connection successful, draft cleared`);
+        console.log(`[${storeType}] ${isEditMode ? 'Update' : 'Connection'} successful, draft cleared`);
         onConnect(result);
       } else {
-        setError('Failed to connect');
+        setError(isEditMode ? 'Failed to update' : 'Failed to connect');
         isInFlowRef.current = false; // Reset flag on connect failure
         setIsSaving(false);
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to connect'));
+      setError(getApiErrorMessage(err, isEditMode ? 'Failed to update' : 'Failed to connect'));
       isInFlowRef.current = false; // Reset flag on error
       setIsSaving(false);
     }
@@ -461,7 +499,13 @@ export function AppDistributionConnectionFlow({
 
       {/* Error */}
       {error && (
-        <Alert icon={<IconAlertCircle size={16} />} color="red">
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red" 
+          title="Error"
+          onClose={() => setError(null)}
+          withCloseButton
+        >
           {error}
         </Alert>
       )}
@@ -478,23 +522,36 @@ export function AppDistributionConnectionFlow({
         <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isSaving}>
           Cancel
         </Button>
-        {!isVerified ? (
-          <Button 
-            onClick={handleVerify} 
-            loading={isVerifying}
-            disabled={!isFormValid || allowedPlatforms.length === 0}
-          >
-            Verify Credentials
-          </Button>
-        ) : (
+        {isEditMode ? (
+          // In edit mode, show "Save Changes" button directly
           <Button 
             onClick={handleConnect} 
             loading={isSaving} 
-            color="green"
-            disabled={allowedPlatforms.length === 0}
+            color="blue"
+            disabled={!isFormValid || allowedPlatforms.length === 0}
           >
-            Connect
+            Save Changes
           </Button>
+        ) : (
+          // In create mode, show verify then connect flow
+          !isVerified ? (
+            <Button 
+              onClick={handleVerify} 
+              loading={isVerifying}
+              disabled={!isFormValid || allowedPlatforms.length === 0}
+            >
+              Verify Credentials
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleConnect} 
+              loading={isSaving} 
+              color="green"
+              disabled={allowedPlatforms.length === 0}
+            >
+              Connect
+            </Button>
+          )
         )}
       </Group>
     </Stack>

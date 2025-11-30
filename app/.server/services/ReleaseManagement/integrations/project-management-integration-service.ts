@@ -79,18 +79,88 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
     data: VerifyPMRequest,
     userId: string
   ): Promise<PMVerifyResponse> {
+    const tenantId = data.tenantId || 'default-tenant';
+    const endpoint = PROJECT_MANAGEMENT.verify(tenantId);
+    
+    console.log('[ProjectManagementIntegrationService] Calling backend:', {
+      url: `${this.baseUrl}${endpoint}`,
+      method: 'POST',
+      providerType: data.providerType,
+      config: { 
+        baseUrl: data.config.baseUrl,
+        email: data.config.email,
+        jiraType: data.config.jiraType,
+        apiToken: data.config.apiToken ? `[${data.config.apiToken.length} chars]` : '[MISSING]',
+        password: '[REDACTED]'
+      },
+      userId: userId
+    });
+    
+    this.logRequest('POST', endpoint, {
+      providerType: data.providerType,
+      config: { ...data.config, apiToken: '[REDACTED]', password: '[REDACTED]' }
+    });
+    
     try {
-      const tenantId = data.tenantId || 'default-tenant';
-      
-      return await this.post<PMVerifyResponse>(
-        PROJECT_MANAGEMENT.verify(tenantId),
+      const result = await this.post<any>(
+        endpoint,
         {
           providerType: data.providerType,
           config: data.config,
         },
         userId
       );
+      
+      console.log('[ProjectManagementIntegrationService] Raw backend response:', JSON.stringify(result, null, 2));
+      
+      // Backend returns nested structure: { success: true, data: { verified, message, etc } }
+      // We need to unwrap it
+      let verificationResult: PMVerifyResponse;
+      
+      if (result.data && typeof result.data === 'object') {
+        // Response is wrapped in data field
+        verificationResult = {
+          success: result.data.success !== false,
+          verified: result.data.verified === true,
+          message: result.data.message,
+          details: result.data.details,
+          error: result.data.error,
+        };
+      } else if (typeof result.verified !== 'undefined') {
+        // Response has verified at top level
+        verificationResult = {
+          success: result.success !== false,
+          verified: result.verified === true,
+          message: result.message,
+          details: result.details,
+          error: result.error,
+        };
+      } else {
+        // Invalid response structure
+        console.error('[ProjectManagementIntegrationService] Invalid response from backend:', result);
+        return {
+          success: false,
+          verified: false,
+          error: 'Invalid response from backend - no verification status',
+        };
+      }
+      
+      this.logResponse('POST', endpoint, verificationResult.verified === true);
+      
+      return verificationResult;
     } catch (error: any) {
+      this.logResponse('POST', endpoint, false);
+      console.error('[ProjectManagementIntegrationService] Verification error:', error);
+      
+      // Check if this is a network/connection error
+      if (error.message === 'No response from server') {
+        return {
+          success: false,
+          verified: false,
+          error: 'Unable to connect to backend server. Please check your backend configuration.',
+        };
+      }
+      
       return {
         success: false,
         verified: false,

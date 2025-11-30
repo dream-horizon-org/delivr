@@ -13,6 +13,12 @@ import type { SystemMetadataBackend } from '~/types/system-metadata';
  */
 export const loader = authenticateLoaderRequest(async ({ user }) => {
   try {
+    // Safety check for user object
+    if (!user || !user.user || !user.user.id) {
+      console.error('[DashboardIndex] Invalid user object:', user);
+      throw new Error('User not authenticated properly');
+    }
+    
     const response = await CodepushService.getSystemMetadata(user.user.id);
     
     // Enrich with app distribution metadata (same as API route)

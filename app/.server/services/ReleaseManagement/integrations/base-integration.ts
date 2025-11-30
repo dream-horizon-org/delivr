@@ -61,12 +61,30 @@ export abstract class IntegrationService {
     config?: AxiosRequestConfig
   ): Promise<T> {
     try {
+      console.log(`[IntegrationService] POST ${this.baseUrl}${url}`, {
+        headers: this.buildHeaders(userId, config?.headers),
+        dataKeys: Object.keys(data || {}),
+        dataValues: JSON.stringify(data, null, 2)
+      });
+      
       const response: AxiosResponse<T> = await this.client.post(url, data, {
         ...config,
         headers: this.buildHeaders(userId, config?.headers),
       });
+      
+      console.log(`[IntegrationService] POST ${url} - Success:`, {
+        status: response.status,
+        dataKeys: response.data ? Object.keys(response.data as any) : [],
+        data: response.data
+      });
+      
       return response.data;
     } catch (error: any) {
+      console.error(`[IntegrationService] POST ${url} - Error:`, {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       throw this.handleError(error);
     }
   }
@@ -136,6 +154,13 @@ export abstract class IntegrationService {
   protected handleError(error: any): Error {
     if (error.response) {
       // Server responded with error status
+      console.error('[IntegrationService] Backend error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+      
       const message = error.response.data?.message || error.response.data?.error || error.message;
       const err = new Error(message);
       (err as any).status = error.response.status;
@@ -143,9 +168,23 @@ export abstract class IntegrationService {
       return err;
     } else if (error.request) {
       // Request was made but no response
-      return new Error('No response from server');
+      console.error('[IntegrationService] No response from backend:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL,
+        timeout: error.config?.timeout,
+        headers: error.config?.headers
+      });
+      
+      // Check if it's a timeout
+      if (error.code === 'ECONNABORTED') {
+        return new Error(`Request timeout after ${error.config?.timeout}ms. Backend server may be slow or not responding.`);
+      }
+      
+      return new Error('No response from server. Check if backend is running and reachable.');
     } else {
       // Something else happened
+      console.error('[IntegrationService] Unexpected error:', error);
       return error;
     }
   }

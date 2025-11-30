@@ -7,14 +7,31 @@ import {
 } from "~/utils/authenticate";
 
 export const loader = authenticateLoaderRequest(async ({ user }) => {
-  const { data, status } = await CodepushService.getTenants(user.user.id);
-  return json(data, { status });
+  try {
+    // Safety check for user object
+    if (!user || !user.user || !user.user.id) {
+      console.error('[API-Tenants] Invalid user object:', user);
+      return json({ error: 'User not authenticated' }, { status: 401 });
+    }
+    
+    const { data, status } = await CodepushService.getTenants(user.user.id);
+    return json(data, { status });
+  } catch (error: any) {
+    console.error('[API-Tenants] Error fetching tenants:', error.message);
+    return json({ error: 'Failed to fetch tenants' }, { status: 500 });
+  }
 });
 
 const createOrganization: AuthenticatedActionFunction = async ({ request, user }) => {
   try {
     console.log("=== CREATE ORGANIZATION REQUEST ===");
     console.log("User:", user);
+    
+    // Safety check for user object
+    if (!user || !user.user || !user.user.id) {
+      console.error("Invalid user object");
+      return json({ error: "User not authenticated" }, { status: 401 });
+    }
     
     // Parse request body
     const body = await request.json();

@@ -69,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <MantineProvider theme={mantineTheme} defaultColorScheme="auto">
-              <Notifications />
+              <Notifications position="bottom-right" />
               {children}
             </MantineProvider>
           </QueryClientProvider>
