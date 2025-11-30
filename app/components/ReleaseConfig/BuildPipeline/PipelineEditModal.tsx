@@ -4,7 +4,7 @@
  * Uses WorkflowCreateModal internally for creating new workflows
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Modal, Button, Stack, Group, Alert, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { 
@@ -68,7 +68,7 @@ const convertCICDWorkflowToWorkflow = (cicdWorkflow: CICDWorkflow, name?: string
   };
 };
 
-export function PipelineEditModal({
+function PipelineEditModalComponent({
   opened,
   onClose,
   onSave,
@@ -87,7 +87,6 @@ export function PipelineEditModal({
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>();
   const [workflowCreateModalOpened, setWorkflowCreateModalOpened] = useState(false);
   const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
-  console.log('availableIntegrations', availableIntegrations);
   
   // Filter workflows by platform and environment
   // System only supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only)
@@ -111,7 +110,10 @@ export function PipelineEditModal({
     });
   }, [workflows, fixedPlatform, fixedEnvironment]);
   
-  const selectedWorkflow = relevantWorkflows.find(w => w.id === selectedWorkflowId);
+  const selectedWorkflow = useMemo(
+    () => relevantWorkflows.find(w => w.id === selectedWorkflowId),
+    [relevantWorkflows, selectedWorkflowId]
+  );
   
   // Determine available providers based on connected integrations
   const availableProviders: BuildProvider[] = useMemo(() => {
@@ -149,7 +151,7 @@ export function PipelineEditModal({
       }
       setWorkflowCreateModalOpened(false);
     }
-  }, [opened, pipeline, relevantWorkflows.length, workflows]);
+  }, [opened, pipeline, relevantWorkflows.length, workflows, workflowTypeToEnvironment]);
 
   // Handle creating a new workflow via WorkflowCreateModal
   const handleCreateWorkflow = useCallback(async (workflowData: any) => {
@@ -162,14 +164,12 @@ export function PipelineEditModal({
         `/api/v1/tenants/${tenantId}/workflows`,
         workflowData
       );
-      console.log('result', result);
 
       if (result.success) {
         showSuccessToast({ title: 'Success', message: 'Workflow created successfully' });
         
-        // Fetch the created workflow (we need the full object with ID)
         const createdWorkflow: CICDWorkflow = {
-          id: workflowData.id || "",
+          id: "", // Backend generates ID but doesn't return it - will be populated after refresh
           tenantId,
           providerType: workflowData.providerType,
           integrationId: workflowData.integrationId,
@@ -179,8 +179,8 @@ export function PipelineEditModal({
           platform: workflowData.platform,
           workflowType: workflowData.workflowType,
           parameters: workflowData.parameters || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: "", // Placeholder - set by database, not used by convertCICDWorkflowToWorkflow
+          updatedAt: "", // Placeholder - set by database, not used by convertCICDWorkflowToWorkflow
         };
         
         // Convert to Workflow and attach to pipeline config
@@ -213,7 +213,7 @@ export function PipelineEditModal({
   }, [tenantId, fixedPlatform, fixedEnvironment, onSave, onClose]);
 
   // Handle selecting existing workflow
-  const handleSelectExisting = () => {
+  const handleSelectExisting = useCallback(() => {
     if (!selectedWorkflow) return;
     
     // Convert CICDWorkflow to Workflow
@@ -233,25 +233,34 @@ export function PipelineEditModal({
     
     onSave(workflowConfig);
     onClose();
-  };
+  }, [selectedWorkflow, fixedPlatform, fixedEnvironment, onSave, onClose]);
 
-  const validate = (): boolean => {
+  const validate = useCallback((): boolean => {
     if (configMode === CONFIG_MODES.EXISTING) {
       if (!selectedWorkflowId) {
         return false;
       }
     }
     return true;
-  };
+  }, [configMode, selectedWorkflowId]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (configMode === CONFIG_MODES.EXISTING) {
       handleSelectExisting();
     } else {
       // Open WorkflowCreateModal
       setWorkflowCreateModalOpened(true);
     }
-  };
+  }, [configMode, handleSelectExisting]);
+
+  const handleConfigModeChange = useCallback((mode: typeof CONFIG_MODES[keyof typeof CONFIG_MODES]) => {
+    setConfigMode(mode);
+    setSelectedWorkflowId(undefined);
+  }, []);
+
+  const handleCloseWorkflowModal = useCallback(() => {
+    setWorkflowCreateModalOpened(false);
+  }, []);
 
   return (
     <>
@@ -275,10 +284,7 @@ export function PipelineEditModal({
           {/* Configuration Mode Selection */}
           <WorkflowModeSelector
             configMode={configMode}
-            onChange={(mode) => {
-              setConfigMode(mode);
-              setSelectedWorkflowId(undefined);
-            }}
+            onChange={handleConfigModeChange}
             existingWorkflowCount={relevantWorkflows.length}
           />
           
@@ -316,7 +322,7 @@ export function PipelineEditModal({
       {/* Nested WorkflowCreateModal */}
       <WorkflowCreateModal
         opened={workflowCreateModalOpened}
-        onClose={() => setWorkflowCreateModalOpened(false)}
+        onClose={handleCloseWorkflowModal}
         onSave={handleCreateWorkflow}
         availableIntegrations={availableIntegrations}
         tenantId={tenantId || ''}
@@ -327,4 +333,10 @@ export function PipelineEditModal({
       />
     </>
   );
+}
+
+// Export the component directly (memo can be added later if needed for performance)
+// Temporarily removing memo to fix HMR issues
+export function PipelineEditModal(props: PipelineEditModalProps) {
+  return <PipelineEditModalComponent {...props} />;
 }

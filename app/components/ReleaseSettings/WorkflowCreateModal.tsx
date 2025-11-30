@@ -4,7 +4,7 @@
  * Reuses JenkinsConfigForm and GitHubActionsConfigForm components
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Modal, Button, TextInput, Select, Stack, Group, Text, Alert } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
@@ -49,7 +49,7 @@ export interface WorkflowCreateModalProps {
   fixedEnvironment?: string; // Pre-fill environment (from PipelineEditModal)
 }
 
-export function WorkflowCreateModal({
+function WorkflowCreateModalComponent({
   opened,
   onClose,
   onSave,
@@ -81,7 +81,10 @@ export function WorkflowCreateModal({
     return providers;
   }, [availableIntegrations]);
 
-  const defaultProvider: BuildProvider = (availableProviders[0] || BUILD_PROVIDERS.JENKINS) as BuildProvider;
+  const defaultProvider: BuildProvider = useMemo(
+    () => (availableProviders[0] || BUILD_PROVIDERS.JENKINS) as BuildProvider,
+    [availableProviders]
+  );
 
   // Initialize form from existing workflow
   useEffect(() => {
@@ -127,6 +130,8 @@ export function WorkflowCreateModal({
 
   // Reset provider config when provider changes and auto-inject integrationId
   useEffect(() => {
+    if (!opened) return;
+    
     if (provider === BUILD_PROVIDERS.JENKINS) {
       // Auto-select integration if only one exists
       const jenkinsIntegrations = availableIntegrations.jenkins || [];
@@ -134,12 +139,12 @@ export function WorkflowCreateModal({
         ? jenkinsIntegrations[0].id 
         : providerConfig.integrationId || '';
       
-      setProviderConfig({
+      setProviderConfig((prev: any) => ({
         type: BUILD_PROVIDERS.JENKINS,
         integrationId: autoIntegrationId,
-        jobUrl: providerConfig.jobUrl || '',
-        parameters: providerConfig.parameters || {},
-      });
+        jobUrl: prev.jobUrl || '',
+        parameters: prev.parameters || {},
+      }));
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
       // Auto-select integration if only one exists
       const githubIntegrations = availableIntegrations.githubActions || [];
@@ -147,28 +152,28 @@ export function WorkflowCreateModal({
         ? githubIntegrations[0].id 
         : providerConfig.integrationId || '';
       
-      setProviderConfig({
+      setProviderConfig((prev: any) => ({
         type: BUILD_PROVIDERS.GITHUB_ACTIONS,
         integrationId: autoIntegrationId,
-        workflowUrl: providerConfig.workflowUrl || '',
-        inputs: providerConfig.inputs || {},
-      });
+        workflowUrl: prev.workflowUrl || '',
+        inputs: prev.inputs || {},
+      }));
     }
-  }, [provider, availableIntegrations]);
+  }, [provider, availableIntegrations, opened, providerConfig.integrationId]);
 
   // Filter environment options based on platform using centralized mapping
-  const filteredEnvironmentOptions = environmentOptions.filter((opt) => {
+  const filteredEnvironmentOptions = useMemo(() => {
     // If fixed environment is provided (from PipelineEditModal), only show that
     if (fixedEnvironment) {
-      return opt.value === fixedEnvironment;
+      return environmentOptions.filter(opt => opt.value === fixedEnvironment);
     }
     
     // Use centralized platform-to-environment mapping
     const validEnvironments = getEnvironmentsForPlatform(platform as Platform);
-    return validEnvironments.includes(opt.value as BuildEnvironment);
-  });
+    return environmentOptions.filter(opt => validEnvironments.includes(opt.value as BuildEnvironment));
+  }, [platform, fixedEnvironment]);
 
-  const validate = (): boolean => {
+  const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!name.trim()) {
@@ -198,9 +203,9 @@ export function WorkflowCreateModal({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [name, provider, providerConfig]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!validate()) return;
 
     // Build workflow data for backend API
@@ -249,7 +254,31 @@ export function WorkflowCreateModal({
     }
 
     await onSave(workflowData);
-  };
+  }, [validate, provider, providerConfig, name, platform, environment, onSave]);
+
+  const handlePlatformChange = useCallback((val: string | null) => {
+    const newPlatform = (val || PLATFORMS.ANDROID) as Platform;
+    setPlatform(newPlatform);
+    
+    // Reset environment if current environment is not valid for new platform
+    const validEnvironments = getEnvironmentsForPlatform(newPlatform);
+    setEnvironment(prevEnv => {
+      if (!validEnvironments.includes(prevEnv as BuildEnvironment)) {
+        // Set to first valid environment for the new platform
+        return validEnvironments[0] || BUILD_ENVIRONMENTS.PRE_REGRESSION;
+      }
+      return prevEnv;
+    });
+  }, []);
+
+  const handleEnvironmentChange = useCallback((val: string | null) => {
+    setEnvironment(val || BUILD_ENVIRONMENTS.PRE_REGRESSION);
+  }, []);
+
+  const handleProviderChange = useCallback((val: BuildProvider) => {
+    setProvider(val);
+  }, []);
+
 
   return (
     <Modal
@@ -274,17 +303,7 @@ export function WorkflowCreateModal({
             label={FIELD_LABELS.PLATFORM}
             data={platformOptions}
             value={platform}
-            onChange={(val) => {
-              const newPlatform = (val || PLATFORMS.ANDROID) as Platform;
-              setPlatform(newPlatform);
-              
-              // Reset environment if current environment is not valid for new platform
-              const validEnvironments = getEnvironmentsForPlatform(newPlatform);
-              if (!validEnvironments.includes(environment as BuildEnvironment)) {
-                // Set to first valid environment for the new platform
-                setEnvironment(validEnvironments[0] || BUILD_ENVIRONMENTS.PRE_REGRESSION);
-              }
-            }}
+            onChange={handlePlatformChange}
             required
             disabled={!!fixedPlatform}
             description={fixedPlatform ? 'Platform is fixed for this category' : undefined}
@@ -294,7 +313,7 @@ export function WorkflowCreateModal({
             label={FIELD_LABELS.ENVIRONMENT}
             data={filteredEnvironmentOptions}
             value={environment}
-            onChange={(val) => setEnvironment(val || BUILD_ENVIRONMENTS.PRE_REGRESSION)}
+            onChange={handleEnvironmentChange}
             required
             error={errors.environment}
             disabled={!!fixedEnvironment}
@@ -327,7 +346,7 @@ export function WorkflowCreateModal({
           <>
             <PipelineProviderSelect
               value={provider}
-              onChange={setProvider}
+              onChange={handleProviderChange}
               availableProviders={availableProviders as any}
             />
 
@@ -373,5 +392,11 @@ export function WorkflowCreateModal({
       </Stack>
     </Modal>
   );
+}
+
+// Export the component directly (memo can be added later if needed for performance)
+// Temporarily removing memo to fix HMR issues
+export function WorkflowCreateModal(props: WorkflowCreateModalProps) {
+  return <WorkflowCreateModalComponent {...props} />;
 }
 

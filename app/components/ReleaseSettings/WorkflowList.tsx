@@ -15,7 +15,7 @@ export interface WorkflowListProps {
   workflows: CICDWorkflow[];
   availableIntegrations: {
     jenkins: Array<{ id: string; name: string }>;
-    github: Array<{ id: string; name: string }>;
+    githubActions: Array<{ id: string; name: string }>;
   };
   tenantId: string;
   onRefresh: () => void;
@@ -39,7 +39,7 @@ export function WorkflowList({
   const [workflowToDelete, setWorkflowToDelete] = useState<CICDWorkflow | null>(null);
 
   const hasJenkinsIntegration = availableIntegrations.jenkins.length > 0;
-  const hasGitHubIntegration = availableIntegrations.github.length > 0;
+  const hasGitHubIntegration = availableIntegrations.githubActions.length > 0;
   const hasAnyIntegration = hasJenkinsIntegration || hasGitHubIntegration;
 
   const handleCreate = async (workflowData: any) => {

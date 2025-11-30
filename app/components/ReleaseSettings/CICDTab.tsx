@@ -29,7 +29,7 @@ export const CICDTab = memo(function CICDTab({ org }: CICDTabProps) {
     jenkins: cicdIntegrations
       .filter(i => i.providerId.toLowerCase() === 'jenkins')
       .map(i => ({ id: i.id, name: i.name || 'Jenkins' })),
-    github: cicdIntegrations
+    githubActions: cicdIntegrations
       .filter(i => i.providerId.toLowerCase() === 'github_actions' || i.providerId.toLowerCase() === 'github')
       .map(i => ({ id: i.id, name: i.name || 'GitHub Actions' })),
   }), [cicdIntegrations]);
