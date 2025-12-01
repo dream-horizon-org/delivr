@@ -661,7 +661,7 @@ export class ReleaseConfigService {
     currentUserId: string
   ): Promise<void> {
     if (!this.testManagementConfigService) return;
-    console.log('[updateTestManagementConfig] Update data:', JSON.stringify(updateData, null, 2));
+
 
     // Prepare data for mapper: mapper expects { tenantId, testManagementConfig: {...} }
     // updateData is already the testManagementConfig object from the request
@@ -704,7 +704,6 @@ export class ReleaseConfigService {
     currentUserId: string
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
-    console.log('[createTestManagementConfig] Update data in createTestManagementConfig:', JSON.stringify(updateData, null, 2));
 
     // testManagementConfigData IS the config object - wrap it for the mapper
     const normalizedData = {
