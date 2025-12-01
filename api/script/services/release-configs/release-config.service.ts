@@ -646,7 +646,7 @@ export class ReleaseConfigService {
     return await this.createTestManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
-      testMgmtData,
+      testMgmtData,  // Pass extracted config object, not full updateData
       currentUserId
     );
   }
@@ -700,33 +700,38 @@ export class ReleaseConfigService {
   private async createTestManagementConfig(
     tenantId: string,
     releaseConfigName: string,
-    updateData: any,
+    testManagementConfigData: any,  // This IS the config object, not a wrapper
     currentUserId: string
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
 
-    // Field names are now consistent: use testManagementConfig (with Config suffix)
-    // updateData already has testManagementConfig from the request
+    // testManagementConfigData IS the config object - wrap it for the mapper
     const normalizedData = {
-      ...updateData,
       tenantId,
-      testManagementConfig: updateData.testManagementConfig
+      testManagementConfig: testManagementConfigData  // Just wrap it, don't extract from it
     };
 
+    console.log('[createTestManagementConfig] Creating with data:', JSON.stringify(testManagementConfigData, null, 2));
+
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData,
+      normalizedData as any,  // Cast to any for partial data
       currentUserId
     );
 
-    if (!integrationConfigs.testManagement) return null;
+    if (!integrationConfigs.testManagement) {
+      console.log('[createTestManagementConfig] Mapper returned null - check data structure');
+      return null;
+    }
 
     const tcmConfigDto: CreateTestManagementConfigDto = {
       tenantId,
-      name: normalizedData.testManagementConfig?.name || `TCM Config for ${releaseConfigName}`,
+      name: testManagementConfigData.name || `TCM Config for ${releaseConfigName}`,
       ...integrationConfigs.testManagement
     };
 
+    console.log('[createTestManagementConfig] Creating config with DTO:', JSON.stringify(tcmConfigDto, null, 2));
     const tcmResult = await this.testManagementConfigService.createConfig(tcmConfigDto);
+    console.log('[createTestManagementConfig] Created with ID:', tcmResult.id);
     return tcmResult.id;
   }
 
@@ -811,7 +816,7 @@ export class ReleaseConfigService {
     return await this.createProjectManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
-      updateData,
+      projectMgmtData,  // Pass extracted config object, not full updateData
       currentUserId
     );
   }
@@ -866,38 +871,37 @@ export class ReleaseConfigService {
   private async createProjectManagementConfig(
     tenantId: string,
     releaseConfigName: string,
-    updateData: any,
+    projectManagementConfigData: any,  // This IS the config object, not a wrapper
     currentUserId: string
   ): Promise<string | null> {
     if (!this.projectManagementConfigService) return null;
 
-    // Field names are now consistent: use projectManagementConfig (with Config suffix)
-    // Map projectManagementConfig to projectManagement for the mapper
+    // projectManagementConfigData IS the config object - wrap it for the mapper
     const normalizedData = {
-      ...updateData,
       tenantId,
-      projectManagementConfig: updateData.projectManagementConfig || updateData.projectManagement
+      projectManagementConfig: projectManagementConfigData  // Just wrap it, don't extract from it
     };
 
+    console.log('[createProjectManagementConfig] Creating with data:', JSON.stringify(projectManagementConfigData, null, 2));
+
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData,
+      normalizedData as any,  // Cast to any for partial data
       currentUserId
     );
 
-    if (!integrationConfigs.projectManagement) return null;
-
-    // Extract name from the projectManagementConfig if available, otherwise use fallback
-    const pmConfigName = updateData.projectManagementConfig?.name || 
-                        normalizedData.projectManagementConfig?.name || 
-                        `PM Config for ${releaseConfigName || 'Release Config'}`;
+    if (!integrationConfigs.projectManagement) {
+      console.log('[createProjectManagementConfig] Mapper returned null - check data structure');
+      return null;
+    }
 
     const pmResult = await this.projectManagementConfigService.createConfig({
       tenantId,
-      name: pmConfigName,
+      name: projectManagementConfigData.name || `PM Config for ${releaseConfigName}`,
       ...integrationConfigs.projectManagement,
       createdByAccountId: currentUserId
     });
 
+    console.log('[createProjectManagementConfig] Created with ID:', pmResult.id);
     return pmResult.id;
   }
 
@@ -981,7 +985,7 @@ export class ReleaseConfigService {
     console.log('[handleCommsConfigId] Creating new config');
     return await this.createCommsConfig(
       existingConfig.tenantId,
-      updateData,
+      commsData,  // Pass extracted config object, not full updateData
       currentUserId
     );
   }
@@ -1023,40 +1027,39 @@ export class ReleaseConfigService {
    */
   private async createCommsConfig(
     tenantId: string,
-    updateData: any,
+    communicationConfigData: any,  // This IS the config object, not a wrapper
     currentUserId: string
   ): Promise<string | null> {
     if (!this.commConfigService) return null;
 
-    // Field names are now consistent: use communicationConfig (with Config suffix)
-    // updateData already has communicationConfig from the request
+    // communicationConfigData IS the config object - wrap it for the mapper
     const normalizedData = {
-      ...updateData,
       tenantId,
-      communicationConfig: updateData.communicationConfig
+      communicationConfig: communicationConfigData  // Just wrap it, don't extract from it
     };
 
-    console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communicationConfig, null, 2));
+    console.log('[createCommsConfig] Creating with data:', JSON.stringify(communicationConfigData, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData,
+      normalizedData as any,  // Cast to any for partial data
       currentUserId
     );
 
     console.log('[createCommsConfig] Integration configs.communication:', JSON.stringify(integrationConfigs.communication, null, 2));
 
-    if (!integrationConfigs.communication) return null;
+    if (!integrationConfigs.communication) {
+      console.log('[createCommsConfig] Mapper returned null - check data structure');
+      return null;
+    }
 
     const createDto = {
       tenantId,
       channelData: integrationConfigs.communication.channelData
     };
 
-    console.log('[createCommsConfig] CreateDTO being passed to createConfig:', JSON.stringify(createDto, null, 2));
-
+    console.log('[createCommsConfig] Creating config with DTO:', JSON.stringify(createDto, null, 2));
     const commsResult = await this.commConfigService.createConfig(createDto);
-
-    console.log('[createCommsConfig] Created comms config with ID:', commsResult.id);
+    console.log('[createCommsConfig] Created with ID:', commsResult.id);
 
     return commsResult.id;
   }
