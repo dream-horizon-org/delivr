@@ -1028,14 +1028,15 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.commConfigService) return null;
 
-    // Field names are now consistent: use communication directly
+    // Field names are now consistent: use communicationConfig (with Config suffix)
+    // updateData already has communicationConfig from the request
     const normalizedData = {
       ...updateData,
       tenantId,
-      communication: updateData.communication
+      communicationConfig: updateData.communicationConfig
     };
 
-    console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communication, null, 2));
+    console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communicationConfig, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
       normalizedData,
