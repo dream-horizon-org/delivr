@@ -705,11 +705,12 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
 
-    // Field names are now consistent: use testManagement directly
+    // Field names are now consistent: use testManagementConfig (with Config suffix)
+    // updateData already has testManagementConfig from the request
     const normalizedData = {
       ...updateData,
       tenantId,
-      testManagement: updateData.testManagement
+      testManagementConfig: updateData.testManagementConfig
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
@@ -721,7 +722,7 @@ export class ReleaseConfigService {
 
     const tcmConfigDto: CreateTestManagementConfigDto = {
       tenantId,
-      name: normalizedData.testManagement.name || `TCM Config for ${releaseConfigName}`,
+      name: normalizedData.testManagementConfig?.name || `TCM Config for ${releaseConfigName}`,
       ...integrationConfigs.testManagement
     };
 
