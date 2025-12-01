@@ -69,6 +69,10 @@ export function validateReleaseCreationState(
     errors.baseBranch = 'Base branch is required';
   }
 
+  if (!state.branch || state.branch.trim() === '') {
+    errors.branch = 'Release branch name is required';
+  }
+
   // Date validation
   if (!state.kickOffDate) {
     errors.kickOffDate = 'Kickoff date is required';
@@ -128,6 +132,38 @@ export function validateReleaseCreationState(
   // Kickoff time is required
   if (!state.kickOffTime) {
     errors.kickOffTime = 'Kickoff time is required';
+  }
+
+  // Validate kickoff reminder date and time (if provided)
+  if (state.kickOffReminderDate || state.kickOffReminderTime) {
+    // Both date and time should be provided together
+    if (!state.kickOffReminderDate) {
+      errors.kickOffReminderDate = 'Kickoff reminder date is required when reminder time is set';
+    }
+    if (!state.kickOffReminderTime) {
+      errors.kickOffReminderTime = 'Kickoff reminder time is required when reminder date is set';
+    }
+
+    // Validate reminder is before kickoff (including time)
+    if (state.kickOffReminderDate && state.kickOffReminderTime && state.kickOffDate && state.kickOffTime) {
+      const reminderDateTime = combineDateAndTime(
+        state.kickOffReminderDate,
+        state.kickOffReminderTime
+      );
+      const kickOffDateTime = combineDateAndTime(
+        state.kickOffDate,
+        state.kickOffTime
+      );
+      
+      const reminder = new Date(reminderDateTime);
+      const kickOff = new Date(kickOffDateTime);
+      
+      if (isNaN(reminder.getTime())) {
+        errors.kickOffReminderDate = 'Invalid kickoff reminder date and time format';
+      } else if (reminder >= kickOff) {
+        errors.kickOffReminderDate = 'Kickoff reminder date and time must be before kickoff date and time';
+      }
+    }
   }
 
   // Validate regression slots if provided

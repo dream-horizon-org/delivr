@@ -75,8 +75,10 @@ export function RegressionSlotsManager({
     if (!kickOffDate || !targetReleaseDate) {
       return 0;
     }
+
     const kickOff = new Date(kickOffDate);
     const targetRelease = new Date(targetReleaseDate);
+    console.log('targetReleaseOffset', kickOffDate, targetReleaseDate, daysBetween(kickOff, targetRelease));
     return daysBetween(kickOff, targetRelease);
   }, [kickOffDate, targetReleaseDate]);
 

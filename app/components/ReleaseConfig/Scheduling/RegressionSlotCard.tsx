@@ -44,6 +44,7 @@ export function RegressionSlotCard({
   targetReleaseTime,
   kickoffTime,
 }: RegressionSlotCardProps) {
+  console.log('slot in regression slot card', targetReleaseOffset);
   const timeValidation = useMemo(() => {
     if (!slot.time || !kickoffTime || !targetReleaseTime) {
       return { hasError: false, message: '' };
@@ -156,21 +157,39 @@ export function RegressionSlotCard({
           <NumberInput
             label="Days from Kickoff"
             value={slot.regressionSlotOffsetFromKickoff}
-            onChange={(val) =>
-              onUpdate({
-                ...slot,
-                regressionSlotOffsetFromKickoff: Number(val) || 0,
-              })
-            }
+            onChange={(val) => {
+              // Handle Mantine NumberInput onChange properly
+              // val can be string | number | undefined
+              // Only update if we have a valid number
+              const numValue = typeof val === 'string' 
+                ? (val === '' ? undefined : parseInt(val, 10))
+                : val;
+              
+              // Only update state if we have a valid number
+              if (numValue !== undefined && numValue !== null && !isNaN(numValue)) {
+                // Clamp to valid range
+                const clampedValue = Math.max(0, Math.min(numValue, targetReleaseOffset || Infinity));
+                onUpdate({
+                  ...slot,
+                  regressionSlotOffsetFromKickoff: clampedValue,
+                });
+              }
+            }}
             required
             min={0}
-            max={targetReleaseOffset}
-            description={`Must be between 0 and ${targetReleaseOffset}`}
+            max={targetReleaseOffset > 0 ? targetReleaseOffset : undefined}
+            allowDecimal={false}
+            allowNegative={false}
+            description={
+              targetReleaseOffset > 0
+                ? `Must be between 0 and ${targetReleaseOffset} (target release is ${targetReleaseOffset} days from kickoff)`
+                : 'Must be 0 or greater (target release date must be after kickoff)'
+            }
             error={
               hasOffsetError
                 ? slot.regressionSlotOffsetFromKickoff < 0
                   ? 'Cannot be negative'
-                  : `Must be ≤ ${targetReleaseOffset}`
+                  : `Must be ≤ ${targetReleaseOffset} (cannot be after target release date)`
                 : undefined
             }
           />

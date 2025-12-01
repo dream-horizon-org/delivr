@@ -355,3 +355,53 @@ export function convertUpdateStateToBackendRequest(
   return request;
 }
 
+// ============================================================================
+// Release to Form State Conversion (for Edit Mode)
+// ============================================================================
+
+/**
+ * Convert backend release response to release creation form state
+ * Used for editing existing releases
+ * 
+ * @param release - Backend release response
+ * @returns Release creation state for form
+ */
+export function convertReleaseToFormState(
+  release: any
+): Partial<ReleaseCreationState> {
+  const kickOffDate = release.kickOffDate ? extractDateAndTime(release.kickOffDate) : undefined;
+  const targetReleaseDate = release.targetReleaseDate ? extractDateAndTime(release.targetReleaseDate) : undefined;
+  const kickOffReminderDate = release.kickOffReminderDate ? extractDateAndTime(release.kickOffReminderDate) : undefined;
+
+  // Convert platformTargetMappings to platformTargets format
+  const platformTargets: PlatformTargetWithVersion[] = (release.platformTargetMappings || []).map((mapping: any) => ({
+    platform: mapping.platform as Platform,
+    target: mapping.target as TargetPlatform,
+    version: mapping.version,
+  }));
+
+  // Convert regression slots from backend format (date-based) to form format
+  const regressionBuildSlots: RegressionBuildSlotBackend[] = (release.cronJob?.upcomingRegressions || []).map((reg: any) => ({
+    date: reg.date,
+    config: reg.config || {},
+  }));
+
+  return {
+    type: release.type,
+    releaseConfigId: release.releaseConfigId || undefined,
+    platformTargets,
+    baseBranch: release.baseBranch || '',
+    branch: release.branch || undefined,
+    baseReleaseId: release.baseReleaseId || undefined,
+    kickOffDate: kickOffDate?.date || '',
+    kickOffTime: kickOffDate?.time || '',
+    targetReleaseDate: targetReleaseDate?.date || '',
+    targetReleaseTime: targetReleaseDate?.time || '',
+    kickOffReminderDate: kickOffReminderDate?.date || undefined,
+    kickOffReminderTime: kickOffReminderDate?.time || undefined,
+    regressionBuildSlots,
+    hasManualBuildUpload: release.hasManualBuildUpload || false,
+    cronConfig: release.cronJob?.cronConfig || undefined,
+  };
+}
+

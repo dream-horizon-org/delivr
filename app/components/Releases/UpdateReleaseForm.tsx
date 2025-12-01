@@ -7,9 +7,11 @@
 import { useState, useEffect } from 'react';
 import { Modal, Stack, Button, Group, Text, Alert, Select, TextInput } from '@mantine/core';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { useQueryClient } from 'react-query';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { RELEASE_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { invalidateReleases } from '~/utils/cache-invalidation';
 import type { UpdateReleaseState, UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 import { convertUpdateStateToBackendRequest, extractDateAndTime } from '~/utils/release-creation-converter';
@@ -31,6 +33,7 @@ export function UpdateReleaseForm({
   tenantId,
   onSuccess,
 }: UpdateReleaseFormProps) {
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [state, setState] = useState<UpdateReleaseState>({});
@@ -124,6 +127,9 @@ export function UpdateReleaseForm({
       if (!result.data?.success) {
         throw new Error(result.data?.error || 'Failed to update release');
       }
+
+      // Invalidate releases query to refetch all releases
+      await invalidateReleases(queryClient, tenantId);
 
       showSuccessToast(RELEASE_MESSAGES.UPDATE_SUCCESS);
       onSuccess();

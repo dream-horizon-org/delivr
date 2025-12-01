@@ -212,7 +212,7 @@ export function ReleaseDetailsForm({
       {/* Base Branch */}
       {/* <Card shadow="sm" padding="md" radius="md"  withBorder > */}
         <Stack gap="md">
-        <Group gap="md" grow>
+        <Group gap="md" grow align="flex-start">
           <Select
             label="Base Branch"
             placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
@@ -222,18 +222,18 @@ export function ReleaseDetailsForm({
             required
             error={errors.baseBranch}
             searchable
-            clearable
             disabled={loadingBranches}
             rightSection={loadingBranches ? <MantineLoader size="xs" /> : null}
-          description="Select base branch to fork from"
-        />
+            description="Select base branch to fork from (required)"
+          />
         <TextInput
           label="Release Branch Name"
           placeholder="e.g., release/v1.0.0"
           value={state.branch || ''}
           onChange={(e) => onChange({ ...state, branch: e.target.value || undefined })}
           error={errors.branch}
-          description="Keep empty to generate based on version and selected targets"
+          required
+          description="Release branch name (required)"
           />
         </Group>
         <Textarea

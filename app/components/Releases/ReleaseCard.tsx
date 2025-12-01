@@ -54,9 +54,29 @@ export const ReleaseCard = memo(function ReleaseCard({
           >
             <Group justify="space-between" align="center" wrap="nowrap">
               <Group gap="md" align="center" wrap="nowrap">
-                <Text fw={600} size="lg" c="white" className="truncate">
-                  {release.releaseId}
-                </Text>
+                {release.branch ? (
+                  <Text fw={600} size="lg" c="white" className="truncate font-mono">
+                    {release.branch}
+                  </Text>
+                ) : (
+                  <Text fw={600} size="lg" c="white" className="truncate">
+                    No branch
+                  </Text>
+                )}
+                {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
+                  <Group gap="xs">
+                    {release.platformTargetMappings.map((mapping: any, idx: number) => (
+                      <Badge
+                        key={idx}
+                        size="sm"
+                        variant="light"
+                        className="bg-white/20 text-white border-white/30"
+                      >
+                        {mapping.platform}: {mapping.version || 'N/A'}
+                      </Badge>
+                    ))}
+                  </Group>
+                )}
                 <Badge
                   size="sm"
                   variant="light"

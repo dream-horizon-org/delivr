@@ -23,4 +23,13 @@ body {
   .hover-highlight:hover {
     @apply shadow-md transform scale-[1.01];
   }
+
+  /* Fix form field alignment - ensure descriptions have consistent height */
+  .mantine-TextInput-description,
+  .mantine-Select-description,
+  .mantine-Textarea-description,
+  .mantine-NumberInput-description {
+    min-height: 1.5rem;
+    display: block;
+  }
 }

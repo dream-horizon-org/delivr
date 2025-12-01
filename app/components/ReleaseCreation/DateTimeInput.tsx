@@ -41,7 +41,7 @@ export function DateTimeInput({
   required = true,
 }: DateTimeInputProps) {
   return (
-    <Group grow>
+    <Group grow align="flex-start">
       <TextInput
         label={dateLabel}
         type="date"
@@ -51,7 +51,7 @@ export function DateTimeInput({
         required={required}
         min={dateMin}
         max={dateMax}
-        description={dateDescription}
+        description={dateDescription || ' '}
       />
 
       <TextInput
@@ -61,7 +61,7 @@ export function DateTimeInput({
         onChange={(e) => onTimeChange(e.target.value)}
         error={timeError}
         required={required}
-        description={timeDescription}
+        description={timeDescription || ' '}
       />
     </Group>
   );
