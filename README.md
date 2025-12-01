@@ -76,7 +76,7 @@ A distribution platform that simplifies how teams build, test, and release mobil
 
 ```bash
 # 1. Clone this monorepo
-git clone https://github.com/ds-horizon/delivr.git
+git clone https://github.com/dream-horizon-org/delivr.git
 cd delivr
 
 # 2. Launch all services
@@ -316,8 +316,8 @@ This repository contains all Delivr components:
 
 ## Community & Support
 
-- **GitHub Issues** → [Report bugs & request features](https://github.com/ds-horizon/delivr/issues)
-- **GitHub Discussions** → [Ask questions](https://github.com/ds-horizon/delivr/discussions)
+- **GitHub Issues** → [Report bugs & request features](https://github.com/dream-horizon-org/delivr/issues)
+- **GitHub Discussions** → [Ask questions](https://github.com/dream-horizon-org/delivr/discussions)
 - **Website** → [delivr.live](https://delivr.live)
 
 ---
@@ -344,7 +344,7 @@ Report security vulnerabilities: [SECURITY.md](delivr-sdk-ota/SECURITY.md)
 
 ---
 
-**Made with ❤️ by [Horizon](https://github.com/ds-horizon)**
+**Made with ❤️ by [Horizon](https://github.com/dream-horizon-org)**
 
 **[Get Started](https://delivr.live/dota/full-setup)** · **[Documentation](https://delivr.live)**
 

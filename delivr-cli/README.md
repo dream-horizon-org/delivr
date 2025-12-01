@@ -51,7 +51,7 @@ code-push-standalone logout
 
 To get an access key:
 
-1. Visit [Delivr Dashboard](https://github.com/ds-horizon/delivr-web-panel)
+1. Visit [Delivr Dashboard](https://github.com/dream-horizon-org/delivr-web-panel)
 2. Go to Settings → Generate New Token
 3. Generate a new access key
 
