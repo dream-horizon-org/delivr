@@ -661,7 +661,7 @@ export class ReleaseConfigService {
     currentUserId: string
   ): Promise<void> {
     if (!this.testManagementConfigService) return;
-
+    console.log('[updateTestManagementConfig] Update data:', JSON.stringify(updateData, null, 2));
 
     // Prepare data for mapper: mapper expects { tenantId, testManagementConfig: {...} }
     // updateData is already the testManagementConfig object from the request
@@ -704,20 +704,26 @@ export class ReleaseConfigService {
     currentUserId: string
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
+    console.log('[createTestManagementConfig] Update data in createTestManagementConfig:', JSON.stringify(updateData, null, 2));
 
     // Field names are now consistent: use testManagementConfig (with Config suffix)
-    // updateData already has testManagementConfig from the request
-    const normalizedData = {
-      ...updateData,
+    // updateData is already the testManagementConfig object from the request
+    // Create minimal object satisfying CreateReleaseConfigRequest type requirements
+    // The mappe  r only uses tenantId and testManagementConfig, so other fields are minimal placeholders
+    const normalizedData: CreateReleaseConfigRequest = {
       tenantId,
-      testManagementConfig: updateData.testManagementConfig
+      name: '', // Not used by mapper, but required by type
+      releaseType: 'PLANNED', // Not used by mapper, but required by type
+      platformTargets: [], // Not used by mapper, but required by type
+      testManagementConfig: updateData
     };
-
+    
+    console.log('[createTestManagementConfig] Normalized data:', JSON.stringify(normalizedData, null, 2));
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
       normalizedData,
       currentUserId
     );
-
+    console.log('[createTestManagementConfig] Integration configs:', JSON.stringify(integrationConfigs, null, 2));
     if (!integrationConfigs.testManagement) return null;
 
     const tcmConfigDto: CreateTestManagementConfigDto = {
@@ -725,8 +731,9 @@ export class ReleaseConfigService {
       name: normalizedData.testManagementConfig?.name || `TCM Config for ${releaseConfigName}`,
       ...integrationConfigs.testManagement
     };
-
+    console.log('[createTestManagementConfig] TCM config DTO:', JSON.stringify(tcmConfigDto, null, 2));
     const tcmResult = await this.testManagementConfigService.createConfig(tcmConfigDto);
+    console.log('[createTestManagementConfig] TCM config result:', JSON.stringify(tcmResult, null, 2));
     return tcmResult.id;
   }
 
