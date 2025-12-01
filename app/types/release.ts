@@ -7,15 +7,11 @@ import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagemen
 
 export type ReleaseType = 'PLANNED' | 'HOTFIX' | 'MAJOR';
 
+// Backend release statuses (matches database enum)
 export type ReleaseStatus = 
-  | 'KICKOFF_PENDING'    // Not started yet
-  | 'PENDING'            // Pending
-  | 'STARTED'            // Started
-  | 'REGRESSION_IN_PROGRESS'  // In regression testing
-  | 'BUILD_SUBMITTED'    // Build submitted
-  | 'RELEASED'           // Released
-  | 'CANCELLED'          // Cancelled
-  | 'ARCHIVED';          // Archived
+  | 'IN_PROGRESS'    // Release is in progress
+  | 'COMPLETED'      // Release is completed
+  | 'ARCHIVED';      // Release is archived
 
 export interface PlatformFlags {
   web: boolean;

@@ -6,6 +6,7 @@
  */
 
 import type { ReleaseCreationState, ValidationResult } from '~/types/release-creation-backend';
+import { combineDateAndTime } from './release-creation-converter';
 
 /**
  * Validate release creation state
@@ -97,11 +98,23 @@ export function validateReleaseCreationState(
         errors.targetReleaseDate = 'Target release date cannot be in the past';
       }
 
-      // Validate target release date is after kickoff date
+      // Validate target release date is after kickoff date (including time)
       if (state.kickOffDate) {
-        const kickOff = new Date(state.kickOffDate);
+        // Combine date and time for accurate comparison
+        const kickOffDateTime = combineDateAndTime(
+          state.kickOffDate,
+          state.kickOffTime || '00:00'
+        );
+        const targetReleaseDateTime = combineDateAndTime(
+          state.targetReleaseDate,
+          state.targetReleaseTime || '00:00'
+        );
+        
+        const kickOff = new Date(kickOffDateTime);
+        const targetRelease = new Date(targetReleaseDateTime);
+        
         if (targetRelease <= kickOff) {
-          errors.targetReleaseDate = 'Target release date must be after kickoff date';
+          errors.targetReleaseDate = 'Target release date and time must be after kickoff date and time';
         }
       }
     }
@@ -120,19 +133,29 @@ export function validateReleaseCreationState(
   // Validate regression slots if provided
   if (state.regressionBuildSlots && state.regressionBuildSlots.length > 0) {
     if (state.kickOffDate && state.targetReleaseDate) {
-      const kickOff = new Date(state.kickOffDate);
-      const targetRelease = new Date(state.targetReleaseDate);
+      // Combine date and time for accurate comparison
+      const kickOffDateTime = combineDateAndTime(
+        state.kickOffDate,
+        state.kickOffTime || '00:00'
+      );
+      const targetReleaseDateTime = combineDateAndTime(
+        state.targetReleaseDate,
+        state.targetReleaseTime || '00:00'
+      );
+      
+      const kickOff = new Date(kickOffDateTime);
+      const targetRelease = new Date(targetReleaseDateTime);
 
       state.regressionBuildSlots.forEach((slot, index) => {
         const slotDate = new Date(slot.date);
         if (isNaN(slotDate.getTime())) {
           errors[`regressionBuildSlots[${index}].date`] = 'Invalid slot date format';
         } else {
-          if (slotDate < kickOff) {
-            errors[`regressionBuildSlots[${index}].date`] = 'Slot date must be after kickoff date';
+          if (slotDate <= kickOff) {
+            errors[`regressionBuildSlots[${index}].date`] = 'Slot date and time must be after kickoff date and time';
           }
-          if (slotDate > targetRelease) {
-            errors[`regressionBuildSlots[${index}].date`] = 'Slot date must be before target release date';
+          if (slotDate >= targetRelease) {
+            errors[`regressionBuildSlots[${index}].date`] = 'Slot date and time must be before target release date and time';
           }
         }
       });

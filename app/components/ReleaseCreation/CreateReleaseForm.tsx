@@ -75,10 +75,34 @@ export function CreateReleaseForm({ org, userId, onSubmit }: CreateReleaseFormPr
     },
     initialReleaseState
   );
+  console.log('state in create release form', state);
 
   // Release creation state
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>();
   const [selectedConfig, setSelectedConfig] = useState<ReleaseConfiguration | undefined>();
+
+  // Ensure platformTargets only contain targets from selected config
+  useEffect(() => {
+    if (selectedConfig && state.platformTargets && state.platformTargets.length > 0) {
+      const configTargets = selectedConfig.targets || [];
+      const validTargets = state.platformTargets.filter((pt) => 
+        configTargets.includes(pt.target)
+      );
+      
+      // If any targets were filtered out, update state
+      if (validTargets.length !== state.platformTargets.length) {
+        // If all were filtered out, we'll let the pre-fill logic handle it
+        // Otherwise, keep only valid targets
+        if (validTargets.length > 0) {
+          setState({
+            ...state,
+            platformTargets: validTargets,
+          });
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConfig?.targets]);
   // Cron config is automatically derived from config, no user input needed
   const getCronConfig = (): Partial<CronConfig> => {
     if (!selectedConfig) {
@@ -111,7 +135,7 @@ export function CreateReleaseForm({ org, userId, onSubmit }: CreateReleaseFormPr
       // Fallback to default config if no draft
       setSelectedConfigId(defaultReleaseConfig.id);
     }
-  }, [isDraftRestored, state.releaseConfigId, defaultReleaseConfig, selectedConfigId]);
+  }, [isDraftRestored, state.releaseConfigId, defaultReleaseConfig]);
 
   // Load the full configuration when a config is selected
   useEffect(() => {
@@ -236,7 +260,7 @@ export function CreateReleaseForm({ org, userId, onSubmit }: CreateReleaseFormPr
 
   return (
     <div className="flex flex-col min-h-0">
-      <Stack gap="xl" className="flex-1 pb-24">
+      <Stack gap="xl" className="flex-1 pb-32">
         {/* Validation Errors Summary */}
         {hasValidationErrors && (
           <Alert
@@ -297,13 +321,15 @@ export function CreateReleaseForm({ org, userId, onSubmit }: CreateReleaseFormPr
 
       </Stack>
 
-      {/* Submit Button - Fixed at bottom */}
+      {/* Submit Button - Sticky footer */}
       <Paper
         shadow="lg"
         p="md"
         radius="md"
-        className="sticky bottom-0 z-10 bg-white border-t border-gray-200"
-        style={{ marginTop: 'auto' }}
+        className="sticky bottom-0 z-10 bg-white border-t-2 border-gray-300 mt-6"
+        style={{ 
+          marginTop: 'auto',
+        }}
       >
         <Group justify="flex-end">
           <Button

@@ -271,6 +271,7 @@ export const RELEASE_STAGE_UI_METADATA: Record<string, {
 // ============================================================================
 // Release Status UI Metadata
 // ============================================================================
+// Backend release statuses (matches database enum: IN_PROGRESS, COMPLETED, ARCHIVED)
 
 export const RELEASE_STATUS_UI_METADATA: Record<string, {
   description: string;
@@ -278,39 +279,52 @@ export const RELEASE_STATUS_UI_METADATA: Record<string, {
   isInitial?: boolean;
   isFinal?: boolean;
 }> = {
-  KICKOFF_PENDING: {
-    description: 'Scheduled, waiting for kickoff time',
-    color: 'gray',
+  IN_PROGRESS: {
+    description: 'Release is in progress',
+    color: 'blue',
     isInitial: true,
   },
-  PENDING: {
-    description: 'Release pending action',
-    color: 'gray',
-  },
-  STARTED: {
-    description: 'Release started, branch forked',
-    color: 'blue',
-  },
-  REGRESSION_IN_PROGRESS: {
-    description: 'Building and testing',
-    color: 'yellow',
-  },
-  BUILD_SUBMITTED: {
-    description: 'Builds submitted to stores',
+  COMPLETED: {
+    description: 'Release is completed',
     color: 'green',
-  },
-  RELEASED: {
-    description: 'Live to users',
-    color: 'green',
-    isFinal: true,
-  },
-  CANCELLED: {
-    description: 'Release cancelled',
-    color: 'red',
     isFinal: true,
   },
   ARCHIVED: {
-    description: 'Historical record',
+    description: 'Release is archived',
+    color: 'gray',
+    isFinal: true,
+  },
+};
+
+// ============================================================================
+// Release Active Status UI Metadata (UI-specific, derived from backend data)
+// ============================================================================
+// These are UI statuses calculated at runtime based on:
+// - kickOffDate for UPCOMING
+// - status and cronJob.cronStatus for RUNNING/PAUSED
+// - status for COMPLETED
+
+export const RELEASE_ACTIVE_STATUS_UI_METADATA: Record<string, {
+  description: string;
+  color: string;
+  isInitial?: boolean;
+  isFinal?: boolean;
+}> = {
+  UPCOMING: {
+    description: 'Scheduled, waiting for kickoff time',
+    color: 'blue',
+    isInitial: true,
+  },
+  RUNNING: {
+    description: 'Release is in progress',
+    color: 'green',
+  },
+  PAUSED: {
+    description: 'Release is paused',
+    color: 'yellow',
+  },
+  COMPLETED: {
+    description: 'Release is completed',
     color: 'gray',
     isFinal: true,
   },

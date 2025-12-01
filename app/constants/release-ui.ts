@@ -55,3 +55,20 @@ export const MANTINE_COLORS = {
 
 export type MantineColorValue = typeof MANTINE_COLORS[keyof typeof MANTINE_COLORS];
 
+// ============================================================================
+// Release Active Status Constants (UI-specific, derived from backend data)
+// ============================================================================
+// These are UI statuses calculated at runtime based on:
+// - kickOffDate for UPCOMING
+// - status and cronJob.cronStatus for RUNNING/PAUSED
+// - status for COMPLETED
+
+export const RELEASE_ACTIVE_STATUS = {
+  UPCOMING: 'UPCOMING',   // kickOffDate is in the future
+  RUNNING: 'RUNNING',     // kickOffDate has passed, status is IN_PROGRESS, cronJob not PAUSED
+  PAUSED: 'PAUSED',       // cronJob.cronStatus is PAUSED
+  COMPLETED: 'COMPLETED', // status is COMPLETED or ARCHIVED
+} as const;
+
+export type ReleaseActiveStatusValue = typeof RELEASE_ACTIVE_STATUS[keyof typeof RELEASE_ACTIVE_STATUS];
+

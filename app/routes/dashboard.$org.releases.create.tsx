@@ -55,16 +55,22 @@ export default function CreateReleasePage() {
       const endpoint = `/api/v1/tenants/${org}/releases`;
       const result = await apiPost<{ success: boolean; release?: { id: string }; error?: string }>(endpoint, backendRequest);
 
-      const responseData = result.data || (result as unknown as { success: boolean; release?: { id: string }; error?: string });
-      
-      if (!responseData || !responseData.success) {
-        throw new Error(responseData?.error || result.error || 'Failed to create release');
+      // apiRequest normalizes the response: { success: true, release: {...} } becomes { success: true, data: { release: {...} } }
+      // Check result.success first (from apiRequest envelope)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create release');
       }
+
+      // Extract release from normalized data structure
+      // result.data will be { release: {...} } after normalization
+      const responseData = result.data as { release?: { id: string } } | undefined;
+      const release = responseData?.release;
+      
       await invalidateReleases(queryClient, org);
 
       // Navigate to release detail page on success
-      if (responseData.release?.id) {
-        navigate(`/dashboard/${org}/releases/${responseData.release.id}`);
+      if (release?.id) {
+        navigate(`/dashboard/${org}/releases/${release.id}`);
       } else {
         navigate(`/dashboard/${org}/releases`);
       }

@@ -80,26 +80,8 @@ export function RegressionSlotsManager({
     return daysBetween(kickOff, targetRelease);
   }, [kickOffDate, targetReleaseDate]);
 
-  // Pre-fill from config when dates are provided
-  useEffect(() => {
-    if (
-      config?.scheduling?.regressionSlots &&
-      config.scheduling.regressionSlots.length > 0 &&
-      kickOffDate &&
-      targetReleaseDate &&
-      regressionBuildSlots.length === 0
-    ) {
-      const kickOffISO = combineDateAndTime(kickOffDate, kickOffTime);
-      const targetReleaseISO = combineDateAndTime(targetReleaseDate, targetReleaseTime);
-      const preFilled = convertConfigSlotsToBackend(
-        config.scheduling.regressionSlots,
-        kickOffISO,
-        targetReleaseISO
-      );
-      onChange(preFilled);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, kickOffDate, kickOffTime, targetReleaseDate, targetReleaseTime]);
+  // Note: Regression slots are no longer auto-generated from config
+  // Users must manually add slots, but validation ensures they are within kickoff and target release date
 
   // Handle adding a new slot
   const handleAddSlot = () => {
@@ -186,11 +168,6 @@ export function RegressionSlotsManager({
               <Text fw={600} size="sm">
                 Regression Build Slots
               </Text>
-              {config && regressionBuildSlots.length > 0 && (
-                <Badge size="xs" variant="light" color="blue">
-                  From Config
-                </Badge>
-              )}
             </Group>
             <Text size="xs" c="dimmed">
               Schedule regression builds between kickoff and release
@@ -217,16 +194,6 @@ export function RegressionSlotsManager({
           <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
             <Text size="sm">
               No regression slots configured. Click "Add Slot" to schedule builds.
-              {config?.scheduling?.regressionSlots &&
-                config.scheduling.regressionSlots.length > 0 && (
-                  <>
-                    <br />
-                    <strong>Note:</strong> Your configuration has{' '}
-                    {config.scheduling.regressionSlots.length} regression slot
-                    {config.scheduling.regressionSlots.length !== 1 ? 's' : ''} that will be
-                    pre-filled when you set the dates above.
-                  </>
-                )}
             </Text>
           </Alert>
         ) : (

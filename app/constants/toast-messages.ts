@@ -97,6 +97,14 @@ export const RELEASE_MESSAGES = {
     title: 'Release Created',
     message: 'Release has been created successfully',
   },
+  UPDATE_SUCCESS: {
+    title: 'Release Updated',
+    message: 'Release has been updated successfully',
+  },
+  UPDATE_ERROR: {
+    title: 'Failed to Update Release',
+    message: 'Unable to update the release. Please try again.',
+  },
   DELETE_SUCCESS: {
     title: 'Release Deleted',
     message: 'Release has been deleted successfully',

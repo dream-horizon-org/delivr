@@ -11,6 +11,8 @@ import type {
   PlatformTargetWithVersion,
   CreateReleaseBackendRequest,
   ReleaseCreationState,
+  UpdateReleaseBackendRequest,
+  UpdateReleaseState,
 } from '~/types/release-creation-backend';
 import type { TargetPlatform, Platform } from '~/types/release-config';
 
@@ -275,17 +277,79 @@ export function convertStateToBackendRequest(
   if (state.regressionBuildSlots && state.regressionBuildSlots.length > 0) {
     request.regressionBuildSlots = state.regressionBuildSlots;
   }
-  if (state.regressionTimings) {
-    request.regressionTimings = state.regressionTimings;
-  }
-  if (state.preCreatedBuilds && state.preCreatedBuilds.length > 0) {
-    request.preCreatedBuilds = state.preCreatedBuilds;
-  }
   if (state.cronConfig) {
     request.cronConfig = state.cronConfig;
   }
-  if (state.customIntegrationConfigs) {
-    request.customIntegrationConfigs = state.customIntegrationConfigs;
+
+  return request;
+}
+
+// ============================================================================
+// Update Release Conversion
+// ============================================================================
+
+/**
+ * Convert UI update state to backend-compatible update request format
+ * Only includes fields that have been changed (not undefined)
+ * 
+ * @param state - Update release state from UI
+ * @returns Backend-compatible update request payload
+ */
+export function convertUpdateStateToBackendRequest(
+  state: UpdateReleaseState
+): UpdateReleaseBackendRequest {
+  const request: UpdateReleaseBackendRequest = {};
+
+  // Basic Info
+  if (state.type !== undefined) {
+    request.type = state.type;
+  }
+  if (state.branch !== undefined) {
+    request.branch = state.branch;
+  }
+  if (state.baseBranch !== undefined) {
+    request.baseBranch = state.baseBranch;
+  }
+  if (state.baseReleaseId !== undefined) {
+    request.baseReleaseId = state.baseReleaseId;
+  }
+
+  // Dates - convert to ISO strings if provided
+  if (state.kickOffDate) {
+    request.kickOffDate = combineDateAndTime(state.kickOffDate, state.kickOffTime);
+  }
+  if (state.targetReleaseDate) {
+    request.targetReleaseDate = combineDateAndTime(state.targetReleaseDate, state.targetReleaseTime);
+  }
+  if (state.kickOffReminderDate) {
+    request.kickOffReminderDate = combineDateAndTime(state.kickOffReminderDate, state.kickOffReminderTime);
+  }
+
+  // Platform Target Mappings
+  if (state.platformTargetMappings !== undefined) {
+    request.platformTargetMappings = state.platformTargetMappings;
+  }
+
+  // Cron Config
+  if (state.cronConfig || state.upcomingRegressions) {
+    request.cronJob = {};
+    if (state.cronConfig) {
+      request.cronJob.cronConfig = state.cronConfig as Record<string, unknown>;
+    }
+    if (state.upcomingRegressions && state.upcomingRegressions.length > 0) {
+      request.cronJob.upcomingRegressions = state.upcomingRegressions.map(slot => ({
+        date: slot.date,
+        config: slot.config as Record<string, unknown>,
+      }));
+    }
+  }
+
+  // Other fields
+  if (state.hasManualBuildUpload !== undefined) {
+    request.hasManualBuildUpload = state.hasManualBuildUpload;
+  }
+  if (state.releasePilotAccountId !== undefined) {
+    request.releasePilotAccountId = state.releasePilotAccountId;
   }
 
   return request;

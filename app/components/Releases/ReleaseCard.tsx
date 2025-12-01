@@ -8,7 +8,7 @@ import { Link } from '@remix-run/react';
 import { Badge, Group, Stack, Card, Box, useMantineTheme, Text } from '@mantine/core';
 import { IconClock, IconTarget, IconFlag, IconSettings, IconRocket, IconCheck } from '@tabler/icons-react';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
-import { formatReleaseDate, getReleaseTypeGradient } from '~/utils/release-utils';
+import { formatReleaseDate, getReleaseTypeGradient, getReleaseActiveStatus, getActiveStatusColor } from '~/utils/release-utils';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import type { ReleaseCardProps } from '~/types/release';
 
@@ -26,6 +26,10 @@ export const ReleaseCard = memo(function ReleaseCard({
   const releaseConfig = release.releaseConfigId 
     ? configs.find((c) => c.id === release.releaseConfigId)
     : null;
+
+  // Get active status
+  const activeStatus = getReleaseActiveStatus(release);
+  const activeStatusColor = getActiveStatusColor(activeStatus);
 
   return (
     <Link
@@ -66,6 +70,13 @@ export const ReleaseCard = memo(function ReleaseCard({
                   className="bg-white/20 text-white border-white/30"
                 >
                   {release.type}
+                </Badge>
+                <Badge
+                  size="sm"
+                  variant="light"
+                  className="bg-white/20 text-white border-white/30"
+                >
+                  {activeStatus}
                 </Badge>
               </Group>
             </Group>

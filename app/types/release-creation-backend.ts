@@ -59,16 +59,6 @@ export interface RegressionSlotConfig {
 }
 
 /**
- * Pre-created build (optional)
- */
-export interface PreCreatedBuild {
-  platform: string;
-  target: string;
-  buildNumber: string;
-  buildUrl: string;
-}
-
-/**
  * Cron job configuration
  */
 export interface CronConfig {
@@ -76,7 +66,6 @@ export interface CronConfig {
   preRegressionBuilds?: boolean;
   automationBuilds?: boolean;
   automationRuns?: boolean;
-  testFlightBuilds?: boolean;
 }
 
 /**
@@ -98,10 +87,7 @@ export interface CreateReleaseBackendRequest {
   kickOffReminderDate?: string; // ISO date string
   hasManualBuildUpload?: boolean;
   regressionBuildSlots?: RegressionBuildSlotBackend[];
-  regressionTimings?: string;
-  preCreatedBuilds?: PreCreatedBuild[];
   cronConfig?: CronConfig;
-  customIntegrationConfigs?: Record<string, string | number | boolean | null>;
 }
 
 // ============================================================================
@@ -134,16 +120,9 @@ export interface ReleaseCreationState {
 
   // Regression Slots
   regressionBuildSlots?: RegressionBuildSlotBackend[];
-  regressionTimings?: string;
 
   // Cron Config
   cronConfig?: CronConfig;
-
-  // Custom Integration Configs
-  customIntegrationConfigs?: Record<string, string | number | boolean | null>;
-
-  // Pre-created Builds
-  preCreatedBuilds?: PreCreatedBuild[];
 
   // Description (UI-only, not sent to backend)
   description?: string;
@@ -169,5 +148,78 @@ export interface PlatformTargetSelection {
   target: TargetName;
   selected: boolean;
   version: string;
+}
+
+// ============================================================================
+// Update Release Types
+// ============================================================================
+
+/**
+ * Platform target mapping for update (includes id for existing mappings)
+ */
+export interface PlatformTargetMappingUpdate {
+  id: string;
+  platform: PlatformName;
+  target: TargetName;
+  version: string;
+  projectManagementRunId?: string | null;
+  testManagementRunId?: string | null;
+}
+
+/**
+ * Update release request body
+ * Matches backend UpdateReleaseRequestBody
+ * All fields are optional - only send what needs to be updated
+ */
+export interface UpdateReleaseBackendRequest {
+  type?: ReleaseType;
+  status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  branch?: string;
+  baseBranch?: string;
+  baseReleaseId?: string;
+  kickOffReminderDate?: string; // ISO date string
+  kickOffDate?: string; // ISO date string
+  targetReleaseDate?: string; // ISO date string
+  releaseDate?: string; // ISO date string
+  hasManualBuildUpload?: boolean;
+  releasePilotAccountId?: string;
+  platformTargetMappings?: PlatformTargetMappingUpdate[];
+  cronJob?: {
+    cronConfig?: Record<string, unknown>;
+    upcomingRegressions?: Array<{
+      date: string;
+      config: Record<string, unknown>;
+    }>;
+  };
+}
+
+/**
+ * UI state for updating a release
+ */
+export interface UpdateReleaseState {
+  // Basic Info
+  type?: ReleaseType;
+  branch?: string;
+  baseBranch?: string;
+  baseReleaseId?: string;
+
+  // Dates (can be separate date + time in UI, converted to ISO on submit)
+  kickOffDate?: string; // Date string (YYYY-MM-DD)
+  kickOffTime?: string; // Time string (HH:MM)
+  targetReleaseDate?: string; // Date string (YYYY-MM-DD)
+  targetReleaseTime?: string; // Time string (HH:MM)
+  kickOffReminderDate?: string; // Date string (YYYY-MM-DD)
+  kickOffReminderTime?: string; // Time string (HH:MM)
+
+  // Platform Targets
+  platformTargetMappings?: PlatformTargetMappingUpdate[];
+
+  // Cron Config
+  cronConfig?: CronConfig;
+  upcomingRegressions?: RegressionBuildSlotBackend[];
+
+  // Other
+  hasManualBuildUpload?: boolean;
+  releasePilotAccountId?: string;
 }
 

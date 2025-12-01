@@ -13,7 +13,7 @@ interface ReleasesTabsProps {
   activeTab: string;
   onTabChange: (value: string | null) => void;
   upcoming: BackendReleaseResponse[];
-  active: BackendReleaseResponse[];
+  active: BackendReleaseResponse[]; // Includes both RUNNING and PAUSED
   completed: BackendReleaseResponse[];
   org: string;
 }

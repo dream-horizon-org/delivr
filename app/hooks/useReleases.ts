@@ -10,9 +10,11 @@
  */
 
 import { useQuery, useQueryClient } from 'react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { apiGet } from '~/utils/api-client';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import { getReleaseActiveStatus } from '~/utils/release-utils';
+import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 
 interface ReleasesResponse {
   success: boolean;
@@ -154,46 +156,44 @@ export function useReleases(
     );
   };
 
-  // Selectors - categorize releases
+  // Selectors - categorize releases by UI active status
   const releases = data?.releases || [];
   
-  const categorizeReleases = (releases: BackendReleaseResponse[]) => {
-    const now = new Date();
+  // Categorize releases by UI active status (calculated at runtime)
+  // Active tab includes both RUNNING and PAUSED releases
+  const { upcoming, active, completed } = useMemo(() => {
     const upcoming: BackendReleaseResponse[] = [];
     const active: BackendReleaseResponse[] = [];
     const completed: BackendReleaseResponse[] = [];
-    console.log('[useReleases] Categorizing releases:', releases);
+    
+    console.log('[useReleases] Categorizing releases by UI active status:', releases);
 
     releases.forEach((release) => {
-      if (release.status === 'COMPLETED' || release.status === 'ARCHIVED') {
-        completed.push(release);
-      } else if (release.status === 'IN_PROGRESS') {
-        // Check if it's upcoming (targetReleaseDate in future) or active
-        if (release.targetReleaseDate) {
-          const targetDate = new Date(release.targetReleaseDate);
-          if (targetDate > now) {
+      const activeStatus = getReleaseActiveStatus(release);
+      
+      switch (activeStatus) {
+        case RELEASE_ACTIVE_STATUS.UPCOMING:
             upcoming.push(release);
-          } else {
-            active.push(release);
-          }
-        } else if (release.kickOffDate) {
-          // If kickOffDate is set, it's active
+          break;
+        case RELEASE_ACTIVE_STATUS.RUNNING:
+        case RELEASE_ACTIVE_STATUS.PAUSED:
+          // Both RUNNING and PAUSED go into active tab
           active.push(release);
-        } else {
-          // Default to active if no dates
-          active.push(release);
-        }
+          break;
+        case RELEASE_ACTIVE_STATUS.COMPLETED:
+          completed.push(release);
+          break;
       }
     });
 
     return { upcoming, active, completed };
-  };
-
-  const { upcoming, active, completed } = categorizeReleases(releases);
+  }, [releases]);
 
   return {
     // Data
     releases,
+    // Categorized by UI active status (calculated at runtime)
+    // Active includes both RUNNING and PAUSED releases
     upcoming,
     active,
     completed,

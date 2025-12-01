@@ -16,15 +16,11 @@ export enum ReleaseType {
   MAJOR = 'MAJOR'
 }
 
+// Backend release statuses (matches database enum)
 export enum ReleaseStatus {
-  KICKOFF_PENDING = 'KICKOFF_PENDING', // Not started yet
-  PENDING = 'PENDING',
-  STARTED = 'STARTED',
-  REGRESSION_IN_PROGRESS = 'REGRESSION_IN_PROGRESS',
-  BUILD_SUBMITTED = 'BUILD_SUBMITTED',
-  RELEASED = 'RELEASED',
-  CANCELLED = 'CANCELLED', // Release cancelled
-  ARCHIVED = 'ARCHIVED'
+  IN_PROGRESS = 'IN_PROGRESS', // Release is in progress
+  COMPLETED = 'COMPLETED',     // Release is completed
+  ARCHIVED = 'ARCHIVED'        // Release is archived
 }
 
 export enum UpdateType {

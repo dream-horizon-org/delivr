@@ -23,21 +23,30 @@ import { workflowTypeToEnvironment } from '~/types/workflow-mappings';
 /**
  * Map UI platform to backend TestPlatform enum
  * UI uses simple platforms (ANDROID, IOS)
- * Backend expects specific distribution platforms
+ * Backend TestPlatform enum expects: 'IOS' or 'ANDROID' (not ANDROID_PLAY_STORE/IOS_APP_STORE)
+ * 
+ * The UI already stores platforms as 'ANDROID' and 'IOS', which match the backend enum,
+ * so we just need to ensure they're in the correct format.
  */
 function mapTestManagementPlatform(
   platform: string,
   selectedTargets: string[]
 ): string {
-  if (platform === 'ANDROID') {
-    // For Android, use PLAY_STORE as primary (can be extended for other targets)
-    return 'ANDROID_PLAY_STORE';
+  // Backend TestPlatform enum only accepts 'IOS' or 'ANDROID'
+  // UI already uses these values, so return as-is
+  if (platform === 'ANDROID' || platform === 'IOS') {
+    return platform;
   }
-  if (platform === 'IOS') {
-    // For iOS, use APP_STORE as primary (can be extended for TestFlight)
-    return 'IOS_APP_STORE';
+  
+  // Fallback: try to extract platform from compound values (for backward compatibility)
+  if (platform.includes('ANDROID')) {
+    return 'ANDROID';
   }
-  // Fallback: return as-is if already in correct format
+  if (platform.includes('IOS')) {
+    return 'IOS';
+  }
+  
+  // Default fallback
   return platform;
 }
 
@@ -177,14 +186,25 @@ export function prepareReleaseConfigPayload(
   // TRANSFORMATION 2: Test Management - Extract from providerConfig wrapper
   // UI Structure: config.testManagementConfig.providerConfig (Checkmate/TestRail/etc)
   // Backend Structure: testManagementConfig (same field name - no conversion needed)
-  // Platform Transform: ANDROID → ANDROID_PLAY_STORE, IOS → IOS_APP_STORE
+  // Platform Transform: ANDROID → ANDROID, IOS → IOS (backend TestPlatform enum)
   // NOTE: projectId is now platform-specific (in platformConfigurations)
   // ========================================================================
-  if (config.testManagementConfig?.enabled && config.testManagementConfig.providerConfig) {
+  // Include testManagementConfig if:
+  // 1. enabled is true AND providerConfig exists (create/new config)
+  // 2. OR testManagementConfig has an id (existing config being updated) AND providerConfig exists
+  const hasTestManagement = config.testManagementConfig?.providerConfig && 
+    (config.testManagementConfig?.enabled || (config.testManagementConfig as any)?.id);
+  
+  if (hasTestManagement) {
+    console.log('[TestManagement] Including testManagementConfig in payload:', {
+      enabled: config.testManagementConfig?.enabled,
+      hasId: !!(config.testManagementConfig as any)?.id,
+      hasProviderConfig: !!config.testManagementConfig?.providerConfig,
+    });
     const providerConfig = config.testManagementConfig.providerConfig as any;
     
     // Transform platformConfigurations: Map platform enums and move fields to parameters
-    // Backend expects: { platform: 'ANDROID_PLAY_STORE', parameters: { projectId, sectionIds, labelIds, squadIds } }
+    // Backend expects: { platform: 'IOS' or 'ANDROID' (TestPlatform enum), parameters: { projectId, sectionIds, labelIds, squadIds } }
     const transformedPlatformConfigs = (providerConfig.platformConfigurations || []).map((pc: any) => {
       const originalPlatform = pc.platform;
       const mappedPlatform = mapTestManagementPlatform(pc.platform, config.targets || []);
@@ -220,6 +240,13 @@ export function prepareReleaseConfigPayload(
     };
     
     console.log('[TestManagement] Final payload:', JSON.stringify(payload.testManagementConfig, null, 2));
+  } else {
+    console.log('[TestManagement] Excluding testManagementConfig from payload:', {
+      hasTestManagementConfig: !!config.testManagementConfig,
+      enabled: config.testManagementConfig?.enabled,
+      hasId: !!(config.testManagementConfig as any)?.id,
+      hasProviderConfig: !!config.testManagementConfig?.providerConfig,
+    });
   }
   // If undefined or disabled, omit entirely (backend optional)
 
@@ -339,12 +366,27 @@ export function prepareReleaseConfigPayload(
 
 /**
  * Reverse map backend TestPlatform enum to UI platform
- * ANDROID_PLAY_STORE → ANDROID
- * IOS_APP_STORE → IOS
+ * Backend TestPlatform enum: 'IOS' or 'ANDROID'
+ * UI uses: 'ANDROID' or 'IOS'
+ * 
+ * Since backend and UI now both use 'IOS' and 'ANDROID', this is mainly for backward compatibility
+ * with old data that might have 'ANDROID_PLAY_STORE' or 'IOS_APP_STORE' format
  */
 function reverseMapTestManagementPlatform(backendPlatform: string): string {
-  if (backendPlatform.startsWith('ANDROID')) return 'ANDROID';
-  if (backendPlatform.startsWith('IOS')) return 'IOS';
+  // Backend and UI both use 'IOS' and 'ANDROID' - return as-is
+  if (backendPlatform === 'ANDROID' || backendPlatform === 'IOS') {
+    return backendPlatform;
+  }
+  
+  // Backward compatibility: extract platform from compound values
+  if (backendPlatform.startsWith('ANDROID') || backendPlatform.includes('ANDROID')) {
+    return 'ANDROID';
+  }
+  if (backendPlatform.startsWith('IOS') || backendPlatform.includes('IOS')) {
+    return 'IOS';
+  }
+  
+  // Default fallback
   return backendPlatform;
 }
 
@@ -449,7 +491,8 @@ export async function transformFromBackend(
       passThresholdPercent = testManagementData.passThresholdPercent || 100;
     }
     
-    // Reverse platform mapping: ANDROID_PLAY_STORE → ANDROID
+    // Reverse platform mapping: Backend TestPlatform ('IOS' or 'ANDROID') → UI platform ('ANDROID' or 'IOS')
+    // Since both use the same values, this is mainly for backward compatibility with old compound values
     // Extract fields from parameters back to direct fields (platform-specific)
     // Backend may return fields directly OR nested in parameters (handle both formats)
     const uiPlatformConfigurations = sourcePlatformConfigs.map((pc: any) => {

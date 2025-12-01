@@ -1,7 +1,16 @@
 /**
  * Release Review Summary Component
  * Final review before creating the release
- * Updated to use backend-compatible state structure
+ * 
+ * The `state` parameter represents the actual form data entered by the user:
+ * - state.platformTargets: Array of platform-target-version combinations selected in the form
+ * - state.type: Release type selected/configured
+ * - state.baseBranch: Base branch selected
+ * - state.kickOffDate/Time: Dates and times entered by user
+ * - state.targetReleaseDate/Time: Target release dates entered by user
+ * - state.regressionBuildSlots: Regression slots added by user
+ * 
+ * This preview shows what will actually be sent to the backend, not config defaults.
  */
 
 import { Card, Text, Stack, Group, Badge, Divider } from '@mantine/core';
@@ -11,8 +20,8 @@ import type { ReleaseConfiguration } from '~/types/release-config';
 import { PLATFORM_LABELS, TARGET_PLATFORM_LABELS } from '~/constants/release-config-ui';
 
 interface ReleaseReviewSummaryProps {
-  config?: ReleaseConfiguration;
-  state: Partial<ReleaseCreationState>;
+  config?: ReleaseConfiguration; // Configuration template (for reference only)
+  state: Partial<ReleaseCreationState>; // Actual form data entered by user
   cronConfig?: Partial<CronConfig>;
 }
 
@@ -52,9 +61,10 @@ export function ReleaseReviewSummary({
               Platform Targets
             </Text>
             <Group gap="xs">
+              {/* Show actual platform targets selected in the form (state.platformTargets) */}
               {state.platformTargets && state.platformTargets.length > 0 ? (
                 state.platformTargets.map((pt, index) => (
-                  <Badge key={index} size="xs">
+                  <Badge key={`${pt.platform}-${pt.target}-${index}`} size="xs">
                     {pt.platform === 'ANDROID'
                       ? PLATFORM_LABELS.ANDROID
                       : pt.platform === 'IOS'

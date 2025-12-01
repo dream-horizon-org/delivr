@@ -3,7 +3,8 @@
  * Helper functions for release-related operations
  */
 
-import { RELEASE_TYPE, RELEASE_STATUS, TASK_STATUS, MANTINE_COLORS } from '~/constants/release-ui';
+import { RELEASE_TYPE, RELEASE_STATUS, TASK_STATUS, MANTINE_COLORS, RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
 /**
  * Format date for display in release cards
@@ -85,6 +86,67 @@ export function getTaskStatusColor(status: string): string {
       return MANTINE_COLORS.YELLOW;
     case TASK_STATUS.FAILED:
       return MANTINE_COLORS.RED;
+    default:
+      return MANTINE_COLORS.GRAY;
+  }
+}
+
+/**
+ * Derive UI active status from backend release data
+ * Calculated at runtime based on:
+ * - kickOffDate for UPCOMING
+ * - status and cronJob.cronStatus for RUNNING/PAUSED
+ * - status for COMPLETED
+ * 
+ * @param release - Backend release response
+ * @returns UI active status (UPCOMING, RUNNING, PAUSED, or COMPLETED)
+ */
+export function getReleaseActiveStatus(release: BackendReleaseResponse): typeof RELEASE_ACTIVE_STATUS[keyof typeof RELEASE_ACTIVE_STATUS] {
+  const now = new Date();
+  
+  // COMPLETED: status is COMPLETED or ARCHIVED
+  if (release.status === RELEASE_STATUS.COMPLETED || release.status === RELEASE_STATUS.ARCHIVED) {
+    return RELEASE_ACTIVE_STATUS.COMPLETED;
+  }
+  
+  // Check if cronJob is paused
+  if (release.cronJob?.cronStatus === 'PAUSED') {
+    return RELEASE_ACTIVE_STATUS.PAUSED;
+  }
+  
+  // UPCOMING: kickOffDate is in the future
+  if (release.kickOffDate) {
+    const kickOffDate = new Date(release.kickOffDate);
+    if (kickOffDate > now) {
+      return RELEASE_ACTIVE_STATUS.UPCOMING;
+    }
+  }
+  
+  // RUNNING: kickOffDate has passed, status is IN_PROGRESS, and not paused
+  // (We already checked for PAUSED above, so if we reach here and status is IN_PROGRESS, it's RUNNING)
+  if (release.status === RELEASE_STATUS.IN_PROGRESS) {
+    return RELEASE_ACTIVE_STATUS.RUNNING;
+  }
+  
+  // Default fallback: if no kickOffDate and status is IN_PROGRESS, consider it RUNNING
+  // This handles edge cases where kickOffDate might not be set yet
+  return RELEASE_ACTIVE_STATUS.RUNNING;
+}
+
+/**
+ * Get UI active status badge color
+ * Returns Mantine color string based on UI active status
+ */
+export function getActiveStatusColor(status: typeof RELEASE_ACTIVE_STATUS[keyof typeof RELEASE_ACTIVE_STATUS]): string {
+  switch (status) {
+    case RELEASE_ACTIVE_STATUS.UPCOMING:
+      return MANTINE_COLORS.BLUE;
+    case RELEASE_ACTIVE_STATUS.RUNNING:
+      return MANTINE_COLORS.GREEN;
+    case RELEASE_ACTIVE_STATUS.PAUSED:
+      return MANTINE_COLORS.YELLOW;
+    case RELEASE_ACTIVE_STATUS.COMPLETED:
+      return MANTINE_COLORS.GRAY;
     default:
       return MANTINE_COLORS.GRAY;
   }

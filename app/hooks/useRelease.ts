@@ -4,6 +4,7 @@
  * Similar to useReleases pattern
  */
 
+import { useCallback } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { apiGet } from '~/utils/api-client';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
@@ -55,15 +56,16 @@ export function useRelease(tenantId?: string, releaseId?: string) {
   );
 
   // Invalidate cache (call after update/delete)
-  const invalidateCache = () => {
+  const invalidateCache = useCallback(() => {
     if (tenantId && releaseId) {
       console.log('[useRelease] Invalidating cache for release:', { tenantId, releaseId });
       queryClient.invalidateQueries(QUERY_KEY(tenantId, releaseId));
     }
-  };
+  }, [tenantId, releaseId, queryClient]);
 
   // Optimistically update the release in cache
-  const updateReleaseInCache = (updater: (release: BackendReleaseResponse) => BackendReleaseResponse) => {
+  const updateReleaseInCache = useCallback(
+    (updater: (release: BackendReleaseResponse) => BackendReleaseResponse) => {
     if (!tenantId || !releaseId) return;
     
     queryClient.setQueryData<ReleaseResponse>(
@@ -77,7 +79,9 @@ export function useRelease(tenantId?: string, releaseId?: string) {
         };
       }
     );
-  };
+    },
+    [tenantId, releaseId, queryClient]
+  );
 
   return {
     // Data

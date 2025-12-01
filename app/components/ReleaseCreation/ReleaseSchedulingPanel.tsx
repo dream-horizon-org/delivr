@@ -120,51 +120,9 @@ export function ReleaseSchedulingPanel({
         </Text>
       </div>
 
-      {/* Target Release Date & Time */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Stack gap="md">
-          <div>
-            <Text fw={600} size="sm" className="mb-1">
-              Target Release Settings
-            </Text>
-            <Text size="xs" c="dimmed">
-              When the release is scheduled to go live
-            </Text>
-          </div>
-
-          <DateTimeInput
-            dateLabel="Release Date"
-            timeLabel="Release Time"
-            dateValue={targetReleaseDate || ''}
-            timeValue={targetReleaseTimeValue}
-            onDateChange={(date) => handleReleaseDateChange(date)}
-            onTimeChange={(time) =>
-              onChange({
-                ...state,
-                targetReleaseTime: time,
-              })
-            }
-            dateError={errors.targetReleaseDate}
-            dateDescription="Date when the release will be deployed"
-            timeDescription="Time when the release will be deployed"
-            dateMin={new Date().toISOString().split('T')[0]}
-            required
-          />
-        </Stack>
-      </Card>
-
       {/* Kickoff Date & Time (Branch Fork off) */}
       <Card shadow="sm" padding="md" radius="md" withBorder>
         <Stack gap="md">
-          <div>
-            <Text fw={600} size="sm" className="mb-1">
-              Kickoff Settings
-            </Text>
-            <Text size="xs" c="dimmed">
-              When the release cycle begins
-            </Text>
-          </div>
-
           <DateTimeInput
             dateLabel="Kickoff Date"
             timeLabel="Kickoff Time"
@@ -206,6 +164,30 @@ export function ReleaseSchedulingPanel({
               </Text>
             </Alert>
           )}
+        </Stack>
+      </Card>
+
+      {/* Target Release Date & Time */}
+      <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Stack gap="md">
+          <DateTimeInput
+            dateLabel="Release Date"
+            timeLabel="Release Time"
+            dateValue={targetReleaseDate || ''}
+            timeValue={targetReleaseTimeValue}
+            onDateChange={(date) => handleReleaseDateChange(date)}
+            onTimeChange={(time) =>
+              onChange({
+                ...state,
+                targetReleaseTime: time,
+              })
+            }
+            dateError={errors.targetReleaseDate}
+            dateDescription="Date when the release will be deployed"
+            timeDescription="Time when the release will be deployed"
+            dateMin={new Date().toISOString().split('T')[0]}
+            required
+          />
         </Stack>
       </Card>
 

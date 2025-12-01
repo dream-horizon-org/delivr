@@ -1,6 +1,7 @@
 /**
  * Release Tabs Constants
  * Constants for release list page tabs
+ * Active tab includes both RUNNING and PAUSED releases
  */
 
 import { IconCalendar, IconRocket, IconCheck, TablerIcon } from '@tabler/icons-react';

@@ -85,6 +85,34 @@ export function PlatformTargetsSelector({
     ] as TargetPlatform[];
   }, [config]);
 
+  // Filter platformTargets to only include targets that are in the config
+  // This ensures state only contains valid targets from config
+  useEffect(() => {
+    if (config && platformTargets.length > 0) {
+      const validTargets = config.targets || [];
+      const filtered = platformTargets.filter((pt) => validTargets.includes(pt.target));
+      
+      // Only update if there's a difference (to avoid infinite loops)
+      if (filtered.length !== platformTargets.length) {
+        // If all were filtered out, keep at least the first available target
+        if (filtered.length === 0 && validTargets.length > 0) {
+          const firstTarget = validTargets[0];
+          const platform = PLATFORM_TARGET_MAPPING[firstTarget];
+          if (platform) {
+            onChange([{
+              platform: platform as PlatformTargetWithVersion['platform'],
+              target: firstTarget,
+              version: defaultVersion,
+            }]);
+          }
+        } else if (filtered.length > 0) {
+          onChange(filtered);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.targets]);
+
   // Check if a platform-target combination is selected
   const isSelected = (target: TargetPlatform): boolean => {
     return platformTargets.some((pt) => pt.target === target);
@@ -157,11 +185,6 @@ export function PlatformTargetsSelector({
           <Text fw={600} size="sm">
             Platform Targets
           </Text>
-          {config && (
-            <Badge size="xs" variant="light" color="blue">
-              From Config
-            </Badge>
-          )}
         </Group>
 
         {showMinimumError && (
@@ -198,23 +221,16 @@ export function PlatformTargetsSelector({
                       }
                       disabled={!selected && platformTargets.length === 0}
                     />
-                    {config && selected && (
-                      <Badge size="xs" variant="light" color="gray">
-                        Pre-filled
-                      </Badge>
-                    )}
                   </Group>
 
                   {selected && (
                     <TextInput
                       label="Version"
-                      placeholder="e.g., v6.5.0"
+                      placeholder="e.g., v6.5.0 or 6.5.0"
                       value={version}
                       onChange={(e) => handleVersionChange(target, e.target.value)}
                       required
                       error={errors[`version-${target}`]}
-                      description="Version format: vX.Y.Z (e.g., v6.5.0)"
-                      pattern="^v?\d+\.\d+\.\d+"
                     />
                   )}
                 </Stack>

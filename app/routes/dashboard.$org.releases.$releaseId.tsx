@@ -25,10 +25,12 @@ export default function ReleaseDetailsPage() {
   const releaseId = params.releaseId || '';
 
   // Use cached hook - no refetching on navigation if data is fresh
+  // IMPORTANT: Call hook only once at the top level (before any early returns)
   const {
     release,
     isLoading,
     error,
+    refetch,
   } = useRelease(org, releaseId);
 
   // Loading State
@@ -47,7 +49,7 @@ export default function ReleaseDetailsPage() {
 
   return (
     <Container size="xl" className="py-8">
-      <ReleaseDetailsHeader release={release} org={org} />
+      <ReleaseDetailsHeader release={release} org={org} onUpdate={refetch} />
       <ReleaseDetailsOverview release={release} />
       <ReleaseTasksList tasks={tasks} />
       <ReleaseBuildsSection builds={builds} />
