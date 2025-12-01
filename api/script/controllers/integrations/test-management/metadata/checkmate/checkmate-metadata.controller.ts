@@ -40,8 +40,8 @@ const getProjectsHandler = (metadataService: CheckmateMetadataService) => async 
 
     const response = await metadataService.getProjects(integrationId);
     
-    // Checkmate returns projects directly as an array in response.data
-    const projects = response.data || [];
+    // Checkmate returns projects in nested structure: response.data.projectsList
+    const projects = response.data.projectsList || [];
     
     res.status(HTTP_STATUS.OK).json(
       successResponse(projects)
