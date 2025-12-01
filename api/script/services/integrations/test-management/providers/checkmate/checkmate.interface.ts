@@ -67,10 +67,24 @@ export type CheckmateProject = {
   createdOn: number;
 };
 
-export type CheckmateProjectsResponse = {
+/**
+ * Raw response from Checkmate API
+ * Internal use only - use CheckmateProjectsResponse for typed access
+ */
+type CheckmateProjectsApiResponse = {
   data: {
     projectsList: CheckmateProject[];
     projectCount: Array<{ count: number }>;
+  };
+};
+
+/**
+ * Simplified projects response for internal use
+ */
+export type CheckmateProjectsResponse = {
+  data: {
+    projectsList: CheckmateProject[];
+    projectCount: number;
   };
 };
 

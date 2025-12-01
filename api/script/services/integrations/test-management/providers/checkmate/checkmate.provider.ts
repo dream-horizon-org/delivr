@@ -25,6 +25,7 @@ import type {
   CheckmateCreateRunRequest,
   CheckmateCreateRunResponse,
   CheckmateLabelsResponse,
+  CheckmateProject,
   CheckmateProjectsResponse,
   CheckmateRunStateData,
   CheckmateRunStateResponse,
@@ -194,21 +195,18 @@ export class CheckmateProvider implements ITestManagementProvider {
       const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
       
       // makeRequest handles URL concatenation (removes trailing slash from baseUrl)
-      const response = await this.makeRequest<CheckmateProjectsResponse>(checkmateConfig, endpoint, {
+      // Fetch raw response and transform to simplified structure
+      const rawResponse = await this.makeRequest<{
+        data: {
+          projectsList: unknown[];
+          projectCount: Array<{ count: number }>;
+        };
+      }>(checkmateConfig, endpoint, {
         method: HTTP_METHODS.GET
       });
       
-      // Validate response structure
-      const hasProjectCount = response?.data?.projectCount && 
-                             Array.isArray(response.data.projectCount) && 
-                             response.data.projectCount.length > 0;
-      
-      if (!hasProjectCount) {
-        console.error('[Checkmate Validation] ❌ Invalid credentials - no project count returned');
-        return false;
-      }
-      
-      const projectCount = response.data.projectCount[0]?.count ?? 0;
+      // Extract and validate project count
+      const projectCount = rawResponse?.data?.projectCount?.[0]?.count ?? 0;
       
       if (projectCount === 0) {
         console.error('[Checkmate Validation] ❌ Invalid credentials - organization has no projects');
@@ -425,7 +423,14 @@ export class CheckmateProvider implements ITestManagementProvider {
     params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, CHECKMATE_DEFAULTS.METADATA_PAGE_SIZE.toString());
     
     const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
-    const response = await this.makeRequest<CheckmateProjectsResponse>(
+    
+    // Fetch raw API response
+    const rawResponse = await this.makeRequest<{
+      data: {
+        projectsList: CheckmateProject[];
+        projectCount: Array<{ count: number }>;
+      };
+    }>(
       checkmateConfig,
       endpoint,
       {
@@ -433,7 +438,13 @@ export class CheckmateProvider implements ITestManagementProvider {
       }
     );
 
-    return response;
+    // Transform to simplified structure
+    return {
+      data: {
+        projectsList: rawResponse.data.projectsList,
+        projectCount: rawResponse.data.projectCount[0]?.count ?? 0
+      }
+    };
   };
 
   /**
