@@ -10,12 +10,11 @@ import type {
   CreateReleaseConfigRequest,
   ReleaseConfiguration,
   UpdateReleaseConfigDto,
-  UpdateReleaseConfigRequest,
   IntegrationValidationResult,
   ValidationResult,
   ServiceResult
 } from '~types/release-configs';
-import { hasAtLeastOneIntegration, validateScheduling } from './release-config.validation';
+import { validateScheduling } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
 import type { CreateTestManagementConfigDto } from '~types/integrations/test-management/test-management-config';
@@ -663,6 +662,7 @@ export class ReleaseConfigService {
   ): Promise<void> {
     if (!this.testManagementConfigService) return;
 
+
     // Prepare data for mapper: mapper expects { tenantId, testManagementConfig: {...} }
     // updateData is already the testManagementConfig object from the request
     const normalizedData = {
@@ -705,12 +705,12 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
 
-    // Normalize field name: updateData might have 'testManagementConfig' (from GET response)
-    // but mapper expects 'testManagement'
+    // Field names are now consistent: use testManagementConfig (with Config suffix)
+    // updateData already has testManagementConfig from the request
     const normalizedData = {
       ...updateData,
       tenantId,
-      testManagement: updateData.testManagementConfig || updateData.testManagement
+      testManagementConfig: updateData.testManagementConfig
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
@@ -722,7 +722,7 @@ export class ReleaseConfigService {
 
     const tcmConfigDto: CreateTestManagementConfigDto = {
       tenantId,
-      name: normalizedData.testManagement.name || `TCM Config for ${releaseConfigName}`,
+      name: normalizedData.testManagementConfig?.name || `TCM Config for ${releaseConfigName}`,
       ...integrationConfigs.testManagement
     };
 
@@ -871,12 +871,12 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.projectManagementConfigService) return null;
 
-    // Normalize field name: updateData might have 'projectManagementConfig' (from GET response)
-    // but mapper expects 'projectManagement'
+    // Field names are now consistent: use projectManagementConfig (with Config suffix)
+    // Map projectManagementConfig to projectManagement for the mapper
     const normalizedData = {
       ...updateData,
       tenantId,
-      projectManagement: updateData.projectManagementConfig || updateData.projectManagement
+      projectManagementConfig: updateData.projectManagementConfig || updateData.projectManagement
     };
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
@@ -886,9 +886,14 @@ export class ReleaseConfigService {
 
     if (!integrationConfigs.projectManagement) return null;
 
+    // Extract name from the projectManagementConfig if available, otherwise use fallback
+    const pmConfigName = updateData.projectManagementConfig?.name || 
+                        normalizedData.projectManagementConfig?.name || 
+                        `PM Config for ${releaseConfigName || 'Release Config'}`;
+
     const pmResult = await this.projectManagementConfigService.createConfig({
       tenantId,
-      name: normalizedData.projectManagement.name || `PM Config for ${releaseConfigName}`,
+      name: pmConfigName,
       ...integrationConfigs.projectManagement,
       createdByAccountId: currentUserId
     });
@@ -1023,15 +1028,15 @@ export class ReleaseConfigService {
   ): Promise<string | null> {
     if (!this.commConfigService) return null;
 
-    // Normalize field name: updateData might have 'commsConfig' (from GET response)
-    // but mapper expects 'communication'
+    // Field names are now consistent: use communicationConfig (with Config suffix)
+    // updateData already has communicationConfig from the request
     const normalizedData = {
       ...updateData,
       tenantId,
-      communication: updateData.commsConfig || updateData.communication
+      communicationConfig: updateData.communicationConfig
     };
 
-    console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communication, null, 2));
+    console.log('[createCommsConfig] Normalized communication data:', JSON.stringify(normalizedData.communicationConfig, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
       normalizedData,

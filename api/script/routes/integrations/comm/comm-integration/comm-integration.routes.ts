@@ -41,6 +41,13 @@ export const createCommIntegrationRoutes = (storage: Storage): Router => {
     (req, res) => getController().fetchChannels(req, res)
   );
 
+  // Fetch Slack Channels by Integration ID (uses stored token)
+  router.get(
+    '/tenants/:tenantId/integrations/slack/:integrationId/channels',
+    tenantPermissions.requireOwner({ storage }),
+    (req, res) => getController().fetchChannelsByIntegrationId(req, res)
+  );
+
   // Create or Update Slack Integration
   router.post(
     '/tenants/:tenantId/integrations/slack',
