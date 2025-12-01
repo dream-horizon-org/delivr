@@ -164,20 +164,15 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Validate Checkmate configuration
    */
   validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<boolean> => {
-    const isValidCheckmateConfig = this.isCheckmateConfig(config);
-    
-    if (!isValidCheckmateConfig) {
+    if (!this.isCheckmateConfig(config)) {
       return false;
     }
     
     const checkmateConfig = config;
     
     try {
-      const baseUrlMissing = !checkmateConfig.baseUrl;
-      const authTokenMissing = !checkmateConfig.authToken;
-      const requiredFieldsMissing = baseUrlMissing || authTokenMissing;
-      
-      if (requiredFieldsMissing) {
+      // Validate required fields
+      if (!checkmateConfig.baseUrl || !checkmateConfig.authToken) {
         return false;
       }
 
@@ -188,62 +183,42 @@ export class CheckmateProvider implements ITestManagementProvider {
         return false;
       }
 
-      // Try to make a simple API call to validate credentials
+      // Test credentials by fetching projects
       // Validation requires BOTH successful API call AND valid orgId (returns projects)
-      try {
-        // Build endpoint with required orgId parameter
-        const params = new URLSearchParams();
-        params.append(CHECKMATE_QUERY_PARAMS.ORG_ID, checkmateConfig.orgId.toString());
-        params.append(CHECKMATE_QUERY_PARAMS.PAGE, '1');
-        params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, '1'); // Just need to test connection, not fetch all
-        
-        const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
-        const testUrl = `${checkmateConfig.baseUrl}${endpoint}`;
-        console.log(`[Checkmate Validation] Testing connection to: ${testUrl}`);
-        
-        const response = await this.makeRequest<CheckmateProjectsResponse>(checkmateConfig, endpoint, {
-          method: HTTP_METHODS.GET
-        });
-        
-        // Check if we got valid data back
-        // Checkmate returns 200 OK even with wrong orgId, so we need to validate the response
-        
-        // First check: Does projectCount array exist?
-        const hasProjectCountData = response?.data?.projectCount && response.data.projectCount.length > 0;
-        
-        if (!hasProjectCountData) {
-          console.error('[Checkmate Validation] ❌ Credentials are INVALID - No projectCount data returned');
-          console.error('[Checkmate Validation] This usually means wrong orgId or no access to organization');
-          return false;
-        }
-        
-        // Second check: Does the org have any projects?
-        // If count = 0, this could mean either:
-        // 1. Empty org (user has access but no projects created yet) - should we allow this?
-        // 2. Wrong orgId (Checkmate returns empty data instead of error) - should reject this
-        // 
-        // Since we can't distinguish between these cases, and most orgs will have at least 1 project,
-        // we require count > 0 as proof of valid access
-        const projectCount = response.data.projectCount[0]?.count ?? 0;
-        
-        if (projectCount === 0) {
-          console.error('[Checkmate Validation] ❌ Credentials are INVALID - Organization has no projects (count: 0)');
-          console.error('[Checkmate Validation] This usually means wrong orgId or user has no access to this organization');
-          return false;
-        }
-        
-        console.log(`[Checkmate Validation] ✅ Credentials are VALID - Found ${projectCount} projects in organization`);
-        return true;
-      } catch (error) {
-        // ANY error (network, 401, 403, 404, 500, timeout, etc.) means validation failed
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('[Checkmate Validation] ❌ Credentials are INVALID - API call failed');
-        console.error('[Checkmate Validation] Error details:', errorMessage);
-        console.error('[Checkmate Validation] Full error:', error);
+      const params = new URLSearchParams({
+        [CHECKMATE_QUERY_PARAMS.ORG_ID]: checkmateConfig.orgId.toString(),
+        [CHECKMATE_QUERY_PARAMS.PAGE]: '1',
+        [CHECKMATE_QUERY_PARAMS.PAGE_SIZE]: '1'  // Just need to test connection
+      });
+      
+      const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
+      
+      // makeRequest handles URL concatenation (removes trailing slash from baseUrl)
+      const response = await this.makeRequest<CheckmateProjectsResponse>(checkmateConfig, endpoint, {
+        method: HTTP_METHODS.GET
+      });
+      
+      // Validate response structure
+      const hasProjectCount = response?.data?.projectCount && 
+                             Array.isArray(response.data.projectCount) && 
+                             response.data.projectCount.length > 0;
+      
+      if (!hasProjectCount) {
+        console.error('[Checkmate Validation] ❌ Invalid credentials - no project count returned');
         return false;
       }
+      
+      const projectCount = response.data.projectCount[0]?.count ?? 0;
+      
+      if (projectCount === 0) {
+        console.error('[Checkmate Validation] ❌ Invalid credentials - organization has no projects');
+        return false;
+      }
+      
+      return true;
     } catch (error) {
-      console.error(CHECKMATE_ERROR_MESSAGES.CONFIG_VALIDATION_FAILED, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[Checkmate Validation] ❌ Validation failed:', errorMessage);
       return false;
     }
   };

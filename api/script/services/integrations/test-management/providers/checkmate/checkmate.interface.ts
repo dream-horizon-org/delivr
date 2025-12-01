@@ -36,8 +36,6 @@ export type CheckmateCreateRunResponse = {
     testsAdded: number;
     message: string;
   };
-  error: string | null;
-  status: number;
 };
 
 export type CheckmateRunStateData = {
@@ -55,7 +53,6 @@ export type CheckmateRunStateData = {
 
 export type CheckmateRunStateResponse = {
   data: CheckmateRunStateData;
-  status: number;
 };
 
 /**
@@ -75,8 +72,6 @@ export type CheckmateProjectsResponse = {
     projectsList: CheckmateProject[];
     projectCount: Array<{ count: number }>;
   };
-  error: string | null;
-  status: number;
 };
 
 export type CheckmateSection = {
@@ -93,7 +88,6 @@ export type CheckmateSection = {
 
 export type CheckmateSectionsResponse = {
   data: CheckmateSection[];
-  status: number;
 };
 
 export type CheckmateLabel = {
@@ -109,7 +103,6 @@ export type CheckmateLabel = {
 
 export type CheckmateLabelsResponse = {
   data: CheckmateLabel[];
-  status: number;
 };
 
 export type CheckmateSquad = {
@@ -122,6 +115,5 @@ export type CheckmateSquad = {
 
 export type CheckmateSquadsResponse = {
   data: CheckmateSquad[];
-  status: number;
 };
 

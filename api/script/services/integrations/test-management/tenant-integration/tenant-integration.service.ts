@@ -38,7 +38,7 @@ export class TestManagementIntegrationService {
     
     if (!isValidConfig) {
       throw new Error(
-        `${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${data.providerType}. Please check your credentials (baseUrl, authToken, orgId) and try again.`
+        `Failed to connect to ${data.providerType}. ${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}`
       );
     }
     
@@ -88,7 +88,7 @@ export class TestManagementIntegrationService {
       
       if (!isValidConfig) {
         throw new Error(
-          `${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${integration.providerType}. Please check your credentials and try again.`
+          `Failed to connect to ${integration.providerType}. ${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}`
         );
       }
     }

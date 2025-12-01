@@ -6,14 +6,106 @@ import { hasProperty } from '~utils/type-guards.utils';
  */
 
 /**
- * Check if a string is a valid provider type
+ * Helper: Check if value is a non-empty string
  */
-const isValidProviderTypeValue = (value: string): boolean => {
-  const checkmateMatch = value === TestManagementProviderType.CHECKMATE;
-  // Add more provider types here when they're added
-  // const testRailMatch = value === TestManagementProviderType.TESTRAIL;
+const isNonEmptyString = (value: unknown): value is string => {
+  return typeof value === 'string' && value.length > 0;
+};
+
+/**
+ * Helper: Check if value is a valid URL
+ */
+const isValidUrl = (value: string): boolean => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Helper: Validate required string field
+ */
+const validateRequiredString = (
+  obj: Record<string, unknown>,
+  field: string,
+  prefix = ''
+): string | null => {
+  const label = prefix ? `${prefix} ${field}` : field;
   
-  return checkmateMatch;
+  if (!hasProperty(obj, field)) {
+    return `${label} is required`;
+  }
+  
+  if (!isNonEmptyString(obj[field])) {
+    return `${label} must be a non-empty string`;
+  }
+  
+  return null;
+};
+
+/**
+ * Helper: Validate optional string field (if present, must be non-empty)
+ */
+const validateOptionalString = (
+  obj: Record<string, unknown>,
+  field: string
+): string | null => {
+  if (!hasProperty(obj, field)) return null;
+  
+  return isNonEmptyString(obj[field]) 
+    ? null 
+    : `${field} must be a non-empty string`;
+};
+
+/**
+ * Helper: Validate required positive number field
+ */
+const validateRequiredPositiveNumber = (
+  obj: Record<string, unknown>,
+  field: string,
+  prefix = ''
+): string | null => {
+  const label = prefix ? `${prefix} ${field}` : field;
+  
+  if (!hasProperty(obj, field)) {
+    return `${label} is required`;
+  }
+  
+  const value = obj[field];
+  
+  if (typeof value !== 'number') {
+    return `${label} must be a number`;
+  }
+  
+  if (value <= 0) {
+    return `${label} must be a positive number`;
+  }
+  
+  return null;
+};
+
+/**
+ * Helper: Validate optional positive number field
+ */
+const validateOptionalPositiveNumber = (
+  obj: Record<string, unknown>,
+  field: string
+): string | null => {
+  if (!hasProperty(obj, field)) return null;
+  
+  const value = obj[field];
+  
+  if (typeof value !== 'number') {
+    return `${field} must be a number`;
+  }
+  
+  if (value <= 0) {
+    return `${field} must be a positive number`;
+  }
+  
+  return null;
 };
 
 /**
@@ -21,21 +113,16 @@ const isValidProviderTypeValue = (value: string): boolean => {
  * Returns error message if invalid, null if valid
  */
 export const validateProviderType = (value: unknown): string | null => {
-  const isString = typeof value === 'string';
-
-  if (!isString) {
+  if (typeof value !== 'string') {
     return 'providerType must be a string';
   }
 
-  const isValid = isValidProviderTypeValue(value);
+  const validProviderTypes = Object.values(TestManagementProviderType);
+  const isValid = validProviderTypes.includes(value as TestManagementProviderType);
 
-  if (!isValid) {
-    const validProviderTypes = Object.values(TestManagementProviderType);
-    const validTypesString = validProviderTypes.join(', ');
-    return `providerType must be one of: ${validTypesString}`;
-  }
-
-  return null;
+  return isValid 
+    ? null 
+    : `providerType must be one of: ${validProviderTypes.join(', ')}`;
 };
 
 /**
@@ -46,11 +133,9 @@ export const validateConfigStructure = (
   config: unknown,
   providerType: string
 ): string | null => {
-  const isObject = typeof config === 'object';
-  const isNotNull = config !== null;
-  const configIsValid = isObject && isNotNull;
+  const isValidObject = typeof config === 'object' && config !== null;
 
-  if (!configIsValid) {
+  if (!isValidObject) {
     return 'config must be a non-null object';
   }
 
@@ -59,7 +144,6 @@ export const validateConfigStructure = (
     return validateCheckmateConfig(config);
   }
 
-  // For unknown providers, just ensure it's an object
   return null;
 };
 
@@ -67,78 +151,23 @@ export const validateConfigStructure = (
  * Validate Checkmate-specific config structure
  */
 const validateCheckmateConfig = (config: unknown): string | null => {
-  const hasBaseUrlProperty = hasProperty(config, 'baseUrl');
+  const configObj = config as Record<string, unknown>;
 
-  if (!hasBaseUrlProperty) {
-    return 'Checkmate config requires baseUrl field';
-  }
+  // Validate baseUrl
+  const baseUrlError = validateRequiredString(configObj, 'baseUrl', 'Checkmate config');
+  if (baseUrlError) return baseUrlError;
 
-  const baseUrlValue = config.baseUrl;
-  const baseUrlIsString = typeof baseUrlValue === 'string';
-
-  if (!baseUrlIsString) {
-    return 'Checkmate config baseUrl must be a string';
-  }
-
-  // Convert to string safely after type check
-  const baseUrlString = String(baseUrlValue);
-  const baseUrlLength = baseUrlString.length;
-  const baseUrlEmpty = baseUrlLength === 0;
-
-  if (baseUrlEmpty) {
-    return 'Checkmate config baseUrl cannot be empty';
-  }
-
-  // Validate URL format
-  try {
-    new URL(baseUrlString);
-  } catch {
+  const baseUrl = String(configObj.baseUrl);
+  if (!isValidUrl(baseUrl)) {
     return 'Checkmate config baseUrl must be a valid URL';
   }
 
-  const hasAuthTokenProperty = hasProperty(config, 'authToken');
-
-  if (!hasAuthTokenProperty) {
-    return 'Checkmate config requires authToken field';
-  }
-
-  const authTokenValue = config.authToken;
-  const authTokenIsString = typeof authTokenValue === 'string';
-
-  if (!authTokenIsString) {
-    return 'Checkmate config authToken must be a string';
-  }
-
-  // Convert to string safely after type check
-  const authTokenString = String(authTokenValue);
-  const authTokenLength = authTokenString.length;
-  const authTokenEmpty = authTokenLength === 0;
-
-  if (authTokenEmpty) {
-    return 'Checkmate config authToken cannot be empty';
-  }
+  // Validate authToken
+  const authTokenError = validateRequiredString(configObj, 'authToken', 'Checkmate config');
+  if (authTokenError) return authTokenError;
 
   // Validate orgId
-  const hasOrgIdProperty = hasProperty(config, 'orgId');
-
-  if (!hasOrgIdProperty) {
-    return 'Checkmate config requires orgId field';
-  }
-
-  const orgIdValue = config.orgId;
-  const orgIdIsNumber = typeof orgIdValue === 'number';
-
-  if (!orgIdIsNumber) {
-    return 'Checkmate config orgId must be a number';
-  }
-
-  const orgIdIsValid = orgIdValue > 0;
-
-  if (!orgIdIsValid) {
-    return 'Checkmate config orgId must be a positive number';
-  }
-
-  return null;
+  return validateRequiredPositiveNumber(configObj, 'orgId', 'Checkmate config');
 };
 
 /**
@@ -149,11 +178,9 @@ export const validatePartialConfigStructure = (
   config: unknown,
   providerType: string
 ): string | null => {
-  const isObject = typeof config === 'object';
-  const isNotNull = config !== null;
-  const configIsValid = isObject && isNotNull;
+  const isValidObject = typeof config === 'object' && config !== null;
 
-  if (!configIsValid) {
+  if (!isValidObject) {
     return 'config must be a non-null object';
   }
 
@@ -170,64 +197,25 @@ export const validatePartialConfigStructure = (
  * Only validates fields that are present
  */
 const validatePartialCheckmateConfig = (config: unknown): string | null => {
+  const configObj = config as Record<string, unknown>;
+
   // Validate baseUrl if provided
-  if (hasProperty(config, 'baseUrl')) {
-    const baseUrlValue = config.baseUrl;
-    const baseUrlIsString = typeof baseUrlValue === 'string';
+  if (hasProperty(configObj, 'baseUrl')) {
+    const baseUrlError = validateOptionalString(configObj, 'baseUrl');
+    if (baseUrlError) return baseUrlError;
 
-    if (!baseUrlIsString) {
-      return 'baseUrl must be a string';
-    }
-
-    const baseUrlString = String(baseUrlValue);
-    const baseUrlEmpty = baseUrlString.length === 0;
-
-    if (baseUrlEmpty) {
-      return 'baseUrl cannot be empty';
-    }
-
-    // Validate URL format
-    try {
-      new URL(baseUrlString);
-    } catch {
+    const baseUrl = String(configObj.baseUrl);
+    if (!isValidUrl(baseUrl)) {
       return 'baseUrl must be a valid URL';
     }
   }
 
   // Validate authToken if provided
-  if (hasProperty(config, 'authToken')) {
-    const authTokenValue = config.authToken;
-    const authTokenIsString = typeof authTokenValue === 'string';
-
-    if (!authTokenIsString) {
-      return 'authToken must be a string';
-    }
-
-    const authTokenString = String(authTokenValue);
-    const authTokenEmpty = authTokenString.length === 0;
-
-    if (authTokenEmpty) {
-      return 'authToken cannot be empty';
-    }
-  }
+  const authTokenError = validateOptionalString(configObj, 'authToken');
+  if (authTokenError) return authTokenError;
 
   // Validate orgId if provided
-  if (hasProperty(config, 'orgId')) {
-    const orgIdValue = config.orgId;
-    const orgIdIsNumber = typeof orgIdValue === 'number';
-
-    if (!orgIdIsNumber) {
-      return 'orgId must be a number';
-    }
-
-    const orgIdIsValid = orgIdValue > 0;
-
-    if (!orgIdIsValid) {
-      return 'orgId must be a positive number';
-    }
-  }
-
-  return null;
+  return validateOptionalPositiveNumber(configObj, 'orgId');
 };
 
 /**
@@ -235,23 +223,16 @@ const validatePartialCheckmateConfig = (config: unknown): string | null => {
  * Returns error message if invalid, null if valid
  */
 export const validateIntegrationName = (value: unknown): string | null => {
-  const isString = typeof value === 'string';
-
-  if (!isString) {
+  if (typeof value !== 'string') {
     return 'name must be a string';
   }
 
-  const nameLength = value.length;
-  const nameEmpty = nameLength === 0;
-
-  if (nameEmpty) {
+  if (value.length === 0) {
     return 'name cannot be empty';
   }
 
   const maxLength = 255;
-  const nameTooLong = nameLength > maxLength;
-
-  if (nameTooLong) {
+  if (value.length > maxLength) {
     return `name cannot exceed ${maxLength} characters`;
   }
 

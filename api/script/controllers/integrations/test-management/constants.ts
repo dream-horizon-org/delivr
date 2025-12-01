@@ -10,7 +10,7 @@ export const TEST_MANAGEMENT_ERROR_MESSAGES = {
   VERIFY_INTEGRATION_FAILED: 'Failed to verify test management integration',
   FETCH_PROVIDERS_FAILED: 'Failed to fetch available test management providers',
   INTEGRATION_NOT_FOUND: 'Test management integration not found',
-  INVALID_CONFIG: 'Invalid configuration',
+  INVALID_CONFIG: 'Invalid configuration: Missing or invalid required fields',
   
   LINK_INTEGRATION_FAILED: 'Failed to link test management integration to release config',
   GET_LINK_FAILED: 'Failed to get test management integration link',
