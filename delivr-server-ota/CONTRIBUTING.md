@@ -15,7 +15,7 @@ Before you begin, ensure you have the following installed:
 
 1. Clone the repository:
 ```bash
-git clone git@github.com:ds-horizon/delivr-server-ota.git
+git clone git@github.com:dream-horizon-org/delivr-server-ota.git
 cd delivr-server-ota
 cd api
 ```
@@ -71,4 +71,4 @@ We welcome contributions in various forms, including but not limited to:
 
 ## Need Help?
 
-- Report issues on [GitHub Issues](https://github.com/ds-horizon/delivr-server-ota/issues)
+- Report issues on [GitHub Issues](https://github.com/dream-horizon-org/delivr-server-ota/issues)

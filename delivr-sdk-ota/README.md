@@ -5,10 +5,10 @@ Instantly deliver JS and asset updates to your React Native apps. Know more abou
 ## 🚀 Key Features
 
 - **Full and Patch Bundle Updates**: Deliver both full updates and efficient patch updates by sending only the differences.
-- **Brotli Compression Support**: Utilize [Brotli compression](https://github.com/ds-horizon/delivr-cli#release-management) to optimize both full and patch bundles for even smaller sizes compared to the default deflate algorithm.
+- **Brotli Compression Support**: Utilize [Brotli compression](https://github.com/dream-horizon-org/delivr-cli#release-management) to optimize both full and patch bundles for even smaller sizes compared to the default deflate algorithm.
 - **Base Bytecode Optimization**: Reduce patch bundle sizes significantly using the [bytecode](#understanding-base-bytecode-optimization) structure of your base bundle.
 - **Automated Bundle Handling**: Automatically manage bundles for both Android and iOS, ensuring seamless integration with the DOTA platform.
-- **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/ds-horizon/delivr-cli) for more details.
+- **Flexible Configuration**: Leverage CLI capabilities for custom configuration needs. See [Delivr CLI](https://github.com/dream-horizon-org/delivr-cli) for more details.
 - **Architecture Support**: Compatible with both old and new architecture setups.
 
 ## 🔧 Getting Started with DOTA
@@ -247,12 +247,12 @@ Before you start, generate your JS bundle and assets. See [Creating the JavaScri
 
 There are two ways to release OTA updates:
 
-### 1. [Using CLI](https://github.com/ds-horizon/delivr-cli?tab=readme-ov-file#release-management)
+### 1. [Using CLI](https://github.com/dream-horizon-org/delivr-cli?tab=readme-ov-file#release-management)
 - Ideal for local workflows and CI/CD pipelines
-- Supports [patch bundle release](https://github.com/ds-horizon/delivr-cli?tab=readme-ov-file#patch-bundle-release)
+- Supports [patch bundle release](https://github.com/dream-horizon-org/delivr-cli?tab=readme-ov-file#patch-bundle-release)
 - You can release, promote across deployments, and manage rollout percentages using CLI
 
-### 2. [Using Web Panel](https://github.com/ds-horizon/delivr-web-panel)
+### 2. [Using Web Panel](https://github.com/dream-horizon-org/delivr-web-panel)
 - Use the web UI to upload bundles, configure rollout percentage, and publish
 - You can monitor, pause/resume, or adjust rollout directly from the panel.
 

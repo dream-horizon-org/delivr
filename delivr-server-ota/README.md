@@ -22,10 +22,10 @@
 
 ## 🔗 Quick Links
 
-- [Delivr Web Panel](https://github.com/ds-horizon/delivr-web-panel)
-- [Delivr OTA SDK](https://github.com/ds-horizon/delivr-sdk-ota)
-- [Delivr OTA CLI](https://github.com/ds-horizon/delivr-cli)
-- [Report an Issue](https://github.com/ds-horizon/delivr-server-ota/issues)
+- [Delivr Web Panel](https://github.com/dream-horizon-org/delivr-web-panel)
+- [Delivr OTA SDK](https://github.com/dream-horizon-org/delivr-sdk-ota)
+- [Delivr OTA CLI](https://github.com/dream-horizon-org/delivr-cli)
+- [Report an Issue](https://github.com/dream-horizon-org/delivr-server-ota/issues)
 - [API Collection](docs/openapi.yaml)
 
 ---
@@ -89,4 +89,4 @@ This code is provided under the MIT License, see the [LICENSE](LICENSE.txt) to l
 
 ## ✉️ Contact
 
-If you need feedback or support, reach out via the [Issue Tracker](https://github.com/ds-horizon/delivr-server-ota/issues).
+If you need feedback or support, reach out via the [Issue Tracker](https://github.com/dream-horizon-org/delivr-server-ota/issues).

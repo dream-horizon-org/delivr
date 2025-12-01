@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Delivr CLI! This document provide
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/ds-horizon/delivr-cli.git
+git clone https://github.com/dream-horizon-org/delivr-cli.git
 cd delivr-cli
 ```
 
@@ -44,4 +44,4 @@ The binary will be used by the CLI for creating patch updates.
 
 ## Need Help?
 
-- Report issues on [GitHub Issues](https://github.com/ds-horizon/delivr-cli/issues)
+- Report issues on [GitHub Issues](https://github.com/dream-horizon-org/delivr-cli/issues)
