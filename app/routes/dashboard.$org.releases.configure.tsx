@@ -47,16 +47,12 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         }
       );
 
-      console.log('[ReleasesConfigurePage] Loader result for config:', configIdToLoad, JSON.stringify(result, null, 2));
-      
       if (result.data) {
         // Transform API response to UI format
         // API returns nested configs (testManagementConfig, commsConfig, projectManagementConfig)
         // UI expects transformed format (testManagement, communication, projectManagement)
         const currentUserId = await requireUserId(request);
         existingConfig = await transformFromBackend(result.data, currentUserId) as ReleaseConfiguration;
-        
-        console.log('[ReleasesConfigurePage] Transformed config:', JSON.stringify(existingConfig, null, 2));
         
         // If cloning, modify the config to be a new one
         if (cloneConfigId && existingConfig) {
@@ -136,7 +132,6 @@ export default function ReleasesConfigurePage() {
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
-  console.log('[ReleasesConfigurePage] Existing config:', JSON.stringify(existingConfig, null, 2));
 
   
   
@@ -175,11 +170,10 @@ export default function ReleasesConfigurePage() {
     };
   }, [getConnectedIntegrations]);
   
-  console.log('[ReleasesConfigurePage] Available integrations from ConfigContext:', availableIntegrations);
-  
   const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [useDraft, setUseDraft] = useState(false);
   const [draftConfig, setDraftConfig] = useState<Partial<ReleaseConfiguration> | null>(null);
+  const [shouldSkipDraft, setShouldSkipDraft] = useState(forceNew); // ✅ Track if we should skip draft loading
   
   // Check for draft on mount (ONLY for NEW configs, NOT in edit mode)
   useEffect(() => {
@@ -188,17 +182,16 @@ export default function ReleasesConfigurePage() {
       return;
     }
     
-    // Force new: Clear any existing draft and start fresh
+    // Force new: Skip draft dialog and start fresh (without deleting old draft)
+    // Old draft will remain accessible until user saves progress on new config
     if (forceNew) {
-      clearDraftConfig(organizationId);
-      console.log('[ReleasesConfigurePage] Force new: Cleared old draft');
+      setShouldSkipDraft(true); // ✅ Set flag to skip draft loading in wizard
       return;
     }
     
     // New config mode: Check if there's a draft to resume
       const draft = loadDraftConfig(organizationId);
       if (draft && draft.name) {
-      console.log('[ReleasesConfigurePage] Found draft, showing resume dialog');
         setDraftConfig(draft);
         setShowDraftDialog(true);
     }
@@ -229,19 +222,20 @@ export default function ReleasesConfigurePage() {
   };
   
   const handleStartNew = () => {
-    // Clear the draft and start fresh
-    clearDraftConfig(organizationId);
-    console.log('[ReleasesConfigurePage] User chose to start new, draft cleared');
     setUseDraft(false);
+    setShouldSkipDraft(true); // ✅ Set flag BEFORE hiding dialog to prevent draft loading
     setShowDraftDialog(false);
     // Reload page with ?new=true to ensure fresh start
     navigate(`/dashboard/${organizationId}/releases/configure?new=true`, { replace: true });
   };
   
   const handleCloseDraftDialog = () => {
-    setShowDraftDialog(false);
-    // Default to continuing draft if user cancels dialog
-    setUseDraft(true);
+    // User clicked "Cancel" - navigate back to where they came from
+    if (returnTo === 'create') {
+      navigate(`/dashboard/${organizationId}/releases/create`);
+    } else {
+      navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
+    }
   };
   
   // Show loading state
@@ -278,6 +272,7 @@ export default function ReleasesConfigurePage() {
   
   return (
     <ConfigurationWizard
+      key={`wizard-${shouldSkipDraft ? 'fresh' : 'draft'}`} // ✅ Force remount when switching modes
       tenantId={organizationId}
       onSubmit={handleSubmit}
       onCancel={handleCancel}
@@ -285,6 +280,7 @@ export default function ReleasesConfigurePage() {
       existingConfig={existingConfig}
       isEditMode={isEditMode}
       returnTo={returnTo}
+      skipDraftLoading={shouldSkipDraft} // ✅ Use state flag instead of forceNew to prevent race conditions
     />
   );
 }

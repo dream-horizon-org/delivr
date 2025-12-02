@@ -179,6 +179,7 @@ export function prepareReleaseConfigPayload(
     // ========================================================================
     ...(config.description && { description: config.description }),
     ...(config.isDefault !== undefined && { isDefault: config.isDefault }),
+    ...(config.isActive !== undefined && { isActive: config.isActive }),
     ...(config.baseBranch && { baseBranch: config.baseBranch }),
   };
 

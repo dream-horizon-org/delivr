@@ -31,10 +31,6 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
           setBranches(branchOptions);
           if (result.data.defaultBranch) {
             setDefaultBranch(result.data.defaultBranch);
-            // Auto-select default branch if not already set
-            if (!config.baseBranch) {
-              onChange({ ...config, baseBranch: result.data.defaultBranch });
-            }
           }
         }
       } catch (error) {
@@ -48,6 +44,12 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
       fetchBranches();
     }
   }, [tenantId]);
+ // Separate useEffect for auto-selecting default branch
+useEffect(() => {
+  if(!config.baseBranch && defaultBranch && defaultBranch !== 'main') {
+    onChange({...config, baseBranch: defaultBranch});
+  }
+}, [defaultBranch]);
 
   return (
     <div className="space-y-4">

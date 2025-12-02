@@ -39,6 +39,7 @@ export function ConfigurationWizard({
   existingConfig,
   isEditMode = false,
   returnTo,
+  skipDraftLoading = false,
 }: ConfigurationWizardProps) {
   const { invalidateReleaseConfigs } = useConfig(); // ✅ For cache invalidation after save
   
@@ -61,16 +62,18 @@ export function ConfigurationWizard({
       enableMetadata: true, // Enable metadata to store wizard step
     },
     // Initial data: Use existing config (edit mode) or draft (create mode) or default
-    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
+    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId),
+    // When skipDraftLoading is true, pass empty object to prevent draft loading
+    skipDraftLoading ? {} as Partial<ReleaseConfiguration> : undefined
   );
-  console.log('[ConfigWizard] Config:', JSON.stringify(config, null, 2));
+  // Removed excessive console.log that ran on every render
   
   // Initialize step state (will be updated from metadata in useEffect)
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Restore wizard step from metadata when draft is loaded
+  // Restore wizard step from metadata when draft is loaded (ONCE on mount)
   useEffect(() => {
     if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined) {
       console.log('[ConfigWizard] Restoring wizard step from metadata:', metadata.wizardStep);
@@ -83,33 +86,57 @@ export function ConfigurationWizard({
       }
       setCompletedSteps(completed);
     }
-  }, [isDraftRestored, metadata, isEditMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDraftRestored, isEditMode]); // ✅ Only run when isDraftRestored changes (on mount)
   
-  // Auto-save current wizard step to metadata
-  useEffect(() => {
-    // Only save step for draft configs, not in edit mode
-    if (!isEditMode && updateMetadata) {
-      updateMetadata({ wizardStep: currentStep });
+  // Note: Removed auto-save step to metadata useEffect
+  // Step is now saved explicitly in handleNext with saveDraftWithStep()
+  
+  // Helper to save draft with specific metadata
+  const saveDraftWithStep = (stepNumber: number) => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const storageKey = generateStorageKey('release-config', tenantId);
+      const draft = {
+        data: config,
+        savedAt: new Date().toISOString(),
+        version: '1.0',
+        metadata: { wizardStep: stepNumber },
+      };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+      // Also update state for consistency
+      if (updateMetadata) {
+        updateMetadata({ wizardStep: stepNumber });
+      }
+      console.log('[ConfigWizard] Draft saved with step:', stepNumber);
+    } catch (error) {
+      console.error('[ConfigWizard] Failed to save draft:', error);
     }
-  }, [currentStep, isEditMode, updateMetadata]);
+  };
   
   const handleNext = () => {
     if (canProceedFromStep(currentStep, config)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       
-      // Save draft after validation passes (only in create mode)
-      if (!isEditMode && config.name) {
-        saveDraft();
-        console.log('[ConfigWizard] Draft saved on Next click, step:', currentStep);
-      }
+      // Calculate next step before saving
+      let nextStep = currentStep + 1;
       
       // Auto-skip PIPELINES step if Manual upload is selected
       if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.hasManualBuildUpload) {
+        nextStep = currentStep + 2; // Skip pipelines step
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
-        setCurrentStep(currentStep + 2); // Skip pipelines step
-      } else {
-      setCurrentStep(currentStep + 1);
       }
+      
+      // Save draft with the NEXT step (only in create mode)
+      // This ensures the draft shows up in the configurations list (step > 0)
+      if (!isEditMode && config.name) {
+        saveDraftWithStep(nextStep);
+        console.log('[ConfigWizard] Draft saved on Next click, moving from step', currentStep, 'to', nextStep);
+      }
+      
+      // Move to next step
+      setCurrentStep(nextStep);
     }
   };
   

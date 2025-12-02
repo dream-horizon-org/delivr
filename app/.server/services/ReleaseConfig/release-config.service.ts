@@ -77,15 +77,27 @@ export class ReleaseConfigService {
 
   /**
    * List all release configurations for a tenant
+   * 
+   * ⚠️ KNOWN BACKEND ISSUE:
+   * The backend endpoint ignores the ?includeArchived=true parameter and returns 0 configs
+   * after archiving. This needs to be fixed on the backend.
+   * 
+   * Expected: GET /tenants/:id/release-configs?includeArchived=true should return ALL configs (active + archived)
+   * Actual: Returns 0 configs after archiving
+   * 
+   * Workaround: Frontend uses optimistic updates and doesn't refetch after archive to keep the cached state
    */
   static async list(
     tenantId: string,
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>[]; error?: string }> {
     try {
-      console.log('[ReleaseConfigService] Listing configs for tenant:', tenantId);
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs?includeArchived=true`;
+      console.log('[ReleaseConfigService] Listing configs for tenant:', tenantId, 'from:', url);
 
-      const response = await fetch(`${BACKEND_API_URL}/tenants/${tenantId}/release-configs`, {
+      // Include archived configs by passing includeArchived=true query parameter
+      // ⚠️ Backend currently ignores this parameter (see comment above)
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -103,11 +115,23 @@ export class ReleaseConfigService {
         };
       }
 
-      console.log('[ReleaseConfigService] List successful:',result.data?.length || 0, 'configs');
+      console.log('[ReleaseConfigService] List successful:', result.data?.length || 0, 'configs');
+      // Log isActive status for each config
+      (result.data || []).forEach((config: any, idx: number) => {
+        console.log(`[ReleaseConfigService] Config ${idx + 1}: id=${config.id}, name=${config.name}, isActive=${config.isActive}`);
+      });
+
+      const transformedConfigs = await Promise.all((result.data || []).map((config: any) => transformFromBackend(config, userId)));
+      
+      // Log transformed configs
+      console.log('[ReleaseConfigService] Transformed configs:');
+      transformedConfigs.forEach((config: any, idx: number) => {
+        console.log(`  ${idx + 1}. id=${config.id}, name=${config.name}, isActive=${config.isActive}`);
+      });
 
       return {
         success: true,
-        data: await Promise.all((result.data || []).map((config: any) => transformFromBackend(config, userId))), // Transform each config
+        data: transformedConfigs, // Transform each config
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] List error:', error);
@@ -175,26 +199,29 @@ export class ReleaseConfigService {
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>; error?: string }> {
     try {
+      console.log('[ReleaseConfigService] Update request - configId:', configId, 'updates:', updates);
       const payload = prepareUpdatePayload(updates, tenantId, userId);
+      console.log('[ReleaseConfigService] Prepared payload:', payload);
       
       // Log transformation for debugging
       if (process.env.NODE_ENV === 'development') {
         logTransformation(updates, payload, 'update');
       }
 
-      const response = await fetch(
-        `${BACKEND_API_URL}/tenants/${tenantId}/release-configs/${configId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'userid': userId,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs/${configId}`;
+      console.log('[ReleaseConfigService] PUT to:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'userid': userId,
+        },
+        body: JSON.stringify(payload),
+      });
 
       const result = await response.json();
+      console.log('[ReleaseConfigService] Update response status:', response.status);
       console.log('[ReleaseConfigService] Update result:', JSON.stringify(result, null, 2));
 
       if (!response.ok) {
@@ -205,11 +232,13 @@ export class ReleaseConfigService {
         };
       }
 
-      console.log('[ReleaseConfigService] Update successful:', result.data?.name);
+      const transformedData = await transformFromBackend(result.data, userId);
+      console.log('[ReleaseConfigService] Update successful! Name:', result.data?.name, 'isActive:', result.data?.isActive);
+      console.log('[ReleaseConfigService] Transformed data isActive:', transformedData?.isActive);
 
       return {
         success: true,
-        data: await transformFromBackend(result.data, userId), // Transform response
+        data: transformedData, // Transform response
       };
     } catch (error: any) {
       console.error('[ReleaseConfigService] Update error:', error);

@@ -60,9 +60,14 @@ export const loader = authenticateLoaderRequest(async ({ params, request }) => {
       );
     }
 
+    // For projects, wrap in projectsList for compatibility with frontend
+    const responseData = metadataType === 'projects' 
+      ? { projectsList: result.data || [] }
+      : result.data || [];
+    
     return json({
       success: true,
-      data: result.data || [],
+      data: responseData,
     });
   } catch (error) {
     console.error(`[Checkmate Metadata API] Error fetching ${metadataType}:`, error);

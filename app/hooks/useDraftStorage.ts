@@ -46,6 +46,38 @@ interface DraftMetadata<T> {
 const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
+ * Helper function to load draft from localStorage (used during initialization)
+ */
+function loadDraftFromLocalStorage<T>(
+  storageKey: string,
+  ttl: number
+): { data: T | null; metadata: Record<string, any> } {
+  if (typeof window === 'undefined') return { data: null, metadata: {} };
+
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return { data: null, metadata: {} };
+
+    const draft: DraftMetadata<T> = JSON.parse(stored);
+    
+    // Check if draft is expired
+    const savedAt = new Date(draft.savedAt).getTime();
+    const now = Date.now();
+    if (now - savedAt > ttl) {
+      localStorage.removeItem(storageKey);
+      return { data: null, metadata: {} };
+    }
+
+    return { 
+      data: draft.data as T, 
+      metadata: draft.metadata || {} 
+    };
+  } catch (error) {
+    return { data: null, metadata: {} };
+  }
+}
+
+/**
  * Generic hook for form draft storage with auto-save and restore
  * 
  * @template T - The type of form data
@@ -72,8 +104,25 @@ export function useDraftStorage<T extends Record<string, any>>(
   // Track if save was successful (to prevent auto-save on success)
   const saveSuccessfulRef = useRef(false);
   
+  // ✅ Load draft ONCE during initialization using useRef (doesn't re-run on re-renders)
+  const loadedDraftRef = useRef<{ data: T | null; metadata: Record<string, any> } | null>(null);
+  if (loadedDraftRef.current === null) {
+    const shouldSkipDraft = !!existingData;
+    
+    loadedDraftRef.current = shouldSkipDraft 
+      ? { data: null, metadata: {} } 
+      : loadDraftFromLocalStorage<T>(storageKey, ttl);
+  }
+  const loadedDraft = loadedDraftRef.current;
+  
   // Store metadata separately if enabled (e.g., wizard step)
-  const [metadata, setMetadata] = useState<Record<string, any>>({});
+  // Initialize with loaded metadata from draft
+  const [metadata, setMetadata] = useState<Record<string, any>>(() => {
+    if (!enableMetadata) {
+      return {};
+    }
+    return loadedDraft.metadata || {};
+  });
 
   /**
    * Load draft from localStorage
@@ -119,14 +168,8 @@ export function useDraftStorage<T extends Record<string, any>>(
       return { ...initialData, ...existingData };
     }
     
-    // In create mode, check for draft
-    const { data: draft, metadata: loadedMetadata } = loadDraftFromStorage();
-    
-    // Restore metadata if enabled
-    if (enableMetadata && loadedMetadata && Object.keys(loadedMetadata).length > 0) {
-      // setMetadata will happen in useEffect to avoid state update during render
-      setTimeout(() => setMetadata(loadedMetadata), 0);
-    }
+    // In create mode, use pre-loaded draft
+    const draft = loadedDraft.data;
     
     // Merge draft with defaults (draft already has null values filtered out during save)
     return draft ? { ...initialData, ...draft } : initialData;
@@ -137,8 +180,7 @@ export function useDraftStorage<T extends Record<string, any>>(
     if (existingData) {
       return false;
     }
-    const { data: draft } = loadDraftFromStorage();
-    return !!draft;
+    return !!loadedDraft.data;
   });
 
   /**

@@ -41,21 +41,21 @@ export default function ReleaseSettingsPage() {
   
   // Get tab from URL params, default to 'integrations'
   const tabFromUrl = searchParams.get('tab') as SettingsTab | null;
-  const [activeTab, setActiveTab] = useState<SettingsTab>(
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => 
     tabFromUrl || 'integrations'
   );
   
-  // Sync activeTab with URL params
+  // Sync activeTab with URL params (only when URL changes)
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
-  }, [tabFromUrl, activeTab]);
+  }, [tabFromUrl]); // ✅ Removed activeTab from deps to prevent extra re-renders
   
   // Update URL when tab changes
   const handleTabChange = useCallback((tab: SettingsTab) => {
     setActiveTab(tab);
-    setSearchParams({ tab });
+    setSearchParams({ tab }, { replace: true }); // ✅ Use replace to avoid navigation flicker
   }, [setSearchParams]);
   
   return (
@@ -66,27 +66,30 @@ export default function ReleaseSettingsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
         
-        {/* Tab Content */}
-        {activeTab === 'integrations' && (
+        {/* Tab Content - Keep all tabs mounted to prevent flickering */}
+        {/* Hidden tabs remain in DOM but don't re-render on switch */}
+        <div className={activeTab === 'integrations' ? 'block' : 'hidden'}>
           <IntegrationsTab
             org={org}
             isLoading={isLoadingMetadata || isLoadingTenantConfig}
           />
-        )}
+        </div>
         
-        {activeTab === 'configurations' && (
+        <div className={activeTab === 'configurations' ? 'block' : 'hidden'}>
           <ConfigurationsTab
             org={org}
             releaseConfigs={releaseConfigs}
             invalidateReleaseConfigs={invalidateReleaseConfigs}
           />
-        )}
+        </div>
         
-        {activeTab === 'cicd' && (
+        <div className={activeTab === 'cicd' ? 'block' : 'hidden'}>
           <CICDTab org={org} />
-        )}
+        </div>
         
-        {activeTab === 'general' && <GeneralTab />}
+        <div className={activeTab === 'general' ? 'block' : 'hidden'}>
+          <GeneralTab />
+        </div>
       </div>
     </div>
   );

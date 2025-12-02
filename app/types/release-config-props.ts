@@ -59,6 +59,7 @@ export interface ConfigurationWizardProps {
   existingConfig?: ReleaseConfiguration | null;
   isEditMode?: boolean;
   returnTo?: string | null;
+  skipDraftLoading?: boolean; // When true, start fresh without loading draft from localStorage
 }
 
 export interface WizardNavigationProps {

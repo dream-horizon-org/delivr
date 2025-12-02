@@ -161,10 +161,10 @@ export function CheckmateConfigFormEnhanced({
 
   // Fetch projects when integration is selected (single call, shared by all platforms)
   useEffect(() => {
-    if (selectedIntegrationId && !projectsLoaded) {
+    if (selectedIntegrationId && !projectsLoaded && !isLoadingProjects) {
       fetchProjects(selectedIntegrationId);
     }
-  }, [selectedIntegrationId, fetchProjects, projectsLoaded]);
+  }, [selectedIntegrationId, fetchProjects, projectsLoaded, isLoadingProjects]);
 
   // Fetch platform-specific metadata (sequential calls to avoid parallelization issues)
   const fetchPlatformMetadata = useCallback(async (platform: string, projectId: number) => {
