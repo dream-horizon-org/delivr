@@ -353,16 +353,16 @@ export class ReleaseConfigService {
    * List configs by tenant ID (basic format with config IDs)
    * @deprecated Use listConfigsByTenantVerbose for API responses
    */
-  async listConfigsByTenant(tenantId: string): Promise<ReleaseConfiguration[]> {
-    return this.configRepo.findByTenantId(tenantId);
+  async listConfigsByTenant(tenantId: string, includeArchived = false): Promise<ReleaseConfiguration[]> {
+    return this.configRepo.findByTenantId(tenantId, includeArchived);
   }
 
   /**
    * List configs by tenant ID with verbose integration details
    * Returns array of VerboseReleaseConfiguration
    */
-  async listConfigsByTenantVerbose(tenantId: string): Promise<any[]> {
-    const configs = await this.configRepo.findByTenantId(tenantId);
+  async listConfigsByTenantVerbose(tenantId: string, includeArchived = false): Promise<any[]> {
+    const configs = await this.configRepo.findByTenantId(tenantId, includeArchived);
     
     // Fetch verbose details for each config in parallel
     const verboseConfigs = await Promise.all(

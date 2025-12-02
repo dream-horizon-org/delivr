@@ -147,6 +147,7 @@ const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { tenantId } = req.params;
+      const includeArchived = req.query.includeArchived === 'true';
 
       if (!tenantId) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -156,7 +157,7 @@ const listConfigsByTenantHandler = (service: ReleaseConfigService) =>
       }
 
       // Return verbose format to match other endpoints
-      const verboseConfigs = await service.listConfigsByTenantVerbose(tenantId);
+      const verboseConfigs = await service.listConfigsByTenantVerbose(tenantId, includeArchived);
 
       res.status(HTTP_STATUS.OK).json(successResponse(verboseConfigs));
     } catch (error) {
