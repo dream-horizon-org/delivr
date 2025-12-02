@@ -420,8 +420,9 @@ export interface ConfigurationListProps {
 export interface ConfigurationListItemProps {
   config: ReleaseConfiguration;
   onEdit: () => void;
-  onDelete: () => void;
-  onClone: () => void;
+  onDuplicate: () => void;
+  onArchive: () => void;
+  onExport: () => void;
   onSetDefault: () => void;
 }
 

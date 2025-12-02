@@ -31,12 +31,11 @@ export function ConfigurationList({
       config.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       config.description?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Map status filter to isActive field + draft status
-    // - DRAFT: config.status === 'DRAFT' (from localStorage)
+    // Map status filter to isActive field
     // - ACTIVE: config.isActive === true (from backend)
     // - ARCHIVED: config.isActive === false && not draft (from backend)
+    // Note: Drafts are always shown regardless of filter
     const matchesStatus = !statusFilter || 
-      (statusFilter === CONFIG_STATUS.DRAFT && config.status === CONFIG_STATUS.DRAFT) ||
       (statusFilter === CONFIG_STATUS.ACTIVE && config.isActive === true) ||
       (statusFilter === CONFIG_STATUS.ARCHIVED && config.isActive === false && config.status !== CONFIG_STATUS.DRAFT);
     
@@ -94,7 +93,6 @@ export function ConfigurationList({
             onChange={setStatusFilter}
             data={[
               { value: CONFIG_STATUS.ACTIVE, label: CONFIG_LIST_LABELS.STATUS_ACTIVE },
-              { value: CONFIG_STATUS.DRAFT, label: CONFIG_LIST_LABELS.STATUS_DRAFT },
               { value: CONFIG_STATUS.ARCHIVED, label: CONFIG_LIST_LABELS.STATUS_ARCHIVED },
             ]}
             clearable

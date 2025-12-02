@@ -86,13 +86,11 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     return draftConfig ? [draftConfig, ...backendConfigs] : backendConfigs;
   }, [releaseConfigs, org, draftVersion]); // ✅ Re-run when draftVersion changes (after draft deletion)
   
-  // Calculate stats from merged configs (backend + localStorage draft)
+  // Calculate stats from configs (backend only, drafts not counted in stats)
   // Backend configs use isActive: true (ACTIVE) or false (ARCHIVED)
-  // Draft configs have status: 'DRAFT'
   const stats = useMemo(() => ({
-    total: configurations.length,
+    total: configurations.filter((c: any) => c.status !== 'DRAFT').length,
     active: configurations.filter((c: any) => c.isActive === true).length,
-    draft: configurations.filter((c: any) => c.status === 'DRAFT').length,
     archived: configurations.filter((c: any) => c.isActive === false && c.status !== 'DRAFT').length,
   }), [configurations]);
 

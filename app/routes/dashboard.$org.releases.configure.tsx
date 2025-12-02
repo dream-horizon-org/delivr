@@ -222,6 +222,9 @@ export default function ReleasesConfigurePage() {
   };
   
   const handleStartNew = () => {
+    // Delete the existing draft from localStorage
+    clearDraftConfig(organizationId);
+    
     setUseDraft(false);
     setShouldSkipDraft(true); // ✅ Set flag BEFORE hiding dialog to prevent draft loading
     setShowDraftDialog(false);
