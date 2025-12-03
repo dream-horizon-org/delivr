@@ -64,9 +64,8 @@ export interface CreateReleasePayload {
   targetReleaseDate?: Date;
   kickOffReminderDate?: Date;
   kickOffDate?: Date;
-  customIntegrationConfigs?: Record<string, unknown>;
+  releasePilotAccountId?: string;
   regressionBuildSlots?: any[];
-  preCreatedBuilds?: any[];
   cronConfig?: {
     kickOffReminder?: boolean;
     preRegressionBuilds?: boolean;
@@ -74,7 +73,6 @@ export interface CreateReleasePayload {
     automationRuns?: boolean;
     testFlightBuilds?: boolean;
   };
-  regressionTimings?: string;
   hasManualBuildUpload?: boolean;
 }
 
@@ -104,25 +102,18 @@ export interface CreateReleaseRequestBody {
   targetReleaseDate?: string;
   kickOffReminderDate?: string;
   kickOffDate?: string;
+  releasePilotAccountId?: string;
   hasManualBuildUpload?: boolean;
   regressionBuildSlots?: Array<{
     date: string;
     config: Record<string, unknown>;
   }>;
-  preCreatedBuilds?: Array<{
-    platform: string;
-    target: string;
-    buildNumber: string;
-    buildUrl: string;
-  }>;
-  customIntegrationConfigs?: Record<string, unknown>;
   cronConfig?: {
     kickOffReminder?: boolean;
     preRegressionBuilds?: boolean;
     automationBuilds?: boolean;
     automationRuns?: boolean;
   };
-  regressionTimings?: string;
 }
 
 /**
@@ -133,15 +124,6 @@ export interface RegressionBuildSlot {
   config: Record<string, unknown>;
 }
 
-/**
- * Pre-created build type
- */
-export interface PreCreatedBuild {
-  platform: string;
-  target: string;
-  buildNumber: string;
-  buildUrl: string;
-}
 
 /**
  * Cron job configuration in release response
@@ -153,11 +135,12 @@ export interface CronJobResponse {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: Record<string, unknown>;
-  regressionTimings: string | null;
   upcomingRegressions: any[] | null;
   cronCreatedAt: string;
   cronStoppedAt: string | null;
   cronCreatedByAccountId: string;
+  autoTransitionToStage2: boolean;
+  stageData: any;
 }
 
 /**
@@ -201,10 +184,9 @@ export interface ReleaseResponseBody {
   targetReleaseDate: string | null;
   releaseDate: string | null;
   hasManualBuildUpload: boolean;
-  customIntegrationConfigs: Record<string, unknown> | null;
-  preCreatedBuilds: any[] | null;
-  createdBy: string;
-  lastUpdatedBy: string;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
   createdAt: string;
   updatedAt: string;
   cronJob?: CronJobResponse;
@@ -225,6 +207,77 @@ export interface ReleaseListResponseBody {
 export interface SingleReleaseResponseBody {
   success: boolean;
   release: ReleaseResponseBody;
+}
+
+/**
+ * Update release request body (HTTP API)
+ */
+export interface UpdateReleaseRequestBody {
+  id?: string;
+  releaseId?: string;
+  releaseConfigId?: string;
+  tenantId?: string;
+  type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  branch?: string;
+  baseBranch?: string;
+  baseReleaseId?: string;
+  kickOffReminderDate?: string;
+  kickOffDate?: string;
+  targetReleaseDate?: string;
+  releaseDate?: string;
+  hasManualBuildUpload?: boolean;
+  createdByAccountId?: string;
+  releasePilotAccountId?: string;
+  lastUpdatedByAccountId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  platformTargetMappings?: Array<{
+    id: string;
+    releaseId?: string;
+    platform: string;
+    target: string;
+    version: string;
+    projectManagementRunId?: string | null;
+    testManagementRunId?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
+  tasks?: Array<{
+    id: string;
+    taskId: string;
+    taskType: string;
+    stage: string;
+    taskStatus: string;
+    taskConclusion?: string | null;
+    accountId: string;
+    regressionId?: string | null;
+    isReleaseKickOffTask: boolean;
+    isRegressionSubTasks: boolean;
+    identifier: string;
+    externalId?: string | null;
+    externalData?: any;
+    branch?: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  cronJob?: {
+    id?: string;
+    stage1Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    stage2Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    stage3Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+    cronStatus?: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+    cronConfig?: Record<string, unknown>;
+    upcomingRegressions?: Array<{
+      date: string;
+      config: Record<string, unknown>;
+    }>;
+    cronCreatedAt?: string;
+    cronStoppedAt?: string | null;
+    cronCreatedByAccountId?: string;
+    autoTransitionToStage2?: boolean;
+    stageData?: any;
+  };
 }
 
 /**

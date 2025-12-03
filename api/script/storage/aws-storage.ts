@@ -29,8 +29,9 @@ import {
   ProjectManagementConfigService,
   ProjectManagementTicketService
 } from "../services/integrations/project-management";
-import { SlackIntegrationService } from "../services/integrations/comm/slack-integration";
-import { SlackChannelConfigService } from "../services/integrations/comm/slack-channel-config";
+import { JiraMetadataService } from "../services/integrations/project-management/metadata/jira";
+import { CommIntegrationService } from "../services/integrations/comm/comm-integration";
+import { CommConfigService } from "../services/integrations/comm/comm-config";
 import {
   createReleaseConfigModel,
   ReleaseConfigRepository
@@ -52,10 +53,16 @@ import {
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
+import { ReleaseStatusService } from "../services/release/release-status.service";
+import { ReleaseUpdateService } from "../services/release/release-update.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
-import { createSlackIntegrationModel, createChannelConfigModel } from "./integrations/comm/slack-models";
-import { SlackIntegrationController, ChannelController } from "./integrations/comm/slack-controller";
+import { 
+  createCommIntegrationModel, 
+  createCommConfigModel,
+  CommIntegrationRepository,
+  CommConfigRepository
+} from "../models/integrations/comm";
 import { createCICDIntegrationModel, createCICDWorkflowModel, createCICDConfigModel } from "../models/integrations/ci-cd";
 import { CICDIntegrationRepository, CICDWorkflowRepository, CICDConfigRepository } from "../models/integrations/ci-cd";
 import { CICDConfigService } from "../services/integrations/ci-cd/config/config.service";
@@ -422,11 +429,11 @@ export function createModelss(sequelize: Sequelize) {
   const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
 
   // ============================================
-  const SlackIntegrations = createSlackIntegrationModel(sequelize);  // Slack integrations(Slack, Email, Teams)
+  const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
   const StoreIntegrations = createStoreIntegrationModel(sequelize);  // Store integrations (App Store, Play Store, etc.)
   const StoreCredentials = createStoreCredentialModel(sequelize);  // Store credentials (encrypted)
   const PlatformStoreMapping = createPlatformStoreMappingModel(sequelize);  // Platform to store type mapping (static data)
-  const ChannelConfig = createChannelConfigModel(sequelize);  // Channel configurations for communication integrations
+  const CommConfig = createCommConfigModel(sequelize);  // Channel configurations for communication integrations
   
   // Test Management integrations
   const TenantTestManagementIntegration = createTenantTestManagementIntegrationModel(sequelize);
@@ -449,12 +456,12 @@ export function createModelss(sequelize: Sequelize) {
   Release.belongsTo(Tenant, { foreignKey: 'tenantId' });
   
   // Account and Release (Creator relationship)
-  Account.hasMany(Release, { foreignKey: 'createdBy', as: 'createdReleases' });
-  Release.belongsTo(Account, { foreignKey: 'createdBy', as: 'creator' });
+  Account.hasMany(Release, { foreignKey: 'createdByAccountId', as: 'createdReleases' });
+  Release.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
   
   // Account and Release (Last updater relationship)
-  Account.hasMany(Release, { foreignKey: 'lastUpdatedBy', as: 'lastUpdatedReleases' });
-  Release.belongsTo(Account, { foreignKey: 'lastUpdatedBy', as: 'lastUpdater' });
+  Account.hasMany(Release, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdatedReleases' });
+  Release.belongsTo(Account, { foreignKey: 'lastUpdatedByAccountId', as: 'lastUpdater' });
   
   // Release self-referencing (Parent-child for hotfixes via baseReleaseId)
   Release.hasMany(Release, { foreignKey: 'baseReleaseId', as: 'hotfixes' });
@@ -467,6 +474,10 @@ export function createModelss(sequelize: Sequelize) {
   // Release and CronJob (One Release has one CronJob)
   Release.hasOne(CronJob, { foreignKey: 'releaseId', as: 'cronJob' });
   CronJob.belongsTo(Release, { foreignKey: 'releaseId' });
+  
+  // Account and CronJob (Creator relationship)
+  Account.hasMany(CronJob, { foreignKey: 'cronCreatedByAccountId', as: 'createdCronJobs' });
+  CronJob.belongsTo(Account, { foreignKey: 'cronCreatedByAccountId', as: 'creator' });
   
   // Release and Tasks (One Release has many Tasks)
   Release.hasMany(ReleaseTask, { foreignKey: 'releaseId', as: 'tasks' });
@@ -516,14 +527,14 @@ export function createModelss(sequelize: Sequelize) {
   SCMIntegrations.belongsTo(Account, { foreignKey: 'createdByAccountId', as: 'creator' });
 
   // Slack Integration associations
-  // Tenant has ONE Slack integration (set up during onboarding)
-  Tenant.hasOne(SlackIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
-  SlackIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
+  // Tenant has ONE communication integration (set up during onboarding)
+  Tenant.hasOne(CommIntegrations, { foreignKey: 'tenantId', as: 'slackIntegration' });
+  CommIntegrations.belongsTo(Tenant, { foreignKey: 'tenantId' });
 
   // Channel Configuration associations
-  // Slack integration has ONE channel configuration
-  SlackIntegrations.hasOne(ChannelConfig, { foreignKey: 'integrationId', as: 'channelConfig' });
-  ChannelConfig.belongsTo(SlackIntegrations, { foreignKey: 'integrationId' });
+  // Communication integration has ONE channel configuration
+  CommIntegrations.hasOne(CommConfig, { foreignKey: 'integrationId', as: 'channelConfig' });
+  CommConfig.belongsTo(CommIntegrations, { foreignKey: 'integrationId' });
 
   // Test Management associations
   // Tenant has many Test Management Integrations
@@ -568,11 +579,13 @@ export function createModelss(sequelize: Sequelize) {
     cronJob: CronJob,
     releaseTasks: ReleaseTask,
     stateHistory: StateHistory,
-    SlackIntegrations,  // Slack integrations
+    CommIntegrations,  // Communication integrations
+    SlackIntegrations: CommIntegrations,  // Legacy alias
     StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
     StoreCredentials,   // Store credentials (encrypted)
     PlatformStoreMapping,   // Platform to store type mapping (static data)
-    ChannelConfig,  // Channel configurations for communication integrations
+    CommConfig,  // Channel configurations for communication integrations
+    ChannelConfig: CommConfig,  // Legacy alias
     TenantTestManagementIntegration,  // Test management integrations
     TestManagementConfig,  // Test management configurations
   };
@@ -630,6 +643,7 @@ export class S3Storage implements storage.Storage {
     public projectManagementIntegrationService!: ProjectManagementIntegrationService;
     public projectManagementConfigService!: ProjectManagementConfigService;
     public projectManagementTicketService!: ProjectManagementTicketService;
+    public jiraMetadataService!: JiraMetadataService;
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
@@ -637,13 +651,15 @@ export class S3Storage implements storage.Storage {
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
     public releaseCreationService!: ReleaseCreationService;
-    public releaseRetrievalService!: ReleaseRetrievalService;
-    public slackController!: SlackIntegrationController;  // Slack integration controller
+    public releaseRetrievalService!: ReleaseRetrievalService; // Slack integration controller (OLD - for backwards compatibility)  // Slack integration repository (NEW - with delete method)
+    public releaseUpdateService!: ReleaseUpdateService;  // Slack integration controller
+    public releaseStatusService!: ReleaseStatusService;
+    public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
+    public commConfigRepository!: CommConfigRepository;  // Comm config repository
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
-    public channelController!: ChannelController;  // Channel configuration controller
-    public slackIntegrationService!: SlackIntegrationService;
-    public slackChannelConfigService!: SlackChannelConfigService;// Slack channel config service
+    public commIntegrationService!: CommIntegrationService;
+    public commConfigService!: CommConfigService;// Communication config service
     public buildRepository!: BuildRepository;
     public constructor() {
         const s3Config = {
@@ -816,11 +832,20 @@ export class S3Storage implements storage.Storage {
             this.projectManagementIntegrationRepository
           );
           
+          // Service 4: Jira Metadata Service (fetches Jira projects)
+          this.jiraMetadataService = new JiraMetadataService(
+            this.projectManagementIntegrationRepository
+          );
+          
           console.log("Project Management Integration initialized");
           
-          // Initialize Slack Integration Controller
-          this.slackController = new SlackIntegrationController(models.SlackIntegrations);
-          console.log("Slack Integration Controller initialized");
+          // Initialize Comm Integration Repository (new pattern, matches test-management)
+          this.commIntegrationRepository = new CommIntegrationRepository(models.CommIntegrations);
+          console.log("Comm Integration Repository initialized");
+
+          // Initialize Comm Config Repository (new pattern, matches test-management)
+          this.commConfigRepository = new CommConfigRepository(models.CommConfig);
+          console.log("Comm Config Repository initialized");
 
           // Initialize Store Integration Controllers
           this.storeIntegrationController = new StoreIntegrationController(
@@ -830,19 +855,15 @@ export class S3Storage implements storage.Storage {
           this.storeCredentialController = new StoreCredentialController(models.StoreCredentials);
           console.log("Store Integration Controllers initialized");
           
-          // Initialize Channel Configuration Controller
-          this.channelController = new ChannelController(models.ChannelConfig);
-          console.log("Channel Configuration Controller initialized");
+          // Initialize Comm Services (using repositories, same pattern as test-management)
+          this.commIntegrationService = new CommIntegrationService(this.commIntegrationRepository);
+          console.log("Comm Integration Service initialized");
           
-          // Initialize Slack Services (similar to test-management services)
-          this.slackIntegrationService = new SlackIntegrationService(this.slackController);
-          console.log("Slack Integration Service initialized");
-          
-          this.slackChannelConfigService = new SlackChannelConfigService(
-            this.channelController,
-            this.slackController
+          this.commConfigService = new CommConfigService(
+            this.commConfigRepository,
+            this.commIntegrationRepository
           );
-          console.log("Slack Channel Config Service initialized");
+          console.log("Comm Config Service initialized");
           
           // Initialize Release Config (AFTER all integration services are ready)
           const releaseConfigModel = createReleaseConfigModel(this.sequelize);
@@ -851,7 +872,7 @@ export class S3Storage implements storage.Storage {
             this.releaseConfigRepository,
             this.cicdConfigService,
             this.testManagementConfigService,
-            this.slackChannelConfigService,
+            this.commConfigService,
             this.projectManagementConfigService
           );
           console.log("Release Config Service initialized");
@@ -873,7 +894,8 @@ export class S3Storage implements storage.Storage {
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
-            this
+            this,
+            this.releaseConfigService
           );
           console.log("Release Creation Service initialized");
           
@@ -884,6 +906,21 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo
           );
           console.log("Release Retrieval Service initialized");
+          
+          this.releaseStatusService = new ReleaseStatusService(
+            this.releaseRetrievalService,
+            this.releaseConfigService,
+            this.projectManagementTicketService,
+            this.testManagementRunService
+          );
+          console.log("Release Status Service initialized");
+          
+          this.releaseUpdateService = new ReleaseUpdateService(
+            releaseRepo,
+            cronJobRepo,
+            platformTargetMappingRepo
+          );
+          console.log("Release Update Service initialized");
           
           // Initialize Build repository (for artifact listings/uploads)
           const buildModel = createBuildModel(this.sequelize);
@@ -937,7 +974,7 @@ export class S3Storage implements storage.Storage {
       }
   
     public getAccount(accountId: string): Promise<storage.Account> {
-      console.log("Fetching account for accountId:", accountId); // Debug log
+      // console.log("Fetching account for accountId:", accountId); // Debug log
       return this.setupPromise
         .then(() => {
           return this.sequelize.models[MODELS.ACCOUNT].findByPk(accountId)

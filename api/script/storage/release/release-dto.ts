@@ -7,8 +7,8 @@
  * - Uses Sequelize (not Prisma)
  * - Uses accounts table (not User/UserProfile)
  * - Uses accountId (not userId)
- * - Added stageData and customIntegrationConfigs support
- * - Added regressionBuildSlots and preCreatedBuilds support
+ * - Added stageData support
+ * - Added regressionBuildSlots support
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -27,8 +27,6 @@ export interface CreateReleaseData {
   // Optional fields
   releaseConfigId?: string; // FK to release_configs table
   regressionBuildSlots?: Array<{ date: Date; config: any }>;
-  preCreatedBuilds?: Array<{ platform: string; target: string; buildNumber: string; buildUrl: string }>;
-  customIntegrationConfigs?: any;
   stageData?: any;
   baseVersion?: string;
   kickOffReminderDate?: Date;
@@ -45,9 +43,7 @@ export interface UpdateReleaseData {
   releasePilotAccountId?: string;
   releaseConfigId?: string; // FK to release_configs table
   stageData?: any;
-  customIntegrationConfigs?: any;
   regressionBuildSlots?: Array<{ date: Date; config: any }>;
-  preCreatedBuilds?: Array<{ platform: string; target: string; buildNumber: string; buildUrl: string }>;
   [key: string]: any; // Allow other fields
 }
 
@@ -80,16 +76,14 @@ export class ReleaseDTO {
       baseVersion: data.baseVersion || data.version,
       releasePilotAccountId: data.releasePilotAccountId,
       createdByAccountId: data.accountId,
-      lastUpdateByAccountId: data.accountId,
+      lastUpdatedByAccountId: data.accountId,
       status: ReleaseStatus.PENDING,
       kickOffReminderDate: data.kickOffReminderDate || null,
       parentId: data.parentId || null,
       releaseConfigId: data.releaseConfigId || null,
       // Orchestration-specific fields
       stageData: data.stageData || {},
-      customIntegrationConfigs: data.customIntegrationConfigs || null,
       regressionBuildSlots: data.regressionBuildSlots ? JSON.stringify(data.regressionBuildSlots) : null,
-      preCreatedBuilds: data.preCreatedBuilds ? JSON.stringify(data.preCreatedBuilds) : null,
     };
 
     const release = await this.ReleaseModel.create(releaseData);
@@ -132,14 +126,8 @@ export class ReleaseDTO {
     if (releaseJson.stageData && typeof releaseJson.stageData === 'string') {
       releaseJson.stageData = JSON.parse(releaseJson.stageData);
     }
-    if (releaseJson.customIntegrationConfigs && typeof releaseJson.customIntegrationConfigs === 'string') {
-      releaseJson.customIntegrationConfigs = JSON.parse(releaseJson.customIntegrationConfigs);
-    }
     if (releaseJson.regressionBuildSlots && typeof releaseJson.regressionBuildSlots === 'string') {
       releaseJson.regressionBuildSlots = JSON.parse(releaseJson.regressionBuildSlots);
-    }
-    if (releaseJson.preCreatedBuilds && typeof releaseJson.preCreatedBuilds === 'string') {
-      releaseJson.preCreatedBuilds = JSON.parse(releaseJson.preCreatedBuilds);
     }
 
     return releaseJson;
@@ -159,20 +147,10 @@ export class ReleaseDTO {
     if (data.stageData !== undefined) {
       updateData.stageData = typeof data.stageData === 'string' ? data.stageData : JSON.stringify(data.stageData);
     }
-    if (data.customIntegrationConfigs !== undefined) {
-      updateData.customIntegrationConfigs = typeof data.customIntegrationConfigs === 'string' 
-        ? data.customIntegrationConfigs 
-        : JSON.stringify(data.customIntegrationConfigs);
-    }
     if (data.regressionBuildSlots !== undefined) {
       updateData.regressionBuildSlots = typeof data.regressionBuildSlots === 'string'
         ? data.regressionBuildSlots
         : JSON.stringify(data.regressionBuildSlots);
-    }
-    if (data.preCreatedBuilds !== undefined) {
-      updateData.preCreatedBuilds = typeof data.preCreatedBuilds === 'string'
-        ? data.preCreatedBuilds
-        : JSON.stringify(data.preCreatedBuilds);
     }
 
     await this.ReleaseModel.update(updateData, {
@@ -234,14 +212,8 @@ export class ReleaseDTO {
       if (json.stageData && typeof json.stageData === 'string') {
         json.stageData = JSON.parse(json.stageData);
       }
-      if (json.customIntegrationConfigs && typeof json.customIntegrationConfigs === 'string') {
-        json.customIntegrationConfigs = JSON.parse(json.customIntegrationConfigs);
-      }
       if (json.regressionBuildSlots && typeof json.regressionBuildSlots === 'string') {
         json.regressionBuildSlots = JSON.parse(json.regressionBuildSlots);
-      }
-      if (json.preCreatedBuilds && typeof json.preCreatedBuilds === 'string') {
-        json.preCreatedBuilds = JSON.parse(json.preCreatedBuilds);
       }
       return json;
     });

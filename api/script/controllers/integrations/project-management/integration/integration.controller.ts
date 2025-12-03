@@ -17,6 +17,7 @@ import {
 import { PROJECT_MANAGEMENT_PROVIDERS } from './integration.constants';
 import {
   validateConfigStructure,
+  validatePartialConfigStructure,
   validateIntegrationName,
   validateProviderType
 } from './integration.validation';
@@ -184,7 +185,7 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
         }
       }
 
-      // Validate config if provided
+      // Validate config if provided (partial update - only validate fields present)
       if (config !== undefined) {
         const existing = await service.getIntegration(integrationId);
 
@@ -195,7 +196,7 @@ const updateIntegrationHandler = (service: ProjectManagementIntegrationService) 
           return;
         }
 
-        const configError = validateConfigStructure(config, existing.providerType);
+        const configError = validatePartialConfigStructure(config, existing.providerType);
         if (configError) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(validationErrorResponse('config', configError));
           return;
@@ -258,7 +259,7 @@ const deleteIntegrationHandler = (service: ProjectManagementIntegrationService) 
 
 /**
  * Verify credentials without saving (stateless verification)
- * POST /projects/:projectId/integrations/project-management/verify
+ * POST /tenants/:tenantId/integrations/project-management/verify
  */
 const verifyCredentialsHandler = (_service: ProjectManagementIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {

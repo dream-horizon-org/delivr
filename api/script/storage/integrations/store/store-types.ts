@@ -97,6 +97,7 @@ export interface CreateStoreIntegrationDto {
 export interface UpdateStoreIntegrationDto {
   platform?: 'ANDROID' | 'IOS';
   displayName?: string;
+  appIdentifier?: string;
   targetAppId?: string | null;
   defaultLocale?: string | null;
   teamName?: string | null;

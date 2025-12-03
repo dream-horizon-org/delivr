@@ -25,6 +25,7 @@ import type {
   CheckmateCreateRunRequest,
   CheckmateCreateRunResponse,
   CheckmateLabelsResponse,
+  CheckmateProject,
   CheckmateProjectsResponse,
   CheckmateRunStateData,
   CheckmateRunStateResponse,
@@ -72,7 +73,9 @@ export class CheckmateProvider implements ITestManagementProvider {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> => {
-    const url = `${checkmateConfig.baseUrl}${endpoint}`;
+    // Remove trailing slash from baseUrl to avoid double slashes
+    const baseUrl = checkmateConfig.baseUrl.replace(/\/$/, '');
+    const url = `${baseUrl}${endpoint}`;
     const authorizationValue = `${AUTH_SCHEMES.BEARER} ${checkmateConfig.authToken}`;
     
     const response = await fetch(url, {
@@ -132,19 +135,23 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Build run URL for Checkmate UI
    */
   private buildRunUrl = (baseUrl: string, projectId: number, runId: string): string => {
+    // Remove trailing slash from baseUrl
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
     const url = CHECKMATE_URL_TEMPLATES.PROJECT_RUN
       .replace(CHECKMATE_URL_PARAMS.PROJECT_ID, projectId.toString())
       .replace(CHECKMATE_URL_PARAMS.RUN_ID, runId);
-    return `${baseUrl}${url}`;
+    return `${normalizedBaseUrl}${url}`;
   };
 
   /**
    * Build simple run URL
    */
   private buildSimpleRunUrl = (baseUrl: string, runId: string): string => {
+    // Remove trailing slash from baseUrl
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
     const urlTemplate = CHECKMATE_URL_TEMPLATES.RUNS;
     const url = urlTemplate.replace(CHECKMATE_URL_PARAMS.RUN_ID, runId);
-    return `${baseUrl}${url}`;
+    return `${normalizedBaseUrl}${url}`;
   };
 
   /**
@@ -158,20 +165,15 @@ export class CheckmateProvider implements ITestManagementProvider {
    * Validate Checkmate configuration
    */
   validateConfig = async (config: TenantTestManagementIntegrationConfig): Promise<boolean> => {
-    const isValidCheckmateConfig = this.isCheckmateConfig(config);
-    
-    if (!isValidCheckmateConfig) {
+    if (!this.isCheckmateConfig(config)) {
       return false;
     }
     
     const checkmateConfig = config;
     
     try {
-      const baseUrlMissing = !checkmateConfig.baseUrl;
-      const authTokenMissing = !checkmateConfig.authToken;
-      const requiredFieldsMissing = baseUrlMissing || authTokenMissing;
-      
-      if (requiredFieldsMissing) {
+      // Validate required fields
+      if (!checkmateConfig.baseUrl || !checkmateConfig.authToken) {
         return false;
       }
 
@@ -182,27 +184,39 @@ export class CheckmateProvider implements ITestManagementProvider {
         return false;
       }
 
-      // Try to make a simple API call to validate credentials
-      try {
-        await this.makeRequest(checkmateConfig, CHECKMATE_API_ENDPOINTS.PROJECTS, {
-          method: HTTP_METHODS.GET
-        });
-        return true;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '';
-        const isUnauthorized = errorMessage.includes(HTTP_STATUS.UNAUTHORIZED.toString());
-        const isForbidden = errorMessage.includes(HTTP_STATUS.FORBIDDEN.toString());
-        const isAuthError = isUnauthorized || isForbidden;
-        
-        if (isAuthError) {
-          return false;
-        }
-        
-        // For other errors (like 404), assume config is valid
-        return true;
+      // Test credentials by fetching projects
+      // Validation requires BOTH successful API call AND valid orgId (returns projects)
+      const params = new URLSearchParams({
+        [CHECKMATE_QUERY_PARAMS.ORG_ID]: checkmateConfig.orgId.toString(),
+        [CHECKMATE_QUERY_PARAMS.PAGE]: '1',
+        [CHECKMATE_QUERY_PARAMS.PAGE_SIZE]: '1'  // Just need to test connection
+      });
+      
+      const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
+      
+      // makeRequest handles URL concatenation (removes trailing slash from baseUrl)
+      // Fetch raw response and transform to simplified structure
+      const rawResponse = await this.makeRequest<{
+        data: {
+          projectsList: unknown[];
+          projectCount: Array<{ count: number }>;
+        };
+      }>(checkmateConfig, endpoint, {
+        method: HTTP_METHODS.GET
+      });
+      
+      // Extract and validate project count
+      const projectCount = rawResponse?.data?.projectCount?.[0]?.count ?? 0;
+      
+      if (projectCount === 0) {
+        console.error('[Checkmate Validation] ❌ Invalid credentials - organization has no projects');
+        return false;
       }
+      
+      return true;
     } catch (error) {
-      console.error(CHECKMATE_ERROR_MESSAGES.CONFIG_VALIDATION_FAILED, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[Checkmate Validation] ❌ Validation failed:', errorMessage);
       return false;
     }
   };
@@ -224,7 +238,7 @@ export class CheckmateProvider implements ITestManagementProvider {
       throw new Error(CHECKMATE_ERROR_MESSAGES.PROJECT_ID_REQUIRED);
     }
 
-    const runName = parameters.runName ?? CHECKMATE_DEFAULTS.RUN_NAME;
+    const runName = parameters.runName; // Required parameter (validated at API layer)
     const runDescription = parameters.runDescription;
     const sectionIds = parameters.sectionIds;
     const labelIds = parameters.labelIds;
@@ -409,7 +423,14 @@ export class CheckmateProvider implements ITestManagementProvider {
     params.append(CHECKMATE_QUERY_PARAMS.PAGE_SIZE, CHECKMATE_DEFAULTS.METADATA_PAGE_SIZE.toString());
     
     const endpoint = `${CHECKMATE_API_ENDPOINTS.PROJECTS}?${params.toString()}`;
-    const response = await this.makeRequest<CheckmateProjectsResponse>(
+    
+    // Fetch raw API response
+    const rawResponse = await this.makeRequest<{
+      data: {
+        projectsList: CheckmateProject[];
+        projectCount: Array<{ count: number }>;
+      };
+    }>(
       checkmateConfig,
       endpoint,
       {
@@ -417,7 +438,13 @@ export class CheckmateProvider implements ITestManagementProvider {
       }
     );
 
-    return response;
+    // Transform to simplified structure
+    return {
+      data: {
+        projectsList: rawResponse.data.projectsList,
+        projectCount: rawResponse.data.projectCount[0]?.count ?? 0
+      }
+    };
   };
 
   /**

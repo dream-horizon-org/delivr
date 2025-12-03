@@ -6,6 +6,48 @@ import { TEST_PLATFORMS } from '~types/integrations/test-management/platform.int
 import { isValidTestPlatform } from '~types/integrations/test-management/platform.utils';
 
 /**
+ * Validate runName
+ * Returns error message if invalid, null if valid
+ * 
+ * Requirements (from Checkmate API):
+ * - Must be a string
+ * - Must be 5-50 characters (after trimming)
+ */
+export const validateRunName = (runName: unknown): string | null => {
+  if (!runName || typeof runName !== 'string') {
+    return 'runName is required and must be a string';
+  }
+
+  const runNameTrimmed = runName.trim();
+
+  if (runNameTrimmed.length === 0) {
+    return 'runName cannot be empty';
+  }
+
+  if (runNameTrimmed.length < 5) {
+    return 'runName must be at least 5 characters';
+  }
+
+  if (runNameTrimmed.length > 50) {
+    return 'runName must be at most 50 characters';
+  }
+
+  return null;
+};
+
+/**
+ * Validate runDescription
+ * Returns error message if invalid, null if valid
+ */
+export const validateRunDescription = (runDescription: unknown): string | null => {
+  if (runDescription !== undefined && typeof runDescription !== 'string') {
+    return 'runDescription must be a string';
+  }
+
+  return null;
+};
+
+/**
  * Validate platforms array
  * Returns error message if invalid, null if valid
  */

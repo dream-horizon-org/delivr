@@ -1,4 +1,7 @@
-// Integration types
+// Core integration types (from comm-integration.interface.ts)
+export * from './comm-integration';
+
+// Integration types (controller DTOs)
 export type {
   CreateOrUpdateIntegrationDto,
   UpdateIntegrationDataDto,
@@ -12,10 +15,4 @@ export type {
   ValidationError,
   ChannelConfigValidationResult
 } from './slack-channel-config';
-
-// Re-export storage types for convenience
-export type {
-  StageChannelMapping,
-  SlackChannel
-} from '../../../storage/integrations/comm/slack-types';
 

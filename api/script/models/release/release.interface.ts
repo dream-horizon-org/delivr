@@ -48,10 +48,9 @@ export interface Release {
   targetReleaseDate: Date | null; // Target/planned release date
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
-  customIntegrationConfigs: Record<string, unknown> | null;
-  preCreatedBuilds: any[] | null;
-  createdBy: string;
-  lastUpdatedBy: string;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
   createdAt: Date;
   updatedAt: Date;
   // Associations
@@ -73,10 +72,9 @@ export interface CreateReleaseDto {
   targetReleaseDate: Date | null;
   releaseDate: Date | null;
   hasManualBuildUpload: boolean;
-  customIntegrationConfigs: Record<string, unknown> | null;
-  preCreatedBuilds: any[] | null;
-  createdBy: string;
-  lastUpdatedBy: string;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
 }
 
 export interface UpdateReleaseDto {
@@ -84,12 +82,15 @@ export interface UpdateReleaseDto {
   type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
   branch?: string | null;
   baseBranch?: string | null;
+  baseReleaseId?: string | null;
+  releaseConfigId?: string | null;
   kickOffDate?: Date | null;
+  kickOffReminderDate?: Date | null;
+  targetReleaseDate?: Date | null;
   plannedDate?: Date | null;
   hasManualBuildUpload?: boolean;
-  customIntegrationConfigs?: Record<string, unknown> | null;
-  preCreatedBuilds?: any[] | null;
-  lastUpdatedBy?: string;
+  releasePilotAccountId?: string | null;
+  lastUpdatedByAccountId?: string;
 }
 
 // --- Platform Target Mapping ---
@@ -126,9 +127,7 @@ export interface CronJob {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: Record<string, unknown>;
-  regressionTimings: string | null;
   upcomingRegressions: any[] | null;
-  regressionTimestamp: string | null;
   cronCreatedAt: Date;
   cronStoppedAt: Date | null;
   cronCreatedByAccountId: string;
@@ -136,6 +135,8 @@ export interface CronJob {
   lockedAt: Date | null;
   lockTimeout: number;
   autoTransitionToStage3: boolean;
+  autoTransitionToStage2: boolean;
+  stageData: any;
 }
 
 export interface CreateCronJobDto {
@@ -146,11 +147,11 @@ export interface CreateCronJobDto {
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig: Record<string, unknown>;
-  regressionTimings?: string | null;
   upcomingRegressions?: any[] | null;
-  regressionTimestamp?: string | null;
   cronCreatedByAccountId: string;
   autoTransitionToStage3?: boolean;
+  autoTransitionToStage2?: boolean;
+  stageData?: any;
 }
 
 export interface UpdateCronJobDto {
@@ -159,12 +160,13 @@ export interface UpdateCronJobDto {
   stage3Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus?: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
   cronConfig?: Record<string, unknown>;
-  regressionTimings?: string | null;
   upcomingRegressions?: any[] | null;
   cronStoppedAt?: Date | null;
   lockedBy?: string | null;
   lockedAt?: Date | null;
   autoTransitionToStage3?: boolean;
+  autoTransitionToStage2?: boolean;
+  stageData?: any;
 }
 
 // --- Release Task ---

@@ -12,6 +12,7 @@ import type {
 } from '~types/integrations/test-management';
 import { TestRunStatus } from '~types/integrations/test-management';
 import { ProviderFactory } from '../providers/provider.factory';
+import type { PlatformTestParameters } from '../providers/provider.interface';
 
 /**
  * Test Management Run Service
@@ -35,16 +36,18 @@ export class TestManagementRunService {
   /**
    * Create test runs for platforms in a test management config
    * 
-   * Input: testManagementConfigId + optional platforms filter
+   * Input: testManagementConfigId + runName (5-50 chars) + optional runDescription + optional platforms filter
    * Output: runIds for each requested platform
    * 
    * If platforms array is provided, only creates runs for those platforms.
    * If platforms is not provided, creates runs for ALL platforms in config.
+   * runName is required (5-50 characters) and will be used for all test runs created.
+   * runDescription is optional and will be included if provided.
    * 
    * We don't store the runIds - caller is responsible for storage
    */
   async createTestRuns(request: CreateTestRunsRequest): Promise<CreateTestRunsResponse> {
-    const { testManagementConfigId, platforms } = request;
+    const { testManagementConfigId, runName, runDescription, platforms } = request;
 
     // 1. Get test management config
     const config = await this.configRepo.findById(testManagementConfigId);
@@ -82,10 +85,17 @@ export class TestManagementRunService {
 
     for (const platformConfig of platformConfigs) {
       try {
+        // Build platform parameters with runName and optional runDescription
+        const platformParameters: PlatformTestParameters = {
+          ...platformConfig.parameters,
+          runName, // Required: provided in request
+          ...(runDescription && { runDescription }) // Optional: include if provided
+        };
+
         // Call provider to create test run
         const testRun = await provider.createTestRun(
           integration.config,
-          platformConfig.parameters
+          platformParameters
         );
 
         results[platformConfig.platform] = {

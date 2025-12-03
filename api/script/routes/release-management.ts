@@ -7,11 +7,12 @@ import * as tenantPermissions from "../middleware/tenant-permissions";
 import { S3Storage } from "../storage/aws-storage";
 import * as storageTypes from "../storage/storage";
 import { createCICDIntegrationRoutes } from "./integrations/ci-cd";
-import { createCommIntegrationRoutes } from "./integrations/comm";
+import { createCommIntegrationRoutes, createCommConfigRoutes } from "./integrations/comm";
 import {
   createConfigurationRoutes as createPMConfigurationRoutes,
   createIntegrationRoutes as createPMIntegrationRoutes,
-  createTicketRoutes as createPMTicketRoutes
+  createTicketRoutes as createPMTicketRoutes,
+  createJiraMetadataRoutes
 } from "./integrations/project-management";
 import {
   createTestManagementConfigRoutes,
@@ -111,16 +112,20 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         s3Storage.projectManagementTicketService) {
       
       // Project Management Integration Management (Credentials)
-      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService);
+      const pmIntegrationRoutes = createPMIntegrationRoutes(s3Storage.projectManagementIntegrationService, s3Storage);
       router.use(pmIntegrationRoutes);
       
       // Project Management Configuration Management (Reusable configurations)
-      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService);
+      const pmConfigurationRoutes = createPMConfigurationRoutes(s3Storage.projectManagementConfigService, s3Storage);
       router.use(pmConfigurationRoutes);
       
       // Project Management Ticket Operations (Stateless - Create, Check Status)
-      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService);
+      const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService, s3Storage);
       router.use(pmTicketRoutes);
+      
+      // Jira Metadata Proxy Routes (Projects)
+      const jiraMetadataRoutes = createJiraMetadataRoutes(s3Storage.jiraMetadataService, s3Storage);
+      router.use(jiraMetadataRoutes);
       
       console.log('[Release Management] Project Management routes mounted successfully');
     } else {
@@ -145,8 +150,26 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
   // COMMUNICATION INTEGRATIONS (Slack, Teams, Email)
   // ============================================================================
-  const commRoutes = createCommIntegrationRoutes(storage);
-  router.use(commRoutes);
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if services are initialized
+    if (s3Storage.commIntegrationService && s3Storage.commConfigService) {
+      // Integration Management (Credentials)
+      const commIntegrationRoutes = createCommIntegrationRoutes(storage);
+      router.use(commIntegrationRoutes);
+      
+      // Configuration Management (Channel configs)
+      const commConfigRoutes = createCommConfigRoutes(storage);
+      router.use(commConfigRoutes);
+      
+      console.log('[Release Management] Communication routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Communication services not yet initialized, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Communication services not available (S3Storage required), routes not mounted');
+  }
 
   // ============================================================================
   // RELEASE CONFIGURATION ROUTES
@@ -155,13 +178,36 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     const s3Storage = storage;
     const releaseConfigRoutes = createReleaseConfigRoutes(
       s3Storage.releaseConfigService,
-      storage,
-      s3Storage.testManagementConfigService
+      storage
     );
     router.use(releaseConfigRoutes);
     console.log('[Release Management] Release Config routes mounted successfully');
   } else {
     console.warn('[Release Management] Release Config service not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
+  // RELEASE MANAGEMENT ROUTES (CRUD Operations)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    // Check if release services are available
+    if (s3Storage.releaseCreationService) {
+      const releaseRoutes = getReleaseRoutes({
+        storage: s3Storage,
+        releaseCreationService: s3Storage.releaseCreationService,
+        releaseRetrievalService: s3Storage.releaseRetrievalService,
+        releaseStatusService: s3Storage.releaseStatusService,
+        releaseUpdateService: s3Storage.releaseUpdateService
+      });
+      router.use(releaseRoutes);
+      console.log('[Release Management] Release CRUD routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Release services not available, CRUD routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Release services not available (S3Storage required), CRUD routes not mounted');
   }
 
   // ============================================================================
@@ -208,7 +254,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const releaseRoutes = getReleaseRoutes({
     storage,
     releaseCreationService: (storage as any).releaseCreationService,
-    releaseRetrievalService: (storage as any).releaseRetrievalService
+    releaseRetrievalService: (storage as any).releaseRetrievalService,
+    releaseStatusService: (storage as any).releaseStatusService,
+    releaseUpdateService: (storage as any).releaseUpdateService
   });
   router.use(releaseRoutes);
 
@@ -227,9 +275,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         const scmController = (storage as any).scmController;
         const scmIntegration = await scmController.findActiveByTenant(tenantId);
 
-        // Check Slack integration
-        const slackController = (storage as any).slackController;
-        const slackIntegration = await slackController.findByTenant(tenantId);
+        // Check Comm/Slack integration
+        const commIntegrationRepository = (storage as any).commIntegrationRepository;
+        const slackIntegration = await commIntegrationRepository.findByTenant(tenantId, 'SLACK');
 
         // TODO: Check other required integrations (targets, pipelines, etc.)
         // const targetPlatforms = await storage.getTenantTargetPlatforms(tenantId);

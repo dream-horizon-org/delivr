@@ -18,6 +18,8 @@ export enum TestRunStatus {
  */
 export type CreateTestRunsRequest = {
   testManagementConfigId: string;
+  runName: string;             // REQUIRED: display name for test runs (5-50 characters)
+  runDescription?: string;     // Optional: description for test runs
   platforms?: TestPlatform[];  // Optional: filter to only these platforms (default: all)
 };
 
@@ -49,7 +51,7 @@ export type PlatformRunError = {
 
 /**
  * Response from creating test runs
- * Keys are TestPlatform enum values (IOS_APP_STORE, ANDROID_PLAY_STORE, IOS_TESTFLIGHT, ANDROID_INTERNAL_TESTING)
+ * Keys are TestPlatform enum values (IOS, ANDROID)
  * Each platform can be either successful (with runId, url, status) or failed (with error)
  * 
  * This allows partial success - some platforms may succeed while others fail.

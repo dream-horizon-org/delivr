@@ -32,12 +32,14 @@ export class TestManagementIntegrationService {
   async createTenantIntegration(
     data: CreateTenantTestManagementIntegrationDto
   ): Promise<TenantTestManagementIntegration> {
-    // Validate config structure before creating
+    // Validate credentials before creating - prevents saving broken integrations
     const provider = ProviderFactory.getProvider(data.providerType);
     const isValidConfig = await provider.validateConfig(data.config);
     
     if (!isValidConfig) {
-      throw new Error(TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG);
+      throw new Error(
+        `Failed to connect to ${data.providerType}. ${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}`
+      );
     }
     
     return await this.repository.create(data);
@@ -80,12 +82,14 @@ export class TestManagementIntegrationService {
         ...data.config
       };
       
-      // Validate merged config
+      // Validate merged config - ensures credentials work before saving
       const provider = ProviderFactory.getProvider(integration.providerType);
       const isValidConfig = await provider.validateConfig(mergedConfig);
       
       if (!isValidConfig) {
-        throw new Error(TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG);
+        throw new Error(
+          `Failed to connect to ${integration.providerType}. ${TEST_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}`
+        );
       }
     }
     

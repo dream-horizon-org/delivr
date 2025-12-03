@@ -19,6 +19,14 @@ export function createStoreIntegrationRoutes(): Router {
     storeControllers.connectStore
   );
 
+  // Update store integration (partial update - PATCH)
+  router.patch(
+    '/integrations/store/:integrationId',
+    validateStore.validateIntegrationId,
+    validateStore.validatePatchStoreBodyByIntegrationId,
+    storeControllers.patchStoreIntegration
+  );
+
   // Get platform store type mappings
   router.get(
     '/integrations/store/platform-store-types',

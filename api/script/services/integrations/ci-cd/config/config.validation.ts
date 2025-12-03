@@ -1,5 +1,5 @@
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
-import { WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
+import { CreateWorkflowDto, WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
 import { CICD_CONFIG_ALLOWED_PLATFORMS, CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import { fetchWithTimeout, parseGitHubWorkflowUrl } from '../utils/cicd.utils';
 import { getStorage } from '../../../../storage/storage-instance';
@@ -68,7 +68,7 @@ const containsWorkflowDispatch = (yaml: string): boolean => {
 };
 
 const validateGithubWorkflow = async (
-  wf: Record<string, unknown>,
+  wf: CreateWorkflowDto,
   index: number,
   tenantId: string
 ): Promise<FieldError[]> => {
@@ -121,7 +121,7 @@ export class CICDConfigValidationError extends Error {
 }
 
 export const validateWorkflowsForCreateConfig = async (
-  inputWorkflows: unknown[],
+  inputWorkflows: CreateWorkflowDto[],
   tenantId: string
 ): Promise<{ errors: FieldError[] }> => {
   const errors: FieldError[] = [];
@@ -135,7 +135,7 @@ export const validateWorkflowsForCreateConfig = async (
   const requiredFields = ['providerType', 'integrationId', 'displayName', 'workflowUrl', 'platform', 'workflowType'] as const;
 
   for (let i = 0; i < inputWorkflows.length; i++) {
-    const wf = inputWorkflows[i] as Record<string, unknown>;
+    const wf = inputWorkflows[i];
     const isObject = wf !== null && typeof wf === 'object';
     if (!isObject) {
       errors.push({ field: `workflows[${i}]`, message: CICD_CONFIG_ERROR_MESSAGES.WORKFLOW_FIELDS_REQUIRED });

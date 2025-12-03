@@ -7,16 +7,14 @@ import { TestManagementProviderType, TestRunStatus } from '~types/integrations/t
 import type { TenantTestManagementIntegrationConfig } from '~types/integrations/test-management/tenant-integration';
 
 /**
- * Platform-specific test parameters
- * Each provider can extend this for their specific needs
+ * Platform-specific configuration parameters (stored in config)
+ * Used when creating/storing test management configurations
  */
-export interface PlatformTestParameters {
-  // Common parameters
-  projectId?: number;  // External test management system's project ID (e.g., Checkmate projectId)
-  runName?: string;
-  runDescription?: string;
+export interface PlatformConfigParameters {
+  // REQUIRED for config storage
+  projectId: number;  // External test management system's project ID (e.g., Checkmate projectId)
   
-  // Checkmate-specific parameters
+  // OPTIONAL Checkmate-specific filters
   sectionIds?: number[];
   labelIds?: number[];
   squadIds?: number[];
@@ -26,6 +24,16 @@ export interface PlatformTestParameters {
   
   // Extensible for other providers
   [key: string]: unknown;
+}
+
+/**
+ * Platform-specific test parameters (used at test run creation time)
+ * Combines config parameters with runtime-only parameters
+ */
+export interface PlatformTestParameters extends PlatformConfigParameters {
+  // Runtime-only parameters (NOT stored in config)
+  runName: string;         // REQUIRED: Provided when creating test run (5-50 characters)
+  runDescription?: string; // Optional: Provided when creating test run
 }
 
 /**

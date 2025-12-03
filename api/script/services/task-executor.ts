@@ -25,7 +25,7 @@ import { WorkflowType } from '../types/integrations/ci-cd/workflow.interface';
 import { ProjectManagementTicketService } from './integrations/project-management/ticket/ticket.service';
 import { Platform } from '../types/integrations/project-management/platform.interface';
 import { TestManagementRunService } from './integrations/test-management/test-run/test-run.service';
-import { SlackIntegrationService } from './integrations/comm/slack-integration/slack-integration.service';
+import { CommIntegrationService } from './integrations/comm/comm-integration';
 import type { ReleaseConfigRepository } from '../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES } from './release/release.constants';
 
@@ -67,7 +67,7 @@ export class TaskExecutor {
     private cicdWorkflowRepository: CICDWorkflowRepository,
     private pmTicketService: ProjectManagementTicketService,
     private testRunService: TestManagementRunService,
-    private slackService: SlackIntegrationService,
+    private slackService: CommIntegrationService,
     private releaseConfigRepository: ReleaseConfigRepository
   ) {
     this.releaseTasksDTO = new ReleaseTasksDTO();
@@ -397,9 +397,7 @@ export class TaskExecutor {
     );
 
     // Get repository URL from config (dynamic, not hardcoded)
-    const repoUrl = release.customIntegrationConfigs?.SCM?.repoUrl || 
-                    release.customIntegrationConfigs?.SCM?.repo || 
-                    'repository';
+    const repoUrl = 'repository'; // Default fallback since customIntegrationConfigs removed
     const branchUrl = repoUrl.includes('http') 
       ? `${repoUrl}/tree/${releaseBranch}` 
       : `https://${repoUrl}/tree/${releaseBranch}`;
@@ -430,9 +428,9 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId } = context;
 
-    // TODO: Implement notification sending via SlackChannelConfigService
-    // The SlackIntegrationService doesn't have sendMessage() method
-    // Need to use SlackChannelConfigService.sendMessage() instead
+    // TODO: Implement notification sending via CommConfigService
+    // The CommIntegrationService doesn't have sendMessage() method
+    // Need to use CommConfigService.sendMessage() instead
     // For now, return mock response
     console.log('[TaskExecutor] TODO: Implement pre-kickoff reminder notification');
     
@@ -529,9 +527,13 @@ export class TaskExecutor {
     }
     
     // 4. Call service with correct signature
+    // Generate runName from release information (required parameter)
+    const runName = `Release ${release.releaseVersion || release.releaseId}`;
+    
     // Don't specify platforms - service will create for ALL platforms in config
     const results = await this.testRunService.createTestRuns({
-      testManagementConfigId: testConfigId
+      testManagementConfigId: testConfigId,
+      runName
     });
     
     // Extract run IDs (Category A: return string)
@@ -1150,7 +1152,7 @@ export class TaskExecutor {
     const cycleTag = (cycle as any).cycleTag;
 
     // Send regression build message - returns messageId (string)
-    // TODO: Implement notification sending via SlackChannelConfigService
+    // TODO: Implement notification sending via CommConfigService
     console.log("[TaskExecutor] TODO: Implement notification");
     const messageId = `mock-${Date.now()}`;
 
@@ -1186,7 +1188,7 @@ export class TaskExecutor {
     }
 
     // Send cherry picks reminder message - returns messageId (string)
-    // TODO: Implement notification sending via SlackChannelConfigService
+    // TODO: Implement notification sending via CommConfigService
     console.log("[TaskExecutor] TODO: Implement notification");
     const messageId = `mock-${Date.now()}`;
 
@@ -1478,7 +1480,7 @@ export class TaskExecutor {
     const releaseTag = createReleaseTagTask?.externalId || release.version;
 
     // Send post-regression message (approval request) - returns messageId (string)
-    // TODO: Implement notification sending via SlackChannelConfigService
+    // TODO: Implement notification sending via CommConfigService
     console.log("[TaskExecutor] TODO: Implement notification");
     const messageId = `mock-${Date.now()}`;
 

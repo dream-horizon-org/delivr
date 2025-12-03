@@ -24,13 +24,22 @@ export class ProjectManagementIntegrationService {
 
   /**
    * Create a new project integration
-   * Note: Does not validate connectivity - use verify endpoint for that
+   * VALIDATES credentials before saving to prevent broken integrations
    */
   async createIntegration(
     data: CreateProjectManagementIntegrationDto
   ): Promise<ProjectManagementIntegration> {
-    // Just create the integration - validation happens via verify endpoint
-    // This allows users to save configs and test them later
+    // Validate credentials before saving
+    const provider = ProviderFactory.getProvider(data.providerType);
+    const isValidConfig = await provider.validateConfig(data.config);
+    
+    if (!isValidConfig) {
+      throw new Error(
+        `${PROJECT_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${data.providerType}. Please check your credentials (baseUrl, apiToken, email) and try again.`
+      );
+    }
+    
+    // Credentials are valid - save the integration
     return await this.repository.create(data);
   }
 
@@ -50,12 +59,13 @@ export class ProjectManagementIntegrationService {
 
   /**
    * Update an existing integration
+   * VALIDATES credentials if config is being updated
+   * Supports partial updates - only provided fields are updated
    */
   async updateIntegration(
     integrationId: string,
     data: UpdateProjectManagementIntegrationDto
   ): Promise<ProjectManagementIntegration | null> {
-    // If config is being updated, validate it
     const configIsBeingUpdated = data.config !== undefined;
 
     if (configIsBeingUpdated) {
@@ -65,21 +75,25 @@ export class ProjectManagementIntegrationService {
         return null;
       }
 
-      // Merge config to get final config for validation
+      // Merge partial config with existing config
       const mergedConfig = {
         ...integration.config,
         ...data.config
       };
 
-      // Validate merged config
+      // ALWAYS validate the merged config when config is being updated
+      // This ensures users can't save broken credentials (wrong baseUrl, email, token, etc.)
       const provider = ProviderFactory.getProvider(integration.providerType);
       const isValidConfig = await provider.validateConfig(mergedConfig);
 
       if (!isValidConfig) {
-        throw new Error(PROJECT_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG);
+        throw new Error(
+          `${PROJECT_MANAGEMENT_ERROR_MESSAGES.INVALID_CONFIG}: Failed to connect to ${integration.providerType}. Please check your credentials and try again.`
+        );
       }
     }
 
+    // Credentials are valid (or not being updated) - save the changes
     return await this.repository.update(integrationId, data);
   }
 

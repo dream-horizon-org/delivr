@@ -8,25 +8,35 @@
 import { Request, Response } from 'express';
 import { ReleaseCreationService } from '../../services/release/release-creation.service';
 import { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
+import { ReleaseStatusService } from '../../services/release/release-status.service';
+import { ReleaseUpdateService } from '../../services/release/release-update.service';
 import { ReleaseType } from '../../storage/release/release-models';
 import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
+  UpdateReleaseRequestBody,
   ReleaseListResponseBody, 
   SingleReleaseResponseBody 
 } from '~types/release';
-import { validateCreateReleaseRequest } from './release-validation';
+import { validateCreateReleaseRequest, validateUpdateReleaseRequest } from './release-validation';
+import type { Platform } from '~types/integrations/project-management';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
   private retrievalService: ReleaseRetrievalService;
+  private statusService: ReleaseStatusService;
+  private updateService: ReleaseUpdateService;
 
   constructor(
     creationService: ReleaseCreationService,
-    retrievalService: ReleaseRetrievalService
+    retrievalService: ReleaseRetrievalService,
+    statusService: ReleaseStatusService,
+    updateService: ReleaseUpdateService
   ) {
     this.creationService = creationService;
     this.retrievalService = retrievalService;
+    this.statusService = statusService;
+    this.updateService = updateService;
   }
 
   /**
@@ -82,11 +92,9 @@ export class ReleaseManagementController {
         targetReleaseDate,
         kickOffReminderDate,
         kickOffDate,
-        customIntegrationConfigs: body.customIntegrationConfigs,
+        releasePilotAccountId: body.releasePilotAccountId,
         regressionBuildSlots: body.regressionBuildSlots,
-        preCreatedBuilds: body.preCreatedBuilds,
         cronConfig: body.cronConfig,
-        regressionTimings: body.regressionTimings,
         hasManualBuildUpload: body.hasManualBuildUpload
       };
 
@@ -180,6 +188,69 @@ export class ReleaseManagementController {
   }
 
   /**
+   * Update Release (PATCH)
+   * Updates an existing release with business rule validations
+   */
+  updateRelease = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const releaseId = req.params.releaseId;
+      const body = req.body as UpdateReleaseRequestBody;
+      const accountId = (req as any).user?.id || 'system'; // Get from auth middleware
+
+      if (!releaseId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      // Validate request body
+      const validation = validateUpdateReleaseRequest(body);
+      if (!validation.isValid) {
+        return res.status(400).json({
+          success: false,
+          error: validation.error
+        });
+      }
+
+      // Update the release
+      const updatedRelease = await this.updateService.updateRelease({
+        releaseId,
+        accountId,
+        updates: body
+      });
+
+      // Get the full release with all associations for response
+      const fullRelease = await this.retrievalService.getReleaseById(releaseId);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Release updated successfully',
+        release: fullRelease
+      });
+
+    } catch (error: any) {
+      console.error('Error updating release:', error);
+      
+      // Handle specific business rule errors
+      if (error.message.includes('Only IN_PROGRESS releases') || 
+          error.message.includes('not found') ||
+          error.message.includes('before kickoff')) {
+        return res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Error occured on server side'
+      });
+    }
+  };
+
+
+  /**
    * Trigger Pre-Release (Stage 3)
    * TODO: Implement Stage 3 triggering logic
    */
@@ -189,5 +260,75 @@ export class ReleaseManagementController {
       error: 'Not implemented yet',
       message: 'Stage 3 trigger endpoint coming soon'
     });
+  }
+
+  /**
+   * Check project management run status
+   * Query params:
+   * - platform: Optional platform (WEB, IOS, ANDROID) - if not provided, returns all platforms
+   */
+  checkProjectManagementRunStatus = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { releaseId } = req.params;
+      const platform = req.query.platform as Platform | undefined;
+
+      // Delegate to service (platform is now optional)
+      const result = await this.statusService.getProjectManagementStatus(releaseId, platform);
+
+      return res.status(200).json({
+        success: true,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('[Check Project Management Run Status] Error:', error);
+      
+      // Determine status code based on error message
+      let statusCode = 500;
+      if (error.message?.includes('not found')) {
+        statusCode = 404;
+      } else if (error.message?.includes('does not have')) {
+        statusCode = 400;
+      }
+
+      return res.status(statusCode).json({
+        success: false,
+        error: error.message ?? 'Failed to check project management run status'
+      });
+    }
+  }
+
+  /**
+   * Check test management run status
+   * Query params:
+   * - platform: Optional platform (WEB, IOS, ANDROID) - if not provided, returns all platforms
+   */
+  checkTestManagementRunStatus = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { releaseId } = req.params;
+      const platform = req.query.platform as Platform | undefined;
+
+      // Delegate to service (platform is now optional)
+      const result = await this.statusService.getTestManagementStatus(releaseId, platform);
+
+      return res.status(200).json({
+        success: true,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('[Check Test Management Run Status] Error:', error);
+      
+      // Determine status code based on error message
+      let statusCode = 500;
+      if (error.message?.includes('not found')) {
+        statusCode = 404;
+      } else if (error.message?.includes('does not have')) {
+        statusCode = 400;
+      }
+
+      return res.status(statusCode).json({
+        success: false,
+        error: error.message ?? 'Failed to check test management run status'
+      });
+    }
   }
 }

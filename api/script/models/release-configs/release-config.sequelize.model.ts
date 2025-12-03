@@ -45,7 +45,11 @@ export const createReleaseConfigModel = (
       tenantId: {
         type: DataTypes.CHAR(36),
         allowNull: false,
-        field: 'tenantId'
+        field: 'tenantId',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        }
       },
       name: {
         type: DataTypes.STRING(255),
@@ -120,7 +124,11 @@ export const createReleaseConfigModel = (
       createdByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'createdByAccountId'
+        field: 'createdByAccountId',
+        references: {
+          model: 'accounts',
+          key: 'id'
+        }
       },
       createdAt: {
         type: DataTypes.DATE,

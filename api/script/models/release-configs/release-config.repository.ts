@@ -104,7 +104,16 @@ export class ReleaseConfigRepository {
       return null;
     }
 
+    console.log('[ReleaseConfigRepository.update] Updating config with data:', JSON.stringify(data, null, 2));
+    console.log('[ReleaseConfigRepository.update] Before update:', {
+      testManagementConfigId: config.getDataValue('testManagementConfigId')
+    });
+
     await config.update(data);
+
+    console.log('[ReleaseConfigRepository.update] After update:', {
+      testManagementConfigId: config.getDataValue('testManagementConfigId')
+    });
 
     return this.toPlainObject(config);
   };

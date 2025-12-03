@@ -43,7 +43,11 @@ export const createReleaseTaskModel = (
       releaseId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'releaseId'
+        field: 'releaseId',
+        references: {
+          model: 'releases',
+          key: 'id'
+        }
       },
       taskId: {
         type: DataTypes.STRING(255),
@@ -101,7 +105,11 @@ export const createReleaseTaskModel = (
       accountId: {
         type: DataTypes.STRING(255),
         allowNull: true,
-        field: 'accountId'
+        field: 'accountId',
+        references: {
+          model: 'accounts',
+          key: 'id'
+        }
       },
       regressionId: {
         type: DataTypes.STRING(255),

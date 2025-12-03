@@ -15,11 +15,15 @@ import { fileUploadMiddleware } from "../../file-upload-manager";
 import { createManualBuildUploadHandler } from "~controllers/release-management/builds/manual-upload.controller";
 import { createListBuildArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
 import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
+import type { ReleaseStatusService } from "../../services/release/release-status.service";
+import type { ReleaseUpdateService } from "../../services/release/release-update.service";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
   releaseCreationService: ReleaseCreationService;
   releaseRetrievalService: ReleaseRetrievalService;
+  releaseStatusService: ReleaseStatusService;
+  releaseUpdateService: ReleaseUpdateService;
 }
 
 /**
@@ -30,7 +34,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const router: Router = Router();
   const controller = new ReleaseManagementController(
     config.releaseCreationService,
-    config.releaseRetrievalService
+    config.releaseRetrievalService,
+    config.releaseStatusService,
+    config.releaseUpdateService
   );
 
   // ============================================================================
@@ -73,13 +79,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.patch(
     "/tenants/:tenantId/releases/:releaseId",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.updateRelease
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Release update endpoint coming soon"
-      });
-    }
+    controller.updateRelease
   );
 
   // Delete a release
@@ -233,6 +233,20 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         message: "Cherry pick status endpoint coming soon"
       });
     }
+  );
+
+  // Check project management run status
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/project-management-run-status",
+    tenantPermissions.requireOwner({ storage }),
+    controller.checkProjectManagementRunStatus
+  );
+
+  // Check test management run status
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
+    tenantPermissions.requireOwner({ storage }),
+    controller.checkTestManagementRunStatus
   );
 
   // Manual build upload (artifact upload to S3 + DB record)
