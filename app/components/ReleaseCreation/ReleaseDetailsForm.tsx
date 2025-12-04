@@ -33,6 +33,7 @@ interface ReleaseDetailsFormProps {
   latestVersion?: string; // For auto-generating version
   tenantId: string; // For fetching branches
   errors?: Record<string, string>;
+  disablePlatformTargets?: boolean; // Disable platform target editing (for edit mode pre-kickoff)
 }
 
 /**
@@ -52,6 +53,7 @@ export function ReleaseDetailsForm({
   latestVersion,
   tenantId,
   errors = {},
+  disablePlatformTargets = false,
 }: ReleaseDetailsFormProps) {
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
@@ -253,6 +255,7 @@ export function ReleaseDetailsForm({
         config={config}
         defaultVersion={getDefaultVersion()}
         errors={errors}
+        disabled={disablePlatformTargets}
       />
 
       {/* Description */}

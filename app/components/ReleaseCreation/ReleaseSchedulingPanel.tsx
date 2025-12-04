@@ -466,6 +466,7 @@ export function ReleaseSchedulingPanel({
           }
           config={config}
           errors={errors}
+          disableExistingSlots={showOnlyTargetDateAndSlots}
         />
       )}
 

@@ -43,6 +43,7 @@ export function RegressionSlotCard({
   targetReleaseOffset,
   targetReleaseTime,
   kickoffTime,
+  disabled = false,
 }: RegressionSlotCardProps) {
   console.log('slot in regression slot card', targetReleaseOffset);
   const timeValidation = useMemo(() => {
@@ -109,14 +110,16 @@ export function RegressionSlotCard({
               </Group>
             )}
           </div>
-          <Group gap="xs">
-            <ActionIcon variant="subtle" color="blue" onClick={onEdit}>
-              <IconEdit size={16} />
-            </ActionIcon>
-            <ActionIcon variant="subtle" color="red" onClick={onDelete}>
-              <IconTrash size={16} />
-            </ActionIcon>
-          </Group>
+          {!disabled && (
+            <Group gap="xs">
+              <ActionIcon variant="subtle" color="blue" onClick={onEdit}>
+                <IconEdit size={16} />
+              </ActionIcon>
+              <ActionIcon variant="subtle" color="red" onClick={onDelete}>
+                <IconTrash size={16} />
+              </ActionIcon>
+            </Group>
+          )}
         </Group>
       </Card>
     );

@@ -39,6 +39,7 @@ interface RegressionSlotsManagerProps {
   onChange: (slots: RegressionBuildSlotBackend[]) => void;
   config?: ReleaseConfiguration; // For pre-filling
   errors?: Record<string, string>;
+  disableExistingSlots?: boolean; // Disable edit/delete for existing slots (for post-kickoff edit mode)
 }
 
 /**
@@ -58,6 +59,7 @@ export function RegressionSlotsManager({
   onChange,
   config,
   errors = {},
+  disableExistingSlots = false,
 }: RegressionSlotsManagerProps) {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
@@ -186,6 +188,12 @@ export function RegressionSlotsManager({
           </Button>
         </Group>
 
+        {disableExistingSlots && regressionBuildSlots.length > 0 && (
+          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
+            <Text size="xs">Existing regression slots cannot be edited or deleted after kickoff. You can only add new slots.</Text>
+          </Alert>
+        )}
+
         {errors.regressionBuildSlots && (
           <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light">
             <Text size="xs">{errors.regressionBuildSlots}</Text>
@@ -221,6 +229,7 @@ export function RegressionSlotsManager({
                     targetReleaseOffset={targetReleaseOffset}
                     targetReleaseTime={targetReleaseTimeForValidation}
                     kickoffTime={kickoffTimeForValidation}
+                    disabled={disableExistingSlots}
                   />
                 </div>
               );

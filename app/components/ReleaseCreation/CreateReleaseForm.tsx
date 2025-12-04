@@ -303,13 +303,12 @@ export function CreateReleaseForm({
               version: pt.version,
             }));
           }
-          // Regression slots
-          if (state.regressionBuildSlots) {
-            updateState.upcomingRegressions = state.regressionBuildSlots.map(slot => ({
-              date: slot.date,
-              config: slot.config,
-            }));
-          }
+          // Regression slots - always include to ensure backend updates/deletes slots
+          // Even if empty array, backend needs to know to clear all slots
+          updateState.upcomingRegressions = (state.regressionBuildSlots || []).map(slot => ({
+            date: slot.date,
+            config: slot.config,
+          }));
           // Cron config
           const cronConfig = getCronConfig();
           if (Object.keys(cronConfig).length > 0) {
@@ -404,7 +403,7 @@ export function CreateReleaseForm({
             </Text>
             <Text size="xs">
               {isUpcoming 
-                ? "You can edit branch, base branch, scheduling info, and platform versions. Configuration cannot be changed."
+                ? "You can edit branch, base branch, and scheduling info. Configuration and platform targets cannot be changed."
                 : isAfterKickoff
                 ? "You can only edit target release date and add regression slots."
                 : "This release cannot be edited."}
@@ -437,6 +436,7 @@ export function CreateReleaseForm({
               latestVersion="v1.0.0" // TODO: Fetch from API
               tenantId={org}
               errors={errors}
+              disablePlatformTargets={isEditMode && isUpcoming}
             />
           </Paper>
         )}

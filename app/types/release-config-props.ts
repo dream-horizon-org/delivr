@@ -382,6 +382,7 @@ export interface RegressionSlotCardProps {
   targetReleaseOffset: number;
   targetReleaseTime: string;
   kickoffTime: string;
+  disabled?: boolean; // Disable edit/delete actions (for post-kickoff edit mode)
 }
 
 // ============================================================================

@@ -31,6 +31,7 @@ interface PlatformTargetsSelectorProps {
   config?: ReleaseConfiguration; // For pre-filling
   defaultVersion?: string; // Default version if not in config
   errors?: Record<string, string>;
+  disabled?: boolean; // Disable all interactions (for edit mode pre-kickoff)
 }
 
 /**
@@ -71,6 +72,7 @@ export function PlatformTargetsSelector({
   config,
   defaultVersion = 'v1.0.0',
   errors = {},
+  disabled = false,
 }: PlatformTargetsSelectorProps) {
   // Available targets from config (or all if no config)
   const availableTargets = useMemo(() => {
@@ -187,6 +189,12 @@ export function PlatformTargetsSelector({
           </Text>
         </Group>
 
+        {disabled && (
+          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
+            <Text size="xs">Platform targets cannot be modified for releases before kickoff.</Text>
+          </Alert>
+        )}
+
         {showMinimumError && (
           <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light">
             <Text size="xs">{errors.platformTargets}</Text>
@@ -219,7 +227,7 @@ export function PlatformTargetsSelector({
                       onChange={(e) =>
                         handleTargetToggle(target, e.currentTarget.checked)
                       }
-                      disabled={!selected && platformTargets.length === 0}
+                      disabled={disabled || (!selected && platformTargets.length === 0)}
                     />
                   </Group>
 
@@ -231,6 +239,7 @@ export function PlatformTargetsSelector({
                       onChange={(e) => handleVersionChange(target, e.target.value)}
                       required
                       error={errors[`version-${target}`]}
+                      disabled={disabled}
                     />
                   )}
                 </Stack>
