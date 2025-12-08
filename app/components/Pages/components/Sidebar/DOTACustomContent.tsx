@@ -5,6 +5,7 @@ import {
   Stack,
   Collapse,
   useMantineTheme,
+  Group,
 } from "@mantine/core";
 import { useLocation, Link } from "@remix-run/react";
 import {
@@ -61,82 +62,68 @@ export function DOTACustomContent({
           root: {
             display: "block",
             width: "100%",
-            padding: `${theme.other.spacing.sm} ${theme.other.spacing.md}`,
-            borderRadius: theme.other.borderRadius.md,
-            transition: theme.other.transitions.fast,
-            backgroundColor: isDOTAActive ? theme.other.brand.light : "transparent",
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            borderRadius: theme.radius.md,
+            transition: "all 0.15s ease",
+            backgroundColor: isDOTAActive ? theme.colors.brand[0] : "transparent",
             borderLeft: isDOTAActive
-              ? `3px solid ${theme.other.brand.primary}`
+              ? `3px solid ${theme.colors.brand[5]}`
               : "3px solid transparent",
             position: "relative",
             "&:hover": {
               backgroundColor: isDOTAActive
-                ? theme.other.brand.light
-                : theme.other.backgrounds.hover,
+                ? theme.colors.brand[0]
+                : theme.colors.slate[1],
             },
           },
         }}
       >
-        <Box
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: theme.other.spacing.md,
-          }}
-        >
+        <Group gap="md">
           <IconCloud
-            size={theme.other.sizes.icon.lg}
+            size={20}
             color={
               isDOTAActive
-                ? theme.other.brand.primary
-                : theme.other.text.secondary
+                ? theme.colors.brand[5]
+                : theme.colors.slate[5]
             }
             stroke={1.5}
           />
           <Box style={{ flex: 1 }}>
             <Text
-              fw={
-                isDOTAActive
-                  ? theme.other.typography.fontWeight.semibold
-                  : theme.other.typography.fontWeight.medium
-              }
+              fw={isDOTAActive ? 600 : 500}
               size="sm"
-              c={
-                isDOTAActive
-                  ? theme.other.brand.primaryDark
-                  : theme.other.text.secondary
-              }
+              c={isDOTAActive ? theme.colors.brand[7] : theme.colors.slate[6]}
             >
               {module.label}
             </Text>
           </Box>
           {isExpanded ? (
             <IconChevronUp
-              size={theme.other.sizes.icon.sm}
+              size={14}
               color={
                 isDOTAActive
-                  ? theme.other.brand.primary
-                  : theme.other.text.secondary
+                  ? theme.colors.brand[5]
+                  : theme.colors.slate[5]
               }
             />
           ) : (
             <IconChevronDown
-              size={theme.other.sizes.icon.sm}
+              size={14}
               color={
                 isDOTAActive
-                  ? theme.other.brand.primary
-                  : theme.other.text.secondary
+                  ? theme.colors.brand[5]
+                  : theme.colors.slate[5]
               }
             />
           )}
-        </Box>
+        </Group>
       </UnstyledButton>
 
       <Collapse in={isExpanded}>
         <Box
           style={{
-            paddingLeft: theme.other.spacing.xl,
-            marginTop: theme.other.spacing.xs,
+            paddingLeft: theme.spacing.xl,
+            marginTop: theme.spacing.xs,
           }}
         >
           {isLoading ? (
@@ -148,7 +135,7 @@ export function DOTACustomContent({
               No apps yet
             </Text>
           ) : (
-            <Stack gap="xxs">
+            <Stack gap={4}>
               {apps.map((app) => {
                 const isAppActive = app.id === currentAppId;
                 const appRoute = route("/dashboard/:org/:app", {
@@ -165,52 +152,38 @@ export function DOTACustomContent({
                     styles={{
                       root: {
                         width: "100%",
-                        padding: `${theme.other.spacing.xs} ${theme.other.spacing.sm}`,
-                        borderRadius: theme.other.borderRadius.sm,
-                        transition: theme.other.transitions.fast,
+                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                        borderRadius: theme.radius.sm,
+                        transition: "all 0.15s ease",
                         backgroundColor: isAppActive
-                          ? theme.other.brand.light
+                          ? theme.colors.brand[0]
                           : "transparent",
                         borderLeft: isAppActive
-                          ? `3px solid ${theme.other.brand.primary}`
+                          ? `3px solid ${theme.colors.brand[5]}`
                           : "3px solid transparent",
-                        marginLeft: theme.other.spacing.xs,
+                        marginLeft: theme.spacing.xs,
                         "&:hover": {
                           backgroundColor: isAppActive
-                            ? theme.other.brand.light
-                            : theme.other.backgrounds.hover,
+                            ? theme.colors.brand[0]
+                            : theme.colors.slate[1],
                         },
                       },
                     }}
                   >
-                    <Box
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: theme.other.spacing.sm,
-                      }}
-                    >
+                    <Group gap="sm">
                       <IconAppWindow
-                        size={theme.other.sizes.icon.md}
+                        size={16}
                         color={
                           isAppActive
-                            ? theme.other.brand.primary
-                            : theme.other.text.tertiary
+                            ? theme.colors.brand[5]
+                            : theme.colors.slate[5]
                         }
                         stroke={1.5}
                       />
                       <Text
-                        fw={
-                          isAppActive
-                            ? theme.other.typography.fontWeight.semibold
-                            : theme.other.typography.fontWeight.regular
-                        }
+                        fw={isAppActive ? 600 : 400}
                         size="xs"
-                        c={
-                          isAppActive
-                            ? theme.other.brand.primaryDark
-                            : theme.other.text.tertiary
-                        }
+                        c={isAppActive ? theme.colors.brand[7] : theme.colors.slate[5]}
                         style={{
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -220,7 +193,7 @@ export function DOTACustomContent({
                       >
                         {app.name}
                       </Text>
-                    </Box>
+                    </Group>
                   </UnstyledButton>
                 );
               })}

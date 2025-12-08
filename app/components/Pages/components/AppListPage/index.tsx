@@ -65,22 +65,17 @@ export function AppListPage({ user }: AppListPageProps) {
       <>
         <Group justify="space-between" align="center" mb="lg">
           <Group gap="xs" align="center">
-            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+            <Text size="md" fw={600} c={theme.colors.slate[9]}>
               {currentOrg?.orgName || "Organization"}
             </Text>
-            <IconChevronRight size={theme.other.sizes.icon.md} color={theme.other.text.tertiary} />
-            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+            <IconChevronRight size={16} color={theme.colors.slate[5]} />
+            <Text size="md" fw={600} c={theme.colors.slate[9]}>
               Applications
             </Text>
           </Group>
           <CTAButton
-            leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+            leftSection={<IconPlus size={18} />}
             onClick={() => setCreateAppOpen(true)}
-            styles={{
-              root: {
-                boxShadow: theme.other.shadows.md,
-              },
-            }}
           >
             Create App
           </CTAButton>
@@ -95,22 +90,17 @@ export function AppListPage({ user }: AppListPageProps) {
       <>
         <Group justify="space-between" align="center" mb="lg">
           <Group gap="xs" align="center">
-            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+            <Text size="md" fw={600} c={theme.colors.slate[9]}>
               {currentOrg?.orgName || "Organization"}
             </Text>
-            <IconChevronRight size={theme.other.sizes.icon.md} color={theme.other.text.tertiary} />
-            <Text size="md" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+            <IconChevronRight size={16} color={theme.colors.slate[5]} />
+            <Text size="md" fw={600} c={theme.colors.slate[9]}>
               Applications
             </Text>
           </Group>
           <CTAButton
-            leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+            leftSection={<IconPlus size={18} />}
             onClick={() => setCreateAppOpen(true)}
-            styles={{
-              root: {
-                boxShadow: theme.other.shadows.md,
-              },
-            }}
           >
             Create App
           </CTAButton>
@@ -129,21 +119,21 @@ export function AppListPage({ user }: AppListPageProps) {
           <Group gap="xs" align="center">
             <Text 
               size="sm" 
-              fw={theme.other.typography.fontWeight.medium} 
-              c={theme.other.text.tertiary}
+              fw={500} 
+              c={theme.colors.slate[5]}
               style={{ cursor: "pointer" }}
               onClick={() => navigate(route("/dashboard"))}
             >
               {currentOrg?.orgName || "Organization"}
             </Text>
-            <IconChevronRight size={theme.other.sizes.icon.sm} color={theme.other.text.tertiary} />
-            <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.primary}>
+            <IconChevronRight size={14} color={theme.colors.slate[5]} />
+            <Text size="sm" fw={600} c={theme.colors.slate[9]}>
               Applications
             </Text>
           </Group>
           
           <CTAButton
-            leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+            leftSection={<IconPlus size={18} />}
             onClick={() => setCreateAppOpen(true)}
           >
             Create App
@@ -203,8 +193,8 @@ export function AppListPage({ user }: AppListPageProps) {
         onClose={() => setDeleteModalData(null)}
         data={deleteModalData}
         onSuccess={() => {
-                      actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
-                      refetch();
+          actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
+          refetch();
         }}
       />
     </Box>

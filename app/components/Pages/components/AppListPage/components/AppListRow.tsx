@@ -34,20 +34,20 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
     <Card
       withBorder
       padding={0}
-      radius="lg"
+      radius="md"
       style={{
         cursor: "pointer",
-        transition: theme.other.transitions.normal,
-        width: theme.other.sizes.card?.width || "300px",
-        borderColor: theme.other.borders.primary,
-        backgroundColor: theme.other.backgrounds.primary,
+        transition: "all 0.2s ease",
+        width: "300px",
+        borderColor: theme.colors.slate[2],
+        backgroundColor: "#ffffff",
         overflow: "hidden",
       }}
       styles={{
         root: {
           "&:hover": {
-            borderColor: theme.other.brand.primary,
-            boxShadow: theme.other.shadows.lg,
+            borderColor: theme.colors.brand[5],
+            boxShadow: theme.shadows.lg,
             transform: "translateY(-4px)",
           },
         },
@@ -57,8 +57,8 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
       {/* Header with gradient */}
       <Box
         style={{
-          background: theme.other.brand.gradient,
-          padding: theme.other.spacing.lg,
+          background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
+          padding: theme.spacing.lg,
           position: "relative",
           height: "120px",
           display: "flex",
@@ -72,11 +72,11 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
           radius="sm"
           style={{
             textTransform: "uppercase",
-            fontSize: theme.other.typography.fontSize.xs,
-            fontWeight: theme.other.typography.fontWeight.semibold,
-            letterSpacing: theme.other.typography.letterSpacing.wide,
+            fontSize: "10px",
+            fontWeight: 600,
+            letterSpacing: "0.5px",
             backgroundColor: "rgba(255, 255, 255, 0.2)",
-            color: theme.other.text.white,
+            color: "#ffffff",
             backdropFilter: "blur(10px)",
           }}
         >
@@ -93,7 +93,7 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
                 style={{
                   backgroundColor: "rgba(255, 255, 255, 0.2)",
                   backdropFilter: "blur(10px)",
-                  color: theme.other.text.white,
+                  color: "#ffffff",
                 }}
               >
                 <IconDots size={16} />
@@ -139,21 +139,21 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
           style={{
             width: "80px",
             height: "80px",
-            borderRadius: theme.other.borderRadius.xl,
-            background: theme.other.backgrounds.primary,
+            borderRadius: theme.radius.xl,
+            background: "#ffffff",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: `4px solid ${theme.other.backgrounds.primary}`,
-            boxShadow: theme.other.shadows.lg,
+            border: "4px solid #ffffff",
+            boxShadow: theme.shadows.lg,
           }}
         >
           <Box
             style={{
               width: "64px",
               height: "64px",
-              borderRadius: theme.other.borderRadius.lg,
-              background: theme.other.brand.light,
+              borderRadius: theme.radius.lg,
+              background: theme.colors.brand[0],
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -161,10 +161,10 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
           >
             <Text
               size="xl"
-              fw={theme.other.typography.fontWeight.bold}
+              fw={700}
               style={{
-                color: theme.other.brand.primaryDark,
-                fontSize: theme.other.typography.fontSize["2xl"],
+                color: theme.colors.brand[7],
+                fontSize: "24px",
               }}
             >
               {initials}
@@ -174,14 +174,14 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
       </Box>
 
       {/* Content */}
-      <Stack gap="xs" style={{ padding: theme.other.spacing.lg, paddingTop: theme.other.spacing.md }}>
+      <Stack gap="xs" style={{ padding: theme.spacing.lg, paddingTop: theme.spacing.md }}>
         <Text
           ta="center"
           size="lg"
-          fw={theme.other.typography.fontWeight.semibold}
+          fw={600}
           lineClamp={2}
           style={{
-            color: theme.other.text.primary,
+            color: theme.colors.slate[9],
             minHeight: "56px",
             display: "flex",
             alignItems: "center",
@@ -196,11 +196,11 @@ export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
             style={{
               width: "6px",
               height: "6px",
-              borderRadius: theme.other.borderRadius.full,
-              backgroundColor: theme.other.brand.primary,
+              borderRadius: "50%",
+              backgroundColor: theme.colors.brand[5],
             }}
           />
-          <Text size="xs" c={theme.other.text.tertiary} fw={theme.other.typography.fontWeight.medium}>
+          <Text size="xs" c={theme.colors.slate[5]} fw={500}>
             Active
           </Text>
         </Group>

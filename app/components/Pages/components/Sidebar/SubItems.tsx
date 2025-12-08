@@ -17,11 +17,11 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
   return (
     <Box
       style={{
-        paddingLeft: theme.other.spacing.xl,
-        marginTop: theme.other.spacing.xs,
+        paddingLeft: theme.spacing.xl,
+        marginTop: theme.spacing.xs,
       }}
     >
-      <Stack gap="xxs">
+      <Stack gap={4}>
         {subItems.map((subItem) => {
           let isSubItemActive = false;
 

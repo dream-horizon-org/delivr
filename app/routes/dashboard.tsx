@@ -56,7 +56,8 @@ export default function Dashboard() {
   const location = useLocation();
   const { data: orgs = [], isLoading: orgsLoading } = useGetOrgList();
 
-  const isMainDashboard = location.pathname === "/dashboard";
+  // Handle both /dashboard and /dashboard/ (with or without trailing slash)
+  const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
   const showSidebar = orgs.length > 0 && !isMainDashboard;
   
   // Theme colors
