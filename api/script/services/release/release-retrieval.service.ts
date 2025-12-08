@@ -8,7 +8,7 @@ import { ReleaseRepository } from '../../models/release/release.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
-import type { ReleaseResponseBody } from '~types/release';
+import type { ReleaseResponseBody, ReleaseWithPlatformTargets } from '~types/release';
 
 export class ReleaseRetrievalService {
   constructor(
@@ -183,5 +183,36 @@ export class ReleaseRetrievalService {
     }
 
     return releaseResponse;
+  }
+
+  /**
+   * Get the latest release for a release config with platform targets
+   * Used for scheduled release version bumping
+   * 
+   * @param releaseConfigId - The release config to find the latest release for
+   * @returns Latest release with platform targets, or null if none exists
+   */
+  async getLatestReleaseByConfigId(releaseConfigId: string): Promise<ReleaseWithPlatformTargets | null> {
+    // Find latest release for this config
+    const release = await this.releaseRepo.findLatestByReleaseConfigId(releaseConfigId);
+    const releaseNotFound = release === null;
+    if (releaseNotFound) {
+      return null;
+    }
+
+    // Fetch platform target mappings
+    const mappings = await this.platformTargetMappingRepo.getByReleaseId(release.id);
+
+    return {
+      id: release.id,
+      releaseId: release.releaseId,
+      releaseConfigId: release.releaseConfigId,
+      tenantId: release.tenantId,
+      platformTargets: mappings.map(m => ({
+        platform: m.platform,
+        target: m.target,
+        version: m.version
+      }))
+    };
   }
 }

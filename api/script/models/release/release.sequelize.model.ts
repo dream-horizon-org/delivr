@@ -11,7 +11,7 @@ export type ReleaseAttributes = {
   releaseConfigId: string | null; // FK to release_configurations table
   tenantId: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   branch: string | null; // Release branch name (e.g., "release/v1.0.0")
   baseBranch: string | null; // Base branch forked from (e.g., "master")
   baseReleaseId: string | null; // Parent release ID (for hotfixes)
@@ -75,7 +75,7 @@ export const createReleaseModel = (
         field: 'status'
       },
       type: {
-        type: DataTypes.ENUM('PLANNED', 'HOTFIX', 'UNPLANNED'),
+        type: DataTypes.ENUM('MAJOR', 'MINOR', 'HOTFIX'),
         allowNull: false,
         field: 'type'
       },

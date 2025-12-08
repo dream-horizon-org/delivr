@@ -95,7 +95,7 @@ export class ReleaseCreationService {
     const cronJobId = uuidv4();
     const cronConfig = payload.cronConfig || {
       kickOffReminder: true,
-      preRegressionBuilds: false,
+      preRegressionBuilds: true,
       automationBuilds: false,
       automationRuns: false,
       testFlightBuilds: true

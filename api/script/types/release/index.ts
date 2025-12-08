@@ -7,6 +7,7 @@ export type {
   AuthenticatedRequest,
   ApiResponse,
   PlatformTargetVersion,
+  ReleaseWithPlatformTargets,
   CreateReleasePayload,
   CreateReleaseResult,
   CreateReleaseRequestBody,
@@ -20,4 +21,14 @@ export type {
 } from './release.interface';
 
 export { hasSequelize } from './release.interface';
+
+// Release Version Types
+export type {
+  ReleaseType,
+  VersionValidationResult,
+  NextVersionSuggestions,
+  NextVersionsResult,
+  Platform,
+  Target
+} from './release-version.interface';
 

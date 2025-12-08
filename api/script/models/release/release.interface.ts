@@ -39,7 +39,7 @@ export interface Release {
   releaseConfigId: string | null;
   tenantId: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null; // Parent release ID (for hotfixes)
@@ -63,7 +63,7 @@ export interface CreateReleaseDto {
   releaseConfigId: string | null;
   tenantId: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null;
@@ -79,7 +79,7 @@ export interface CreateReleaseDto {
 
 export interface UpdateReleaseDto {
   status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-  type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type?: 'MAJOR' | 'MINOR' | 'HOTFIX';
   branch?: string | null;
   baseBranch?: string | null;
   baseReleaseId?: string | null;

@@ -4,7 +4,7 @@
 
 import type { 
   CreateReleaseConfigDto, 
-  ReleaseScheduling, 
+  ReleaseSchedule, 
   RegressionSlot,
   FieldValidationError 
 } from '~types/release-configs';
@@ -27,7 +27,7 @@ export const hasAtLeastOneIntegration = (config: Partial<CreateReleaseConfigDto>
  * Validate scheduling configuration
  * All fields are mandatory except 'name' in regression slots
  */
-export const validateScheduling = (scheduling: ReleaseScheduling): FieldValidationError[] => {
+export const validateScheduling = (scheduling: ReleaseSchedule): FieldValidationError[] => {
   const errors: FieldValidationError[] = [];
 
   // Validate required fields
@@ -87,27 +87,37 @@ export const validateScheduling = (scheduling: ReleaseScheduling): FieldValidati
     });
   }
 
-  if (!scheduling.initialVersions || typeof scheduling.initialVersions !== 'object') {
+  if (!scheduling.initialVersions || !Array.isArray(scheduling.initialVersions)) {
     errors.push({
       field: 'scheduling.initialVersions',
-      message: 'Initial versions object is required'
+      message: 'Initial versions array is required'
     });
   } else {
-    // Validate that initialVersions has at least one platform
-    const platforms = Object.keys(scheduling.initialVersions);
-    if (platforms.length === 0) {
+    // Validate that initialVersions has at least one entry
+    if (scheduling.initialVersions.length === 0) {
       errors.push({
         field: 'scheduling.initialVersions',
-        message: 'At least one platform version must be specified'
+        message: 'At least one initial version must be specified'
       });
     } else {
-      // Validate each platform version
-      platforms.forEach(platform => {
-        const version = scheduling.initialVersions[platform];
-        if (!version || typeof version !== 'string' || version.trim() === '') {
+      // Validate each initial version entry
+      scheduling.initialVersions.forEach((entry, index) => {
+        if (!entry.platform || typeof entry.platform !== 'string' || entry.platform.trim() === '') {
           errors.push({
-            field: `scheduling.initialVersions.${platform}`,
-            message: `Version for platform ${platform} must be a non-empty string`
+            field: `scheduling.initialVersions[${index}].platform`,
+            message: `Platform at index ${index} must be a non-empty string`
+          });
+        }
+        if (!entry.target || typeof entry.target !== 'string' || entry.target.trim() === '') {
+          errors.push({
+            field: `scheduling.initialVersions[${index}].target`,
+            message: `Target at index ${index} must be a non-empty string`
+          });
+        }
+        if (!entry.version || typeof entry.version !== 'string' || entry.version.trim() === '') {
+          errors.push({
+            field: `scheduling.initialVersions[${index}].version`,
+            message: `Version at index ${index} must be a non-empty string`
           });
         }
       });
@@ -157,13 +167,13 @@ export const validateScheduling = (scheduling: ReleaseScheduling): FieldValidati
       });
     }
 
-    // Validate working days are valid (1-7)
+    // Validate working days are valid (0-6, aligns with JS Date.getDay())
     if (scheduling.workingDays) {
       scheduling.workingDays.forEach((day, index) => {
-        if (day < 1 || day > 7) {
+        if (day < 0 || day > 6) {
           errors.push({
             field: `scheduling.workingDays[${index}]`,
-            message: 'Working day must be between 1 (Monday) and 7 (Sunday)'
+            message: 'Working day must be between 0 (Sunday) and 6 (Saturday)'
           });
         }
       });
@@ -187,7 +197,7 @@ export const validateScheduling = (scheduling: ReleaseScheduling): FieldValidati
 const validateRegressionSlot = (
   slot: RegressionSlot, 
   index: number, 
-  scheduling: ReleaseScheduling
+  scheduling: ReleaseSchedule
 ): FieldValidationError[] => {
   const errors: FieldValidationError[] = [];
   const fieldPrefix = `scheduling.regressionSlots[${index}]`;
