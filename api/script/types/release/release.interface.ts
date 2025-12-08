@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import { Sequelize } from 'sequelize';
 import * as storageTypes from '../../storage/storage';
-import { ReleaseType } from '../../storage/release/release-models';
+import { ReleaseType } from '../../models/release/release.interface';
 
 /**
  * Extended Storage interface that includes Sequelize instance
@@ -56,7 +56,7 @@ export interface CreateReleasePayload {
   tenantId: string;
   accountId: string;
   platformTargets: PlatformTargetVersion[]; // Array of platform-target-version combinations
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   releaseConfigId?: string;
   branch?: string;
   baseBranch?: string;
@@ -173,7 +173,7 @@ export interface ReleaseResponseBody {
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
   branch: string | null;
   baseBranch: string | null;
@@ -217,7 +217,7 @@ export interface UpdateReleaseRequestBody {
   releaseId?: string;
   releaseConfigId?: string;
   tenantId?: string;
-  type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
   branch?: string;
   baseBranch?: string;

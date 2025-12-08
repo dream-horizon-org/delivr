@@ -264,7 +264,7 @@ export const validateDateSequence = (body: CreateReleaseRequestBody): Validation
  * Validates release type
  */
 export const validateType = (body: CreateReleaseRequestBody): ValidationResult => {
-  const validTypes = ['PLANNED', 'HOTFIX', 'UNPLANNED'];
+  const validTypes = ['PLANNED', 'HOTFIX', 'MAJOR'];
   
   if (!validTypes.includes(body.type)) {
     return {
@@ -389,7 +389,7 @@ export const validateUpdateType = (body: UpdateReleaseRequestBody): ValidationRe
     return { isValid: true };
   }
 
-  const validTypes = ['PLANNED', 'HOTFIX', 'UNPLANNED'];
+  const validTypes = ['PLANNED', 'HOTFIX', 'MAJOR'];
   
   if (!validTypes.includes(body.type)) {
     return {

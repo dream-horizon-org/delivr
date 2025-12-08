@@ -189,11 +189,16 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
           
           // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
           app.use(api.releaseManagement({ storage: storage }));
+          
+          // Cron Job Routes (State Machine-based) - NO AUTH in debug mode
+          app.use('/api/v1', api.cronJob({ storage: storage }));
         } else {
           app.use(auth.router());
         }
         // Release Management Routes (releases, builds, integrations)
         app.use(auth.authenticate, api.releaseManagement({ storage: storage }));
+        // Cron Job Routes (State Machine-based)
+        app.use('/api/v1', auth.authenticate, api.cronJob({ storage: storage }));
         // DOTA Management Routes (deployments, apps, packages)
         // to do :move the fileupload middleware to the routes that are using file upload
         app.use(auth.authenticate, fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
