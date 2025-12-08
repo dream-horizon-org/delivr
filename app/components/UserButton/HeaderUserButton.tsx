@@ -1,4 +1,4 @@
-import { UnstyledButton, Avatar, Menu, rem, Tooltip } from "@mantine/core";
+import { UnstyledButton, Avatar, Menu, rem, Tooltip, useMantineTheme } from "@mantine/core";
 import {
   IconLogout,
   IconSettings,
@@ -7,7 +7,6 @@ import {
 import { Form, useNavigate } from "@remix-run/react";
 import { User } from "~/.server/services/Auth/Auth.interface";
 import { route } from "routes-gen";
-import { text } from "~/theme";
 import { useState } from "react";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
@@ -18,6 +17,7 @@ export type HeaderUserButtonProps = {
 export function HeaderUserButton({ user }: HeaderUserButtonProps) {
   const navigate = useNavigate();
   const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
+  const theme = useMantineTheme();
   
   return (
     <>
@@ -30,9 +30,8 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
               size="md"
               style={{ 
                 cursor: "pointer",
-                backgroundColor: "white",
-                color: text.brand,
-                border: "2px solid rgba(255, 255, 255, 0.3)",
+                backgroundColor: theme.colors.brand[5],
+                color: "white",
                 fontWeight: 700,
                 fontSize: "14px",
               }}
@@ -125,4 +124,3 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
     </>
   );
 }
-

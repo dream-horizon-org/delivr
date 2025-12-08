@@ -7,21 +7,14 @@ import type { User } from "~/.server/services/Auth/Auth.interface";
 import { SimpleTermsGuard } from "~/components/TermsAndConditions/SimpleTermsGuard";
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { HeaderUserButton } from "~/components/UserButton/HeaderUserButton";
-import { ActionIcon, Tooltip } from "@mantine/core";
-import { IconHelp } from "@tabler/icons-react";
 import { Sidebar } from "~/components/Pages/components/Sidebar/Sidebar";
 import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
 import { CodepushService } from '~/.server/services/Codepush';
 import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
 
-/**
- * Dashboard layout loader
- * Fetches system metadata globally so it's available to all child routes
- */
 export const loader = authenticateLoaderRequest(async ({ user }) => {
   try {
-    // Safety check for user object
     if (!user || !user.user || !user.user.id) {
       console.error('[Dashboard] Invalid user object:', user);
       throw new Error('User not authenticated properly');
@@ -29,7 +22,6 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
     
     const response = await CodepushService.getSystemMetadata(user.user.id);
     
-    // Enrich with app distribution metadata (same as API route)
     const enrichedData: SystemMetadataBackend = {
       ...response.data,
       appDistribution: {
@@ -44,7 +36,6 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
     });
   } catch (error: any) {
     console.error('[Dashboard] Error loading system metadata:', error.message);
-    // Return empty metadata on error - hooks will handle fallback
     return json({
       user,
       initialSystemMetadata: null,
@@ -67,73 +58,100 @@ export default function Dashboard() {
 
   const isMainDashboard = location.pathname === "/dashboard";
   const showSidebar = orgs.length > 0 && !isMainDashboard;
+  
+  // Safe color access
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
+  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
+  const primaryText = theme.colors?.slate?.[9] || '#0f172a';
+  const tertiaryText = theme.colors?.slate?.[5] || '#64748b';
+  const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
 
   return (
     <SimpleTermsGuard>
       {orgsLoading ? (
         <Flex h="100vh" direction="column">
-          <Skeleton height={60} width="100%" />
+          <Skeleton height={56} width="100%" />
           <Flex style={{ flex: 1 }}>
-            <Skeleton width={280} height="100%" />
-            <Box style={{ flex: 1 }} p="md">
-              <Skeleton height={40} width="100%" mb="md" />
-              <Skeleton height={400} width="100%" />
+            <Skeleton width={260} height="100%" />
+            <Box style={{ flex: 1 }} p="xl">
+              <Skeleton height={32} width="40%" mb="lg" />
+              <Skeleton height={200} width="100%" />
             </Box>
           </Flex>
         </Flex>
       ) : (
-        <Flex h="100vh" direction="column">
+        <Flex h="100vh" direction="column" style={{ background: bgColor }}>
+          {/* Clean, minimal header */}
           <Box
             style={{
-              background: theme.other.brand.gradient,
-              borderBottom: "none",
-              paddingTop: theme.other.spacing.lg,
-              paddingBottom: theme.other.spacing.lg,
+              background: 'white',
+              borderBottom: `1px solid ${borderColor}`,
+              height: '56px',
+              flexShrink: 0,
             }}
           >
-            <Flex align="center" justify="space-between" h="100%" px="lg">
+            <Flex align="center" justify="space-between" h="100%" px="xl">
               <Group 
-                gap="sm" 
+                gap="xs" 
                 style={{ cursor: "pointer" }} 
                 onClick={() => navigate(route("/dashboard"))}
               >
-                <IconRocket size={theme.other.sizes.icon["3xl"]} color={theme.other.text.white} stroke={2} />
-                <Text 
-                  size="xl" 
-                  fw={theme.other.typography.fontWeight.bold} 
-                  c="white"
+                {/* Logo mark */}
+                <Box
                   style={{
-                    fontSize: theme.other.typography.fontSize["2xl"],
-                    letterSpacing: theme.other.typography.letterSpacing.wide,
+                    width: 32,
+                    height: 32,
+                    borderRadius: theme.radius.md,
+                    background: brandColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <IconRocket 
+                    size={18} 
+                    color="white" 
+                    stroke={2} 
+                  />
+                </Box>
+                <Text 
+                  size="lg" 
+                  fw={700} 
+                  c={primaryText}
+                  style={{
+                    letterSpacing: '-0.025em',
                   }}
                 >
                   Delivr
                 </Text>
               </Group>
-              <Group gap="lg" align="center">
-                <Tooltip label="Access Documentation & Guides" position="bottom">
-                  <Text
-                    size="md"
-                    fw={600}
-                    onClick={() => window.open('https://dota.dreamsportslabs.com/', '_blank')}
-                    style={{ 
-                      color: theme.other.text.white,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      letterSpacing: '0.5px'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.opacity = '0.85';
-                      e.currentTarget.style.textDecoration = 'underline';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = '1';
-                      e.currentTarget.style.textDecoration = 'none';
-                    }}
-                  >
-                    Get Started
-                  </Text>
-                </Tooltip>
+              
+              <Group gap="md" align="center">
+                <Text
+                  size="sm"
+                  fw={500}
+                  onClick={() => window.open('https://dota.dreamsportslabs.com/', '_blank')}
+                  style={{ 
+                    color: tertiaryText,
+                    cursor: 'pointer',
+                    transition: 'color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = brandColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = tertiaryText;
+                  }}
+                >
+                  Documentation
+                </Text>
+                <Box
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: borderColor,
+                  }}
+                />
                 <HeaderUserButton user={user} />
               </Group>
             </Flex>
@@ -148,8 +166,21 @@ export default function Dashboard() {
                 userEmail={user.user.email}
               />
             )}
-            <Box style={{ flex: 1, overflowY: "auto", padding: theme.other.spacing["2xl"] }}>
-              <Outlet />
+            <Box 
+              style={{ 
+                flex: 1, 
+                overflowY: "auto", 
+                background: bgColor,
+              }}
+            >
+              <Box
+                style={{
+                  padding: isMainDashboard ? 0 : 32,
+                  minHeight: '100%',
+                }}
+              >
+                <Outlet />
+              </Box>
             </Box>
           </Flex>
         </Flex>
