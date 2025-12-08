@@ -6,6 +6,7 @@ import {
   Box,
   Group,
   Paper,
+  Stack,
   useMantineTheme,
 } from "@mantine/core";
 import { 
@@ -13,6 +14,7 @@ import {
   IconDots, 
   IconExternalLink, 
   IconChevronRight,
+  IconApps,
 } from "@tabler/icons-react";
 
 type Organization = {
@@ -38,14 +40,14 @@ const getInitials = (name: string) => {
 // Color themes for org cards based on name hash
 const getOrgTheme = (name: string) => {
   const themes = [
-    { accent: '#0d9488', light: '#f0fdfa', gradient: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)' }, // Teal
-    { accent: '#3b82f6', light: '#eff6ff', gradient: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' }, // Blue
-    { accent: '#8b5cf6', light: '#f5f3ff', gradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }, // Violet
-    { accent: '#ec4899', light: '#fdf2f8', gradient: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)' }, // Pink
-    { accent: '#f59e0b', light: '#fffbeb', gradient: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' }, // Amber
-    { accent: '#06b6d4', light: '#ecfeff', gradient: 'linear-gradient(135deg, #ecfeff 0%, #cffafe 100%)' }, // Cyan
-    { accent: '#10b981', light: '#ecfdf5', gradient: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)' }, // Emerald
-    { accent: '#6366f1', light: '#eef2ff', gradient: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)' }, // Indigo
+    { accent: '#0d9488', light: '#f0fdfa', bg: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)' }, // Teal
+    { accent: '#3b82f6', light: '#eff6ff', bg: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' }, // Blue
+    { accent: '#8b5cf6', light: '#f5f3ff', bg: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' }, // Violet
+    { accent: '#ec4899', light: '#fdf2f8', bg: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)' }, // Pink
+    { accent: '#f59e0b', light: '#fffbeb', bg: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }, // Amber
+    { accent: '#06b6d4', light: '#ecfeff', bg: 'linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)' }, // Cyan
+    { accent: '#10b981', light: '#ecfdf5', bg: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' }, // Emerald
+    { accent: '#6366f1', light: '#eef2ff', bg: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)' }, // Indigo
   ];
   
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -74,10 +76,7 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
           "&:hover": {
             borderColor: orgTheme.accent,
             transform: 'translateY(-4px)',
-            boxShadow: `0 12px 24px -8px rgba(0, 0, 0, 0.1), 0 0 0 1px ${orgTheme.accent}30`,
-          },
-          "&:hover .card-header": {
-            opacity: 1,
+            boxShadow: `0 16px 32px -8px rgba(0, 0, 0, 0.12)`,
           },
           "&:hover .chevron-icon": {
             opacity: 1,
@@ -87,128 +86,118 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
       }}
       onClick={onNavigate}
     >
-      {/* Colored Header Bar */}
+      {/* Gradient Header with Avatar */}
       <Box
-        className="card-header"
         style={{
-          height: 4,
-          background: orgTheme.accent,
-          transition: 'opacity 0.2s ease',
-          opacity: 0.6,
+          background: orgTheme.bg,
+          padding: '20px',
+          position: 'relative',
         }}
-      />
-      
-      <Box p="md">
-        {/* Main Content - Avatar + Info side by side */}
-        <Group gap="md" align="flex-start" wrap="nowrap">
+      >
+        <Group justify="space-between" align="flex-start">
           {/* Avatar */}
           <Box
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 10,
-              background: orgTheme.gradient,
-              border: `1px solid ${orgTheme.accent}25`,
-              color: orgTheme.accent,
+              width: 52,
+              height: 52,
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: 'white',
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: '16px',
+              fontSize: '18px',
               fontWeight: 700,
-              flexShrink: 0,
             }}
           >
             {initials}
           </Box>
 
-          {/* Info */}
-          <Box style={{ flex: 1, minWidth: 0 }}>
-            <Group justify="space-between" align="flex-start" gap="xs" wrap="nowrap">
-              <Text
-                fw={600}
-                size="md"
-                c="dark.9"
-                truncate
-                style={{ 
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.3,
-                  flex: 1,
-                }}
-              >
-                {org.orgName}
-              </Text>
-              
-              {/* Context Menu */}
-              {org.isAdmin && (
-                <Menu shadow="md" width={180} position="bottom-end" withinPortal>
-                  <Menu.Target>
-                    <ActionIcon
-                      variant="subtle"
-                      color="gray"
-                      size="sm"
-                      radius="sm"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <IconDots size={16} />
-                    </ActionIcon>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Item
-                      leftSection={<IconExternalLink size={14} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onNavigate();
-                      }}
-                    >
-                      Open Dashboard
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item
-                      color="red"
-                      leftSection={<IconTrash size={14} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                      }}
-                    >
-                      Delete
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
-              )}
+          {/* Context Menu */}
+          {org.isAdmin && (
+            <Menu shadow="md" width={180} position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  radius="sm"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ color: 'rgba(255,255,255,0.8)' }}
+                >
+                  <IconDots size={18} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconExternalLink size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate();
+                  }}
+                >
+                  Open Dashboard
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  Delete
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
+        </Group>
+      </Box>
+      
+      {/* Content */}
+      <Box p="lg">
+        <Text
+          fw={600}
+          size="lg"
+          c="dark.9"
+          mb={6}
+          lineClamp={1}
+          style={{ letterSpacing: '-0.01em' }}
+        >
+          {org.orgName}
+        </Text>
+        
+        <Group justify="space-between" align="center">
+          <Group gap="sm">
+            <Badge
+              size="sm"
+              variant="light"
+              radius="sm"
+              color={org.isAdmin ? "teal" : "gray"}
+              style={{ fontWeight: 600 }}
+            >
+              {org.isAdmin ? 'Owner' : 'Member'}
+            </Badge>
+            <Group gap={4} c="dimmed">
+              <IconApps size={14} />
+              <Text size="xs" fw={500}>Workspace</Text>
             </Group>
-            
-            {/* Role + Action hint */}
-            <Group justify="space-between" align="center" mt={8}>
-              <Badge
-                size="xs"
-                variant="light"
-                radius="sm"
-                style={{ 
-                  fontWeight: 600,
-                  background: org.isAdmin ? orgTheme.light : undefined,
-                  color: org.isAdmin ? orgTheme.accent : undefined,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                {org.isAdmin ? 'Owner' : 'Member'}
-              </Badge>
-              
-              <Box 
-                className="chevron-icon"
-                style={{ 
-                  color: orgTheme.accent,
-                  opacity: 0, 
-                  transform: 'translateX(-6px)', 
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <IconChevronRight size={16} stroke={2.5} />
-              </Box>
-            </Group>
+          </Group>
+          
+          <Box 
+            className="chevron-icon"
+            style={{ 
+              color: orgTheme.accent,
+              opacity: 0, 
+              transform: 'translateX(-6px)', 
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <IconChevronRight size={18} stroke={2.5} />
           </Box>
         </Group>
       </Box>

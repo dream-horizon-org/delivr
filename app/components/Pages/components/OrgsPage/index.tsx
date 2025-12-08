@@ -139,15 +139,15 @@ export function OrgsPage() {
             backgroundColor: 'white',
           }} 
           py="xl" 
-          px={32}
+          px={40}
         >
           <Skeleton height={32} width={240} mb="sm" />
           <Skeleton height={20} width={400} />
         </Box>
-        <Box py={48} px={32}>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }} spacing="lg">
+        <Box py={40} px={40}>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg">
             {Array(8).fill(0).map((_, i) => (
-              <Skeleton key={i} height={200} radius="md" />
+              <Skeleton key={i} height={180} radius="md" />
             ))}
           </SimpleGrid>
         </Box>
@@ -176,41 +176,35 @@ export function OrgsPage() {
 
   return (
     <Box style={{ backgroundColor: bgColor, minHeight: '100vh' }}>
-      {/* Header - Spacious & Clean */}
+      {/* Header */}
       <Box
         style={{
           borderBottom: `1px solid ${borderColor}`,
           backgroundColor: 'white',
         }}
       >
-        <Box py={32} px={40}>
-          <Group justify="space-between" align="flex-start">
-            <Stack gap={8}>
-              <Group gap="sm">
-                <Title order={2} c="dark.9" fw={800} style={{ letterSpacing: '-0.02em' }}>
-                  Organizations
-                </Title>
-                <Badge 
-                  size="md" 
-                  variant="light" 
-                  color="gray" 
-                  radius="sm"
-                  c="dimmed"
-                  fw={600}
-                >
-                  {data?.length || 0}
-                </Badge>
-              </Group>
-              <Text size="md" c="dimmed">
-                Manage your workspaces, apps, and OTA deployments.
-              </Text>
-            </Stack>
+        <Box py={28} px={40}>
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <Title order={2} c="dark.9" fw={700} style={{ letterSpacing: '-0.02em' }}>
+                Organizations
+              </Title>
+              <Badge 
+                size="lg" 
+                variant="filled" 
+                color="dark" 
+                radius="sm"
+                fw={600}
+              >
+                {data?.length || 0}
+              </Badge>
+            </Group>
             
             <CTAButton
               leftSection={<IconPlus size={18} />}
               onClick={() => setCreateOrgOpen(true)}
               size="md"
-              variant="filled" // Primary
+              variant="filled"
             >
               New Organization
             </CTAButton>
@@ -218,15 +212,15 @@ export function OrgsPage() {
         </Box>
       </Box>
 
-      {/* Main Content - Full Width Fluid */}
-      <Box py={48} px={40}>
+      {/* Main Content */}
+      <Box py={40} px={40}>
         
         {/* Organizations Grid */}
         <Box mb={80}>
           <SimpleGrid 
             cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4, xl: 5 }} 
-            spacing={24}
-            verticalSpacing={24}
+            spacing={20}
+            verticalSpacing={20}
           >
             {data?.map((org) => (
               <OrgCard
@@ -263,32 +257,32 @@ export function OrgsPage() {
               title="CLI Integration"
               description="Deploy and manage releases directly from your CI pipeline."
               tag="DEV TOOLS"
-              color="#0f172a" // Slate 900
-              gradient="#f8fafc" // Very subtle
+              color="#0f172a"
+              gradient="#f8fafc"
             />
             <FeatureCard
               icon={IconGitBranch}
               title="Advanced Rollouts"
               description="Percentage-based rollouts and staged releases."
               tag="RELEASE"
-              color="#0d9488" // Brand Teal
-              gradient="#f0fdfa" // Teal Fade
+              color="#0d9488"
+              gradient="#f0fdfa"
             />
             <FeatureCard
               icon={IconChartBar}
               title="Crash Analytics"
               description="Real-time stability monitoring and reporting."
               tag="OBSERVABILITY"
-              color="#6366f1" // Indigo
-              gradient="#eef2ff" // Indigo Fade
+              color="#6366f1"
+              gradient="#eef2ff"
             />
             <FeatureCard
               icon={IconCloud}
               title="Multi-region"
               description="Global edge caching for faster update delivery."
               tag="INFRA"
-              color="#0ea5e9" // Sky Blue
-              gradient="#f0f9ff" // Sky Fade
+              color="#0ea5e9"
+              gradient="#f0f9ff"
             />
           </SimpleGrid>
         </Box>
