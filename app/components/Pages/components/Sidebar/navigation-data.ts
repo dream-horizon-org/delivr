@@ -56,13 +56,6 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
           prefetch: "intent",
           isOwnerOnly: true,
         },
-        {
-          label: "Integrations",
-          icon: IconPlug,
-          path: `/dashboard/${org.id}/integrations`,
-          prefetch: "intent",
-          isOwnerOnly: true,
-        },
       ],
     },
     {
@@ -86,6 +79,13 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
 
 export function getOrganizationRoutes(org: Organization): SubItem[] {
   return [
+    {
+      label: "Integrations",
+      icon: IconPlug,
+      path: `/dashboard/${org.id}/integrations`,
+      prefetch: "intent",
+      isOwnerOnly: true,
+    },
     {
       label: "Manage Team",
       icon: IconUsers,
