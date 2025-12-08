@@ -14,8 +14,6 @@ import {
 } from "@mantine/core";
 import {
   IconRocket,
-  IconAlertTriangle,
-  IconCheck,
   IconAlertCircle,
   IconRefresh,
   IconChevronRight,
@@ -51,36 +49,34 @@ function ReleaseCard({
   return (
     <Card
       withBorder
-      padding="lg"
+      padding="md"
       radius="md"
       style={{
         cursor: "pointer",
-        transition: "all 0.2s ease",
+        transition: "all 0.15s ease",
         background: "#ffffff",
-        borderColor: isActive ? theme.colors.brand[3] : theme.colors.slate[2],
-        borderLeftWidth: isActive ? 3 : 1,
-        borderLeftColor: isActive ? theme.colors.brand[5] : theme.colors.slate[2],
+        borderColor: theme.colors.slate[2],
       }}
       styles={{
         root: {
           "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: theme.shadows.md,
-            borderColor: theme.colors.brand[4],
+            boxShadow: theme.shadows.sm,
+            borderColor: theme.colors.slate[3],
           },
         },
       }}
       onClick={onClick}
     >
-      <Group justify="space-between" wrap="nowrap">
-        <Group gap="md" style={{ flex: 1 }}>
+      <Group justify="space-between" align="center" wrap="nowrap" gap="lg">
+        {/* Left: Icon + Info */}
+        <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
           <Box
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: theme.radius.md,
+              width: 36,
+              height: 36,
+              borderRadius: theme.radius.sm,
               background: isActive
-                ? `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`
+                ? `linear-gradient(135deg, ${theme.colors.brand[4]} 0%, ${theme.colors.brand[5]} 100%)`
                 : theme.colors.slate[1],
               display: "flex",
               alignItems: "center",
@@ -88,55 +84,39 @@ function ReleaseCard({
               flexShrink: 0,
             }}
           >
-            <IconRocket size={22} color={isActive ? "white" : theme.colors.slate[5]} />
+            <IconRocket size={18} color={isActive ? "white" : theme.colors.slate[4]} />
           </Box>
 
-          <Box style={{ flex: 1, minWidth: 0 }}>
-            <Group gap="xs" wrap="nowrap" mb={4}>
-              <Text size="md" fw={600} c={theme.colors.slate[8]}>
+          <Box style={{ minWidth: 0 }}>
+            <Group gap={8} wrap="nowrap" align="center">
+              <Text size="sm" fw={600} c={theme.colors.slate[8]}>
                 {release.label}
               </Text>
-              {isActive ? (
-                <Badge
-                  variant="light"
-                  color="green"
-                  size="xs"
-                  leftSection={<IconCheck size={10} />}
-                >
-                  Active
-                </Badge>
-              ) : (
-                <Badge variant="light" color="gray" size="xs">
-                  Inactive
-                </Badge>
-              )}
+              <Badge
+                variant="light"
+                color={isActive ? "green" : "gray"}
+                size="xs"
+              >
+                {isActive ? "Active" : "Inactive"}
+              </Badge>
               {release.mandatory && (
-                <Badge
-                  variant="light"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconAlertTriangle size={10} />}
-                >
+                <Badge variant="light" color="orange" size="xs">
                   Mandatory
                 </Badge>
               )}
-              {release.isBundlePatchingEnabled && (
-                <Badge variant="light" color="blue" size="xs">
-                  PatchBundle
-                </Badge>
-              )}
             </Group>
-            <Text size="xs" c={theme.colors.slate[5]}>
+            <Text size="xs" c={theme.colors.slate[5]} mt={2}>
               Target: {release.targetVersions} • {formatRelativeTime(release.releasedAt)}
             </Text>
           </Box>
         </Group>
 
         {/* Right: Stats */}
-        <Group gap="xl" wrap="nowrap">
-          <Box style={{ minWidth: 160 }}>
-            <Group justify="space-between" mb={4}>
-              <Text size="xs" c={theme.colors.slate[5]} fw={500}>
+        <Group gap="lg" wrap="nowrap" align="center">
+          {/* Rollout */}
+          <Box style={{ width: 140 }}>
+            <Group justify="space-between" align="center" gap="xs" mb={4}>
+              <Text size="xs" c={theme.colors.slate[5]}>
                 Rollout
               </Text>
               <Text size="xs" fw={600} c={theme.colors.brand[6]}>
@@ -145,22 +125,23 @@ function ReleaseCard({
             </Group>
             <Progress
               value={release.rollout}
-              size="sm"
+              size={6}
               radius="xl"
               color="brand"
             />
           </Box>
 
-          <Box style={{ textAlign: "right", minWidth: 70 }}>
-            <Text size="xs" c={theme.colors.slate[5]} fw={500} mb={2}>
+          {/* Devices */}
+          <Box style={{ width: 60, textAlign: "center" }}>
+            <Text size="xs" c={theme.colors.slate[5]} mb={2}>
               Devices
             </Text>
-            <Text size="md" fw={700} c={theme.colors.slate[8]}>
+            <Text size="sm" fw={600} c={theme.colors.slate[8]}>
               {release.activeDevices?.toLocaleString() || 0}
             </Text>
           </Box>
 
-          <IconChevronRight size={18} color={theme.colors.slate[4]} />
+          <IconChevronRight size={16} color={theme.colors.slate[3]} style={{ flexShrink: 0 }} />
         </Group>
       </Group>
     </Card>
