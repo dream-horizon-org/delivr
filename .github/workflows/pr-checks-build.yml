@@ -1,0 +1,57 @@
+name: PR checks (build)
+
+on:
+  pull_request:
+    branches: ['*']
+
+jobs:
+  build:
+    name: TypeScript Build
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run TypeScript build
+        run: npm run build
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run ESLint
+        run: npm run lint
+
