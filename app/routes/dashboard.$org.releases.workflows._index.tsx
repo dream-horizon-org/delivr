@@ -1,5 +1,5 @@
 /**
- * Workflows Page
+ * Workflows List Page
  * Manage CI/CD workflows (Jenkins and GitHub Actions)
  */
 
@@ -153,14 +153,24 @@ export default function WorkflowsPage() {
             </Text>
           </Box>
           
-          <Button
-            component={Link}
-            to={`/dashboard/${org}/releases`}
-            variant="default"
-            leftSection={<IconArrowLeft size={16} />}
-          >
-            Back to Releases
-          </Button>
+          <Group gap="md">
+            <Button
+              component={Link}
+              to={`/dashboard/${org}/releases/workflows/new`}
+              color="brand"
+              leftSection={<IconRocket size={16} />}
+            >
+              Add Workflow
+            </Button>
+            <Button
+              component={Link}
+              to={`/dashboard/${org}/releases`}
+              variant="default"
+              leftSection={<IconArrowLeft size={16} />}
+            >
+              Back to Releases
+            </Button>
+          </Group>
         </Group>
       </Box>
 

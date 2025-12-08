@@ -1,11 +1,11 @@
 /**
- * Create Workflow Route
- * Full page form for creating or editing CI/CD workflows
+ * Edit Workflow Route
+ * Full page form for editing an existing CI/CD workflow
  */
 
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation, Link } from '@remix-run/react';
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
 import { WorkflowForm } from '~/components/ReleaseSettings/WorkflowForm';
@@ -32,45 +32,45 @@ import {
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 
 export const loader = authenticateLoaderRequest(async ({ params, request }: LoaderFunctionArgs & { user: any }) => {
-  const { org } = params;
+  const { org, workflowId } = params;
   
   if (!org) {
     throw new Response('Organization not found', { status: 404 });
   }
   
-  const url = new URL(request.url);
-  const editWorkflowId = url.searchParams.get('edit');
+  if (!workflowId) {
+    throw new Response('Workflow ID not found', { status: 404 });
+  }
   
   let existingWorkflow: CICDWorkflow | null = null;
   let fetchError: string | null = null;
   
-  // Handle editing existing workflow
-  if (editWorkflowId) {
-    try {
-      const endpoint = `/api/v1/tenants/${org}/workflows/${editWorkflowId}`;
-      const result = await apiGet<CICDWorkflow>(
-        `${url.protocol}//${url.host}${endpoint}`,
-        {
-          headers: {
-            'Cookie': request.headers.get('Cookie') || '',
-          }
+  // Load existing workflow
+  try {
+    const endpoint = `/api/v1/tenants/${org}/workflows/${workflowId}`;
+    const url = new URL(request.url);
+    const result = await apiGet<CICDWorkflow>(
+      `${url.protocol}//${url.host}${endpoint}`,
+      {
+        headers: {
+          'Cookie': request.headers.get('Cookie') || '',
         }
-      );
-      
-      if (result.data) {
-        existingWorkflow = result.data;
-      } else {
-        fetchError = 'Workflow not found';
       }
-    } catch (error: any) {
-      fetchError = getApiErrorMessage(error, 'Failed to load workflow');
+    );
+    
+    if (result.data) {
+      existingWorkflow = result.data;
+    } else {
+      fetchError = 'Workflow not found';
     }
+  } catch (error: any) {
+    fetchError = getApiErrorMessage(error, 'Failed to load workflow');
   }
   
   return json({
     organizationId: org,
     existingWorkflow,
-    isEditMode: !!editWorkflowId,
+    isEditMode: true,
     fetchError,
   });
 });
@@ -86,7 +86,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   return redirect(`/dashboard/${org}/releases/workflows`);
 }
 
-export default function CreateWorkflowPage() {
+export default function EditWorkflowPage() {
   const theme = useMantineTheme();
   const { organizationId, existingWorkflow, isEditMode, fetchError } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
@@ -122,7 +122,7 @@ export default function CreateWorkflowPage() {
   const breadcrumbItems = [
     { title: 'Release Management', href: `/dashboard/${organizationId}/releases` },
     { title: 'Workflows', href: `/dashboard/${organizationId}/releases/workflows` },
-    { title: isEditMode ? 'Edit' : 'Create', href: '#' },
+    { title: 'Edit', href: '#' },
   ].map((item, index) => (
     item.href === '#' ? (
       <Text key={index} size="sm" c={theme.colors.slate[6]}>
@@ -160,8 +160,8 @@ export default function CreateWorkflowPage() {
     );
   }
   
-  // Show error if failed to load workflow in edit mode
-  if (fetchError && isEditMode) {
+  // Show error if failed to load workflow
+  if (fetchError) {
     return (
       <Box p={32}>
         <Breadcrumbs mb={24}>{breadcrumbItems}</Breadcrumbs>

@@ -70,8 +70,8 @@ export function WorkflowList({
   const hasAnyIntegration = hasJenkinsIntegration || hasGitHubIntegration;
 
   const handleEdit = (workflow: CICDWorkflow) => {
-    // Navigate to edit page instead of opening modal
-    window.location.href = `/dashboard/${tenantId}/releases/create-workflow?edit=${workflow.id}`;
+    // Navigate to edit page
+    window.location.href = `/dashboard/${tenantId}/releases/workflows/${workflow.id}`;
   };
 
   const handleDeleteClick = (workflow: CICDWorkflow) => {
@@ -152,7 +152,7 @@ export function WorkflowList({
         </Box>
         <Button
           component={Link}
-          to={`/dashboard/${tenantId}/releases/create-workflow`}
+          to={`/dashboard/${tenantId}/releases/workflows/new`}
           color="brand"
           leftSection={<IconPlus size={16} />}
           disabled={!hasAnyIntegration}

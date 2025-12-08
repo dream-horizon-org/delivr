@@ -314,7 +314,7 @@ export function WorkflowForm({
   const breadcrumbItems = [
     { title: 'Release Management', href: `/dashboard/${tenantId}/releases` },
     { title: 'Workflows', href: `/dashboard/${tenantId}/releases/workflows` },
-    { title: isEditMode ? 'Edit' : 'Create', href: '#' },
+    { title: isEditMode ? 'Edit' : 'New', href: '#' },
   ].map((item, index) => (
     item.href === '#' ? (
       <Text key={index} size="sm" c={theme.colors.slate[6]}>
