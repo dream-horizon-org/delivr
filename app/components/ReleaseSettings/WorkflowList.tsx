@@ -22,6 +22,7 @@ import {
   Center,
   useMantineTheme,
 } from '@mantine/core';
+import { Link } from '@remix-run/react';
 import {
   IconPlus,
   IconPencil,
@@ -33,7 +34,6 @@ import {
   IconEye,
 } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
-import { WorkflowCreateModal } from './WorkflowCreateModal';
 import { WorkflowPreviewModal } from './WorkflowPreviewModal';
 import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
@@ -61,8 +61,6 @@ export function WorkflowList({
   onDelete,
 }: WorkflowListProps) {
   const theme = useMantineTheme();
-  const [createModalOpened, setCreateModalOpened] = useState(false);
-  const [editingWorkflow, setEditingWorkflow] = useState<CICDWorkflow | null>(null);
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<CICDWorkflow | null>(null);
   const [previewWorkflow, setPreviewWorkflow] = useState<CICDWorkflow | null>(null);
@@ -71,24 +69,9 @@ export function WorkflowList({
   const hasGitHubIntegration = availableIntegrations.githubActions.length > 0;
   const hasAnyIntegration = hasJenkinsIntegration || hasGitHubIntegration;
 
-  const handleCreate = async (workflowData: any) => {
-    await onCreate(workflowData);
-    setCreateModalOpened(false);
-    onRefresh();
-  };
-
   const handleEdit = (workflow: CICDWorkflow) => {
-    setEditingWorkflow(workflow);
-    setCreateModalOpened(true);
-  };
-
-  const handleUpdate = async (workflowData: any) => {
-    if (editingWorkflow && onUpdate) {
-      await onUpdate(editingWorkflow.id, workflowData);
-      setCreateModalOpened(false);
-      setEditingWorkflow(null);
-      onRefresh();
-    }
+    // Navigate to edit page instead of opening modal
+    window.location.href = `/dashboard/${tenantId}/releases/create-workflow?edit=${workflow.id}`;
   };
 
   const handleDeleteClick = (workflow: CICDWorkflow) => {
@@ -168,12 +151,10 @@ export function WorkflowList({
           </Text>
         </Box>
         <Button
+          component={Link}
+          to={`/dashboard/${tenantId}/releases/create-workflow`}
           color="brand"
           leftSection={<IconPlus size={16} />}
-          onClick={() => {
-            setEditingWorkflow(null);
-            setCreateModalOpened(true);
-          }}
           disabled={!hasAnyIntegration}
         >
           Add Workflow
@@ -474,19 +455,7 @@ export function WorkflowList({
         </Box>
       )}
 
-      {/* Create/Edit Modal */}
-      <WorkflowCreateModal
-        opened={createModalOpened}
-        onClose={() => {
-          setCreateModalOpened(false);
-          setEditingWorkflow(null);
-        }}
-        onSave={editingWorkflow ? handleUpdate : handleCreate}
-        availableIntegrations={availableIntegrations}
-        tenantId={tenantId}
-        existingWorkflow={editingWorkflow}
-        workflows={workflows}
-      />
+      {/* Note: Create/Edit now uses full page form at /dashboard/{org}/releases/create-workflow */}
 
       {/* Delete Confirmation Modal */}
       <Modal
