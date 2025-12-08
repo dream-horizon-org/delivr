@@ -51,13 +51,19 @@ export default function ReleaseConfigurationPage() {
   const theme = useMantineTheme();
   const data = useLoaderData<typeof loader>();
   const { org } = data as any;
+  
   const { 
     releaseConfigs, 
     invalidateReleaseConfigs, 
     isLoadingMetadata, 
     isLoadingTenantConfig,
-    error: configError,
+    isLoadingReleaseConfigs,
+    releaseConfigsError,
+    metadataError,
+    tenantConfigError,
   } = useConfig();
+  
+  const configError = releaseConfigsError || metadataError || tenantConfigError;
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Get tab from URL params, default to 'configurations'
@@ -81,7 +87,7 @@ export default function ReleaseConfigurationPage() {
     }
   }, [setSearchParams]);
 
-  const isLoading = isLoadingMetadata || isLoadingTenantConfig;
+  const isLoading = isLoadingMetadata || isLoadingTenantConfig || isLoadingReleaseConfigs;
 
   // Breadcrumb items
   const breadcrumbItems = [
@@ -290,6 +296,7 @@ export default function ReleaseConfigurationPage() {
             org={org}
             releaseConfigs={releaseConfigs}
             invalidateReleaseConfigs={invalidateReleaseConfigs}
+            isLoading={isLoadingReleaseConfigs}
           />
         </Tabs.Panel>
 
