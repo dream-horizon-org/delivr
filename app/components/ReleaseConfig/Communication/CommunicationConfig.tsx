@@ -3,12 +3,11 @@
  * Main container for Slack notification configuration
  */
 
-import { Stack, Text, Alert, Button } from '@mantine/core';
-import { IconAlertCircle, IconPlugConnected } from '@tabler/icons-react';
-import { useNavigate } from '@remix-run/react';
+import { Stack, Text, Paper, Group, Box, ThemeIcon, Anchor, useMantineTheme } from '@mantine/core';
+import { IconBell, IconAlertCircle, IconPlug, IconBrandSlack, IconMail } from '@tabler/icons-react';
+import { Link, useParams } from '@remix-run/react';
 import type { CommunicationConfig as CommunicationConfigType } from '~/types/release-config';
 import type { CommunicationConfigProps } from '~/types/release-config-props';
-import { COMMUNICATION_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 import { SlackChannelConfigEnhanced } from './SlackChannelConfigEnhanced';
 
 export function CommunicationConfig({
@@ -17,71 +16,120 @@ export function CommunicationConfig({
   availableIntegrations,
   tenantId,
 }: CommunicationConfigProps) {
-  const navigate = useNavigate();
+  const theme = useMantineTheme();
+  const params = useParams();
+  const orgId = params.org || tenantId || '';
 
-  console.log('CommunicationConfig', config);
-  
   // Check if any communication integrations are connected
   const hasSlack = availableIntegrations.slack.length > 0;
   const hasAnyIntegration = hasSlack;
-  
+
   // If no integrations are connected, show setup message
   if (!hasAnyIntegration) {
     return (
       <Stack gap="lg">
-        <div>
-          <Text fw={600} size="lg" className="mb-1">
-            {COMMUNICATION_LABELS.SECTION_TITLE}
-          </Text>
-          <Text size="sm" c="dimmed">
-            {COMMUNICATION_LABELS.SECTION_DESCRIPTION}
-          </Text>
-        </div>
-        
-        <Alert
-          icon={<IconAlertCircle size={ICON_SIZES.SMALL} />}
-          title={COMMUNICATION_LABELS.NO_INTEGRATIONS_TITLE}
-          color="blue"
+        {/* Info Header */}
+        <Paper
+          p="md"
+          radius="md"
+          style={{
+            backgroundColor: theme.colors.blue[0],
+            border: `1px solid ${theme.colors.blue[2]}`,
+          }}
         >
-          <Stack gap="sm">
-            <Text size="sm">
-              {COMMUNICATION_LABELS.NO_INTEGRATIONS_MESSAGE}
-            </Text>
-            <Button
-              leftSection={<IconPlugConnected size={ICON_SIZES.SMALL} />}
-              variant="light"
-              size="sm"
-              onClick={() => navigate(`/dashboard/${tenantId}/integrations`)}
-            >
-              {COMMUNICATION_LABELS.GO_TO_INTEGRATIONS}
-            </Button>
-          </Stack>
-        </Alert>
+          <Group gap="sm">
+            <ThemeIcon size={32} radius="md" variant="light" color="blue">
+              <IconBell size={18} />
+            </ThemeIcon>
+            <Box style={{ flex: 1 }}>
+              <Text size="sm" fw={600} c={theme.colors.blue[8]} mb={2}>
+                Communication Channels
+              </Text>
+              <Text size="xs" c={theme.colors.blue[7]}>
+                Configure Slack notifications and email alerts for your team
+              </Text>
+            </Box>
+          </Group>
+        </Paper>
+
+        {/* No Integration Warning */}
+        <Paper
+          p="md"
+          radius="md"
+          style={{
+            backgroundColor: theme.colors.red[0],
+            border: `1px solid ${theme.colors.red[2]}`,
+          }}
+        >
+          <Group gap="sm" align="flex-start">
+            <ThemeIcon size={32} radius="md" variant="light" color="red">
+              <IconAlertCircle size={18} />
+            </ThemeIcon>
+            <Box style={{ flex: 1 }}>
+              <Text size="sm" fw={600} c={theme.colors.red[8]} mb={4}>
+                No Communication Integrations Configured
+              </Text>
+              <Text size="xs" c={theme.colors.red[7]} mb="sm">
+                You need to connect a communication integration (like Slack) before
+                you can configure notifications.
+              </Text>
+              <Anchor
+                component={Link}
+                to={`/dashboard/${orgId}/integrations`}
+                size="sm"
+                c={theme.colors.red[8]}
+                fw={600}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <IconPlug size={14} />
+                Go to Integrations
+              </Anchor>
+            </Box>
+          </Group>
+        </Paper>
       </Stack>
     );
-    }
-  
+  }
+
   return (
     <Stack gap="lg">
-      <div>
-        <Text fw={600} size="lg" className="mb-1">
-          {COMMUNICATION_LABELS.SECTION_TITLE}
-        </Text>
-        <Text size="sm" c="dimmed">
-          {COMMUNICATION_LABELS.SECTION_DESCRIPTION}
-        </Text>
-      </div>
-      
-      {/* Only show Slack if connected */}
+      {/* Info Header */}
+      <Paper
+        p="md"
+        radius="md"
+        style={{
+          backgroundColor: theme.colors.blue[0],
+          border: `1px solid ${theme.colors.blue[2]}`,
+        }}
+      >
+        <Group gap="sm">
+          <ThemeIcon size={32} radius="md" variant="light" color="blue">
+            <IconBell size={18} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Text size="sm" fw={600} c={theme.colors.blue[8]} mb={2}>
+              Communication Channels
+            </Text>
+            <Text size="xs" c={theme.colors.blue[7]}>
+              Configure Slack notifications and email alerts for your team
+            </Text>
+          </Box>
+        </Group>
+      </Paper>
+
+      {/* Slack Configuration */}
       {hasSlack && (
-      <SlackChannelConfigEnhanced
-        config={config}
-        onChange={onChange}
-        availableIntegrations={availableIntegrations.slack}
+        <SlackChannelConfigEnhanced
+          config={config}
+          onChange={onChange}
+          availableIntegrations={availableIntegrations.slack}
           tenantId={tenantId}
-      />
+        />
       )}
     </Stack>
   );
 }
-

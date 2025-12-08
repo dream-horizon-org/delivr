@@ -1,99 +1,164 @@
-import { Stack, Switch, Text, Alert, Card } from '@mantine/core';
-import { IconInfoCircle, IconCalendar } from '@tabler/icons-react';
+/**
+ * Scheduling Step Wrapper
+ * Optional step for configuring release train scheduling
+ */
+
+import {
+  Stack,
+  Switch,
+  Text,
+  Paper,
+  Group,
+  Box,
+  ThemeIcon,
+  useMantineTheme,
+} from '@mantine/core';
+import {
+  IconCalendar,
+  IconCheck,
+  IconInfoCircle,
+} from '@tabler/icons-react';
 import type { SchedulingConfig as SchedulingConfigType, Platform } from '~/types/release-config';
 import type { SchedulingStepWrapperProps } from '~/types/release-config-props';
 import { SchedulingConfig } from './SchedulingConfig';
-import { SCHEDULING_LABELS, ICON_SIZES, DEFAULT_SCHEDULING_CONFIG } from '~/constants/release-config-ui';
+import { DEFAULT_SCHEDULING_CONFIG } from '~/constants/release-config-ui';
 
-/**
- * Create default scheduling config when user opts in
- */
 const createDefaultSchedulingConfig = (platforms: Platform[]): SchedulingConfigType => {
   const initialVersions: Partial<Record<Platform, string>> = {};
-  platforms.forEach(platform => {
+  platforms.forEach((platform) => {
     initialVersions[platform] = DEFAULT_SCHEDULING_CONFIG.INITIAL_VERSION;
   });
 
   return {
     releaseFrequency: DEFAULT_SCHEDULING_CONFIG.RELEASE_FREQUENCY,
     customFrequencyDays: undefined,
-    firstReleaseKickoffDate: '', // To be set by user
+    firstReleaseKickoffDate: '',
     initialVersions,
     kickoffTime: DEFAULT_SCHEDULING_CONFIG.KICKOFF_TIME,
     kickoffReminderEnabled: DEFAULT_SCHEDULING_CONFIG.KICKOFF_REMINDER_ENABLED,
     kickoffReminderTime: DEFAULT_SCHEDULING_CONFIG.KICKOFF_REMINDER_TIME,
     targetReleaseTime: DEFAULT_SCHEDULING_CONFIG.TARGET_RELEASE_TIME,
     targetReleaseDateOffsetFromKickoff: DEFAULT_SCHEDULING_CONFIG.TARGET_RELEASE_OFFSET_DAYS,
-    workingDays: [...DEFAULT_SCHEDULING_CONFIG.WORKING_DAYS], // Clone array
+    workingDays: [...DEFAULT_SCHEDULING_CONFIG.WORKING_DAYS],
     timezone: DEFAULT_SCHEDULING_CONFIG.DEFAULT_TIMEZONE,
     regressionSlots: [],
   };
 };
 
-export function SchedulingStepWrapper({ 
-  scheduling, 
-  onChange, 
-  selectedPlatforms 
+export function SchedulingStepWrapper({
+  scheduling,
+  onChange,
+  selectedPlatforms,
 }: SchedulingStepWrapperProps) {
+  const theme = useMantineTheme();
   const isEnabled = scheduling !== undefined && scheduling !== null;
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      // User opted in - create default config
       onChange(createDefaultSchedulingConfig(selectedPlatforms));
     } else {
-      // User opted out - set to undefined (will send null to backend)
       onChange(undefined);
     }
   };
 
   return (
-    <Stack gap="md">
-      {/* Opt-In Toggle */}
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Stack gap="sm">
-          <Switch
-            label={
-              <Text size="md" fw={500}>
-                {SCHEDULING_LABELS.ENABLE_RELEASE_TRAIN}
+    <Stack gap="lg">
+      {/* Info Header */}
+      <Paper
+        p="md"
+        radius="md"
+        style={{
+          backgroundColor: theme.colors.cyan[0],
+          border: `1px solid ${theme.colors.cyan[2]}`,
+        }}
+      >
+        <Group gap="sm">
+          <ThemeIcon size={32} radius="md" variant="light" color="cyan">
+            <IconCalendar size={18} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Text size="sm" fw={600} c={theme.colors.cyan[8]} mb={2}>
+              Release Train Scheduling
+            </Text>
+            <Text size="xs" c={theme.colors.cyan[7]}>
+              Optional: Automate release scheduling with a release train model
+            </Text>
+          </Box>
+        </Group>
+      </Paper>
+
+      {/* Enable Toggle */}
+      <Paper p="lg" radius="md" withBorder>
+        <Group justify="space-between" align="flex-start">
+          <Group gap="md">
+            <ThemeIcon
+              size={40}
+              radius="md"
+              variant={isEnabled ? 'filled' : 'light'}
+              color={isEnabled ? 'cyan' : 'gray'}
+            >
+              <IconCalendar size={22} />
+            </ThemeIcon>
+            <Box>
+              <Group gap="xs" mb={4}>
+                <Text fw={600} size="md" c={theme.colors.slate[8]}>
+                  Enable Release Train Scheduling
+                </Text>
+                {isEnabled && (
+                  <ThemeIcon size={20} radius="xl" color="cyan">
+                    <IconCheck size={12} />
+                  </ThemeIcon>
+                )}
+              </Group>
+              <Text size="sm" c={theme.colors.slate[5]}>
+                Automate release cycles with scheduled kickoff and release dates
               </Text>
-            }
-            description={SCHEDULING_LABELS.ENABLE_DESCRIPTION}
+            </Box>
+          </Group>
+          <Switch
             checked={isEnabled}
             onChange={(e) => handleToggle(e.currentTarget.checked)}
             size="md"
+            color="cyan"
           />
+        </Group>
+      </Paper>
 
-          {!isEnabled && (
-            <Alert icon={<IconInfoCircle size={ICON_SIZES.SMALL} />} color="blue" variant="light">
-              <Text size="sm">
-                <strong>{SCHEDULING_LABELS.OPTIONAL_INFO}</strong> {SCHEDULING_LABELS.OPTIONAL_DETAIL}
+      {/* Disabled State */}
+      {!isEnabled && (
+        <Paper
+          p="md"
+          radius="md"
+          style={{
+            backgroundColor: theme.colors.slate[0],
+            border: `1px solid ${theme.colors.slate[2]}`,
+          }}
+        >
+          <Group gap="sm">
+            <ThemeIcon size={28} radius="md" variant="light" color="gray">
+              <IconInfoCircle size={16} />
+            </ThemeIcon>
+            <Box style={{ flex: 1 }}>
+              <Text size="sm" fw={500} c={theme.colors.slate[7]} mb={2}>
+                Scheduling is optional
               </Text>
-              <Text size="sm" mt="xs" color="dimmed">
-                {SCHEDULING_LABELS.WITHOUT_SCHEDULING}
+              <Text size="xs" c={theme.colors.slate[5]}>
+                You can create releases manually without a release train schedule.
+                Enable scheduling to automate release cycles.
               </Text>
-            </Alert>
-          )}
-        </Stack>
-      </Card>
+            </Box>
+          </Group>
+        </Paper>
+      )}
 
-      {/* Full Scheduling Form (only shown when enabled) */}
+      {/* Full Scheduling Form */}
       {isEnabled && scheduling && (
-        <>
-          <Alert icon={<IconCalendar size={ICON_SIZES.SMALL} />} color="teal" variant="light">
-            <Text size="sm">
-              {SCHEDULING_LABELS.CONFIGURE_BELOW}
-            </Text>
-          </Alert>
-
-          <SchedulingConfig
-            config={scheduling}
-            onChange={onChange}
-            selectedPlatforms={selectedPlatforms}
-          />
-        </>
+        <SchedulingConfig
+          config={scheduling}
+          onChange={onChange}
+          selectedPlatforms={selectedPlatforms}
+        />
       )}
     </Stack>
   );
 }
-

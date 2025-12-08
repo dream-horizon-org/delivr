@@ -1,9 +1,20 @@
 /**
  * Configuration Summary Component
- * Display complete configuration for review
+ * Display complete configuration for review with brand styling
  */
 
-import { Stack, Text, Card, Group, Badge, List, Divider } from '@mantine/core';
+import {
+  Stack,
+  Text,
+  Paper,
+  Group,
+  Badge,
+  List,
+  Box,
+  ThemeIcon,
+  SimpleGrid,
+  useMantineTheme,
+} from '@mantine/core';
 import {
   IconSettings,
   IconTarget,
@@ -13,347 +24,323 @@ import {
   IconCheck,
   IconX,
   IconTicket,
+  IconFileCheck,
+  IconGitBranch,
+  IconBrandSlack,
+  IconMail,
 } from '@tabler/icons-react';
-import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigSummaryProps } from '~/types/release-config-props';
-import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
-import { SECTION_TITLES, FIELD_LABELS, BUILD_UPLOAD_LABELS, INFO_MESSAGES } from '~/constants/release-config-ui';
 
 export function ConfigSummary({ config }: ConfigSummaryProps) {
+  const theme = useMantineTheme();
+
+  const SectionCard = ({
+    icon: Icon,
+    iconColor,
+    title,
+    children,
+  }: {
+    icon: React.ElementType;
+    iconColor: string;
+    title: string;
+    children: React.ReactNode;
+  }) => (
+    <Paper p="lg" radius="md" withBorder>
+      <Group gap="sm" mb="md">
+        <ThemeIcon size={28} radius="md" variant="light" color={iconColor}>
+          <Icon size={16} />
+        </ThemeIcon>
+        <Text fw={600} size="sm" c={theme.colors.slate[8]}>
+          {title}
+        </Text>
+      </Group>
+      {children}
+    </Paper>
+  );
+
+  const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <Group justify="space-between" py={6}>
+      <Text size="sm" c={theme.colors.slate[5]}>
+        {label}
+      </Text>
+      <Box>{value}</Box>
+    </Group>
+  );
+
   return (
     <Stack gap="lg">
-      <div>
-        <Text fw={600} size="lg" className="mb-1">
-          {SECTION_TITLES.REVIEW}
-        </Text>
-        <Text size="sm" c="dimmed">
-          {INFO_MESSAGES.REVIEW_DESCRIPTION}
-        </Text>
-      </div>
-      
-      {/* Basic Info */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconSettings size={20} className="text-blue-600" />
-          <Text fw={600} size="sm">
-            {SECTION_TITLES.BASIC_INFORMATION}
-          </Text>
+      {/* Header */}
+      <Paper
+        p="md"
+        radius="md"
+        style={{
+          backgroundColor: theme.colors.green[0],
+          border: `1px solid ${theme.colors.green[2]}`,
+        }}
+      >
+        <Group gap="sm">
+          <ThemeIcon size={32} radius="md" variant="light" color="green">
+            <IconFileCheck size={18} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Text size="sm" fw={600} c={theme.colors.green[8]} mb={2}>
+              Review & Confirm
+            </Text>
+            <Text size="xs" c={theme.colors.green[7]}>
+              Please review your configuration before saving
+            </Text>
+          </Box>
         </Group>
-        
-        <Stack gap="xs">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <Text c="dimmed">{FIELD_LABELS.CONFIGURATION_NAME}:</Text>
-            <Text fw={500}>{config.name || INFO_MESSAGES.NOT_SET}</Text>
-            
-            <Text c="dimmed">{FIELD_LABELS.RELEASE_TYPE}:</Text>
-            <Badge variant="light" size="sm">
-              {config.releaseType || INFO_MESSAGES.PLANNED}
-            </Badge>
-            
-            <Text c="dimmed">{FIELD_LABELS.DEFAULT_CONFIG}:</Text>
-            <Text fw={500}>{config.isDefault ? INFO_MESSAGES.YES : INFO_MESSAGES.NO}</Text>
-          </div>
-          
-          {config.description && (
-            <>
-              <Divider className="my-2" />
-              <div>
-                <Text size="xs" c="dimmed" className="mb-1">
-                  {FIELD_LABELS.DESCRIPTION}:
+      </Paper>
+
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+        {/* Basic Info */}
+        <SectionCard icon={IconSettings} iconColor="brand" title="Basic Information">
+          <Stack gap={0}>
+            <InfoRow
+              label="Name"
+              value={
+                <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+                  {config.name || 'Not set'}
                 </Text>
-                <Text size="sm">{config.description}</Text>
-              </div>
-            </>
-          )}
-        </Stack>
-      </Card>
-      
-      {/* Build Upload Method */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconSettings size={20} className="text-green-600" />
-          <Text fw={600} size="sm">
-            {SECTION_TITLES.BUILD_UPLOAD_METHOD}
-          </Text>
-        </Group>
-        
-        <Stack gap="sm">
-          <div className="flex items-center gap-2">
-            <Badge size="lg" variant="light" color={!config.hasManualBuildUpload ? 'grape' : 'blue'}>
-              {!config.hasManualBuildUpload ? BUILD_UPLOAD_LABELS.CI_CD : BUILD_UPLOAD_LABELS.MANUAL}
-            </Badge>
-          </div>
-          
-          {!config.hasManualBuildUpload && (
-            <>
-              <Divider />
-              <div>
-                <Text size="sm" fw={500} className="mb-2">
-                  {FIELD_LABELS.CONFIGURED_WORKFLOWS} ({config.ciConfig?.workflows?.length || 0})
-                </Text>
-        {config.ciConfig?.workflows && config.ciConfig.workflows.length > 0 ? (
-          <List spacing="xs" size="sm">
-            {config.ciConfig.workflows.map((pipeline) => (
-              <List.Item
-                key={pipeline.id}
-                icon={
-                  pipeline.enabled ? (
-                    <IconCheck size={16} className="text-green-600" />
-                  ) : (
-                    <IconX size={16} className="text-gray-400" />
-                  )
+              }
+            />
+            <InfoRow
+              label="Release Type"
+              value={
+                <Badge variant="light" size="sm" color="brand">
+                  {config.releaseType || 'Planned'}
+                </Badge>
+              }
+            />
+            <InfoRow
+              label="Default Config"
+              value={
+                config.isDefault ? (
+                  <Badge variant="light" size="sm" color="green">
+                    Yes
+                  </Badge>
+                ) : (
+                  <Text size="sm" c={theme.colors.slate[5]}>
+                    No
+                  </Text>
+                )
+              }
+            />
+            {config.baseBranch && (
+              <InfoRow
+                label="Base Branch"
+                value={
+                  <Group gap={4}>
+                    <IconGitBranch size={14} color={theme.colors.slate[5]} />
+                    <Text size="sm" fw={500}>
+                      {config.baseBranch}
+                    </Text>
+                  </Group>
                 }
-              >
-                <Group gap="xs">
-                  <Text size="sm">{pipeline.name}</Text>
-                  <Badge size="xs" variant="outline">
-                    {pipeline.platform}
-                  </Badge>
-                  <Badge size="xs" variant="outline">
-                    {pipeline.environment}
-                  </Badge>
-                  <Badge size="xs" variant="light">
-                    {pipeline.provider.replace('_', ' ')}
-                  </Badge>
-                </Group>
-              </List.Item>
-            ))}
-          </List>
-        ) : (
-          <Text size="sm" c="dimmed">
-                    {INFO_MESSAGES.NO_WORKFLOWS_CONFIGURED}
+              />
+            )}
+          </Stack>
+        </SectionCard>
+
+        {/* Build Upload */}
+        <SectionCard icon={IconSettings} iconColor="green" title="Build Upload Method">
+          <Stack gap="sm">
+            <Badge
+              size="lg"
+              variant="light"
+              color={!config.hasManualBuildUpload ? 'grape' : 'blue'}
+            >
+              {!config.hasManualBuildUpload ? 'CI/CD Integration' : 'Manual Upload'}
+            </Badge>
+
+            {!config.hasManualBuildUpload &&
+              config.ciConfig?.workflows &&
+              config.ciConfig.workflows.length > 0 && (
+                <Box
+                  p="sm"
+                  style={{
+                    backgroundColor: theme.colors.slate[0],
+                    borderRadius: theme.radius.sm,
+                  }}
+                >
+                  <Text size="xs" fw={500} c={theme.colors.slate[6]} mb="xs">
+                    {config.ciConfig.workflows.length} Workflow(s) Configured
+                  </Text>
+                  <Stack gap={4}>
+                    {config.ciConfig.workflows.slice(0, 3).map((pipeline) => (
+                      <Group key={pipeline.id} gap="xs">
+                        {pipeline.enabled ? (
+                          <IconCheck size={12} color={theme.colors.green[6]} />
+                        ) : (
+                          <IconX size={12} color={theme.colors.slate[4]} />
+                        )}
+                        <Text size="xs">{pipeline.name}</Text>
+                      </Group>
+                    ))}
+                    {config.ciConfig.workflows.length > 3 && (
+                      <Text size="xs" c={theme.colors.slate[5]}>
+                        +{config.ciConfig.workflows.length - 3} more
+                      </Text>
+                    )}
+                  </Stack>
+                </Box>
+              )}
+
+            {config.hasManualBuildUpload && (
+              <Text size="xs" c={theme.colors.slate[5]}>
+                Builds will be uploaded manually via dashboard
+              </Text>
+            )}
+          </Stack>
+        </SectionCard>
+
+        {/* Target Platforms */}
+        <SectionCard icon={IconTarget} iconColor="orange" title="Target Platforms">
+          {config.targets && config.targets.length > 0 ? (
+            <Group gap="xs">
+              {config.targets.map((target) => (
+                <Badge key={target} variant="light" size="md" color="orange">
+                  {target.replace('_', ' ')}
+                </Badge>
+              ))}
+            </Group>
+          ) : (
+            <Text size="sm" c={theme.colors.slate[5]}>
+              No platforms selected
+            </Text>
+          )}
+        </SectionCard>
+
+        {/* Test Management */}
+        <SectionCard icon={IconTestPipe} iconColor="grape" title="Test Management">
+          {config?.testManagementConfig?.enabled ? (
+            <Group gap="xs">
+              <IconCheck size={14} color={theme.colors.green[6]} />
+              <Text size="sm">
+                {config?.testManagementConfig.provider}
+              </Text>
+            </Group>
+          ) : (
+            <Group gap="xs">
+              <IconX size={14} color={theme.colors.slate[4]} />
+              <Text size="sm" c={theme.colors.slate[5]}>
+                Disabled
+              </Text>
+            </Group>
+          )}
+        </SectionCard>
+
+        {/* Project Management */}
+        <SectionCard icon={IconTicket} iconColor="blue" title="Project Management (JIRA)">
+          {config?.projectManagementConfig?.enabled ? (
+            <Stack gap="xs">
+              <Group gap="xs">
+                <IconCheck size={14} color={theme.colors.green[6]} />
+                <Text size="sm">JIRA Integration Enabled</Text>
+              </Group>
+              {config?.projectManagementConfig?.platformConfigurations &&
+                config.projectManagementConfig.platformConfigurations.length > 0 && (
+                  <Text size="xs" c={theme.colors.slate[5]}>
+                    {config.projectManagementConfig.platformConfigurations.length} platform(s) configured
                   </Text>
                 )}
-              </div>
-            </>
-          )}
-          
-          {config.hasManualBuildUpload && (
-            <Text size="sm" c="dimmed">
-              {INFO_MESSAGES.MANUAL_UPLOAD_DASHBOARD_INFO}
-          </Text>
-        )}
-        </Stack>
-      </Card>
-      
-      {/* Target Platforms */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconTarget size={20} className="text-orange-600" />
-          <Text fw={600} size="sm">
-            Target Platforms
-          </Text>
-        </Group>
-        
-        {config.targets && config.targets.length > 0 ? (
-          <Group gap="xs">
-            {config.targets.map((target) => (
-              <Badge key={target} variant="light" size="md">
-                {target.replace('_', ' ')}
-              </Badge>
-            ))}
-          </Group>
-        ) : (
-          <Text size="sm" c="dimmed">
-            No target platforms selected
-          </Text>
-        )}
-      </Card>
-      
-      {/* Test Management */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconTestPipe size={20} className="text-purple-600" />
-          <Text fw={600} size="sm">
-            Test Management
-          </Text>
-        </Group>
-        
-        {config?.testManagementConfig?.enabled ? (
-          <Stack gap="xs">
+            </Stack>
+          ) : (
             <Group gap="xs">
-              <Text size="sm">Provider:</Text>
-              <Badge variant="light" size="sm">
-                {config?.testManagementConfig.provider}
-              </Badge>
-            </Group>
-            
-            {config?.testManagementConfig?.providerConfig && (
-              <div className="text-sm">
-                <Text c="dimmed">Settings configured</Text>
-              </div>
-            )}
-          </Stack>
-        ) : (
-          <Text size="sm" c="dimmed">
-            Test management integration disabled
-          </Text>
-        )}
-      </Card>
-      
-      {/* Project Management (JIRA) */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconTicket size={20} className="text-blue-600" />
-          <Text fw={600} size="sm">
-            Project Management (JIRA)
-          </Text>
-        </Group>
-        
-        {config?.projectManagementConfig?.enabled ? (
-          <Stack gap="xs">
-            <Group gap="xs">
-              <IconCheck size={16} className="text-green-600" />
-              <Text size="sm" fw={500}>
-                JIRA Integration Enabled
+              <IconX size={14} color={theme.colors.slate[4]} />
+              <Text size="sm" c={theme.colors.slate[5]}>
+                Disabled
               </Text>
             </Group>
-            
-            {config?.projectManagementConfig?.platformConfigurations && 
-             config.projectManagementConfig.platformConfigurations.length > 0 ? (
-              <div className="ml-6">
-                <Text size="xs" c="dimmed" className="mb-1">
-                  Platform Configurations: {config.projectManagementConfig.platformConfigurations.length}
-                </Text>
-                <List spacing="xs" size="xs">
-                  {config.projectManagementConfig.platformConfigurations.map((pc: any) => (
-                    <List.Item key={pc.platform}>
-                      <Group gap="xs">
-                        <Badge size="xs" variant="outline">
-                          {pc.platform}
-                        </Badge>
-                        <Text size="xs" c="dimmed">
-                          {pc.projectKey}
-                        </Text>
-                      </Group>
-                    </List.Item>
-                  ))}
-                </List>
-              </div>
-            ) : (
-              <div className="ml-6">
-                <Text size="xs" c="dimmed">
-                  No platform configurations
-                </Text>
-              </div>
-            )}
-          </Stack>
-        ) : (
-          <Group gap="xs">
-            <IconX size={16} className="text-gray-400" />
-            <Text size="sm" c="dimmed">
-              JIRA integration disabled
+          )}
+        </SectionCard>
+
+        {/* Scheduling */}
+        <SectionCard icon={IconCalendar} iconColor="cyan" title="Scheduling">
+          {config.scheduling ? (
+            <Stack gap={0}>
+              <InfoRow
+                label="Frequency"
+                value={
+                  <Badge variant="light" size="sm" color="cyan">
+                    {config.scheduling.releaseFrequency}
+                  </Badge>
+                }
+              />
+              <InfoRow
+                label="Timezone"
+                value={
+                  <Text size="sm" fw={500}>
+                    {config.scheduling.timezone}
+                  </Text>
+                }
+              />
+              <InfoRow
+                label="Regression Slots"
+                value={
+                  <Text size="sm" fw={500}>
+                    {config.scheduling.regressionSlots?.length || 0}
+                  </Text>
+                }
+              />
+            </Stack>
+          ) : (
+            <Text size="sm" c={theme.colors.slate[5]}>
+              Not configured
             </Text>
-          </Group>
-        )}
-      </Card>
-      
-      {/* Scheduling */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconCalendar size={20} className="text-blue-600" />
-          <Text fw={600} size="sm">
-            Scheduling
-          </Text>
-        </Group>
-        
-        {config.scheduling ? (
+          )}
+        </SectionCard>
+
+        {/* Communication */}
+        <SectionCard icon={IconBell} iconColor="indigo" title="Communication">
           <Stack gap="sm">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <Text c="dimmed">Frequency:</Text>
-              <Badge variant="light" size="sm">
-                {config.scheduling.releaseFrequency}
-                {config.scheduling.customFrequencyDays &&
-                  ` (${config.scheduling.customFrequencyDays} days)`}
-              </Badge>
-              
-              <Text c="dimmed">Timezone:</Text>
-              <Text fw={500}>{config.scheduling.timezone}</Text>
-              
-              <Text c="dimmed">Release Time:</Text>
-              <Text fw={500}>{config.scheduling.targetReleaseTime}</Text>
-              
-              <Text c="dimmed">Kickoff Time:</Text>
-              <Text fw={500}>{config.scheduling.kickoffTime}</Text>
-              
-              <Text c="dimmed">Release Offset:</Text>
-              <Text fw={500}>{config.scheduling.targetReleaseDateOffsetFromKickoff} days</Text>
-              
-              <Text c="dimmed">Working Days:</Text>
-              <Text fw={500}>{config.scheduling.workingDays.length} days/week</Text>
-              
-              <Text c="dimmed">Regression Slots:</Text>
-              <Badge variant="light" size="sm">
-                {config.scheduling.regressionSlots.length} slots
-              </Badge>
-            </div>
+            <Group gap="xs">
+              {config.communicationConfig?.slack?.enabled ? (
+                <>
+                  <IconBrandSlack size={14} color={theme.colors.green[6]} />
+                  <Text size="sm">Slack enabled</Text>
+                </>
+              ) : (
+                <>
+                  <IconBrandSlack size={14} color={theme.colors.slate[4]} />
+                  <Text size="sm" c={theme.colors.slate[5]}>
+                    Slack disabled
+                  </Text>
+                </>
+              )}
+            </Group>
+
+            <Group gap="xs">
+              {config.communicationConfig?.email?.enabled ? (
+                <>
+                  <IconMail size={14} color={theme.colors.green[6]} />
+                  <Text size="sm">Email enabled</Text>
+                </>
+              ) : (
+                <>
+                  <IconMail size={14} color={theme.colors.slate[4]} />
+                  <Text size="sm" c={theme.colors.slate[5]}>
+                    Email disabled
+                  </Text>
+                </>
+              )}
+            </Group>
           </Stack>
-        ) : (
-          <Text size="sm" c="dimmed">
-            Scheduling not configured
+        </SectionCard>
+      </SimpleGrid>
+
+      {/* Description Section */}
+      {config.description && (
+        <Paper p="md" radius="md" withBorder>
+          <Text size="xs" fw={600} c={theme.colors.slate[5]} tt="uppercase" mb="xs">
+            Description
           </Text>
-        )}
-      </Card>
-      
-      {/* Communication */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Group gap="sm" className="mb-3">
-          <IconBell size={20} className="text-indigo-600" />
-          <Text fw={600} size="sm">
-            Communication
+          <Text size="sm" c={theme.colors.slate[7]}>
+            {config.description}
           </Text>
-        </Group>
-        
-        <Stack gap="sm">
-          {config.communicationConfig?.slack?.enabled && config.communicationConfig.slack.channelData ? (
-            <div>
-              <Group gap="xs" className="mb-2">
-                <IconCheck size={16} className="text-green-600" />
-                <Text size="sm" fw={500}>
-                  Slack Integration Enabled
-                </Text>
-              </Group>
-              <div className="ml-6 text-xs text-gray-600">
-                <div>• Releases: {config.communicationConfig.slack.channelData.releases?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-                <div>• Builds: {config.communicationConfig.slack.channelData.builds?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-                <div>• Regression: {config.communicationConfig.slack.channelData.regression?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-                <div>• Critical: {config.communicationConfig.slack.channelData.critical?.map(ch => `#${ch.name}`).join(', ') || 'None'}</div>
-              </div>
-            </div>
-          ) : (
-            <Group gap="xs">
-              <IconX size={16} className="text-gray-400" />
-              <Text size="sm" c="dimmed">
-                Slack disabled
-              </Text>
-            </Group>
-          )}
-          
-          {config.communicationConfig?.email?.enabled ? (
-            <div>
-              <Group gap="xs" className="mb-2">
-                <IconCheck size={16} className="text-green-600" />
-                <Text size="sm" fw={500}>
-                  Email Notifications Enabled
-                </Text>
-              </Group>
-              <div className="ml-6">
-                <Text size="xs" c="dimmed">
-                  {config.communicationConfig.email.notificationEmails?.length || 0} recipient(s)
-                </Text>
-              </div>
-            </div>
-          ) : (
-            <Group gap="xs">
-              <IconX size={16} className="text-gray-400" />
-              <Text size="sm" c="dimmed">
-                Email disabled
-              </Text>
-            </Group>
-          )}
-        </Stack>
-      </Card>
+        </Paper>
+      )}
     </Stack>
   );
 }
-

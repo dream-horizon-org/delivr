@@ -1,5 +1,5 @@
-import { Alert, TextInput, Stack, Box, Text, Group, useMantineTheme, ThemeIcon } from '@mantine/core';
-import { IconAlertCircle, IconMessageCircle } from '@tabler/icons-react';
+import { Alert, TextInput, Stack, Box, Text, Group, useMantineTheme, ThemeIcon, Paper, Badge } from '@mantine/core';
+import { IconAlertCircle, IconMessageCircle, IconShield } from '@tabler/icons-react';
 import { useSlackConnection } from '~/hooks/useSlackConnection';
 import { 
   SLACK_LABELS, 
@@ -96,6 +96,46 @@ export function SlackConnectionFlow({
               <Text size="sm">{SLACK_LABELS.CONNECTION_DESCRIPTION}</Text>
             </ConnectionAlert>
           )}
+
+          {/* Required Scopes - Prominent Display */}
+          <Paper
+            p="md"
+            radius="md"
+            style={{
+              backgroundColor: theme.colors.orange[0],
+              border: `1px solid ${theme.colors.orange[2]}`,
+            }}
+          >
+            <Group gap="sm" align="flex-start">
+              <ThemeIcon size={28} radius="md" variant="light" color="orange">
+                <IconShield size={16} />
+              </ThemeIcon>
+              <Box style={{ flex: 1 }}>
+                <Text size="sm" fw={600} c={theme.colors.orange[8]} mb="xs">
+                  Required OAuth Scopes
+                </Text>
+                <Text size="xs" c={theme.colors.orange[7]} mb="sm">
+                  Your bot token must have the following scopes to access channels:
+                </Text>
+                <Group gap="xs">
+                  {SLACK_REQUIRED_SCOPES.map((scope) => (
+                    <Badge
+                      key={scope}
+                      size="sm"
+                      variant="light"
+                      color="orange"
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '11px',
+                      }}
+                    >
+                      {scope}
+                    </Badge>
+                  ))}
+                </Group>
+              </Box>
+            </Group>
+          </Paper>
 
           <TextInput
             label={isEditMode ? `${SLACK_LABELS.BOT_TOKEN_LABEL} (leave blank to keep existing)` : SLACK_LABELS.BOT_TOKEN_LABEL}
