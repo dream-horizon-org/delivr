@@ -1,5 +1,5 @@
 import type { ReleaseTaskModelType } from './release-task.sequelize.model';
-import { ReleaseTask, CreateReleaseTaskDto, UpdateReleaseTaskDto } from './release.interface';
+import { ReleaseTask, CreateReleaseTaskDto, UpdateReleaseTaskDto, TaskStatus } from './release.interface';
 
 export class ReleaseTaskRepository {
   constructor(private readonly model: ReleaseTaskModelType) {}
@@ -52,6 +52,22 @@ export class ReleaseTaskRepository {
     return tasks.map((t: any) => this.toPlainObject(t));
   }
 
+  async findByRegressionCycleId(regressionId: string): Promise<ReleaseTask[]> {
+    const tasks = await this.model.findAll({
+      where: { regressionId },
+      order: [['createdAt', 'ASC']]
+    });
+    return tasks.map((t: any) => this.toPlainObject(t));
+  }
+
+  async findByTaskType(releaseId: string, taskType: string): Promise<ReleaseTask | null> {
+    const task = await this.model.findOne({
+      where: { releaseId, taskType }
+    });
+    if (!task) return null;
+    return this.toPlainObject(task);
+  }
+
   async update(taskId: string, updates: UpdateReleaseTaskDto): Promise<void> {
     await this.model.update(updates, {
       where: { id: taskId }
@@ -82,7 +98,7 @@ export class ReleaseTaskRepository {
         taskId: d.taskId ?? null,
         taskType: d.taskType,
         stage: d.stage,
-        taskStatus: d.taskStatus || 'PENDING',
+        taskStatus: d.taskStatus ?? TaskStatus.PENDING,
         taskConclusion: d.taskConclusion || null,
         accountId: d.accountId ?? null,
         isReleaseKickOffTask: d.isReleaseKickOffTask ?? false,

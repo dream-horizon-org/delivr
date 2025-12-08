@@ -10,7 +10,7 @@ import { ReleaseCreationService } from '../../services/release/release-creation.
 import { ReleaseRetrievalService } from '../../services/release/release-retrieval.service';
 import { ReleaseStatusService } from '../../services/release/release-status.service';
 import { ReleaseUpdateService } from '../../services/release/release-update.service';
-import { ReleaseType } from '../../storage/release/release-models';
+import { CronJobService } from '../../services/release/cron-job/cron-job.service';
 import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
@@ -26,17 +26,20 @@ export class ReleaseManagementController {
   private retrievalService: ReleaseRetrievalService;
   private statusService: ReleaseStatusService;
   private updateService: ReleaseUpdateService;
+  private cronJobService: CronJobService;
 
   constructor(
     creationService: ReleaseCreationService,
     retrievalService: ReleaseRetrievalService,
     statusService: ReleaseStatusService,
-    updateService: ReleaseUpdateService
+    updateService: ReleaseUpdateService,
+    cronJobService: CronJobService
   ) {
     this.creationService = creationService;
     this.retrievalService = retrievalService;
     this.statusService = statusService;
     this.updateService = updateService;
+    this.cronJobService = cronJobService;
   }
 
   /**
@@ -84,7 +87,7 @@ export class ReleaseManagementController {
           target: pt.target,
           version: pt.version
         })),
-        type: body.type as 'PLANNED' | 'HOTFIX' | 'UNPLANNED',
+        type: body.type as 'PLANNED' | 'HOTFIX' | 'MAJOR',
         releaseConfigId: body.releaseConfigId,
         branch: body.branch,
         baseBranch: body.baseBranch,
@@ -100,21 +103,42 @@ export class ReleaseManagementController {
 
       const result = await this.creationService.createRelease(payload);
 
+      // ========================================================================
+      // AUTO-START CRON JOB
+      // ========================================================================
+      // Automatically start the cron job to begin release workflow
+      // This ensures releases start executing even if user forgets to call start endpoint
+      let cronJobStarted = false;
+      let updatedCronJob = result.cronJob;
+
+      try {
+        // Service handles both starting cron and updating DB status
+        updatedCronJob = await this.cronJobService.startCronJob(result.release.id);
+        cronJobStarted = true;
+        console.log(`[Create Release] Auto-started cron job for release ${result.release.id}`);
+      } catch (cronError: unknown) {
+        // Don't fail release creation if cron start fails - log and continue
+        const errorMessage = cronError instanceof Error ? cronError.message : String(cronError);
+        console.error(`[Create Release] Failed to auto-start cron job for release ${result.release.id}:`, errorMessage);
+        // Release is still created successfully, but cron job needs to be started manually
+      }
+
       return res.status(201).json({
         success: true,
         release: {
           ...result.release,
           cronJob: {
-            id: result.cronJob.id,
-            stage1Status: result.cronJob.stage1Status,
-            stage2Status: result.cronJob.stage2Status,
-            stage3Status: result.cronJob.stage3Status,
-            cronStatus: result.cronJob.cronStatus
+            id: updatedCronJob.id,
+            stage1Status: updatedCronJob.stage1Status,
+            stage2Status: updatedCronJob.stage2Status,
+            stage3Status: updatedCronJob.stage3Status,
+            cronStatus: updatedCronJob.cronStatus
           },
           stage1Tasks: {
             count: result.stage1TaskIds.length,
             taskIds: result.stage1TaskIds
-          }
+          },
+          cronJobStarted // Indicate if auto-start was successful
         }
       });
     } catch (error: any) {
@@ -214,7 +238,7 @@ export class ReleaseManagementController {
       }
 
       // Update the release
-      const updatedRelease = await this.updateService.updateRelease({
+      await this.updateService.updateRelease({
         releaseId,
         accountId,
         updates: body
@@ -249,18 +273,188 @@ export class ReleaseManagementController {
     }
   };
 
+  /**
+   * Get tasks for a release
+   * Query params:
+   * - stage: Optional stage filter (KICKOFF, REGRESSION, POST_REGRESSION)
+   */
+  getTasks = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const tenantId = req.params.tenantId;
+      const releaseId = req.params.releaseId;
+      const stage = req.query.stage as string | undefined;
+
+      // Delegate to service
+      const result = await this.retrievalService.getTasksForRelease(releaseId, tenantId, stage);
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        tasks: result.tasks,
+        count: result.count
+      });
+    } catch (error: unknown) {
+      console.error('[Get Tasks] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get tasks',
+        message: errorMessage
+      });
+    }
+  };
 
   /**
-   * Trigger Pre-Release (Stage 3)
-   * TODO: Implement Stage 3 triggering logic
+   * Get a specific task by ID
+   */
+  getTaskById = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const tenantId = req.params.tenantId;
+      const releaseId = req.params.releaseId;
+      const taskId = req.params.taskId;
+
+      // Delegate to service
+      const result = await this.retrievalService.getTaskById(taskId, releaseId, tenantId);
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        task: result.task
+      });
+    } catch (error: unknown) {
+      console.error('[Get Task] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to get task',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Trigger Stage 2 (Regression Testing)
+   * POST /tenants/:tenantId/releases/:releaseId/trigger-regression-testing
+   */
+  triggerRegressionTesting = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const tenantId = req.params.tenantId;
+      const releaseId = req.params.releaseId;
+
+      // Delegate to service
+      const result = await this.cronJobService.triggerStage2(releaseId, tenantId);
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Stage 2 (Regression Testing) triggered successfully',
+        release: result.data
+      });
+    } catch (error: unknown) {
+      console.error('[Trigger Regression Testing] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to trigger regression testing',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Trigger Stage 3 (Pre-Release)
+   * POST /tenants/:tenantId/releases/:releaseId/trigger-pre-release
    */
   triggerPreRelease = async (req: Request, res: Response): Promise<Response> => {
-    return res.status(501).json({
-      success: false,
-      error: 'Not implemented yet',
-      message: 'Stage 3 trigger endpoint coming soon'
-    });
-  }
+    try {
+      const tenantId = req.params.tenantId;
+      const releaseId = req.params.releaseId;
+
+      // Delegate to service
+      const result = await this.cronJobService.triggerStage3(releaseId, tenantId);
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Stage 3 (Pre-Release) triggered successfully',
+        release: result.data
+      });
+    } catch (error: unknown) {
+      console.error('[Trigger Pre-Release] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to trigger pre-release',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Archive (cancel) a release
+   * PUT /tenants/:tenantId/releases/:releaseId/archive
+   */
+  archiveRelease = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const releaseId = req.params.releaseId;
+      const accountId = (req as any).account?.id || (req as any).user?.id;
+
+      if (!accountId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized: Account ID not found'
+        });
+      }
+
+      // Delegate to service
+      const result = await this.cronJobService.archiveRelease(releaseId, accountId);
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: result.data.alreadyArchived ? 'Release already archived' : 'Release archived successfully',
+        data: result.data
+      });
+    } catch (error: unknown) {
+      console.error('[Archive Release] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to archive release',
+        message: errorMessage
+      });
+    }
+  };
 
   /**
    * Check project management run status

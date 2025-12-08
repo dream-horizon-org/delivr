@@ -53,6 +53,7 @@ export const RELEASE_ERROR_MESSAGES = {
   // Task dependency errors
   AUTOMATION_RUN_NOT_FOUND: 'Automation run not found. TRIGGER_AUTOMATION_RUNS task must complete first.',
   RELEASE_TAG_TASK_NOT_FOUND: 'CREATE_RELEASE_TAG task not found or tag not created yet',
+  CREATE_RELEASE_TAG_TASK_MISSING: 'CREATE_RELEASE_TAG task has not been executed yet. Release tag is not available.',
   
   // Storage errors
   STORAGE_NO_SEQUELIZE: 'Storage does not have Sequelize instance',

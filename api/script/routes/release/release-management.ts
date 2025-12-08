@@ -17,6 +17,8 @@ import { createListBuildArtifactsHandler } from "~controllers/release-management
 import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 import type { ReleaseStatusService } from "../../services/release/release-status.service";
 import type { ReleaseUpdateService } from "../../services/release/release-update.service";
+import type { CronJobService } from "../../services/release/cron-job/cron-job.service";
+import { HTTP_STATUS } from "../../constants/http";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -24,6 +26,7 @@ export interface ReleaseManagementConfig {
   releaseRetrievalService: ReleaseRetrievalService;
   releaseStatusService: ReleaseStatusService;
   releaseUpdateService: ReleaseUpdateService;
+  cronJobService: CronJobService;
 }
 
 /**
@@ -36,14 +39,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     config.releaseCreationService,
     config.releaseRetrievalService,
     config.releaseStatusService,
-    config.releaseUpdateService
+    config.releaseUpdateService,
+    config.cronJobService
   );
 
   // ============================================================================
   // HEALTH CHECK
   // ============================================================================
   router.get("/health", (req: Request, res: Response): Response => {
-    return res.status(200).json({
+    return res.status(HTTP_STATUS.OK).json({
       service: "Release Management",
       status: "healthy",
       timestamp: new Date().toISOString()
@@ -103,22 +107,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.get(
     "/tenants/:tenantId/releases/:releaseId/tasks",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-        // TODO: Delegate to controller.getTasks
-        // Temporary: Keep existing logic or move to controller later
-        // For now returning 501 to signal architectural shift, assuming tests will be updated
-        return res.status(501).json({ error: "Not implemented yet", message: "Moved to controller" });
-    }
+    controller.getTasks
   );
 
   // Get a specific task
   router.get(
     "/tenants/:tenantId/releases/:releaseId/tasks/:taskId",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-        // TODO: Delegate to controller.getTask
-        return res.status(501).json({ error: "Not implemented yet", message: "Moved to controller" });
-    }
+    controller.getTaskById
   );
 
   // Update task status
@@ -133,10 +129,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       });
     }
   );
-
-  // ============================================================================
-  // CRON JOB MANAGEMENT
-  // ============================================================================
   
   // Start cron job
   router.post(
@@ -151,6 +143,35 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     }
   );
 
+  // ============================================================================
+  // STAGE 2 TRIGGER (Manual Build Upload Flow)
+  // ============================================================================
+
+  /**
+   * POST /tenants/:tenantId/releases/:releaseId/trigger-regression-testing
+   * 
+   * Manually trigger Stage 2 (Regression Testing) after manual build upload.
+   * This is used when hasManualBuildUpload = true.
+   * 
+   * Requirements:
+   * - Stage 1 must be COMPLETED
+   * - Stage 2 must not already be IN_PROGRESS or COMPLETED
+   * 
+   * Actions:
+   * - Sets autoTransitionToStage2 = true
+   * - Sets stage2Status = IN_PROGRESS
+   * - Starts regression cron job
+   */
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/trigger-regression-testing",
+    tenantPermissions.requireOwner({ storage }),
+    controller.triggerRegressionTesting
+  );
+
+  // ============================================================================
+  // CRON JOB CONTROL
+  // ============================================================================
+  
   // Pause cron job
   router.post(
     "/tenants/:tenantId/releases/:releaseId/cron/pause",
@@ -177,6 +198,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     }
   );
 
+  // NOTE: Regression slot management (add/delete) is now handled through updateRelease API
+  // Update release with { cronJob: { upcomingRegressions: [...] } } to add/remove slots
+
   // ============================================================================
   // STATE HISTORY
   // ============================================================================
@@ -192,6 +216,17 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
         message: "Timeline endpoint coming soon"
       });
     }
+  );
+
+  // ============================================================================
+  // ARCHIVE RELEASE
+  // ============================================================================
+
+  // Archive (cancel) a release
+  router.put(
+    "/tenants/:tenantId/releases/:releaseId/archive",
+    tenantPermissions.requireOwner({ storage }),
+    controller.archiveRelease
   );
 
   // ============================================================================

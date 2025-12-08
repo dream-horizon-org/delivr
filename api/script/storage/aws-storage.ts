@@ -45,6 +45,8 @@ import {
   createPlatformTargetMappingModel,
   createPlatformModel,
   createTargetModel,
+  createBuildModel,
+  createRegressionCycleModel,
   ReleaseRepository,
   ReleasePlatformTargetMappingRepository,
   CronJobRepository,
@@ -427,6 +429,8 @@ export function createModelss(sequelize: Sequelize) {
   const CronJob = createCronJobModel(sequelize);  // Cron jobs for automation
   const ReleaseTask = createReleaseTaskModel(sequelize);  // Release tasks
   const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
+  const Build = createBuildModel(sequelize);  // Build records (CI/CD)
+  const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
 
   // ============================================
   const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
@@ -918,7 +922,8 @@ export class S3Storage implements storage.Storage {
           this.releaseUpdateService = new ReleaseUpdateService(
             releaseRepo,
             cronJobRepo,
-            platformTargetMappingRepo
+            platformTargetMappingRepo,
+            null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
           
