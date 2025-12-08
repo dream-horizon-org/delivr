@@ -7,13 +7,14 @@ import {
   useMantineTheme,
   Modal,
   Divider,
+  Group,
 } from "@mantine/core";
 import {
   IconPlus,
   IconBuilding,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "@remix-run/react";
+import { useNavigate, useLocation } from "@remix-run/react";
 import { route } from "routes-gen";
 import { CTAButton } from "~/components/Common/CTAButton";
 import { CreateOrgModal } from "~/components/Pages/components/OrgsPage/components/CreateOrgModal";
@@ -32,62 +33,50 @@ function AllOrgsList({
   onSelectOrg: (orgId: string) => void;
 }) {
   const theme = useMantineTheme();
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
 
   return (
     <Box>
       <Text
-        size="sm"
-        fw={theme.other.typography.fontWeight.semibold}
-        c={theme.other.text.disabled}
+        size="xs"
+        fw={600}
+        c="dimmed"
+        tt="uppercase"
         style={{
-          letterSpacing: theme.other.typography.letterSpacing.wider,
-          marginBottom: theme.other.spacing.md,
-          paddingLeft: theme.other.spacing.lg,
+          letterSpacing: '0.05em',
+          marginBottom: 12,
+          paddingLeft: 16,
         }}
       >
-        ORGANIZATIONS
+        Organizations
       </Text>
-      <Stack gap="xs">
+      <Stack gap={4}>
         {organizations.map((org) => (
           <UnstyledButton
             key={org.id}
             onClick={() => onSelectOrg(org.id)}
             style={{
               width: "100%",
-              padding: `${theme.other.spacing.md} ${theme.other.spacing.lg}`,
-              borderRadius: theme.other.borderRadius.md,
-              transition: theme.other.transitions.fast,
+              padding: '10px 16px',
+              borderRadius: 8,
+              transition: 'background 0.15s ease',
             }}
             styles={{
               root: {
                 "&:hover": {
-                  backgroundColor: theme.other.backgrounds.hover,
+                  backgroundColor: theme.colors?.slate?.[1] || '#f1f5f9',
                 },
               },
             }}
           >
-            <Box
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: theme.other.spacing.md,
-              }}
-            >
-              <IconBuilding
-                size={theme.other.sizes.icon.xl}
-                color={theme.other.text.secondary}
-                stroke={1.5}
-              />
+            <Group gap={12}>
+              <IconBuilding size={18} color={theme.colors?.slate?.[5] || '#64748b'} stroke={1.5} />
               <Box style={{ flex: 1, minWidth: 0 }}>
                 <Text
-                  fw={theme.other.typography.fontWeight.semibold}
-                  size="md"
-                  c={theme.other.text.primary}
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                  fw={600}
+                  size="sm"
+                  c="dark.8"
+                  truncate
                 >
                   {org.orgName}
                 </Text>
@@ -95,7 +84,7 @@ function AllOrgsList({
                   {org.isAdmin ? "Owner" : "Member"}
                 </Text>
               </Box>
-            </Box>
+            </Group>
           </UnstyledButton>
         ))}
       </Stack>
@@ -119,6 +108,9 @@ function OrgSidebar({
     releaseManagement: true,
     dota: true,
   });
+  
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
+  const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({
@@ -127,7 +119,6 @@ function OrgSidebar({
     }));
   };
 
-  // Get navigation modules from data object
   const modules = getNavigationModules(org);
   const orgRoutes = getOrganizationRoutes(org);
 
@@ -136,51 +127,39 @@ function OrgSidebar({
       {/* Organization Header */}
       <Box
         style={{
-          padding: `${theme.other.spacing.lg} ${theme.other.spacing.lg}`,
-          borderBottom: `1px solid ${theme.other.borders.primary}`,
+          padding: '16px',
+          borderBottom: `1px solid ${borderColor}`,
         }}
       >
-        <Box style={{ display: "flex", alignItems: "center", gap: theme.other.spacing.sm }}>
-          <IconBuilding
-            size={theme.other.sizes.icon.xl}
-            color={theme.other.brand.primary}
-            stroke={1.5}
-          />
+        <Group gap={10}>
+          <IconBuilding size={20} color={brandColor} stroke={1.5} />
           <Box style={{ flex: 1, minWidth: 0 }}>
-            <Text
-              fw={theme.other.typography.fontWeight.bold}
-              size="md"
-              c={theme.other.text.primary}
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
+            <Text fw={600} size="sm" c="dark.9" truncate>
               {org.orgName}
             </Text>
             <Text size="xs" c="dimmed">
               {org.isAdmin ? "Owner" : "Member"}
             </Text>
           </Box>
-        </Box>
+        </Group>
       </Box>
 
       {/* Navigation Items */}
-      <Box style={{ padding: theme.other.spacing.md }}>
-        <Stack gap="xs">
+      <Box p={12}>
+        <Stack gap={4}>
           {/* Modules Section */}
           <Text
             size="xs"
-            fw={theme.other.typography.fontWeight.semibold}
-            c={theme.other.text.disabled}
+            fw={600}
+            c="dimmed"
+            tt="uppercase"
             style={{
-              letterSpacing: theme.other.typography.letterSpacing.wider,
-              marginBottom: theme.other.spacing.xs,
-              paddingLeft: theme.other.spacing.sm,
+              letterSpacing: '0.05em',
+              marginBottom: 4,
+              paddingLeft: 8,
             }}
           >
-            MODULES
+            Modules
           </Text>
 
           {/* Render Modules */}
@@ -196,20 +175,21 @@ function OrgSidebar({
             />
           ))}
 
-          <Divider my="sm" />
+          <Divider my={12} color={borderColor} />
 
           {/* Organization Section */}
           <Text
             size="xs"
-            fw={theme.other.typography.fontWeight.semibold}
-            c={theme.other.text.disabled}
+            fw={600}
+            c="dimmed"
+            tt="uppercase"
             style={{
-              letterSpacing: theme.other.typography.letterSpacing.wider,
-              marginBottom: theme.other.spacing.xs,
-              paddingLeft: theme.other.spacing.sm,
+              letterSpacing: '0.05em',
+              marginBottom: 4,
+              paddingLeft: 8,
             }}
           >
-            ORGANIZATION
+            Organization
           </Text>
 
           {/* Render Organization Routes */}
@@ -240,46 +220,34 @@ export function Sidebar({
   const theme = useMantineTheme();
   const navigate = useNavigate();
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
+  
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
+  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
 
   const currentOrg = organizations.find((org) => org.id === currentOrgId);
 
   return (
     <Box
       style={{
-        width: theme.other.sizes.sidebar.width,
+        width: 260,
         height: "100%",
         position: "relative",
         display: "flex",
         flexDirection: "column",
-        background: theme.other.backgrounds.tertiary,
-        borderRight: `1px solid ${theme.other.borders.primary}`,
+        background: 'white',
+        borderRight: `1px solid ${borderColor}`,
       }}
     >
-      <Box
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Stack
-          gap="xs"
-          style={{
-            paddingTop: theme.other.spacing["3xl"],
-            paddingBottom: theme.other.spacing.md,
-            flex: 1,
-          }}
-        >
-          <ScrollArea style={{ height: "calc(100vh - 220px)" }}>
+      <Box style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <Stack gap={0} style={{ flex: 1 }}>
+          <ScrollArea style={{ flex: 1 }} p={12}>
             {currentOrg ? (
-              // Show org-specific navigation when inside an org
               <OrgSidebar
                 org={currentOrg}
                 currentAppId={currentAppId}
                 userEmail={userEmail}
               />
             ) : (
-              // Show all orgs when on dashboard home
               <AllOrgsList
                 organizations={organizations}
                 onSelectOrg={(orgId) =>
@@ -290,26 +258,20 @@ export function Sidebar({
           </ScrollArea>
         </Stack>
 
+        {/* Bottom CTA */}
         <Box
           style={{
-            paddingLeft: theme.other.spacing.lg,
-            paddingRight: theme.other.spacing.lg,
-            paddingTop: theme.other.spacing.md,
-            paddingBottom: theme.other.spacing.lg,
-            borderTop: `1px solid ${theme.other.borders.primary}`,
+            padding: 16,
+            borderTop: `1px solid ${borderColor}`,
           }}
         >
           <CTAButton
             fullWidth
-            leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+            leftSection={<IconPlus size={16} />}
             onClick={() => setCreateOrgOpen(true)}
-            styles={{
-              root: {
-                boxShadow: theme.other.shadows.md,
-              },
-            }}
+            size="sm"
           >
-            Create Organization
+            New Organization
           </CTAButton>
         </Box>
       </Box>
@@ -318,8 +280,12 @@ export function Sidebar({
       <Modal
         opened={createOrgOpen}
         onClose={() => setCreateOrgOpen(false)}
-        title="Create Organization"
+        title={<Text fw={600} size="md">Create Organization</Text>}
         centered
+        size="sm"
+        padding="lg"
+        radius="md"
+        overlayProps={{ backgroundOpacity: 0.2, blur: 2 }}
       >
         <CreateOrgModal
           onSuccess={() => {

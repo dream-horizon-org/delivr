@@ -59,88 +59,93 @@ export default function Dashboard() {
   const isMainDashboard = location.pathname === "/dashboard";
   const showSidebar = orgs.length > 0 && !isMainDashboard;
   
-  // Safe color access
+  // Theme colors
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
   const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
-  const primaryText = theme.colors?.slate?.[9] || '#0f172a';
-  const tertiaryText = theme.colors?.slate?.[5] || '#64748b';
   const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
 
   return (
     <SimpleTermsGuard>
       {orgsLoading ? (
-        <Flex h="100vh" direction="column">
-          <Skeleton height={56} width="100%" />
+        <Flex h="100vh" direction="column" bg={bgColor}>
+          {/* Header Skeleton */}
+          <Box 
+            h={60} 
+            bg="white" 
+            style={{ borderBottom: `1px solid ${borderColor}` }}
+            px={24}
+          >
+            <Flex align="center" justify="space-between" h="100%">
+              <Group gap="sm">
+                <Skeleton height={32} width={32} radius="md" />
+                <Skeleton height={20} width={60} />
+              </Group>
+              <Skeleton height={36} width={36} radius="xl" />
+            </Flex>
+          </Box>
+          {/* Content Skeleton */}
           <Flex style={{ flex: 1 }}>
-            <Skeleton width={260} height="100%" />
-            <Box style={{ flex: 1 }} p="xl">
-              <Skeleton height={32} width="40%" mb="lg" />
-              <Skeleton height={200} width="100%" />
+            <Box style={{ flex: 1 }} p={40}>
+              <Skeleton height={32} width="30%" mb={24} />
+              <Skeleton height={200} width="100%" radius="md" />
             </Box>
           </Flex>
         </Flex>
       ) : (
-        <Flex h="100vh" direction="column" style={{ background: bgColor }}>
-          {/* Clean, minimal header */}
+        <Flex h="100vh" direction="column" bg={bgColor}>
+          {/* Header */}
           <Box
+            bg="white"
+            h={60}
             style={{
-              background: 'white',
               borderBottom: `1px solid ${borderColor}`,
-              height: '56px',
               flexShrink: 0,
             }}
           >
-            <Flex align="center" justify="space-between" h="100%" px="xl">
+            <Flex align="center" justify="space-between" h="100%" px={24}>
               <Group 
-                gap="xs" 
+                gap="sm" 
                 style={{ cursor: "pointer" }} 
                 onClick={() => navigate(route("/dashboard"))}
               >
-                {/* Logo mark */}
                 <Box
                   style={{
                     width: 32,
                     height: 32,
-                    borderRadius: theme.radius.md,
+                    borderRadius: 8,
                     background: brandColor,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <IconRocket 
-                    size={18} 
-                    color="white" 
-                    stroke={2} 
-                  />
+                  <IconRocket size={18} color="white" stroke={2} />
                 </Box>
                 <Text 
                   size="lg" 
                   fw={700} 
-                  c={primaryText}
-                  style={{
-                    letterSpacing: '-0.025em',
-                  }}
+                  c="dark.9"
+                  style={{ letterSpacing: '-0.02em' }}
                 >
                   Delivr
                 </Text>
               </Group>
               
-              <Group gap="md" align="center">
+              <Group gap={16} align="center">
                 <Text
                   size="sm"
                   fw={500}
+                  c="dimmed"
                   onClick={() => window.open('https://dota.dreamsportslabs.com/', '_blank')}
                   style={{ 
-                    color: tertiaryText,
                     cursor: 'pointer',
-                    transition: 'color 0.2s ease',
+                    transition: 'color 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = brandColor;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = tertiaryText;
+                    e.currentTarget.style.color = '';
                   }}
                 >
                   Documentation
@@ -148,7 +153,7 @@ export default function Dashboard() {
                 <Box
                   style={{
                     width: 1,
-                    height: 20,
+                    height: 24,
                     background: borderColor,
                   }}
                 />
@@ -157,6 +162,7 @@ export default function Dashboard() {
             </Flex>
           </Box>
 
+          {/* Main Content */}
           <Flex style={{ flex: 1, overflow: "hidden" }}>
             {showSidebar && (
               <Sidebar
@@ -173,14 +179,7 @@ export default function Dashboard() {
                 background: bgColor,
               }}
             >
-              <Box
-                style={{
-                  padding: isMainDashboard ? 0 : 32,
-                  minHeight: '100%',
-                }}
-              >
-                <Outlet />
-              </Box>
+              <Outlet />
             </Box>
           </Flex>
         </Flex>

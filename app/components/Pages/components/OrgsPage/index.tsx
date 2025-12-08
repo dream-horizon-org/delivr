@@ -16,13 +16,13 @@ import {
 } from "@mantine/core";
 import { 
   IconPlus, 
-  IconRocket, 
   IconBuildingSkyscraper,
   IconChartBar,
   IconCloud,
   IconTerminal2,
   IconGitBranch,
   IconSparkles,
+  IconRefresh,
 } from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
 import { route } from "routes-gen";
@@ -34,6 +34,12 @@ import { useState, useEffect } from "react";
 import { CreateOrgModal } from "./components/CreateOrgModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
+
+// Consistent spacing values
+const HEADER_PY = 24;
+const HEADER_PX = 32;
+const CONTENT_PY = 32;
+const CONTENT_PX = 32;
 
 // Vibrant Feature Card
 function FeatureCard({ 
@@ -53,57 +59,56 @@ function FeatureCard({
 }) {
   return (
     <Paper
-      p="xl"
+      p="lg"
       radius="md"
       style={{
         background: `linear-gradient(145deg, #fff 0%, ${gradient} 100%)`,
-        border: '1px solid rgba(0,0,0,0.05)',
+        border: '1px solid rgba(0,0,0,0.06)',
         transition: 'all 0.2s ease',
       }}
       styles={{
         root: {
           '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 12px 24px -10px rgba(0,0,0,0.1)',
-            borderColor: 'rgba(0,0,0,0.08)',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 8px 24px -8px rgba(0,0,0,0.1)',
           },
         },
       }}
     >
-      <Group justify="space-between" mb="lg" align="flex-start">
+      <Group justify="space-between" mb="md" align="flex-start">
         <Box
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
+            width: 40,
+            height: 40,
+            borderRadius: 10,
             background: color,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
           }}
         >
-          <Icon size={22} color="white" stroke={2} />
+          <Icon size={20} color="white" stroke={2} />
         </Box>
         <Badge 
-          size="sm" 
+          size="xs" 
           variant="light" 
           color="gray"
           bg="white"
           radius="sm"
-          fw={700}
+          fw={600}
           c="dimmed"
-          style={{ border: '1px solid rgba(0,0,0,0.05)' }}
+          style={{ border: '1px solid rgba(0,0,0,0.06)' }}
         >
           {tag}
         </Badge>
       </Group>
       
-      <Text fw={700} size="lg" c="dark.9" mb={8} style={{ letterSpacing: '-0.01em' }}>
+      <Text fw={600} size="md" c="dark.9" mb={6}>
         {title}
       </Text>
       
-      <Text size="sm" c="dimmed" lh={1.6}>
+      <Text size="sm" c="dimmed" lh={1.5}>
         {description}
       </Text>
     </Paper>
@@ -122,32 +127,41 @@ export function OrgsPage() {
     actions.add(ACTION_EVENTS.REFETCH_ORGS, handleRefetch);
   }, [refetch]);
 
+  // Theme colors
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
+  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
+
+  // Show intro page if no organizations exist
   if (!isLoading && !isError && (!data || data.length === 0)) {
     return <Intro />;
   }
 
-  // Safe color access
-  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
-  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
-
+  // Loading State
   if (isLoading) {
     return (
-      <Box style={{ backgroundColor: bgColor, minHeight: '100vh' }}>
+      <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
+        {/* Header Skeleton */}
         <Box 
           style={{ 
             borderBottom: `1px solid ${borderColor}`,
             backgroundColor: 'white',
           }} 
-          py="xl" 
-          px={40}
+          py={HEADER_PY} 
+          px={HEADER_PX}
         >
-          <Skeleton height={32} width={240} mb="sm" />
-          <Skeleton height={20} width={400} />
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <Skeleton height={32} width={160} radius="sm" />
+              <Skeleton height={24} width={32} radius="sm" />
+            </Group>
+            <Skeleton height={36} width={160} radius="md" />
+          </Group>
         </Box>
-        <Box py={40} px={40}>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg">
+        {/* Content Skeleton */}
+        <Box py={CONTENT_PY} px={CONTENT_PX}>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={20}>
             {Array(8).fill(0).map((_, i) => (
-              <Skeleton key={i} height={180} radius="md" />
+              <Skeleton key={i} height={160} radius="md" />
             ))}
           </SimpleGrid>
         </Box>
@@ -155,27 +169,51 @@ export function OrgsPage() {
     );
   }
 
+  // Error State
   if (isError) {
     return (
-      <Box style={{ backgroundColor: bgColor, minHeight: '100vh' }}>
-        <Center minH={500}>
+      <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
+        {/* Header */}
+        <Box 
+          style={{ 
+            borderBottom: `1px solid ${borderColor}`,
+            backgroundColor: 'white',
+          }} 
+          py={HEADER_PY} 
+          px={HEADER_PX}
+        >
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <Title order={2} c="dark.9" fw={700}>Organizations</Title>
+            </Group>
+          </Group>
+        </Box>
+        {/* Error Content */}
+        <Center py={120}>
           <Stack align="center" gap="lg">
-            <ThemeIcon size={56} radius="md" color="red" variant="light">
-              <IconBuildingSkyscraper size={28} />
+            <ThemeIcon size={64} radius="md" color="red" variant="light">
+              <IconBuildingSkyscraper size={32} />
             </ThemeIcon>
             <Stack gap={4} align="center">
-              <Text fw={700} size="lg" c="dark.9">Unable to load organizations</Text>
-              <Text c="dimmed">There was a problem connecting to the server.</Text>
+              <Text fw={600} size="lg" c="dark.9">Unable to load organizations</Text>
+              <Text c="dimmed" size="sm">There was a problem connecting to the server.</Text>
             </Stack>
-            <Button onClick={() => refetch()} variant="default">Try Again</Button>
+            <Button 
+              onClick={() => refetch()} 
+              variant="light"
+              leftSection={<IconRefresh size={16} />}
+            >
+              Try Again
+            </Button>
           </Stack>
         </Center>
       </Box>
     );
   }
 
+  // Success State
   return (
-    <Box style={{ backgroundColor: bgColor, minHeight: '100vh' }}>
+    <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
       {/* Header */}
       <Box
         style={{
@@ -183,10 +221,10 @@ export function OrgsPage() {
           backgroundColor: 'white',
         }}
       >
-        <Box py={28} px={40}>
+        <Box py={HEADER_PY} px={HEADER_PX}>
           <Group justify="space-between" align="center">
             <Group gap="md">
-              <Title order={2} c="dark.9" fw={700} style={{ letterSpacing: '-0.02em' }}>
+              <Title order={2} c="dark.9" fw={700}>
                 Organizations
               </Title>
               <Badge 
@@ -201,10 +239,9 @@ export function OrgsPage() {
             </Group>
             
             <CTAButton
-              leftSection={<IconPlus size={18} />}
+              leftSection={<IconPlus size={16} />}
               onClick={() => setCreateOrgOpen(true)}
-              size="md"
-              variant="filled"
+              size="sm"
             >
               New Organization
             </CTAButton>
@@ -213,10 +250,10 @@ export function OrgsPage() {
       </Box>
 
       {/* Main Content */}
-      <Box py={40} px={40}>
+      <Box py={CONTENT_PY} px={CONTENT_PX}>
         
         {/* Organizations Grid */}
-        <Box mb={80}>
+        <Box mb={64}>
           <SimpleGrid 
             cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4, xl: 5 }} 
             spacing={20}
@@ -241,17 +278,17 @@ export function OrgsPage() {
           </SimpleGrid>
         </Box>
 
-        {/* Roadmap / Features Section - Vibrant & Exciting */}
+        {/* Roadmap Section */}
         <Box>
-          <Group mb="xl" align="center" gap="sm">
-             <IconSparkles size={20} color={theme.colors?.brand?.[5] || '#14b8a6'} fill="currentColor" style={{ opacity: 0.2 }} />
-             <Title order={3} c="dark.9" fw={800} style={{ letterSpacing: '-0.02em' }}>
+          <Group mb="lg" align="center" gap="sm">
+             <IconSparkles size={18} color={theme.colors?.brand?.[5] || '#14b8a6'} />
+             <Title order={4} c="dark.8" fw={700}>
               Platform Roadmap
              </Title>
-             <Badge variant="light" color="brand" radius="sm">COMING SOON</Badge>
+             <Badge variant="light" color="brand" radius="sm" size="sm">COMING SOON</Badge>
           </Group>
           
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 4, xl: 4 }} spacing={24}>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing={20}>
             <FeatureCard
               icon={IconTerminal2}
               title="CLI Integration"
@@ -288,14 +325,15 @@ export function OrgsPage() {
         </Box>
       </Box>
 
-      {/* Modals */}
+      {/* Create Organization Modal */}
       <Modal
         opened={createOrgOpen}
         onClose={() => setCreateOrgOpen(false)}
-        title={<Text fw={600} size="md">Create New Organization</Text>}
+        title={<Text fw={600} size="md">Create Organization</Text>}
         centered
-        size="md"
+        size="sm"
         padding="lg"
+        radius="md"
         overlayProps={{ backgroundOpacity: 0.2, blur: 2 }}
       >
         <CreateOrgModal
@@ -306,6 +344,7 @@ export function OrgsPage() {
         />
       </Modal>
 
+      {/* Delete Modal */}
       <DeleteModal
         opened={!!deleteModalData}
         onClose={() => setDeleteModalData(null)}
