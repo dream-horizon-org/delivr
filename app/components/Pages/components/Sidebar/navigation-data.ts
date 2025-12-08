@@ -50,7 +50,7 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
           prefetch: "render",
         },
         {
-          label: "Release Settings",
+          label: "Release Configuration",
           icon: IconAdjustmentsHorizontal,
           path: `/dashboard/${org.id}/releases/settings`,
           prefetch: "intent",
