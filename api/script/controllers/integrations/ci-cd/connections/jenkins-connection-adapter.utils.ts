@@ -2,6 +2,7 @@ import { JenkinsConnectionService } from "~services/integrations/ci-cd";
 import { ERROR_MESSAGES, PROVIDER_DEFAULTS } from "../constants";
 import type { ConnectionAdapter, VerifyResult } from "./connection-adapter.utils";
 import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
+import { decryptIfEncrypted } from "~utils/encryption.utils";
 
 export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
   const service = new JenkinsConnectionService();
@@ -10,6 +11,7 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     const hostUrl = body.hostUrl as string | undefined;
     const username = body.username as string | undefined;
     const apiToken = body.apiToken as string | undefined;
+    const _encrypted = body._encrypted as boolean | undefined;
     const useCrumb = (body.useCrumb as boolean | undefined) ?? true;
     const crumbPath = (body.crumbPath as string | undefined) ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
 
@@ -17,7 +19,13 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     if (missing) {
       return { isValid: false, message: ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED } as VerifyResult;
     }
-    const result = await service.verifyConnection({ hostUrl, username, apiToken, useCrumb, crumbPath });
+    
+    // Decrypt apiToken if encrypted from frontend
+    const decryptedToken = _encrypted 
+      ? decryptIfEncrypted(apiToken, 'apiToken')
+      : apiToken;
+    
+    const result = await service.verifyConnection({ hostUrl, username, apiToken: decryptedToken, useCrumb, crumbPath });
     return result;
   };
 
@@ -27,12 +35,15 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     const displayName = body.displayName as string | undefined;
     const hostUrl = body.hostUrl as string | undefined;
     const username = body.username as string | undefined;
-    const apiToken = body.apiToken as string | undefined;
+    const apiToken = body.apiToken as string | undefined; // Store encrypted value
     const providerConfig = (body.providerConfig as { useCrumb?: boolean; crumbPath?: string } | undefined) ?? { useCrumb: true, crumbPath: PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH };
     const missing = !hostUrl || !username || !apiToken;
     if (missing) {
       throw new Error(ERROR_MESSAGES.JENKINS_CREATE_REQUIRED);
     }
+    
+    // Store encrypted apiToken in database (as received from frontend)
+    console.log('[Jenkins] Storing apiToken (encrypted from frontend)');
     const created = await service.create(tenantId, accountId, { displayName, hostUrl, username, apiToken, providerConfig });
     return created;
   };
