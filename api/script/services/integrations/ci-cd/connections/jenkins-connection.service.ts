@@ -4,6 +4,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
+import { decryptIfEncrypted } from '~utils/encryption.utils';
 
 type CreateInput = {
   displayName?: string;
@@ -27,14 +28,18 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     }
     const useCrumb = input.providerConfig?.useCrumb ?? true;
     const crumbPath = input.providerConfig?.crumbPath ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
+    
+    // Decrypt token for verification (may be encrypted from frontend)
+    const decryptedToken = decryptIfEncrypted(input.apiToken, 'apiToken');
     const verify = await this.verifyConnection({
       hostUrl: input.hostUrl,
       username: input.username,
-      apiToken: input.apiToken,
+      apiToken: decryptedToken,
       useCrumb,
       crumbPath
     });
 
+    // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
       tenantId,
@@ -43,7 +48,7 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       hostUrl: input.hostUrl,
       authType: AuthType.BASIC,
       username: input.username,
-      apiToken: input.apiToken,
+      apiToken: input.apiToken, // Store encrypted value
       providerConfig: { useCrumb, crumbPath } as any,
       createdByAccountId: accountId,
       verificationStatus: verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
@@ -72,7 +77,8 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const withSecrets = await this.repository.findById(existing.id);
     const hostUrlToUse = updateData.hostUrl ?? existing.hostUrl;
     const usernameToUse = updateData.username ?? existing.username as string;
-    const tokenToUse = (updateData.apiToken ?? (withSecrets as any)?.apiToken) as string | undefined;
+    const storedToken = (withSecrets as any)?.apiToken as string | undefined;
+    const tokenToUse = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToUse;
 
     if (tokenMissing) {
@@ -80,10 +86,12 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       updateData.lastVerifiedAt = new Date();
       updateData.verificationError = ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED;
     } else {
+      // Decrypt the token before verification (may be stored encrypted)
+      const decryptedToken = decryptIfEncrypted(tokenToUse, 'apiToken');
       const verify = await this.verifyConnection({
         hostUrl: hostUrlToUse,
         username: usernameToUse,
-        apiToken: tokenToUse as string,
+        apiToken: decryptedToken,
         useCrumb,
         crumbPath
       });

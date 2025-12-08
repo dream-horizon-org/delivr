@@ -157,6 +157,9 @@ export function isEncrypted(value: string): boolean {
  * Safely encrypt a config object's sensitive fields
  * Used for Project Management Integration configs (apiToken, webhookSecret, etc.)
  * 
+ * IMPORTANT: If frontend sends _encrypted: true, the values are already encrypted
+ * and should NOT be re-encrypted. The frontend uses a different encryption format.
+ * 
  * @param config - Configuration object with potentially sensitive fields
  * @param sensitiveFields - Array of field names to encrypt (default: ['apiToken'])
  * @returns New config object with encrypted sensitive fields
@@ -167,9 +170,17 @@ export function encryptConfigFields<T extends Record<string, any>>(
 ): T {
   const encryptedConfig = { ...config } as any;
   
+  // If frontend already encrypted (sent _encrypted: true), don't re-encrypt
+  // Just remove the _encrypted flag and store as-is
+  if (encryptedConfig._encrypted === true) {
+    console.log('[Encryption] Config has _encrypted=true, storing as-is (already encrypted by frontend)');
+    delete encryptedConfig._encrypted;
+    return encryptedConfig as T;
+  }
+  
   for (const field of sensitiveFields) {
     if (encryptedConfig[field] && typeof encryptedConfig[field] === 'string') {
-      // Only encrypt if not already encrypted
+      // Only encrypt if not already encrypted (backend format check)
       if (!isEncrypted(encryptedConfig[field])) {
         encryptedConfig[field] = encrypt(encryptedConfig[field]);
       }
@@ -181,6 +192,10 @@ export function encryptConfigFields<T extends Record<string, any>>(
 
 /**
  * Safely decrypt a config object's sensitive fields
+ * 
+ * Supports two encryption formats:
+ * 1. Backend format: salt:iv:authTag:ciphertext (4 parts with colons)
+ * 2. Frontend format: single base64 string (used when _encrypted was true)
  * 
  * @param config - Configuration object with encrypted fields
  * @param sensitiveFields - Array of field names to decrypt (default: ['apiToken'])
@@ -194,12 +209,23 @@ export function decryptConfigFields<T extends Record<string, any>>(
   
   for (const field of sensitiveFields) {
     if (decryptedConfig[field] && typeof decryptedConfig[field] === 'string') {
-      // Only decrypt if it appears to be encrypted
-      if (isEncrypted(decryptedConfig[field])) {
+      const value = decryptedConfig[field];
+      
+      // Check for backend encryption format (salt:iv:authTag:ciphertext)
+      if (isEncrypted(value)) {
         try {
-          decryptedConfig[field] = decrypt(decryptedConfig[field]);
+          decryptedConfig[field] = decrypt(value);
         } catch (error: any) {
-          console.error(`Failed to decrypt field '${field}':`, error.message);
+          console.error(`Failed to decrypt field '${field}' (backend format):`, error.message);
+          // Keep the encrypted value if decryption fails
+        }
+      } 
+      // Check for frontend encryption format (single base64 string, no known prefix)
+      else if (isFrontendEncrypted(value)) {
+        try {
+          decryptedConfig[field] = decryptFrontendValue(value);
+        } catch (error: any) {
+          console.error(`Failed to decrypt field '${field}' (frontend format):`, error.message);
           // Keep the encrypted value if decryption fails
         }
       }
@@ -207,5 +233,73 @@ export function decryptConfigFields<T extends Record<string, any>>(
   }
   
   return decryptedConfig as T;
+}
+
+/**
+ * Check if a value appears to be encrypted by the frontend
+ * Frontend encrypted values are base64 strings without known plaintext prefixes
+ */
+function isFrontendEncrypted(value: string): boolean {
+  if (!value) return false;
+  
+  // Known plaintext prefixes - if value starts with these, it's NOT encrypted
+  const knownPlainTextPrefixes = [
+    'xoxb-',       // Slack bot tokens
+    'ghp_',        // GitHub personal access tokens
+    'gho_',        // GitHub OAuth tokens
+    'github_pat_', // GitHub fine-grained PATs
+    '-----BEGIN',  // PEM keys
+    'http://',     // URLs
+    'https://',    // URLs
+  ];
+  
+  if (knownPlainTextPrefixes.some(prefix => value.startsWith(prefix))) {
+    return false;
+  }
+  
+  // Check if it looks like base64 (frontend encryption produces base64)
+  const base64Regex = /^[A-Za-z0-9+/]+=*$/;
+  return base64Regex.test(value) && value.length > 20;
+}
+
+/**
+ * Decrypt a value encrypted by the frontend (AES-256-GCM with different format)
+ * Frontend format: base64(iv + ciphertext + authTag)
+ */
+function decryptFrontendValue(encryptedData: string): string {
+  const encryptionKey = process.env.ENCRYPTION_KEY;
+  
+  if (!encryptionKey) {
+    throw new Error('ENCRYPTION_KEY not set');
+  }
+  
+  try {
+    // Frontend uses: base64(iv + ciphertext + authTag)
+    const buffer = Buffer.from(encryptedData, 'base64');
+    
+    // Extract IV (first 12 bytes) and encrypted data
+    const iv = buffer.subarray(0, 12);
+    const encrypted = buffer.subarray(12);
+    
+    // Convert key from base64
+    const keyBuffer = Buffer.from(encryptionKey, 'base64');
+    
+    // Create decipher
+    const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv);
+    
+    // Extract auth tag (last 16 bytes of encrypted data)
+    const authTag = encrypted.subarray(encrypted.length - 16);
+    const ciphertext = encrypted.subarray(0, encrypted.length - 16);
+    
+    decipher.setAuthTag(authTag);
+    
+    // Decrypt
+    let decrypted = decipher.update(ciphertext);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    
+    return decrypted.toString('utf8');
+  } catch (error) {
+    throw new Error(`Frontend decryption failed: ${error.message}`);
+  }
 }
 

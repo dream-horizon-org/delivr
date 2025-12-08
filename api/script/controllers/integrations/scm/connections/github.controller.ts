@@ -14,6 +14,7 @@ import {
   SafeSCMIntegration 
 } from "../../../../storage/integrations/scm/scm-types";
 import fetch from "node-fetch";
+import { decryptIfEncrypted } from "../../../../utils/encryption.utils";
 
 // ============================================================================
 // TYPES
@@ -67,7 +68,7 @@ export async function verifyGitHubConnection(
   req: Request, 
   res: Response
 ): Promise<any> {
-  const { owner, repo, accessToken } = req.body;
+  const { owner, repo, accessToken, _encrypted } = req.body;
 
   if (!owner || !repo || !accessToken) {
     return res.status(400).json({
@@ -77,7 +78,12 @@ export async function verifyGitHubConnection(
   }
 
   try {
-    const verificationResult = await verifyGitHub(owner, repo, accessToken);
+    // Decrypt accessToken if encrypted (frontend sends encrypted values)
+    const decryptedToken = _encrypted 
+      ? decryptIfEncrypted(accessToken, 'accessToken')
+      : accessToken;
+    
+    const verificationResult = await verifyGitHub(owner, repo, decryptedToken);
 
     return res.status(200).json({
       success: verificationResult.isValid,
@@ -115,7 +121,8 @@ export async function createGitHubConnection(
     webhookEnabled = false,
     webhookSecret,
     webhookUrl,
-    senderLogin
+    senderLogin,
+    _encrypted
   } = req.body;
 
   if (!owner || !repo || !accessToken) {
@@ -129,11 +136,16 @@ export async function createGitHubConnection(
     const scmController = getSCMController();
     const existing = await scmController.findActiveByTenant(tenantId);
     
+    // Store the encrypted value in database (accessToken as received from frontend)
+    // The frontend encrypts sensitive values before sending
+    // We store as-is to keep data encrypted at rest
+    console.log('[GitHub] Storing accessToken (encrypted from frontend)');
+    
     if (existing) {
       const updateData: UpdateSCMIntegrationDto = {
         displayName,
         defaultBranch,
-        accessToken,
+        accessToken, // Store encrypted value as-is
         webhookEnabled,
         webhookSecret,
         webhookUrl,
@@ -158,7 +170,7 @@ export async function createGitHubConnection(
         repo,
         repositoryUrl: `https://github.com/${owner}/${repo}`,
         defaultBranch,
-        accessToken,
+        accessToken, // Store encrypted value as-is
         webhookEnabled,
         webhookSecret,
         webhookUrl,
@@ -227,7 +239,7 @@ export async function updateGitHubConnection(
   res: Response
 ): Promise<any> {
   const tenantId: string = req.params.tenantId;
-  const updateData = req.body;
+  const { _encrypted, ...updateData } = req.body;
 
   try {
     const scmController = getSCMController();
@@ -241,10 +253,15 @@ export async function updateGitHubConnection(
     }
 
     if (updateData.accessToken) {
+      // Decrypt accessToken for verification if encrypted
+      const decryptedToken = _encrypted 
+        ? decryptIfEncrypted(updateData.accessToken, 'accessToken')
+        : updateData.accessToken;
+      
       const verificationResult = await verifyGitHub(
         existing.owner, 
         existing.repo, 
-        updateData.accessToken
+        decryptedToken
       );
 
       if (!verificationResult.isValid) {
@@ -258,6 +275,7 @@ export async function updateGitHubConnection(
       await scmController.updateVerificationStatus(existing.id, VerificationStatus.VALID);
     }
 
+    // Store encrypted value in database (updateData still has original encrypted token)
     const updated = await scmController.update(existing.id, updateData);
 
     return res.status(200).json({
@@ -338,10 +356,13 @@ export async function fetchGitHubBranches(
       });
     }
     
+    // Decrypt the stored token before making API calls
+    const decryptedToken = decryptIfEncrypted(integration.accessToken, 'accessToken');
+    
     const branches = await fetchBranchesFromGitHub(
       integration.owner,
       integration.repo,
-      integration.accessToken
+      decryptedToken
     );
 
     return res.status(200).json({

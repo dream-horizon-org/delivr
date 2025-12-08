@@ -32,6 +32,7 @@ import type {
   CheckmateSectionsResponse,
   CheckmateSquadsResponse
 } from './checkmate.interface';
+import { decryptConfigFields } from '~utils/encryption';
 
 /**
  * Checkmate Provider
@@ -53,7 +54,8 @@ export class CheckmateProvider implements ITestManagementProvider {
   };
 
   /**
-   * Get Checkmate config from generic config (with validation)
+   * Get Checkmate config from generic config (with validation and decryption)
+   * The authToken is stored encrypted in the database (frontend or backend format)
    */
   private getCheckmateConfig = (config: TenantTestManagementIntegrationConfig): CheckmateConfig => {
     const isValidConfig = this.isCheckmateConfig(config);
@@ -62,7 +64,11 @@ export class CheckmateProvider implements ITestManagementProvider {
       throw new Error(CHECKMATE_ERROR_MESSAGES.CONFIG_VALIDATION_FAILED);
     }
     
-    return config;
+    // Decrypt the authToken before using for API calls
+    // Uses decryptConfigFields which handles both frontend and backend encryption formats
+    const decryptedConfig = decryptConfigFields(config, ['authToken']);
+    
+    return decryptedConfig as CheckmateConfig;
   };
 
   /**
@@ -169,7 +175,8 @@ export class CheckmateProvider implements ITestManagementProvider {
       return false;
     }
     
-    const checkmateConfig = config;
+    // Use getCheckmateConfig to decrypt authToken for API calls
+    const checkmateConfig = this.getCheckmateConfig(config);
     
     try {
       // Validate required fields
