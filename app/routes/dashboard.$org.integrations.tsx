@@ -271,41 +271,33 @@ export default function IntegrationsPage() {
       {/* Tabs Navigation */}
       <Tabs 
         defaultValue={IntegrationCategory.SOURCE_CONTROL}
+        variant="default"
+        color="brand"
+        classNames={{
+          root: 'integrations-tabs-root',
+          list: 'integrations-tabs-list',
+          tab: 'integrations-tab',
+        }}
         styles={{
-          root: {
-            display: 'flex',
-            flexDirection: 'column',
-          },
           list: {
             borderBottom: `1px solid ${theme.colors.slate[2]}`,
-            paddingBottom: 0,
-            gap: 0,
           },
           tab: {
-            padding: '12px 20px',
             fontWeight: 500,
-            fontSize: '14px',
             color: theme.colors.slate[6],
-            borderBottom: '2px solid transparent',
-            marginBottom: '-1px',
-            transition: 'all 150ms ease',
-            
-            '&:hover': {
-              backgroundColor: theme.colors.slate[0],
-              color: theme.colors.slate[8],
-            },
-            
-            '&[data-active]': {
-              color: theme.colors.brand[6],
-              borderBottomColor: theme.colors.brand[5],
-              backgroundColor: 'transparent',
-            },
-          },
-          panel: {
-            paddingTop: 24,
+            transition: 'color 150ms ease, border-color 150ms ease',
           },
         }}
       >
+        <style>{`
+          .integrations-tab[data-active] {
+            color: ${theme.colors.brand[6]} !important;
+            border-bottom-color: ${theme.colors.brand[5]} !important;
+          }
+          .integrations-tab:hover {
+            background-color: ${theme.colors.slate[0]};
+          }
+        `}</style>
         <Tabs.List>
           {Object.keys(integrationsByCategory).map((category) => {
             const categoryIntegrations = integrationsByCategory[category as IntegrationCategory] || [];
@@ -399,3 +391,4 @@ export default function IntegrationsPage() {
     </Box>
   );
 }
+

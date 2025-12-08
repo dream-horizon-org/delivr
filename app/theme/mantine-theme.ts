@@ -78,6 +78,19 @@ export const mantineTheme = createTheme({
         fw: 600,
       },
     },
+    Tabs: {
+      defaultProps: {
+        color: "brand",
+      },
+      styles: {
+        tab: {
+          '&[data-active]': {
+            borderColor: 'var(--mantine-color-brand-5)',
+            color: 'var(--mantine-color-brand-6)',
+          },
+        },
+      },
+    },
   },
 
   other: {
