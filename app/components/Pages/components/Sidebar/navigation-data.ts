@@ -7,6 +7,7 @@ import {
   IconAdjustmentsHorizontal,
   IconUsers,
   IconApps,
+  IconGitBranch,
 } from "@tabler/icons-react";
 import type { Organization } from "./types";
 
@@ -50,9 +51,16 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
           prefetch: "render",
         },
         {
-          label: "Release Configuration",
+          label: "Configurations",
           icon: IconAdjustmentsHorizontal,
           path: `/dashboard/${org.id}/releases/settings`,
+          prefetch: "intent",
+          isOwnerOnly: true,
+        },
+        {
+          label: "Workflows",
+          icon: IconGitBranch,
+          path: `/dashboard/${org.id}/releases/workflows`,
           prefetch: "intent",
           isOwnerOnly: true,
         },

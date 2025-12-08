@@ -5,8 +5,20 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { Modal, Button, TextInput, Select, Stack, Group, Text, Alert } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import {
+  Modal,
+  Button,
+  TextInput,
+  Select,
+  Stack,
+  Group,
+  Text,
+  Alert,
+  useMantineTheme,
+  ThemeIcon,
+  Divider,
+} from '@mantine/core';
+import { IconInfoCircle, IconRocket, IconAlertCircle } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineProviderSelect } from '~/components/ReleaseConfig/BuildPipeline/PipelineProviderSelect';
 import { JenkinsConfigForm } from '~/components/ReleaseConfig/BuildPipeline/JenkinsConfigForm';
@@ -60,6 +72,7 @@ function WorkflowCreateModalComponent({
   fixedPlatform,
   fixedEnvironment,
 }: WorkflowCreateModalProps) {
+  const theme = useMantineTheme();
   const isEditing = !!existingWorkflow;
 
   const [name, setName] = useState('');
@@ -68,6 +81,7 @@ function WorkflowCreateModalComponent({
   const [provider, setProvider] = useState<BuildProvider>(BUILD_PROVIDERS.JENKINS as BuildProvider);
   const [providerConfig, setProviderConfig] = useState<any>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Determine available providers based on connected integrations
   const availableProviders = useMemo(() => {
@@ -125,6 +139,7 @@ function WorkflowCreateModalComponent({
         });
       }
       setErrors({});
+      setIsSaving(false);
     }
   }, [opened, existingWorkflow, defaultProvider, fixedPlatform, fixedEnvironment]);
 
@@ -176,28 +191,30 @@ function WorkflowCreateModalComponent({
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!name.trim()) {
+    if (!name || !name.trim()) {
       newErrors.name = 'Workflow name is required';
     }
 
     if (provider === BUILD_PROVIDERS.JENKINS) {
       const config = providerConfig as any;
-      if (!config.integrationId) {
+      if (!config || !config.integrationId) {
         newErrors.integration = 'Jenkins instance is required';
       }
-        if (!config.jobUrl) {
+      if (!config || !config.jobUrl || !config.jobUrl.trim()) {
         newErrors.jobUrl = 'Job URL is required';
+      } else if (!config.jobUrl.startsWith('http://') && !config.jobUrl.startsWith('https://')) {
+        newErrors.jobUrl = 'Job URL must be a valid URL (starting with http:// or https://)';
       }
     } else if (provider === BUILD_PROVIDERS.GITHUB_ACTIONS) {
       const config = providerConfig as any;
-      if (!config.integrationId) {
+      if (!config || !config.integrationId) {
         newErrors.integration = 'GitHub integration is required';
       }
-      const workflowUrl = config.workflowUrl || config.workflowPath;
+      const workflowUrl = config?.workflowUrl || config?.workflowPath;
       if (!workflowUrl || !workflowUrl.trim()) {
         newErrors.workflowUrl = 'Workflow URL is required';
-      } else if (!workflowUrl.startsWith('http') && !workflowUrl.startsWith('https')) {
-        newErrors.workflowUrl = 'Workflow URL must be a full GitHub URL (starting with https://)';
+      } else if (!workflowUrl.startsWith('http://') && !workflowUrl.startsWith('https://')) {
+        newErrors.workflowUrl = 'Workflow URL must be a valid GitHub URL (starting with https://)';
       }
     }
 
@@ -206,9 +223,15 @@ function WorkflowCreateModalComponent({
   }, [name, provider, providerConfig]);
 
   const handleSave = useCallback(async () => {
-    if (!validate()) return;
+    if (!validate()) {
+      return;
+    }
 
-    // Build workflow data for backend API
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      // Build workflow data for backend API
     const workflowData: any = {
       providerType: provider,
       integrationId: providerConfig.integrationId,
@@ -253,8 +276,14 @@ function WorkflowCreateModalComponent({
       };
     }
 
-    await onSave(workflowData);
-  }, [validate, provider, providerConfig, name, platform, environment, onSave]);
+      await onSave(workflowData);
+      // Modal will be closed by parent component after successful save
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+      // Error will be handled by parent component via toast
+      setIsSaving(false);
+    }
+  }, [validate, provider, providerConfig, name, platform, environment, onSave, isSaving]);
 
   const handlePlatformChange = useCallback((val: string | null) => {
     const newPlatform = (val || PLATFORMS.ANDROID) as Platform;
@@ -284,18 +313,39 @@ function WorkflowCreateModalComponent({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={isEditing ? 'Edit Workflow' : 'Create Workflow'}
+      title={
+        <Group gap="sm">
+          <ThemeIcon size={28} radius="md" variant="light" color="brand">
+            <IconRocket size={16} />
+          </ThemeIcon>
+          <Text fw={600} size="lg" c={theme.colors.slate[9]}>
+            {isEditing ? 'Edit Workflow' : 'Create Workflow'}
+          </Text>
+        </Group>
+      }
       size="lg"
+      radius="md"
     >
-      <Stack gap="md">
+      <Stack gap="lg">
         <TextInput
           label={FIELD_LABELS.WORKFLOW_NAME}
           placeholder={PLACEHOLDERS.WORKFLOW_NAME}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            // Clear name error when user types
+            if (errors.name) {
+              setErrors((prev) => {
+                const updated = { ...prev };
+                delete updated.name;
+                return updated;
+              });
+            }
+          }}
           required
           error={errors.name}
           description="A descriptive name for this CI/CD workflow"
+          size="sm"
         />
 
         <Group grow>
@@ -307,6 +357,7 @@ function WorkflowCreateModalComponent({
             required
             disabled={!!fixedPlatform}
             description={fixedPlatform ? 'Platform is fixed for this category' : undefined}
+            size="sm"
           />
 
           <Select
@@ -318,26 +369,34 @@ function WorkflowCreateModalComponent({
             error={errors.environment}
             disabled={!!fixedEnvironment}
             description={fixedEnvironment ? 'Environment is fixed for this category' : undefined}
+            size="sm"
           />
         </Group>
+
+        <Divider />
 
         {/* Show error if no CI/CD integrations are available */}
         {availableProviders.length === 0 && (
           <Alert
-            icon={<IconInfoCircle size={18} />}
+            icon={<IconAlertCircle size={18} />}
             color="red"
             variant="light"
+            radius="md"
             title="No CI/CD Integrations Connected"
           >
-            <Text size="sm" className="mb-2">
+            <Text size="sm" mb="xs">
               To configure CI/CD workflows, you need to connect at least one provider:
             </Text>
-            <ul className="list-disc list-inside text-sm mb-2">
-              <li>Jenkins</li>
-              <li>GitHub Actions</li>
-            </ul>
-            <Text size="sm">
-              Go to <strong>Settings → Integrations</strong> to connect a provider.
+            <Stack gap="xs" mb="xs">
+              <Text size="sm" c={theme.colors.slate[6]}>
+                • Jenkins
+              </Text>
+              <Text size="sm" c={theme.colors.slate[6]}>
+                • GitHub Actions
+              </Text>
+            </Stack>
+            <Text size="sm" c={theme.colors.slate[6]}>
+              Go to <strong>Organization → Integrations</strong> to connect a provider.
             </Text>
           </Alert>
         )}
@@ -351,40 +410,80 @@ function WorkflowCreateModalComponent({
             />
 
             {errors.integration && (
-              <div className="text-sm text-red-600">{errors.integration}</div>
+              <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">
+                <Text size="sm">{errors.integration}</Text>
+              </Alert>
             )}
 
             {/* Provider-specific configuration forms */}
             {provider === BUILD_PROVIDERS.JENKINS && (
-              <JenkinsConfigForm
-                config={providerConfig}
-                onChange={setProviderConfig}
-                availableIntegrations={availableIntegrations.jenkins}
-                workflows={workflows}
-                tenantId={tenantId}
-              />
+              <Stack gap="sm">
+                <JenkinsConfigForm
+                  config={providerConfig}
+                  onChange={(newConfig) => {
+                    setProviderConfig(newConfig);
+                    // Clear jobUrl error when user types
+                    if (errors.jobUrl && newConfig.jobUrl) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.jobUrl;
+                        return updated;
+                      });
+                    }
+                  }}
+                  availableIntegrations={availableIntegrations.jenkins}
+                  workflows={workflows}
+                  tenantId={tenantId}
+                />
+                {errors.jobUrl && (
+                  <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">
+                    <Text size="sm">{errors.jobUrl}</Text>
+                  </Alert>
+                )}
+              </Stack>
             )}
 
             {provider === BUILD_PROVIDERS.GITHUB_ACTIONS && (
-              <GitHubActionsConfigForm
-                config={providerConfig}
-                onChange={setProviderConfig}
-                availableIntegrations={availableIntegrations.githubActions}
-                workflows={workflows}
-                tenantId={tenantId}
-              />
+              <Stack gap="sm">
+                <GitHubActionsConfigForm
+                  config={providerConfig}
+                  onChange={(newConfig) => {
+                    setProviderConfig(newConfig);
+                    // Clear workflowUrl error when user types
+                    if (errors.workflowUrl && (newConfig.workflowUrl || newConfig.workflowPath)) {
+                      setErrors((prev) => {
+                        const updated = { ...prev };
+                        delete updated.workflowUrl;
+                        return updated;
+                      });
+                    }
+                  }}
+                  availableIntegrations={availableIntegrations.githubActions}
+                  workflows={workflows}
+                  tenantId={tenantId}
+                />
+                {errors.workflowUrl && (
+                  <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light" radius="md">
+                    <Text size="sm">{errors.workflowUrl}</Text>
+                  </Alert>
+                )}
+              </Stack>
             )}
           </>
         )}
 
-        <Group justify="flex-end" className="mt-4">
-          <Button variant="subtle" onClick={onClose}>
+        <Divider />
+
+        <Group justify="flex-end">
+          <Button variant="subtle" color="gray" onClick={onClose}>
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled={availableProviders.length === 0}
+            color="brand"
+            disabled={availableProviders.length === 0 || isSaving}
+            loading={isSaving}
+            leftSection={!isSaving && <IconRocket size={16} />}
           >
             {isEditing ? 'Save Changes' : 'Create Workflow'}
           </Button>

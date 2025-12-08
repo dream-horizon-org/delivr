@@ -145,7 +145,35 @@ export function ConfigurationListItem({
               </ActionIcon>
             </Tooltip>
 
-            <Menu shadow="md" width={200}>
+            <Menu
+              shadow="md"
+              width={220}
+              radius="md"
+              position="bottom-end"
+              styles={{
+                dropdown: {
+                  padding: theme.spacing.xs,
+                  border: `1px solid ${theme.colors.slate[2]}`,
+                },
+                item: {
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  borderRadius: theme.radius.sm,
+                  fontSize: theme.fontSizes.sm,
+                  fontWeight: 500,
+                  '&[data-hovered]': {
+                    backgroundColor: theme.colors.slate[0],
+                    color: theme.colors.slate[9],
+                  },
+                },
+                itemLabel: {
+                  fontSize: theme.fontSizes.sm,
+                },
+                divider: {
+                  margin: `${theme.spacing.xs} 0`,
+                  borderColor: theme.colors.slate[2],
+                },
+              }}
+            >
               <Menu.Target>
                 <ActionIcon variant="subtle" color="brand" size="md">
                   <IconDots size={18} />
@@ -153,12 +181,18 @@ export function ConfigurationListItem({
               </Menu.Target>
 
               <Menu.Dropdown>
-                <Menu.Item leftSection={<IconEdit size={16} />} onClick={onEdit}>
+                <Menu.Item
+                  leftSection={<IconEdit size={16} stroke={1.5} />}
+                  onClick={onEdit}
+                >
                   {isDraft ? 'Continue Editing' : 'Edit Configuration'}
                 </Menu.Item>
 
                 {!isDraft && !config.isDefault && (
-                  <Menu.Item leftSection={<IconStar size={16} />} onClick={onSetDefault}>
+                  <Menu.Item
+                    leftSection={<IconStar size={16} stroke={1.5} />}
+                    onClick={onSetDefault}
+                  >
                     Set as Default
                   </Menu.Item>
                 )}
@@ -166,10 +200,22 @@ export function ConfigurationListItem({
                 <Menu.Divider />
 
                 <Menu.Item
-                  leftSection={<IconArchive size={16} />}
-                  color="red"
+                  leftSection={<IconArchive size={16} stroke={1.5} />}
                   onClick={onArchive}
                   disabled={!isDraft && config.isActive === false}
+                  styles={{
+                    item: {
+                      color: theme.colors.red[7],
+                      '&[data-hovered]': {
+                        backgroundColor: theme.colors.red[0],
+                        color: theme.colors.red[8],
+                      },
+                      '&[data-disabled]': {
+                        opacity: 0.5,
+                        color: theme.colors.slate[5],
+                      },
+                    },
+                  }}
                 >
                   {isDraft ? 'Delete Draft' : 'Archive'}
                 </Menu.Item>

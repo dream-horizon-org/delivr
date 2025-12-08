@@ -1,6 +1,6 @@
 /**
- * Configurations Page
- * Manage release configurations
+ * Workflows Page
+ * Manage CI/CD workflows (Jenkins and GitHub Actions)
  */
 
 import { json } from '@remix-run/node';
@@ -13,7 +13,6 @@ import {
   Title,
   Text,
   Group,
-  Badge,
   Skeleton,
   Stack,
   ThemeIcon,
@@ -24,12 +23,12 @@ import {
   useMantineTheme,
 } from '@mantine/core';
 import {
-  IconSettings,
+  IconRocket,
   IconArrowLeft,
   IconAlertCircle,
   IconRefresh,
 } from '@tabler/icons-react';
-import { ConfigurationsTab } from '~/components/ReleaseSettings/ConfigurationsTab';
+import { CICDTab } from '~/components/ReleaseSettings/CICDTab';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
@@ -41,29 +40,25 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   return json({ org, user });
 });
 
-export default function ConfigurationsPage() {
+export default function WorkflowsPage() {
   const theme = useMantineTheme();
   const data = useLoaderData<typeof loader>();
   const { org } = data as any;
   
   const { 
-    releaseConfigs, 
-    invalidateReleaseConfigs, 
     isLoadingMetadata, 
     isLoadingTenantConfig,
-    isLoadingReleaseConfigs,
-    releaseConfigsError,
     metadataError,
     tenantConfigError,
   } = useConfig();
   
-  const configError = releaseConfigsError || metadataError || tenantConfigError;
-  const isLoading = isLoadingMetadata || isLoadingTenantConfig || isLoadingReleaseConfigs;
+  const configError = metadataError || tenantConfigError;
+  const isLoading = isLoadingMetadata || isLoadingTenantConfig;
 
   // Breadcrumb items
   const breadcrumbItems = [
     { title: 'Release Management', href: `/dashboard/${org}/releases` },
-    { title: 'Configurations', href: '#' },
+    { title: 'Workflows', href: '#' },
   ].map((item, index) => (
     item.href === '#' ? (
       <Text key={index} size="sm" c={theme.colors.slate[6]}>
@@ -86,18 +81,14 @@ export default function ConfigurationsPage() {
   if (isLoading) {
     return (
       <Box>
-        {/* Header Skeleton */}
         <Box mb={32}>
           <Skeleton height={16} width={200} mb={16} />
           <Skeleton height={32} width={300} mb={8} />
           <Skeleton height={20} width={400} />
         </Box>
-
-        {/* Content Skeleton */}
         <Stack gap="lg">
           <Skeleton height={80} radius="md" />
           <Group gap="md">
-            <Skeleton height={200} style={{ flex: 1 }} radius="md" />
             <Skeleton height={200} style={{ flex: 1 }} radius="md" />
             <Skeleton height={200} style={{ flex: 1 }} radius="md" />
           </Group>
@@ -110,14 +101,13 @@ export default function ConfigurationsPage() {
   if (configError) {
     return (
       <Box>
-        {/* Header */}
         <Box mb={32}>
           <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
           <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
-            Configurations
+            Workflows
           </Title>
           <Text size="md" c={theme.colors.slate[5]}>
-            Manage your release configurations
+            Manage your CI/CD workflows
           </Text>
         </Box>
 
@@ -127,16 +117,16 @@ export default function ConfigurationsPage() {
               <IconAlertCircle size={32} />
             </ThemeIcon>
             <Text size="lg" fw={500} c={theme.colors.slate[7]}>
-              Failed to load configuration
+              Failed to load workflows
             </Text>
             <Text size="sm" c={theme.colors.slate[5]} maw={400} ta="center">
-              {typeof configError === 'string' ? configError : 'An error occurred while loading the configuration. Please try again.'}
+              {typeof configError === 'string' ? configError : 'An error occurred while loading workflows. Please try again.'}
             </Text>
             <Button
               variant="light"
               color="brand"
               leftSection={<IconRefresh size={16} />}
-              onClick={() => invalidateReleaseConfigs()}
+              onClick={() => window.location.reload()}
             >
               Try Again
             </Button>
@@ -154,24 +144,12 @@ export default function ConfigurationsPage() {
         
         <Group justify="space-between" align="flex-start">
           <Box>
-            <Group gap="md" mb={4}>
-              <Title order={2} fw={700} c={theme.colors.slate[9]}>
-                Configurations
-              </Title>
-              {releaseConfigs.length > 0 && (
-                <Badge 
-                  size="lg" 
-                  variant="light" 
-                  color="brand"
-                  leftSection={<IconSettings size={14} />}
-                >
-                  {releaseConfigs.length} configuration{releaseConfigs.length !== 1 ? 's' : ''}
-                </Badge>
-              )}
-            </Group>
+            <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
+              Workflows
+            </Title>
             <Text size="md" c={theme.colors.slate[5]} maw={600}>
-              Create and manage release configurations to standardize your release process.
-              Define versioning rules, approval workflows, and deployment strategies.
+              Manage your CI/CD workflows for Jenkins and GitHub Actions.
+              Configure build pipelines and automate your deployment process.
             </Text>
           </Box>
           
@@ -186,13 +164,9 @@ export default function ConfigurationsPage() {
         </Group>
       </Box>
 
-      {/* Configurations Content */}
-      <ConfigurationsTab
-        org={org}
-        releaseConfigs={releaseConfigs}
-        invalidateReleaseConfigs={invalidateReleaseConfigs}
-        isLoading={isLoadingReleaseConfigs}
-      />
+      {/* Workflows Content */}
+      <CICDTab org={org} />
     </Box>
   );
 }
+
