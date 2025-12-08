@@ -1,15 +1,22 @@
 import {
-  Card,
+  Paper,
   Text,
   ActionIcon,
   Badge,
   Menu,
   Box,
   Group,
-  Stack,
+  Divider,
   useMantineTheme,
 } from "@mantine/core";
-import { IconTrash, IconDots, IconExternalLink, IconAppWindow } from "@tabler/icons-react";
+import {
+  IconTrash,
+  IconDots,
+  IconExternalLink,
+  IconChevronRight,
+  IconAppWindow,
+} from "@tabler/icons-react";
+import { useState } from "react";
 import { AppCardResponse } from "../../AppList/data/getAppListForOrg";
 
 type AppListRowProps = {
@@ -26,186 +33,171 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
+// Function to get a consistent color based on app name
+const getAppColor = (appName: string, theme: ReturnType<typeof useMantineTheme>) => {
+  const colors = [
+    theme.colors.brand[5], // Teal
+    "#6366f1", // Indigo
+    "#3b82f6", // Blue
+    "#ec4899", // Pink
+    "#f59e0b", // Amber
+    "#06b6d4", // Cyan
+    "#10b981", // Emerald
+  ];
+  let hash = 0;
+  for (let i = 0; i < appName.length; i++) {
+    hash = appName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % colors.length;
+  return colors[colorIndex];
+};
+
 export function AppListRow({ app, onNavigate, onDelete }: AppListRowProps) {
   const theme = useMantineTheme();
   const initials = getInitials(app.name);
-  
+  const appColor = getAppColor(app.name, theme);
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <Card
+    <Paper
       withBorder
-      padding={0}
       radius="md"
+      shadow="sm"
       style={{
         cursor: "pointer",
         transition: "all 0.2s ease",
-        width: "300px",
-        borderColor: theme.colors.slate[2],
         backgroundColor: "#ffffff",
+        borderColor: hovered ? appColor : theme.colors.slate[2],
         overflow: "hidden",
+        position: "relative",
       }}
       styles={{
         root: {
           "&:hover": {
-            borderColor: theme.colors.brand[5],
-            boxShadow: theme.shadows.lg,
-            transform: "translateY(-4px)",
+            transform: "translateY(-4px) scale(1.01)",
+            boxShadow: theme.shadows.md,
           },
         },
       }}
       onClick={onNavigate}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {/* Header with gradient */}
+      {/* Colored Header Bar */}
       <Box
         style={{
-          background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
-          padding: theme.spacing.lg,
-          position: "relative",
-          height: "120px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
+          height: 4,
+          background: appColor,
+          opacity: hovered ? 1 : 0.6,
+          transition: "opacity 0.2s ease",
         }}
-      >
+      />
+
+      <Box p="lg">
+        <Group justify="space-between" align="flex-start" mb="md">
+          {/* Avatar with gradient */}
+          <Box
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: theme.radius.md,
+              background: `linear-gradient(135deg, ${appColor} 0%, ${appColor}dd 100%)`,
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "18px",
+              fontWeight: 700,
+              boxShadow: theme.shadows.xs,
+            }}
+          >
+            {initials}
+          </Box>
+
+          {/* Context Menu */}
+          {app.isAdmin && (
+            <Menu shadow="md" width={160} position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <IconDots size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconExternalLink size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate();
+                  }}
+                >
+                  Open App
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  Delete App
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
+        </Group>
+
+        <Text fw={600} size="md" c={theme.colors.slate[9]} mb={4} lineClamp={1}>
+          {app.name}
+        </Text>
+
         <Badge
-          variant="filled"
           size="sm"
+          variant="light"
+          color={app.isAdmin ? "brand" : "gray"}
           radius="sm"
           style={{
             textTransform: "uppercase",
-            fontSize: "10px",
-            fontWeight: 600,
-            letterSpacing: "0.5px",
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-            color: "#ffffff",
-            backdropFilter: "blur(10px)",
+            background: app.isAdmin ? theme.colors.brand[0] : theme.colors.slate[1],
+            color: app.isAdmin ? theme.colors.brand[7] : theme.colors.slate[6],
           }}
         >
           {app.role}
         </Badge>
-        
-        {app.isAdmin && (
-          <Menu shadow="md" width={150} position="bottom-end">
-            <Menu.Target>
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.2)",
-                  backdropFilter: "blur(10px)",
-                  color: "#ffffff",
-                }}
-              >
-                <IconDots size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item
-                leftSection={<IconExternalLink size={14} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNavigate();
-                }}
-              >
-                Open App
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item
-                color="red"
-                leftSection={<IconTrash size={14} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-              >
-                Delete App
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-        )}
-      </Box>
 
-      {/* Icon/Avatar - overlapping the header */}
-      <Box
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: "-40px",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <Box
-          style={{
-            width: "80px",
-            height: "80px",
-            borderRadius: theme.radius.xl,
-            background: "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "4px solid #ffffff",
-            boxShadow: theme.shadows.lg,
-          }}
-        >
-          <Box
+        <Divider color={theme.colors.slate[2]} my="md" />
+
+        <Group justify="space-between" align="center">
+          <Group gap={4} c={theme.colors.slate[5]}>
+            <IconAppWindow size={14} />
+            <Text size="xs" fw={500}>
+              Application
+            </Text>
+          </Group>
+
+          <Group
+            gap={4}
+            c={appColor}
             style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: theme.radius.lg,
-              background: theme.colors.brand[0],
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? "translateX(0)" : "translateX(-10px)",
+              transition: "all 0.2s ease",
             }}
           >
-            <Text
-              size="xl"
-              fw={700}
-              style={{
-                color: theme.colors.brand[7],
-                fontSize: "24px",
-              }}
-            >
-              {initials}
+            <Text size="sm" fw={600}>
+              Open
             </Text>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Content */}
-      <Stack gap="xs" style={{ padding: theme.spacing.lg, paddingTop: theme.spacing.md }}>
-        <Text
-          ta="center"
-          size="lg"
-          fw={600}
-          lineClamp={2}
-          style={{
-            color: theme.colors.slate[9],
-            minHeight: "56px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {app.name}
-        </Text>
-
-        <Group justify="center" gap="xs">
-          <Box
-            style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              backgroundColor: theme.colors.brand[5],
-            }}
-          />
-          <Text size="xs" c={theme.colors.slate[5]} fw={500}>
-            Active
-          </Text>
+            <IconChevronRight size={16} />
+          </Group>
         </Group>
-      </Stack>
-    </Card>
+      </Box>
+    </Paper>
   );
 }
 

@@ -6,6 +6,7 @@ import {
   IconPlug,
   IconAdjustmentsHorizontal,
   IconUsers,
+  IconApps,
 } from "@tabler/icons-react";
 import type { Organization } from "./types";
 
@@ -24,7 +25,7 @@ export type ModuleConfig = {
   mainRoute: string;
   prefetch?: "intent" | "render" | "none";
   subItems: SubItem[];
-  isCustomRender?: boolean; // For DOTA module with dynamic apps
+  isCustomRender?: boolean;
 };
 
 export function getNavigationModules(org: Organization): ModuleConfig[] {
@@ -70,7 +71,14 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
       icon: IconCloud,
       mainRoute: `/dashboard/${org.id}/apps`,
       prefetch: "render",
-      subItems: [], // DOTA uses custom render for dynamic apps
+      subItems: [
+        {
+          label: "Applications",
+          icon: IconApps,
+          path: `/dashboard/${org.id}/apps`,
+          prefetch: "render",
+        },
+      ],
       isCustomRender: true,
     },
   ];

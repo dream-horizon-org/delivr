@@ -17,8 +17,11 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
   return (
     <Box
       style={{
-        paddingLeft: theme.spacing.xl,
-        marginTop: theme.spacing.xs,
+        marginLeft: 22,
+        marginTop: 6,
+        marginBottom: 4,
+        paddingLeft: 14,
+        borderLeft: `2px solid ${theme.colors.slate[2]}`,
       }}
     >
       <Stack gap={4}>

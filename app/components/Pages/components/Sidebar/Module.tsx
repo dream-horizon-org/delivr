@@ -7,7 +7,7 @@ import {
   Group,
 } from "@mantine/core";
 import { useLocation, Link } from "@remix-run/react";
-import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { IconChevronRight } from "@tabler/icons-react";
 import type { ModuleConfig } from "./navigation-data";
 import type { Organization } from "./types";
 import { SubItems } from "./SubItems";
@@ -63,12 +63,12 @@ export function Module({
         return true;
       }
     }
-    
+
     // For DOTA, check if on apps route or viewing a specific app
     if (module.id === "dota") {
       return location.pathname.includes("/apps") || !!currentAppId;
     }
-    
+
     // Fallback: check if main route is active
     return location.pathname.startsWith(module.mainRoute);
   })();
@@ -76,7 +76,7 @@ export function Module({
   // Custom render for DOTA module
   if (module.isCustomRender) {
     return (
-      <Box>
+      <Box mb={4}>
         <DOTACustomContent
           module={module}
           org={org}
@@ -92,26 +92,26 @@ export function Module({
 
   // Standard module with expandable sub-items
   return (
-    <Box>
+    <Box mb={4}>
       <UnstyledButton
         component={Link}
         to={module.mainRoute}
         prefetch={module.prefetch}
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
           onToggleExpand();
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 8,
+          transition: "all 0.15s ease",
+          backgroundColor: isModuleActive ? theme.colors.brand[0] : "transparent",
         }}
         styles={{
           root: {
-            display: "block",
-            width: "100%",
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            borderRadius: theme.radius.md,
-            transition: "all 0.15s ease",
-            backgroundColor: isModuleActive ? theme.colors.brand[0] : "transparent",
-            borderLeft: isModuleActive
-              ? `3px solid ${theme.colors.brand[5]}`
-              : "3px solid transparent",
-            position: "relative",
             "&:hover": {
               backgroundColor: isModuleActive
                 ? theme.colors.brand[0]
@@ -120,44 +120,47 @@ export function Module({
           },
         }}
       >
-        <Group gap="md">
-          <Icon
-            size={20}
-            color={
-              isModuleActive
-                ? theme.colors.brand[5]
-                : theme.colors.slate[5]
-            }
-            stroke={1.5}
-          />
-          <Box style={{ flex: 1 }}>
-            <Text
-              fw={isModuleActive ? 600 : 500}
-              size="sm"
-              c={isModuleActive ? theme.colors.brand[7] : theme.colors.slate[6]}
-            >
-              {module.label}
-            </Text>
+        <Group gap={12} style={{ flex: 1 }}>
+          <Box
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: isModuleActive
+                ? theme.colors.brand[1]
+                : theme.colors.slate[1],
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Icon
+              size={18}
+              color={isModuleActive ? theme.colors.brand[6] : theme.colors.slate[5]}
+              stroke={1.5}
+            />
           </Box>
-          {isExpanded ? (
-            <IconChevronUp
-              size={14}
-              color={
-                isModuleActive
-                  ? theme.colors.brand[5]
-                  : theme.colors.slate[5]
-              }
+          <Text
+            fw={isModuleActive ? 600 : 500}
+            size="14px"
+            c={isModuleActive ? theme.colors.slate[9] : theme.colors.slate[7]}
+            style={{ flex: 1, lineHeight: 1.3 }}
+          >
+            {module.label}
+          </Text>
+          <Box
+            style={{
+              transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+              transition: "transform 0.2s ease",
+            }}
+          >
+            <IconChevronRight
+              size={16}
+              color={theme.colors.slate[4]}
+              stroke={2}
             />
-          ) : (
-            <IconChevronDown
-              size={14}
-              color={
-                isModuleActive
-                  ? theme.colors.brand[5]
-                  : theme.colors.slate[5]
-              }
-            />
-          )}
+          </Box>
         </Group>
       </UnstyledButton>
 

@@ -5,20 +5,14 @@ import {
   Stack,
   ScrollArea,
   useMantineTheme,
-  Modal,
   Divider,
   Group,
+  Badge,
 } from "@mantine/core";
-import {
-  IconPlus,
-  IconBuilding,
-} from "@tabler/icons-react";
+import { IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useNavigate, useLocation } from "@remix-run/react";
 import { route } from "routes-gen";
-import { CTAButton } from "~/components/Common/CTAButton";
-import { CreateOrgModal } from "~/components/Pages/components/OrgsPage/components/CreateOrgModal";
-import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 import type { SidebarProps, Organization } from "./types";
 import { getNavigationModules, getOrganizationRoutes } from "./navigation-data";
 import { Module } from "./Module";
@@ -33,60 +27,73 @@ function AllOrgsList({
   onSelectOrg: (orgId: string) => void;
 }) {
   const theme = useMantineTheme();
-  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
 
   return (
-    <Box>
+    <Box px={4}>
       <Text
         size="xs"
         fw={600}
-        c="dimmed"
         tt="uppercase"
         style={{
-          letterSpacing: '0.05em',
+          letterSpacing: "0.05em",
           marginBottom: 12,
-          paddingLeft: 16,
+          paddingLeft: 12,
+          color: theme.colors.slate[4],
         }}
       >
         Organizations
       </Text>
-      <Stack gap={4}>
-        {organizations.map((org) => (
-          <UnstyledButton
-            key={org.id}
-            onClick={() => onSelectOrg(org.id)}
-            style={{
-              width: "100%",
-              padding: '10px 16px',
-              borderRadius: 8,
-              transition: 'background 0.15s ease',
-            }}
-            styles={{
-              root: {
-                "&:hover": {
-                  backgroundColor: theme.colors?.slate?.[1] || '#f1f5f9',
+      <Stack gap={2}>
+        {organizations.map((org) => {
+          const initials = org.orgName.substring(0, 2).toUpperCase();
+          return (
+            <UnstyledButton
+              key={org.id}
+              onClick={() => onSelectOrg(org.id)}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 6,
+                transition: "all 0.15s ease",
+              }}
+              styles={{
+                root: {
+                  "&:hover": {
+                    backgroundColor: theme.colors.slate[1],
+                  },
                 },
-              },
-            }}
-          >
-            <Group gap={12}>
-              <IconBuilding size={18} color={theme.colors?.slate?.[5] || '#64748b'} stroke={1.5} />
-              <Box style={{ flex: 1, minWidth: 0 }}>
-                <Text
-                  fw={600}
-                  size="sm"
-                  c="dark.8"
-                  truncate
+              }}
+            >
+              <Group gap={10}>
+                <Box
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 6,
+                    background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
                 >
-                  {org.orgName}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {org.isAdmin ? "Owner" : "Member"}
-                </Text>
-              </Box>
-            </Group>
-          </UnstyledButton>
-        ))}
+                  {initials}
+                </Box>
+                <Box style={{ flex: 1, minWidth: 0 }}>
+                  <Text fw={500} size="sm" c={theme.colors.slate[8]} truncate>
+                    {org.orgName}
+                  </Text>
+                  <Text size="xs" c={theme.colors.slate[5]}>
+                    {org.isAdmin ? "Owner" : "Member"}
+                  </Text>
+                </Box>
+                <IconChevronRight size={14} color={theme.colors.slate[4]} />
+              </Group>
+            </UnstyledButton>
+          );
+        })}
       </Stack>
     </Box>
   );
@@ -108,9 +115,6 @@ function OrgSidebar({
     releaseManagement: true,
     dota: true,
   });
-  
-  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
-  const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({
@@ -121,42 +125,70 @@ function OrgSidebar({
 
   const modules = getNavigationModules(org);
   const orgRoutes = getOrganizationRoutes(org);
+  const initials = org.orgName.substring(0, 2).toUpperCase();
 
   return (
     <Box>
       {/* Organization Header */}
       <Box
         style={{
-          padding: '16px',
-          borderBottom: `1px solid ${borderColor}`,
+          padding: "16px 16px",
+          borderBottom: `1px solid ${theme.colors.slate[2]}`,
+          marginBottom: 12,
         }}
       >
-        <Group gap={10}>
-          <IconBuilding size={20} color={brandColor} stroke={1.5} />
+        <Group gap={12}>
+          <Box
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            {initials}
+          </Box>
           <Box style={{ flex: 1, minWidth: 0 }}>
-            <Text fw={600} size="sm" c="dark.9" truncate>
+            <Text fw={600} size="14px" c={theme.colors.slate[9]} truncate style={{ lineHeight: 1.3 }}>
               {org.orgName}
             </Text>
-            <Text size="xs" c="dimmed">
+            <Badge
+              size="xs"
+              variant="light"
+              color={org.isAdmin ? "brand" : "gray"}
+              radius="sm"
+              style={{
+                textTransform: "capitalize",
+                fontWeight: 500,
+                marginTop: 4,
+              }}
+            >
               {org.isAdmin ? "Owner" : "Member"}
-            </Text>
+            </Badge>
           </Box>
         </Group>
       </Box>
 
       {/* Navigation Items */}
-      <Box p={12}>
-        <Stack gap={4}>
+      <Box px={10}>
+        <Stack gap={0}>
           {/* Modules Section */}
           <Text
-            size="xs"
+            size="11px"
             fw={600}
-            c="dimmed"
             tt="uppercase"
             style={{
-              letterSpacing: '0.05em',
-              marginBottom: 4,
-              paddingLeft: 8,
+              letterSpacing: "0.06em",
+              marginBottom: 10,
+              marginTop: 4,
+              paddingLeft: 4,
+              color: theme.colors.slate[4],
             }}
           >
             Modules
@@ -175,18 +207,18 @@ function OrgSidebar({
             />
           ))}
 
-          <Divider my={12} color={borderColor} />
+          <Divider my={16} color={theme.colors.slate[2]} />
 
           {/* Organization Section */}
           <Text
-            size="xs"
+            size="11px"
             fw={600}
-            c="dimmed"
             tt="uppercase"
             style={{
-              letterSpacing: '0.05em',
-              marginBottom: 4,
-              paddingLeft: 8,
+              letterSpacing: "0.06em",
+              marginBottom: 10,
+              paddingLeft: 4,
+              color: theme.colors.slate[4],
             }}
           >
             Organization
@@ -197,12 +229,13 @@ function OrgSidebar({
             const isRouteActive = location.pathname.startsWith(orgRoute.path);
 
             return (
-              <SubItem
-                key={orgRoute.path}
-                subItem={orgRoute}
-                org={org}
-                isActive={isRouteActive}
-              />
+              <Box key={orgRoute.path} mb={4}>
+                <SubItem
+                  subItem={orgRoute}
+                  org={org}
+                  isActive={isRouteActive}
+                />
+              </Box>
             );
           })}
         </Stack>
@@ -219,81 +252,40 @@ export function Sidebar({
 }: SidebarProps) {
   const theme = useMantineTheme();
   const navigate = useNavigate();
-  const [createOrgOpen, setCreateOrgOpen] = useState(false);
-  
-  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
-  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
 
   const currentOrg = organizations.find((org) => org.id === currentOrgId);
 
   return (
     <Box
       style={{
-        width: 260,
+        width: 256,
         height: "100%",
         position: "relative",
         display: "flex",
         flexDirection: "column",
-        background: 'white',
-        borderRight: `1px solid ${borderColor}`,
+        background: "#ffffff",
+        borderRight: `1px solid ${theme.colors.slate[2]}`,
+        flexShrink: 0,
       }}
     >
-      <Box style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <Stack gap={0} style={{ flex: 1 }}>
-          <ScrollArea style={{ flex: 1 }} p={12}>
-            {currentOrg ? (
-              <OrgSidebar
-                org={currentOrg}
-                currentAppId={currentAppId}
-                userEmail={userEmail}
-              />
-            ) : (
-              <AllOrgsList
-                organizations={organizations}
-                onSelectOrg={(orgId) =>
-                  navigate(route("/dashboard/:org/apps", { org: orgId }))
-                }
-              />
-            )}
-          </ScrollArea>
-        </Stack>
-
-        {/* Bottom CTA */}
-        <Box
-          style={{
-            padding: 16,
-            borderTop: `1px solid ${borderColor}`,
-          }}
-        >
-          <CTAButton
-            fullWidth
-            leftSection={<IconPlus size={16} />}
-            onClick={() => setCreateOrgOpen(true)}
-            size="sm"
-          >
-            New Organization
-          </CTAButton>
+      <ScrollArea style={{ flex: 1 }}>
+        <Box py={8}>
+          {currentOrg ? (
+            <OrgSidebar
+              org={currentOrg}
+              currentAppId={currentAppId}
+              userEmail={userEmail}
+            />
+          ) : (
+            <AllOrgsList
+              organizations={organizations}
+              onSelectOrg={(orgId) =>
+                navigate(route("/dashboard/:org/apps", { org: orgId }))
+              }
+            />
+          )}
         </Box>
-      </Box>
-
-      {/* Create Organization Modal */}
-      <Modal
-        opened={createOrgOpen}
-        onClose={() => setCreateOrgOpen(false)}
-        title={<Text fw={600} size="md">Create Organization</Text>}
-        centered
-        size="sm"
-        padding="lg"
-        radius="md"
-        overlayProps={{ backgroundOpacity: 0.2, blur: 2 }}
-      >
-        <CreateOrgModal
-          onSuccess={() => {
-            actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
-            setCreateOrgOpen(false);
-          }}
-        />
-      </Modal>
+      </ScrollArea>
     </Box>
   );
 }
