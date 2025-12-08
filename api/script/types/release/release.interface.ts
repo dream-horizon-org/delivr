@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import { Sequelize } from 'sequelize';
 import * as storageTypes from '../../storage/storage';
-import { ReleaseType } from '../../storage/release/release-models';
+import { ReleaseType } from '../../models/release/release.interface';
 
 /**
  * Extended Storage interface that includes Sequelize instance

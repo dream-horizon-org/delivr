@@ -15,6 +15,7 @@ export type ReleaseAttributes = {
   branch: string | null; // Release branch name (e.g., "release/v1.0.0")
   baseBranch: string | null; // Base branch forked from (e.g., "master")
   baseReleaseId: string | null; // Parent release ID (for hotfixes)
+  releaseTag: string | null; // Final release tag (e.g., "v1.0.0_IOS_ANDROID")
   kickOffReminderDate: Date | null; // When to send kickoff reminder
   kickOffDate: Date | null; // When to start kickoff stage
   targetReleaseDate: Date | null; // Target/planned release date
@@ -96,6 +97,12 @@ export const createReleaseModel = (
         allowNull: true,
         field: 'baseReleaseId',
         comment: 'Parent release ID (for hotfixes)'
+      },
+      releaseTag: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'releaseTag',
+        comment: 'Final release tag (e.g., v1.0.0_IOS_ANDROID)'
       },
       kickOffReminderDate: {
         type: DataTypes.DATE,

@@ -11,7 +11,8 @@ import { createCommIntegrationRoutes, createCommConfigRoutes } from "./integrati
 import {
   createConfigurationRoutes as createPMConfigurationRoutes,
   createIntegrationRoutes as createPMIntegrationRoutes,
-  createTicketRoutes as createPMTicketRoutes
+  createTicketRoutes as createPMTicketRoutes,
+  createJiraMetadataRoutes
 } from "./integrations/project-management";
 import {
   createTestManagementConfigRoutes,
@@ -122,6 +123,10 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       // Project Management Ticket Operations (Stateless - Create, Check Status)
       const pmTicketRoutes = createPMTicketRoutes(s3Storage.projectManagementTicketService, s3Storage);
       router.use(pmTicketRoutes);
+      
+      // Jira Metadata Proxy Routes (Projects)
+      const jiraMetadataRoutes = createJiraMetadataRoutes(s3Storage.jiraMetadataService, s3Storage);
+      router.use(jiraMetadataRoutes);
       
       console.log('[Release Management] Project Management routes mounted successfully');
     } else {

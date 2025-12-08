@@ -7,8 +7,8 @@
  * Follows cursorrules: No 'any' types - use explicit types
  */
 
-import { TaskType, TaskStage, TaskStatus } from '../storage/release/release-models';
-import { ReleaseTaskRecord } from '../storage/release/release-tasks-dto';
+import { TaskType, TaskStage, TaskStatus } from '../models/release/release.interface';
+import type { ReleaseTask } from '../models/release/release.interface';
 
 /**
  * Task order configuration for each stage
@@ -46,7 +46,7 @@ export const TASK_ORDER: Record<TaskStage, TaskType[]> = {
  * Tasks that may not be required based on release/cron configuration
  */
 export interface OptionalTaskConfig {
-  hasJiraIntegration?: boolean;
+  hasProjectManagementIntegration?: boolean;
   hasTestPlatformIntegration?: boolean;
   hasIOSPlatform?: boolean; // For TRIGGER_TEST_FLIGHT_BUILD (only if iOS platform exists)
   cronConfig?: {
@@ -83,7 +83,7 @@ export function isTaskRequired(
 
     case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
       // Optional: Only if project management integration is available
-      return config.hasJiraIntegration === true;
+      return config.hasProjectManagementIntegration === true;
 
     case TaskType.CREATE_TEST_SUITE:
       // Optional: Only if test platform integration is available
@@ -94,12 +94,13 @@ export function isTaskRequired(
       return config.cronConfig?.preRegressionBuilds === true;
 
     case TaskType.RESET_TEST_SUITE:
-      // Optional: Only for subsequent regression slots (not the first one)
-      return config.isSubsequentSlot === true;
+      // Optional: Only for subsequent regression slots AND if test platform integration is available
+      // Must match task creation logic in createStage2Tasks
+      return config.isSubsequentSlot === true && config.hasTestPlatformIntegration === true;
 
     case TaskType.TRIGGER_AUTOMATION_RUNS:
-      // Optional: Only if automation is enabled
-      return config.cronConfig?.automationBuilds === true || config.cronConfig?.automationRuns === true;
+      // Optional: Only if automation builds is enabled
+      return config.cronConfig?.automationBuilds === true;
 
     case TaskType.AUTOMATION_RUNS:
       // Optional: Only if automation is enabled
@@ -112,7 +113,7 @@ export function isTaskRequired(
 
     case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
       // Optional: Only if JIRA integration is available
-      return config.hasJiraIntegration === true;
+      return config.hasProjectManagementIntegration === true;
 
     default:
       // All other tasks are always required
@@ -129,9 +130,9 @@ export function isTaskRequired(
  * @returns Tasks sorted by execution order
  */
 export function getOrderedTasks(
-  tasks: ReleaseTaskRecord[],
+  tasks: ReleaseTask[],
   stage: TaskStage
-): ReleaseTaskRecord[] {
+): ReleaseTask[] {
   const order = TASK_ORDER[stage];
   if (!order) {
     // If stage not found in TASK_ORDER, return tasks as-is
@@ -140,8 +141,8 @@ export function getOrderedTasks(
 
   // Sort tasks based on their position in TASK_ORDER
   return [...tasks].sort((a, b) => {
-    const orderA = order.indexOf(a.taskType as TaskType);
-    const orderB = order.indexOf(b.taskType as TaskType);
+    const orderA = order.indexOf(a.taskType);
+    const orderB = order.indexOf(b.taskType);
 
     // If task type not found in order, put it at the end
     if (orderA === -1 && orderB === -1) {
@@ -168,8 +169,8 @@ export function getOrderedTasks(
  * @returns true if all previous tasks are complete or not required
  */
 export function arePreviousTasksComplete(
-  task: ReleaseTaskRecord,
-  allTasks: ReleaseTaskRecord[],
+  task: ReleaseTask,
+  allTasks: ReleaseTask[],
   stage: TaskStage,
   config?: OptionalTaskConfig
 ): boolean {
@@ -179,7 +180,7 @@ export function arePreviousTasksComplete(
     return true;
   }
 
-  const taskIndex = order.indexOf(task.taskType as TaskType);
+  const taskIndex = order.indexOf(task.taskType);
   if (taskIndex === -1) {
     // Task not in order, assume no dependencies
     return true;
@@ -245,19 +246,19 @@ export function getTaskOrderIndex(taskType: TaskType, stage: TaskStage): number 
  * @returns true if task can be executed
  */
 export function canExecuteTask(
-  task: ReleaseTaskRecord,
-  allTasks: ReleaseTaskRecord[],
+  task: ReleaseTask,
+  allTasks: ReleaseTask[],
   stage: TaskStage,
   config?: OptionalTaskConfig,
-  isTimeToExecute?: (task: ReleaseTaskRecord) => boolean
+  isTimeToExecute?: (task: ReleaseTask) => boolean
 ): boolean {
-  // Task must be in PENDING status
-  if (task.taskStatus !== TaskStatus.PENDING) {
+  // Task must be in PENDING or FAILED status (allow retries)
+  if (task.taskStatus !== TaskStatus.PENDING && task.taskStatus !== TaskStatus.FAILED) {
     return false;
   }
 
   // Check if task is required
-  if (!isTaskRequired(task.taskType as TaskType, config)) {
+  if (!isTaskRequired(task.taskType, config)) {
     return false;
   }
 

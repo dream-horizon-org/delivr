@@ -8,7 +8,27 @@ import { ReleaseRepository } from '../../models/release/release.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
+import { TaskStage, ReleaseTask } from '../../models/release/release.interface';
 import type { ReleaseResponseBody, ReleaseWithPlatformTargets } from '~types/release';
+
+export type GetTasksResult = {
+  success: true;
+  tasks: ReleaseTask[];
+  count: number;
+} | {
+  success: false;
+  error: string;
+  statusCode: number;
+};
+
+export type GetTaskByIdResult = {
+  success: true;
+  task: ReleaseTask;
+} | {
+  success: false;
+  error: string;
+  statusCode: number;
+};
 
 export class ReleaseRetrievalService {
   constructor(
@@ -213,6 +233,108 @@ export class ReleaseRetrievalService {
         target: m.target,
         version: m.version
       }))
+    };
+  }
+
+  /**
+   * Get tasks for a release with tenant ownership verification
+   * @param releaseId - The release ID
+   * @param tenantId - The tenant ID for ownership verification
+   * @param stage - Optional stage filter
+   */
+  async getTasksForRelease(releaseId: string, tenantId: string, stage?: string): Promise<GetTasksResult> {
+    // Verify release exists and belongs to tenant
+    const release = await this.releaseRepo.findById(releaseId);
+
+    if (!release) {
+      return {
+        success: false,
+        error: 'Release not found',
+        statusCode: 404
+      };
+    }
+
+    if (release.tenantId !== tenantId) {
+      return {
+        success: false,
+        error: 'Release does not belong to this tenant',
+        statusCode: 403
+      };
+    }
+
+    // Get tasks
+    let tasks: ReleaseTask[];
+    if (stage) {
+      // Validate stage
+      const validStages = Object.values(TaskStage);
+      if (!validStages.includes(stage as TaskStage)) {
+        return {
+          success: false,
+          error: `Invalid stage. Must be one of: ${validStages.join(', ')}`,
+          statusCode: 400
+        };
+      }
+      tasks = await this.releaseTaskRepo.findByReleaseIdAndStage(releaseId, stage as TaskStage);
+    } else {
+      tasks = await this.releaseTaskRepo.findByReleaseId(releaseId);
+    }
+
+    return {
+      success: true,
+      tasks,
+      count: tasks.length
+    };
+  }
+
+  /**
+   * Get a specific task by ID with tenant and release ownership verification
+   * @param taskId - The task ID
+   * @param releaseId - The release ID for ownership verification
+   * @param tenantId - The tenant ID for ownership verification
+   */
+  async getTaskById(taskId: string, releaseId: string, tenantId: string): Promise<GetTaskByIdResult> {
+    // Verify release exists and belongs to tenant
+    const release = await this.releaseRepo.findById(releaseId);
+
+    if (!release) {
+      return {
+        success: false,
+        error: 'Release not found',
+        statusCode: 404
+      };
+    }
+
+    if (release.tenantId !== tenantId) {
+      return {
+        success: false,
+        error: 'Release does not belong to this tenant',
+        statusCode: 403
+      };
+    }
+
+    // Get task
+    const task = await this.releaseTaskRepo.findById(taskId);
+
+    if (!task) {
+      return {
+        success: false,
+        error: 'Task not found',
+        statusCode: 404
+      };
+    }
+
+    // Verify task belongs to release
+    if (task.releaseId !== releaseId) {
+      return {
+        success: false,
+        error: 'Task does not belong to this release',
+        statusCode: 403
+      };
+    }
+
+    return {
+      success: true,
+      task
     };
   }
 }

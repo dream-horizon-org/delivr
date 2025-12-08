@@ -7,7 +7,7 @@
  * Follows cursorrules: No 'any' types - use explicit types
  */
 
-import { CronJobDTO } from '../storage/release/cron-job-dto';
+import { CronJobRepository } from '../../../models/release/cron-job.repository';
 
 /**
  * Lock acquisition result
@@ -24,11 +24,7 @@ export interface LockResult {
  * across multiple service instances.
  */
 export class CronLockService {
-  private cronJobDTO: CronJobDTO;
-
-  constructor(cronJobDTO: CronJobDTO) {
-    this.cronJobDTO = cronJobDTO;
-  }
+  constructor(private readonly cronJobRepo: CronJobRepository) {}
 
   /**
    * Acquire lock for a cron job
@@ -49,7 +45,7 @@ export class CronLockService {
     timeoutSeconds: number = 300
   ): Promise<LockResult> {
     try {
-      const acquired = await this.cronJobDTO.acquireLock(
+      const acquired = await this.cronJobRepo.acquireLock(
         cronJobId,
         instanceId,
         timeoutSeconds
@@ -62,7 +58,7 @@ export class CronLockService {
       }
 
       // Check if lock is held by another instance
-      const cronJob = await this.cronJobDTO.get(cronJobId);
+      const cronJob = await this.cronJobRepo.findById(cronJobId);
       if (cronJob && cronJob.lockedBy && cronJob.lockedBy !== instanceId) {
         return {
           acquired: false,
@@ -93,7 +89,7 @@ export class CronLockService {
    */
   async releaseLock(cronJobId: string, instanceId: string): Promise<void> {
     try {
-      await this.cronJobDTO.releaseLock(cronJobId, instanceId);
+      await this.cronJobRepo.releaseLock(cronJobId, instanceId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Error releasing lock: ${errorMessage}`);
@@ -108,7 +104,7 @@ export class CronLockService {
    */
   async isLocked(cronJobId: string): Promise<boolean> {
     try {
-      return await this.cronJobDTO.isLocked(cronJobId);
+      return await this.cronJobRepo.isLocked(cronJobId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Error checking lock status: ${errorMessage}`);
@@ -128,7 +124,7 @@ export class CronLockService {
     isExpired: boolean;
   } | null> {
     try {
-      const cronJob = await this.cronJobDTO.get(cronJobId);
+      const cronJob = await this.cronJobRepo.findById(cronJobId);
       if (!cronJob) {
         return null;
       }

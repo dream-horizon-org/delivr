@@ -134,7 +134,7 @@ export const createCronJobModel = (
       autoTransitionToStage2: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: false,
+        defaultValue: true,
         field: 'autoTransitionToStage2',
         comment: 'Controls automatic Stage 1 → Stage 2 transition'
       },

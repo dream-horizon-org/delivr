@@ -50,55 +50,134 @@ export const validateProviderType = (providerType: unknown): string | null => {
 };
 
 /**
- * Validate config structure based on provider type
+ * Helper to check if a value is a non-empty string
+ */
+const isNonEmptyString = (value: unknown): value is string => {
+  return typeof value === 'string' && value.length > 0;
+};
+
+/**
+ * Helper to validate required field exists and is non-empty string
+ */
+const validateRequiredString = (
+  obj: Record<string, unknown>,
+  field: string,
+  label: string
+): string | null => {
+  return isNonEmptyString(obj[field]) ? null : `${label} must include ${field}`;
+};
+
+/**
+ * Helper to validate optional field (if present, must be non-empty string)
+ */
+const validateOptionalString = (
+  obj: Record<string, unknown>,
+  field: string
+): string | null => {
+  const fieldExists = field in obj;
+  if (!fieldExists) return null;
+  return isNonEmptyString(obj[field]) ? null : `${field} must be a non-empty string`;
+};
+
+/**
+ * Helper to validate enum value
+ */
+const validateEnum = (
+  value: unknown,
+  validValues: readonly string[],
+  fieldName: string
+): string | null => {
+  const isString = typeof value === 'string';
+  const isValidValue = isString && validValues.includes(value);
+  return isValidValue ? null : `${fieldName} must be one of: ${validValues.join(', ')}`;
+};
+
+/**
+ * Validate config structure based on provider type (for CREATE operations)
  */
 export const validateConfigStructure = (
   config: unknown,
   providerType: ProjectManagementProviderType
 ): string | null => {
-  if (typeof config !== 'object' || config === null) {
-    return 'Config must be an object';
-  }
+  const isObject = typeof config === 'object' && config !== null;
+  if (!isObject) return 'Config must be an object';
 
   const configObj = config as Record<string, unknown>;
 
-  // Check for baseUrl (common to all providers)
-  if (typeof configObj.baseUrl !== 'string' || !configObj.baseUrl) {
-    return 'Config must include baseUrl';
-  }
+  // Validate common field
+  const baseUrlError = validateRequiredString(configObj, 'baseUrl', 'Config');
+  if (baseUrlError) return baseUrlError;
 
   // Provider-specific validation
   switch (providerType) {
     case ProjectManagementProviderType.JIRA: {
-      if (typeof configObj.apiToken !== 'string' || !configObj.apiToken) {
-        return 'JIRA config must include apiToken';
-      }
-      if (typeof configObj.email !== 'string' || !configObj.email) {
-        return 'JIRA config must include email';
-      }
-      if (typeof configObj.jiraType !== 'string' || !configObj.jiraType) {
-        return 'JIRA config must include jiraType';
-      }
-      const validJiraTypes = ['CLOUD', 'SERVER', 'DATA_CENTER'];
-      if (!validJiraTypes.includes(configObj.jiraType)) {
-        return `jiraType must be one of: ${validJiraTypes.join(', ')}`;
-      }
-      break;
+      const apiTokenError = validateRequiredString(configObj, 'apiToken', 'JIRA config');
+      if (apiTokenError) return apiTokenError;
+
+      const emailError = validateRequiredString(configObj, 'email', 'JIRA config');
+      if (emailError) return emailError;
+
+      const jiraTypeError = validateRequiredString(configObj, 'jiraType', 'JIRA config');
+      if (jiraTypeError) return jiraTypeError;
+
+      const validJiraTypes = ['CLOUD', 'SERVER', 'DATA_CENTER'] as const;
+      return validateEnum(configObj.jiraType, validJiraTypes, 'jiraType');
     }
     case ProjectManagementProviderType.LINEAR: {
-      if (typeof configObj.apiKey !== 'string' || !configObj.apiKey) {
-        return 'Linear config must include apiKey';
-      }
-      if (typeof configObj.teamId !== 'string' || !configObj.teamId) {
-        return 'Linear config must include teamId';
-      }
-      break;
-    }
-    // Add validation for other providers as needed
-    default:
-      break;
-  }
+      const apiKeyError = validateRequiredString(configObj, 'apiKey', 'Linear config');
+      if (apiKeyError) return apiKeyError;
 
-  return null;
+      return validateRequiredString(configObj, 'teamId', 'Linear config');
+    }
+    default:
+      return null;
+  }
+};
+
+/**
+ * Validate partial config structure (for UPDATE operations)
+ * Only validates fields that are present - allows partial updates
+ */
+export const validatePartialConfigStructure = (
+  config: unknown,
+  providerType: ProjectManagementProviderType
+): string | null => {
+  const isObject = typeof config === 'object' && config !== null;
+  if (!isObject) return 'Config must be an object';
+
+  const configObj = config as Record<string, unknown>;
+
+  // Validate baseUrl if provided
+  const baseUrlError = validateOptionalString(configObj, 'baseUrl');
+  if (baseUrlError) return baseUrlError;
+
+  // Provider-specific validation (only validate fields that are present)
+  switch (providerType) {
+    case ProjectManagementProviderType.JIRA: {
+      const apiTokenError = validateOptionalString(configObj, 'apiToken');
+      if (apiTokenError) return apiTokenError;
+
+      const emailError = validateOptionalString(configObj, 'email');
+      if (emailError) return emailError;
+
+      const jiraTypeError = validateOptionalString(configObj, 'jiraType');
+      if (jiraTypeError) return jiraTypeError;
+
+      const jiraTypeExists = 'jiraType' in configObj;
+      if (jiraTypeExists) {
+        const validJiraTypes = ['CLOUD', 'SERVER', 'DATA_CENTER'] as const;
+        return validateEnum(configObj.jiraType, validJiraTypes, 'jiraType');
+      }
+      return null;
+    }
+    case ProjectManagementProviderType.LINEAR: {
+      const apiKeyError = validateOptionalString(configObj, 'apiKey');
+      if (apiKeyError) return apiKeyError;
+
+      return validateOptionalString(configObj, 'teamId');
+    }
+    default:
+      return null;
+  }
 };
 

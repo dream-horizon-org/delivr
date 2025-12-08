@@ -7,7 +7,8 @@ import { ReleaseRepository } from '../../models/release/release.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { UpdateReleaseRequestBody } from '../../types/release/release.interface';
-import { Release, UpdateReleaseDto, UpdateCronJobDto } from '../../models/release/release.interface';
+import { Release, UpdateReleaseDto, UpdateCronJobDto, CronJob, StageStatus, CronStatus, RegressionSlot } from '../../models/release/release.interface';
+import { CronJobService } from './cron-job/cron-job.service';
 
 export interface UpdateReleasePayload {
   releaseId: string;
@@ -29,7 +30,8 @@ export class ReleaseUpdateService {
   constructor(
     private readonly releaseRepository: ReleaseRepository,
     private readonly cronJobRepository: CronJobRepository,
-    private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository
+    private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
+    private readonly cronJobService: CronJobService
   ) {}
 
   /**
@@ -187,7 +189,7 @@ export class ReleaseUpdateService {
     releaseId: string,
     cronJobUpdates: NonNullable<UpdateReleaseRequestBody['cronJob']>,
     validation: ReleaseUpdateValidationResult,
-    accountId: string
+    _accountId: string
   ): Promise<void> {
     const cronJob = await this.cronJobRepository.findByReleaseId(releaseId);
     if (!cronJob) {
@@ -201,18 +203,120 @@ export class ReleaseUpdateService {
       updates.cronConfig = cronJobUpdates.cronConfig;
     }
 
-    // upcomingRegressions can always be updated for IN_PROGRESS releases
+    // upcomingRegressions with stage-based validation
     if (cronJobUpdates.upcomingRegressions !== undefined) {
-      // Convert string dates to Date objects
-      const regressions = cronJobUpdates.upcomingRegressions.map(regression => ({
-        date: new Date(regression.date),
-        config: regression.config
-      }));
-      updates.upcomingRegressions = regressions;
+      const slotUpdateResult = await this.handleRegressionSlotUpdate(
+        releaseId,
+        cronJob,
+        cronJobUpdates.upcomingRegressions
+      );
+      
+      if (slotUpdateResult.updatedSlots) {
+        updates.upcomingRegressions = slotUpdateResult.updatedSlots;
+      }
+      
+      // Process slot update after cron job is updated
+      if (Object.keys(updates).length > 0) {
+        await this.cronJobRepository.update(cronJob.id, updates);
+      }
+      
+      // Restart cron if slots were added and cron is not running
+      if (slotUpdateResult.shouldRestartCron) {
+        console.log(`[ReleaseUpdateService] Restarting cron job for release ${releaseId} - new slots added`);
+        await this.cronJobService.startCronJob(releaseId);
+      }
+      
+      return; // Exit early since we already updated
     }
 
     if (Object.keys(updates).length > 0) {
       await this.cronJobRepository.update(cronJob.id, updates);
     }
+  }
+
+  /**
+   * Handle regression slot updates with validation
+   * 
+   * Validation Rules:
+   * 1. Stage 3 must be PENDING for any slot changes
+   * 2. In Stage 2, cannot remove slots whose time has passed
+   * 
+   * Side Effects:
+   * - If slots are added and cron is not running, restart cron
+   */
+  private async handleRegressionSlotUpdate(
+    releaseId: string,
+    cronJob: CronJob,
+    newSlots: Array<{ date: string | Date; config?: Record<string, unknown> }>
+  ): Promise<{ updatedSlots: RegressionSlot[] | null; shouldRestartCron: boolean }> {
+    // Parse current slots
+    const currentSlots = this.parseRegressionSlots(cronJob.upcomingRegressions);
+    
+    // Convert new slots to RegressionSlot format
+    const parsedNewSlots: RegressionSlot[] = newSlots.map(slot => ({
+      date: new Date(slot.date),
+      config: slot.config || {}
+    }));
+
+    // Detect changes by comparing dates
+    const currentDates = new Set(currentSlots.map(s => new Date(s.date).toISOString()));
+    const newDates = new Set(parsedNewSlots.map(s => new Date(s.date).toISOString()));
+
+    const addedSlots = parsedNewSlots.filter(s => !currentDates.has(new Date(s.date).toISOString()));
+    const removedSlots = currentSlots.filter(s => !newDates.has(new Date(s.date).toISOString()));
+
+    const hasChanges = addedSlots.length > 0 || removedSlots.length > 0;
+
+    // VALIDATION 1: Stage 3 must be PENDING for any slot changes
+    if (hasChanges && cronJob.stage3Status !== StageStatus.PENDING) {
+      throw new Error(`Cannot modify regression slots: Stage 3 already started (status: ${cronJob.stage3Status})`);
+    }
+
+    // VALIDATION 2: In Stage 2, cannot remove slots whose time has passed
+    if (removedSlots.length > 0 && cronJob.stage2Status === StageStatus.IN_PROGRESS) {
+      const now = new Date();
+      const pastSlots = removedSlots.filter(s => new Date(s.date) < now);
+      if (pastSlots.length > 0) {
+        const pastDates = pastSlots.map(s => new Date(s.date).toISOString()).join(', ');
+        throw new Error(`Cannot delete slots whose time has passed during Stage 2. Past slots: ${pastDates}`);
+      }
+    }
+
+    // Determine if cron should be restarted
+    const wasStage2Completed = cronJob.stage2Status === StageStatus.COMPLETED;
+    const cronNotRunning = cronJob.cronStatus !== CronStatus.RUNNING;
+    const shouldRestartCron = addedSlots.length > 0 && cronNotRunning;
+
+    if (hasChanges) {
+      console.log(
+        `[ReleaseUpdateService] Regression slots updated for release ${releaseId}. ` +
+        `Added: ${addedSlots.length}, Removed: ${removedSlots.length}. ` +
+        `Stage 2 was ${wasStage2Completed ? 'COMPLETED' : cronJob.stage2Status}.`
+      );
+    }
+
+    return {
+      updatedSlots: parsedNewSlots,
+      shouldRestartCron
+    };
+  }
+
+  /**
+   * Parse regression slots from various formats
+   */
+  private parseRegressionSlots(
+    slots: RegressionSlot[] | string | null | undefined
+  ): RegressionSlot[] {
+    if (!slots) return [];
+    
+    if (typeof slots === 'string') {
+      try {
+        return JSON.parse(slots);
+      } catch {
+        return [];
+      }
+    }
+    
+    return slots;
   }
 }

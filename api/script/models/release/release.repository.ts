@@ -1,4 +1,3 @@
-import { Model } from 'sequelize';
 import type { ReleaseModelType } from './release.sequelize.model';
 import { Release, CreateReleaseDto, UpdateReleaseDto } from './release.interface';
 
@@ -24,6 +23,7 @@ export class ReleaseRepository {
       branch: data.branch || null,
       baseBranch: data.baseBranch || null,
       baseReleaseId: data.baseReleaseId || null,
+      releaseTag: data.releaseTag || null,
       kickOffReminderDate: data.kickOffReminderDate || null,
       kickOffDate: data.kickOffDate || null,
       targetReleaseDate: data.targetReleaseDate || null,

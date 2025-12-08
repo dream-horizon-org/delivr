@@ -29,6 +29,7 @@ import {
   ProjectManagementConfigService,
   ProjectManagementTicketService
 } from "../services/integrations/project-management";
+import { JiraMetadataService } from "../services/integrations/project-management/metadata/jira";
 import { CommIntegrationService } from "../services/integrations/comm/comm-integration";
 import { CommConfigService } from "../services/integrations/comm/comm-config";
 import {
@@ -51,6 +52,8 @@ import {
   createPlatformTargetMappingModel,
   createPlatformModel,
   createTargetModel,
+  createBuildModel,
+  createRegressionCycleModel,
   ReleaseRepository,
   ReleasePlatformTargetMappingRepository,
   CronJobRepository,
@@ -432,6 +435,8 @@ export function createModelss(sequelize: Sequelize) {
   const CronJob = createCronJobModel(sequelize);  // Cron jobs for automation
   const ReleaseTask = createReleaseTaskModel(sequelize);  // Release tasks
   const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
+  const Build = createBuildModel(sequelize);  // Build records (CI/CD)
+  const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
 
   // ============================================
   const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
@@ -648,6 +653,7 @@ export class S3Storage implements storage.Storage {
     public projectManagementIntegrationService!: ProjectManagementIntegrationService;
     public projectManagementConfigService!: ProjectManagementConfigService;
     public projectManagementTicketService!: ProjectManagementTicketService;
+    public jiraMetadataService!: JiraMetadataService;
     public cicdIntegrationRepository!: CICDIntegrationRepository;  // CI/CD integration repository
     public cicdWorkflowRepository!: CICDWorkflowRepository;  // CI/CD workflows repository
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
@@ -838,6 +844,11 @@ export class S3Storage implements storage.Storage {
             this.projectManagementIntegrationRepository
           );
           
+          // Service 4: Jira Metadata Service (fetches Jira projects)
+          this.jiraMetadataService = new JiraMetadataService(
+            this.projectManagementIntegrationRepository
+          );
+          
           console.log("Project Management Integration initialized");
           
           // Initialize Comm Integration Repository (new pattern, matches test-management)
@@ -951,7 +962,8 @@ export class S3Storage implements storage.Storage {
           this.releaseUpdateService = new ReleaseUpdateService(
             releaseRepo,
             cronJobRepo,
-            platformTargetMappingRepo
+            platformTargetMappingRepo,
+            null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
           
