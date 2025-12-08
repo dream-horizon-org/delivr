@@ -21,11 +21,14 @@ import {
   Loader,
   ActionIcon,
   useMantineTheme,
+  ThemeIcon,
+  Badge,
+  Divider,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useState, useMemo } from "react";
 import { useNavigate, useParams, useLoaderData } from "@remix-run/react";
-import { IconArrowLeft, IconCheck, IconUpload, IconFolderOpen, IconEye, IconAlertCircle } from "@tabler/icons-react";
+import { IconArrowLeft, IconCheck, IconUpload, IconFolderOpen, IconEye, IconAlertCircle, IconChevronRight, IconRocket, IconSettings, IconFileZip } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { User } from "~/.server/services/Auth/Auth.interface";
 import { authenticateLoaderRequest } from "~/utils/authenticate";
@@ -34,6 +37,8 @@ import { useCreateRelease } from "~/components/Pages/components/ReleaseForm/hook
 import {
   DirectoryUpload,
 } from "~/components/Pages/components/ReleaseForm/components";
+import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
+import { useGetAppListForOrg } from "~/components/Pages/components/AppList/hooks/useGetAppListForOrg";
 
 export const loader = authenticateLoaderRequest();
 
@@ -62,6 +67,14 @@ export default function CreateReleasePage() {
 
   const { data: deployments, isLoading: deploymentsLoading } = useGetDeploymentsForApp();
   const { mutate: createRelease, isLoading: isUploading } = useCreateRelease();
+  const { data: orgs = [] } = useGetOrgList();
+  const { data: apps = [] } = useGetAppListForOrg({
+    orgId: params.org ?? "",
+    userEmail: user.user.email,
+  });
+
+  const currentOrg = orgs.find((org) => org.id === params.org);
+  const currentApp = apps.find((app) => app.id === params.app);
 
   const form = useForm<ReleaseFormData>({
     mode: "controlled",
@@ -198,139 +211,247 @@ export default function CreateReleasePage() {
 
   return (
     <Box>
-      {/* Header */}
-      <Group mb="xl" gap="md">
-        <ActionIcon
-          variant="subtle"
-          size="lg"
-          onClick={() => navigate(-1)}
-        >
-          <IconArrowLeft size={20} />
-        </ActionIcon>
-        <Title order={2}>Create New Release</Title>
-      </Group>
+      {/* Header with Breadcrumb */}
+      <Box mb={24}>
+        {/* Breadcrumb */}
+        <Group gap={6} mb={8}>
+          <Text
+            size="sm"
+            c={theme.colors.slate[5]}
+            style={{ cursor: "pointer" }}
+            onClick={() => navigate("/dashboard")}
+          >
+            {currentOrg?.orgName || "Organization"}
+          </Text>
+          <IconChevronRight size={14} color={theme.colors.slate[4]} />
+          <Text
+            size="sm"
+            c={theme.colors.slate[5]}
+            style={{ cursor: "pointer" }}
+            onClick={() => navigate(`/dashboard/${params.org}/apps`)}
+          >
+            Applications
+          </Text>
+          <IconChevronRight size={14} color={theme.colors.slate[4]} />
+          <Text
+            size="sm"
+            c={theme.colors.slate[5]}
+            style={{ cursor: "pointer" }}
+            onClick={() => navigate(`/dashboard/${params.org}/${params.app}`)}
+          >
+            {currentApp?.name || "App"}
+          </Text>
+          <IconChevronRight size={14} color={theme.colors.slate[4]} />
+          <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+            Create Release
+          </Text>
+        </Group>
 
-      {/* Stepper */}
-      <Card withBorder shadow="sm" p="xl">
-        <Stepper 
-          active={active} 
-          onStepClick={(stepIndex: number) => {
-            // Only allow going to previous steps, not forward
-            if (stepIndex < active) {
-              setActive(stepIndex);
-            }
+        {/* Title Row */}
+        <Group gap="md" align="center">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            radius="md"
+            onClick={() => navigate(-1)}
+            style={{
+              color: theme.colors.slate[6],
+            }}
+          >
+            <IconArrowLeft size={20} />
+          </ActionIcon>
+          <Box>
+            <Title order={3} fw={700} c={theme.colors.slate[9]}>
+              Create New Release
+            </Title>
+            <Text size="sm" c={theme.colors.slate[5]}>
+              Deploy a new version to your users
+            </Text>
+          </Box>
+        </Group>
+      </Box>
+
+      {/* Stepper Card */}
+      <Card 
+        withBorder 
+        radius="md" 
+        p={0}
+        style={{
+          backgroundColor: "#ffffff",
+          borderColor: theme.colors.slate[2],
+        }}
+      >
+        {/* Stepper Header */}
+        <Box 
+          p="lg" 
+          style={{ 
+            borderBottom: `1px solid ${theme.colors.slate[2]}`,
+            background: theme.colors.slate[0],
           }}
         >
+          <Stepper 
+            active={active} 
+            size="sm"
+            color="brand"
+            onStepClick={(stepIndex: number) => {
+              if (stepIndex < active) {
+                setActive(stepIndex);
+              }
+            }}
+            styles={{
+              stepLabel: {
+                fontWeight: 600,
+                fontSize: 14,
+              },
+              stepDescription: {
+                fontSize: 12,
+              },
+              separator: {
+                marginLeft: 8,
+                marginRight: 8,
+              },
+            }}
+          >
+            <Stepper.Step 
+              label="Upload" 
+              description="Select bundle"
+              icon={<IconFileZip size={18} />}
+            />
+            <Stepper.Step 
+              label="Version" 
+              description="Configure details"
+              icon={<IconRocket size={18} />}
+            />
+            <Stepper.Step 
+              label="Configure" 
+              description="Rollout settings"
+              icon={<IconSettings size={18} />}
+            />
+          </Stepper>
+        </Box>
+
+        {/* Step Content */}
+        <Box p="xl">
           {/* Step 1: Upload Directory */}
-          <Stepper.Step label="Upload" description="Select your app bundle">
-            <Box mt="xl">
-              <Stack gap="lg">
-                <Box>
-                  <Title order={4} mb="xs">Upload Your Application Bundle</Title>
-                  <Text size="sm" c="dimmed">
-                    Select a directory containing your application files. We'll automatically zip and upload it.
-                  </Text>
-                </Box>
+          {active === 0 && (
+            <Stack gap="lg">
+              <Box>
+                <Text size="lg" fw={600} c={theme.colors.slate[9]} mb={4}>
+                  Upload Your Application Bundle
+                </Text>
+                <Text size="sm" c={theme.colors.slate[5]}>
+                  Select a directory containing your application files. We'll automatically zip and upload it.
+                </Text>
+              </Box>
 
-                <Card
-                  withBorder
-                  padding="xl"
-                  radius="md"
-                  style={{
-                    background: `linear-gradient(135deg, ${theme.other.backgrounds.secondary} 0%, ${theme.other.backgrounds.primary} 100%)`,
-                    borderColor: theme.other.borders.secondary,
-                  }}
-                >
-                  <Stack gap="lg" align="center" py="md">
-                    {directoryBlob && directoryName ? (
-                      // Show bundle selected state
-                      <>
-                        <Box
-                          style={{
-                            width: rem(64),
-                            height: rem(64),
-                            borderRadius: theme.other.borderRadius.full,
-                            background: theme.other.brand.gradient,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow: theme.other.shadows.md,
-                          }}
+              <Card
+                withBorder
+                padding="xl"
+                radius="md"
+                style={{
+                  background: "#ffffff",
+                  borderColor: directoryBlob ? theme.colors.brand[3] : theme.colors.slate[2],
+                  borderStyle: directoryBlob ? "solid" : "dashed",
+                  borderWidth: 2,
+                }}
+              >
+                <Stack gap="lg" align="center" py="lg">
+                  {directoryBlob && directoryName ? (
+                    <>
+                      <ThemeIcon
+                        size={72}
+                        radius="xl"
+                        variant="light"
+                        color="brand"
+                        style={{
+                          background: `linear-gradient(135deg, ${theme.colors.brand[0]} 0%, ${theme.colors.brand[1]} 100%)`,
+                        }}
+                      >
+                        <IconCheck size={36} stroke={2} />
+                      </ThemeIcon>
+                      
+                      <Stack gap={4} align="center">
+                        <Text size="lg" fw={600} c={theme.colors.brand[6]}>
+                          Bundle Ready
+                        </Text>
+                        <Badge 
+                          size="lg" 
+                          variant="light" 
+                          color="brand"
+                          leftSection={<IconFileZip size={14} />}
                         >
-                          <IconCheck size={theme.other.sizes.icon["3xl"]} color={theme.other.text.white} />
-                        </Box>
-                        
-                        <Stack gap="xs" align="center">
-                          <Text size="lg" fw={600} c={theme.other.brand.primary}>
-                            Bundle Selected
-                          </Text>
-                          <Text size="sm" c="dimmed" ta="center" fw={500}>
-                            {directoryName}
-                          </Text>
-                        </Stack>
-                      </>
-                    ) : (
-                      // Show upload prompt
-                      <>
-                        <Box
-                          style={{
-                            width: rem(64),
-                            height: rem(64),
-                            borderRadius: theme.other.borderRadius.full,
-                            background: theme.other.brand.gradient,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow: theme.other.shadows.md,
-                          }}
-                        >
-                          <IconFolderOpen size={theme.other.sizes.icon["3xl"]} color={theme.other.text.white} />
-                        </Box>
-                        
-                        <Stack gap="xs" align="center">
-                          <Text size="lg" fw={600}>
-                            Select Bundle Directory
-                          </Text>
-                          <Text size="sm" c="dimmed" ta="center">
-                            Click the button below to browse and select your bundle folder
-                          </Text>
-                        </Stack>
-                      </>
-                    )}
+                          {directoryName}
+                        </Badge>
+                      </Stack>
+                    </>
+                  ) : (
+                    <>
+                      <ThemeIcon
+                        size={72}
+                        radius="xl"
+                        variant="light"
+                        color="gray"
+                        style={{
+                          background: theme.colors.slate[1],
+                        }}
+                      >
+                        <IconFolderOpen size={36} color={theme.colors.slate[5]} />
+                      </ThemeIcon>
+                      
+                      <Stack gap={4} align="center">
+                        <Text size="lg" fw={600} c={theme.colors.slate[8]}>
+                          Select Bundle Directory
+                        </Text>
+                        <Text size="sm" c={theme.colors.slate[5]} ta="center" maw={400}>
+                          Click below to browse and select your bundle folder
+                        </Text>
+                      </Stack>
+                    </>
+                  )}
 
-                    <Box style={{ width: "100%" }}>
-                      <DirectoryUpload
-                        onDirectorySelect={handleDirectoryProcess}
-                        onCancel={handleDirectoryCancel}
-                        resetTrigger={resetTrigger}
-                        error={form.errors.directory as string | undefined}
-                        hasSelectedDirectory={!!directoryBlob && !!directoryName}
-                        selectedDirectoryName={directoryName}
-                      />
-                    </Box>
-                  </Stack>
-                </Card>
-              </Stack>
-            </Box>
-          </Stepper.Step>
+                  <Box style={{ width: "100%", maxWidth: 400 }}>
+                    <DirectoryUpload
+                      onDirectorySelect={handleDirectoryProcess}
+                      onCancel={handleDirectoryCancel}
+                      resetTrigger={resetTrigger}
+                      error={form.errors.directory as string | undefined}
+                      hasSelectedDirectory={!!directoryBlob && !!directoryName}
+                      selectedDirectoryName={directoryName}
+                    />
+                  </Box>
+                </Stack>
+              </Card>
+            </Stack>
+          )}
 
           {/* Step 2: Version & Deployment */}
-          <Stepper.Step label="Version" description="App version and deployment">
-            <Box mt="xl">
-              <Stack gap="md">
+          {active === 1 && (
+            <Stack gap="lg">
+              <Box>
+                <Text size="lg" fw={600} c={theme.colors.slate[9]} mb={4}>
+                  Version & Deployment Details
+                </Text>
+                <Text size="sm" c={theme.colors.slate[5]}>
+                  Specify the app version and select the deployment target.
+                </Text>
+              </Box>
+
+              <Stack gap="md" maw={500}>
                 <TextInput
                   label="App Version"
                   placeholder="e.g., 1.0.0"
                   required
+                  size="md"
                   key={form.key("appVersion")}
                   {...form.getInputProps("appVersion")}
                   description="Semantic version of your app (e.g., 1.0.0, 2.1.3)"
                 />
                 
                 <Select
-                  label="Select Deployment Key"
+                  label="Deployment Key"
                   placeholder="Select deployment target"
                   required
+                  size="md"
                   data={deploymentOptions}
                   key={form.key("deploymentName")}
                   {...form.getInputProps("deploymentName")}
@@ -340,43 +461,59 @@ export default function CreateReleasePage() {
                 />
 
                 <Textarea
-                  label="Description"
+                  label="Release Notes"
                   placeholder="Describe what's new in this release..."
                   key={form.key("description")}
                   {...form.getInputProps("description")}
-                  minRows={3}
+                  minRows={4}
+                  size="md"
                   description="Optional: Add release notes or description"
                 />
               </Stack>
-            </Box>
-          </Stepper.Step>
+            </Stack>
+          )}
 
           {/* Step 3: Configuration */}
-          <Stepper.Step label="Configure" description="Rollout and flags">
-            <Box mt="xl">
-              <Stack gap="md">
-                <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text size="sm" fw={500}>
-                      Rollout Percentage
-                    </Text>
-                    <Text
-                      size="xl"
-                      fw={theme.other.typography.fontWeight.bold}
-                      style={{
-                        color: theme.other.brand.primary,
-                      }}
-                    >
-                      {form.values.rollout}%
-                    </Text>
-                  </Group>
-                  <Box pt="md" pb="xl">
+          {active === 2 && (
+            <Stack gap="lg">
+              <Box>
+                <Text size="lg" fw={600} c={theme.colors.slate[9]} mb={4}>
+                  Rollout Configuration
+                </Text>
+                <Text size="sm" c={theme.colors.slate[5]}>
+                  Configure how this release will be distributed to users.
+                </Text>
+              </Box>
+
+              <Card withBorder radius="md" p="lg" maw={600}>
+                <Stack gap="lg">
+                  <Box>
+                    <Group justify="space-between" mb="md">
+                      <Box>
+                        <Text size="sm" fw={600} c={theme.colors.slate[8]}>
+                          Rollout Percentage
+                        </Text>
+                        <Text size="xs" c={theme.colors.slate[5]}>
+                          Percentage of users who will receive this update
+                        </Text>
+                      </Box>
+                      <Badge 
+                        size="xl" 
+                        variant="filled" 
+                        color="brand"
+                        style={{ minWidth: 70, textAlign: 'center' }}
+                      >
+                        {form.values.rollout}%
+                      </Badge>
+                    </Group>
                     <Slider
                       min={1}
                       max={100}
                       step={1}
                       value={form.values.rollout}
                       onChange={(value) => form.setFieldValue("rollout", value)}
+                      color="brand"
+                      size="md"
                       marks={[
                         { value: 1, label: "1%" },
                         { value: 25, label: "25%" },
@@ -385,73 +522,72 @@ export default function CreateReleasePage() {
                         { value: 100, label: "100%" },
                       ]}
                       styles={{
-                        track: {
-                          background: `linear-gradient(90deg, ${theme.other.brand.primary} 0%, ${theme.other.brand.secondary} 100%)`,
-                        },
-                        thumb: {
-                          borderWidth: 2,
-                          borderColor: theme.other.brand.primary,
-                          backgroundColor: theme.other.backgrounds.primary,
+                        markLabel: {
+                          fontSize: 11,
+                          color: theme.colors.slate[5],
                         },
                       }}
                     />
                   </Box>
-                  <Text size="xs" c="dimmed">
-                    Percentage of users who will receive this update (1-100)
-                  </Text>
+
+                  <Divider color={theme.colors.slate[2]} />
+
+                  <Switch
+                    label="Disable Release"
+                    description="Temporarily prevent this release from being distributed"
+                    size="md"
+                    color="brand"
+                    key={form.key("disabled")}
+                    {...form.getInputProps("disabled", { type: "checkbox" })}
+                  />
                 </Stack>
-
-                {/* Temporarily hidden - Mandatory Update option */}
-                {/* <Switch
-                  label="Mandatory Update"
-                  description="Users must install this update to continue"
-                  key={form.key("mandatory")}
-                  {...form.getInputProps("mandatory", { type: "checkbox" })}
-                /> */}
-
-                <Switch
-                  label="Disabled"
-                  description="Temporarily disable this release from being distributed"
-                  key={form.key("disabled")}
-                  {...form.getInputProps("disabled", { type: "checkbox" })}
-                />
-              </Stack>
-            </Box>
-          </Stepper.Step>
-
-        </Stepper>
-
-        {/* Navigation Buttons */}
-        <Group justify="space-between" mt="xl">
-          <Button variant="default" onClick={prevStep} disabled={active === 0}>
-            Back
-          </Button>
-          
-          {active < 2 ? (
-            <Button 
-              onClick={nextStep}
-              variant="gradient"
-              gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
-            >
-              Next Step
-            </Button>
-          ) : (
-            <Button
-              leftSection={<IconEye size={18} />}
-              onClick={() => {
-                // Validate step 3
-                const rolloutError = form.validateField("rollout");
-                if (!rolloutError.hasError) {
-                  setReviewModalOpened(true);
-                }
-              }}
-              variant="gradient"
-              gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
-            >
-              Review Release
-            </Button>
+              </Card>
+            </Stack>
           )}
-        </Group>
+        </Box>
+
+        {/* Navigation Footer */}
+        <Box 
+          p="lg" 
+          style={{ 
+            borderTop: `1px solid ${theme.colors.slate[2]}`,
+            background: theme.colors.slate[0],
+          }}
+        >
+          <Group justify="space-between">
+            <Button 
+              variant="default" 
+              onClick={prevStep} 
+              disabled={active === 0}
+              leftSection={<IconArrowLeft size={16} />}
+            >
+              Back
+            </Button>
+            
+            {active < 2 ? (
+              <Button 
+                onClick={nextStep}
+                color="brand"
+                rightSection={<IconChevronRight size={16} />}
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                leftSection={<IconEye size={16} />}
+                onClick={() => {
+                  const rolloutError = form.validateField("rollout");
+                  if (!rolloutError.hasError) {
+                    setReviewModalOpened(true);
+                  }
+                }}
+                color="brand"
+              >
+                Review & Create
+              </Button>
+            )}
+          </Group>
+        </Box>
       </Card>
 
       {/* Review Modal */}
@@ -459,13 +595,18 @@ export default function CreateReleasePage() {
         opened={reviewModalOpened}
         onClose={() => !isUploading && setReviewModalOpened(false)}
         title={
-          <Group gap="xs">
-            <IconEye size={theme.other.sizes.icon["2xl"]} style={{ color: theme.other.brand.primary }} />
-            <Title order={3}>Review Your Release</Title>
+          <Group gap="sm">
+            <ThemeIcon size="md" radius="md" color="brand" variant="light">
+              <IconEye size={18} />
+            </ThemeIcon>
+            <Text size="lg" fw={600} c={theme.colors.slate[9]}>
+              Review Release
+            </Text>
           </Group>
         }
         size="lg"
         centered
+        radius="md"
         closeOnClickOutside={!isUploading}
         closeOnEscape={!isUploading}
       >
@@ -479,100 +620,113 @@ export default function CreateReleasePage() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: "rgba(255, 255, 255, 0.9)",
+                background: "rgba(255, 255, 255, 0.95)",
                 zIndex: 1000,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                borderRadius: "8px",
-                gap: "16px",
+                borderRadius: 8,
+                gap: 16,
               }}
             >
-              <Loader size="lg" color={theme.other.brand.primary} />
-              <Stack gap="xs" align="center">
-                <Text fw={theme.other.typography.fontWeight.semibold} size="lg">
+              <Loader size="lg" color="brand" />
+              <Stack gap={4} align="center">
+                <Text fw={600} size="md" c={theme.colors.slate[9]}>
                   Creating Release...
                 </Text>
-                <Text size="sm" c="dimmed">
+                <Text size="sm" c={theme.colors.slate[5]}>
                   Uploading your app bundle
                 </Text>
               </Stack>
             </Box>
           )}
-          <Text c="dimmed">
-            Please review all the details before creating the release. Once created, this cannot be undone.
+          
+          <Text size="sm" c={theme.colors.slate[5]}>
+            Please review all the details before creating the release.
           </Text>
 
-          <Card withBorder p="lg" style={{ background: theme.other.backgrounds.secondary }}>
-            <Stack gap="md">
-              <Box>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                  Bundle
-                </Text>
-                <Group justify="space-between" mt="xs">
-                  <Text size="sm" fw={500}>Directory:</Text>
-                  <Text size="sm" c="dimmed">{directoryName || "Not selected"}</Text>
+          <Stack gap="sm">
+            {/* Bundle Info */}
+            <Card withBorder radius="md" p="md" style={{ background: theme.colors.slate[0] }}>
+              <Group justify="space-between" align="center">
+                <Group gap="sm">
+                  <ThemeIcon size="sm" radius="sm" variant="light" color="brand">
+                    <IconFileZip size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={500} c={theme.colors.slate[7]}>Bundle</Text>
                 </Group>
-              </Box>
+                <Badge variant="light" color="brand" size="md">
+                  {directoryName || "Not selected"}
+                </Badge>
+              </Group>
+            </Card>
 
-              <Box>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600} mt="md">
-                  Version Information
-                </Text>
-                <Stack gap="xs" mt="xs">
-                  <Group justify="space-between">
-                    <Text size="sm" fw={500}>App Version:</Text>
-                    <Text size="sm" c="dimmed">{form.values.appVersion || "Not set"}</Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm" fw={500}>Deployment Key:</Text>
-                    <Text size="sm" c="dimmed">{form.values.deploymentName || "Not selected"}</Text>
-                  </Group>
-                </Stack>
-              </Box>
+            {/* Version Info */}
+            <Card withBorder radius="md" p="md" style={{ background: theme.colors.slate[0] }}>
+              <Stack gap="sm">
+                <Group gap="sm">
+                  <ThemeIcon size="sm" radius="sm" variant="light" color="brand">
+                    <IconRocket size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={500} c={theme.colors.slate[7]}>Version Details</Text>
+                </Group>
+                <Divider color={theme.colors.slate[2]} />
+                <Group justify="space-between">
+                  <Text size="sm" c={theme.colors.slate[6]}>App Version</Text>
+                  <Text size="sm" fw={600} c={theme.colors.slate[8]}>{form.values.appVersion || "Not set"}</Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="sm" c={theme.colors.slate[6]}>Deployment Key</Text>
+                  <Text size="sm" fw={600} c={theme.colors.slate[8]}>{form.values.deploymentName || "Not selected"}</Text>
+                </Group>
+              </Stack>
+            </Card>
 
-              <Box>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600} mt="md">
-                  Configuration
-                </Text>
-                <Stack gap="xs" mt="xs">
-                  <Group justify="space-between">
-                    <Text size="sm" fw={theme.other.typography.fontWeight.medium}>Rollout:</Text>
-                    <Text size="sm" fw={theme.other.typography.fontWeight.bold} style={{ color: theme.other.brand.primary }}>
-                      {form.values.rollout}%
-                    </Text>
-                  </Group>
-                  {/* Temporarily hidden - Mandatory Update */}
-                  {/* <Group justify="space-between">
-                    <Text size="sm" fw={500}>Mandatory Update:</Text>
-                    <Text size="sm" c={form.values.mandatory ? "red" : "dimmed"} fw={form.values.mandatory ? 600 : 400}>
-                      {form.values.mandatory ? "Yes" : "No"}
-                    </Text>
-                  </Group> */}
-                  <Group justify="space-between">
-                    <Text size="sm" fw={500}>Disabled:</Text>
-                    <Text size="sm" c={form.values.disabled ? "orange" : "dimmed"} fw={form.values.disabled ? 600 : 400}>
-                      {form.values.disabled ? "Yes" : "No"}
-                    </Text>
-                  </Group>
-                </Stack>
-              </Box>
+            {/* Configuration */}
+            <Card withBorder radius="md" p="md" style={{ background: theme.colors.slate[0] }}>
+              <Stack gap="sm">
+                <Group gap="sm">
+                  <ThemeIcon size="sm" radius="sm" variant="light" color="brand">
+                    <IconSettings size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" fw={500} c={theme.colors.slate[7]}>Configuration</Text>
+                </Group>
+                <Divider color={theme.colors.slate[2]} />
+                <Group justify="space-between">
+                  <Text size="sm" c={theme.colors.slate[6]}>Rollout</Text>
+                  <Badge size="md" variant="filled" color="brand">
+                    {form.values.rollout}%
+                  </Badge>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="sm" c={theme.colors.slate[6]}>Status</Text>
+                  <Badge 
+                    size="md" 
+                    variant="light" 
+                    color={form.values.disabled ? "orange" : "green"}
+                  >
+                    {form.values.disabled ? "Disabled" : "Active"}
+                  </Badge>
+                </Group>
+              </Stack>
+            </Card>
 
-              {form.values.description && (
-                <Box>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600} mt="md" mb="xs">
-                    Description
+            {/* Description (if exists) */}
+            {form.values.description && (
+              <Card withBorder radius="md" p="md" style={{ background: theme.colors.slate[0] }}>
+                <Stack gap="sm">
+                  <Text size="sm" fw={500} c={theme.colors.slate[7]}>Release Notes</Text>
+                  <Divider color={theme.colors.slate[2]} />
+                  <Text size="sm" c={theme.colors.slate[6]} style={{ whiteSpace: "pre-wrap" }}>
+                    {form.values.description}
                   </Text>
-                  <Card withBorder p="md" style={{ background: "white" }}>
-                    <Text size="sm">{form.values.description}</Text>
-                  </Card>
-                </Box>
-              )}
-            </Stack>
-          </Card>
+                </Stack>
+              </Card>
+            )}
+          </Stack>
 
-          <Group justify="space-between" mt="md">
+          <Group justify="flex-end" mt="md" gap="sm">
             <Button 
               variant="default" 
               onClick={() => setReviewModalOpened(false)}
@@ -581,12 +735,11 @@ export default function CreateReleasePage() {
               Cancel
             </Button>
             <Button
-              leftSection={!isUploading && <IconCheck size={18} />}
+              leftSection={!isUploading && <IconRocket size={16} />}
               onClick={() => handleSubmit()}
               loading={isUploading}
               disabled={isUploading}
-              variant="gradient"
-              gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
+              color="brand"
             >
               {isUploading ? "Creating..." : "Create Release"}
             </Button>

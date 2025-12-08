@@ -180,7 +180,11 @@ export default function Dashboard() {
                 background: bgColor,
               }}
             >
-              <Outlet />
+              {/* Main dashboard page handles its own padding (full bleed) */}
+              {/* All other pages get consistent padding */}
+              <Box p={isMainDashboard ? 0 : 32}>
+                <Outlet />
+              </Box>
             </Box>
           </Flex>
         </Flex>

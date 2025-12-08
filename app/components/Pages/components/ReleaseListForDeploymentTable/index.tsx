@@ -8,14 +8,17 @@ import {
   Box,
   Progress,
   Skeleton,
-  Title,
   useMantineTheme,
+  ThemeIcon,
+  Button,
 } from "@mantine/core";
 import {
   IconRocket,
   IconAlertTriangle,
   IconCheck,
   IconAlertCircle,
+  IconRefresh,
+  IconChevronRight,
 } from "@tabler/icons-react";
 import { useGetReleaseListForDeployment } from "./hooks/useGetReleaseListForDeployment";
 import { useParams, useSearchParams, useNavigate } from "@remix-run/react";
@@ -48,22 +51,22 @@ function ReleaseCard({
   return (
     <Card
       withBorder
-      padding="md"
+      padding="lg"
       radius="md"
       style={{
         cursor: "pointer",
         transition: "all 0.2s ease",
-        background: isActive
-          ? `linear-gradient(135deg, rgba(20, 184, 166, 0.03) 0%, rgba(45, 212, 191, 0.03) 100%)`
-          : "#ffffff",
-        borderLeft: isActive ? `4px solid ${theme.colors.brand[5]}` : `1px solid ${theme.colors.slate[2]}`,
+        background: "#ffffff",
+        borderColor: isActive ? theme.colors.brand[3] : theme.colors.slate[2],
+        borderLeftWidth: isActive ? 3 : 1,
+        borderLeftColor: isActive ? theme.colors.brand[5] : theme.colors.slate[2],
       }}
       styles={{
         root: {
           "&:hover": {
             transform: "translateY(-2px)",
-            boxShadow: theme.shadows.lg,
-            borderColor: theme.colors.brand[5],
+            boxShadow: theme.shadows.md,
+            borderColor: theme.colors.brand[4],
           },
         },
       }}
@@ -73,42 +76,37 @@ function ReleaseCard({
         <Group gap="md" style={{ flex: 1 }}>
           <Box
             style={{
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               borderRadius: theme.radius.md,
               background: isActive
                 ? `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`
-                : `linear-gradient(135deg, ${theme.colors.slate[2]} 0%, ${theme.colors.slate[1]} 100%)`,
+                : theme.colors.slate[1],
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: isActive ? theme.shadows.md : "none",
               flexShrink: 0,
             }}
           >
-            <IconRocket size={24} color="white" />
+            <IconRocket size={22} color={isActive ? "white" : theme.colors.slate[5]} />
           </Box>
 
           <Box style={{ flex: 1, minWidth: 0 }}>
-            <Group gap="xs" wrap="nowrap">
-              <Text size="lg" fw={700} style={{ lineHeight: 1.2 }}>
+            <Group gap="xs" wrap="nowrap" mb={4}>
+              <Text size="md" fw={600} c={theme.colors.slate[8]}>
                 {release.label}
               </Text>
               {isActive ? (
                 <Badge
                   variant="light"
                   color="green"
-                  size="sm"
+                  size="xs"
                   leftSection={<IconCheck size={10} />}
                 >
                   Active
                 </Badge>
               ) : (
-                <Badge
-                  variant="light"
-                  color="gray"
-                  size="sm"
-                >
+                <Badge variant="light" color="gray" size="xs">
                   Inactive
                 </Badge>
               )}
@@ -116,55 +114,53 @@ function ReleaseCard({
                 <Badge
                   variant="light"
                   color="red"
-                  size="sm"
+                  size="xs"
                   leftSection={<IconAlertTriangle size={10} />}
                 >
                   Mandatory
                 </Badge>
               )}
               {release.isBundlePatchingEnabled && (
-                <Badge
-                  variant="light"
-                  color="blue"
-                  size="sm"
-                >
+                <Badge variant="light" color="blue" size="xs">
                   PatchBundle
                 </Badge>
               )}
             </Group>
-            <Text size="xs" c="dimmed" mt={4}>
+            <Text size="xs" c={theme.colors.slate[5]}>
               Target: {release.targetVersions} • {formatRelativeTime(release.releasedAt)}
             </Text>
           </Box>
         </Group>
 
-        {/* Right: Rollout Progress */}
-        <Group gap="md" wrap="nowrap">
-          <Box style={{ minWidth: 200 }}>
-            <Group justify="space-between" mb={6}>
-              <Text size="xs" c="dimmed" fw={600}>
+        {/* Right: Stats */}
+        <Group gap="xl" wrap="nowrap">
+          <Box style={{ minWidth: 160 }}>
+            <Group justify="space-between" mb={4}>
+              <Text size="xs" c={theme.colors.slate[5]} fw={500}>
                 Rollout
               </Text>
-              <Text size="sm" fw={700} c={theme.colors.brand[6]}>
+              <Text size="xs" fw={600} c={theme.colors.brand[6]}>
                 {release.rollout}%
               </Text>
             </Group>
             <Progress
               value={release.rollout}
-              size="md"
+              size="sm"
               radius="xl"
               color="brand"
             />
           </Box>
 
-          <Box style={{ textAlign: "center", minWidth: 80 }}>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+          <Box style={{ textAlign: "right", minWidth: 70 }}>
+            <Text size="xs" c={theme.colors.slate[5]} fw={500} mb={2}>
               Devices
             </Text>
-            <Text size="lg" fw={700} c="blue">
+            <Text size="md" fw={700} c={theme.colors.slate[8]}>
               {release.activeDevices?.toLocaleString() || 0}
             </Text>
           </Box>
+
+          <IconChevronRight size={18} color={theme.colors.slate[4]} />
         </Group>
       </Group>
     </Card>
@@ -187,67 +183,131 @@ export function ReleaseListForDeploymentTable() {
     refetch();
   }, [searchParams.get("deployment")]);
 
+  // Section Header
+  const SectionHeader = () => (
+    <Group justify="space-between" align="center" mb="md">
+      <Group gap="xs">
+        <Text size="sm" fw={600} c={theme.colors.slate[7]}>
+          Releases
+        </Text>
+        {data && data.length > 0 && (
+          <Badge size="sm" variant="light" color="gray" radius="sm">
+            {data.length}
+          </Badge>
+        )}
+      </Group>
+    </Group>
+  );
+
   if (isLoading || isFetching) {
     return (
-      <Stack gap="md" mt="xl">
-        {Array(3)
-          .fill(0)
-          .map((_, i) => (
-            <Skeleton key={i} height={80} radius="md" />
-          ))}
-      </Stack>
+      <Box>
+        <SectionHeader />
+        <Stack gap="sm">
+          {Array(3)
+            .fill(0)
+            .map((_, i) => (
+              <Skeleton key={i} height={76} radius="md" />
+            ))}
+        </Stack>
+      </Box>
     );
   }
 
   if (isError) {
     return (
-      <Card withBorder padding="xl" radius="md" mt="xl" style={{ textAlign: "center" }}>
-        <Stack gap="md" align="center">
-          <IconAlertCircle size={48} color={theme.colors.red[5]} />
-          <Title order={3} c="red">
-            Something Went Wrong
-          </Title>
-          <Text c="dimmed">Unable to load releases. Please try again later.</Text>
-        </Stack>
-      </Card>
+      <Box>
+        <SectionHeader />
+        <Card
+          withBorder
+          padding="xl"
+          radius="md"
+          style={{
+            textAlign: "center",
+            backgroundColor: theme.colors.red[0],
+            borderColor: theme.colors.red[2],
+          }}
+        >
+          <Stack gap="md" align="center" py="md">
+            <ThemeIcon size="xl" radius="xl" color="red" variant="light">
+              <IconAlertCircle size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600} c={theme.colors.slate[8]} mb={4}>
+                Failed to Load Releases
+              </Text>
+              <Text size="sm" c={theme.colors.slate[6]}>
+                Unable to fetch releases for this deployment. Please try again.
+              </Text>
+            </Box>
+            <Button
+              variant="light"
+              color="red"
+              size="sm"
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => refetch()}
+            >
+              Retry
+            </Button>
+          </Stack>
+        </Card>
+      </Box>
     );
   }
 
   if (!data?.length) {
     return (
-      <Card withBorder padding="xl" radius="md" mt="xl" style={{ textAlign: "center" }}>
-        <Stack gap="md" align="center">
-          <IconRocket size={48} color="#ccc" />
-          <Title order={3} c="dimmed">
-            No Releases Yet
-          </Title>
-          <Text c="dimmed">
-            This deployment Key doesn't have any releases. Create your first release to get started!
-          </Text>
-        </Stack>
-      </Card>
+      <Box>
+        <SectionHeader />
+        <Card
+          withBorder
+          padding="xl"
+          radius="md"
+          style={{
+            textAlign: "center",
+            backgroundColor: theme.colors.slate[0],
+            borderColor: theme.colors.slate[2],
+          }}
+        >
+          <Stack gap="md" align="center" py="md">
+            <ThemeIcon size="xl" radius="xl" color="gray" variant="light">
+              <IconRocket size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600} c={theme.colors.slate[7]} mb={4}>
+                No Releases Yet
+              </Text>
+              <Text size="sm" c={theme.colors.slate[5]}>
+                This deployment doesn't have any releases. Create your first release to get started.
+              </Text>
+            </Box>
+          </Stack>
+        </Card>
+      </Box>
     );
   }
 
   // Sort releases by release time - latest first
   const sortedReleases = [...data].sort((a, b) => {
-    // Sort by releasedAt in descending order (latest first)
     return (b.releasedAt || 0) - (a.releasedAt || 0);
   });
 
   return (
-    <Stack gap="md" mt="xl">
-      {sortedReleases.map((release) => (
-        <ReleaseCard
-          key={release.id}
-          release={release}
-          onClick={() => {
-            navigate(
-              `/dashboard/${params.org}/${params.app}/${release.label}?deployment=${searchParams.get("deployment")}`
-            );
-          }}
-        />
-      ))}
-    </Stack>
+    <Box>
+      <SectionHeader />
+      <Stack gap="sm">
+        {sortedReleases.map((release) => (
+          <ReleaseCard
+            key={release.id}
+            release={release}
+            onClick={() => {
+              navigate(
+                `/dashboard/${params.org}/${params.app}/${release.label}?deployment=${searchParams.get("deployment")}`
+              );
+            }}
+          />
+        ))}
+      </Stack>
+    </Box>
   );
 }
