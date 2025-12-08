@@ -3,9 +3,6 @@ name: PR checks (build)
 on:
   pull_request:
     branches: ['*']
-    paths:
-      - 'api/**'
-      - '.github/workflows/pr-checks-build.yml'
 
 jobs:
   build:
