@@ -15,7 +15,9 @@ import {
   Select,
   Divider,
   Badge,
-  Card,
+  Box,
+  ThemeIcon,
+  useMantineTheme,
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconDeviceMobile } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
@@ -283,6 +285,7 @@ export function AppDistributionConnectionFlow({
           setPlayStoreData({ ...playStoreData, displayName: e.target.value })
         }
         required
+        size="sm"
       />
 
       <TextInput
@@ -293,6 +296,7 @@ export function AppDistributionConnectionFlow({
           setPlayStoreData({ ...playStoreData, appIdentifier: e.target.value })
         }
         required
+        size="sm"
       />
 
       <Select
@@ -308,9 +312,10 @@ export function AppDistributionConnectionFlow({
           setPlayStoreData({ ...playStoreData, defaultTrack: val as any })
         }
         required
+        size="sm"
       />
 
-      <Divider label="Service Account Credentials" />
+      <Divider label="Service Account Credentials" labelPosition="center" />
 
       <TextInput
         label="Project ID"
@@ -326,6 +331,7 @@ export function AppDistributionConnectionFlow({
           })
         }
         required
+        size="sm"
       />
 
       <TextInput
@@ -342,6 +348,7 @@ export function AppDistributionConnectionFlow({
           })
         }
         required
+        size="sm"
       />
 
       <Textarea
@@ -359,6 +366,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         minRows={4}
+        size="sm"
       />
     </Stack>
   );
@@ -373,6 +381,7 @@ export function AppDistributionConnectionFlow({
           setAppStoreData({ ...appStoreData, displayName: e.target.value })
         }
         required
+        size="sm"
       />
 
       <TextInput
@@ -383,6 +392,7 @@ export function AppDistributionConnectionFlow({
           setAppStoreData({ ...appStoreData, targetAppId: e.target.value })
         }
         required
+        size="sm"
       />
 
       <TextInput
@@ -393,6 +403,7 @@ export function AppDistributionConnectionFlow({
           setAppStoreData({ ...appStoreData, appIdentifier: e.target.value })
         }
         required
+        size="sm"
       />
 
       <TextInput
@@ -403,9 +414,10 @@ export function AppDistributionConnectionFlow({
           setAppStoreData({ ...appStoreData, teamName: e.target.value })
         }
         required
+        size="sm"
       />
 
-      <Divider label="App Store Connect API Credentials" />
+      <Divider label="App Store Connect API Credentials" labelPosition="center" />
 
       <TextInput
         label="Issuer ID"
@@ -415,6 +427,7 @@ export function AppDistributionConnectionFlow({
           setAppStoreData({ ...appStoreData, issuerId: e.target.value })
         }
         required
+        size="sm"
       />
 
       <TextInput
@@ -425,6 +438,7 @@ export function AppDistributionConnectionFlow({
           setAppStoreData({ ...appStoreData, keyId: e.target.value })
         }
         required
+        size="sm"
       />
 
       <Textarea
@@ -436,6 +450,7 @@ export function AppDistributionConnectionFlow({
         }
         required
         minRows={4}
+        size="sm"
       />
 
       <TextInput
@@ -445,40 +460,62 @@ export function AppDistributionConnectionFlow({
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, defaultLocale: e.target.value })
         }
+        size="sm"
       />
     </Stack>
   );
+
+  const theme = useMantineTheme();
 
   return (
     <Stack gap="lg">
       {/* Draft Restored Alert */}
       {isDraftRestored && (
-        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
+        <Alert 
+          icon={<IconCheck size={16} />} 
+          color="blue" 
+          title="Draft Restored"
+          variant="light"
+          radius="md"
+        >
           Your previously entered data has been restored. Note: Sensitive credentials (like private keys) are never saved for security.
         </Alert>
       )}
       
       {/* Platform Information */}
       {allowedPlatforms.length === 0 ? (
-        <Alert icon={<IconAlertCircle size={16} />} color="red">
+        <Alert 
+          icon={<IconAlertCircle size={16} />} 
+          color="red"
+          variant="light"
+          radius="md"
+        >
           No platforms configured for this store type. Please contact support.
         </Alert>
       ) : (
-        <Card padding="md" radius="md" withBorder className="bg-blue-50 dark:bg-blue-950/20">
+        <Box
+          p="md"
+          style={{
+            backgroundColor: theme.colors.brand[0],
+            borderRadius: theme.radius.md,
+            border: `1px solid ${theme.colors.brand[2]}`,
+          }}
+        >
           <Group gap="md" align="center">
-            <IconDeviceMobile size={24} className="text-blue-600" />
-            <div className="flex-1">
-              <Text size="sm" fw={500} className="mb-1">
+            <ThemeIcon size={32} radius="md" variant="light" color="brand">
+              <IconDeviceMobile size={18} />
+            </ThemeIcon>
+            <div style={{ flex: 1 }}>
+              <Text size="sm" fw={500} mb={4}>
                 Target Platform{allowedPlatforms.length > 1 ? 's' : ''}
               </Text>
               <Group gap="xs">
                 {allowedPlatforms.map((platform) => (
                   <Badge
                     key={platform}
-                    size="lg"
-                    variant="filled"
-                    color="blue"
-                    leftSection={<span>📱</span>}
+                    size="md"
+                    variant="light"
+                    color="brand"
                   >
                     {platform}
                   </Badge>
@@ -486,12 +523,12 @@ export function AppDistributionConnectionFlow({
               </Group>
             </div>
           </Group>
-          <Text size="xs" c="dimmed" mt="xs">
+          <Text size="xs" c={theme.colors.slate[6]} mt="sm">
             {storeType === TARGET_PLATFORMS.PLAY_STORE 
               ? 'This integration will be used for Android app distribution via Google Play Store'
               : 'This integration will be used for iOS app distribution via Apple App Store'}
           </Text>
-        </Card>
+        </Box>
       )}
 
       {/* Form */}
@@ -505,6 +542,8 @@ export function AppDistributionConnectionFlow({
           title="Error"
           onClose={() => setError(null)}
           withCloseButton
+          variant="light"
+          radius="md"
         >
           {error}
         </Alert>
@@ -512,14 +551,24 @@ export function AppDistributionConnectionFlow({
 
       {/* Success */}
       {isVerified && (
-        <Alert icon={<IconCheck size={16} />} color="green">
+        <Alert 
+          icon={<IconCheck size={16} />} 
+          color="green"
+          variant="light"
+          radius="md"
+        >
           Credentials verified successfully! Click "Connect" to save.
         </Alert>
       )}
 
       {/* Actions */}
-      <Group justify="flex-end">
-        <Button variant="subtle" onClick={onCancel} disabled={isVerifying || isSaving}>
+      <Group justify="flex-end" gap="sm">
+        <Button 
+          variant="default" 
+          onClick={onCancel} 
+          disabled={isVerifying || isSaving}
+          size="sm"
+        >
           Cancel
         </Button>
         {isEditMode ? (
@@ -527,8 +576,9 @@ export function AppDistributionConnectionFlow({
           <Button 
             onClick={handleConnect} 
             loading={isSaving} 
-            color="blue"
+            color="brand"
             disabled={!isFormValid || allowedPlatforms.length === 0}
+            size="sm"
           >
             Save Changes
           </Button>
@@ -539,6 +589,8 @@ export function AppDistributionConnectionFlow({
               onClick={handleVerify} 
               loading={isVerifying}
               disabled={!isFormValid || allowedPlatforms.length === 0}
+              color="brand"
+              size="sm"
             >
               Verify Credentials
             </Button>
@@ -548,6 +600,7 @@ export function AppDistributionConnectionFlow({
               loading={isSaving} 
               color="green"
               disabled={allowedPlatforms.length === 0}
+              size="sm"
             >
               Connect
             </Button>

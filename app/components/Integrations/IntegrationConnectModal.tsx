@@ -1,4 +1,16 @@
-import { Modal, Button, Group, Alert } from '@mantine/core';
+import { 
+  Modal, 
+  Button, 
+  Group, 
+  Alert, 
+  Box, 
+  Text, 
+  Stack, 
+  ThemeIcon,
+  useMantineTheme,
+  List,
+} from '@mantine/core';
+import { IconAlertCircle, IconCheck, IconPlug, IconSparkles } from '@tabler/icons-react';
 import type { Integration } from '~/types/integrations';
 import { GitHubConnectionFlow } from './GitHubConnectionFlow';
 import { SlackConnectionFlow } from './SlackConnectionFlow';
@@ -9,9 +21,8 @@ import { JiraConnectionFlow } from './JiraConnectionFlow';
 import { AppDistributionConnectionFlow } from './AppDistributionConnectionFlow';
 import { IntegrationIcon } from '~/components/Integrations/IntegrationIcon';
 import { useParams } from '@remix-run/react';
-import { useSystemMetadata } from '~/hooks/useSystemMetadata';
 import { PLATFORMS, TARGET_PLATFORMS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
-import { INTEGRATION_IDS, INTEGRATION_MODAL_LABELS, DEBUG_LABELS } from '~/constants/integration-ui';
+import { INTEGRATION_IDS, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 
 export interface IntegrationConnectModalProps {
   integration: Integration | null;
@@ -30,25 +41,14 @@ export function IntegrationConnectModal({
   isEditMode = false,
   existingData
 }: IntegrationConnectModalProps) {
+  const theme = useMantineTheme();
   const params = useParams();
   const tenantId = params.org!;
-  // const { data: systemMetadata } = useSystemMetadata();
-  const data = null; 
-  if (!integration) return null;
 
-  // Debug: Log integration details
-  console.log(`${DEBUG_LABELS.MODAL_PREFIX} ${DEBUG_LABELS.MODAL_INTEGRATION_DETAILS}`, {
-    id: integration.id,
-    name: integration.name,
-    category: integration.category,
-    isAvailable: integration.isAvailable
-  });
+  if (!integration) return null;
 
   // Determine which connection flow to render
   const renderConnectionFlow = () => {
-    console.log(`${DEBUG_LABELS.MODAL_PREFIX} ${DEBUG_LABELS.MODAL_MATCHING_ID}`, integration.id);
-    
-    // Normalize integration ID to lowercase for consistent matching
     const integrationId = integration.id.toLowerCase();
     
     switch (integrationId) {
@@ -92,7 +92,6 @@ export function IntegrationConnectModal({
         );
       
       case INTEGRATION_IDS.CHECKMATE:
-        console.log(`${DEBUG_LABELS.MODAL_PREFIX} Rendering CheckmateConnectionFlow`);
         return (
           <CheckmateConnectionFlow
             onConnect={(data) => {
@@ -141,7 +140,6 @@ export function IntegrationConnectModal({
             tenantId={tenantId}
             allowedPlatforms={[PLATFORMS.ANDROID]}
             onConnect={(data) => {
-              // Use INTEGRATION_IDS.PLAY_STORE to ensure proper revalidation
               onConnect(INTEGRATION_IDS.PLAY_STORE, data);
               onClose();
             }}
@@ -161,7 +159,6 @@ export function IntegrationConnectModal({
             tenantId={tenantId}
             allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
-              // Use INTEGRATION_IDS.APP_STORE to ensure proper revalidation
               onConnect(INTEGRATION_IDS.APP_STORE, data);
               onClose();
             }}
@@ -179,7 +176,6 @@ export function IntegrationConnectModal({
             tenantId={tenantId}
             allowedPlatforms={[PLATFORMS.IOS]}
             onConnect={(data) => {
-              // Use INTEGRATION_IDS.APP_STORE for TestFlight as well
               onConnect(INTEGRATION_IDS.APP_STORE, data);
               onClose();
             }}
@@ -191,36 +187,77 @@ export function IntegrationConnectModal({
       
       default:
         // Coming soon / demo mode
-        console.log(`${DEBUG_LABELS.MODAL_PREFIX} ${DEBUG_LABELS.MODAL_FALLBACK}`, integration.id, `${DEBUG_LABELS.MODAL_NORMALIZED}`, integrationId, ')');
         return (
-          <div className="space-y-4">
-            <Alert color="yellow" title={INTEGRATION_MODAL_LABELS.DEMO_MODE_TITLE} icon={<span>🔨</span>}>
-              {INTEGRATION_MODAL_LABELS.DEMO_MODE_MESSAGE(integration.name)}
+          <Stack gap="lg">
+            <Alert 
+              color="yellow" 
+              variant="light"
+              icon={<IconAlertCircle size={18} />}
+              title={INTEGRATION_MODAL_LABELS.DEMO_MODE_TITLE}
+              radius="md"
+            >
+              <Text size="sm">
+                {INTEGRATION_MODAL_LABELS.DEMO_MODE_MESSAGE(integration.name)}
+              </Text>
             </Alert>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-2">{INTEGRATION_MODAL_LABELS.PLANNED_FEATURES_TITLE}</h3>
-              <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+
+            <Box
+              p="md"
+              style={{
+                backgroundColor: theme.colors.slate[0],
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.slate[2]}`,
+              }}
+            >
+              <Group gap="sm" mb="sm">
+                <ThemeIcon size={24} radius="sm" variant="light" color="brand">
+                  <IconSparkles size={14} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} c={theme.colors.slate[8]}>
+                  {INTEGRATION_MODAL_LABELS.PLANNED_FEATURES_TITLE}
+                </Text>
+              </Group>
+              <List
+                size="sm"
+                spacing="xs"
+                icon={
+                  <ThemeIcon size={16} radius="xl" variant="light" color="brand">
+                    <IconCheck size={10} />
+                  </ThemeIcon>
+                }
+              >
                 {INTEGRATION_MODAL_LABELS.PLANNED_FEATURES.map((feature, idx) => (
-                  <li key={idx}>{feature}</li>
+                  <List.Item key={idx}>
+                    <Text size="sm" c={theme.colors.slate[6]}>
+                      {feature}
+                    </Text>
+                  </List.Item>
                 ))}
-              </ul>
-            </div>
-            <Group justify="flex-end" className="mt-6">
-              <Button variant="subtle" onClick={onClose}>
+              </List>
+            </Box>
+
+            <Group justify="flex-end" mt="md">
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={onClose}
+              >
                 {INTEGRATION_MODAL_LABELS.CANCEL}
               </Button>
               <Button
+                color="brand"
+                size="sm"
+                leftSection={<IconPlug size={14} />}
                 onClick={() => {
                   onConnect(integration.id);
                   onClose();
                 }}
                 disabled={!integration.isAvailable}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 {INTEGRATION_MODAL_LABELS.CONNECT_DEMO}
               </Button>
             </Group>
-          </div>
+          </Stack>
         );
     }
   };
@@ -230,18 +267,29 @@ export function IntegrationConnectModal({
       opened={opened}
       onClose={onClose}
       centered
+      radius="md"
+      size="lg" // Consistent size for all dialogs
       title={
-        <div className="flex items-center gap-3">
-          <IntegrationIcon name={integration.icon} size={32} className="text-blue-600 dark:text-blue-400" />
-          <h2 className="text-xl font-semibold">
-            {isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${integration.name}` : `${INTEGRATION_MODAL_LABELS.CONNECT} ${integration.name}`}
-          </h2>
-        </div>
+        <Group gap="md">
+          <ThemeIcon size={44} radius="md" variant="light" color="brand">
+            <IntegrationIcon name={integration.icon} size={24} />
+          </ThemeIcon>
+          <Box>
+            <Text size="lg" fw={600} c={theme.colors.slate[9]}>
+              {isEditMode 
+                ? `${INTEGRATION_MODAL_LABELS.EDIT} ${integration.name}` 
+                : `${INTEGRATION_MODAL_LABELS.CONNECT} ${integration.name}`}
+            </Text>
+            <Text size="xs" c={theme.colors.slate[5]}>
+              {isEditMode 
+                ? 'Update your integration settings'
+                : 'Configure and connect this integration'}
+            </Text>
+          </Box>
+        </Group>
       }
-      size={[INTEGRATION_IDS.SLACK.toLowerCase(), INTEGRATION_IDS.GITHUB.toLowerCase()].includes(integration.id.toLowerCase()) ? 'lg' : 'md'}
     >
       {renderConnectionFlow()}
     </Modal>
   );
 }
-
