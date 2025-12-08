@@ -8,36 +8,18 @@ import {
   Box,
   Progress,
   Skeleton,
-  Grid,
-  ThemeIcon,
-  RingProgress,
-  Divider,
-  Paper,
   Title,
   useMantineTheme,
 } from "@mantine/core";
 import {
   IconRocket,
-  IconDevices,
-  IconDownload,
   IconAlertTriangle,
-  IconCalendar,
   IconCheck,
-  IconTrendingUp,
   IconAlertCircle,
 } from "@tabler/icons-react";
 import { useGetReleaseListForDeployment } from "./hooks/useGetReleaseListForDeployment";
 import { useParams, useSearchParams, useNavigate } from "@remix-run/react";
 import { ReleaseListResponse } from "./data/getReleaseListForDeployment";
-
-// Format file size
-const formatBytes = (bytes: number) => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-};
 
 // Format relative time
 const formatRelativeTime = (timestamp: number) => {
@@ -51,13 +33,6 @@ const formatRelativeTime = (timestamp: number) => {
   if (hours > 0) return `${hours}h ago`;
   if (minutes > 0) return `${minutes}m ago`;
   return "Just now";
-};
-
-// Calculate success rate
-const getSuccessRate = (installed: number, failed: number) => {
-  const total = installed + failed;
-  if (total === 0) return 100;
-  return Math.round((installed / total) * 100);
 };
 
 function ReleaseCard({
@@ -77,18 +52,18 @@ function ReleaseCard({
       radius="md"
       style={{
         cursor: "pointer",
-        transition: theme.other.transitions.normal,
+        transition: "all 0.2s ease",
         background: isActive
-          ? `linear-gradient(135deg, rgba(${parseInt(theme.other.brand.primary.slice(1, 3), 16)}, ${parseInt(theme.other.brand.primary.slice(3, 5), 16)}, ${parseInt(theme.other.brand.primary.slice(5, 7), 16)}, 0.03) 0%, rgba(${parseInt(theme.other.brand.secondary.slice(1, 3), 16)}, ${parseInt(theme.other.brand.secondary.slice(3, 5), 16)}, ${parseInt(theme.other.brand.secondary.slice(5, 7), 16)}, 0.03) 100%)`
-          : theme.other.backgrounds.primary,
-        borderLeft: isActive ? `4px solid ${theme.other.brand.primary}` : `1px solid ${theme.other.borders.secondary}`,
+          ? `linear-gradient(135deg, rgba(20, 184, 166, 0.03) 0%, rgba(45, 212, 191, 0.03) 100%)`
+          : "#ffffff",
+        borderLeft: isActive ? `4px solid ${theme.colors.brand[5]}` : `1px solid ${theme.colors.slate[2]}`,
       }}
       styles={{
         root: {
           "&:hover": {
             transform: "translateY(-2px)",
-            boxShadow: theme.other.shadows.lg,
-            borderColor: theme.other.brand.primary,
+            boxShadow: theme.shadows.lg,
+            borderColor: theme.colors.brand[5],
           },
         },
       }}
@@ -98,22 +73,22 @@ function ReleaseCard({
         <Group gap="md" style={{ flex: 1 }}>
           <Box
             style={{
-              width: theme.other.sizes.icon["4xl"],
-              height: theme.other.sizes.icon["4xl"],
-              borderRadius: theme.other.borderRadius.md,
+              width: 48,
+              height: 48,
+              borderRadius: theme.radius.md,
               background: isActive
-                ? theme.other.brand.gradient
-                : `linear-gradient(135deg, ${theme.other.borders.secondary} 0%, ${theme.other.borders.light} 100%)`,
+                ? `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`
+                : `linear-gradient(135deg, ${theme.colors.slate[2]} 0%, ${theme.colors.slate[1]} 100%)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: isActive ? theme.other.shadows.md : "none",
+              boxShadow: isActive ? theme.shadows.md : "none",
               flexShrink: 0,
             }}
           >
-            <IconRocket size={theme.other.sizes.icon.xl} color={theme.other.text.white} />
+            <IconRocket size={24} color="white" />
           </Box>
-          
+
           <Box style={{ flex: 1, minWidth: 0 }}>
             <Group gap="xs" wrap="nowrap">
               <Text size="lg" fw={700} style={{ lineHeight: 1.2 }}>
@@ -167,10 +142,10 @@ function ReleaseCard({
         <Group gap="md" wrap="nowrap">
           <Box style={{ minWidth: 200 }}>
             <Group justify="space-between" mb={6}>
-              <Text size="xs" c="dimmed" fw={theme.other.typography.fontWeight.semibold}>
+              <Text size="xs" c="dimmed" fw={600}>
                 Rollout
               </Text>
-              <Text size="sm" fw={theme.other.typography.fontWeight.bold} style={{ color: theme.other.brand.primary }}>
+              <Text size="sm" fw={700} c={theme.colors.brand[6]}>
                 {release.rollout}%
               </Text>
             </Group>
@@ -178,17 +153,10 @@ function ReleaseCard({
               value={release.rollout}
               size="md"
               radius="xl"
-              styles={{
-                root: {
-                  background: theme.other.borders.secondary,
-                },
-                section: {
-                  background: `linear-gradient(90deg, ${theme.other.brand.primary} 0%, ${theme.other.brand.secondary} 100%)`,
-                },
-              }}
+              color="brand"
             />
           </Box>
-          
+
           <Box style={{ textAlign: "center", minWidth: 80 }}>
             <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
               Devices
@@ -235,7 +203,7 @@ export function ReleaseListForDeploymentTable() {
     return (
       <Card withBorder padding="xl" radius="md" mt="xl" style={{ textAlign: "center" }}>
         <Stack gap="md" align="center">
-          <IconAlertCircle size={theme.other.sizes.avatar.md} color={theme.other.text.red} />
+          <IconAlertCircle size={48} color={theme.colors.red[5]} />
           <Title order={3} c="red">
             Something Went Wrong
           </Title>

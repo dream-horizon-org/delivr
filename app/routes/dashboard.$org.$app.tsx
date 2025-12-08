@@ -23,26 +23,27 @@ export default function AppDetails() {
 
   const { refetch: refetchDeployments } = useGetDeploymentsForApp();
 
-  const iconStyle = { width: rem(theme.other.sizes.icon.md), height: rem(theme.other.sizes.icon.md) };
+  const iconStyle = { width: rem(16), height: rem(16) };
 
   return (
     <Box>
       <Group justify="space-between" mb="lg">
-        <Tabs 
-          value={activeTab} 
+        <Tabs
+          value={activeTab}
           onChange={setActiveTab}
           variant="pills"
           styles={{
             tab: {
-              borderRadius: theme.other.borderRadius.md,
-              padding: `${theme.other.spacing.sm} ${theme.other.spacing.lg}`,
-              transition: theme.other.transitions.fast,
+              borderRadius: theme.radius.md,
+              padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+              transition: "all 0.15s ease",
+              fontWeight: 500,
               "&[data-active]": {
-                background: theme.other.brand.gradient,
-                color: theme.other.text.white,
+                background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
+                color: "white",
               },
-              "&:hover": {
-                backgroundColor: theme.other.backgrounds.hover,
+              "&:hover:not([data-active])": {
+                backgroundColor: theme.colors.slate[1],
               },
             },
           }}
@@ -56,19 +57,19 @@ export default function AppDetails() {
             </Tabs.Tab>
           </Tabs.List>
         </Tabs>
-        
+
         {activeTab === "deployments" && (
           <Group gap="sm">
             <Button
-              leftSection={<IconKey size={theme.other.sizes.icon.lg} />}
+              leftSection={<IconKey size={18} />}
               onClick={() => setCreateDeploymentOpen(true)}
               variant="default"
               styles={{
                 root: {
-                  borderColor: theme.other.borders.primary,
+                  borderColor: theme.colors.slate[3],
                   "&:hover": {
-                    background: theme.other.backgrounds.subtle,
-                    borderColor: theme.other.brand.primary,
+                    background: theme.colors.slate[1],
+                    borderColor: theme.colors.brand[5],
                   },
                 },
               }}
@@ -76,7 +77,7 @@ export default function AppDetails() {
               Create Deployment Key
             </Button>
             <CTAButton
-              leftSection={<IconRocket size={theme.other.sizes.icon.lg} />}
+              leftSection={<IconRocket size={18} />}
               onClick={() => {
                 navigate(`/dashboard/${params.org}/${params.app}/create-release`);
               }}
@@ -85,10 +86,10 @@ export default function AppDetails() {
             </CTAButton>
           </Group>
         )}
-        
+
         {activeTab === "collaborators" && (
           <CTAButton
-            leftSection={<IconUserPlus size={theme.other.sizes.icon.lg} />}
+            leftSection={<IconUserPlus size={18} />}
             onClick={() => setAddCollaboratorOpen(true)}
           >
             Add Collaborator
@@ -98,7 +99,7 @@ export default function AppDetails() {
 
       {activeTab === "deployments" && <DeploymentList />}
       {activeTab === "collaborators" && (
-        <CollabaratorList 
+        <CollabaratorList
           addCollaboratorOpen={addCollaboratorOpen}
           setAddCollaboratorOpen={setAddCollaboratorOpen}
         />

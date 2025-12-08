@@ -82,8 +82,8 @@ export const DeploymentList = () => {
             padding="lg"
             styles={{
               root: {
-                background: `linear-gradient(135deg, ${theme.other.backgrounds.secondary} 0%, ${theme.other.backgrounds.primary} 100%)`,
-                borderColor: theme.other.borders.primary,
+                background: `linear-gradient(135deg, ${theme.colors.slate[0]} 0%, #ffffff 100%)`,
+                borderColor: theme.colors.slate[2],
               },
             }}
           >
@@ -98,15 +98,6 @@ export const DeploymentList = () => {
                 searchable
                 leftSection={<IconKey style={{ width: rem(18), height: rem(18) }} />}
                 style={{ flex: 1, maxWidth: 350 }}
-                styles={{
-                  input: {
-                    borderColor: theme.other.borders.primary,
-                    backgroundColor: theme.other.backgrounds.primary,
-                    "&:focus": {
-                      borderColor: theme.other.brand.primary,
-                    },
-                  },
-                }}
                 comboboxProps={{ shadow: "md" }}
                 disabled={!data || data.length === 0}
               />
@@ -116,23 +107,23 @@ export const DeploymentList = () => {
                 withBorder
                 radius="md"
                 padding="md"
-                style={{ 
+                style={{
                   flex: 1,
                   maxWidth: 500,
-                  backgroundColor: theme.other.backgrounds.primary,
-                  borderColor: theme.other.brand.primary,
+                  backgroundColor: "#ffffff",
+                  borderColor: theme.colors.brand[5],
                 }}
               >
                 <Group justify="space-between" align="center" wrap="nowrap">
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Group gap="xs" mb={4}>
-                      <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c={theme.other.text.secondary}>
+                      <Text size="sm" fw={600} c={theme.colors.slate[6]}>
                         Key:
                       </Text>
                       <Text
                         size="sm"
-                        fw={theme.other.typography.fontWeight.bold}
-                        c={theme.other.brand.primaryDark}
+                        fw={700}
+                        c={theme.colors.brand[7]}
                         style={{
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -161,7 +152,7 @@ export const DeploymentList = () => {
                             onClick={copy}
                             size="lg"
                             style={{
-                              transition: theme.other.transitions.fast,
+                              transition: "all 0.15s ease",
                             }}
                           >
                             {copied ? (
@@ -180,7 +171,7 @@ export const DeploymentList = () => {
                         onClick={handleDelete}
                         size="lg"
                         style={{
-                          transition: theme.other.transitions.fast,
+                          transition: "all 0.15s ease",
                         }}
                       >
                         <IconTrash style={{ width: rem(18) }} />
@@ -196,9 +187,9 @@ export const DeploymentList = () => {
             withBorder
             radius="md"
             padding="lg"
-            style={{ 
+            style={{
               textAlign: "center",
-              backgroundColor: theme.other.backgrounds.secondary,
+              backgroundColor: theme.colors.slate[0],
             }}
           >
             <Text c="dimmed">Select a deployment key from the dropdown to view releases</Text>
@@ -208,9 +199,9 @@ export const DeploymentList = () => {
             withBorder
             radius="md"
             padding="lg"
-            style={{ 
+            style={{
               textAlign: "center",
-              backgroundColor: theme.other.backgrounds.secondary,
+              backgroundColor: theme.colors.slate[0],
             }}
           >
             <Text c="dimmed">No deployments found. Create your first deployment key!</Text>
@@ -219,7 +210,7 @@ export const DeploymentList = () => {
       </Flex>
 
       <ReleaseListForDeploymentTable />
-      
+
       {/* Modals */}
       <ReleaseDeatilCardModal
         id={searchParams.get("releaseId")}
