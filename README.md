@@ -344,7 +344,7 @@ Report security vulnerabilities: [SECURITY.md](delivr-sdk-ota/SECURITY.md)
 
 ---
 
-**Made with ❤️ by [Horizon](https://github.com/ds-horizon)**
+**Made with ❤️ by [Dream Horizon](https://github.com/dream-horizon-org)**
 
 **[Get Started](https://delivr.live/dota/full-setup)** · **[Documentation](https://delivr.live)**
 
