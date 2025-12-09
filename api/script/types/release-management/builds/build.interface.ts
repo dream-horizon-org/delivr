@@ -1,3 +1,5 @@
+import { BuildPlatform, StoreType } from "./build.constants";
+
 /**
  * Response type for listing build artifacts
  */
@@ -6,10 +8,10 @@ export type BuildListItem = {
   artifactPath: string | null;
   downloadUrl: string | null;
   artifactVersionName: string;
-  artifactVersionCode: string;
+  artifactVersionCode: string | null;
   releaseId: string;
-  platform: 'ANDROID' | 'IOS';
-  storeType: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE';
+  platform: BuildPlatform;
+  storeType: StoreType | null;
   regressionId: string | null;
   ciRunId: string | null;
   createdAt: Date;

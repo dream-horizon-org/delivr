@@ -4,7 +4,7 @@ import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, validationErrorResponse } from '~utils/response.utils';
 import { BUILD_ERROR_MESSAGES, BUILD_SUCCESS_MESSAGES } from '~types/release-management/builds';
 import { getFileWithField } from '../../../file-upload-manager';
-import { getTrimmedString } from '~utils/request.utils';
+import { getTrimmedString } from '~utils/string.utils';
 import {
   BuildArtifactService,
   BuildArtifactError,

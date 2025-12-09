@@ -1,4 +1,4 @@
-import { getTrimmedString } from '~utils/request.utils';
+import { getTrimmedString } from '~utils/string.utils';
 import {
   BUILD_PLATFORMS,
   BUILD_STAGES,

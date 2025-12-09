@@ -41,7 +41,7 @@ export type CreateManualBuildInput = {
   tenantId: string;
   releaseId: string;
   artifactVersionName: string;
-  artifactVersionCode: string;
+  artifactVersionCode?: string | null;
   platform: BuildPlatform;
   storeType?: StoreType | null;
   buildStage: BuildStage;
@@ -82,7 +82,7 @@ export type BuildArtifactItem = {
   artifactPath: string | null;
   downloadUrl: string | null;
   artifactVersionName: string;
-  artifactVersionCode: string;
+  artifactVersionCode: string | null;
   releaseId: string;
   platform: BuildPlatform;
   storeType: StoreType | null;

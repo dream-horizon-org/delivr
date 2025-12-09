@@ -5,7 +5,7 @@ import { successResponse, errorResponse, validationErrorResponse } from '~utils/
 import { BUILD_ERROR_MESSAGES, BUILD_SUCCESS_MESSAGES } from '~types/release-management/builds';
 import { parsePlatform, parseBuildStage, parseStoreType } from './build.utils';
 import { getFileWithField } from '../../../file-upload-manager';
-import { getTrimmedString } from '~utils/request.utils';
+import { getTrimmedString } from '~utils/string.utils';
 import { BuildArtifactService, BuildArtifactError } from '~services/release/build';
 
 /**
@@ -48,15 +48,6 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       if (versionNameMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('artifact_version_name', BUILD_ERROR_MESSAGES.INVALID_VERSION_NAME)
-        );
-        return;
-      }
-
-      // Validate version code
-      const versionCodeMissing = !artifactVersionCode;
-      if (versionCodeMissing) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('artifact_version_code', BUILD_ERROR_MESSAGES.INVALID_VERSION_CODE)
         );
         return;
       }

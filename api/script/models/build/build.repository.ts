@@ -1,5 +1,5 @@
 import { Model } from 'sequelize';
-import { getTrimmedString } from '~utils/request.utils';
+import { getTrimmedString } from '~utils/string.utils';
 import type { BuildAttributes, BuildModelType } from './build.sequelize.model';
 
 export class BuildRepository {

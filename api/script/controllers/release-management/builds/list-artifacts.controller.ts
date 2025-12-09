@@ -10,7 +10,7 @@ import {
   parseWorkflowStatus,
   parseBuildUploadStatus
 } from './build.utils';
-import { getTrimmedString } from '~utils/request.utils';
+import { getTrimmedString } from '~utils/string.utils';
 import { BuildArtifactService, BuildArtifactError } from '~services/release/build';
 import type { Storage } from '../../../storage/storage';
 

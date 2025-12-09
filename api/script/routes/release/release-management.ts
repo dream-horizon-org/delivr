@@ -305,6 +305,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // POST /builds/ci/:ciRunId/artifact
   router.post(
     "/builds/ci/:ciRunId/artifact",
+    // TODO: Add middleware to derive tenantId from accessToken
     tenantPermissions.allowAll({ storage }),
     fileUploadMiddleware,
     createCiArtifactUploadHandler(storage)

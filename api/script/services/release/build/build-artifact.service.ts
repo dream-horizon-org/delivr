@@ -5,7 +5,13 @@ import { buildArtifactS3Key, buildS3Uri, deriveStandardArtifactFilename, parseS3
 import { uploadToS3, inferContentType, generatePresignedGetUrl } from '~utils/s3-upload.utils';
 import {
   BUILD_UPLOAD_STATUS,
-  BUILD_TYPE
+  BUILD_TYPE,
+  BuildPlatform,
+  StoreType,
+  BuildStage,
+  BuildType,
+  BuildUploadStatus,
+  WorkflowStatus
 } from '~types/release-management/builds';
 import * as shortid from 'shortid';
 import {
@@ -76,7 +82,7 @@ export class BuildArtifactService {
       releaseId: build.releaseId,
       platform: build.platform,
       artifactVersionName: build.artifactVersionName,
-      artifactVersionCode: build.artifactVersionCode,
+      buildId: build.id,
       artifactBuffer,
       originalFilename
     });
@@ -119,20 +125,21 @@ export class BuildArtifactService {
       originalFilename
     } = input;
 
+    const buildId = shortid.generate();
+    const now = new Date();
+
     // Step 1: Upload artifact to S3
     const uploadResult = await this.uploadArtifactToS3({
       tenantId,
       releaseId,
       platform,
       artifactVersionName,
-      artifactVersionCode,
+      buildId,
       artifactBuffer,
       originalFilename
     });
 
     // Step 2: Create build record
-    const buildId = shortid.generate();
-    const now = new Date();
 
     await executeOperation(
       () => this.buildRepository.create({
@@ -233,14 +240,14 @@ export class BuildArtifactService {
         artifactPath,
         downloadUrl,
         artifactVersionName: build.artifactVersionName,
-        artifactVersionCode: build.artifactVersionCode,
+        artifactVersionCode: build.artifactVersionCode ?? null,
         releaseId: build.releaseId,
-        platform: build.platform as 'ANDROID' | 'IOS',
-        storeType: (build.storeType as 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE') ?? null,
-        buildStage: build.buildStage as 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE',
-        buildType: build.buildType as 'MANUAL' | 'CI_CD',
-        buildUploadStatus: build.buildUploadStatus as 'PENDING' | 'UPLOADED' | 'FAILED',
-        workflowStatus: (build.workflowStatus as 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED') ?? null,
+        platform: build.platform as BuildPlatform,
+        storeType: (build.storeType as StoreType) ?? null,
+        buildStage: build.buildStage as BuildStage,
+        buildType: build.buildType as BuildType,
+        buildUploadStatus: build.buildUploadStatus as BuildUploadStatus,
+        workflowStatus: (build.workflowStatus as WorkflowStatus) ?? null,
         regressionId: build.regressionId ?? null,
         ciRunId: build.ciRunId ?? null,
         createdAt: build.createdAt,
@@ -297,7 +304,7 @@ export class BuildArtifactService {
     releaseId: string;
     platform: string;
     artifactVersionName: string;
-    artifactVersionCode: string;
+    buildId: string;
     artifactBuffer: Buffer;
     originalFilename: string;
   }): Promise<{ s3Uri: string; downloadUrl: string }> => {
@@ -306,13 +313,13 @@ export class BuildArtifactService {
       releaseId,
       platform,
       artifactVersionName,
-      artifactVersionCode,
+      buildId,
       artifactBuffer,
       originalFilename
     } = params;
 
     // Step 1: Generate S3 key from metadata
-    const fileName = deriveStandardArtifactFilename(originalFilename, artifactVersionCode);
+    const fileName = deriveStandardArtifactFilename(originalFilename, buildId);
     const s3Key = buildArtifactS3Key(
       { tenantId, releaseId, platform, artifactVersionName },
       fileName

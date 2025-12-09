@@ -54,7 +54,7 @@ export const createBuildModel = (sequelize: Sequelize): BuildModelType => {
       tenantId: { type: DataTypes.STRING(255), allowNull: false },
       createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
       updatedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
-      artifactVersionCode: { type: DataTypes.STRING(255), allowNull: false },
+      artifactVersionCode: { type: DataTypes.STRING(255), allowNull: true },
       artifactVersionName: { type: DataTypes.STRING(255), allowNull: false },
       artifactPath: { type: DataTypes.STRING(255), allowNull: true },
       releaseId: { type: DataTypes.STRING(255), allowNull: false },
