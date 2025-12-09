@@ -73,7 +73,7 @@ export const createBuildModel = (sequelize: Sequelize): BuildModelType => {
       testflightNumber: { type: DataTypes.STRING(255), allowNull: true }
     },
     {
-      tableName: 'build',
+      tableName: 'builds',
       timestamps: false
     }
   ) as BuildModelType;
