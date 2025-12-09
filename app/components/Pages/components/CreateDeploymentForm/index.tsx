@@ -50,25 +50,25 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
   };
 
   return (
-    <Modal 
-      opened={open} 
+    <Modal
+      opened={open}
       onClose={handleClose}
       size="lg"
       centered
       title={
-        <Group gap="xs">
+        <Group gap="sm">
           <Box
             style={{
-              width: rem(theme.other.sizes.icon["4xl"]),
-              height: rem(theme.other.sizes.icon["4xl"]),
-              borderRadius: theme.other.borderRadius.md,
-              background: theme.other.brand.gradient,
+              width: 40,
+              height: 40,
+              borderRadius: theme.radius.md,
+              background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <IconKey size={theme.other.sizes.icon.xl} color={theme.other.text.white} />
+            <IconKey size={20} color="white" />
           </Box>
           <Title order={3}>Create Deployment Key</Title>
         </Group>
@@ -77,22 +77,11 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
       <Stack gap="lg">
         {!data ? (
           <>
-            <Alert 
-              icon={<IconInfoCircle size={18} />} 
+            <Alert
+              icon={<IconInfoCircle size={18} />}
               variant="light"
+              color="brand"
               radius="md"
-              styles={{
-                root: {
-                  backgroundColor: theme.other.brand.light,
-                  borderColor: theme.other.brand.primary,
-                },
-                icon: {
-                  color: theme.other.brand.primary,
-                },
-                message: {
-                  color: theme.other.text.primary,
-                },
-              }}
             >
               Create a new deployment environment for your app (e.g., Production, Staging, Development)
             </Alert>
@@ -107,13 +96,6 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
               {...form.getInputProps("name")}
               disabled={isLoading}
               size="md"
-              styles={{
-                input: {
-                  "&:focus": {
-                    borderColor: theme.other.brand.primary,
-                  },
-                },
-              }}
             />
 
             <Group justify="flex-end" mt="md">
@@ -126,20 +108,18 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
                 Cancel
               </Button>
               <CTAButton
-                leftSection={<IconSparkles size={theme.other.sizes.icon.lg} />}
+                leftSection={<IconSparkles size={18} />}
                 disabled={!!Object.keys(form.errors).length}
                 loading={isLoading}
                 onClick={() => {
-                  // Validate form before submitting
                   if (form.validate().hasErrors) {
                     return;
                   }
-                  
+
                   mutate(
                     { ...form.getValues(), appId: params.app ?? "", tenant: params.org ?? "" },
                     {
                       onSuccess: () => {
-                        // Close modal immediately after successful creation
                         handleClose();
                       },
                     }
@@ -157,28 +137,28 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
               p="xl"
               radius="md"
               style={{
-                background: `linear-gradient(135deg, ${theme.other.backgrounds.secondary} 0%, ${theme.other.backgrounds.primary} 100%)`,
-                borderColor: theme.other.brand.primary,
+                background: `linear-gradient(135deg, ${theme.colors.slate[0]} 0%, #ffffff 100%)`,
+                borderColor: theme.colors.brand[5],
               }}
             >
               <Stack gap="md" align="center">
                 <Box
                   style={{
-                    width: rem(theme.other.sizes.icon["6xl"] || 64),
-                    height: rem(theme.other.sizes.icon["6xl"] || 64),
-                    borderRadius: theme.other.borderRadius.full,
-                    background: theme.other.brand.gradient,
+                    width: 64,
+                    height: 64,
+                    borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${theme.colors.brand[5]} 0%, ${theme.colors.brand[6]} 100%)`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: theme.other.shadows.lg,
+                    boxShadow: theme.shadows.lg,
                   }}
                 >
-                  <IconCheck size={theme.other.sizes.icon["3xl"]} color={theme.other.text.white} />
+                  <IconCheck size={32} color="white" />
                 </Box>
 
                 <Stack gap="xs" align="center">
-                  <Title order={4} c="gray.9">
+                  <Title order={4} c={theme.colors.slate[9]}>
                     Deployment Created Successfully!
                   </Title>
                   <Text size="sm" c="dimmed">
@@ -198,7 +178,7 @@ export function CreateDeploymentForm({ open, onClose }: CreateTokenFormProps) {
                         <Button
                           onClick={copy}
                           variant={copied ? "light" : "outline"}
-                          color={copied ? "teal" : "violet"}
+                          color={copied ? "teal" : "brand"}
                           fullWidth
                           size="md"
                           styles={{

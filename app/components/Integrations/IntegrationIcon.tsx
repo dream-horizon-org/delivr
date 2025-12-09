@@ -16,31 +16,36 @@ import {
   IconPlug,
   IconChecks,
   IconSettings,
-  IconDeviceDesktop,
+  IconLayoutKanban,
   IconBrandGooglePlay,
+  IconRocket,
 } from '@tabler/icons-react';
 
 interface IntegrationIconProps {
   name: string;
   size?: number;
   className?: string;
+  color?: string;
 }
 
-export function IntegrationIcon({ name, size = 40, className = '' }: IntegrationIconProps) {
+export function IntegrationIcon({ name, size = 40, className = '', color }: IntegrationIconProps) {
   // Normalize icon name to lowercase
   const iconName = (name || '').toLowerCase();
 
   const iconProps = {
     size,
-    className: className || 'text-gray-500',
+    className: className || undefined,
     stroke: 1.5,
+    color: color || undefined,
   };
 
   // Map icon names to Tabler Icon components
   switch (iconName) {
     case 'github':
-    case 'github_actions':
       return <IconBrandGithub {...iconProps} />;
+    
+    case 'github_actions':
+      return <IconRocket {...iconProps} />;
 
     case 'gitlab':
       return <IconBrandGitlab {...iconProps} />;
@@ -52,15 +57,13 @@ export function IntegrationIcon({ name, size = 40, className = '' }: Integration
       return <IconBrandSlack {...iconProps} />;
 
     case 'jenkins':
-      // Jenkins doesn't have a Tabler icon, use settings gear
       return <IconSettings {...iconProps} />;
 
     case 'checkmate':
       return <IconChecks {...iconProps} />;
 
     case 'jira':
-      // JIRA doesn't have a Tabler icon, use device desktop as placeholder
-      return <IconDeviceDesktop {...iconProps} />;
+      return <IconLayoutKanban {...iconProps} />;
 
     case 'teams':
     case 'discord':
@@ -68,7 +71,6 @@ export function IntegrationIcon({ name, size = 40, className = '' }: Integration
 
     case 'linear':
     case 'asana':
-      // Use IconPlug for unsupported integrations
       return <IconPlug {...iconProps} />;
 
     case 'firebase':
@@ -90,7 +92,6 @@ export function IntegrationIcon({ name, size = 40, className = '' }: Integration
     case 'testrail':
     case 'zephyr':
     default:
-      // Default icon for integrations without custom SVG
       return <IconPlug {...iconProps} />;
   }
 }

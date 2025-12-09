@@ -177,7 +177,9 @@ export const CONNECTION_STEPS = {
 
 export const SLACK_REQUIRED_SCOPES = [
   'channels:read',
-  'chat:write',
+  'groups:read',
+  'mpim:read',
+  'im:read',
 ] as const;
 
 // ============================================================================

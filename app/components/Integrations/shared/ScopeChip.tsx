@@ -3,15 +3,24 @@
  * Displays OAuth scope or permission chips
  */
 
+import { Badge, useMantineTheme } from '@mantine/core';
+
 interface ScopeChipProps {
   scope: string;
 }
 
 export function ScopeChip({ scope }: ScopeChipProps) {
+  const theme = useMantineTheme();
+  
   return (
-    <code className="bg-gray-200 px-1 rounded text-xs">
+    <Badge 
+      size="xs" 
+      variant="light" 
+      color="brand"
+      tt="lowercase"
+      ff="monospace"
+    >
       {scope}
-    </code>
+    </Badge>
   );
 }
-

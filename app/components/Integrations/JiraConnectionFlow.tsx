@@ -1,9 +1,5 @@
 /**
  * Jira Project Management Connection Flow Component
- * Handles verification and connection of Jira integrations
- * 
- * Backend API: /projects/:projectId/integrations/project-management
- * Config: { baseUrl, email, apiToken, jiraType }
  */
 
 import { useState, useRef } from 'react';
@@ -14,7 +10,10 @@ import {
   Select,
   Stack,
   Text,
-  Alert
+  Alert,
+  Box,
+  Anchor,
+  useMantineTheme,
 } from '@mantine/core';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
@@ -41,32 +40,29 @@ interface JiraConnectionFormData {
 }
 
 export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JiraConnectionFlowProps) {
+  const theme = useMantineTheme();
   const params = useParams();
   const tenantId = params.org;
-
-  // Ref to track if we're in the middle of verify/connect flow
   const isInFlowRef = useRef(false);
 
-  // Draft storage with auto-save
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JiraConnectionFormData>(
     {
       storageKey: generateStorageKey('jira-pm', tenantId || ''),
-      sensitiveFields: ['apiToken'], // Never save token to draft
-      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      sensitiveFields: ['apiToken'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.email || data.displayName),
     },
     {
       displayName: existingData?.displayName || existingData?.name || '',
       hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
       email: existingData?.email || existingData?.config?.email || '',
-      apiToken: '', // Never prefill sensitive data
+      apiToken: '',
       jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
     },
     isEditMode ? {
       displayName: existingData?.displayName || existingData?.name || '',
       hostUrl: existingData?.hostUrl || existingData?.config?.hostUrl || '',
       email: existingData?.email || existingData?.config?.email || '',
-      apiToken: '', // Never prefill sensitive data
+      apiToken: '',
       jiraType: (existingData?.jiraType || existingData?.config?.jiraType || 'CLOUD') as JiraType,
     } : undefined
   );
@@ -75,12 +71,23 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
   const [isConnecting, setIsConnecting] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const markTouched = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  };
+
+  const getFieldError = (field: string, value: string, required: boolean = true) => {
+    if (!touched[field]) return undefined;
+    if (required && !value) return `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+    return undefined;
+  };
 
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
     setIsVerified(false);
-    isInFlowRef.current = true; // Prevent draft save during verify
+    isInFlowRef.current = true;
 
     try {
       const result = await apiPost<{ verified: boolean }>(
@@ -93,28 +100,24 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         }
       );
 
-      console.log('[JiraConnectionFlow] Verification result:', result);
-
       if (result.data?.verified || result.success) {
         setIsVerified(true);
       } else {
-        // Show the specific error message from backend
         const errorMsg = (result as any).error || (result.data as any)?.error || ALERT_MESSAGES.VERIFICATION_FAILED;
         setError(errorMsg);
       }
     } catch (err) {
-      console.error('[JiraConnectionFlow] Verification error:', err);
       setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
     } finally {
       setIsVerifying(false);
-      isInFlowRef.current = false; // Re-enable draft save after verify
+      isInFlowRef.current = false;
     }
   };
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
-    isInFlowRef.current = true; // Prevent draft save during connect
+    isInFlowRef.current = true;
 
     try {
       const payload: any = {
@@ -124,7 +127,6 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         jiraType: formData.jiraType,
       };
 
-      // Only include apiToken if provided (required for create, optional for update)
       if (formData.apiToken) {
         payload.apiToken = formData.apiToken;
       } else if (!isEditMode) {
@@ -133,14 +135,6 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         return;
       }
 
-      console.log('[JiraConnectionFlow] Saving with payload:', {
-        isEditMode,
-        hasApiToken: !!payload.apiToken,
-        payloadKeys: Object.keys(payload),
-        existingDataId: existingData?.id
-      });
-
-      // For updates, include integrationId as query parameter
       const endpoint = isEditMode && existingData?.id
         ? `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA&integrationId=${existingData.id}`
         : `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`;
@@ -149,45 +143,49 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         ? await apiPatch(endpoint, payload)
         : await apiPost(endpoint, payload);
 
-      console.log('[JiraConnectionFlow] Save result:', result);
-
       if (result.success) {
-        markSaveSuccessful(); // Clear draft on successful save
+        markSaveSuccessful();
         onConnect(result);
       } else {
-        // Show the specific error from backend if available
         const errorMsg = (result as any).error || result.message || ALERT_MESSAGES.CONNECTION_FAILED;
-        console.error('[JiraConnectionFlow] Save failed:', errorMsg);
         setError(errorMsg);
       }
     } catch (err) {
-      const errorMsg = getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED);
-      console.error('[JiraConnectionFlow] Save error:', errorMsg, err);
-      setError(errorMsg);
+      setError(getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED));
     } finally {
       setIsConnecting(false);
-      isInFlowRef.current = false; // Re-enable draft save after connect
+      isInFlowRef.current = false;
     }
   };
 
-  const isFormValid = () => {
-    return formData.hostUrl && formData.email && (isEditMode || formData.apiToken);
-  };
+  const isFormValid = formData.hostUrl && formData.email && (isEditMode || formData.apiToken);
 
   return (
-    <Stack gap="lg">
+    <Stack gap="md">
       {/* Draft Restored Alert */}
       {isDraftRestored && !isEditMode && (
-        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
-          Your previously entered data has been restored. Note: Sensitive credentials (like API tokens) are never saved for security.
+        <Alert icon={<IconCheck size={16} />} color="brand" variant="light" radius="md" title="Draft Restored">
+          Your previously entered data has been restored. Tokens are never saved for security.
         </Alert>
       )}
+
+      <ConnectionAlert 
+        color="brand" 
+        title={isEditMode ? 'Edit Jira Connection' : 'Connect Jira'}
+      >
+        <Text size="sm">
+          {isEditMode
+            ? 'Update your Jira connection settings.'
+            : 'Connect your Jira workspace to link releases with project tracking.'}
+        </Text>
+      </ConnectionAlert>
 
       <TextInput
         label={JIRA_LABELS.DISPLAY_NAME_LABEL}
         placeholder={JIRA_LABELS.DISPLAY_NAME_PLACEHOLDER}
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+        size="sm"
       />
 
       <Select
@@ -200,6 +198,7 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
           label: type.label,
         }))}
         description={JIRA_LABELS.JIRA_TYPE_DESCRIPTION}
+        size="sm"
       />
 
       <TextInput
@@ -208,8 +207,10 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         required
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
-        error={!formData.hostUrl && 'Base URL is required'}
+        onBlur={() => markTouched('hostUrl')}
+        error={getFieldError('hostUrl', formData.hostUrl)}
         description={formData.jiraType === 'CLOUD' ? JIRA_LABELS.CLOUD_URL_DESCRIPTION : JIRA_LABELS.SERVER_URL_DESCRIPTION}
+        size="sm"
       />
 
       <TextInput
@@ -219,8 +220,10 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         required
         value={formData.email}
         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-        error={!formData.email && 'Email is required'}
+        onBlur={() => markTouched('email')}
+        error={getFieldError('email', formData.email)}
         description={JIRA_LABELS.EMAIL_DESCRIPTION}
+        size="sm"
       />
 
       <PasswordInput
@@ -229,14 +232,18 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
         required={!isEditMode}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-        error={!isEditMode && !formData.apiToken && 'API Token is required'}
+        onBlur={() => !isEditMode && markTouched('apiToken')}
+        error={!isEditMode ? getFieldError('apiToken', formData.apiToken) : undefined}
         description={isEditMode ? 'Only provide a new token if you want to update it' : JIRA_LABELS.API_TOKEN_DESCRIPTION}
+        size="sm"
       />
 
       {error && (
         <Alert 
           icon={<IconAlertCircle size={16} />} 
-          color="red" 
+          color="red"
+          variant="light"
+          radius="md"
           title="Error"
           onClose={() => setError(null)}
           withCloseButton
@@ -247,11 +254,10 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
 
       {isVerified && (
         <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
-          {JIRA_LABELS.VERIFIED_MESSAGE}
+          <Text size="sm">{JIRA_LABELS.VERIFIED_MESSAGE}</Text>
         </ConnectionAlert>
       )}
 
-      {/* Show verify button for new connections, or save button for edits */}
       {!isEditMode && !isVerified ? (
         <ActionButtons
           onCancel={onCancel}
@@ -259,9 +265,8 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
           primaryLabel={JIRA_LABELS.VERIFY_CREDENTIALS}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isVerifying}
-          isPrimaryDisabled={!isFormValid()}
+          isPrimaryDisabled={!isFormValid}
           isCancelDisabled={isVerifying || isConnecting}
-          primaryClassName="bg-gray-600 hover:bg-gray-700"
         />
       ) : (
         <ActionButtons
@@ -270,23 +275,32 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
           primaryLabel={isEditMode ? 'Save Changes' : JIRA_LABELS.CONNECT_JIRA}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isConnecting}
-          isPrimaryDisabled={!isFormValid()}
+          isPrimaryDisabled={!isFormValid}
           isCancelDisabled={isVerifying || isConnecting}
-          primaryClassName="bg-green-600 hover:bg-green-700"
         />
       )}
 
-      <Text size="xs" c="dimmed">
-        <strong>{JIRA_LABELS.FOR_CLOUD}</strong>{' '}
-        <a
-          href="https://id.atlassian.com/manage-profile/security/api-tokens"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
-        >
-          {JIRA_LABELS.ATLASSIAN_SETTINGS}
-        </a>
-      </Text>
+      <Box
+        p="sm"
+        style={{
+          backgroundColor: theme.colors.slate[0],
+          borderRadius: theme.radius.md,
+          border: `1px solid ${theme.colors.slate[2]}`,
+        }}
+      >
+        <Text size="xs" c={theme.colors.slate[6]}>
+          <Text component="span" fw={600}>{JIRA_LABELS.FOR_CLOUD}</Text>{' '}
+          <Anchor
+            href="https://id.atlassian.com/manage-profile/security/api-tokens"
+            target="_blank"
+            rel="noopener noreferrer"
+            c="brand"
+            size="xs"
+          >
+            {JIRA_LABELS.ATLASSIAN_SETTINGS}
+          </Anchor>
+        </Text>
+      </Box>
     </Stack>
   );
 }

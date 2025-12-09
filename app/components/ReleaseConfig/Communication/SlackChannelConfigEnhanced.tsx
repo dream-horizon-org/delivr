@@ -4,26 +4,28 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  Stack, 
-  Text, 
-  Select, 
+import {
+  Stack,
+  Text,
+  Select,
   MultiSelect,
-  Card, 
-  Group, 
-  Switch, 
+  Paper,
+  Group,
+  Switch,
   Loader,
-  Alert
+  Box,
+  ThemeIcon,
+  Center,
+  useMantineTheme,
 } from '@mantine/core';
-import { IconBrandSlack, IconAlertCircle } from '@tabler/icons-react';
+import { IconBrandSlack, IconAlertCircle, IconCheck } from '@tabler/icons-react';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
-import type { 
+import type {
   CommunicationConfig,
   SlackChannelConfig,
-  SlackChannel 
+  SlackChannel,
 } from '~/types/release-config';
 import type { SlackChannelConfigEnhancedProps } from '~/types/release-config-props';
-import { SLACK_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 
 export function SlackChannelConfigEnhanced({
   config,
@@ -31,6 +33,7 @@ export function SlackChannelConfigEnhanced({
   availableIntegrations,
   tenantId,
 }: SlackChannelConfigEnhancedProps) {
+  const theme = useMantineTheme();
   const [availableChannels, setAvailableChannels] = useState<SlackChannel[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [channelsError, setChannelsError] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function SlackChannelConfigEnhanced({
       const result = await apiGet<SlackChannel[]>(
         `/api/v1/communication/slack/${integrationId}/channels?tenantId=${tenantId}`
       );
-      
+
       if (result.success && result.data) {
         setAvailableChannels(result.data);
       } else {
@@ -73,7 +76,7 @@ export function SlackChannelConfigEnhanced({
       slack: enabled
         ? {
             enabled: true,
-            integrationId: '',
+            integrationId: availableIntegrations[0]?.id || '',
             channelData: {
               releases: [],
               builds: [],
@@ -99,12 +102,11 @@ export function SlackChannelConfigEnhanced({
 
   const handleChannelChange = (channelType: keyof SlackChannelConfig, channelIds: string[]) => {
     if (slackConfig && slackConfig.channelData) {
-      // Convert channel IDs to channel objects with id and name
-      const channelObjects = channelIds.map(id => {
-        const channel = availableChannels.find(ch => ch.id === id);
-        return channel || { id, name: id }; // Fallback if channel not found
+      const channelObjects = channelIds.map((id) => {
+        const channel = availableChannels.find((ch) => ch.id === id);
+        return channel || { id, name: id };
       });
-      
+
       onChange({
         ...config,
         slack: {
@@ -118,137 +120,188 @@ export function SlackChannelConfigEnhanced({
     }
   };
 
-  const channelOptions = availableChannels.map(ch => ({
+  const channelOptions = availableChannels.map((ch) => ({
     value: ch.id,
     label: `#${ch.name}`,
   }));
 
-  const renderChannelSelects = (
-    channels: SlackChannelConfig,
-    onChannelChange: (type: keyof SlackChannelConfig, value: string[]) => void
-  ) => (
-    <Stack gap="sm">
-      <MultiSelect
-        label={SLACK_LABELS.RELEASES_LABEL}
-        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
-        data={channelOptions}
-        value={channels.releases?.map(ch => ch.id) || []}
-        onChange={(val) => onChannelChange('releases', val)}
-        searchable
-        clearable
-        description={SLACK_LABELS.RELEASES_DESCRIPTION}
-      />
-      <MultiSelect
-        label={SLACK_LABELS.BUILDS_LABEL}
-        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
-        data={channelOptions}
-        value={channels.builds?.map(ch => ch.id) || []}
-        onChange={(val) => onChannelChange('builds', val)}
-        searchable
-        clearable
-        description={SLACK_LABELS.BUILDS_DESCRIPTION}
-      />
-      <MultiSelect
-        label={SLACK_LABELS.REGRESSION_LABEL}
-        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
-        data={channelOptions}
-        value={channels.regression?.map(ch => ch.id) || []}
-        onChange={(val) => onChannelChange('regression', val)}
-        searchable
-        clearable
-        description={SLACK_LABELS.REGRESSION_DESCRIPTION}
-      />
-      <MultiSelect
-        label={SLACK_LABELS.CRITICAL_LABEL}
-        placeholder={SLACK_LABELS.SELECT_CHANNELS_PLACEHOLDER}
-        data={channelOptions}
-        value={channels.critical?.map(ch => ch.id) || []}
-        onChange={(val) => onChannelChange('critical', val)}
-        searchable
-        clearable
-        description={SLACK_LABELS.CRITICAL_DESCRIPTION}
-      />
-    </Stack>
-  );
-
   return (
-    <Card shadow="sm" padding="md" radius="md" withBorder>
-      <Group gap="sm" className="mb-3">
-        <IconBrandSlack size={ICON_SIZES.MEDIUM} className="text-blue-600" />
-        <Text fw={600} size="sm">
-          {SLACK_LABELS.INTEGRATION_TITLE}
-        </Text>
-      </Group>
-
-      <Stack gap="md">
-        <Switch
-          label={SLACK_LABELS.ENABLE_NOTIFICATIONS}
-          description={SLACK_LABELS.ENABLE_DESCRIPTION}
-          checked={isEnabled}
-          onChange={(e) => handleToggle(e.currentTarget.checked)}
-          size="md"
-        />
+    <Paper p="lg" radius="md" withBorder>
+      <Stack gap="lg">
+        {/* Header */}
+        <Group gap="sm" mb="xs">
+          <ThemeIcon size={36} radius="md" variant="light" color="blue">
+            <IconBrandSlack size={20} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Group gap="xs">
+              <Text fw={600} size="md" c={theme.colors.slate[8]}>
+                Slack Notifications
+              </Text>
+              {isEnabled && (
+                <ThemeIcon size={20} radius="xl" color="blue">
+                  <IconCheck size={12} />
+                </ThemeIcon>
+              )}
+            </Group>
+            <Text size="xs" c={theme.colors.slate[5]}>
+              Configure Slack channels for release notifications
+            </Text>
+          </Box>
+          <Switch
+            checked={isEnabled}
+            onChange={(e) => handleToggle(e.currentTarget.checked)}
+            size="md"
+            color="blue"
+          />
+        </Group>
 
         {isEnabled && (
-          <>
+          <Stack gap="md">
             {availableIntegrations.length > 0 ? (
               <>
                 <Select
-                  label={SLACK_LABELS.WORKSPACE_LABEL}
-                  placeholder={SLACK_LABELS.WORKSPACE_PLACEHOLDER}
-                  data={availableIntegrations.map(i => ({ value: i.id, label: i.name }))}
+                  label="Slack Workspace"
+                  placeholder="Select a workspace"
+                  data={availableIntegrations.map((i) => ({ value: i.id, label: i.name }))}
                   value={integrationId}
                   onChange={(val) => handleIntegrationChange(val || '')}
                   required
-                  description={SLACK_LABELS.WORKSPACE_DESCRIPTION}
+                  description="Select the Slack workspace to use for notifications"
+                  size="sm"
                 />
 
                 {integrationId && (
                   <>
                     {isLoadingChannels ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader size="sm" />
-                        <Text size="sm" c="dimmed" className="ml-2">
-                          {SLACK_LABELS.LOADING_CHANNELS}
-                        </Text>
-                      </div>
+                      <Center py="xl">
+                        <Group gap="sm">
+                          <Loader size="sm" />
+                          <Text size="sm" c={theme.colors.slate[5]}>
+                            Loading channels...
+                          </Text>
+                        </Group>
+                      </Center>
                     ) : channelsError ? (
-                      <Alert color="red" icon={<IconAlertCircle size={ICON_SIZES.SMALL} />}>
-                        {channelsError}
-                      </Alert>
+                      <Paper
+                        p="md"
+                        radius="md"
+                        style={{
+                          backgroundColor: theme.colors.red[0],
+                          border: `1px solid ${theme.colors.red[2]}`,
+                        }}
+                      >
+                        <Group gap="sm">
+                          <ThemeIcon size={24} radius="md" variant="light" color="red">
+                            <IconAlertCircle size={14} />
+                          </ThemeIcon>
+                          <Text size="sm" c={theme.colors.red[8]}>
+                            {channelsError}
+                          </Text>
+                        </Group>
+                      </Paper>
                     ) : availableChannels.length > 0 ? (
                       <>
                         {slackConfig?.channelData && (
-                          <div className="bg-gray-50 p-4 rounded-lg">
-                            <Text size="sm" fw={500} className="mb-3">
-                              {SLACK_LABELS.CHANNEL_MAPPINGS_TITLE}
+                          <Paper
+                            p="md"
+                            radius="md"
+                            style={{
+                              backgroundColor: theme.colors.slate[0],
+                              border: `1px solid ${theme.colors.slate[2]}`,
+                            }}
+                          >
+                            <Text size="sm" fw={600} c={theme.colors.slate[8]} mb="md">
+                              Channel Mappings
                             </Text>
-                            {renderChannelSelects(
-                              slackConfig.channelData,
-                              (type, value) => handleChannelChange(type, value)
-                            )}
-                          </div>
+                            <Stack gap="md">
+                              <MultiSelect
+                                label="Release Notifications"
+                                placeholder="Select channels"
+                                data={channelOptions}
+                                value={slackConfig.channelData.releases?.map((ch) => ch.id) || []}
+                                onChange={(val) => handleChannelChange('releases', val)}
+                                searchable
+                                clearable
+                                description="Channels to notify for new releases"
+                                size="sm"
+                              />
+                              <MultiSelect
+                                label="Build Notifications"
+                                placeholder="Select channels"
+                                data={channelOptions}
+                                value={slackConfig.channelData.builds?.map((ch) => ch.id) || []}
+                                onChange={(val) => handleChannelChange('builds', val)}
+                                searchable
+                                clearable
+                                description="Channels to notify for build updates"
+                                size="sm"
+                              />
+                              <MultiSelect
+                                label="Regression Notifications"
+                                placeholder="Select channels"
+                                data={channelOptions}
+                                value={slackConfig.channelData.regression?.map((ch) => ch.id) || []}
+                                onChange={(val) => handleChannelChange('regression', val)}
+                                searchable
+                                clearable
+                                description="Channels to notify for regression testing"
+                                size="sm"
+                              />
+                              <MultiSelect
+                                label="Critical Notifications"
+                                placeholder="Select channels"
+                                data={channelOptions}
+                                value={slackConfig.channelData.critical?.map((ch) => ch.id) || []}
+                                onChange={(val) => handleChannelChange('critical', val)}
+                                searchable
+                                clearable
+                                description="Channels to notify for critical issues"
+                                size="sm"
+                              />
+                            </Stack>
+                          </Paper>
                         )}
                       </>
                     ) : (
-                      <Alert color="blue">
-                        {SLACK_LABELS.NO_CHANNELS_MESSAGE}
-                      </Alert>
+                      <Paper
+                        p="md"
+                        radius="md"
+                        style={{
+                          backgroundColor: theme.colors.blue[0],
+                          border: `1px solid ${theme.colors.blue[2]}`,
+                        }}
+                      >
+                        <Text size="sm" c={theme.colors.blue[7]}>
+                          No channels available in this workspace
+                        </Text>
+                      </Paper>
                     )}
                   </>
                 )}
               </>
             ) : (
-              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                <Text size="sm" c="orange">
-                  {SLACK_LABELS.NO_WORKSPACE_MESSAGE}
-                </Text>
-              </div>
+              <Paper
+                p="md"
+                radius="md"
+                style={{
+                  backgroundColor: theme.colors.yellow[0],
+                  border: `1px solid ${theme.colors.yellow[2]}`,
+                }}
+              >
+                <Group gap="sm">
+                  <ThemeIcon size={24} radius="md" variant="light" color="yellow">
+                    <IconAlertCircle size={14} />
+                  </ThemeIcon>
+                  <Text size="sm" c={theme.colors.yellow[8]}>
+                    No Slack workspaces available
+                  </Text>
+                </Group>
+              </Paper>
             )}
-          </>
+          </Stack>
         )}
       </Stack>
-    </Card>
+    </Paper>
   );
 }
-

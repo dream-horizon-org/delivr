@@ -1,16 +1,33 @@
 /**
  * Jira Project Configuration Step
  * Step in the Release Configuration wizard for Jira project management setup
- * Now supports platform-level configuration
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Stack, Text, Switch, Select, Alert, Checkbox, Loader } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import {
+  Stack,
+  Text,
+  Switch,
+  Select,
+  Paper,
+  Checkbox,
+  Group,
+  Box,
+  ThemeIcon,
+  useMantineTheme,
+  Center,
+  Loader,
+} from '@mantine/core';
+import {
+  IconTicket,
+  IconCheck,
+  IconAlertCircle,
+  IconPlug,
+} from '@tabler/icons-react';
+import { Link, useParams } from '@remix-run/react';
 import type { JiraProjectConfig, Platform, JiraPlatformConfig } from '~/types/release-config';
 import type { JiraProjectStepProps } from '~/types/release-config-props';
 import { PLATFORMS } from '~/types/release-config-constants';
-import { JIRA_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 import { DEFAULT_PROJECT_MANAGEMENT_CONFIG } from '~/constants/release-config';
 import { JiraPlatformConfigCard } from './JiraPlatformConfigCard';
 import { createDefaultPlatformConfigs } from '~/utils/jira-config-transformer';
@@ -23,16 +40,18 @@ export function JiraProjectStep({
   selectedPlatforms = [],
   tenantId,
 }: JiraProjectStepProps) {
-  // ✅ Safe access with default values - ensure config is never undefined
+  const theme = useMantineTheme();
+  const params = useParams();
+  const orgId = params.org || tenantId || '';
+
   const isEnabled = config.enabled ?? false;
   const platformConfigurations = config.platformConfigurations ?? [];
-  
-  // State for fetching Jira projects
+
   const [projects, setProjects] = useState<Array<{ key: string; name: string }>>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
-  
+
   // Initialize platform configurations if they don't exist
   if (isEnabled && platformConfigurations.length === 0) {
     const defaultConfigs = createDefaultPlatformConfigs(selectedPlatforms);
@@ -44,7 +63,6 @@ export function JiraProjectStep({
 
   const handleToggle = (enabled: boolean) => {
     if (enabled) {
-      // When enabling, create default platform configs
       const defaultConfigs = createDefaultPlatformConfigs(selectedPlatforms);
       onChange({
         ...config,
@@ -52,28 +70,26 @@ export function JiraProjectStep({
         platformConfigurations: defaultConfigs,
       });
     } else {
-      // When disabling, clear platform configurations
       onChange({
         ...config,
         enabled: false,
-        platformConfigurations: [], // Clear configurations when disabled
+        platformConfigurations: [],
       });
     }
   };
 
-  // Fetch Jira projects when integration is selected
   const fetchProjects = useCallback(async (integrationId: string) => {
     if (!tenantId || !integrationId) return;
-    
+
     setIsLoadingProjects(true);
     setProjectsError(null);
     setProjectsLoaded(false);
-    
+
     try {
       const result = await apiGet<{ success: boolean; data: Array<{ key: string; name: string }> }>(
         `/api/v1/tenants/${tenantId}/integrations/project-management/${integrationId}/jira/metadata/projects`
       );
-      
+
       if (result.success && result.data) {
         const projectsData = Array.isArray(result.data) ? result.data : [];
         setProjects(projectsData);
@@ -92,7 +108,6 @@ export function JiraProjectStep({
     }
   }, [tenantId]);
 
-  // Fetch projects when integration is selected
   useEffect(() => {
     if (config.integrationId && !projectsLoaded && !isLoadingProjects) {
       fetchProjects(config.integrationId);
@@ -100,11 +115,10 @@ export function JiraProjectStep({
   }, [config.integrationId, fetchProjects, projectsLoaded, isLoadingProjects]);
 
   const handleIntegrationChange = (integrationId: string | null) => {
-    // Reset projects when integration changes
     setProjects([]);
     setProjectsLoaded(false);
     setProjectsError(null);
-    
+
     onChange({
       ...config,
       integrationId: integrationId || '',
@@ -112,7 +126,7 @@ export function JiraProjectStep({
   };
 
   const handlePlatformConfigChange = (platform: Platform, platformConfig: JiraPlatformConfig) => {
-    const updatedConfigs = platformConfigurations.map(pc =>
+    const updatedConfigs = platformConfigurations.map((pc) =>
       pc.platform === platform ? platformConfig : pc
     );
     onChange({
@@ -128,104 +142,235 @@ export function JiraProjectStep({
     });
   };
 
-  // Filter available integrations to show only active ones
-  const integrationOptions = availableIntegrations.map(int => ({
+  const integrationOptions = availableIntegrations.map((int) => ({
     value: int.id,
     label: int.name,
   }));
 
   return (
-    <Stack gap="xl">
-      {/* Header */}
-      <div>
-        <Text fw={600} size="lg" className="mb-1">
-          {JIRA_LABELS.SECTION_TITLE}
-        </Text>
-        <Text size="sm" c="dimmed">
-          {JIRA_LABELS.SECTION_DESCRIPTION}
-        </Text>
-      </div>
+    <Stack gap="lg">
+      {/* Info Header */}
+      <Paper
+        p="md"
+        radius="md"
+        style={{
+          backgroundColor: theme.colors.blue[0],
+          border: `1px solid ${theme.colors.blue[2]}`,
+        }}
+      >
+        <Group gap="sm">
+          <ThemeIcon size={32} radius="md" variant="light" color="blue">
+            <IconTicket size={18} />
+          </ThemeIcon>
+          <Box style={{ flex: 1 }}>
+            <Text size="sm" fw={600} c={theme.colors.blue[8]} mb={2}>
+              JIRA Project Management
+            </Text>
+            <Text size="xs" c={theme.colors.blue[7]}>
+              Optional: Link releases to JIRA issues and track project progress
+            </Text>
+          </Box>
+        </Group>
+      </Paper>
 
-      {/* Enable/Disable Switch */}
-      <Switch
-        label={JIRA_LABELS.ENABLE_INTEGRATION}
-        description={JIRA_LABELS.ENABLE_DESCRIPTION}
-        checked={isEnabled}
-        onChange={(event) => handleToggle(event.currentTarget.checked)}
-        size="md"
-      />
+      {/* Enable Toggle */}
+      <Paper p="lg" radius="md" withBorder>
+        <Group justify="space-between" align="flex-start">
+          <Group gap="md">
+            <ThemeIcon
+              size={40}
+              radius="md"
+              variant={isEnabled ? 'filled' : 'light'}
+              color={isEnabled ? 'blue' : 'gray'}
+            >
+              <IconTicket size={22} />
+            </ThemeIcon>
+            <Box>
+              <Group gap="xs" mb={4}>
+                <Text fw={600} size="md" c={theme.colors.slate[8]}>
+                  Enable JIRA Integration
+                </Text>
+                {isEnabled && (
+                  <ThemeIcon size={20} radius="xl" color="blue">
+                    <IconCheck size={12} />
+                  </ThemeIcon>
+                )}
+              </Group>
+              <Text size="sm" c={theme.colors.slate[5]}>
+                Connect JIRA to track releases and link builds to issues
+              </Text>
+            </Box>
+          </Group>
+          <Switch
+            checked={isEnabled}
+            onChange={(e) => handleToggle(e.currentTarget.checked)}
+            size="md"
+            color="blue"
+          />
+        </Group>
+      </Paper>
 
       {isEnabled && (
-        <>
-          {/* No platforms selected warning */}
+        <Stack gap="lg">
+          {/* No platforms warning */}
           {selectedPlatforms.length === 0 && (
-            <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="No platforms selected" color="yellow">
-              {JIRA_LABELS.NO_PLATFORMS_WARNING}
-            </Alert>
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                backgroundColor: theme.colors.yellow[0],
+                border: `1px solid ${theme.colors.yellow[2]}`,
+              }}
+            >
+              <Group gap="sm">
+                <ThemeIcon size={28} radius="md" variant="light" color="yellow">
+                  <IconAlertCircle size={16} />
+                </ThemeIcon>
+                <Text size="sm" c={theme.colors.yellow[8]}>
+                  No platforms selected. Select platforms in the Target Platforms step first.
+                </Text>
+              </Group>
+            </Paper>
           )}
 
           {selectedPlatforms.length > 0 && (
             <>
-              {/* JIRA Integration Selector */}
-              <Select
-                label={JIRA_LABELS.INTEGRATION_LABEL}
-                placeholder={JIRA_LABELS.INTEGRATION_PLACEHOLDER}
-                description={JIRA_LABELS.INTEGRATION_DESCRIPTION}
-                data={integrationOptions}
-                value={config.integrationId || null}
-                onChange={handleIntegrationChange}
-                required
-                searchable
-              />
+              {/* Integration Selector */}
+              <Paper p="lg" radius="md" withBorder>
+                <Stack gap="md">
+                  <Select
+                    label="JIRA Integration"
+                    placeholder="Select a JIRA integration"
+                    description="Choose the JIRA integration to use for this configuration"
+                    data={integrationOptions}
+                    value={config.integrationId || null}
+                    onChange={handleIntegrationChange}
+                    required
+                    searchable
+                    size="sm"
+                  />
 
-              {/* No integrations available warning */}
-              {integrationOptions.length === 0 && (
-                <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="No JIRA integrations" color="red">
-                  {JIRA_LABELS.NO_INTEGRATIONS_WARNING}
-                </Alert>
-              )}
+                  {/* No integrations warning */}
+                  {integrationOptions.length === 0 && (
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        backgroundColor: theme.colors.red[0],
+                        border: `1px solid ${theme.colors.red[2]}`,
+                      }}
+                    >
+                      <Group gap="sm" align="flex-start">
+                        <ThemeIcon size={28} radius="md" variant="light" color="red">
+                          <IconAlertCircle size={16} />
+                        </ThemeIcon>
+                        <Box style={{ flex: 1 }}>
+                          <Text size="sm" fw={600} c={theme.colors.red[8]} mb={4}>
+                            No JIRA Integrations Available
+                          </Text>
+                          <Text size="xs" c={theme.colors.red[7]} mb="sm">
+                            Connect a JIRA integration to use project management features.
+                          </Text>
+                          <Text
+                            component={Link}
+                            to={`/dashboard/${orgId}/integrations`}
+                            size="xs"
+                            c={theme.colors.red[8]}
+                            fw={600}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <IconPlug size={14} />
+                            Connect JIRA
+                          </Text>
+                        </Box>
+                      </Group>
+                    </Paper>
+                  )}
 
+                  {config.integrationId && (
+                    <>
+                      {/* Loading Projects */}
+                      {isLoadingProjects && (
+                        <Center py="xl">
+                          <Group gap="sm">
+                            <Loader size="sm" />
+                            <Text size="sm" c={theme.colors.slate[5]}>
+                              Fetching Jira projects...
+                            </Text>
+                          </Group>
+                        </Center>
+                      )}
+
+                      {/* Projects Fetch Error */}
+                      {!isLoadingProjects && projectsError && (
+                        <Paper
+                          p="md"
+                          radius="md"
+                          style={{
+                            backgroundColor: theme.colors.yellow[0],
+                            border: `1px solid ${theme.colors.yellow[2]}`,
+                          }}
+                        >
+                          <Group gap="sm" align="flex-start">
+                            <ThemeIcon size={24} radius="md" variant="light" color="yellow">
+                              <IconAlertCircle size={14} />
+                            </ThemeIcon>
+                            <Box style={{ flex: 1 }}>
+                              <Text size="sm" fw={500} c={theme.colors.yellow[8]} mb={4}>
+                                Failed to fetch projects
+                              </Text>
+                              <Text size="xs" c={theme.colors.yellow[7]}>
+                                {projectsError}
+                              </Text>
+                              <Text size="xs" c={theme.colors.yellow[7]} mt="xs">
+                                You can still manually enter project keys below.
+                              </Text>
+                            </Box>
+                          </Group>
+                        </Paper>
+                      )}
+
+                      {/* No Projects Available */}
+                      {!isLoadingProjects && !projectsError && projectsLoaded && projects.length === 0 && (
+                        <Paper
+                          p="md"
+                          radius="md"
+                          style={{
+                            backgroundColor: theme.colors.blue[0],
+                            border: `1px solid ${theme.colors.blue[2]}`,
+                          }}
+                        >
+                          <Text size="sm" c={theme.colors.blue[7]}>
+                            No Jira projects found. You can manually enter project keys below.
+                          </Text>
+                        </Paper>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </Paper>
+
+              {/* Platform Configurations */}
               {config.integrationId && (
-                <>
-                  {/* Loading Projects */}
-                  {isLoadingProjects && (
-                    <Alert icon={<Loader size={ICON_SIZES.SMALL} />} color="blue" variant="light">
-                      <Text size="sm">Fetching Jira projects...</Text>
-                    </Alert>
-                  )}
-
-                  {/* Projects Fetch Error - Show warning but still allow form entry */}
-                  {!isLoadingProjects && projectsError && (
-                    <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="Failed to fetch projects" color="yellow">
-                      <Text size="sm">{projectsError}</Text>
-                      <Text size="sm" mt="xs" c="dimmed">
-                        You can still manually enter project keys below. Please check your Jira integration credentials if you need to fetch projects automatically.
+                <Paper p="lg" radius="md" withBorder>
+                  <Stack gap="lg">
+                    <Box>
+                      <Text fw={600} size="sm" c={theme.colors.slate[8]} mb={4}>
+                        Platform Settings
                       </Text>
-                    </Alert>
-                  )}
-
-                  {/* No Projects Available - Show info but still allow form entry */}
-                  {!isLoadingProjects && !projectsError && projectsLoaded && projects.length === 0 && (
-                    <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} title="No projects found" color="yellow">
-                      <Text size="sm">
-                        No Jira projects were found for this integration. You can manually enter project keys below.
+                      <Text size="xs" c={theme.colors.slate[5]}>
+                        Configure JIRA project settings for each platform
                       </Text>
-                    </Alert>
-                  )}
+                    </Box>
 
-                  {/* Platform Configurations - Always show when integration is selected */}
-                  <div>
-                    <Text fw={500} size="md" mb="md">
-                      {JIRA_LABELS.PLATFORM_SETTINGS_TITLE}
-                    </Text>
-                    <Text size="sm" c="dimmed" mb="lg">
-                      {JIRA_LABELS.PLATFORM_SETTINGS_DESCRIPTION}
-                    </Text>
-
-                    <Stack gap="lg">
+                    <Stack gap="md">
                       {config.platformConfigurations
-                        .filter(pc => selectedPlatforms.includes(pc.platform))
-                        .map(platformConfig => (
+                        .filter((pc) => selectedPlatforms.includes(pc.platform))
+                        .map((platformConfig) => (
                           <JiraPlatformConfigCard
                             key={platformConfig.platform}
                             platform={platformConfig.platform}
@@ -238,37 +383,64 @@ export function JiraProjectStep({
                           />
                         ))}
                     </Stack>
-                  </div>
+                  </Stack>
+                </Paper>
+              )}
 
-                  {/* Global Settings */}
-                  <div>
-                    <Text fw={500} size="md" mb="md">
-                      {JIRA_LABELS.GLOBAL_SETTINGS_TITLE}
+              {/* Global Settings */}
+              {config.integrationId && (
+                <Paper p="lg" radius="md" withBorder>
+                  <Stack gap="md">
+                    <Text fw={600} size="sm" c={theme.colors.slate[8]} mb={4}>
+                      Global Settings
                     </Text>
                     <Stack gap="sm">
                       <Checkbox
-                        label={JIRA_LABELS.AUTO_CREATE_TICKETS}
-                        description={JIRA_LABELS.AUTO_CREATE_DESCRIPTION}
+                        label="Automatically Create Release Tickets"
+                        description="Create a JIRA ticket for each new release"
                         checked={config.createReleaseTicket ?? true}
                         onChange={(event) =>
                           handleGlobalSettingChange('createReleaseTicket', event.currentTarget.checked)
                         }
+                        size="sm"
                       />
                       <Checkbox
-                        label={JIRA_LABELS.LINK_BUILDS}
-                        description={JIRA_LABELS.LINK_BUILDS_DESCRIPTION}
+                        label="Link Builds to Issues"
+                        description="Automatically link build artifacts to related JIRA issues"
                         checked={config.linkBuildsToIssues ?? true}
                         onChange={(event) =>
                           handleGlobalSettingChange('linkBuildsToIssues', event.currentTarget.checked)
                         }
+                        size="sm"
                       />
                     </Stack>
-                  </div>
-                </>
+                  </Stack>
+                </Paper>
               )}
             </>
           )}
-        </>
+        </Stack>
+      )}
+
+      {/* Disabled State */}
+      {!isEnabled && (
+        <Paper
+          p="md"
+          radius="md"
+          style={{
+            backgroundColor: theme.colors.slate[0],
+            border: `1px solid ${theme.colors.slate[2]}`,
+          }}
+        >
+          <Group gap="sm">
+            <ThemeIcon size={28} radius="md" variant="light" color="gray">
+              <IconAlertCircle size={16} />
+            </ThemeIcon>
+            <Text size="sm" c={theme.colors.slate[6]}>
+              JIRA integration is disabled. You can still create releases without JIRA tracking.
+            </Text>
+          </Group>
+        </Paper>
       )}
     </Stack>
   );

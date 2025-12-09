@@ -1,4 +1,4 @@
-import { Box, Text, UnstyledButton, useMantineTheme } from "@mantine/core";
+import { Box, Text, UnstyledButton, useMantineTheme, Group } from "@mantine/core";
 import { Link } from "@remix-run/react";
 import type { SubItem as SubItemType } from "./navigation-data";
 import type { Organization } from "./types";
@@ -23,63 +23,50 @@ export function SubItem({ subItem, org, isActive }: SubItemProps) {
       component={Link}
       to={subItem.path}
       prefetch={subItem.prefetch}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: 6,
+        transition: "all 0.15s ease",
+        backgroundColor: isActive ? theme.colors.brand[0] : "transparent",
+        borderLeft: isActive
+          ? `2px solid ${theme.colors.brand[5]}`
+          : "2px solid transparent",
+        marginLeft: -2,
+      }}
       styles={{
         root: {
-          width: "100%",
-          padding: `${theme.other.spacing.xs} ${theme.other.spacing.sm}`,
-          borderRadius: theme.other.borderRadius.sm,
-          transition: theme.other.transitions.fast,
-          backgroundColor: isActive ? theme.other.brand.light : "transparent",
-          borderLeft: isActive
-            ? `3px solid ${theme.other.brand.primary}`
-            : "3px solid transparent",
-          marginLeft: theme.other.spacing.xs,
           "&:hover": {
             backgroundColor: isActive
-              ? theme.other.brand.light
-              : theme.other.backgrounds.hover,
+              ? theme.colors.brand[0]
+              : theme.colors.slate[1],
           },
         },
       }}
     >
-      <Box
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: theme.other.spacing.sm,
-        }}
-      >
+      <Group gap={12}>
         <Icon
-          size={theme.other.sizes.icon.md}
-          color={
-            isActive
-              ? theme.other.brand.primary
-              : theme.other.text.tertiary
-          }
+          size={16}
+          color={isActive ? theme.colors.brand[6] : theme.colors.slate[5]}
           stroke={1.5}
         />
         <Text
-          fw={
-            isActive
-              ? theme.other.typography.fontWeight.semibold
-              : theme.other.typography.fontWeight.regular
-          }
-          size="xs"
-          c={
-            isActive
-              ? theme.other.brand.primaryDark
-              : theme.other.text.tertiary
-          }
+          fw={isActive ? 600 : 500}
+          size="13px"
+          c={isActive ? theme.colors.brand[7] : theme.colors.slate[6]}
           style={{
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             flex: 1,
+            lineHeight: 1.4,
           }}
         >
           {subItem.label}
         </Text>
-      </Box>
+      </Group>
     </UnstyledButton>
   );
 }

@@ -1,30 +1,34 @@
-import { Button, useMantineTheme } from "@mantine/core";
+import { Button, ButtonProps } from "@mantine/core";
 
-export function CTAButton(props: any) {
-  const theme = useMantineTheme();
-  const { styles, ...restProps } = props;
+interface CTAButtonProps extends ButtonProps {
+  onClick?: () => void;
+  // If variant is not provided, defaults to "filled" (Primary)
+}
 
-  const mergedStyles = typeof styles === 'function'
-    ? styles
-    : {
-        root: {
-          transition: theme.other.transitions.normal,
-          "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: theme.other.shadows.hover,
-          },
-          ...(styles && typeof styles === 'object' && 'root' in styles ? styles.root : {}),
-        },
-        ...(styles && typeof styles === 'object' ? styles : {}),
-      };
-
+export function CTAButton({ style, ...props }: CTAButtonProps) {
   return (
     <Button
-      variant="gradient"
-      gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
-      styles={mergedStyles}
-      {...restProps}
+      {...props}
+      style={{
+        // Let Mantine theme handle most things, just ensure transitions
+        transition: 'all 0.15s ease',
+        ...style,
+      }}
+      styles={(theme) => ({
+        root: {
+          // Subtle lift on hover for that "polished" feel
+          '&:hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: props.variant === 'filled' || !props.variant 
+              ? theme.shadows.md 
+              : undefined,
+          },
+          '&:active': {
+            transform: 'translateY(0)',
+          },
+        },
+        ...(typeof props.styles === 'object' ? props.styles : {}),
+      })}
     />
   );
 }
-
