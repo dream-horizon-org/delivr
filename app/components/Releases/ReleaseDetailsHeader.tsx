@@ -48,9 +48,9 @@ export const ReleaseDetailsHeader = memo(function ReleaseDetailsHeader({ release
 
       showSuccessToast(RELEASE_MESSAGES.UPDATE_SUCCESS);
       
-      // Call parent's refetch callback to refresh release data
-      if (onUpdate) {
-        onUpdate();
+    // Call parent's refetch callback to refresh release data
+    if (onUpdate) {
+      onUpdate();
       }
       
       setEditModalOpened(false);
@@ -126,7 +126,7 @@ export const ReleaseDetailsHeader = memo(function ReleaseDetailsHeader({ release
           isEditMode={true}
           onUpdate={handleUpdate}
           onCancel={() => setEditModalOpened(false)}
-        />
+      />
       </Modal>
     </>
   );

@@ -172,11 +172,11 @@ export function RegressionSlotCard({
               if (numValue !== undefined && numValue !== null && !isNaN(numValue)) {
                 // Clamp to valid range
                 const clampedValue = Math.max(0, Math.min(numValue, targetReleaseOffset || Infinity));
-                onUpdate({
-                  ...slot,
+              onUpdate({
+                ...slot,
                   regressionSlotOffsetFromKickoff: clampedValue,
                 });
-              }
+            }
             }}
             required
             min={0}

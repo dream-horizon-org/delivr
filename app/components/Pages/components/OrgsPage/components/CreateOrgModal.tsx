@@ -3,12 +3,13 @@ import {
   Button,
   TextInput,
   Text,
+  Box,
+  useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconBuilding } from "@tabler/icons-react";
 import { useState } from "react";
 import { notifications } from "@mantine/notifications";
-import axios from "axios";
 
 type CreateOrgModalProps = {
   onSuccess: () => void;
@@ -16,6 +17,7 @@ type CreateOrgModalProps = {
 
 export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const theme = useMantineTheme();
 
   const form = useForm<{ orgName: string }>({
     mode: "controlled",
@@ -32,25 +34,19 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
   });
 
   const handleSubmit = async (values: { orgName: string }) => {
-    // Validate before submitting
     if (form.validate().hasErrors) {
       return;
     }
 
     setIsLoading(true);
     try {
-      // Create organization using the new tenant API
-      // Use a Remix form action instead of direct axios call
-      const formData = new FormData();
-      formData.append("displayName", values.orgName);
-      
       const response = await fetch("/api/v1/tenants", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ displayName: values.orgName }),
-        credentials: "include", // Important: includes cookies for authentication
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -61,7 +57,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
       notifications.show({
         title: "Success",
         message: "Organization created successfully!",
-        color: "green",
+        color: "teal",
       });
 
       onSuccess();
@@ -78,17 +74,17 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
 
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
-      <Stack gap="md">
+      <Stack gap="lg">
         <Text size="sm" c="dimmed">
           Create a new organization to manage your apps and team members.
         </Text>
 
         <TextInput
           label="Organization Name"
-          placeholder="My Company"
-          leftSection={<IconBuilding size={18} />}
+          placeholder="Enter organization name"
+          leftSection={<IconBuilding size={18} stroke={1.5} />}
           required
-          withAsterisk
+          size="md"
           key={form.key("orgName")}
           {...form.getInputProps("orgName")}
           disabled={isLoading}
@@ -97,6 +93,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
         <Button
           type="submit"
           fullWidth
+          size="md"
           loading={isLoading}
           disabled={
             isLoading ||
@@ -110,4 +107,3 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     </form>
   );
 }
-

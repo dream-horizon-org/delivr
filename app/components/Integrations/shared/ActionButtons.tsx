@@ -4,6 +4,7 @@
  */
 
 import { Button, Group } from '@mantine/core';
+import { IconArrowLeft, IconCheck, IconX } from '@tabler/icons-react';
 
 interface ActionButtonsProps {
   onCancel?: () => void;
@@ -19,8 +20,6 @@ interface ActionButtonsProps {
   isSecondaryLoading?: boolean;
   isSecondaryDisabled?: boolean;
   isCancelDisabled?: boolean;
-  primaryClassName?: string;
-  secondaryClassName?: string;
 }
 
 export function ActionButtons({ 
@@ -37,40 +36,52 @@ export function ActionButtons({
   isSecondaryLoading = false,
   isSecondaryDisabled = false,
   isCancelDisabled = false,
-  primaryClassName = 'bg-blue-600 hover:bg-blue-700',
-  secondaryClassName = 'bg-gray-600 hover:bg-gray-700'
 }: ActionButtonsProps) {
   return (
-    <Group justify="space-between" className="mt-6">
-      <div>
+    <Group justify="space-between" mt="lg">
+      <Group>
         {onCancel && (
-          <Button variant="subtle" onClick={onCancel} disabled={isCancelDisabled}>
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={onCancel} 
+            disabled={isCancelDisabled}
+            leftSection={<IconX size={14} />}
+          >
             {cancelLabel}
           </Button>
         )}
         {onBack && (
-          <Button variant="subtle" onClick={onBack}>
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={onBack}
+            leftSection={<IconArrowLeft size={14} />}
+          >
             {backLabel}
           </Button>
         )}
-      </div>
-      <Group>
+      </Group>
+      <Group gap="sm">
         {onSecondary && secondaryLabel && (
           <Button
             variant="light"
+            color="gray"
+            size="sm"
             onClick={onSecondary}
             loading={isSecondaryLoading}
             disabled={isSecondaryDisabled || isSecondaryLoading}
-            className={secondaryClassName}
           >
             {secondaryLabel}
           </Button>
         )}
         <Button
+          color="brand"
+          size="sm"
           onClick={onPrimary}
           loading={isPrimaryLoading}
           disabled={isPrimaryDisabled || isPrimaryLoading}
-          className={primaryClassName}
+          leftSection={!isPrimaryLoading ? <IconCheck size={14} /> : undefined}
         >
           {primaryLabel}
         </Button>
@@ -78,4 +89,3 @@ export function ActionButtons({
     </Group>
   );
 }
-

@@ -1,10 +1,5 @@
 /**
  * GitHub Actions CI/CD Connection Flow Component
- * Simplified connection flow aligned with Jira integration pattern
- * 
- * Backend API: /tenants/:tenantId/integrations/ci-cd/github-actions
- * Falls back to SCM GitHub token if no token provided
- * Supports both create and edit modes
  */
 
 import { useState, useRef } from 'react';
@@ -14,7 +9,12 @@ import {
   PasswordInput,
   Stack,
   Text,
-  Alert
+  Alert,
+  Box,
+  Anchor,
+  Badge,
+  Group,
+  useMantineTheme,
 } from '@mantine/core';
 import { IconInfoCircle, IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
@@ -29,7 +29,7 @@ interface GitHubActionsConnectionFlowProps {
   onCancel: () => void;
   isEditMode?: boolean;
   existingData?: {
-    id: string; // integrationId - required for updates
+    id: string;
     displayName?: string;
     hostUrl?: string;
     verificationStatus?: string;
@@ -49,29 +49,26 @@ export function GitHubActionsConnectionFlow({
   isEditMode = false, 
   existingData 
 }: GitHubActionsConnectionFlowProps) {
+  const theme = useMantineTheme();
   const params = useParams();
   const tenantId = params.org;
-
-  // Ref to track if we're in the middle of verify/connect flow
   const isInFlowRef = useRef(false);
 
-  // Draft storage with auto-save
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<GitHubActionsConnectionFormData>(
     {
       storageKey: generateStorageKey('github-actions-cicd', tenantId || ''),
-      sensitiveFields: ['apiToken'], // Never save token to draft
-      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      sensitiveFields: ['apiToken'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.displayName),
     },
     {
       displayName: existingData?.displayName || '',
       hostUrl: existingData?.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-      apiToken: '', // Never pre-populate token for security
+      apiToken: '',
     },
     isEditMode ? {
       displayName: existingData?.displayName || '',
       hostUrl: existingData?.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-      apiToken: '', // Never pre-populate token for security
+      apiToken: '',
     } : undefined
   );
 
@@ -84,7 +81,7 @@ export function GitHubActionsConnectionFlow({
     setIsVerifying(true);
     setError(null);
     setIsVerified(false);
-    isInFlowRef.current = true; // Prevent draft save during verify
+    isInFlowRef.current = true;
 
     try {
       const result = await apiPost<{ verified: boolean }>(
@@ -92,7 +89,7 @@ export function GitHubActionsConnectionFlow({
         {
           displayName: formData.displayName || undefined,
           hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-          apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
+          apiToken: formData.apiToken || undefined,
         }
       );
 
@@ -105,14 +102,14 @@ export function GitHubActionsConnectionFlow({
       setError(getApiErrorMessage(err, ALERT_MESSAGES.VERIFICATION_FAILED));
     } finally {
       setIsVerifying(false);
-      isInFlowRef.current = false; // Re-enable draft save after verify
+      isInFlowRef.current = false;
     }
   };
 
   const handleConnect = async () => {
     setIsConnecting(true);
     setError(null);
-    isInFlowRef.current = true; // Prevent draft save during connect
+    isInFlowRef.current = true;
 
     try {
       const payload: any = {
@@ -120,12 +117,10 @@ export function GitHubActionsConnectionFlow({
         hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
       };
 
-      // Only include apiToken if provided
       if (formData.apiToken) {
         payload.apiToken = formData.apiToken;
       }
 
-      // For updates, include integrationId so service layer knows to use new backend path
       if (isEditMode && existingData?.id) {
         payload.integrationId = existingData.id;
       }
@@ -136,7 +131,7 @@ export function GitHubActionsConnectionFlow({
         : await apiPost(endpoint, payload);
 
       if (result.success) {
-        markSaveSuccessful(); // Clear draft on successful save
+        markSaveSuccessful();
         onConnect(result);
       } else {
         setError(ALERT_MESSAGES.CONNECTION_FAILED);
@@ -145,28 +140,24 @@ export function GitHubActionsConnectionFlow({
       setError(getApiErrorMessage(err, ALERT_MESSAGES.CONNECTION_FAILED));
     } finally {
       setIsConnecting(false);
-      isInFlowRef.current = false; // Re-enable draft save after connect
+      isInFlowRef.current = false;
     }
   };
 
-  const isFormValid = () => {
-    return true; // Token is optional (falls back to SCM), no other required fields
-  };
-
   return (
-    <Stack gap="lg">
+    <Stack gap="md">
       {/* Draft Restored Alert */}
       {isDraftRestored && !isEditMode && (
-        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
-          Your previously entered data has been restored. Note: Sensitive credentials (like API tokens) are never saved for security.
+        <Alert icon={<IconCheck size={16} />} color="brand" variant="light" radius="md" title="Draft Restored">
+          Your previously entered data has been restored. Tokens are never saved for security.
         </Alert>
       )}
 
-      {/* Info alert about token fallback (only for new connections) */}
+      {/* Info alert about token fallback */}
       {!isEditMode && (
-        <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+        <Alert icon={<IconInfoCircle size={16} />} color="brand" variant="light" radius="md">
           <Text size="sm">
-            <strong>{GITHUB_ACTIONS_LABELS.TIP_TITLE}</strong> {GITHUB_ACTIONS_LABELS.TIP_MESSAGE}
+            <Text component="span" fw={600}>{GITHUB_ACTIONS_LABELS.TIP_TITLE}</Text> {GITHUB_ACTIONS_LABELS.TIP_MESSAGE}
           </Text>
         </Alert>
       )}
@@ -177,6 +168,7 @@ export function GitHubActionsConnectionFlow({
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
         description={GITHUB_ACTIONS_LABELS.DISPLAY_NAME_DESCRIPTION}
+        size="sm"
       />
 
       <TextInput
@@ -185,6 +177,7 @@ export function GitHubActionsConnectionFlow({
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
         description={GITHUB_ACTIONS_LABELS.API_URL_DESCRIPTION}
+        size="sm"
       />
 
       <PasswordInput
@@ -193,12 +186,15 @@ export function GitHubActionsConnectionFlow({
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
         description={isEditMode ? GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION_EDIT : GITHUB_ACTIONS_LABELS.PAT_DESCRIPTION}
+        size="sm"
       />
 
       {error && (
         <Alert 
           icon={<IconAlertCircle size={16} />} 
-          color="red" 
+          color="red"
+          variant="light"
+          radius="md"
           title="Error"
           onClose={() => setError(null)}
           withCloseButton
@@ -209,7 +205,7 @@ export function GitHubActionsConnectionFlow({
 
       {isVerified && (
         <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
-          {GITHUB_ACTIONS_LABELS.VERIFIED_MESSAGE}
+          <Text size="sm">{GITHUB_ACTIONS_LABELS.VERIFIED_MESSAGE}</Text>
         </ConnectionAlert>
       )}
 
@@ -220,9 +216,8 @@ export function GitHubActionsConnectionFlow({
           primaryLabel={GITHUB_ACTIONS_LABELS.VERIFY_CONNECTION}
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isVerifying}
-          isPrimaryDisabled={!isFormValid()}
+          isPrimaryDisabled={false}
           isCancelDisabled={isVerifying || isConnecting}
-          primaryClassName="bg-gray-600 hover:bg-gray-700"
         />
       ) : (
         <ActionButtons
@@ -233,27 +228,37 @@ export function GitHubActionsConnectionFlow({
           isPrimaryLoading={isConnecting}
           isPrimaryDisabled={!isEditMode && !isVerified}
           isCancelDisabled={isVerifying || isConnecting}
-          primaryClassName={isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}
         />
       )}
 
-      <Text size="xs" c="dimmed">
-        <strong>{GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES_TITLE}</strong>{' '}
-        {GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES.map((scope, idx) => (
-          <span key={scope}>
-            <code>{scope}</code>{idx < GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES.length - 1 ? ', ' : ''}
-          </span>
-        ))}
-        <br />
-        <a
+      <Box
+        p="sm"
+        style={{
+          backgroundColor: theme.colors.slate[0],
+          borderRadius: theme.radius.md,
+          border: `1px solid ${theme.colors.slate[2]}`,
+        }}
+      >
+        <Text size="xs" c={theme.colors.slate[6]} mb="xs">
+          <Text component="span" fw={600}>{GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES_TITLE}</Text>
+        </Text>
+        <Group gap={4} mb="sm">
+          {GITHUB_ACTIONS_LABELS.REQUIRED_SCOPES.map((scope) => (
+            <Badge key={scope} size="xs" variant="light" color="brand" ff="monospace">
+              {scope}
+            </Badge>
+          ))}
+        </Group>
+        <Anchor
           href={GITHUB_ACTIONS_LABELS.GENERATE_TOKEN_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
+          c="brand"
+          size="xs"
         >
           {GITHUB_ACTIONS_LABELS.GENERATE_TOKEN_LINK}
-        </a>
-      </Text>
+        </Anchor>
+      </Box>
     </Stack>
   );
 }

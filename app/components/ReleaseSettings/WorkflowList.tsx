@@ -4,11 +4,38 @@
  */
 
 import { useState } from 'react';
-import { Card, Text, Button, Badge, Group, Stack, ActionIcon, Menu, Modal, Alert } from '@mantine/core';
-import { IconPlus, IconPencil, IconTrash, IconServer, IconBrandGithub, IconAlertCircle } from '@tabler/icons-react';
+import {
+  Card,
+  Text,
+  Button,
+  Badge,
+  Group,
+  Stack,
+  ActionIcon,
+  Menu,
+  Modal,
+  Alert,
+  Paper,
+  Box,
+  ThemeIcon,
+  SimpleGrid,
+  Center,
+  useMantineTheme,
+} from '@mantine/core';
+import { Link } from '@remix-run/react';
+import {
+  IconPlus,
+  IconPencil,
+  IconTrash,
+  IconServer,
+  IconBrandGithub,
+  IconAlertCircle,
+  IconDots,
+  IconEye,
+} from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
-import { WorkflowCreateModal } from './WorkflowCreateModal';
-import { PLATFORMS, BUILD_ENVIRONMENTS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { WorkflowPreviewModal } from './WorkflowPreviewModal';
+import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
 
 export interface WorkflowListProps {
@@ -33,33 +60,18 @@ export function WorkflowList({
   onUpdate,
   onDelete,
 }: WorkflowListProps) {
-  const [createModalOpened, setCreateModalOpened] = useState(false);
-  const [editingWorkflow, setEditingWorkflow] = useState<CICDWorkflow | null>(null);
+  const theme = useMantineTheme();
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<CICDWorkflow | null>(null);
+  const [previewWorkflow, setPreviewWorkflow] = useState<CICDWorkflow | null>(null);
 
   const hasJenkinsIntegration = availableIntegrations.jenkins.length > 0;
   const hasGitHubIntegration = availableIntegrations.githubActions.length > 0;
   const hasAnyIntegration = hasJenkinsIntegration || hasGitHubIntegration;
 
-  const handleCreate = async (workflowData: any) => {
-    await onCreate(workflowData);
-    setCreateModalOpened(false);
-    onRefresh();
-  };
-
   const handleEdit = (workflow: CICDWorkflow) => {
-    setEditingWorkflow(workflow);
-    setCreateModalOpened(true);
-  };
-
-  const handleUpdate = async (workflowData: any) => {
-    if (editingWorkflow && onUpdate) {
-      await onUpdate(editingWorkflow.id, workflowData);
-      setCreateModalOpened(false);
-      setEditingWorkflow(null);
-      onRefresh();
-    }
+    // Navigate to edit page
+    window.location.href = `/dashboard/${tenantId}/releases/workflows/${workflow.id}`;
   };
 
   const handleDeleteClick = (workflow: CICDWorkflow) => {
@@ -78,9 +90,13 @@ export function WorkflowList({
 
   const getProviderIcon = (providerType: string) => {
     return providerType === BUILD_PROVIDERS.JENKINS ? (
-      <IconServer size={20} className="text-red-600" />
+      <ThemeIcon size={32} radius="md" variant="light" color="red">
+        <IconServer size={18} />
+      </ThemeIcon>
     ) : (
-      <IconBrandGithub size={20} />
+      <ThemeIcon size={32} radius="md" variant="light" color="gray">
+        <IconBrandGithub size={18} />
+      </ThemeIcon>
     );
   };
 
@@ -96,46 +112,54 @@ export function WorkflowList({
       : PLATFORM_LABELS.IOS;
   };
 
-  const getEnvironmentLabel = (workflowType: string) => {
+  const getWorkflowTypeLabel = (workflowType: string) => {
     const mapping: Record<string, string> = {
-      PRE_REGRESSION_BUILD: ENVIRONMENT_LABELS.PRE_REGRESSION,
-      REGRESSION_BUILD: ENVIRONMENT_LABELS.REGRESSION,
-      TEST_FLIGHT_BUILD: ENVIRONMENT_LABELS.TESTFLIGHT,
-      AUTOMATION_BUILD: 'Automation',
-      CUSTOM: 'Custom',
+      PRE_REGRESSION: 'Pre-Regression',
+      REGRESSION: 'Regression',
+      TESTFLIGHT: 'TestFlight',
+      PRODUCTION: 'Production',
     };
     return mapping[workflowType] || workflowType;
   };
 
+  const getWorkflowTypeColor = (workflowType: string) => {
+    const mapping: Record<string, string> = {
+      PRE_REGRESSION: 'blue',
+      REGRESSION: 'purple',
+      TESTFLIGHT: 'orange',
+      PRODUCTION: 'green',
+    };
+    return mapping[workflowType] || 'gray';
+  };
+
   // Group workflows by provider
   const workflowsByProvider = {
-    jenkins: workflows.filter(w => w.providerType === BUILD_PROVIDERS.JENKINS),
-    github: workflows.filter(w => w.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS),
+    jenkins: workflows.filter((w) => w.providerType === BUILD_PROVIDERS.JENKINS),
+    github: workflows.filter((w) => w.providerType === BUILD_PROVIDERS.GITHUB_ACTIONS),
   };
 
   return (
-    <div className="space-y-6">
+    <Stack gap="lg">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Text size="lg" fw={600} className="mb-1">
+      <Group justify="space-between" align="flex-start">
+        <Box>
+          <Text size="lg" fw={600} c={theme.colors.slate[9]} mb={4}>
             CI/CD Pipelines
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c={theme.colors.slate[5]}>
             Manage your Jenkins and GitHub Actions workflows
           </Text>
-        </div>
+        </Box>
         <Button
+          component={Link}
+          to={`/dashboard/${tenantId}/releases/workflows/new`}
+          color="brand"
           leftSection={<IconPlus size={16} />}
-          onClick={() => {
-            setEditingWorkflow(null);
-            setCreateModalOpened(true);
-          }}
           disabled={!hasAnyIntegration}
         >
           Add Workflow
         </Button>
-      </div>
+      </Group>
 
       {/* No Integrations Alert */}
       {!hasAnyIntegration && (
@@ -143,84 +167,150 @@ export function WorkflowList({
           icon={<IconAlertCircle size={18} />}
           color="yellow"
           variant="light"
+          radius="md"
           title="No CI/CD Integrations Connected"
         >
-          <Text size="sm" className="mb-2">
+          <Text size="sm" mb="xs">
             To create workflows, you need to connect at least one CI/CD provider:
           </Text>
-          <ul className="list-disc list-inside text-sm mb-2">
-            {!hasJenkinsIntegration && <li>Jenkins</li>}
-            {!hasGitHubIntegration && <li>GitHub Actions</li>}
-          </ul>
-          <Text size="sm">
-            Go to <strong>Settings → Integrations</strong> to connect a provider.
+          <Stack gap="xs" mb="xs">
+            {!hasJenkinsIntegration && (
+              <Text size="sm" c={theme.colors.slate[6]}>
+                • Jenkins
+              </Text>
+            )}
+            {!hasGitHubIntegration && (
+              <Text size="sm" c={theme.colors.slate[6]}>
+                • GitHub Actions
+              </Text>
+            )}
+          </Stack>
+          <Text size="sm" c={theme.colors.slate[6]}>
+            Go to <strong>Organization → Integrations</strong> to connect a provider.
           </Text>
         </Alert>
       )}
 
       {/* Jenkins Workflows */}
       {hasJenkinsIntegration && (
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <IconServer size={20} className="text-red-600" />
-            <Text fw={600} size="md">
+        <Box>
+          <Group gap="sm" mb="md">
+            <ThemeIcon size={28} radius="md" variant="light" color="red">
+              <IconServer size={16} />
+            </ThemeIcon>
+            <Text fw={600} size="md" c={theme.colors.slate[8]}>
               Jenkins Workflows ({workflowsByProvider.jenkins.length})
             </Text>
-          </div>
+          </Group>
           {workflowsByProvider.jenkins.length === 0 ? (
-            <Card withBorder className="bg-gray-50">
-              <Text size="sm" c="dimmed" className="text-center py-4">
-                No Jenkins workflows configured. Click "Add Workflow" to create one.
-              </Text>
-            </Card>
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                backgroundColor: theme.colors.slate[0],
+                border: `1px solid ${theme.colors.slate[2]}`,
+              }}
+            >
+              <Center py="md">
+                <Text size="sm" c={theme.colors.slate[5]} ta="center">
+                  No Jenkins workflows configured. Click "Add Workflow" to create one.
+                </Text>
+              </Center>
+            </Paper>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               {workflowsByProvider.jenkins.map((workflow) => (
-                <Card key={workflow.id} shadow="sm" padding="lg" radius="md" withBorder>
-                  <Stack gap="sm">
+                <Card key={workflow.id} shadow="sm" padding="md" radius="md" withBorder>
+                  <Stack gap="md">
                     <Group justify="space-between" align="flex-start">
-                      <div className="flex-1">
-                        <Group gap="xs" className="mb-2">
+                      <Box style={{ flex: 1 }}>
+                        <Group gap="sm" mb="sm">
                           {getProviderIcon(workflow.providerType)}
-                          <Text fw={600} size="md">
+                          <Text fw={600} size="sm" c={theme.colors.slate[9]}>
                             {workflow.displayName}
                           </Text>
                         </Group>
-                        <div className="space-y-1">
-                          <Group gap="xs">
-                            <Badge size="sm" color="blue">
-                              {getPlatformLabel(workflow.platform)}
-                            </Badge>
-                            <Badge size="sm" color="grape">
-                              {getEnvironmentLabel(workflow.workflowType)}
-                            </Badge>
-                          </Group>
-                          <Text size="xs" c="dimmed" className="font-mono break-all">
-                            {workflow.workflowUrl}
-                          </Text>
-                        </div>
-                      </div>
-                      <Menu position="bottom-end">
+                        <Group gap="xs" mb="xs">
+                          <Badge size="sm" variant="light" color="brand">
+                            {getPlatformLabel(workflow.platform)}
+                          </Badge>
+                          <Badge
+                            size="sm"
+                            variant="light"
+                            color={getWorkflowTypeColor(workflow.workflowType)}
+                          >
+                            {getWorkflowTypeLabel(workflow.workflowType)}
+                          </Badge>
+                        </Group>
+                        <Text
+                          size="xs"
+                          c={theme.colors.slate[5]}
+                          style={{
+                            fontFamily: 'monospace',
+                            wordBreak: 'break-all',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {workflow.workflowUrl}
+                        </Text>
+                      </Box>
+                      <Menu
+                        shadow="md"
+                        width={180}
+                        radius="md"
+                        position="bottom-end"
+                        styles={{
+                          dropdown: {
+                            padding: theme.spacing.xs,
+                            border: `1px solid ${theme.colors.slate[2]}`,
+                          },
+                          item: {
+                            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                            borderRadius: theme.radius.sm,
+                            fontSize: theme.fontSizes.sm,
+                            '&[data-hovered]': {
+                              backgroundColor: theme.colors.slate[0],
+                            },
+                          },
+                        }}
+                      >
                         <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray">
-                            <IconPencil size={16} />
+                          <ActionIcon variant="subtle" color="brand" size="md">
+                            <IconDots size={18} />
                           </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
                           <Menu.Item
-                            leftSection={<IconPencil size={16} />}
+                            leftSection={<IconEye size={16} stroke={1.5} />}
+                            onClick={() => setPreviewWorkflow(workflow)}
+                          >
+                            View
+                          </Menu.Item>
+                          <Menu.Item
+                            leftSection={<IconPencil size={16} stroke={1.5} />}
                             onClick={() => handleEdit(workflow)}
                           >
                             Edit
                           </Menu.Item>
                           {onDelete && (
-                            <Menu.Item
-                              leftSection={<IconTrash size={16} />}
-                              color="red"
-                              onClick={() => handleDeleteClick(workflow)}
-                            >
-                              Delete
-                            </Menu.Item>
+                            <>
+                              <Menu.Divider />
+                              <Menu.Item
+                                leftSection={<IconTrash size={16} stroke={1.5} />}
+                                onClick={() => handleDeleteClick(workflow)}
+                                styles={{
+                                  item: {
+                                    color: theme.colors.red[7],
+                                    '&[data-hovered]': {
+                                      backgroundColor: theme.colors.red[0],
+                                      color: theme.colors.red[8],
+                                    },
+                                  },
+                                }}
+                              >
+                                Delete
+                              </Menu.Item>
+                            </>
                           )}
                         </Menu.Dropdown>
                       </Menu>
@@ -228,74 +318,131 @@ export function WorkflowList({
                   </Stack>
                 </Card>
               ))}
-            </div>
+            </SimpleGrid>
           )}
-        </div>
+        </Box>
       )}
 
       {/* GitHub Actions Workflows */}
       {hasGitHubIntegration && (
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <IconBrandGithub size={20} />
-            <Text fw={600} size="md">
+        <Box>
+          <Group gap="sm" mb="md">
+            <ThemeIcon size={28} radius="md" variant="light" color="gray">
+              <IconBrandGithub size={16} />
+            </ThemeIcon>
+            <Text fw={600} size="md" c={theme.colors.slate[8]}>
               GitHub Actions Workflows ({workflowsByProvider.github.length})
             </Text>
-          </div>
+          </Group>
           {workflowsByProvider.github.length === 0 ? (
-            <Card withBorder className="bg-gray-50">
-              <Text size="sm" c="dimmed" className="text-center py-4">
-                No GitHub Actions workflows configured. Click "Add Workflow" to create one.
-              </Text>
-            </Card>
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                backgroundColor: theme.colors.slate[0],
+                border: `1px solid ${theme.colors.slate[2]}`,
+              }}
+            >
+              <Center py="md">
+                <Text size="sm" c={theme.colors.slate[5]} ta="center">
+                  No GitHub Actions workflows configured. Click "Add Workflow" to create one.
+                </Text>
+              </Center>
+            </Paper>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
               {workflowsByProvider.github.map((workflow) => (
-                <Card key={workflow.id} shadow="sm" padding="lg" radius="md" withBorder>
-                  <Stack gap="sm">
+                <Card key={workflow.id} shadow="sm" padding="md" radius="md" withBorder>
+                  <Stack gap="md">
                     <Group justify="space-between" align="flex-start">
-                      <div className="flex-1">
-                        <Group gap="xs" className="mb-2">
+                      <Box style={{ flex: 1 }}>
+                        <Group gap="sm" mb="sm">
                           {getProviderIcon(workflow.providerType)}
-                          <Text fw={600} size="md">
+                          <Text fw={600} size="sm" c={theme.colors.slate[9]}>
                             {workflow.displayName}
                           </Text>
                         </Group>
-                        <div className="space-y-1">
-                          <Group gap="xs">
-                            <Badge size="sm" color="blue">
-                              {getPlatformLabel(workflow.platform)}
-                            </Badge>
-                            <Badge size="sm" color="grape">
-                              {getEnvironmentLabel(workflow.workflowType)}
-                            </Badge>
-                          </Group>
-                          <Text size="xs" c="dimmed" className="font-mono break-all">
-                            {workflow.workflowUrl}
-                          </Text>
-                        </div>
-                      </div>
-                      <Menu position="bottom-end">
+                        <Group gap="xs" mb="xs">
+                          <Badge size="sm" variant="light" color="brand">
+                            {getPlatformLabel(workflow.platform)}
+                          </Badge>
+                          <Badge
+                            size="sm"
+                            variant="light"
+                            color={getWorkflowTypeColor(workflow.workflowType)}
+                          >
+                            {getWorkflowTypeLabel(workflow.workflowType)}
+                          </Badge>
+                        </Group>
+                        <Text
+                          size="xs"
+                          c={theme.colors.slate[5]}
+                          style={{
+                            fontFamily: 'monospace',
+                            wordBreak: 'break-all',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {workflow.workflowUrl}
+                        </Text>
+                      </Box>
+                      <Menu
+                        shadow="md"
+                        width={180}
+                        radius="md"
+                        position="bottom-end"
+                        styles={{
+                          dropdown: {
+                            padding: theme.spacing.xs,
+                            border: `1px solid ${theme.colors.slate[2]}`,
+                          },
+                          item: {
+                            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                            borderRadius: theme.radius.sm,
+                            fontSize: theme.fontSizes.sm,
+                            '&[data-hovered]': {
+                              backgroundColor: theme.colors.slate[0],
+                            },
+                          },
+                        }}
+                      >
                         <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray">
-                            <IconPencil size={16} />
+                          <ActionIcon variant="subtle" color="brand" size="md">
+                            <IconDots size={18} />
                           </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
                           <Menu.Item
-                            leftSection={<IconPencil size={16} />}
+                            leftSection={<IconEye size={16} stroke={1.5} />}
+                            onClick={() => setPreviewWorkflow(workflow)}
+                          >
+                            View
+                          </Menu.Item>
+                          <Menu.Item
+                            leftSection={<IconPencil size={16} stroke={1.5} />}
                             onClick={() => handleEdit(workflow)}
                           >
                             Edit
                           </Menu.Item>
                           {onDelete && (
-                            <Menu.Item
-                              leftSection={<IconTrash size={16} />}
-                              color="red"
-                              onClick={() => handleDeleteClick(workflow)}
-                            >
-                              Delete
-                            </Menu.Item>
+                            <>
+                              <Menu.Divider />
+                              <Menu.Item
+                                leftSection={<IconTrash size={16} stroke={1.5} />}
+                                onClick={() => handleDeleteClick(workflow)}
+                                styles={{
+                                  item: {
+                                    color: theme.colors.red[7],
+                                    '&[data-hovered]': {
+                                      backgroundColor: theme.colors.red[0],
+                                      color: theme.colors.red[8],
+                                    },
+                                  },
+                                }}
+                              >
+                                Delete
+                              </Menu.Item>
+                            </>
                           )}
                         </Menu.Dropdown>
                       </Menu>
@@ -303,24 +450,12 @@ export function WorkflowList({
                   </Stack>
                 </Card>
               ))}
-            </div>
+            </SimpleGrid>
           )}
-        </div>
+        </Box>
       )}
 
-      {/* Create/Edit Modal */}
-      <WorkflowCreateModal
-        opened={createModalOpened}
-        onClose={() => {
-          setCreateModalOpened(false);
-          setEditingWorkflow(null);
-        }}
-        onSave={editingWorkflow ? handleUpdate : handleCreate}
-        availableIntegrations={availableIntegrations}
-        tenantId={tenantId}
-        existingWorkflow={editingWorkflow}
-        workflows={workflows}
-      />
+      {/* Note: Create/Edit now uses full page form at /dashboard/{org}/releases/create-workflow */}
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -331,15 +466,20 @@ export function WorkflowList({
         }}
         title="Delete Workflow"
         centered
+        radius="md"
       >
         <Stack gap="md">
-          <Text size="sm">
+          <Text size="sm" c={theme.colors.slate[6]}>
             Are you sure you want to delete the workflow{' '}
-            <strong>{workflowToDelete?.displayName}</strong>? This action cannot be undone.
+            <Text component="span" fw={600} c={theme.colors.slate[9]}>
+              {workflowToDelete?.displayName}
+            </Text>
+            ? This action cannot be undone.
           </Text>
           <Group justify="flex-end">
             <Button
               variant="subtle"
+              color="gray"
               onClick={() => {
                 setDeleteModalOpened(false);
                 setWorkflowToDelete(null);
@@ -353,7 +493,15 @@ export function WorkflowList({
           </Group>
         </Stack>
       </Modal>
-    </div>
+
+      {/* Preview Modal */}
+      {previewWorkflow && (
+        <WorkflowPreviewModal
+          opened={!!previewWorkflow}
+          onClose={() => setPreviewWorkflow(null)}
+          workflow={previewWorkflow}
+        />
+      )}
+    </Stack>
   );
 }
-

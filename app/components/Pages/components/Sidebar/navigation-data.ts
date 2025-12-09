@@ -6,6 +6,8 @@ import {
   IconPlug,
   IconAdjustmentsHorizontal,
   IconUsers,
+  IconApps,
+  IconGitBranch,
 } from "@tabler/icons-react";
 import type { Organization } from "./types";
 
@@ -24,7 +26,7 @@ export type ModuleConfig = {
   mainRoute: string;
   prefetch?: "intent" | "render" | "none";
   subItems: SubItem[];
-  isCustomRender?: boolean; // For DOTA module with dynamic apps
+  isCustomRender?: boolean;
 };
 
 export function getNavigationModules(org: Organization): ModuleConfig[] {
@@ -49,16 +51,16 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
           prefetch: "render",
         },
         {
-          label: "Release Settings",
+          label: "Configurations",
           icon: IconAdjustmentsHorizontal,
           path: `/dashboard/${org.id}/releases/settings`,
           prefetch: "intent",
           isOwnerOnly: true,
         },
         {
-          label: "Integrations",
-          icon: IconPlug,
-          path: `/dashboard/${org.id}/integrations`,
+          label: "Workflows",
+          icon: IconGitBranch,
+          path: `/dashboard/${org.id}/releases/workflows`,
           prefetch: "intent",
           isOwnerOnly: true,
         },
@@ -70,7 +72,14 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
       icon: IconCloud,
       mainRoute: `/dashboard/${org.id}/apps`,
       prefetch: "render",
-      subItems: [], // DOTA uses custom render for dynamic apps
+      subItems: [
+        {
+          label: "Applications",
+          icon: IconApps,
+          path: `/dashboard/${org.id}/apps`,
+          prefetch: "render",
+        },
+      ],
       isCustomRender: true,
     },
   ];
@@ -78,6 +87,13 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
 
 export function getOrganizationRoutes(org: Organization): SubItem[] {
   return [
+    {
+      label: "Integrations",
+      icon: IconPlug,
+      path: `/dashboard/${org.id}/integrations`,
+      prefetch: "intent",
+      isOwnerOnly: true,
+    },
     {
       label: "Manage Team",
       icon: IconUsers,

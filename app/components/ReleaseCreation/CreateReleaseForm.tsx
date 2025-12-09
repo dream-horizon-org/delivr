@@ -63,14 +63,14 @@ export function CreateReleaseForm({
   const initialReleaseState: Partial<ReleaseCreationState> = isEditMode && existingRelease
     ? convertReleaseToFormState(existingRelease)
     : {
-        type: 'PLANNED',
-        platformTargets: [],
-        baseBranch: '',
-        kickOffDate: '',
-        kickOffTime: DEFAULT_KICKOFF_TIME,
-        targetReleaseDate: '',
-        targetReleaseTime: DEFAULT_RELEASE_TIME,
-      };
+    type: 'PLANNED',
+    platformTargets: [],
+    baseBranch: '',
+    kickOffDate: '',
+    kickOffTime: DEFAULT_KICKOFF_TIME,
+    targetReleaseDate: '',
+    targetReleaseTime: DEFAULT_RELEASE_TIME,
+  };
 
   const {
     formData: state,
@@ -172,7 +172,7 @@ export function CreateReleaseForm({
       // In edit mode, use the release's config ID
       setSelectedConfigId(existingRelease.releaseConfigId);
     } else if (isDraftRestored && state.releaseConfigId) {
-      // Restore from draft first
+    // Restore from draft first
       setSelectedConfigId(state.releaseConfigId);
     } else if (defaultReleaseConfig && !selectedConfigId) {
       // Fallback to default config if no draft
@@ -334,24 +334,24 @@ export function CreateReleaseForm({
         await onUpdate(updateRequest);
       } else {
         // Create mode: convert to create request
-        const backendRequest = convertStateToBackendRequest(state as ReleaseCreationState);
+      const backendRequest = convertStateToBackendRequest(state as ReleaseCreationState);
 
-        console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
+      console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
 
-        // Add cron config (auto-generated from config)
-        const cronConfig = getCronConfig();
-        if (Object.keys(cronConfig).length > 0) {
-          backendRequest.cronConfig = cronConfig as CronConfig;
-        }
+      // Add cron config (auto-generated from config)
+      const cronConfig = getCronConfig();
+      if (Object.keys(cronConfig).length > 0) {
+        backendRequest.cronConfig = cronConfig as CronConfig;
+      }
 
-        console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
+      console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
 
-        await onSubmit(backendRequest);
-        
-        // Mark draft as successfully saved (prevents auto-save on unmount)
-        markSaveSuccessful();
-        showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
-        setReviewModalOpened(false);
+      await onSubmit(backendRequest);
+
+      // Mark draft as successfully saved (prevents auto-save on unmount)
+      markSaveSuccessful();
+      showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
+      setReviewModalOpened(false);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : (isEditMode ? 'Failed to update release' : 'Failed to create release');
@@ -413,32 +413,31 @@ export function CreateReleaseForm({
 
         {/* Configuration Selection - Hidden in edit mode */}
         {!isEditMode && (
-          <Paper shadow="sm" p="xl" radius="md">
-            <ConfigurationSelector
-              configurations={configurations}
-              selectedMode={'WITH_CONFIG'}
-              selectedConfigId={selectedConfigId}
-              onModeChange={() => {}} // No-op since mode is fixed
-              onConfigSelect={setSelectedConfigId}
-              onCreateNew={handleCreateNewConfig}
-              onClone={handleCloneConfig}
-            />
-          </Paper>
+        <Paper shadow="sm" p="xl" radius="md">
+          <ConfigurationSelector
+            configurations={configurations}
+            selectedMode={'WITH_CONFIG'}
+            selectedConfigId={selectedConfigId}
+            onModeChange={() => {}} // No-op since mode is fixed
+            onConfigSelect={setSelectedConfigId}
+            onCreateNew={handleCreateNewConfig}
+            onClone={handleCloneConfig}
+          />
+        </Paper>
         )}
 
         {/* Release Details - Hidden after kickoff, shown for upcoming */}
         {(!isEditMode || isUpcoming) && (
-          <Paper shadow="sm" p="xl" radius="md">
-            <ReleaseDetailsForm
-              state={state}
-              onChange={handleStateChange}
-              config={selectedConfig}
-              latestVersion="v1.0.0" // TODO: Fetch from API
-              tenantId={org}
-              errors={errors}
-              disablePlatformTargets={isEditMode && isUpcoming}
-            />
-          </Paper>
+        <Paper shadow="sm" p="xl" radius="md">
+          <ReleaseDetailsForm
+            state={state}
+            onChange={handleStateChange}
+            config={selectedConfig}
+            latestVersion="v1.0.0" // TODO: Fetch from API
+            tenantId={org}
+            errors={errors}
+          />
+        </Paper>
         )}
 
         {/* Scheduling - Show different fields based on status */}
@@ -454,17 +453,17 @@ export function CreateReleaseForm({
             />
           </Paper>
         ) : isAfterKickoff ? (
-          <Paper shadow="sm" p="xl" radius="md">
-            <ReleaseSchedulingPanel
-              state={state}
-              onChange={handleStateChange}
-              config={selectedConfig}
-              errors={errors}
+        <Paper shadow="sm" p="xl" radius="md">
+          <ReleaseSchedulingPanel
+            state={state}
+            onChange={handleStateChange}
+            config={selectedConfig}
+            errors={errors}
               showOnlyTargetDateAndSlots={true}
               isEditMode={isEditMode}
               existingRelease={existingRelease}
-            />
-          </Paper>
+          />
+        </Paper>
         ) : null}
 
       </Stack>
@@ -491,13 +490,13 @@ export function CreateReleaseForm({
             </Button>
           )}
           {!onCancel && (
-            <Button
-              variant="subtle"
-              leftSection={<IconArrowLeft size={18} />}
-              onClick={() => navigate(`/dashboard/${org}/releases`)}
-            >
-              Cancel
-            </Button>
+          <Button
+            variant="subtle"
+            leftSection={<IconArrowLeft size={18} />}
+            onClick={() => navigate(`/dashboard/${org}/releases`)}
+          >
+            Cancel
+          </Button>
           )}
           <Button
             variant="filled"

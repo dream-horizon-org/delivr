@@ -4,7 +4,20 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Container, Paper, Text, Badge } from '@mantine/core';
+import { Link } from '@remix-run/react';
+import {
+  Box,
+  Paper,
+  Text,
+  Badge,
+  Title,
+  Group,
+  Breadcrumbs,
+  Anchor,
+  Stack,
+  useMantineTheme,
+} from '@mantine/core';
+import { IconSettings, IconEdit, IconCopy } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
@@ -30,7 +43,6 @@ import { derivePlatformsFromTargets } from '~/utils/platform-utils';
 import { BUILD_UPLOAD_STEPS } from '~/types/release-config-constants';
 import type { ConfigurationWizardProps } from '~/types/release-config-props';
 
-// Using ConfigurationWizardProps from centralized types
 export function ConfigurationWizard({
   tenantId,
   onSubmit,
@@ -41,10 +53,10 @@ export function ConfigurationWizard({
   returnTo,
   skipDraftLoading = false,
 }: ConfigurationWizardProps) {
-  const { invalidateReleaseConfigs } = useConfig(); // ✅ For cache invalidation after save
+  const theme = useMantineTheme();
+  const { invalidateReleaseConfigs } = useConfig();
   
   // Draft storage for release config (only active in create mode)
-  // MUST be declared FIRST so we can use metadata in state initializers
   const {
     formData: config,
     setFormData: setConfig,
@@ -56,19 +68,14 @@ export function ConfigurationWizard({
   } = useDraftStorage<Partial<ReleaseConfiguration>>(
     {
       storageKey: generateStorageKey('release-config', tenantId),
-      sensitiveFields: [], // No sensitive fields in config
-      shouldSaveDraft: () => false, // Manual save only - don't auto-save on unmount
-      ttl: 30 * 24 * 60 * 60 * 1000, // 30 days for release configs
-      enableMetadata: true, // Enable metadata to store wizard step
+      sensitiveFields: [],
+      shouldSaveDraft: () => false,
+      ttl: 30 * 24 * 60 * 60 * 1000,
+      enableMetadata: true,
     },
-    // Initial data: Use existing config (edit mode) or draft (create mode) or default
-    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId),
-    // When skipDraftLoading is true, pass empty object to prevent draft loading
-    skipDraftLoading ? {} as Partial<ReleaseConfiguration> : undefined
+    isEditMode && existingConfig ? existingConfig : createDefaultConfig(tenantId)
   );
-  // Removed excessive console.log that ran on every render
   
-  // Initialize step state (will be updated from metadata in useEffect)
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,63 +83,37 @@ export function ConfigurationWizard({
   // Restore wizard step from metadata when draft is loaded (ONCE on mount)
   useEffect(() => {
     if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined) {
-      console.log('[ConfigWizard] Restoring wizard step from metadata:', metadata.wizardStep);
       setCurrentStep(metadata.wizardStep);
-      
-      // Mark all previous steps as completed
       const completed = new Set<number>();
       for (let i = 0; i < metadata.wizardStep; i++) {
         completed.add(i);
       }
       setCompletedSteps(completed);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDraftRestored, isEditMode]); // ✅ Only run when isDraftRestored changes (on mount)
+  }, [isDraftRestored, metadata, isEditMode]);
   
-  // Note: Removed auto-save step to metadata useEffect
-  // Step is now saved explicitly in handleNext with saveDraftWithStep()
-  
-  // Helper to save draft with specific metadata
-  const saveDraftWithStep = (stepNumber: number) => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      const storageKey = generateStorageKey('release-config', tenantId);
-      const draft = {
-        data: config,
-        savedAt: new Date().toISOString(),
-        version: '1.0',
-        metadata: { wizardStep: stepNumber },
-      };
-      localStorage.setItem(storageKey, JSON.stringify(draft));
-      // Also update state for consistency
-      if (updateMetadata) {
-        updateMetadata({ wizardStep: stepNumber });
-      }
-      console.log('[ConfigWizard] Draft saved with step:', stepNumber);
-    } catch (error) {
-      console.error('[ConfigWizard] Failed to save draft:', error);
+  // Auto-save current wizard step to metadata
+  useEffect(() => {
+    if (!isEditMode && updateMetadata) {
+      updateMetadata({ wizardStep: currentStep });
     }
-  };
+  }, [currentStep, isEditMode, updateMetadata]);
   
   const handleNext = () => {
     if (canProceedFromStep(currentStep, config)) {
       setCompletedSteps(new Set([...completedSteps, currentStep]));
       
-      // Calculate next step before saving
-      let nextStep = currentStep + 1;
+      if (!isEditMode && config.name) {
+        saveDraft();
+      }
       
       // Auto-skip PIPELINES step if Manual upload is selected
       if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.hasManualBuildUpload) {
         nextStep = currentStep + 2; // Skip pipelines step
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
-      }
-      
-      // Save draft with the NEXT step (only in create mode)
-      // This ensures the draft shows up in the configurations list (step > 0)
-      if (!isEditMode && config.name) {
-        saveDraftWithStep(nextStep);
-        console.log('[ConfigWizard] Draft saved on Next click, moving from step', currentStep, 'to', nextStep);
+        setCurrentStep(currentStep + 2);
+      } else {
+        setCurrentStep(currentStep + 1);
       }
       
       // Move to next step
@@ -142,11 +123,10 @@ export function ConfigurationWizard({
   
   const handlePrevious = () => {
     if (currentStep > 0) {
-      // Auto-skip PIPELINES step backwards if Manual upload is selected
       if (currentStep === STEP_INDEX.TESTING && config.hasManualBuildUpload) {
-        setCurrentStep(currentStep - 2); // Skip back over pipelines step
+        setCurrentStep(currentStep - 2);
       } else {
-      setCurrentStep(currentStep - 1);
+        setCurrentStep(currentStep - 1);
       }
     }
   };
@@ -168,23 +148,24 @@ export function ConfigurationWizard({
         ? `/api/v1/tenants/${tenantId}/release-config/${config.id}`
         : `/api/v1/tenants/${tenantId}/release-config`;
       
-      // Use API client utility
       const result = isEditMode
         ? await apiPut<ReleaseConfiguration>(endpoint, completeConfig)
         : await apiPost<ReleaseConfiguration>(endpoint, completeConfig);
-
-      console.log('[ConfigWizard] Save result:', JSON.stringify(result, null, 2));
       
-      // Invalidate cache and clear draft
       invalidateReleaseConfigs();
       if (!isEditMode) {
-        markSaveSuccessful(); // Clear draft (including metadata with wizard step)
+        markSaveSuccessful();
       }
       
       const savedConfig: ReleaseConfiguration = {
         ...completeConfig,
         id: result.data?.id || completeConfig.id || '',
       };
+      
+      showSuccessToast({
+        title: isEditMode ? 'Configuration Updated' : 'Configuration Created',
+        message: `"${savedConfig.name}" has been ${isEditMode ? 'updated' : 'saved'} successfully.`,
+      });
       
       await onSubmit(savedConfig);
     } catch (error) {
@@ -195,10 +176,35 @@ export function ConfigurationWizard({
       setIsSubmitting(false);
     }
   };
+
+  // Breadcrumb items
+  const breadcrumbItems = [
+    { title: 'Release Management', href: `/dashboard/${tenantId}/releases` },
+    { title: 'Configuration', href: `/dashboard/${tenantId}/releases/settings?tab=configurations` },
+    { title: isEditMode ? 'Edit' : 'New Configuration', href: '#' },
+  ].map((item, index) => (
+    item.href === '#' ? (
+      <Text key={index} size="sm" c={theme.colors.slate[6]}>
+        {item.title}
+      </Text>
+    ) : (
+      <Anchor
+        key={index}
+        component={Link}
+        to={item.href}
+        size="sm"
+        c={theme.colors.slate[5]}
+      >
+        {item.title}
+      </Anchor>
+    )
+  ));
+
+  const currentStepData = WIZARD_STEPS[currentStep];
   
   const renderStepContent = () => {
     switch (currentStep) {
-      case STEP_INDEX.BASIC: // Basic Info
+      case STEP_INDEX.BASIC:
         return (
           <BasicInfoForm
             config={config}
@@ -207,23 +213,18 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.PLATFORMS: // Target Platforms - Select platforms FIRST
+      case STEP_INDEX.PLATFORMS:
         return (
           <PlatformSelector
             selectedPlatforms={config.targets || []}
             onChange={(targets) => {
               const platforms = derivePlatformsFromTargets(targets);
-              
-              setConfig({ 
-                ...config, 
-                targets,
-                platforms,
-              });
+              setConfig({ ...config, targets, platforms });
             }}
           />
         );
         
-      case STEP_INDEX.BUILD_UPLOAD: // Build Upload Method Selection
+      case STEP_INDEX.BUILD_UPLOAD:
         return (
           <BuildUploadSelector
             hasManualBuildUpload={config.hasManualBuildUpload ?? true}
@@ -235,21 +236,14 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.PIPELINES: // CI/CD Workflows Configuration
-        // Only show if CI/CD is selected (hasManualBuildUpload = false)
-        if (config.hasManualBuildUpload) {
-          // Skip this step - auto-proceed to next
-          return null;
-        }
+      case STEP_INDEX.PIPELINES:
+        if (config.hasManualBuildUpload) return null;
         return (
           <FixedPipelineCategories
             pipelines={config.ciConfig?.workflows || []}
             onChange={(pipelines) => setConfig({ 
               ...config, 
-              ciConfig: {
-                ...config.ciConfig,
-                workflows: pipelines
-              }
+              ciConfig: { ...config.ciConfig, workflows: pipelines }
             })}
             availableIntegrations={{
               jenkins: availableIntegrations.jenkins,
@@ -260,19 +254,17 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.TESTING: // Test Management
+      case STEP_INDEX.TESTING:
         return (
           <TestManagementSelector
             config={config.testManagementConfig!}
             onChange={(testManagementConfig) => setConfig({ ...config, testManagementConfig })}
-            availableIntegrations={{
-              checkmate: availableIntegrations.checkmate,
-            }}
+            availableIntegrations={{ checkmate: availableIntegrations.checkmate }}
             selectedTargets={config.targets || []}
           />
         );
         
-      case STEP_INDEX.PROJECT_MANAGEMENT: // Jira Project Management
+      case STEP_INDEX.PROJECT_MANAGEMENT:
         return (
           <JiraProjectStep
             config={config.projectManagementConfig ?? DEFAULT_PROJECT_MANAGEMENT_CONFIG}
@@ -283,19 +275,17 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.COMMUNICATION: // Communication
+      case STEP_INDEX.COMMUNICATION:
         return (
           <CommunicationConfig
             config={config.communicationConfig!}
             onChange={(communicationConfig) => setConfig({ ...config, communicationConfig })}
-            availableIntegrations={{
-              slack: availableIntegrations.slack,
-            }}
+            availableIntegrations={{ slack: availableIntegrations.slack }}
             tenantId={tenantId}
           />
         );
         
-      case STEP_INDEX.SCHEDULING: // Scheduling (Optional - Release Train)
+      case STEP_INDEX.SCHEDULING:
         return (
           <SchedulingStepWrapper
             scheduling={config.scheduling}
@@ -304,7 +294,7 @@ export function ConfigurationWizard({
           />
         );
         
-      case STEP_INDEX.REVIEW: // Review
+      case STEP_INDEX.REVIEW:
         return <ConfigSummary config={config} />;
         
       default:
@@ -313,43 +303,113 @@ export function ConfigurationWizard({
   };
   
   return (
-    <Container size="xl" className="py-8">
-      <div className="grid grid-cols-12 gap-6">
-        {/* Vertical Stepper - Left Side */}
-        <div className="col-span-3">
-          <div className="sticky top-4" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
-            <Paper shadow="sm" p="lg" radius="md" className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+    <Box p={32}>
+      {/* Header */}
+      <Box mb={24}>
+        <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
+        
+        <Group justify="space-between" align="flex-start">
+          <Box>
+            <Group gap="md" mb={4}>
+              <Title order={2} fw={700} c={theme.colors.slate[9]}>
+                {isEditMode ? 'Edit Configuration' : 'Create Configuration'}
+              </Title>
               {isEditMode && (
-                <Badge color="blue" size="lg" className="mb-4">
+                <Badge 
+                  size="lg" 
+                  variant="light" 
+                  color="blue"
+                  leftSection={<IconEdit size={14} />}
+                >
                   Editing: {config.name || 'Configuration'}
                 </Badge>
               )}
               {!isEditMode && isDraftRestored && (
-                <Badge color="green" size="lg" className="mb-4">
-                  📍 Resuming Draft (Step {currentStep + 1})
+                <Badge 
+                  size="lg" 
+                  variant="light" 
+                  color="green"
+                  leftSection={<IconCopy size={14} />}
+                >
+                  Resuming Draft
                 </Badge>
               )}
-              <Text size="sm" fw={600} c="dimmed" className="mb-4 uppercase tracking-wide">
-                Configuration Steps
-              </Text>
-              
-              <VerticalStepper
-                steps={WIZARD_STEPS}
-                currentStep={currentStep}
-                completedSteps={completedSteps}
-                allowNavigation={false}
-              />
-            </Paper>
-          </div>
-        </div>
+            </Group>
+            <Text size="md" c={theme.colors.slate[5]} maw={600}>
+              {isEditMode 
+                ? 'Update your release configuration settings.' 
+                : 'Set up a new release configuration to standardize your release process.'}
+            </Text>
+          </Box>
+        </Group>
+      </Box>
+
+      {/* Wizard Content */}
+      <Group align="flex-start" gap="lg" wrap="nowrap">
+        {/* Left Sidebar - Stepper */}
+        <Box w={300} style={{ flexShrink: 0 }}>
+          <Paper 
+            p="xl" 
+            radius="md" 
+            shadow="sm" 
+            withBorder
+            style={{
+              position: 'sticky',
+              top: 24,
+              maxHeight: 'calc(100vh - 200px)',
+              overflowY: 'auto',
+              backgroundColor: theme.white,
+            }}
+          >
+            <Text 
+              size="xs" 
+              fw={700} 
+              c={theme.colors.slate[7]} 
+              tt="uppercase" 
+              mb="lg"
+              style={{
+                letterSpacing: '0.5px',
+              }}
+            >
+              Configuration Steps
+            </Text>
+            
+            <VerticalStepper
+              steps={WIZARD_STEPS}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              allowNavigation={false}
+            />
+          </Paper>
+        </Box>
         
-        {/* Main Content - Right Side */}
-        <div className="col-span-9">
-          <Paper shadow="sm" p="xl" radius="md">
+        {/* Main Content */}
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Paper p="xl" radius="md" shadow="sm" withBorder>
+            {/* Step Header */}
+            <Box mb={24} pb={16} style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }}>
+              <Group gap="sm" mb={8}>
+                <Text size="xs" fw={600} c={theme.colors.brand[6]} tt="uppercase">
+                  Step {currentStep + 1} of {WIZARD_STEPS.length}
+                </Text>
+              </Group>
+              <Title order={3} fw={600} c={theme.colors.slate[9]}>
+                {currentStepData?.title}
+              </Title>
+              {currentStepData?.description && (
+                <Text size="sm" c={theme.colors.slate[5]} mt={4}>
+                  {currentStepData.description}
+                </Text>
+              )}
+            </Box>
             
-            <div className="min-h-[600px] mb-6 px-4">{renderStepContent()}</div>
+            {/* Step Content */}
+            <Box mih={400} mb={24}>
+              {renderStepContent()}
+            </Box>
             
-            <div className="px-4 py-4">
+            {/* Navigation */}
+            <Box pt={16} style={{ borderTop: `1px solid ${theme.colors.slate[2]}` }}>
               <WizardNavigation
                 currentStep={currentStep}
                 totalSteps={WIZARD_STEPS.length}
@@ -361,11 +421,10 @@ export function ConfigurationWizard({
                 isLoading={isSubmitting}
                 isEditMode={isEditMode}
               />
-            </div>
+            </Box>
           </Paper>
-        </div>
-      </div>
-    </Container>
+        </Box>
+      </Group>
+    </Box>
   );
 }
-

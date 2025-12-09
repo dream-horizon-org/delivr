@@ -4,9 +4,10 @@ import {
   UnstyledButton,
   Collapse,
   useMantineTheme,
+  Group,
 } from "@mantine/core";
 import { useLocation, Link } from "@remix-run/react";
-import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { IconChevronRight } from "@tabler/icons-react";
 import type { ModuleConfig } from "./navigation-data";
 import type { Organization } from "./types";
 import { SubItems } from "./SubItems";
@@ -52,6 +53,7 @@ export function Module({
           !location.pathname.includes("/releases/setup") &&
           !location.pathname.includes("/releases/settings") &&
           !location.pathname.includes("/releases/configure") &&
+          !location.pathname.includes("/releases/workflows") &&
           location.pathname !== `/dashboard/${org.id}/releases`
         ) {
           return true;
@@ -62,12 +64,12 @@ export function Module({
         return true;
       }
     }
-    
+
     // For DOTA, check if on apps route or viewing a specific app
     if (module.id === "dota") {
       return location.pathname.includes("/apps") || !!currentAppId;
     }
-    
+
     // Fallback: check if main route is active
     return location.pathname.startsWith(module.mainRoute);
   })();
@@ -75,7 +77,7 @@ export function Module({
   // Custom render for DOTA module
   if (module.isCustomRender) {
     return (
-      <Box>
+      <Box mb={4}>
         <DOTACustomContent
           module={module}
           org={org}
@@ -91,87 +93,76 @@ export function Module({
 
   // Standard module with expandable sub-items
   return (
-    <Box>
+    <Box mb={4}>
       <UnstyledButton
         component={Link}
         to={module.mainRoute}
         prefetch={module.prefetch}
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
           onToggleExpand();
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: 8,
+          transition: "all 0.15s ease",
+          backgroundColor: isModuleActive ? theme.colors.brand[0] : "transparent",
         }}
         styles={{
           root: {
-            display: "block",
-            width: "100%",
-            padding: `${theme.other.spacing.sm} ${theme.other.spacing.md}`,
-            borderRadius: theme.other.borderRadius.md,
-            transition: theme.other.transitions.fast,
-            backgroundColor: isModuleActive ? theme.other.brand.light : "transparent",
-            borderLeft: isModuleActive
-              ? `3px solid ${theme.other.brand.primary}`
-              : "3px solid transparent",
-            position: "relative",
             "&:hover": {
               backgroundColor: isModuleActive
-                ? theme.other.brand.light
-                : theme.other.backgrounds.hover,
+                ? theme.colors.brand[0]
+                : theme.colors.slate[1],
             },
           },
         }}
       >
-        <Box
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: theme.other.spacing.md,
-          }}
-        >
-          <Icon
-            size={theme.other.sizes.icon.lg}
-            color={
-              isModuleActive
-                ? theme.other.brand.primary
-                : theme.other.text.secondary
-            }
-            stroke={1.5}
-          />
-          <Box style={{ flex: 1 }}>
-            <Text
-              fw={
-                isModuleActive
-                  ? theme.other.typography.fontWeight.semibold
-                  : theme.other.typography.fontWeight.medium
-              }
-              size="sm"
-              c={
-                isModuleActive
-                  ? theme.other.brand.primaryDark
-                  : theme.other.text.secondary
-              }
-            >
-              {module.label}
-            </Text>
+        <Group gap={12} style={{ flex: 1 }}>
+          <Box
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: isModuleActive
+                ? theme.colors.brand[1]
+                : theme.colors.slate[1],
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Icon
+              size={18}
+              color={isModuleActive ? theme.colors.brand[6] : theme.colors.slate[5]}
+              stroke={1.5}
+            />
           </Box>
-          {isExpanded ? (
-            <IconChevronUp
-              size={theme.other.sizes.icon.sm}
-              color={
-                isModuleActive
-                  ? theme.other.brand.primary
-                  : theme.other.text.secondary
-              }
+          <Text
+            fw={isModuleActive ? 600 : 500}
+            size="14px"
+            c={isModuleActive ? theme.colors.slate[9] : theme.colors.slate[7]}
+            style={{ flex: 1, lineHeight: 1.3 }}
+          >
+            {module.label}
+          </Text>
+          <Box
+            style={{
+              transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+              transition: "transform 0.2s ease",
+            }}
+          >
+            <IconChevronRight
+              size={16}
+              color={theme.colors.slate[4]}
+              stroke={2}
             />
-          ) : (
-            <IconChevronDown
-              size={theme.other.sizes.icon.sm}
-              color={
-                isModuleActive
-                  ? theme.other.brand.primary
-                  : theme.other.text.secondary
-              }
-            />
-          )}
-        </Box>
+          </Box>
+        </Group>
       </UnstyledButton>
 
       {module.subItems.length > 0 && (
