@@ -1,4 +1,22 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
+import type {
+  BuildPlatform,
+  BuildStage,
+  StoreType,
+  BuildType,
+  BuildUploadStatus,
+  WorkflowStatus,
+  CiRunType
+} from '~types/release-management/builds';
+import {
+  BUILD_PLATFORMS,
+  BUILD_STAGES,
+  STORE_TYPES,
+  BUILD_TYPES,
+  BUILD_UPLOAD_STATUSES,
+  WORKFLOW_STATUSES,
+  CI_RUN_TYPES
+} from '~types/release-management/builds';
 
 export type BuildAttributes = {
   id: string;
@@ -9,16 +27,16 @@ export type BuildAttributes = {
   artifactVersionName: string;
   artifactPath: string | null;
   releaseId: string;
-  platform: 'ANDROID' | 'IOS' | 'WEB';
-  storeType: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB';
+  platform: BuildPlatform;
+  storeType: StoreType | null;
   regressionId?: string | null;
   ciRunId?: string | null;
-  buildUploadStatus: 'PENDING' | 'UPLOADED' | 'FAILED';
-  buildType: 'MANUAL' | 'CI_CD';
-  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  buildUploadStatus: BuildUploadStatus;
+  buildType: BuildType;
+  buildStage: BuildStage;
   queueLocation?: string | null;
-  workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
-  ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  workflowStatus?: WorkflowStatus | null;
+  ciRunType?: CiRunType | null;
   taskId?: string | null;
   internalTrackLink?: string | null;
   testflightNumber?: string | null;
@@ -40,19 +58,16 @@ export const createBuildModel = (sequelize: Sequelize): BuildModelType => {
       artifactVersionName: { type: DataTypes.STRING(255), allowNull: false },
       artifactPath: { type: DataTypes.STRING(255), allowNull: true },
       releaseId: { type: DataTypes.STRING(255), allowNull: false },
-      platform: { type: DataTypes.ENUM('ANDROID', 'IOS'), allowNull: false },
-      storeType: {
-        type: DataTypes.ENUM('APP_STORE', 'PLAY_STORE', 'TESTFLIGHT', 'MICROSOFT_STORE', 'FIREBASE'),
-        allowNull: false
-      },
+      platform: { type: DataTypes.ENUM(...BUILD_PLATFORMS), allowNull: false },
+      storeType: { type: DataTypes.ENUM(...STORE_TYPES), allowNull: true },
       regressionId: { type: DataTypes.STRING(255), allowNull: true },
       ciRunId: { type: DataTypes.STRING(255), allowNull: true },
-      buildUploadStatus: { type: DataTypes.ENUM('PENDING', 'UPLOADED', 'FAILED'), allowNull: false },
-      buildType: { type: DataTypes.ENUM('MANUAL', 'CI_CD'), allowNull: false },
-      buildStage: { type: DataTypes.ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE'), allowNull: false },
+      buildUploadStatus: { type: DataTypes.ENUM(...BUILD_UPLOAD_STATUSES), allowNull: false },
+      buildType: { type: DataTypes.ENUM(...BUILD_TYPES), allowNull: false },
+      buildStage: { type: DataTypes.ENUM(...BUILD_STAGES), allowNull: false },
       queueLocation: { type: DataTypes.STRING(255), allowNull: true },
-      workflowStatus: { type: DataTypes.ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED'), allowNull: true },
-      ciRunType: { type: DataTypes.ENUM('JENKINS', 'GITHUB_ACTIONS', 'CIRCLE_CI', 'GITLAB_CI'), allowNull: true },
+      workflowStatus: { type: DataTypes.ENUM(...WORKFLOW_STATUSES), allowNull: true },
+      ciRunType: { type: DataTypes.ENUM(...CI_RUN_TYPES), allowNull: true },
       taskId: { type: DataTypes.STRING(255), allowNull: true },
       internalTrackLink: { type: DataTypes.STRING(255), allowNull: true },
       testflightNumber: { type: DataTypes.STRING(255), allowNull: true }
@@ -65,5 +80,3 @@ export const createBuildModel = (sequelize: Sequelize): BuildModelType => {
 
   return BuildModel;
 };
-
-

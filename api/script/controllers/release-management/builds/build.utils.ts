@@ -12,7 +12,7 @@ import {
   type BuildType,
   type WorkflowStatus,
   type BuildUploadStatus
-} from './build.constants';
+} from '~types/release-management/builds';
 
 /**
  * Parse and validate platform from string

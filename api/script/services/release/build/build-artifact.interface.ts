@@ -12,7 +12,7 @@ export type {
   BuildType,
   BuildUploadStatus,
   WorkflowStatus
-} from '~controllers/release-management/builds/build.constants';
+} from '~types/release-management/builds';
 
 // Import types for use in this file
 import type {
@@ -22,7 +22,7 @@ import type {
   BuildType,
   BuildUploadStatus,
   WorkflowStatus
-} from '~controllers/release-management/builds/build.constants';
+} from '~types/release-management/builds';
 
 /**
  * Input for uploading an artifact to an existing build (CI/CD flow)

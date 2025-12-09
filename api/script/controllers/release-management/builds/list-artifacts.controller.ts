@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, validationErrorResponse, errorResponse } from '~utils/response.utils';
-import { BUILD_UPLOAD_ERROR_MESSAGES } from './build.constants';
+import { BUILD_ERROR_MESSAGES } from '~types/release-management/builds';
 import {
   parsePlatform,
   parseBuildStage,
@@ -31,7 +31,7 @@ export const createBuildListArtifactsHandler = (storage: Storage) =>
       const tenantIdMissing = !tenantId;
       if (tenantIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_TENANT_ID)
+          validationErrorResponse('tenantId', BUILD_ERROR_MESSAGES.INVALID_TENANT_ID)
         );
         return;
       }
@@ -39,7 +39,7 @@ export const createBuildListArtifactsHandler = (storage: Storage) =>
       const releaseIdMissing = !releaseId;
       if (releaseIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_RELEASE_ID)
+          validationErrorResponse('releaseId', BUILD_ERROR_MESSAGES.INVALID_RELEASE_ID)
         );
         return;
       }

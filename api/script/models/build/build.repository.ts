@@ -13,32 +13,6 @@ export class BuildRepository {
     await this.model.create(attributes);
   }
 
-  async findArtifactPaths(params: {
-    tenantId: string;
-    releaseId: string;
-    platform: 'ANDROID' | 'IOS';
-  }): Promise<string[]> {
-    const { tenantId, releaseId, platform } = params;
-    const rows = await this.model.findAll({
-      attributes: ['artifactPath'],
-      where: {
-        tenantId,
-        releaseId,
-        platform
-      }
-    });
-    const paths: string[] = [];
-    for (const row of rows) {
-      const data = row.get() as unknown as BuildAttributes;
-      const pathValue = data.artifactPath ?? null;
-      const hasPath = typeof pathValue === 'string' && pathValue.trim().length > 0;
-      if (hasPath) {
-        paths.push(pathValue);
-      }
-    }
-    return paths;
-  }
-
   async findByCiRunId(ciRunId: string): Promise<BuildAttributes | null> {
     const row = await this.model.findOne({
       where: { ciRunId }

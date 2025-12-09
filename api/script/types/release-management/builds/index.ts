@@ -1,7 +1,4 @@
-/**
- * Re-export from single source of truth
- * @deprecated Import directly from '~types/release-management/builds' instead
- */
+// Build constants and types - single source of truth
 export {
   // Constants
   BUILD_PLATFORM,
@@ -18,8 +15,8 @@ export {
   WORKFLOW_STATUSES,
   CI_RUN_TYPE,
   CI_RUN_TYPES,
-  BUILD_ERROR_MESSAGES as BUILD_UPLOAD_ERROR_MESSAGES,
-  BUILD_SUCCESS_MESSAGES as BUILD_UPLOAD_SUCCESS_MESSAGES,
+  BUILD_ERROR_MESSAGES,
+  BUILD_SUCCESS_MESSAGES,
   // Types
   type BuildPlatform,
   type BuildStage,
@@ -28,4 +25,7 @@ export {
   type BuildUploadStatus,
   type WorkflowStatus,
   type CiRunType
-} from '~types/release-management/builds';
+} from './build.constants';
+
+export type { BuildListItem } from './build.interface';
+

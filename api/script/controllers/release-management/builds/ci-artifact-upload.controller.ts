@@ -2,10 +2,7 @@ import { Request, Response } from 'express';
 import type { Storage } from '../../../storage/storage';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, validationErrorResponse } from '~utils/response.utils';
-import {
-  BUILD_UPLOAD_ERROR_MESSAGES,
-  BUILD_UPLOAD_SUCCESS_MESSAGES
-} from './build.constants';
+import { BUILD_ERROR_MESSAGES, BUILD_SUCCESS_MESSAGES } from '~types/release-management/builds';
 import { getFileWithField } from '../../../file-upload-manager';
 import { getTrimmedString } from '~utils/request.utils';
 import {
@@ -35,7 +32,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
       const fileMissing = !artifactFile || !artifactFile.buffer || !artifactFile.originalname;
       if (fileMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('artifact', BUILD_UPLOAD_ERROR_MESSAGES.ARTIFACT_REQUIRED)
+          validationErrorResponse('artifact', BUILD_ERROR_MESSAGES.ARTIFACT_REQUIRED)
         );
         return;
       }
@@ -49,7 +46,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
       });
 
       res.status(HTTP_STATUS.CREATED).json(
-        successResponse({ downloadUrl: result.downloadUrl }, BUILD_UPLOAD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
+        successResponse({ downloadUrl: result.downloadUrl }, BUILD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
       );
     } catch (err) {
       const isBuildArtifactError = err instanceof BuildArtifactError;

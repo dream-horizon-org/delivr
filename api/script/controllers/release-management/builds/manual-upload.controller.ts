@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import type { Storage } from '../../../storage/storage';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, validationErrorResponse } from '~utils/response.utils';
-import { BUILD_UPLOAD_ERROR_MESSAGES, BUILD_UPLOAD_SUCCESS_MESSAGES } from './build.constants';
+import { BUILD_ERROR_MESSAGES, BUILD_SUCCESS_MESSAGES } from '~types/release-management/builds';
 import { parsePlatform, parseBuildStage, parseStoreType } from './build.utils';
 import { getFileWithField } from '../../../file-upload-manager';
 import { getTrimmedString } from '~utils/request.utils';
@@ -29,7 +29,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const tenantIdMissing = !tenantId;
       if (tenantIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('tenantId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_TENANT_ID)
+          validationErrorResponse('tenantId', BUILD_ERROR_MESSAGES.INVALID_TENANT_ID)
         );
         return;
       }
@@ -38,7 +38,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const releaseIdMissing = !releaseId;
       if (releaseIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('releaseId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_RELEASE_ID)
+          validationErrorResponse('releaseId', BUILD_ERROR_MESSAGES.INVALID_RELEASE_ID)
         );
         return;
       }
@@ -47,7 +47,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const versionNameMissing = !artifactVersionName;
       if (versionNameMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('artifact_version_name', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_VERSION_NAME)
+          validationErrorResponse('artifact_version_name', BUILD_ERROR_MESSAGES.INVALID_VERSION_NAME)
         );
         return;
       }
@@ -56,7 +56,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const versionCodeMissing = !artifactVersionCode;
       if (versionCodeMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('artifact_version_code', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_VERSION_CODE)
+          validationErrorResponse('artifact_version_code', BUILD_ERROR_MESSAGES.INVALID_VERSION_CODE)
         );
         return;
       }
@@ -65,7 +65,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const fileMissing = !artifactFile || !artifactFile.buffer || !artifactFile.originalname;
       if (fileMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('artifact', BUILD_UPLOAD_ERROR_MESSAGES.ARTIFACT_REQUIRED)
+          validationErrorResponse('artifact', BUILD_ERROR_MESSAGES.ARTIFACT_REQUIRED)
         );
         return;
       }
@@ -75,7 +75,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const platformInvalid = platformValue === null;
       if (platformInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('platform', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_PLATFORM)
+          validationErrorResponse('platform', BUILD_ERROR_MESSAGES.INVALID_PLATFORM)
         );
         return;
       }
@@ -88,7 +88,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const buildStageInvalid = buildStageValue === null;
       if (buildStageInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('buildStage', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_BUILD_STAGE)
+          validationErrorResponse('buildStage', BUILD_ERROR_MESSAGES.INVALID_BUILD_STAGE)
         );
         return;
       }
@@ -108,7 +108,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       });
 
       res.status(HTTP_STATUS.CREATED).json(
-        successResponse({ downloadUrl: result.downloadUrl }, BUILD_UPLOAD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
+        successResponse({ downloadUrl: result.downloadUrl }, BUILD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
       );
     } catch (err) {
       const isBuildArtifactError = err instanceof BuildArtifactError;

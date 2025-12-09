@@ -6,7 +6,7 @@ import { uploadToS3, inferContentType, generatePresignedGetUrl } from '~utils/s3
 import {
   BUILD_UPLOAD_STATUS,
   BUILD_TYPE
-} from '~controllers/release-management/builds/build.constants';
+} from '~types/release-management/builds';
 import * as shortid from 'shortid';
 import {
   BUILD_ARTIFACT_ERROR_CODE,
