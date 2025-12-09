@@ -225,7 +225,7 @@ export function ReleaseDetailsForm({
             disabled={loadingBranches}
             rightSection={loadingBranches ? <MantineLoader size="xs" /> : null}
             description="Select base branch to fork from (required)"
-          />
+        />
         <TextInput
           label="Release Branch Name"
           placeholder="e.g., release/v1.0.0"

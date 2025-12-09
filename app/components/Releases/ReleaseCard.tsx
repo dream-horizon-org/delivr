@@ -59,9 +59,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                     {release.branch}
                   </Text>
                 ) : (
-                  <Text fw={600} size="lg" c="white" className="truncate">
+                <Text fw={600} size="lg" c="white" className="truncate">
                     No branch
-                  </Text>
+                </Text>
                 )}
                 {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
                   <Group gap="xs">
