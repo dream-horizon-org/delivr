@@ -11,14 +11,14 @@ export type ReleaseConfigAttributes = {
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
   platformTargets: Array<{ platform: string; target: string }> | null;
   baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
   projectManagementConfigId: string | null;
   commsConfigId: string | null;
-  scheduling: any;
+  // NOTE: releaseScheduleId removed - schedule references config via release_schedules.releaseConfigId
   hasManualBuildUpload: boolean;
   isActive: boolean;
   isDefault: boolean;
@@ -60,7 +60,7 @@ export const createReleaseConfigModel = (
         allowNull: true
       },
       releaseType: {
-        type: DataTypes.ENUM('MINOR', 'HOTFIX', 'MAJOR'),
+        type: DataTypes.ENUM('MAJOR', 'MINOR', 'HOTFIX'),
         allowNull: false,
         field: 'releaseType'
       },
@@ -98,10 +98,7 @@ export const createReleaseConfigModel = (
         allowNull: true,
         field: 'commsConfigId'
       },
-      scheduling: {
-        type: DataTypes.JSON,
-        allowNull: true
-      },
+      // NOTE: releaseScheduleId removed - schedule references config via release_schedules.releaseConfigId
       hasManualBuildUpload: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

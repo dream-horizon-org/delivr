@@ -9,7 +9,7 @@ import { ReleasePlatformTargetMappingRepository } from '../../models/release/rel
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { TaskStage, ReleaseTask, Phase } from '../../models/release/release.interface';
-import type { ReleaseResponseBody } from '~types/release';
+import type { ReleaseResponseBody, ReleaseWithPlatformTargets } from '~types/release';
 
 // ============================================================================
 // PHASE DERIVATION TYPES
