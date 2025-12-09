@@ -25,13 +25,16 @@ export enum ReleaseType {
   MAJOR = 'MAJOR'
 }
 
+/**
+ * ReleaseStatus - Release lifecycle states
+ */
 export enum ReleaseStatus {
-  PENDING = 'PENDING',
-  STARTED = 'STARTED',
-  REGRESSION_IN_PROGRESS = 'REGRESSION_IN_PROGRESS',
-  BUILD_SUBMITTED = 'BUILD_SUBMITTED',
-  RELEASED = 'RELEASED',
-  ARCHIVED = 'ARCHIVED'
+  PENDING = 'PENDING',           // Release created, not started
+  IN_PROGRESS = 'IN_PROGRESS',   // Release actively running (replaces STARTED)
+  PAUSED = 'PAUSED',             // Paused by user or task failure
+  SUBMITTED = 'SUBMITTED',       // Build submitted, awaiting store approval
+  COMPLETED = 'COMPLETED',       // Release successfully completed
+  ARCHIVED = 'ARCHIVED'          // Release cancelled/archived
 }
 
 export enum StateChangeType {
@@ -48,11 +51,14 @@ export enum ReleaseTaskConclusion {
   SKIPPED = 'skipped'
 }
 
+/**
+ * RegressionCycleStatus - Regression cycle states
+ */
 export enum RegressionCycleStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  STARTED = 'STARTED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  DONE = 'DONE'
+  NOT_STARTED = 'NOT_STARTED',   // Cycle created but not started
+  IN_PROGRESS = 'IN_PROGRESS',   // Cycle actively running
+  DONE = 'DONE',                 // Cycle completed
+  ABANDONED = 'ABANDONED'        // Cycle abandoned by user (Feature 12)
 }
 
 export enum TaskType {
@@ -70,22 +76,28 @@ export enum TaskType {
   TRIGGER_AUTOMATION_RUNS = 'TRIGGER_AUTOMATION_RUNS',
   AUTOMATION_RUNS = 'AUTOMATION_RUNS',
   SEND_REGRESSION_BUILD_MESSAGE = 'SEND_REGRESSION_BUILD_MESSAGE',
-  // Stage 3: Post-Regression (6 tasks)
+  // Stage 3: Post-Regression (7 tasks)
   PRE_RELEASE_CHERRY_PICKS_REMINDER = 'PRE_RELEASE_CHERRY_PICKS_REMINDER',
   CREATE_RELEASE_TAG = 'CREATE_RELEASE_TAG',
   CREATE_FINAL_RELEASE_NOTES = 'CREATE_FINAL_RELEASE_NOTES',
   TRIGGER_TEST_FLIGHT_BUILD = 'TRIGGER_TEST_FLIGHT_BUILD',
+  CREATE_AAB_BUILD = 'CREATE_AAB_BUILD', // Android AAB build task
   SEND_POST_REGRESSION_MESSAGE = 'SEND_POST_REGRESSION_MESSAGE',
   CHECK_PROJECT_RELEASE_APPROVAL = 'CHECK_PROJECT_RELEASE_APPROVAL',
   // Manual API (1 task)
   SUBMIT_TO_TARGET = 'SUBMIT_TO_TARGET'
 }
 
+/**
+ * TaskStatus - Task execution states
+ */
 export enum TaskStatus {
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED'
+  PENDING = 'PENDING',                   // Task not started
+  IN_PROGRESS = 'IN_PROGRESS',           // Task currently executing
+  AWAITING_CALLBACK = 'AWAITING_CALLBACK', // Task waiting for external callback (e.g., CI/CD)
+  COMPLETED = 'COMPLETED',               // Task finished successfully
+  FAILED = 'FAILED',                     // Task failed
+  SKIPPED = 'SKIPPED'                    // Task intentionally skipped (e.g., platform not applicable)
 }
 
 export enum TaskIdentifier {
@@ -102,6 +114,16 @@ export enum CronStatus {
   COMPLETED = 'COMPLETED'
 }
 
+/**
+ * PauseType - Reason for release pause
+ */
+export enum PauseType {
+  NONE = 'NONE',                             // Not paused
+  AWAITING_STAGE_TRIGGER = 'AWAITING_STAGE_TRIGGER', // Waiting for manual stage trigger
+  USER_REQUESTED = 'USER_REQUESTED',         // User manually paused
+  TASK_FAILURE = 'TASK_FAILURE'              // Paused due to critical task failure
+}
+
 export enum StageStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
@@ -113,6 +135,26 @@ export enum TaskStage {
   REGRESSION = 'REGRESSION',
   POST_REGRESSION = 'POST_REGRESSION'
 }
+
+/**
+ * Phase - Derived UI display phase (14 values)
+ * Calculated from: releaseStatus, stageStatuses, cronStatus, pauseType, cycleStatus
+ */
+export type Phase =
+  | 'NOT_STARTED'                    // Release created, not started
+  | 'KICKOFF'                        // Stage 1 running
+  | 'AWAITING_REGRESSION'            // Stage 1 complete, waiting for Stage 2 trigger
+  | 'REGRESSION'                     // Stage 2 running (current cycle active)
+  | 'REGRESSION_AWAITING_NEXT_CYCLE' // Between regression cycles
+  | 'AWAITING_POST_REGRESSION'       // Stage 2 complete, waiting for Stage 3 trigger
+  | 'POST_REGRESSION'                // Stage 3 running
+  | 'AWAITING_SUBMISSION'            // Stage 3 complete, waiting for Stage 4 trigger
+  | 'SUBMISSION'                     // Stage 4 running, release IN_PROGRESS
+  | 'SUBMITTED_PENDING_APPROVAL'     // Stage 4 running, release SUBMITTED
+  | 'COMPLETED'                      // All stages complete
+  | 'PAUSED_BY_USER'                 // User paused release
+  | 'PAUSED_BY_FAILURE'              // Task failure paused release
+  | 'ARCHIVED';                      // Release cancelled
 
 // ============================================================================
 // INTERFACES
@@ -153,7 +195,7 @@ export interface Release {
   releaseId: string; // User-facing release ID (e.g., "REL-001")
   releaseConfigId: string | null;
   tenantId: string;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
   baseBranch: string | null;
@@ -178,7 +220,7 @@ export interface CreateReleaseDto {
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
   baseBranch: string | null;
@@ -195,7 +237,7 @@ export interface CreateReleaseDto {
 }
 
 export interface UpdateReleaseDto {
-  status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   branch?: string | null;
   baseBranch?: string | null;
@@ -243,7 +285,9 @@ export interface CronJob {
   stage1Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage2Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage4Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
   cronConfig: Record<string, unknown>;
   upcomingRegressions: any[] | null;
   cronCreatedAt: Date;
@@ -263,7 +307,9 @@ export interface CreateCronJobDto {
   stage1Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage2Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage4Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType?: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
   cronConfig: Record<string, unknown>;
   upcomingRegressions?: any[] | null;
   cronCreatedByAccountId: string;
@@ -276,7 +322,9 @@ export interface UpdateCronJobDto {
   stage1Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage2Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage3Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage4Status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus?: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType?: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
   cronConfig?: Record<string, unknown>;
   upcomingRegressions?: any[] | null;
   cronStoppedAt?: Date | null;

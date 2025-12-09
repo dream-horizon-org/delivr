@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/http';
 import { ERROR_MESSAGES } from '../constants/store';
 import { 
-  StoreType, 
+  StoreType as _StoreType, 
   DefaultTrack,
   AppStoreConnectPayload, 
   GooglePlayStorePayload,
@@ -164,7 +164,7 @@ export const validateConnectStoreBody = (req: Request, res: Response, next: Next
 
   // Validate defaultTrack for App Store/TestFlight if provided
   if (isAppStore) {
-    const appStorePayload = payload as AppStoreConnectPayload;
+    const _appStorePayload = payload as AppStoreConnectPayload;
     // App Store doesn't have defaultTrack in payload, but if it did, we'd validate here
     // For now, App Store uses targetAppId and other fields
   }

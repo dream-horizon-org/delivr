@@ -10,7 +10,7 @@ export type ReleaseTaskAttributes = {
   releaseId: string;
   taskId: string | null; // Unique task identifier
   taskType: string; // Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)
-  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
   taskConclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
   stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION';
   branch: string | null;
@@ -63,10 +63,11 @@ export const createReleaseTaskModel = (
         comment: 'Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)'
       },
       taskStatus: {
-        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'),
+        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'AWAITING_CALLBACK', 'COMPLETED', 'FAILED', 'SKIPPED'),
         allowNull: false,
         defaultValue: 'PENDING',
-        field: 'taskStatus'
+        field: 'taskStatus',
+        comment: 'Task execution status (AWAITING_CALLBACK for CI/CD callbacks, SKIPPED for platform-specific tasks)'
       },
       taskConclusion: {
         type: DataTypes.ENUM('success', 'failure', 'cancelled', 'skipped'),

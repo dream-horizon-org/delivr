@@ -10,7 +10,7 @@ export type ReleaseAttributes = {
   releaseId: string; // User-facing release ID (e.g., "REL-001")
   releaseConfigId: string | null; // FK to release_configurations table
   tenantId: string;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
   branch: string | null; // Release branch name (e.g., "release/v1.0.0")
   baseBranch: string | null; // Base branch forked from (e.g., "master")
@@ -70,10 +70,11 @@ export const createReleaseModel = (
         }
       },
       status: {
-        type: DataTypes.ENUM('IN_PROGRESS', 'COMPLETED', 'ARCHIVED'),
+        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'PAUSED', 'SUBMITTED', 'COMPLETED', 'ARCHIVED'),
         allowNull: false,
-        defaultValue: 'IN_PROGRESS',
-        field: 'status'
+        defaultValue: 'PENDING',
+        field: 'status',
+        comment: 'Release lifecycle status'
       },
       type: {
         type: DataTypes.ENUM('PLANNED', 'HOTFIX', 'MAJOR'),

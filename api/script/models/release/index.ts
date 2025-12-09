@@ -40,6 +40,7 @@ export { ReleasePlatformTargetMappingRepository } from './release-platform-targe
 export { PlatformRepository } from './platform.repository';
 export { TargetRepository } from './target.repository';
 export { RegressionCycleRepository } from './regression-cycle.repository';
+export { BuildRepository } from './build.repository';
 
 // Interfaces
 export type {
