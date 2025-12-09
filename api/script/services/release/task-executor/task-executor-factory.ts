@@ -20,8 +20,16 @@ import { ProjectManagementIntegrationRepository } from '../../../models/integrat
 import { TestManagementRunService } from '../../integrations/test-management/test-run/test-run.service';
 import { TestManagementConfigRepository } from '../../../models/integrations/test-management/test-management-config/test-management-config.repository';
 import { TenantTestManagementIntegrationRepository } from '../../../models/integrations/test-management';
-import { SlackIntegrationService } from '../../integrations/comm/slack-integration/slack-integration.service';
+import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
+import { CommIntegrationService } from '../../integrations/comm/comm-integration/comm-integration.service';
+import { CommConfigService } from '../../integrations/comm/comm-config/comm-config.service';
+import { CommIntegrationRepository } from '../../../models/integrations/comm/comm-integration/comm-integration.repository';
+import { CommConfigRepository } from '../../../models/integrations/comm/comm-config/comm-config.repository';
 import { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
+import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
+import { ReleaseRepository } from '../../../models/release/release.repository';
+import { createReleaseTaskModel } from '../../../models/release/release-task.sequelize.model';
+import { createReleaseModel } from '../../../models/release/release.sequelize.model';
 import { getStorage } from '../../../storage/storage-instance';
 import { hasSequelize } from '../../../types/release/api-types';
 
@@ -69,17 +77,31 @@ export function getTaskExecutor(): TaskExecutor {
   
   const pmTicketService = new ProjectManagementTicketService(pmConfigRepo, pmIntegrationRepo);
   const testRunService = new TestManagementRunService(tmConfigRepo, tmIntegrationRepo);
-  const slackService = new SlackIntegrationService(undefined as any); // TODO: Add slack repository
   
-  // Create TaskExecutor with all dependencies
+  // Communication/Messaging service (for notifications)
+  const commIntegrationRepo = new CommIntegrationRepository(sequelize.models.CommIntegrationModel as any);
+  const commConfigRepo = new CommConfigRepository(sequelize.models.CommConfigModel as any);
+  const commIntegrationService = new CommIntegrationService(commIntegrationRepo);
+  const commConfigService = new CommConfigService(commConfigRepo, commIntegrationRepo);
+  const messagingService = new MessagingService(commIntegrationService, commConfigService);
+  
+  // Release repositories (needed for task executor)
+  const ReleaseTaskModel = createReleaseTaskModel(sequelize);
+  const ReleaseModel = createReleaseModel(sequelize);
+  const releaseTaskRepo = new ReleaseTaskRepository(ReleaseTaskModel);
+  const releaseRepo = new ReleaseRepository(ReleaseModel);
+  
+  // Create TaskExecutor with all 9 dependencies
   taskExecutorInstance = new TaskExecutor(
     scmService,
     cicdIntegrationRepo,
     cicdWorkflowRepo,
     pmTicketService,
     testRunService,
-    slackService,
-    releaseConfigRepo
+    messagingService,
+    releaseConfigRepo,
+    releaseTaskRepo,
+    releaseRepo
   );
   
   return taskExecutorInstance;

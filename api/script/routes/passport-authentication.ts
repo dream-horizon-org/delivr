@@ -8,10 +8,10 @@ const passportActiveDirectory = require("passport-azure-ad");
 import * as passportBearer from "passport-http-bearer";
 import * as passportGitHub from "passport-github2";
 import * as passportWindowsLive from "passport-windowslive";
-import * as superagent from "superagent"
+import * as _superagent from "superagent"
 import rateLimit from "express-rate-limit";
 
-import * as converterUtils from "../utils/converter";
+import * as _converterUtils from "../utils/converter";
 import * as restErrorUtils from "../utils/rest-error-handling";
 import * as restHeaders from "../utils/rest-headers";
 import * as security from "../utils/security";
@@ -115,15 +115,15 @@ export class PassportAuthentication {
       "\nNote that your end users will not be affected.";
 
     // In legacy CLI's, all commands begin by passing through a /auth endpoint
-    router.all("/auth/login", (req: Request, res: Response, next: (err?: any) => void): any => {
+    router.all("/auth/login", (req: Request, res: Response, _next: (err?: any) => void): any => {
       restErrorUtils.sendResourceGonePage(res, browserMessage);
     });
 
-    router.all("/auth/register", (req: Request, res: Response, next: (err?: any) => void): any => {
+    router.all("/auth/register", (req: Request, res: Response, _next: (err?: any) => void): any => {
       restErrorUtils.sendResourceGonePage(res, browserMessage);
     });
 
-    router.use("/auth", (req: Request, res: Response, next: (err?: any) => void): any => {
+    router.use("/auth", (req: Request, res: Response, _next: (err?: any) => void): any => {
       restErrorUtils.sendResourceGoneError(res, cliMessage);
     });
 
@@ -327,7 +327,7 @@ export class PassportAuthentication {
             isSession: true,
           };
 
-          return this._storageInstance.addAccessKey(accountId, accessKey).then((accessKeyId: string): void => {
+          return this._storageInstance.addAccessKey(accountId, accessKey).then((_accessKeyId: string): void => {
             const key: string = accessKey.name;
             req.session["accessKey"] = key;
             req.session["isNewAccount"] = action === "register";

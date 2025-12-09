@@ -53,7 +53,7 @@ module Validation {
   }
 
   function isValidTtlField(allowZero: boolean, val: number): boolean {
-    return !isNaN(val) && val >= 0 && (val != 0 || allowZero);
+    return !isNaN(val) && val >= 0 && (val !== 0 || allowZero);
   }
 
   export function isValidKeyField(val: any): boolean {

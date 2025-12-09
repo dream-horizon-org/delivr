@@ -489,6 +489,18 @@ export function createModelss(sequelize: Sequelize) {
   Release.hasMany(StateHistory, { foreignKey: 'releaseId', as: 'history' });
   StateHistory.belongsTo(Release, { foreignKey: 'releaseId' });
 
+  // Release and Regression Cycles (One Release has many Regression Cycles)
+  Release.hasMany(RegressionCycle, { foreignKey: 'releaseId', as: 'regressionCycles' });
+  RegressionCycle.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Release and Builds (One Release has many Builds)
+  Release.hasMany(Build, { foreignKey: 'releaseId', as: 'builds' });
+  Build.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Regression Cycle and Builds (One Regression Cycle has many Builds)
+  RegressionCycle.hasMany(Build, { foreignKey: 'regressionId', as: 'builds' });
+  Build.belongsTo(RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
+
   // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
   App.belongsTo(Tenant, { foreignKey: 'tenantId' });
@@ -581,6 +593,8 @@ export function createModelss(sequelize: Sequelize) {
     cronJob: CronJob,
     releaseTasks: ReleaseTask,
     stateHistory: StateHistory,
+    build: Build,  // Build records for CI/CD
+    regressionCycle: RegressionCycle,  // Regression cycles within release workflow
     CommIntegrations,  // Communication integrations
     SlackIntegrations: CommIntegrations,  // Legacy alias
     StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)

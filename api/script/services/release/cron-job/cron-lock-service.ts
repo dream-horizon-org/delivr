@@ -141,7 +141,7 @@ export class CronLockService {
       // Check if lock has expired
       const now = new Date();
       const lockedAt = new Date(cronJob.lockedAt);
-      const timeoutMs = (cronJob.lockTimeout || 300) * 1000;
+      const timeoutMs = (cronJob.lockTimeout ?? 300) * 1000;
       const elapsed = now.getTime() - lockedAt.getTime();
       const isExpired = elapsed >= timeoutMs;
 
