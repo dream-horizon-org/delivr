@@ -1,42 +1,54 @@
 /**
- * Release Management Routes
+ * Release Management Routes (Release Orchestration)
  * 
  * Handles all release-related API endpoints by delegating to ReleaseManagementController.
- * Follows Controller-Service-Repository pattern.
+ * Routes are minimal - delegation to controller only.
  */
 
 import { Request, Response, Router } from "express";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
-import type { ReleaseCreationService } from "../../services/release/release-creation.service";
-import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
-import type { ReleaseStatusService } from "../../services/release/release-status.service";
-import type { ReleaseUpdateService } from "../../services/release/release-update.service";
-import type { CronJobService } from "../../services/release/cron-job/cron-job.service";
+import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
 import { HTTP_STATUS } from "../../constants/http";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
-  releaseCreationService: ReleaseCreationService;
-  releaseRetrievalService: ReleaseRetrievalService;
-  releaseStatusService: ReleaseStatusService;
-  releaseUpdateService: ReleaseUpdateService;
-  cronJobService: CronJobService;
 }
 
 /**
  * Creates and configures the Release Management router
+ * 
+ * Gets services from storage (initialized by S3Storage).
+ * Gets CronJobService from factory.
  */
 export function getReleaseManagementRouter(config: ReleaseManagementConfig): Router {
   const storage: storageTypes.Storage = config.storage;
   const router: Router = Router();
+
+  // Get services from storage (cast to access services)
+  const storageWithServices = storage as any;
+  
+  // Check if services are available
+  if (!storageWithServices.releaseCreationService) {
+    console.warn('[Release Orchestration Routes] Release services not initialized on storage');
+    return router;
+  }
+
+  // Get CronJobService from factory
+  const cronJobService = getCronJobService(storage);
+  if (!cronJobService) {
+    console.warn('[Release Orchestration Routes] CronJobService not available');
+    return router;
+  }
+
+  // Create controller with services
   const controller = new ReleaseManagementController(
-    config.releaseCreationService,
-    config.releaseRetrievalService,
-    config.releaseStatusService,
-    config.releaseUpdateService,
-    config.cronJobService
+    storageWithServices.releaseCreationService,
+    storageWithServices.releaseRetrievalService,
+    storageWithServices.releaseStatusService,
+    storageWithServices.releaseUpdateService,
+    cronJobService
   );
 
   // ============================================================================

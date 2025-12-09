@@ -11,7 +11,9 @@ export type CronJobAttributes = {
   stage1Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage2Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage4Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
   cronConfig: any; // JSON configuration object
   upcomingRegressions: any; // JSON array of upcoming regression schedules
   cronCreatedAt: Date;
@@ -68,11 +70,25 @@ export const createCronJobModel = (
         defaultValue: 'PENDING',
         field: 'stage3Status'
       },
+      stage4Status: {
+        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED'),
+        allowNull: false,
+        defaultValue: 'PENDING',
+        field: 'stage4Status',
+        comment: 'Stage 4 (Submission) status tracking'
+      },
       cronStatus: {
         type: DataTypes.ENUM('PENDING', 'RUNNING', 'PAUSED', 'COMPLETED'),
         allowNull: false,
         defaultValue: 'PENDING',
         field: 'cronStatus'
+      },
+      pauseType: {
+        type: DataTypes.ENUM('NONE', 'AWAITING_STAGE_TRIGGER', 'USER_REQUESTED', 'TASK_FAILURE'),
+        allowNull: false,
+        defaultValue: 'NONE',
+        field: 'pauseType',
+        comment: 'Reason for pause (NONE = not paused)'
       },
       cronConfig: {
         type: DataTypes.JSON,

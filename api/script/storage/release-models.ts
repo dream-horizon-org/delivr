@@ -1,4 +1,14 @@
 /**
+ * @deprecated This file is DEPRECATED - DO NOT USE
+ * 
+ * Use the following instead:
+ * - Models: api/script/models/release/*.sequelize.model.ts
+ * - Interfaces: api/script/models/release/release.interface.ts
+ * - Repositories: api/script/models/release/*.repository.ts
+ * 
+ * This file is kept for reference only and will be deleted in a future cleanup.
+ * 
+ * Original Description:
  * Release Model (from Delivr)
  * Extended with tenant_id for multi-tenancy support
  */

@@ -186,7 +186,7 @@ export interface ReleaseResponseBody {
   releaseConfigId: string | null;
   tenantId: string;
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null;
@@ -230,7 +230,7 @@ export interface UpdateReleaseRequestBody {
   releaseConfigId?: string;
   tenantId?: string;
   type?: 'MAJOR' | 'MINOR' | 'HOTFIX';
-  status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch?: string;
   baseBranch?: string;
   baseReleaseId?: string;

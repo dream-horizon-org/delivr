@@ -122,7 +122,7 @@ export class PostRegressionState implements ICronJobState {
           const createdTaskIds = await createStage3Tasks(releaseTaskRepo, {
             releaseId,
             accountId: release.createdByAccountId || 'system',
-            cronConfig: cronJob.cronConfig || {},
+            cronConfig: cronJob.cronConfig ?? {},
             hasProjectManagementIntegration: integrationAvailability.hasProjectManagementIntegration,
             hasIOSPlatform
           });

@@ -137,7 +137,7 @@ export function getRunningCronJobs(): string[] {
  * Useful for graceful shutdown.
  */
 export function stopAllCronJobs(): void {
-  for (const [releaseId, interval] of cronIntervals.entries()) {
+  for (const [_releaseId, interval] of cronIntervals.entries()) {
     clearInterval(interval);
   }
   cronIntervals.clear();

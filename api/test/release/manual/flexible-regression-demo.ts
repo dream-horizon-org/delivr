@@ -74,18 +74,27 @@ async function demonstrateFlexibleRegression() {
     section('STEP 1: Create Release');
     
     log('Creating test release...');
+    const releaseId = uuidv4();
     const release = await releaseRepo.create({
+      id: releaseId,
+      releaseId: 'REL-DEMO-001',
+      releaseConfigId: null,
       tenantId: 'demo-tenant',
-      accountId: testAccountId,
-      version: '1.0.0-demo',
-      type: ReleaseType.PLANNED,
-      targetReleaseDate: new Date(Date.now() + 86400000 * 7), // 1 week from now
-      plannedDate: new Date(),
+      status: 'PENDING',
+      type: 'PLANNED',
+      branch: 'release/v1.0.0-demo',
       baseBranch: 'main',
+      baseReleaseId: null,
+      kickOffReminderDate: null,
+      kickOffDate: new Date(),
+      targetReleaseDate: new Date(Date.now() + 86400000 * 7), // 1 week from now
+      releaseDate: null,
+      hasManualBuildUpload: false,
+      createdByAccountId: testAccountId,
       releasePilotAccountId: testAccountId,
-      releaseConfigId: uuidv4()
+      lastUpdatedByAccountId: testAccountId
     });
-    const testReleaseId = release.id; // Use auto-generated ID
+    testReleaseId = release.id;
     log('✅ Release created', { releaseId: testReleaseId });
 
     // ========================================================================
@@ -106,16 +115,20 @@ async function demonstrateFlexibleRegression() {
 
     log('Creating cron job with initial slots...', { slotCount: initialSlots.length });
     
-    const cronJobData: CreateCronJobData = {
+    const cronJobId = uuidv4();
+    const cronJob = await cronJobRepo.create({
+      id: cronJobId,
       releaseId: testReleaseId,
-      accountId: testAccountId,
+      stage1Status: 'PENDING',
+      stage2Status: 'PENDING',
+      stage3Status: 'PENDING',
+      cronStatus: 'PENDING',
       cronConfig: { automationBuilds: true, automationRuns: true },
       upcomingRegressions: initialSlots,
+      cronCreatedByAccountId: testAccountId,
       autoTransitionToStage2: true,
       autoTransitionToStage3: false // Manual Stage 3 trigger
-    };
-
-    const cronJob = await cronJobRepo.create(cronJobData);
+    });
     log('✅ Cron job created', {
       cronJobId: cronJob.id,
       stage1Status: cronJob.stage1Status,
@@ -136,7 +149,7 @@ async function demonstrateFlexibleRegression() {
       cronStatus: CronStatus.RUNNING
     });
 
-    const afterStage1 = await cronJobRepo.getByReleaseId(testReleaseId);
+    const afterStage1 = await cronJobRepo.findByReleaseId(testReleaseId);
     log('✅ Stage 1 completed, Stage 2 started', {
       stage1Status: afterStage1?.stage1Status,
       stage2Status: afterStage1?.stage2Status
@@ -151,8 +164,8 @@ async function demonstrateFlexibleRegression() {
     
     // Create first cycle (simulating what RegressionState would do)
     const cycle1 = await regressionCycleRepo.create({
+      id: uuidv4(),
       releaseId: testReleaseId,
-      accountId: testAccountId,
       cycleTag: 'v1.0.0_rc_0'
     });
     log('✅ Cycle 1 created', { cycleId: cycle1.id, cycleTag: cycle1.cycleTag });
@@ -184,7 +197,7 @@ async function demonstrateFlexibleRegression() {
       cronStatus: CronStatus.PAUSED
     });
 
-    const afterStage2 = await cronJobRepo.getByReleaseId(testReleaseId);
+    const afterStage2 = await cronJobRepo.findByReleaseId(testReleaseId);
     log('✅ Stage 2 marked COMPLETED', {
       stage2Status: afterStage2?.stage2Status,
       stage3Status: afterStage2?.stage3Status,
@@ -209,7 +222,7 @@ async function demonstrateFlexibleRegression() {
       upcomingRegressions: [newSlot]
     });
 
-    const afterNewSlot = await cronJobRepo.getByReleaseId(testReleaseId);
+    const afterNewSlot = await cronJobRepo.findByReleaseId(testReleaseId);
     log('✅ New slot added successfully!', {
       stage2Status: afterNewSlot?.stage2Status, // Still COMPLETED
       stage3Status: afterNewSlot?.stage3Status, // Still PENDING
@@ -229,10 +242,10 @@ async function demonstrateFlexibleRegression() {
     
     const stateMachine = new CronJobStateMachine(
       testReleaseId,
-      cronJobDTO,
-      releaseDTO,
-      releaseTasksDTO,
-      regressionCycleDTO,
+      cronJobRepo,
+      releaseRepo,
+      releaseTaskRepo,
+      regressionCycleRepo,
       mockTaskExecutor,
       storage
     );
@@ -247,7 +260,7 @@ async function demonstrateFlexibleRegression() {
     log('Executing state machine (should reopen Stage 2)...');
     await stateMachine.execute();
 
-    const afterExecution = await cronJobRepo.getByReleaseId(testReleaseId);
+    const afterExecution = await cronJobRepo.findByReleaseId(testReleaseId);
     log('✅ State machine executed', {
       stage2Status: afterExecution?.stage2Status, // Should be IN_PROGRESS now
       cronStatus: afterExecution?.cronStatus,
@@ -257,7 +270,7 @@ async function demonstrateFlexibleRegression() {
     });
 
     // Check if new cycle was created
-    const allCycles = await regressionCycleRepo.getByRelease(testReleaseId);
+    const allCycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
     log('✅ Regression cycles', {
       totalCycles: allCycles.length,
       cycleStatuses: allCycles.map(c => ({ id: c.id, status: c.status }))
@@ -275,7 +288,7 @@ async function demonstrateFlexibleRegression() {
       cronStatus: CronStatus.RUNNING
     });
 
-    const beforeBlockedSlot = await cronJobRepo.getByReleaseId(testReleaseId);
+    const beforeBlockedSlot = await cronJobRepo.findByReleaseId(testReleaseId);
     log('Stage 3 started', {
       stage3Status: beforeBlockedSlot?.stage3Status
     });
@@ -329,7 +342,7 @@ Stage 3 is the TRUE lock - not Stage 2 COMPLETED!
     
     // Cleanup on error
     try {
-      const cronJob = await cronJobRepo.getByReleaseId(testReleaseId);
+      const cronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       if (cronJob && testReleaseId && hasSequelize(storage)) {
         await storage.sequelize.query(`DELETE FROM cron_jobs WHERE id = '${cronJob.id}'`);
         await storage.sequelize.query(`DELETE FROM releases WHERE id = '${testReleaseId}'`);

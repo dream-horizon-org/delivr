@@ -120,7 +120,7 @@ export class ReleaseUpdateService {
   /**
    * Validate what can be updated based on business rules
    */
-  private validateUpdatePermissions(release: Release, updates: UpdateReleaseRequestBody): ReleaseUpdateValidationResult {
+  private validateUpdatePermissions(release: Release, _updates: UpdateReleaseRequestBody): ReleaseUpdateValidationResult {
     const now = new Date();
 
     // Only IN_PROGRESS releases can be edited
@@ -169,9 +169,9 @@ export class ReleaseUpdateService {
    * Update platform target mappings
    */
   private async updatePlatformTargetMappings(
-    releaseId: string,
+    _releaseId: string,
     mappings: Array<{ id: string; platform: string; target: string; version: string }>,
-    accountId: string
+    _accountId: string
   ): Promise<void> {
     for (const mapping of mappings) {
       await this.platformMappingRepository.update(mapping.id, {

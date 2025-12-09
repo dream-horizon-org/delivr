@@ -11,6 +11,7 @@ import { ReleaseRetrievalService } from '../../services/release/release-retrieva
 import { ReleaseStatusService } from '../../services/release/release-status.service';
 import { ReleaseUpdateService } from '../../services/release/release-update.service';
 import { CronJobService } from '../../services/release/cron-job/cron-job.service';
+import { HTTP_STATUS } from '../../constants/http';
 import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
@@ -59,7 +60,7 @@ export class ReleaseManagementController {
     try {
       const tenantId = req.params.tenantId;
       if (!req.user?.id) {
-        return res.status(401).json({ success: false, error: 'Unauthorized' });
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Unauthorized' });
       }
       const accountId = req.user.id;
       const body = req.body as CreateReleaseRequestBody;
@@ -67,7 +68,7 @@ export class ReleaseManagementController {
       // Validate request using extracted validation functions
       const validationResult = validateCreateReleaseRequest(body);
       if (!validationResult.isValid) {
-        return res.status(400).json({
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           error: validationResult.error
         });
@@ -123,7 +124,7 @@ export class ReleaseManagementController {
         // Release is still created successfully, but cron job needs to be started manually
       }
 
-      return res.status(201).json({
+      return res.status(HTTP_STATUS.CREATED).json({
         success: true,
         release: {
           ...result.release,
@@ -143,7 +144,7 @@ export class ReleaseManagementController {
       });
     } catch (error: any) {
       console.error('[Create Release] Error:', error);
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to create release',
         message: error.message || 'Unknown error'
@@ -168,10 +169,10 @@ export class ReleaseManagementController {
         releases
       };
       
-      return res.status(200).json(responseBody);
+      return res.status(HTTP_STATUS.OK).json(responseBody);
     } catch (error: any) {
       console.error('[List Releases] Error:', error);
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to fetch releases',
         message: error.message || 'Unknown error'
@@ -189,7 +190,7 @@ export class ReleaseManagementController {
       const release = await this.retrievalService.getReleaseById(releaseId);
       
       if (!release) {
-        return res.status(404).json({
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
           success: false,
           error: 'Release not found'
         });
@@ -200,10 +201,10 @@ export class ReleaseManagementController {
         release
       };
       
-      return res.status(200).json(responseBody);
+      return res.status(HTTP_STATUS.OK).json(responseBody);
     } catch (error: any) {
       console.error('[Get Release] Error:', error);
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to fetch release',
         message: error.message || 'Unknown error'
@@ -222,7 +223,7 @@ export class ReleaseManagementController {
       const accountId = (req as any).user?.id || 'system'; // Get from auth middleware
 
       if (!releaseId) {
-        return res.status(400).json({
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           error: 'Release ID is required'
         });
@@ -231,7 +232,7 @@ export class ReleaseManagementController {
       // Validate request body
       const validation = validateUpdateReleaseRequest(body);
       if (!validation.isValid) {
-        return res.status(400).json({
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           error: validation.error
         });
@@ -247,7 +248,7 @@ export class ReleaseManagementController {
       // Get the full release with all associations for response
       const fullRelease = await this.retrievalService.getReleaseById(releaseId);
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Release updated successfully',
         release: fullRelease
@@ -260,13 +261,13 @@ export class ReleaseManagementController {
       if (error.message.includes('Only IN_PROGRESS releases') || 
           error.message.includes('not found') ||
           error.message.includes('before kickoff')) {
-        return res.status(400).json({
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           error: error.message
         });
       }
 
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: error.message || 'Error occured on server side'
       });
@@ -294,7 +295,7 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         tasks: result.tasks,
         count: result.count
@@ -302,7 +303,7 @@ export class ReleaseManagementController {
     } catch (error: unknown) {
       console.error('[Get Tasks] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to get tasks',
         message: errorMessage
@@ -329,14 +330,14 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         task: result.task
       });
     } catch (error: unknown) {
       console.error('[Get Task] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to get task',
         message: errorMessage
@@ -363,7 +364,7 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Stage 2 (Regression Testing) triggered successfully',
         release: result.data
@@ -371,7 +372,7 @@ export class ReleaseManagementController {
     } catch (error: unknown) {
       console.error('[Trigger Regression Testing] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to trigger regression testing',
         message: errorMessage
@@ -398,7 +399,7 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         message: 'Stage 3 (Pre-Release) triggered successfully',
         release: result.data
@@ -406,7 +407,7 @@ export class ReleaseManagementController {
     } catch (error: unknown) {
       console.error('[Trigger Pre-Release] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to trigger pre-release',
         message: errorMessage
@@ -424,7 +425,7 @@ export class ReleaseManagementController {
       const accountId = (req as any).account?.id || (req as any).user?.id;
 
       if (!accountId) {
-        return res.status(401).json({
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           success: false,
           error: 'Unauthorized: Account ID not found'
         });
@@ -440,7 +441,7 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         message: result.data.alreadyArchived ? 'Release already archived' : 'Release archived successfully',
         data: result.data
@@ -448,7 +449,7 @@ export class ReleaseManagementController {
     } catch (error: unknown) {
       console.error('[Archive Release] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return res.status(500).json({
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to archive release',
         message: errorMessage
@@ -469,7 +470,7 @@ export class ReleaseManagementController {
       // Delegate to service (platform is now optional)
       const result = await this.statusService.getProjectManagementStatus(releaseId, platform);
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         ...result
       });
@@ -477,11 +478,11 @@ export class ReleaseManagementController {
       console.error('[Check Project Management Run Status] Error:', error);
       
       // Determine status code based on error message
-      let statusCode = 500;
+      let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
       if (error.message?.includes('not found')) {
-        statusCode = 404;
+        statusCode = HTTP_STATUS.NOT_FOUND;
       } else if (error.message?.includes('does not have')) {
-        statusCode = 400;
+        statusCode = HTTP_STATUS.BAD_REQUEST;
       }
 
       return res.status(statusCode).json({
@@ -504,7 +505,7 @@ export class ReleaseManagementController {
       // Delegate to service (platform is now optional)
       const result = await this.statusService.getTestManagementStatus(releaseId, platform);
 
-      return res.status(200).json({
+      return res.status(HTTP_STATUS.OK).json({
         success: true,
         ...result
       });
@@ -512,11 +513,11 @@ export class ReleaseManagementController {
       console.error('[Check Test Management Run Status] Error:', error);
       
       // Determine status code based on error message
-      let statusCode = 500;
+      let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
       if (error.message?.includes('not found')) {
-        statusCode = 404;
+        statusCode = HTTP_STATUS.NOT_FOUND;
       } else if (error.message?.includes('does not have')) {
-        statusCode = 400;
+        statusCode = HTTP_STATUS.BAD_REQUEST;
       }
 
       return res.status(statusCode).json({
