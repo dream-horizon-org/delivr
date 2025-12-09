@@ -311,37 +311,6 @@ export class ReleaseRetrievalService {
   }
 
   /**
-   * Get the latest release for a release config with platform targets
-   * Used for scheduled release version bumping
-   * 
-   * @param releaseConfigId - The release config to find the latest release for
-   * @returns Latest release with platform targets, or null if none exists
-   */
-  async getLatestReleaseByConfigId(releaseConfigId: string): Promise<ReleaseWithPlatformTargets | null> {
-    // Find latest release for this config
-    const release = await this.releaseRepo.findLatestByReleaseConfigId(releaseConfigId);
-    const releaseNotFound = release === null;
-    if (releaseNotFound) {
-      return null;
-    }
-
-    // Fetch platform target mappings
-    const mappings = await this.platformTargetMappingRepo.getByReleaseId(release.id);
-
-    return {
-      id: release.id,
-      releaseId: release.releaseId,
-      releaseConfigId: release.releaseConfigId,
-      tenantId: release.tenantId,
-      platformTargets: mappings.map(m => ({
-        platform: m.platform,
-        target: m.target,
-        version: m.version
-      }))
-    };
-  }
-
-  /**
    * Get tasks for a release with tenant ownership verification
    * @param releaseId - The release ID
    * @param tenantId - The tenant ID for ownership verification
