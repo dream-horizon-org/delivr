@@ -88,7 +88,7 @@ export class ReleaseManagementController {
           target: pt.target,
           version: pt.version
         })),
-        type: body.type as 'PLANNED' | 'HOTFIX' | 'MAJOR',
+        type: body.type as 'MINOR' | 'HOTFIX' | 'MAJOR',
         releaseConfigId: body.releaseConfigId,
         branch: body.branch,
         baseBranch: body.baseBranch,

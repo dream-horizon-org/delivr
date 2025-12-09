@@ -57,9 +57,9 @@ export function createRelease(sequelize: Sequelize) {
     
     // Release metadata
     type: {
-      type: DataTypes.ENUM('HOTFIX', 'PLANNED', 'MAJOR'),
+      type: DataTypes.ENUM('HOTFIX', 'MINOR', 'MAJOR'),
       allowNull: false,
-      defaultValue: 'PLANNED',
+      defaultValue: 'MINOR',
     },
     status: {
       type: DataTypes.ENUM(

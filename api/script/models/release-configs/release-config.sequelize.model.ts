@@ -11,7 +11,7 @@ export type ReleaseConfigAttributes = {
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
   platformTargets: Array<{ platform: string; target: string }> | null;
   baseBranch: string | null;
   ciConfigId: string | null;
@@ -60,7 +60,7 @@ export const createReleaseConfigModel = (
         allowNull: true
       },
       releaseType: {
-        type: DataTypes.ENUM('PLANNED', 'HOTFIX', 'MAJOR'),
+        type: DataTypes.ENUM('MINOR', 'HOTFIX', 'MAJOR'),
         allowNull: false,
         field: 'releaseType'
       },

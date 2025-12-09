@@ -56,7 +56,7 @@ export interface CreateReleasePayload {
   tenantId: string;
   accountId: string;
   platformTargets: PlatformTargetVersion[]; // Array of platform-target-version combinations
-  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   releaseConfigId?: string;
   branch?: string;
   baseBranch?: string;
@@ -173,7 +173,7 @@ export interface ReleaseResponseBody {
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch: string | null;
   baseBranch: string | null;
@@ -217,7 +217,7 @@ export interface UpdateReleaseRequestBody {
   releaseId?: string;
   releaseConfigId?: string;
   tenantId?: string;
-  type?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type?: 'MINOR' | 'HOTFIX' | 'MAJOR';
   status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch?: string;
   baseBranch?: string;
