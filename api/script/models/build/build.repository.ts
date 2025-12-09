@@ -1,5 +1,5 @@
 import { Model } from 'sequelize';
-import { getOptionalTrimmedString } from '~utils/request.utils';
+import { getTrimmedString } from '~utils/request.utils';
 import type { BuildAttributes, BuildModelType } from './build.sequelize.model';
 
 export class BuildRepository {
@@ -20,17 +20,17 @@ export class BuildRepository {
   }): Promise<string[]> {
     const { tenantId, releaseId, platform } = params;
     const rows = await this.model.findAll({
-      attributes: ['artifact_path'],
+      attributes: ['artifactPath'],
       where: {
-        tenant_id: tenantId,
-        release_id: releaseId,
+        tenantId,
+        releaseId,
         platform
       }
     });
     const paths: string[] = [];
     for (const row of rows) {
       const data = row.get() as unknown as BuildAttributes;
-      const pathValue = data.artifact_path ?? null;
+      const pathValue = data.artifactPath ?? null;
       const hasPath = typeof pathValue === 'string' && pathValue.trim().length > 0;
       if (hasPath) {
         paths.push(pathValue);
@@ -41,7 +41,7 @@ export class BuildRepository {
 
   async findByCiRunId(ciRunId: string): Promise<BuildAttributes | null> {
     const row = await this.model.findOne({
-      where: { ci_run_id: ciRunId }
+      where: { ciRunId }
     });
     if (!row) return null;
     return row.get() as unknown as BuildAttributes;
@@ -49,7 +49,7 @@ export class BuildRepository {
 
   async updateArtifactPath(buildId: string, artifactPath: string): Promise<void> {
     await this.model.update(
-      { artifact_path: artifactPath, updated_at: new Date() as unknown as any },
+      { artifactPath, updatedAt: new Date() },
       { where: { id: buildId } }
     );
   }
@@ -57,36 +57,89 @@ export class BuildRepository {
   async findBuilds(params: {
     tenantId: string;
     releaseId: string;
-    platform: 'ANDROID' | 'IOS';
+    platform?: string | null;
+    buildStage?: string | null;
+    storeType?: string | null;
+    buildType?: string | null;
     regressionId?: string | null;
+    workflowStatus?: string | null;
+    buildUploadStatus?: string | null;
   }): Promise<BuildAttributes[]> {
-    const { tenantId, releaseId, platform, regressionId } = params;
+    const {
+      tenantId,
+      releaseId,
+      platform,
+      buildStage,
+      storeType,
+      buildType,
+      regressionId,
+      workflowStatus,
+      buildUploadStatus
+    } = params;
+
+    // Required filters
     const where: Record<string, unknown> = {
-      tenant_id: tenantId,
-      release_id: releaseId,
-      platform
+      tenantId,
+      releaseId
     };
-    const hasRegressionFilter = getOptionalTrimmedString(regressionId);
-    if (hasRegressionFilter) {
-      where['regression_id'] = hasRegressionFilter;
+
+    // Optional filters - only add if provided
+    const platformFilter = getTrimmedString(platform);
+    if (platformFilter) {
+      where['platform'] = platformFilter;
+    }
+
+    const buildStageFilter = getTrimmedString(buildStage);
+    if (buildStageFilter) {
+      where['buildStage'] = buildStageFilter;
+    }
+
+    const storeTypeFilter = getTrimmedString(storeType);
+    if (storeTypeFilter) {
+      where['storeType'] = storeTypeFilter;
+    }
+
+    const buildTypeFilter = getTrimmedString(buildType);
+    if (buildTypeFilter) {
+      where['buildType'] = buildTypeFilter;
+    }
+
+    const regressionIdFilter = getTrimmedString(regressionId);
+    if (regressionIdFilter) {
+      where['regressionId'] = regressionIdFilter;
+    }
+
+    const workflowStatusFilter = getTrimmedString(workflowStatus);
+    if (workflowStatusFilter) {
+      where['workflowStatus'] = workflowStatusFilter;
+    }
+
+    const buildUploadStatusFilter = getTrimmedString(buildUploadStatus);
+    if (buildUploadStatusFilter) {
+      where['buildUploadStatus'] = buildUploadStatusFilter;
     }
 
     const rows = await this.model.findAll({
       attributes: [
         'id',
-        'tenant_id',
-        'created_at',
-        'updated_at',
-        'artifact_version_code',
-        'artifact_version_name',
-        'artifact_path',
-        'release_id',
+        'tenantId',
+        'createdAt',
+        'updatedAt',
+        'artifactVersionCode',
+        'artifactVersionName',
+        'artifactPath',
+        'releaseId',
         'platform',
         'storeType',
-        'regression_id',
-        'ci_run_id'
+        'buildStage',
+        'buildType',
+        'buildUploadStatus',
+        'workflowStatus',
+        'regressionId',
+        'ciRunId'
       ],
-      where
+      where,
+      order: [['createdAt', 'DESC']]
     });
     return rows.map(r => r.get() as unknown as BuildAttributes);
   }

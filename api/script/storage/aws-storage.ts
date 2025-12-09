@@ -45,7 +45,6 @@ import {
   createPlatformTargetMappingModel,
   createPlatformModel,
   createTargetModel,
-  createBuildModel,
   createRegressionCycleModel,
   ReleaseRepository,
   ReleasePlatformTargetMappingRepository,

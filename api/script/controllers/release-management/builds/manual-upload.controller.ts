@@ -1,66 +1,67 @@
 import { Request, Response } from 'express';
 import type { Storage } from '../../../storage/storage';
-import { S3Storage } from '../../../storage/aws-storage';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, validationErrorResponse } from '~utils/response.utils';
-import { buildArtifactS3Key, buildS3Uri, deriveStandardArtifactFilename } from '~utils/s3-path.utils';
-import { uploadToS3, inferContentType, generatePresignedGetUrl } from '~utils/s3-upload.utils';
-import {
-  BUILD_UPLOAD_ERROR_MESSAGES,
-  BUILD_UPLOAD_SUCCESS_MESSAGES,
-  BUILD_UPLOAD_STATUS,
-  BUILD_TYPE,
-} from './build.constants';
-import { BuildRepository } from '~models/build/build.repository';
-import * as shortid from 'shortid';
+import { BUILD_UPLOAD_ERROR_MESSAGES, BUILD_UPLOAD_SUCCESS_MESSAGES } from './build.constants';
+import { parsePlatform, parseBuildStage, parseStoreType } from './build.utils';
 import { getFileWithField } from '../../../file-upload-manager';
-import { getOptionalTrimmedString } from '~utils/request.utils';
- 
+import { getTrimmedString } from '~utils/request.utils';
+import { BuildArtifactService, BuildArtifactError } from '~services/release/build';
 
+/**
+ * HTTP handler for manual build artifact upload.
+ * Extracts HTTP-specific concerns and delegates to BuildArtifactService.
+ */
 export const createManualBuildUploadHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const tenantId = getOptionalTrimmedString(req.params.tenantId);
-      const releaseId = getOptionalTrimmedString(req.params.releaseId);
+      const tenantId = getTrimmedString(req.params.tenantId);
+      const releaseId = getTrimmedString(req.params.releaseId);
 
-      const artifactVersionName = getOptionalTrimmedString(req.body?.artifact_version_name);
-      const artifactVersionCode = getOptionalTrimmedString(req.body?.artifact_version_code);
-      const platformRawTrim = getOptionalTrimmedString(req.body?.platform);
-      const storeTypeRawTrim = getOptionalTrimmedString(req.body?.storeType);
+      const artifactVersionName = getTrimmedString(req.body?.artifact_version_name);
+      const artifactVersionCode = getTrimmedString(req.body?.artifact_version_code);
+      const platformRaw = getTrimmedString(req.body?.platform);
+      const storeTypeRaw = getTrimmedString(req.body?.storeType);
+      const buildStageRaw = getTrimmedString(req.body?.buildStage);
       const artifactFile = getFileWithField(req, 'artifact');
 
-      const tenantIdInvalid = !tenantId;
-      if (tenantIdInvalid) {
+      // Validate tenantId
+      const tenantIdMissing = !tenantId;
+      if (tenantIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('tenantId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_TENANT_ID)
         );
         return;
       }
 
-      const releaseIdInvalid = !releaseId;
-      if (releaseIdInvalid) {
+      // Validate releaseId
+      const releaseIdMissing = !releaseId;
+      if (releaseIdMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('releaseId', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_RELEASE_ID)
         );
         return;
       }
 
-      const versionNameInvalid = !artifactVersionName;
-      if (versionNameInvalid) {
+      // Validate version name
+      const versionNameMissing = !artifactVersionName;
+      if (versionNameMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('artifact_version_name', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_VERSION_NAME)
         );
         return;
       }
 
-      const versionCodeInvalid = !artifactVersionCode;
-      if (versionCodeInvalid) {
+      // Validate version code
+      const versionCodeMissing = !artifactVersionCode;
+      if (versionCodeMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('artifact_version_code', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_VERSION_CODE)
         );
         return;
       }
 
+      // Validate artifact file
       const fileMissing = !artifactFile || !artifactFile.buffer || !artifactFile.originalname;
       if (fileMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -69,8 +70,9 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const normalizedPlatform = platformRawTrim ? platformRawTrim.toUpperCase() : '';
-      const platformInvalid = normalizedPlatform !== 'ANDROID';
+      // Validate platform
+      const platformValue = parsePlatform(platformRaw);
+      const platformInvalid = platformValue === null;
       if (platformInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('platform', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_PLATFORM)
@@ -78,129 +80,50 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const storeTypeInvalid = !storeTypeRawTrim;
-      if (storeTypeInvalid) {
+      // Store type can be null in case of regression builds
+      const storeTypeValue = parseStoreType(storeTypeRaw);
+
+      // Validate build stage
+      const buildStageValue = parseBuildStage(buildStageRaw);
+      const buildStageInvalid = buildStageValue === null;
+      if (buildStageInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('storeType', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_STORE_TYPE)
-        );
-        return;
-      }
-      const normalizedStoreTypeRaw = (storeTypeRawTrim || '').toUpperCase();
-      const toStoreType = (
-        value: string
-      ):
-        | 'APP_STORE'
-        | 'PLAY_STORE'
-        | 'TESTFLIGHT'
-        | 'MICROSOFT_STORE'
-        | 'FIREBASE'
-        | null => {
-        if (value === 'APP_STORE') return 'APP_STORE';
-        if (value === 'PLAY_STORE') return 'PLAY_STORE';
-        if (value === 'TESTFLIGHT') return 'TESTFLIGHT';
-        if (value === 'MICROSOFT_STORE') return 'MICROSOFT_STORE';
-        if (value === 'FIREBASE') return 'FIREBASE';
-        return null;
-      };
-      const storeTypeValue = toStoreType(normalizedStoreTypeRaw);
-      const storeTypeUnsupported = storeTypeValue === null;
-      if (storeTypeUnsupported) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('storeType', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_STORE_TYPE)
+          validationErrorResponse('buildStage', BUILD_UPLOAD_ERROR_MESSAGES.INVALID_BUILD_STAGE)
         );
         return;
       }
 
-      const bucketNameEnv = process.env.S3_BUCKETNAME || 'codepush-local-bucket';
-      // Use version code as the filename base and remove it from the path
-      const fileName = deriveStandardArtifactFilename(artifactFile.originalname, artifactVersionCode);
-      const s3Key = buildArtifactS3Key(
-        {
-          tenantId,
-          releaseId,
-          storeType: storeTypeRawTrim,
-          artifactVersionName
-        },
-        fileName
-      );
-      const contentType = inferContentType(fileName);
-
-      try {
-        if (storage instanceof S3Storage) {
-          await storage.uploadBufferToS3(s3Key, artifactFile.buffer, contentType);
-        } else {
-          await uploadToS3({
-            bucketName: bucketNameEnv,
-            key: s3Key,
-            body: artifactFile.buffer,
-            contentType
-          });
-        }
-      } catch (uploadErr) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-          errorResponse(uploadErr, BUILD_UPLOAD_ERROR_MESSAGES.S3_UPLOAD_FAILED)
-        );
-        return;
-      }
-
-      const bucketForUri = (storage instanceof S3Storage) ? storage.getS3BucketName() : bucketNameEnv;
-      const s3Uri = buildS3Uri(bucketForUri, s3Key);
-      let downloadUrl: string;
-      try {
-        if (storage instanceof S3Storage) {
-          downloadUrl = await storage.getSignedObjectUrl(s3Key, 3600);
-        } else {
-          downloadUrl = await generatePresignedGetUrl({
-            bucketName: bucketForUri,
-            key: s3Key,
-            expiresSeconds: 3600
-          });
-        }
-      } catch (signErr) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-          errorResponse(signErr, 'Failed to generate presigned download URL')
-        );
-        return;
-      }
-
-      try {
-        const repo: BuildRepository = (storage as S3Storage).buildRepository;
-        const now = new Date();
-        const id = shortid.generate();
-        await repo.create({
-          id,
-          tenant_id: tenantId,
-          created_at: now,
-          updated_at: now,
-          artifact_version_code: artifactVersionCode,
-          artifact_version_name: artifactVersionName,
-          artifact_path: s3Uri,
-          release_id: releaseId,
-          platform: normalizedPlatform,
-          storeType: storeTypeValue,
-          regression_id: null,
-          ci_run_id: null,
-          build_upload_status: BUILD_UPLOAD_STATUS.UPLOADED,
-          build_type: BUILD_TYPE.MANUAL,
-          queue_location: null,
-          queue_status: null,
-          ci_run_type: null
-        });
-      } catch (dbErr) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
-          errorResponse(dbErr, BUILD_UPLOAD_ERROR_MESSAGES.DB_SAVE_FAILED)
-        );
-        return;
-      }
+      // Use the service to handle the core business logic
+      const buildArtifactService = new BuildArtifactService(storage);
+      const result = await buildArtifactService.createManualBuild({
+        tenantId,
+        releaseId,
+        artifactVersionName,
+        artifactVersionCode,
+        platform: platformValue,
+        storeType: storeTypeValue,
+        buildStage: buildStageValue,
+        artifactBuffer: artifactFile.buffer,
+        originalFilename: artifactFile.originalname
+      });
 
       res.status(HTTP_STATUS.CREATED).json(
-        successResponse({ downloadUrl }, BUILD_UPLOAD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
+        successResponse({ downloadUrl: result.downloadUrl }, BUILD_UPLOAD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
       );
     } catch (err) {
+      const isBuildArtifactError = err instanceof BuildArtifactError;
+
+      if (isBuildArtifactError) {
+        const artifactError = err as BuildArtifactError;
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+          errorResponse(artifactError, artifactError.message)
+        );
+        return;
+      }
+
+      // Unexpected error
       res
         .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
         .json(errorResponse(err, 'Unexpected error during build upload'));
     }
   };
-
-

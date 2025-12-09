@@ -4,7 +4,7 @@
 type BuildS3PathParams = {
   tenantId: string;
   releaseId: string;
-  storeType: string;
+  platform: string;
   artifactVersionName: string;
   artifactVersionCode: string;
 };
@@ -41,38 +41,38 @@ export const parseS3Uri = (uri: string): { bucket: string; key: string } => {
 };
 
 /**
- * Build S3 key for a manual build artifact WITHOUT version code in the path.
+ * Build S3 key for a build artifact WITHOUT version code in the path.
  * Example:
- * {tenantId}/{releaseId}/{storeType}/{artifact_version_name}/{filename}
+ * {tenantId}/{releaseId}/{platform}/{artifact_version_name}/{filename}
  * Where filename typically is "{artifact_version_code}.{ext}"
  */
 export const buildArtifactS3Key = (
   params: Omit<BuildS3PathParams, 'artifactVersionCode'>,
   fileName: string
 ): string => {
-  const { tenantId, releaseId, storeType, artifactVersionName } = params;
+  const { tenantId, releaseId, platform, artifactVersionName } = params;
 
   const cleanedTenantId = String(tenantId).trim();
   const cleanedReleaseId = String(releaseId).trim();
-  const cleanedStoreType = String(storeType).trim();
+  const cleanedPlatform = String(platform).trim();
   const cleanedVersionName = String(artifactVersionName).trim();
   const cleanedFileName = String(fileName).trim();
 
   const invalid =
     cleanedTenantId.length === 0 ||
     cleanedReleaseId.length === 0 ||
-    cleanedStoreType.length === 0 ||
+    cleanedPlatform.length === 0 ||
     cleanedVersionName.length === 0 ||
     cleanedFileName.length === 0;
 
   if (invalid) {
-    throw new Error('Invalid parameters for building S3 key (without version code)');
+    throw new Error('Invalid parameters for building S3 key');
   }
 
   return [
     cleanedTenantId,
     cleanedReleaseId,
-    cleanedStoreType,
+    cleanedPlatform,
     cleanedVersionName,
     cleanedFileName
   ].join('/');
