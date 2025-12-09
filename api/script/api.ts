@@ -6,7 +6,7 @@ import { Router, RequestHandler } from "express";
 import { getHeadersMiddleware, HeadersConfig } from "./routes/headers";
 import { getAcquisitionRouter, getHealthRouter, AcquisitionConfig } from "./routes/acquisition";
 import { getManagementRouter, ManagementConfig } from "./routes/management";
-import { getReleaseManagementRouter, ReleaseManagementConfig } from "./routes/release/release-management";
+import { getReleaseManagementRouter, ReleaseManagementConfig } from "./routes/release-management";
 import { createCronJobRoutes, CronJobRoutesConfig } from "./routes/cron-job.routes";
 import { PassportAuthentication, AuthenticationConfig } from "./routes/passport-authentication";
 import { Authentication } from "./routes/authentication";

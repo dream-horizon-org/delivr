@@ -224,24 +224,8 @@ export class ReleaseConfigService {
       };
     }
 
-    // Step 2: Create integration configs
-    const integrationConfigIds = await this.createIntegrationConfigs(requestData, currentUserId);
-
-    // Step 3: Validate business rules (after integration processing)
-    // Note: Allowing release configs without integrations for flexibility
-    // const hasIntegration = hasAtLeastOneIntegration(integrationConfigIds);
-    // if (!hasIntegration) {
-    //   return {
-    //     success: false,
-    //     error: {
-    //       type: 'BUSINESS_RULE_ERROR',
-    //       message: 'At least one integration must be configured for a release profile',
-    //       code: 'NO_INTEGRATIONS_CONFIGURED'
-    //     }
-    //   };
-    // }
-
-    // Step 4: Check if configuration name already exists for this tenant
+    // Step 2: Check if configuration name already exists for this tenant
+    // (Must happen BEFORE creating integration configs to avoid orphan records)
     const existing = await this.configRepo.findByTenantIdAndName(requestData.tenantId, requestData.name);
     if (existing) {
       return {
@@ -253,6 +237,9 @@ export class ReleaseConfigService {
         }
       };
     }
+
+    // Step 3: Create integration configs
+    const integrationConfigIds = await this.createIntegrationConfigs(requestData, currentUserId);
 
     // Step 5: If this is marked as default, unset any existing default
     if (requestData.isDefault) {
@@ -283,7 +270,7 @@ export class ReleaseConfigService {
       id
     });
 
-    // Step 4: Create Release Schedule AFTER config is created (schedule references config)
+    // Step 7: Create Release Schedule AFTER config is created (schedule references config)
     if (requestData.releaseSchedule && this.releaseScheduleService) {
       console.log('[createConfig] Creating Release Schedule for config:', id);
       try {

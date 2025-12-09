@@ -931,6 +931,12 @@ export class S3Storage implements storage.Storage {
             this.sequelize.models.StateHistory
           );
           
+          // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
+          this.releaseVersionService = new ReleaseVersionService(
+            platformTargetMappingRepo
+          );
+          console.log("Release Version Service initialized");
+          
           this.releaseCreationService = new ReleaseCreationService(
             releaseRepo,
             platformTargetMappingRepo,
@@ -938,7 +944,8 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo,
             stateHistoryRepo,
             this,
-            this.releaseConfigService
+            this.releaseConfigService,
+            this.releaseVersionService
           );
           console.log("Release Creation Service initialized");
           
@@ -949,12 +956,6 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo
           );
           console.log("Release Retrieval Service initialized");
-          
-          // Initialize Release Version Service
-          this.releaseVersionService = new ReleaseVersionService(
-            platformTargetMappingRepo
-          );
-          console.log("Release Version Service initialized");
           
           // Set dependencies for scheduled release creation (after all services are initialized)
           this.releaseScheduleService.setReleaseCreationDependencies({
