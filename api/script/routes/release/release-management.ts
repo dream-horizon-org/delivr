@@ -13,8 +13,8 @@ import type { ReleaseCreationService } from "../../services/release/release-crea
 import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
 import { fileUploadMiddleware } from "../../file-upload-manager";
 import { createManualBuildUploadHandler } from "~controllers/release-management/builds/manual-upload.controller";
-import { createListBuildArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
-import { artifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
+import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
+import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 import type { ReleaseStatusService } from "../../services/release/release-status.service";
 import type { ReleaseUpdateService } from "../../services/release/release-update.service";
 import type { CronJobService } from "../../services/release/cron-job/cron-job.service";
@@ -298,7 +298,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.get(
     "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
     tenantPermissions.requireOwner({ storage }),
-    createListBuildArtifactsHandler(storage)
+    createBuildListArtifactsHandler(storage)
   );
 
   // CI artifact upload using ci_run_id lookup for CLI
@@ -307,7 +307,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/builds/ci/:ciRunId/artifact",
     tenantPermissions.allowAll({ storage }),
     fileUploadMiddleware,
-    artifactUploadHandler(storage)
+    createCiArtifactUploadHandler(storage)
   );
 
   return router;

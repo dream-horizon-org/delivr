@@ -20,7 +20,7 @@ import type { Storage } from '../../../storage/storage';
  * Required: tenantId (path), releaseId (path)
  * Optional query params: platform, buildStage, storeType, buildType, regressionId, workflowStatus, buildUploadStatus
  */
-export const createListBuildArtifactsHandler = (storage: Storage) =>
+export const createBuildListArtifactsHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       // Required path params

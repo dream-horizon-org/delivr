@@ -18,7 +18,7 @@ import {
  * HTTP handler for CI artifact upload.
  * Extracts HTTP-specific concerns and delegates to BuildArtifactService.
  */
-export const artifactUploadHandler = (storage: Storage) =>
+export const createCiArtifactUploadHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const ciRunId = getTrimmedString(req.params.ciRunId);
