@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS tenant_ci_cd_workflows (
 
   -- Classification
   platform ENUM('ANDROID','IOS','OTHER') NOT NULL DEFAULT 'OTHER' COMMENT 'Target platform classification',
-  workflowType ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','CUSTOM') NOT NULL DEFAULT 'CUSTOM' COMMENT 'Workflow purpose/type',
+  workflowType ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','AAB_BUILD', 'CUSTOM') NOT NULL DEFAULT 'CUSTOM' COMMENT 'Workflow purpose/type',
 
   -- Parameters schema
   parameters JSON NULL COMMENT 'Array of parameter definitions with default values and choices',
