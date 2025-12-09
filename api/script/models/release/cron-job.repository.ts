@@ -15,13 +15,16 @@ export class CronJobRepository {
   }
 
   async create(data: CreateCronJobDto): Promise<CronJob> {
+    // Note: stage4Status and pauseType have defaults in model, no need to set here
     const cronJob = await this.model.create({
       id: data.id,
       releaseId: data.releaseId,
       stage1Status: data.stage1Status,
       stage2Status: data.stage2Status,
       stage3Status: data.stage3Status,
+      stage4Status: data.stage4Status,
       cronStatus: data.cronStatus,
+      pauseType: data.pauseType,
       cronCreatedByAccountId: data.cronCreatedByAccountId,
       cronConfig: data.cronConfig,
       upcomingRegressions: data.upcomingRegressions || null,

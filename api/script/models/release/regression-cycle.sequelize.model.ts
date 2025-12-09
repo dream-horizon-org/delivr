@@ -5,7 +5,7 @@
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
 
-export type RegressionCycleStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE';
+export type RegressionCycleStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'ABANDONED';
 
 export type RegressionCycleAttributes = {
   id: string;
@@ -49,10 +49,11 @@ export const createRegressionCycleModel = (
         comment: 'Whether this is the current active regression cycle'
       },
       status: {
-        type: DataTypes.ENUM('NOT_STARTED', 'IN_PROGRESS', 'DONE'),
+        type: DataTypes.ENUM('NOT_STARTED', 'IN_PROGRESS', 'DONE', 'ABANDONED'),
         allowNull: false,
         defaultValue: 'NOT_STARTED',
-        field: 'status'
+        field: 'status',
+        comment: 'Regression cycle status (ABANDONED for user-cancelled cycles)'
       },
       cycleTag: {
         type: DataTypes.STRING(255),

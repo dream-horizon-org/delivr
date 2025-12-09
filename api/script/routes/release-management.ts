@@ -192,20 +192,10 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   if (isS3Storage) {
     const s3Storage = storage;
     
-    // Check if release services are available
-    if (s3Storage.releaseCreationService) {
-      const releaseRoutes = getReleaseRoutes({
-        storage: s3Storage,
-        releaseCreationService: s3Storage.releaseCreationService,
-        releaseRetrievalService: s3Storage.releaseRetrievalService,
-        releaseStatusService: s3Storage.releaseStatusService,
-        releaseUpdateService: s3Storage.releaseUpdateService
-      });
-      router.use(releaseRoutes);
-      console.log('[Release Management] Release CRUD routes mounted successfully');
-    } else {
-      console.warn('[Release Management] Release services not available, CRUD routes not mounted');
-    }
+    // Release routes now create services internally - just pass storage
+    const releaseRoutes = getReleaseRoutes({ storage: s3Storage });
+    router.use(releaseRoutes);
+    console.log('[Release Management] Release CRUD routes mounted successfully');
   } else {
     console.warn('[Release Management] Release services not available (S3Storage required), CRUD routes not mounted');
   }
@@ -247,18 +237,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     }
   );
 
-  // ============================================================================
-  // RELEASE OPERATIONS
-  // ============================================================================
-  // All release-specific routes are now in ./release/release-management.ts
-  const releaseRoutes = getReleaseRoutes({
-    storage,
-    releaseCreationService: (storage as any).releaseCreationService,
-    releaseRetrievalService: (storage as any).releaseRetrievalService,
-    releaseStatusService: (storage as any).releaseStatusService,
-    releaseUpdateService: (storage as any).releaseUpdateService
-  });
-  router.use(releaseRoutes);
+  // NOTE: Release routes are already mounted above if S3Storage is available
+  // This section is kept for reference but the routes are created internally now
 
   // ============================================================================
   // RELEASE SETUP & CONFIGURATION

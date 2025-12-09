@@ -26,11 +26,7 @@ import { WorkflowType } from '../../../types/integrations/ci-cd/workflow.interfa
 import { ProjectManagementTicketService } from '../../integrations/project-management/ticket/ticket.service';
 import { Platform } from '../../../types/integrations/project-management/platform.interface';
 import { TestManagementRunService } from '../../integrations/test-management/test-run/test-run.service';
-// TODO: SlackIntegrationService not yet implemented - using placeholder type
-// import { SlackIntegrationService } from '../../integrations/comm/slack-integration/slack-integration.service';
-type SlackIntegrationService = {
-  sendMessage: (params: { channel: string; message: string }) => Promise<void>;
-} | null;
+import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES } from '../release.constants';
 
@@ -115,7 +111,7 @@ export class TaskExecutor {
     private cicdWorkflowRepository: CICDWorkflowRepository,
     private pmTicketService: ProjectManagementTicketService,
     private testRunService: TestManagementRunService,
-    private slackService: SlackIntegrationService,
+    private messagingService: MessagingService | null,
     private releaseConfigRepository: ReleaseConfigRepository,
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository
@@ -1238,7 +1234,7 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId: _tenantId, task } = context;
 
-    if (!this.slackService) {
+    if (!this.messagingService) {
       throw new Error(RELEASE_ERROR_MESSAGES.NOTIFICATION_INTEGRATION_NOT_AVAILABLE);
     }
 
@@ -1292,7 +1288,7 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId: _tenantId } = context;
 
-    if (!this.slackService) {
+    if (!this.messagingService) {
       throw new Error(RELEASE_ERROR_MESSAGES.NOTIFICATION_INTEGRATION_NOT_AVAILABLE);
     }
 
@@ -1494,7 +1490,7 @@ export class TaskExecutor {
   ): Promise<Record<string, unknown>> {
     const { release, tenantId: _tenantId } = context;
 
-    if (!this.slackService) {
+    if (!this.messagingService) {
       throw new Error(RELEASE_ERROR_MESSAGES.NOTIFICATION_INTEGRATION_NOT_AVAILABLE);
     }
 

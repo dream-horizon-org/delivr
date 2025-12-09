@@ -8,8 +8,113 @@ import { ReleaseRepository } from '../../models/release/release.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
-import { TaskStage, ReleaseTask } from '../../models/release/release.interface';
+import { TaskStage, ReleaseTask, Phase } from '../../models/release/release.interface';
 import type { ReleaseResponseBody } from '~types/release';
+
+// ============================================================================
+// PHASE DERIVATION TYPES
+// ============================================================================
+
+type PauseType = 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
+
+export type DerivePhaseInput = {
+  releaseStatus: string;
+  stage1Status: string;
+  stage2Status: string;
+  stage3Status: string;
+  stage4Status: string;
+  cronStatus: string;
+  pauseType: PauseType;
+  currentCycleStatus?: string | null;
+  hasNextCycle?: boolean;
+};
+
+// ============================================================================
+// PHASE DERIVATION FUNCTION
+// ============================================================================
+
+/**
+ * Derives the current phase of a release based on multiple status fields.
+ * Used for UI display - 14 distinct phases.
+ * 
+ * @param input - Object containing all relevant status fields
+ * @returns Phase - One of 14 possible phase values
+ */
+export function derivePhase(input: DerivePhaseInput): Phase {
+  const {
+    releaseStatus,
+    stage1Status,
+    stage2Status,
+    stage3Status,
+    stage4Status,
+    cronStatus,
+    pauseType,
+    currentCycleStatus,
+    hasNextCycle
+  } = input;
+
+  // Terminal states first (highest priority)
+  if (releaseStatus === 'ARCHIVED') return 'ARCHIVED';
+  if (releaseStatus === 'COMPLETED') return 'COMPLETED';
+
+  // Paused states
+  if (releaseStatus === 'PAUSED') {
+    if (pauseType === 'USER_REQUESTED') return 'PAUSED_BY_USER';
+    if (pauseType === 'TASK_FAILURE') return 'PAUSED_BY_FAILURE';
+  }
+
+  // Submitted state
+  if (releaseStatus === 'SUBMITTED') {
+    return 'SUBMITTED_PENDING_APPROVAL';
+  }
+
+  // Not started
+  if (releaseStatus === 'PENDING' && cronStatus === 'PENDING') {
+    return 'NOT_STARTED';
+  }
+
+  // Stage 1 (Kickoff)
+  if (stage1Status === 'IN_PROGRESS') {
+    return 'KICKOFF';
+  }
+
+  // Between Stage 1 and 2
+  if (stage1Status === 'COMPLETED' && stage2Status === 'PENDING') {
+    return 'AWAITING_REGRESSION';
+  }
+
+  // Stage 2 (Regression)
+  if (stage2Status === 'IN_PROGRESS') {
+    // Check if waiting for next cycle
+    if (currentCycleStatus === 'DONE' && hasNextCycle) {
+      return 'REGRESSION_AWAITING_NEXT_CYCLE';
+    }
+    return 'REGRESSION';
+  }
+
+  // Between Stage 2 and 3
+  if (stage2Status === 'COMPLETED' && stage3Status === 'PENDING') {
+    return 'AWAITING_POST_REGRESSION';
+  }
+
+  // Stage 3 (Post-Regression)
+  if (stage3Status === 'IN_PROGRESS') {
+    return 'POST_REGRESSION';
+  }
+
+  // Between Stage 3 and 4
+  if (stage3Status === 'COMPLETED' && stage4Status === 'PENDING') {
+    return 'AWAITING_SUBMISSION';
+  }
+
+  // Stage 4 (Submission)
+  if (stage4Status === 'IN_PROGRESS') {
+    return 'SUBMISSION';
+  }
+
+  // Fallback
+  return 'NOT_STARTED';
+}
 
 export type GetTasksResult = {
   success: true;
