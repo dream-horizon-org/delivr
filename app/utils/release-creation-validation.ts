@@ -42,9 +42,14 @@ export function validateReleaseCreationState(
           errors[`platformTargets[${index}].target`] = `Invalid target: ${pt.target}`;
         }
 
-        // Validate version format (vX.Y.Z)
-        if (!/^v?\d+\.\d+\.\d+/.test(pt.version)) {
-          errors[`platformTargets[${index}].version`] = `Invalid version format: ${pt.version}. Expected: vX.Y.Z`;
+        // Validate version format (vX.Y.Z or X.Y.Z)
+        const versionTrimmed = (pt.version || '').trim();
+        if (!versionTrimmed) {
+          errors[`version-${pt.target}`] = 'Version is required';
+          errors[`platformTargets[${index}].version`] = 'Version is required';
+        } else if (!/^v?\d+\.\d+\.\d+/.test(versionTrimmed)) {
+          errors[`version-${pt.target}`] = `Invalid version format. Expected: v1.0.0 or 1.0.0`;
+          errors[`platformTargets[${index}].version`] = `Invalid version format. Expected: v1.0.0 or 1.0.0`;
         }
 
         // Validate platform-target combinations
@@ -146,22 +151,52 @@ export function validateReleaseCreationState(
 
     // Validate reminder is before kickoff (including time)
     if (state.kickOffReminderDate && state.kickOffReminderTime && state.kickOffDate && state.kickOffTime) {
+      // Normalize time format - remove AM/PM and convert to 24-hour if needed
+      const normalizeTime = (time: string): string => {
+        if (!time) return '00:00';
+        // Remove AM/PM and trim
+        let normalized = time.replace(/AM|PM/gi, '').trim();
+        const isPM = /PM/i.test(time);
+        const isAM = /AM/i.test(time);
+        
+        if (isPM || isAM) {
+          const [hours, minutes = '00'] = normalized.split(':');
+          let hour24 = parseInt(hours, 10);
+          if (isPM && hour24 !== 12) hour24 += 12;
+          if (isAM && hour24 === 12) hour24 = 0;
+          normalized = `${hour24.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        }
+        
+        // Ensure format is HH:MM
+        if (!normalized.includes(':')) {
+          return '00:00';
+        }
+        
+        return normalized;
+      };
+
+      const normalizedReminderTime = normalizeTime(state.kickOffReminderTime);
+      const normalizedKickoffTime = normalizeTime(state.kickOffTime);
+
       const reminderDateTime = combineDateAndTime(
         state.kickOffReminderDate,
-        state.kickOffReminderTime
+        normalizedReminderTime
       );
       const kickOffDateTime = combineDateAndTime(
         state.kickOffDate,
-        state.kickOffTime
+        normalizedKickoffTime
       );
       
       const reminder = new Date(reminderDateTime);
       const kickOff = new Date(kickOffDateTime);
       
-      if (isNaN(reminder.getTime())) {
+      if (isNaN(reminder.getTime()) || isNaN(kickOff.getTime())) {
         errors.kickOffReminderDate = 'Invalid kickoff reminder date and time format';
+        errors.kickOffReminderTime = 'Invalid kickoff reminder date and time format';
       } else if (reminder >= kickOff) {
-        errors.kickOffReminderDate = 'Kickoff reminder date and time must be before kickoff date and time';
+        const errorMessage = 'Kickoff reminder must be before kickoff time';
+        errors.kickOffReminderDate = errorMessage;
+        errors.kickOffReminderTime = errorMessage;
       }
     }
   }

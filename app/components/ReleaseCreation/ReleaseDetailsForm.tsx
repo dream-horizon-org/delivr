@@ -15,7 +15,7 @@ import {
   Stack,
   Text,
   Group,
-  Card,
+  Box,
   Badge,
   Loader as MantineLoader,
 } from '@mantine/core';
@@ -193,11 +193,11 @@ export function ReleaseDetailsForm({
 
   return (
     <Stack gap="lg">
-      <div>
-        <Group gap="md" align="center" className="mb-2">
+      <Box>
+        <Group gap="md" align="center" mb={4}>
           <Text fw={600} size="lg">
-          Release Details
-        </Text>
+            Release Details
+          </Text>
           {state.type && (
             <Badge size="lg" variant="light" color="blue">
               {state.type === RELEASE_TYPE_CONSTANTS.PLANNED && 'Planned Release'}
@@ -207,13 +207,12 @@ export function ReleaseDetailsForm({
           )}
         </Group>
         <Text size="sm" c="dimmed">
-          Configure base branch, platform targets, and description
+          Configure the source branch, release branch name, platform targets with versions, and optional description for this release.
         </Text>
-      </div>
+      </Box>
 
       {/* Base Branch */}
-      {/* <Card shadow="sm" padding="md" radius="md"  withBorder > */}
-        <Stack gap="md">
+      <Stack gap="md">
         <Group gap="md" grow align="flex-start">
           <Select
             label="Base Branch"
@@ -222,32 +221,33 @@ export function ReleaseDetailsForm({
             value={state.baseBranch || ''}
             onChange={(val) => onChange({ ...state, baseBranch: val || '' })}
             required
+            withAsterisk
             error={errors.baseBranch}
             searchable
             disabled={loadingBranches}
             rightSection={loadingBranches ? <MantineLoader size="xs" /> : null}
-            description="Select base branch to fork from (required)"
-        />
-        <TextInput
-          label="Release Branch Name"
-          placeholder="e.g., release/v1.0.0"
-          value={state.branch || ''}
-          onChange={(e) => onChange({ ...state, branch: e.target.value || undefined })}
-          error={errors.branch}
-          required
-          description="Release branch name (required)"
+            description="The source branch that will be forked to create the release branch. Typically 'main' or 'master'."
+          />
+          <TextInput
+            label="Release Branch Name"
+            placeholder="e.g., release/v1.0.0"
+            value={state.branch || ''}
+            onChange={(e) => onChange({ ...state, branch: e.target.value || undefined })}
+            error={errors.branch}
+            required
+            withAsterisk
+            description="Name for the new release branch that will be created. Use semantic versioning (e.g., release/v1.0.0)."
           />
         </Group>
         <Textarea
-        label="Description"
-        placeholder="What's new in this release..."
-        value={state.description || ''}
-        onChange={(e) => onChange({ ...state, description: e.target.value })}
-        rows={2}
-        description="Add release description or summary"
-      />
+          label="Description"
+          placeholder="What's new in this release..."
+          value={state.description || ''}
+          onChange={(e) => onChange({ ...state, description: e.target.value })}
+          rows={3}
+          description="Optional description of what's included in this release. This will be visible to your team."
+        />
       </Stack>
-      {/* </Card> */}
 
       <PlatformTargetsSelector
         platformTargets={state.platformTargets || []}
@@ -257,9 +257,6 @@ export function ReleaseDetailsForm({
         errors={errors}
         disabled={disablePlatformTargets}
       />
-
-      {/* Description */}
-
     </Stack>
   );
 }
