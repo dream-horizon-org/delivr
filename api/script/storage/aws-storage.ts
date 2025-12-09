@@ -42,7 +42,7 @@ import {
 } from "../models/release-schedules";
 import { ReleaseConfigService } from "../services/release-configs";
 import { ReleaseScheduleService } from "../services/release-schedules";
-import { createCronicleService, CronicleServiceImpl } from "../services/cronicle";
+import { createCronicleService } from "../services/cronicle";
 import type { CronicleService } from "../services/cronicle";
 import {
   createReleaseModel,
