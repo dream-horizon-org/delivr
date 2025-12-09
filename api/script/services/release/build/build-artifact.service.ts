@@ -189,6 +189,7 @@ export class BuildArtifactService {
       storeType,
       buildType,
       regressionId,
+      taskId,
       workflowStatus,
       buildUploadStatus
     } = input;
@@ -203,6 +204,7 @@ export class BuildArtifactService {
         storeType,
         buildType,
         regressionId,
+        taskId,
         workflowStatus,
         buildUploadStatus
       }),

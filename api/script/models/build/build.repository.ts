@@ -62,6 +62,7 @@ export class BuildRepository {
     storeType?: string | null;
     buildType?: string | null;
     regressionId?: string | null;
+    taskId?: string | null;
     workflowStatus?: string | null;
     buildUploadStatus?: string | null;
   }): Promise<BuildAttributes[]> {
@@ -73,6 +74,7 @@ export class BuildRepository {
       storeType,
       buildType,
       regressionId,
+      taskId,
       workflowStatus,
       buildUploadStatus
     } = params;
@@ -109,6 +111,11 @@ export class BuildRepository {
       where['regressionId'] = regressionIdFilter;
     }
 
+    const taskIdFilter = getTrimmedString(taskId);
+    if (taskIdFilter) {
+      where['taskId'] = taskIdFilter;
+    }
+
     const workflowStatusFilter = getTrimmedString(workflowStatus);
     if (workflowStatusFilter) {
       where['workflowStatus'] = workflowStatusFilter;
@@ -136,7 +143,10 @@ export class BuildRepository {
         'buildUploadStatus',
         'workflowStatus',
         'regressionId',
-        'ciRunId'
+        'ciRunId',
+        'taskId',
+        'internalTrackLink',
+        'testflightNumber'
       ],
       where,
       order: [['createdAt', 'DESC']]

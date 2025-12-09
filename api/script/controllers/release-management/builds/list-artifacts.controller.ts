@@ -50,6 +50,7 @@ export const createBuildListArtifactsHandler = (storage: Storage) =>
       const storeType = parseStoreType(req.query.storeType);
       const buildType = parseBuildType(req.query.buildType);
       const regressionId = getTrimmedString(req.query.regressionId);
+      const taskId = getTrimmedString(req.query.taskId);
       const workflowStatus = parseWorkflowStatus(req.query.workflowStatus);
       const buildUploadStatus = parseBuildUploadStatus(req.query.buildUploadStatus);
 
@@ -63,6 +64,7 @@ export const createBuildListArtifactsHandler = (storage: Storage) =>
         storeType,
         buildType,
         regressionId,
+        taskId,
         workflowStatus,
         buildUploadStatus
       });

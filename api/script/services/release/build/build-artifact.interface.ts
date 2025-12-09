@@ -60,6 +60,7 @@ export type ListBuildArtifactsInput = {
   storeType?: StoreType | null;
   buildType?: BuildType | null;
   regressionId?: string | null;
+  taskId?: string | null;
   workflowStatus?: WorkflowStatus | null;
   buildUploadStatus?: BuildUploadStatus | null;
 };
