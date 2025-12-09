@@ -5,7 +5,7 @@ import * as stream from "stream";
 import * as error from "../error";
 
 import { AppCreationRequest } from "../types/rest-definitions";
-import { bool } from "aws-sdk/clients/signer";
+import { bool as _bool } from "aws-sdk/clients/signer";
 
 export enum ErrorCode {
   ConnectionFailed = 0,
@@ -414,7 +414,7 @@ export class NameResolver {
       .catch(NameResolver.errorMessageOverride(ErrorCode.NotFound, `Access key "${name}" does not exist.`));
   }
 
-  public resolveApp(accountId: string, name: string, tenantId?: string, permission?: string): Promise<App> {
+  public resolveApp(accountId: string, name: string, tenantId?: string, _permission?: string): Promise<App> {
     return this._storage
       .getApps(accountId)
       .then((apps: App[]): App => {

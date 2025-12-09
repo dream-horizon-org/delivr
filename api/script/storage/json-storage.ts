@@ -70,9 +70,9 @@ export class JsonStorage implements storage.Storage {
   private loadStateAsync(): void {
     if (this.disablePersistence) return;
     console.log(__dirname)
-    let pathName = __dirname + "/JsonStorage.json";
+    const pathName = __dirname + "/JsonStorage.json";
         
-    fs.access(pathName, fs.constants.F_OK, (err) => {
+    fs.access(pathName, fs.constants.F_OK, (_err) => {
             //console.log(err ? "File does not exist" : "File exists");
     });
     fs.exists(
@@ -131,8 +131,8 @@ export class JsonStorage implements storage.Storage {
     };
 
     const str = JSON.stringify(obj);
-    fs.writeFile("JsonStorage.json", str, function (err) {
-      if (err) console.log(err);
+    fs.writeFile("JsonStorage.json", str, function (_err) {
+      if (_err) console.log(_err);
     });
   }
 
@@ -172,7 +172,7 @@ export class JsonStorage implements storage.Storage {
       return JsonStorage.getRejectedPromise(storage.ErrorCode.NotFound);
     }
 
-    const tenant = this.tenants[tenantId];
+    const _tenant = this.tenants[tenantId];
     const tenantAccounts = this.accountToTenantsMap[accountId];
     if (tenantAccounts.indexOf(tenantId) !== -1) {
       tenantAccounts.splice(tenantAccounts.indexOf(tenantId), 1);
@@ -215,19 +215,19 @@ export class JsonStorage implements storage.Storage {
   }
 
   // Tenant Collaborator Methods (stubs for json-storage)
-  public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+  public getTenantCollaborators(_tenantId: string): Promise<storage.CollaboratorMap> {
     return Promise.resolve({});
   }
 
-  public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+  public addTenantCollaborator(_tenantId: string, _email: string, _permission: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
-  public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+  public updateTenantCollaborator(_tenantId: string, _email: string, _permission: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
-  public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
+  public removeTenantCollaborator(_tenantId: string, _email: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
@@ -384,7 +384,7 @@ export class JsonStorage implements storage.Storage {
     });
   }
 
-  public updateApp(accountId: string, app: storage.App, ensureIsOwner: boolean = true): Promise<void> {
+  public updateApp(accountId: string, app: storage.App, _ensureIsOwner: boolean = true): Promise<void> {
     app = clone(app); // pass by value
 
     if (!this.accounts[accountId] || !this.apps[app.id]) {
@@ -672,7 +672,7 @@ export class JsonStorage implements storage.Storage {
     return Promise.resolve(<void>null);
   }
 
-  public addBlob(blobId: string, stream: stream.Readable, streamLength: number): Promise<string> {
+  public addBlob(blobId: string, stream: stream.Readable, _streamLength: number): Promise<string> {
     this.blobs[blobId] = "";
     return new Promise<string>((resolve: (blobId: string) => void) => {
       stream
@@ -808,9 +808,9 @@ export class JsonStorage implements storage.Storage {
     if (this._blobServerPromise) {
       return this._blobServerPromise.then((server: http.Server) => {
         const deferred: Deferred<void> = defer<void>();
-        server.close((err?: Error) => {
-          if (err) {
-            deferred.reject(err);
+        server.close((_err?: Error) => {
+          if (_err) {
+            deferred.reject(_err);
           } else {
             deferred.resolve();
           }
@@ -880,7 +880,7 @@ export class JsonStorage implements storage.Storage {
     if (!this._blobServerPromise) {
       const app: express.Express = express();
 
-      app.get("/:blobId", (req: express.Request, res: express.Response, next: (err?: Error) => void): any => {
+      app.get("/:blobId", (req: express.Request, res: express.Response, _next: (err?: Error) => void): any => {
         const blobId: string = req.params.blobId;
         if (this.blobs[blobId]) {
           res.send(this.blobs[blobId]);
