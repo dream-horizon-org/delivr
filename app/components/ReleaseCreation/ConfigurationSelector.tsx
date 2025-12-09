@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { Card, Text, Group, Badge, Stack, Button, Select, ActionIcon } from '@mantine/core';
+import { Box, Text, Group, Badge, Stack, Button, Select, ActionIcon, useMantineTheme } from '@mantine/core';
 import { IconSettings, IconPlus, IconEye } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
@@ -20,6 +20,7 @@ interface ConfigurationSelectorProps {
   onConfigSelect: (configId: string) => void;
   onCreateNew?: () => void;
   onClone?: (configId: string) => void;
+  errors?: Record<string, string>;
 }
 
 export function ConfigurationSelector({
@@ -27,7 +28,9 @@ export function ConfigurationSelector({
   selectedConfigId,
   onConfigSelect,
   onCreateNew,
+  errors = {},
 }: ConfigurationSelectorProps) {
+  const theme = useMantineTheme();
   const [previewOpened, setPreviewOpened] = useState(false);
   
   // Filter active configs
@@ -95,9 +98,14 @@ export function ConfigurationSelector({
             }
           }}
           required
+          withAsterisk
           searchable
-          description="Choose a configuration template for your release"
+          description="Select a release configuration template. This will pre-fill platform targets, build settings, and scheduling preferences."
           style={{ flex: 1 }}
+          error={errors?.releaseConfigId}
+          styles={{
+            label: { fontWeight: 500, marginBottom: 6 },
+          }}
         />
 
         {onCreateNew && (
@@ -112,13 +120,20 @@ export function ConfigurationSelector({
         )}
       </Group>
 
-      {/* Preview Card for Selected Configuration */}
+      {/* Preview for Selected Configuration */}
       {selectedConfig && (
-        <Card shadow="sm" padding="md" radius="md" withBorder className="border-blue-300 bg-blue-50">
+        <Box
+          p="md"
+          style={{
+            background: theme.colors.blue[0],
+            border: `1px solid ${theme.colors.blue[2]}`,
+            borderRadius: theme.radius.md,
+          }}
+        >
           <Group justify="space-between" wrap="nowrap" align="flex-start">
-            <div className="flex-1">
-              <Group gap="xs" className="mb-2">
-                <IconSettings size={18} className="text-blue-600" />
+            <Box style={{ flex: 1 }}>
+              <Group gap="xs" mb="xs">
+                <IconSettings size={18} color={theme.colors.blue[6]} />
                 <Text fw={600} size="md">
                   {selectedConfig.name}
                 </Text>
@@ -139,33 +154,33 @@ export function ConfigurationSelector({
               </Group>
 
               {selectedConfig.description && (
-                <Text size="sm" c="dimmed" className="mb-2">
+                <Text size="sm" c="dimmed" mb="xs">
                   {selectedConfig.description}
                 </Text>
               )}
 
-              <Group gap="lg" className="text-xs text-gray-600">
-                <div>
-                  <span className="font-medium">{getTargetedPlatforms(selectedConfig)}</span>
-                </div>
+              <Group gap="lg">
+                <Text size="xs" c={theme.colors.slate[6]}>
+                  <Text component="span" fw={500}>{getTargetedPlatforms(selectedConfig)}</Text>
+                </Text>
                 {getPipelineCount(selectedConfig) !== null && (
-                <div>
-                    <span className="font-medium">{getPipelineCount(selectedConfig)}</span> pipelines
-                </div>
+                  <Text size="xs" c={theme.colors.slate[6]}>
+                    <Text component="span" fw={500}>{getPipelineCount(selectedConfig)}</Text> pipelines
+                  </Text>
                 )}
               </Group>
-            </div>
+            </Box>
 
             <ActionIcon
-                variant="subtle"
+              variant="subtle"
               size="lg"
               onClick={() => setPreviewOpened(true)}
-              className="text-blue-600 hover:text-blue-700"
+              color="blue"
             >
               <IconEye size={20} />
             </ActionIcon>
           </Group>
-        </Card>
+        </Box>
       )}
 
       {/* Preview Modal */}
@@ -178,11 +193,17 @@ export function ConfigurationSelector({
       )}
 
       {activeConfigs.length === 0 && (
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Box
+          p="lg"
+          style={{
+            border: `1px solid ${theme.colors.slate[2]}`,
+            borderRadius: theme.radius.md,
+          }}
+        >
           <Text c="dimmed" ta="center">
             No configurations found. Click "Create New" to get started.
           </Text>
-        </Card>
+        </Box>
       )}
     </Stack>
   );

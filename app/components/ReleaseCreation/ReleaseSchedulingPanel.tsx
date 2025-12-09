@@ -11,7 +11,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Stack,
   Text,
-  Card,
+  Box,
   Group,
   TextInput,
   Switch,
@@ -19,6 +19,7 @@ import {
   Badge,
   Alert,
   Modal,
+  useMantineTheme,
 } from '@mantine/core';
 import {
   IconCalendar,
@@ -56,6 +57,7 @@ export function ReleaseSchedulingPanel({
   isEditMode = false,
   existingRelease,
 }: ReleaseSchedulingPanelProps) {
+  const theme = useMantineTheme();
   const [enableKickoffDateChange, setEnableKickoffDateChange] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingKickoffDate, setPendingKickoffDate] = useState<string>('');
@@ -80,27 +82,57 @@ export function ReleaseSchedulingPanel({
 
   // Validate kickoff reminder date/time is before kickoff date/time
   const reminderValidation = useMemo(() => {
-    if (!kickOffReminderDate || !kickOffReminderTime || !kickOffDate || !kickOffTime) {
+    // Use the actual values (with defaults) for validation
+    const reminderTime = kickOffReminderTime || kickOffReminderTimeValue;
+    
+    if (!kickOffReminderDate || !reminderTime || !kickOffDate || !kickOffTimeValue) {
       return { hasError: false, message: '' };
     }
 
-    // Combine date and time for accurate comparison
-    const reminderDateTime = new Date(`${kickOffReminderDate}T${kickOffReminderTime}`);
-    const kickOffDateTime = new Date(`${kickOffDate}T${kickOffTimeValue}`);
+    // Normalize time format (remove AM/PM if present, ensure HH:MM format)
+    const normalizeTime = (time: string): string => {
+      // Remove AM/PM and trim
+      let normalized = time.replace(/AM|PM/gi, '').trim();
+      // If it has AM/PM, convert to 24-hour format
+      const isPM = /PM/i.test(time);
+      const isAM = /AM/i.test(time);
+      
+      if (isPM || isAM) {
+        const [hours, minutes] = normalized.split(':');
+        let hour24 = parseInt(hours, 10);
+        if (isPM && hour24 !== 12) hour24 += 12;
+        if (isAM && hour24 === 12) hour24 = 0;
+        normalized = `${hour24.toString().padStart(2, '0')}:${minutes || '00'}`;
+      }
+      
+      // Ensure format is HH:MM
+      if (!normalized.includes(':')) {
+        return '00:00';
+      }
+      
+      return normalized;
+    };
 
-    if (isNaN(reminderDateTime.getTime())) {
+    const normalizedReminderTime = normalizeTime(reminderTime);
+    const normalizedKickoffTime = normalizeTime(kickOffTimeValue);
+
+    // Combine date and time for accurate comparison (ISO format: YYYY-MM-DDTHH:MM)
+    const reminderDateTime = new Date(`${kickOffReminderDate}T${normalizedReminderTime}`);
+    const kickOffDateTime = new Date(`${kickOffDate}T${normalizedKickoffTime}`);
+
+    if (isNaN(reminderDateTime.getTime()) || isNaN(kickOffDateTime.getTime())) {
       return { hasError: true, message: 'Invalid reminder date or time format' };
     }
 
     if (reminderDateTime >= kickOffDateTime) {
       return { 
         hasError: true, 
-        message: 'Kickoff reminder date and time must be before kickoff date and time' 
+        message: 'Kickoff reminder must be before kickoff time' 
       };
     }
 
     return { hasError: false, message: '' };
-  }, [kickOffReminderDate, kickOffReminderTime, kickOffDate, kickOffTime, kickOffTimeValue]);
+  }, [kickOffReminderDate, kickOffReminderTime, kickOffReminderTimeValue, kickOffDate, kickOffTimeValue]);
 
   // Calculate default kickoff date (RD - DEFAULT_KICKOFF_OFFSET_DAYS) and pre-fill times from config
   useEffect(() => {
@@ -166,30 +198,36 @@ export function ReleaseSchedulingPanel({
 
   return (
     <Stack gap="lg">
-      <div>
-        <Text fw={600} size="lg" className="mb-2">
+      <Box>
+        <Text fw={600} size="lg" mb={4}>
           Release Scheduling
         </Text>
-        <Text size="sm" c="dimmed">
+        <Text size="sm" c={theme.colors.slate[5]}>
           {showOnlyTargetDateAndSlots 
-            ? "Update target release date and add regression slots"
-            : "Configure release timeline and regression build slots"}
+            ? "Update the target release date and add regression build slots for testing."
+            : "Configure when the release branch will be created (kickoff) and when it will be deployed (release date). You can also schedule regression build slots for testing."}
         </Text>
-      </div>
+      </Box>
 
       {/* Kickoff Date & Time (Branch Fork off) - Hidden after kickoff */}
       {!showOnlyTargetDateAndSlots && (
-        <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Box
+          p="md"
+          style={{
+            border: `1px solid ${theme.colors.slate[2]}`,
+            borderRadius: theme.radius.md,
+          }}
+        >
         <Stack gap="md">
           {/* Toggle to enable kickoff date change in edit mode (only for UPCOMING releases) */}
           {isEditMode && existingRelease && (
             <Group justify="space-between" align="center">
-              <div>
-                <Text fw={500} size="sm">Enable Kickoff Date Change</Text>
+              <Box style={{ flex: 1 }}>
+                <Text fw={500} size="sm" mb={4}>Enable Kickoff Date Change</Text>
                 <Text size="xs" c="dimmed">
-                Enable "Kickoff Date Change" toggle above to modify the kickoff date and time
+                  Enable this toggle to modify the kickoff date and time. Note: Changing the kickoff date will remove all existing regression slots.
                 </Text>
-              </div>
+              </Box>
               <Switch
                 checked={enableKickoffDateChange}
                 onChange={(e) => setEnableKickoffDateChange(e.currentTarget.checked)}
@@ -247,8 +285,10 @@ export function ReleaseSchedulingPanel({
                 }
               }}
               dateError={errors.kickOffDate}
-              dateDescription="Date when the release branch will be forked"
-              timeDescription="Time when the branch fork will occur"
+              timeError={errors.kickOffTime}
+              dateDescription="Date when the release branch will be created from the base branch. This triggers the release process."
+              timeDescription="Time when the branch fork will occur. Use 24-hour format (e.g., 09:00, 14:30)."
+              dateMin={new Date().toISOString().split('T')[0]}
               dateMax={targetReleaseDate || undefined}
               required
             />
@@ -272,12 +312,18 @@ export function ReleaseSchedulingPanel({
             </Alert>
           )}
         </Stack>
-      </Card>
+      </Box>
       )}
 
       {/* Kickoff Reminder Configuration - Hidden after kickoff */}
       {!showOnlyTargetDateAndSlots && kickOffDate && (
-        <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Box
+          p="md"
+          style={{
+            border: `1px solid ${theme.colors.slate[2]}`,
+            borderRadius: theme.radius.md,
+          }}
+        >
           <Stack gap="md">
             <Group justify="space-between" align="center">
               <Group>
@@ -353,10 +399,11 @@ export function ReleaseSchedulingPanel({
                   errors.kickOffReminderTime || 
                   (reminderValidation.hasError && kickOffReminderTime ? reminderValidation.message : undefined)
                 }
-                dateDescription="Date when to send reminder before kickoff"
-                timeDescription="Time when to send the reminder (must be before kickoff time)"
+                dateDescription="Date when to send a reminder notification before the kickoff. Optional but recommended."
+                timeDescription="Time when to send the reminder. Must be before the kickoff date and time."
                 dateMax={kickOffDate || undefined}
                 dateMin={new Date().toISOString().split('T')[0]}
+                required={false}
               />
             )}
             
@@ -375,51 +422,64 @@ export function ReleaseSchedulingPanel({
               </Alert>
             )}
           </Stack>
-        </Card>
+        </Box>
       )}
 
       {/* Target Release Date & Time - Always shown */}
-      <Card shadow="sm" padding="md" radius="md" withBorder>
+      <Box
+        p="md"
+        style={{
+          border: `1px solid ${theme.colors.slate[2]}`,
+          borderRadius: theme.radius.md,
+        }}
+      >
         <Stack gap="md">
-          <DateTimeInput
-            dateLabel="Release Date"
-            timeLabel="Release Time"
-            dateValue={targetReleaseDate || ''}
-            timeValue={targetReleaseTimeValue}
-            onDateChange={(date) => handleReleaseDateChange(date)}
-            onTimeChange={(time) =>
-              onChange({
-                ...state,
-                targetReleaseTime: time,
-              })
-            }
-            dateError={errors.targetReleaseDate}
-            dateDescription="Date when the release will be deployed"
-            timeDescription="Time when the release will be deployed"
-            dateMin={new Date().toISOString().split('T')[0]}
-            required
-          />
+            <DateTimeInput
+              dateLabel="Release Date"
+              timeLabel="Release Time"
+              dateValue={targetReleaseDate || ''}
+              timeValue={targetReleaseTimeValue}
+              onDateChange={(date) => handleReleaseDateChange(date)}
+              onTimeChange={(time) =>
+                onChange({
+                  ...state,
+                  targetReleaseTime: time,
+                })
+              }
+              dateError={errors.targetReleaseDate}
+              timeError={errors.targetReleaseTime}
+              dateDescription="Date when the release will be deployed to production. Must be after the kickoff date."
+              timeDescription="Time when the release will be deployed. Use 24-hour format (e.g., 10:00, 15:30)."
+              dateMin={kickOffDate ? new Date(new Date(kickOffDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+              required
+            />
         </Stack>
-      </Card>
+      </Box>
 
       {/* Pre-Regression Builds Configuration - Hidden after kickoff */}
       {!showOnlyTargetDateAndSlots && (
-        <Card shadow="sm" padding="md" radius="md" withBorder>
+        <Box
+          p="md"
+          style={{
+            border: `1px solid ${theme.colors.slate[2]}`,
+            borderRadius: theme.radius.md,
+          }}
+        >
         <Stack gap="md">
           <Group justify="space-between" align="center">
-            <Group>
-              <IconSettings size={20} />
-              <div>
+            <Box style={{ flex: 1 }}>
+              <Group gap="sm" mb={4}>
+                <IconSettings size={20} color={theme.colors.slate[6]} />
                 <Text fw={600} size="sm">
                   Pre-Regression Builds
                 </Text>
-                <Text size="xs" c="dimmed">
-                  {config?.ciConfig?.workflows?.some((w: any) => w.environment === 'PRE_REGRESSION')
-                    ? "Pre-regression workflows are configured in your release config"
-                    : "No pre-regression workflows found in your release config"}
-                </Text>
-              </div>
-            </Group>
+              </Group>
+              <Text size="xs" c="dimmed">
+                {config?.ciConfig?.workflows?.some((w: any) => w.environment === 'PRE_REGRESSION')
+                  ? "Pre-regression workflows are configured in your release config. Enable this to run pre-regression builds before the release."
+                  : "No pre-regression workflows found in your release config. Enable this only if you have pre-regression workflows configured."}
+              </Text>
+            </Box>
             <Switch
               checked={state.cronConfig?.preRegressionBuilds ?? 
                 (config?.ciConfig?.workflows || []).some((w: any) => w.environment === 'PRE_REGRESSION')}
@@ -444,7 +504,7 @@ export function ReleaseSchedulingPanel({
             </Alert>
           )}
         </Stack>
-      </Card>
+      </Box>
       )}
 
       {/* Regression Build Slots - Always shown if dates are available */}

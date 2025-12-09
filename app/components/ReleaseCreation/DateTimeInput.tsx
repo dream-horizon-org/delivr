@@ -49,9 +49,13 @@ export function DateTimeInput({
         onChange={(e) => onDateChange(e.target.value)}
         error={dateError}
         required={required}
+        withAsterisk={required}
         min={dateMin}
         max={dateMax}
-        description={dateDescription || ' '}
+        description={dateDescription}
+        styles={{
+          label: { fontWeight: 500, marginBottom: 6 },
+        }}
       />
 
       <TextInput
@@ -61,7 +65,11 @@ export function DateTimeInput({
         onChange={(e) => onTimeChange(e.target.value)}
         error={timeError}
         required={required}
-        description={timeDescription || ' '}
+        withAsterisk={required}
+        description={timeDescription}
+        styles={{
+          label: { fontWeight: 500, marginBottom: 6 },
+        }}
       />
     </Group>
   );

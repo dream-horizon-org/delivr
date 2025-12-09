@@ -43,23 +43,24 @@ export function ReleaseReviewModal({
       <Stack gap="lg">
         <ReleaseReviewSummary config={config} state={state} cronConfig={cronConfig} />
 
-        <Group justify="flex-end" gap="sm" className="mt-4 pt-4 border-t border-gray-200">
+        <Group justify="flex-end" gap="sm" mt="xl" pt="md" style={{ borderTop: `1px solid var(--mantine-color-slate-2)` }}>
           <Button
             variant="subtle"
             color="gray"
             leftSection={<IconX size={18} />}
             onClick={onClose}
             disabled={isSubmitting}
+            size="md"
           >
             Cancel
           </Button>
           <Button
-            variant="filled"
+            color="brand"
             leftSection={<IconRocket size={18} />}
             onClick={onConfirm}
             loading={isSubmitting}
             disabled={isSubmitting}
-            className="bg-green-600 hover:bg-green-700"
+            size="md"
           >
             Create Release
           </Button>
