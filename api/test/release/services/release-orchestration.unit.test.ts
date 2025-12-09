@@ -119,7 +119,7 @@ const createMockRegressionCycleDTO = () => {
     findByReleaseId: findByReleaseIdMock,
     findLatest: findLatestMock,
     findPrevious: jest.fn(),
-    create: jest.fn(),
+  create: jest.fn(),
     update: jest.fn(),
     getCycleCount: jest.fn(),
     getTagCount: jest.fn(),
@@ -130,8 +130,8 @@ const createMockRegressionCycleDTO = () => {
     // Legacy method names pointing to same mocks (for backwards compatibility)
     getLatest: findLatestMock,
     getByRelease: findByReleaseIdMock,
-    getByReleaseAndCycleNumber: jest.fn(),
-    getByRegressionCycle: jest.fn(),
+  getByReleaseAndCycleNumber: jest.fn(),
+  getByRegressionCycle: jest.fn(),
   };
 };
 

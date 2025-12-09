@@ -32,7 +32,7 @@ export type ReleaseConfiguration = {
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
   platformTargets: PlatformTarget[];
   baseBranch: string | null;
   ciConfigId: string | null;
@@ -55,7 +55,7 @@ export type CreateReleaseConfigDto = {
   tenantId: string;
   name: string;
   description?: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
   platformTargets: PlatformTarget[];
   baseBranch?: string;
   ciConfigId?: string;
@@ -75,7 +75,7 @@ export type CreateReleaseConfigDto = {
 export type UpdateReleaseConfigDto = {
   name?: string;
   description?: string;
-  releaseType?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType?: 'MINOR' | 'HOTFIX' | 'MAJOR';
   platformTargets?: PlatformTarget[];
   baseBranch?: string | null;
   ciConfigId?: string | null;
@@ -96,7 +96,7 @@ export type CreateReleaseConfigRequest = {
   tenantId: string;
   name: string;
   description?: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
   isDefault?: boolean;
   platformTargets: PlatformTarget[];
   baseBranch?: string;
@@ -153,7 +153,7 @@ export type VerboseReleaseConfiguration = {
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
   platformTargets: PlatformTarget[];
   baseBranch: string | null;
   scheduling: ReleaseScheduling;
@@ -182,7 +182,7 @@ export type SafeReleaseConfiguration = {
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR';
   platformTargets: PlatformTarget[];
   baseBranch: string | null;
   isActive: boolean;

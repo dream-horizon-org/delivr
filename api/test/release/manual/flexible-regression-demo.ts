@@ -81,7 +81,7 @@ async function demonstrateFlexibleRegression() {
       releaseConfigId: null,
       tenantId: 'demo-tenant',
       status: 'PENDING',
-      type: 'PLANNED',
+      type: 'MINOR',
       branch: 'release/v1.0.0-demo',
       baseBranch: 'main',
       baseReleaseId: null,

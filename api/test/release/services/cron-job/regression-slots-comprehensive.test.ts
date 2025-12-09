@@ -68,7 +68,7 @@ async function createTestRelease(
     tenantId: string;
     accountId: string;
     version?: string;
-    type?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+    type?: 'MINOR' | 'HOTFIX' | 'MAJOR';
     targetReleaseDate?: Date;
     plannedDate?: Date;
     baseBranch?: string;
@@ -83,7 +83,7 @@ async function createTestRelease(
     releaseConfigId: options.releaseConfigId ?? null,
     tenantId: options.tenantId,
     status: 'IN_PROGRESS',
-    type: options.type ?? 'PLANNED',
+    type: options.type ?? 'MINOR',
     branch: options.version ? `release/v${options.version}` : `release/v${Date.now()}`,
     baseBranch: options.baseBranch ?? 'master',
     baseReleaseId: null,
@@ -219,7 +219,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
       tenantId: 'test-tenant',
       accountId: testAccountId,
       version: `1.0.0-test-${Date.now()}`,
-      type: 'PLANNED',
+      type: 'MINOR',
       targetReleaseDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       plannedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       baseBranch: 'master',
