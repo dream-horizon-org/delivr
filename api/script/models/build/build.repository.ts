@@ -106,7 +106,7 @@ export class BuildRepository {
         'tenantId',
         'createdAt',
         'updatedAt',
-        'artifactVersionCode',
+        'buildNumber',
         'artifactVersionName',
         'artifactPath',
         'releaseId',

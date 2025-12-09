@@ -8,7 +8,7 @@ export type BuildListItem = {
   artifactPath: string | null;
   downloadUrl: string | null;
   artifactVersionName: string;
-  artifactVersionCode: string | null;
+  buildNumber: string | null;
   releaseId: string;
   platform: BuildPlatform;
   storeType: StoreType | null;

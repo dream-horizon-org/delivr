@@ -18,8 +18,8 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
       const tenantId = getTrimmedString(req.params.tenantId);
       const releaseId = getTrimmedString(req.params.releaseId);
 
-      const artifactVersionName = getTrimmedString(req.body?.artifact_version_name);
-      const artifactVersionCode = getTrimmedString(req.body?.artifact_version_code);
+      const artifactVersionName = getTrimmedString(req.body?.artifactVersionName);
+      const buildNumber = getTrimmedString(req.body?.buildNumber);
       const platformRaw = getTrimmedString(req.body?.platform);
       const storeTypeRaw = getTrimmedString(req.body?.storeType);
       const buildStageRaw = getTrimmedString(req.body?.buildStage);
@@ -90,7 +90,7 @@ export const createManualBuildUploadHandler = (storage: Storage) =>
         tenantId,
         releaseId,
         artifactVersionName,
-        artifactVersionCode,
+        buildNumber,
         platform: platformValue,
         storeType: storeTypeValue,
         buildStage: buildStageValue,
