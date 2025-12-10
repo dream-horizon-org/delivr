@@ -36,30 +36,15 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { botToken, _encrypted } = req.body;
-
-      console.log('\n============ SLACK VERIFY REQUEST ============');
-      console.log('[Slack] Token received:', !!botToken);
-      console.log('[Slack] Token length:', botToken?.length);
-      console.log('[Slack] Token starts with:', botToken?.substring(0, 15));
-      console.log('[Slack] _encrypted flag:', _encrypted);
-
       // IMPORTANT: Decrypt FIRST if encrypted, then validate
       // If token is encrypted (doesn't start with xoxb-), try to decrypt
       const isEncrypted = _encrypted || (botToken && !botToken.startsWith('xoxb-'));
-      console.log('[Slack] Will attempt decrypt:', isEncrypted);
       
       const decryptedToken = isEncrypted 
         ? decryptIfEncrypted(botToken, 'botToken')
         : botToken;
-
-      console.log('[Slack] After decryption:');
-      console.log('[Slack] - Decrypted starts with:', decryptedToken?.substring(0, 15));
-      console.log('[Slack] - Starts with xoxb-:', decryptedToken?.startsWith('xoxb-'));
-      console.log('==============================================\n');
-
       const tokenError = validateBotToken(decryptedToken);
       if (tokenError) {
-        console.log('[Slack] VALIDATION FAILED:', tokenError);
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('botToken', tokenError)
         );
@@ -198,9 +183,6 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       const { tenantId } = req.params;
       const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = req.body;
       
-      // Log encryption status for debugging
-      console.log('[Slack] Storing botToken (encrypted from frontend):', !!_encrypted);
-
       // IMPORTANT: Decrypt FIRST for validation, but store encrypted value
       const decryptedToken = _encrypted 
         ? decryptIfEncrypted(botToken, 'botToken')
