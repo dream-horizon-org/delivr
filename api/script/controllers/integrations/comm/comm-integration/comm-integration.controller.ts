@@ -15,7 +15,7 @@ import {
   successResponse,
   validationErrorResponse
 } from '~utils/response.utils';
-import { decryptIfEncrypted } from '~utils/encryption.utils';
+import { decryptIfEncrypted, decryptFields, encryptForStorage } from '~utils/encryption';
 import { 
   COMM_INTEGRATION_ERROR_MESSAGES, 
   COMM_INTEGRATION_SUCCESS_MESSAGES,
@@ -238,11 +238,14 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      // Store the ENCRYPTED value in database (botToken as received)
+      // Double-layer encryption: Decrypt frontend-encrypted value, then encrypt with backend storage key
+      const { decrypted: decryptedData } = decryptFields({ botToken }, ['botToken']);
+      const backendEncryptedBotToken = encryptForStorage(decryptedData.botToken);
+      
       const data: CreateOrUpdateIntegrationDto = {
         tenantId,
         data: {
-          botToken, // Store encrypted value
+          botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
           workspaceId,
           workspaceName
@@ -256,9 +259,9 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       let isNew = false;
       
       if (existing) {
-        // Update existing - store encrypted value
+        // Update existing - store backend-encrypted value
         const updateData = {
-          slackBotToken: botToken, // Store encrypted value
+          slackBotToken: backendEncryptedBotToken, // Backend-encrypted value
           slackBotUserId: botUserId,
           slackWorkspaceId: workspaceId,
           slackWorkspaceName: workspaceName
@@ -266,9 +269,9 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
         result = await service.updateIntegrationByTenant(tenantId, updateData);
         isNew = false;
       } else {
-        // Create new - store encrypted value
+        // Create new - store backend-encrypted value
         result = await service.createIntegration(tenantId, 'SLACK' as any, {
-          botToken, // Store encrypted value
+          botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
           workspaceId,
           workspaceName
@@ -473,9 +476,12 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
         }
       }
 
-      // Store encrypted value in database
+      // Double-layer encryption: Decrypt frontend-encrypted value, then encrypt with backend storage key
       const updateData: any = {};
-      if (botToken) updateData.slackBotToken = botToken; // Store encrypted
+      if (botToken) {
+        const { decrypted: decryptedData } = decryptFields({ botToken }, ['botToken']);
+        updateData.slackBotToken = encryptForStorage(decryptedData.botToken); // Backend-encrypted value
+      }
       if (botUserId) updateData.slackBotUserId = botUserId;
       if (workspaceId) updateData.slackWorkspaceId = workspaceId;
       if (workspaceName) updateData.slackWorkspaceName = workspaceName;

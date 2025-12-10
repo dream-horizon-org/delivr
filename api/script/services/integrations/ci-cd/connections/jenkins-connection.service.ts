@@ -4,7 +4,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
-import { decryptIfEncrypted } from '~utils/encryption.utils';
+import { decryptIfEncrypted, decryptFromStorage, encryptForStorage } from '~utils/encryption';
 
 type CreateInput = {
   displayName?: string;
@@ -29,8 +29,17 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
     const useCrumb = input.providerConfig?.useCrumb ?? true;
     const crumbPath = input.providerConfig?.crumbPath ?? PROVIDER_DEFAULTS.JENKINS_CRUMB_PATH;
     
-    // Decrypt token for verification (may be encrypted from frontend)
-    const decryptedToken = decryptIfEncrypted(input.apiToken, 'apiToken');
+    // Decrypt token for verification
+    // The adapter already handles frontend decryption and backend encryption,
+    // so input.apiToken is backend-encrypted at this point
+    let decryptedToken: string;
+    try {
+      decryptedToken = decryptFromStorage(input.apiToken);
+    } catch (error) {
+      
+      throw new Error(`Failed to decrypt API token for verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+    
     const verify = await this.verifyConnection({
       hostUrl: input.hostUrl,
       username: input.username,
@@ -86,18 +95,57 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       updateData.lastVerifiedAt = new Date();
       updateData.verificationError = ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED;
     } else {
-      // Decrypt the token before verification (may be stored encrypted)
-      const decryptedToken = decryptIfEncrypted(tokenToUse, 'apiToken');
-      const verify = await this.verifyConnection({
-        hostUrl: hostUrlToUse,
-        username: usernameToUse,
-        apiToken: decryptedToken,
-        useCrumb,
-        crumbPath
-      });
-      updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
-      updateData.lastVerifiedAt = new Date();
-      updateData.verificationError = verify.isValid ? null : verify.message;
+      // Decrypt the token before verification (same approach as GitHub Actions)
+      // Try decryptFromStorage first (handles backend format), then fallback to decryptIfEncrypted (handles frontend format)
+      let decryptedToken: string | undefined;
+      try {
+       
+        // Try decryptFromStorage first (handles backend storage format: salt:iv:authTag:ciphertext)
+        try {
+          decryptedToken = decryptFromStorage(tokenToUse);
+          
+        } catch (storageError: any) {
+          // If decryptFromStorage fails, try decryptIfEncrypted (handles frontend format)
+          
+          decryptedToken = decryptIfEncrypted(tokenToUse, 'apiToken');
+          // If decryptIfEncrypted returns the same value, decryption actually failed
+          if (decryptedToken === tokenToUse) {
+            throw new Error('Token could not be decrypted with either method');
+          }
+         
+        }
+      } catch (error: any) {
+        
+        updateData.verificationStatus = VerificationStatus.INVALID;
+        updateData.lastVerifiedAt = new Date();
+        updateData.verificationError = 'Failed to decrypt token for verification';
+        // Continue to save with invalid status
+      }
+      
+      if (decryptedToken) {
+        const verify = await this.verifyConnection({
+          hostUrl: hostUrlToUse,
+          username: usernameToUse,
+          apiToken: decryptedToken,
+          useCrumb,
+          crumbPath
+        });
+        updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+        updateData.lastVerifiedAt = new Date();
+        updateData.verificationError = verify.isValid ? null : verify.message;
+        
+        // Only re-encrypt and store if a new token was provided in the update
+        // If token was not provided (partial update), keep the existing stored token unchanged
+        // This matches the pattern used by GitHub Actions and other integrations
+        if (verify.isValid && updateData.apiToken) {
+          // New token was provided, re-encrypt it for storage
+          updateData.apiToken = encryptForStorage(decryptedToken);
+
+        } else if (verify.isValid) {
+          // Token was not provided (partial update), don't change the stored token
+          console.log('[Jenkins Update] Token not provided, keeping existing stored token unchanged');
+        }
+      }
     }
     const updated = await this.repository.update(existing.id, updateData);
     const wasInvalid = updateData.verificationStatus === VerificationStatus.INVALID;
