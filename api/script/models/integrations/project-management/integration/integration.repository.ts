@@ -5,7 +5,7 @@ import type {
 } from '~types/integrations/project-management';
 import { VerificationStatus } from '~types/integrations/project-management';
 import type { ProjectManagementIntegrationModelType } from './integration.sequelize.model';
-import { encryptConfigFields, decryptConfigFields } from '~utils/encryption';
+import { encryptConfigFields, decryptConfigFields, decryptFields } from '~utils/encryption';
 
 export type FindProjectManagementIntegrationsFilter = {
   tenantId: string;
@@ -39,13 +39,16 @@ export class ProjectManagementIntegrationRepository {
 
   /**
    * Create new integration
-   * Automatically encrypts sensitive fields (apiToken) before storing
+   * Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
    */
   create = async (
     data: CreateProjectManagementIntegrationDto
   ): Promise<ProjectManagementIntegration> => {
-    // Encrypt sensitive fields before storing
-    const encryptedConfig = encryptConfigFields(data.config, ['apiToken']);
+    // Step 1: Decrypt any frontend-encrypted values (using ENCRYPTION_KEY)
+    const { decrypted: decryptedConfig } = decryptFields(data.config, ['apiToken']);
+    
+    // Step 2: Encrypt with backend storage encryption (using BACKEND_STORAGE_ENCRYPTION_KEY)
+    const encryptedConfig = encryptConfigFields(decryptedConfig, ['apiToken']);
     
     const integration = await this.model.create({
       id: this.generateId(),
@@ -126,14 +129,37 @@ export class ProjectManagementIntegrationRepository {
     }
 
     if (data.config !== undefined) {
-      // Merge configs (existing + updates)
-      const mergedConfig = {
-        ...integration.config,
-        ...data.config
-      };
+      // Get raw encrypted config from database (before decryption)
+      const rawConfig = integration.get('config') as Record<string, any> | undefined;
       
-      // Encrypt sensitive fields before storing
-      updateData.config = encryptConfigFields(mergedConfig, ['apiToken']);
+      // Check if apiToken is in the update
+      const apiTokenInUpdate = data.config && 'apiToken' in data.config;
+      
+      // Start with existing encrypted config (preserves encrypted apiToken if not in update)
+      const finalConfig = rawConfig ? { ...rawConfig } : {};
+      
+      // Merge non-sensitive fields from update
+      Object.keys(data.config).forEach(key => {
+        if (key !== 'apiToken') {
+          finalConfig[key] = data.config[key];
+        }
+      });
+      
+      // For apiToken in the update: decrypt frontend-encrypted value, then encrypt with backend storage
+      if (apiTokenInUpdate && data.config.apiToken) {
+        // Step 1: Decrypt any frontend-encrypted value (using ENCRYPTION_KEY)
+        const { decrypted: decryptedFields } = decryptFields({ apiToken: data.config.apiToken }, ['apiToken']);
+        
+        // Step 2: Encrypt with backend storage encryption (using BACKEND_STORAGE_ENCRYPTION_KEY)
+        const encryptedFields = encryptConfigFields(decryptedFields, ['apiToken']);
+        
+        // Set encrypted apiToken in final config
+        finalConfig.apiToken = encryptedFields.apiToken;
+      }
+      // If apiToken not in update: preserve original encrypted value from database
+      // (already in finalConfig from rawConfig copy above)
+      
+      updateData.config = finalConfig as any; // Type assertion: config structure is valid, encrypted apiToken preserved
     }
 
     if (data.isEnabled !== undefined) {

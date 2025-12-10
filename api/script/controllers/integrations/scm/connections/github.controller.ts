@@ -14,7 +14,7 @@ import {
   SafeSCMIntegration 
 } from "../../../../storage/integrations/scm/scm-types";
 import fetch from "node-fetch";
-import { decryptIfEncrypted } from "../../../../utils/encryption.utils";
+import { decryptIfEncrypted, decryptFields, encryptForStorage } from "../../../../utils/encryption";
 
 // ============================================================================
 // TYPES
@@ -136,18 +136,25 @@ export async function createGitHubConnection(
     const scmController = getSCMController();
     const existing = await scmController.findActiveByTenant(tenantId);
     
-    // Store the encrypted value in database (accessToken as received from frontend)
-    // The frontend encrypts sensitive values before sending
-    // We store as-is to keep data encrypted at rest
-    console.log('[GitHub] Storing accessToken (encrypted from frontend)');
+    // Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
+    const { decrypted: decryptedData } = decryptFields(
+      { accessToken, webhookSecret },
+      ['accessToken', 'webhookSecret']
+    );
+    
+    // Re-encrypt with backend storage encryption (double-layer security)
+    const backendEncryptedAccessToken = encryptForStorage(decryptedData.accessToken);
+    const backendEncryptedWebhookSecret = decryptedData.webhookSecret 
+      ? encryptForStorage(decryptedData.webhookSecret)
+      : webhookSecret;
     
     if (existing) {
       const updateData: UpdateSCMIntegrationDto = {
         displayName,
         defaultBranch,
-        accessToken, // Store encrypted value as-is
+        accessToken: backendEncryptedAccessToken, // Backend-encrypted value
         webhookEnabled,
-        webhookSecret,
+        webhookSecret: backendEncryptedWebhookSecret, // Backend-encrypted value (if provided)
         webhookUrl,
         senderLogin,
         isActive: true,
@@ -170,9 +177,9 @@ export async function createGitHubConnection(
         repo,
         repositoryUrl: `https://github.com/${owner}/${repo}`,
         defaultBranch,
-        accessToken, // Store encrypted value as-is
+        accessToken: backendEncryptedAccessToken, // Backend-encrypted value
         webhookEnabled,
-        webhookSecret,
+        webhookSecret: backendEncryptedWebhookSecret, // Backend-encrypted value (if provided)
         webhookUrl,
         senderLogin,
         verificationStatus: VerificationStatus.VALID,
@@ -252,11 +259,14 @@ export async function updateGitHubConnection(
       });
     }
 
-    if (updateData.accessToken) {
-      // Decrypt accessToken for verification if encrypted
+    // Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
+    const processedUpdateData = { ...updateData };
+    
+    if (processedUpdateData.accessToken) {
+      // Decrypt frontend-encrypted value for verification
       const decryptedToken = _encrypted 
-        ? decryptIfEncrypted(updateData.accessToken, 'accessToken')
-        : updateData.accessToken;
+        ? decryptIfEncrypted(processedUpdateData.accessToken, 'accessToken')
+        : processedUpdateData.accessToken;
       
       const verificationResult = await verifyGitHub(
         existing.owner, 
@@ -272,11 +282,20 @@ export async function updateGitHubConnection(
         });
       }
 
+      // Re-encrypt with backend storage encryption (double-layer security)
+      processedUpdateData.accessToken = encryptForStorage(decryptedToken);
+      
       await scmController.updateVerificationStatus(existing.id, VerificationStatus.VALID);
     }
+    
+    if (processedUpdateData.webhookSecret) {
+      // Decrypt frontend-encrypted webhookSecret if provided
+      const { decrypted: decryptedData } = decryptFields({ webhookSecret: processedUpdateData.webhookSecret }, ['webhookSecret']);
+      processedUpdateData.webhookSecret = encryptForStorage(decryptedData.webhookSecret);
+    }
 
-    // Store encrypted value in database (updateData still has original encrypted token)
-    const updated = await scmController.update(existing.id, updateData);
+    // Store backend-encrypted values in database
+    const updated = await scmController.update(existing.id, processedUpdateData);
 
     return res.status(200).json({
       success: true,
@@ -356,13 +375,12 @@ export async function fetchGitHubBranches(
       });
     }
     
-    // Decrypt the stored token before making API calls
-    const decryptedToken = decryptIfEncrypted(integration.accessToken, 'accessToken');
-    
+    // Token is already decrypted by findActiveByTenantWithTokens (decryptFromStorage)
+    // No need to decrypt again
     const branches = await fetchBranchesFromGitHub(
       integration.owner,
       integration.repo,
-      decryptedToken
+      integration.accessToken
     );
 
     return res.status(200).json({

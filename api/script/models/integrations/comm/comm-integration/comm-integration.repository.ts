@@ -11,6 +11,7 @@ import type {
   SafeSlackIntegration
 } from '~types/integrations/comm/comm-integration';
 import type { CommIntegrationModelType } from './comm-integration.sequelize.model';
+import { decryptFromStorage } from '~utils/encryption';
 
 // Create nanoid generator with custom alphabet (alphanumeric + underscore + hyphen)
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-', 21);
@@ -37,12 +38,25 @@ export class CommIntegrationRepository {
 
   /**
    * Convert Sequelize model instance to plain object
+   * Decrypts tokens from backend storage when includeToken is true
+   * Handles both backend and frontend encrypted formats for backward compatibility
    */
   private toPlainObject = (
     instance: InstanceType<CommIntegrationModelType>,
     includeToken: boolean = false
   ): TenantCommunicationIntegration | SafeSlackIntegration => {
     const json = instance.toJSON();
+    
+    // Decrypt token from backend storage if including token (handles both formats)
+    if (includeToken && json.slackBotToken) {
+      try {
+        json.slackBotToken = decryptFromStorage(json.slackBotToken);
+      } catch (error: any) {
+        console.error('[Comm] Failed to decrypt slackBotToken, keeping encrypted value:', error.message);
+        // Keep encrypted value - might be corrupted or in unexpected format
+      }
+    }
+    
     return includeToken ? json : this.toSafeObject(json);
   };
 
