@@ -21,6 +21,7 @@ export interface CheckmateConfig {
   baseUrl: string;
   authToken: string;
   orgId: number;
+  _encrypted?: boolean; // Flag to indicate authToken is encrypted
 }
 
 export interface VerifyCheckmateRequest {
@@ -78,6 +79,7 @@ export interface VerifyCheckmateCredentialsRequest {
   baseUrl: string;
   authToken: string;
   orgId: number;
+  _encrypted?: boolean; // Flag to indicate authToken is encrypted
 }
 
 // ============================================================================
@@ -120,6 +122,7 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
             baseUrl: data.baseUrl,
             authToken: data.authToken,
             orgId: data.orgId,
+            _encrypted: data._encrypted, // Forward encryption flag
           },
         },
         userId
@@ -213,7 +216,8 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
           config: {
             baseUrl: data.config.baseUrl,
             authToken: data.config.authToken,
-            orgId: data.config.orgId
+            orgId: data.config.orgId,
+            _encrypted: data.config._encrypted, // Forward encryption flag
           }
         },
         data.userId
@@ -320,7 +324,8 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
         payload.config = {
           ...(data.config.baseUrl && { baseUrl: data.config.baseUrl }),
           ...(data.config.authToken && { authToken: data.config.authToken }),
-          ...(data.config.orgId !== undefined && { orgId: data.config.orgId })
+          ...(data.config.orgId !== undefined && { orgId: data.config.orgId }),
+          ...(data.config._encrypted && { _encrypted: data.config._encrypted }), // Forward encryption flag
         };
       }
 

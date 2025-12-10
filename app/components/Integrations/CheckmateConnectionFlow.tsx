@@ -8,7 +8,7 @@
  * - Endpoints: /tenants/:tenantId/integrations/test-management
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
@@ -24,6 +24,7 @@ import { CHECKMATE_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/co
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 
 interface CheckmateConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -74,6 +75,14 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
   const [error, setError] = useState<string | null>(null);
   const [integrationId, setIntegrationId] = useState<string | null>(existingData?.id || null);
 
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
+
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
@@ -81,13 +90,22 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
     isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
+      // Encrypt the auth token before sending
+      const encryptedAuthToken = await encrypt(formData.authToken);
+      
+      const verifyPayload = {
+        baseUrl: formData.baseUrl,
+        authToken: encryptedAuthToken,
+        orgId: parseInt(formData.orgId, 10),
+        _encrypted: true, // Flag to indicate encryption
+      };
+      
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/test-management/verify`;
+      
+      
       const result = await apiPost<{ verified: boolean }>(
-        `/api/v1/tenants/${tenantId}/integrations/test-management/verify`,
-        {
-          baseUrl: formData.baseUrl,
-          authToken: formData.authToken,
-          orgId: parseInt(formData.orgId, 10),
-        }
+        endpoint,
+        verifyPayload
       );
 
       console.log('[CheckmateConnectionFlow] Verification result:', result);
@@ -120,37 +138,28 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
         ? `${baseEndpoint}?integrationId=${integrationId}`
         : baseEndpoint;
 
+      // Encrypt the auth token if provided
+      let encryptedAuthToken: string | undefined;
+      if (formData.authToken) {
+        encryptedAuthToken = await encrypt(formData.authToken);
+      }
+      
       const payload: any = {
         name: formData.name || `${TEST_PROVIDERS.CHECKMATE} - ${formData.baseUrl}`,
         providerType: TEST_PROVIDERS.CHECKMATE.toLowerCase(), // Required by API (lowercase)
         config: {
           baseUrl: formData.baseUrl,
-          authToken: formData.authToken,
-          orgId: parseInt(formData.orgId, 10) || undefined // Convert to number
+          authToken: encryptedAuthToken,
+          orgId: parseInt(formData.orgId, 10) || undefined, // Convert to number
+          _encrypted: !!encryptedAuthToken, // Flag to indicate encryption
         }
       };
 
-      console.log('[CheckmateConnectionFlow] Connecting with payload:', {
-        endpoint,
-        name: payload.name,
-        providerType: payload.providerType,
-        config: {
-          baseUrl: payload.config.baseUrl,
-          orgId: payload.config.orgId,
-          authTokenLength: payload.config.authToken?.length,
-          hasAuthToken: !!payload.config.authToken
-        },
-        formData: {
-          name: formData.name,
-          baseUrl: formData.baseUrl,
-          orgId: formData.orgId,
-          authTokenLength: formData.authToken?.length
-        }
-      });
 
       // Only include authToken if provided (required for create, optional for update)
       if (!formData.authToken && isEditMode) {
         delete payload.config.authToken;
+        delete payload.config._encrypted;
       } else if (!formData.authToken && !isEditMode) {
         console.error('[CheckmateConnectionFlow] Auth token missing');
         setError('Auth Token is required');

@@ -7,7 +7,7 @@
  * Supports both create and edit modes
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
@@ -23,6 +23,7 @@ import { GITHUB_ACTIONS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from 
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 
 interface GitHubActionsConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -80,6 +81,14 @@ export function GitHubActionsConnectionFlow({
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
+
   const handleVerify = async () => {
     setIsVerifying(true);
     setError(null);
@@ -87,13 +96,21 @@ export function GitHubActionsConnectionFlow({
     isInFlowRef.current = true; // Prevent draft save during verify
 
     try {
+      // Encrypt the API token if provided
+      const encryptedApiToken = formData.apiToken ? await encrypt(formData.apiToken) : undefined;
+      
+      const verifyPayload = {
+        displayName: formData.displayName || undefined,
+        hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
+        apiToken: encryptedApiToken, // Let backend fallback to SCM token if undefined
+        _encrypted: !!encryptedApiToken, // Flag to indicate encryption
+      };
+      
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.GITHUB_ACTIONS.toLowerCase().replace('_', '-')}/verify`;
+      
       const result = await apiPost<{ verified: boolean }>(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.GITHUB_ACTIONS.toLowerCase().replace('_', '-')}/verify`,
-        {
-          displayName: formData.displayName || undefined,
-          hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
-          apiToken: formData.apiToken || undefined, // Let backend fallback to SCM token
-        }
+        endpoint,
+        verifyPayload
       );
 
       if (result.data?.verified) {
@@ -120,9 +137,11 @@ export function GitHubActionsConnectionFlow({
         hostUrl: formData.hostUrl || GITHUB_ACTIONS_LABELS.API_URL_PLACEHOLDER,
       };
 
-      // Only include apiToken if provided
+      // Only include apiToken if provided (encrypt before sending)
       if (formData.apiToken) {
-        payload.apiToken = formData.apiToken;
+        const encryptedApiToken = await encrypt(formData.apiToken);
+        payload.apiToken = encryptedApiToken;
+        payload._encrypted = true; // Flag to indicate encryption
       }
 
       // For updates, include integrationId so service layer knows to use new backend path

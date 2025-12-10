@@ -5,8 +5,8 @@ import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from './IntegrationIcon';
 import { DISCONNECT_CONFIG, INTEGRATION_STATUS_VALUES } from '~/constants/integrations';
 import { ConfirmationModal } from '../Common/ConfirmationModal';
-import { apiDelete, getApiErrorMessage } from '~/utils/api-client';
-import { showErrorToast, showSuccessToast, showWarningToast } from '~/utils/toast';
+import { apiDelete, getApiErrorMessage, ApiError } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast, showWarningToast, showInfoToast } from '~/utils/toast';
 import { INTEGRATION_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { DEBUG_LABELS, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 
@@ -72,6 +72,7 @@ export function IntegrationDetailModal({
       // Get the endpoint URL
       const endpoint = config.endpoint(tenantId, integration.config);
       console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Disconnecting from endpoint:`, endpoint);
+      console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} TenantId being used:`, tenantId);
       console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration config:`, integration.config);
       
       // For CI/CD integrations (Jenkins, GitHub Actions), pass integrationId in body
@@ -92,6 +93,20 @@ export function IntegrationDetailModal({
       onClose();
       onDisconnectComplete(); // Notify parent that disconnect is complete
     } catch (error) {
+      // Handle 404 errors gracefully - the integration doesn't exist in the backend
+      // This can happen when tenant config is out of sync with the actual integrations table
+      if (error instanceof ApiError && error.status === 404) {
+        console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration not found in backend (404) - treating as already disconnected`);
+        showInfoToast({
+          title: 'Integration Already Removed',
+          message: `${integrationName} was not found in the database. Refreshing your integrations list.`,
+        });
+        setShowConfirmDisconnect(false);
+        onClose();
+        onDisconnectComplete(); // Still refresh the cache to sync UI with backend
+        return;
+      }
+      
       const message = getApiErrorMessage(error, `Failed to disconnect ${integrationName}`);
       showErrorToast(getErrorMessage(message, INTEGRATION_MESSAGES.DISCONNECT_ERROR(integrationName).title));
     } finally {

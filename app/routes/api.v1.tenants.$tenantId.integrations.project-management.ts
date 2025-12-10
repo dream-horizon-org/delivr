@@ -81,6 +81,9 @@ const createPMAction = async ({
     if (body.username) config.email = body.username;
     if (body.apiToken) config.apiToken = body.apiToken;
     if (body.jiraType) config.jiraType = body.jiraType;
+    if (body._encrypted) config._encrypted = body._encrypted; // Forward encryption flag
+
+    console.log('[BFF-PM-Create] Creating integration with _encrypted:', body._encrypted);
 
     const result = await ProjectManagementIntegrationService.createIntegration(
       tenantId,
@@ -166,7 +169,8 @@ const updatePMAction = async ({
       hasApiToken: !!body.apiToken,
       hasName: !!(body.name || body.displayName),
       hasHostUrl: !!body.hostUrl,
-      hasEmail: !!body.email
+      hasEmail: !!body.email,
+      _encrypted: body._encrypted
     });
 
     const updateData: any = {};
@@ -186,6 +190,7 @@ const updatePMAction = async ({
     // Only include apiToken if explicitly provided (not empty)
     if (body.apiToken && body.apiToken.trim()) {
       configUpdates.apiToken = body.apiToken;
+      if (body._encrypted) configUpdates._encrypted = body._encrypted; // Forward encryption flag
     }
     
     // Only add config to updateData if there are actual config updates

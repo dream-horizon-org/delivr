@@ -25,6 +25,7 @@ export interface VerifySCMRequest {
   owner: string;
   repo: string;
   accessToken: string;
+  _encrypted?: boolean; // Flag to indicate accessToken is encrypted
 }
 
 export interface VerifySCMResponse {
@@ -43,9 +44,9 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github/verify)
    */
   async verifySCM(data: VerifySCMRequest, userId: string): Promise<VerifySCMResponse> {
-    const { tenantId, scmType, owner, repo, accessToken } = data;
+    const { tenantId, scmType, owner, repo, accessToken, _encrypted } = data;
     const endpoint = SCM.verify(tenantId, scmType);
-    this.logRequest('POST', endpoint, { scmType, owner, repo });
+    this.logRequest('POST', endpoint, { scmType, owner, repo, _encrypted });
     
     try {
       const result = await this.post<VerifySCMResponse>(
@@ -55,6 +56,7 @@ class SCMIntegrationServiceClass extends IntegrationService {
           owner,
           repo,
           accessToken,
+          _encrypted, // Forward encryption flag to backend
         },
         userId
       );

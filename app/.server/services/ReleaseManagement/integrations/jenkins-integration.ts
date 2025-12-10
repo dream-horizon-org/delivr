@@ -26,6 +26,7 @@ export interface VerifyJenkinsRequest {
   useCrumb?: boolean;
   crumbPath?: string;
   userId: string;
+  _encrypted?: boolean; // Flag to indicate apiToken is encrypted
 }
 
 export interface VerifyJenkinsResponse {
@@ -48,6 +49,7 @@ export interface CreateJenkinsIntegrationRequest {
     crumbPath?: string;
   };
   userId: string;
+  _encrypted?: boolean; // Flag to indicate apiToken is encrypted
 }
 
 export interface UpdateJenkinsIntegrationRequest {
@@ -62,6 +64,7 @@ export interface UpdateJenkinsIntegrationRequest {
     crumbPath?: string;
   };
   userId: string;
+  _encrypted?: boolean; // Flag to indicate apiToken is encrypted
 }
 
 export interface JenkinsIntegration {
@@ -100,7 +103,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    */
   async verifyJenkins(data: VerifyJenkinsRequest): Promise<VerifyJenkinsResponse> {
     const endpoint = CICD.verifyConnection(data.tenantId, 'JENKINS');
-    this.logRequest('POST', endpoint, data );
+    this.logRequest('POST', endpoint, { ...data, apiToken: '[REDACTED]', _encrypted: data._encrypted });
     
     try {
       // Send data in body with POST request (backend expects req.body)
@@ -114,7 +117,8 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
           providerConfig: {
             useCrumb: data.useCrumb,
             crumbPath: data.crumbPath
-          }
+          },
+          _encrypted: data._encrypted, // Forward encryption flag
         },
         data.userId
       );
@@ -136,7 +140,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    */
   async createIntegration(data: CreateJenkinsIntegrationRequest): Promise<JenkinsIntegrationResponse> {
     const endpoint = CICD.createConnection(data.tenantId, 'JENKINS');
-    this.logRequest('POST', endpoint);
+    this.logRequest('POST', endpoint, { _encrypted: data._encrypted });
     
     try {
       const result = await this.post<JenkinsIntegrationResponse>(
@@ -146,7 +150,8 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
           hostUrl: data.hostUrl,
           username: data.username,
           apiToken: data.apiToken,
-          providerConfig: data.providerConfig
+          providerConfig: data.providerConfig,
+          _encrypted: data._encrypted, // Forward encryption flag
         },
         data.userId
       );
@@ -190,7 +195,7 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
    */
   async updateIntegration(data: UpdateJenkinsIntegrationRequest): Promise<JenkinsIntegrationResponse> {
     const endpoint = CICD.updateConnection(data.tenantId, data.integrationId);
-    this.logRequest('PATCH', endpoint);
+    this.logRequest('PATCH', endpoint, { _encrypted: data._encrypted });
     
     try {
       const result = await this.patch<JenkinsIntegrationResponse>(
@@ -200,7 +205,8 @@ export class JenkinsIntegrationServiceClass extends IntegrationService {
           hostUrl: data.hostUrl,
           username: data.username,
           apiToken: data.apiToken,
-          providerConfig: data.providerConfig
+          providerConfig: data.providerConfig,
+          _encrypted: data._encrypted, // Forward encryption flag
         },
         data.userId
       );

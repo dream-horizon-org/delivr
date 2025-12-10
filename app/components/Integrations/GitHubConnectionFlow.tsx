@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { TextInput, Alert, PasswordInput, Select } from '@mantine/core';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
 import { useParams } from '@remix-run/react';
@@ -8,6 +8,7 @@ import { GITHUB_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/const
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 
 interface GitHubConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -66,6 +67,14 @@ export function GitHubConnectionFlow({
   const [isVerified, setIsVerified] = useState(!!existingData?.isVerified || isEditMode);
   const [error, setError] = useState<string | null>(null);
 
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
+
   // Check if owner or repo changed in edit mode
   const hasOwnerOrRepoChanged = isEditMode && (
     owner !== (existingData?.owner || '') ||
@@ -83,14 +92,21 @@ export function GitHubConnectionFlow({
     setError(null);
 
     try {
+      // Encrypt the access token before sending
+      const encryptedToken = await encrypt(token);
+      
+      const verifyPayload = {
+        scmType,
+        owner,
+        repo: repoName,
+        accessToken: encryptedToken,
+        _encrypted: true, // Flag to indicate encryption
+      };
+      
+      const endpoint = `/api/v1/tenants/${org}/integrations/scm/verify`;
       const result = await apiPost(
-        `/api/v1/tenants/${org}/integrations/scm/verify`,
-        {
-          scmType,
-          owner,
-          repo: repoName,
-          accessToken: token,
-        }
+        endpoint,
+        verifyPayload
       );
 
       if (result.success) {
@@ -143,7 +159,10 @@ export function GitHubConnectionFlow({
 
       // Only include accessToken if provided (required for create, optional for update)
       if (token) {
-        payload.accessToken = token;
+        // Encrypt the access token before sending
+        const encryptedToken = await encrypt(token);
+        payload.accessToken = encryptedToken;
+        payload._encrypted = true; // Flag to indicate encryption
       } else if (!isEditMode) {
         setError('Access token is required');
         setIsSaving(false);
@@ -151,17 +170,20 @@ export function GitHubConnectionFlow({
       }
 
       let result;
+      const endpoint = `/api/v1/tenants/${org}/integrations/scm`;
+      
       if (isEditMode && existingData?.id) {
         // Use PATCH for updates
         payload.integrationId = existingData.id;
         result = await apiPatch<{ integration: any }>(
-          `/api/v1/tenants/${org}/integrations/scm`,
+          endpoint,
           payload
         );
       } else {
         // Use POST for creates
+        
         result = await apiPost<{ integration: any }>(
-          `/api/v1/tenants/${org}/integrations/scm`,
+          endpoint,
           payload
         );
       }

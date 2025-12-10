@@ -59,7 +59,7 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
 
   try {
     const body = await request.json();
-    const { botToken, botUserId, workspaceId, workspaceName } = body;
+    const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = body;
 
     // Only botToken is required - channels are configured in Release Config
     if (!botToken) {
@@ -72,7 +72,7 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
       );
     }
 
-    console.log(`[Slack-Create] Creating integration for tenant: ${tenantId}`);
+    console.log(`[Slack-Create] Creating integration for tenant: ${tenantId}, _encrypted: ${_encrypted}`);
     console.log(`[Slack-Create] Workspace: ${workspaceName}`);
 
     const result = await SlackIntegrationService.createOrUpdateIntegration({
@@ -82,7 +82,8 @@ const createSlackIntegration = async ({ request, params, user }: ActionFunctionA
       workspaceId,
       workspaceName,
       channels: [], // Empty channels - will be configured in Release Config
-      userId: user.user.id
+      userId: user.user.id,
+      _encrypted, // Forward encryption flag to backend
     });
 
     console.log(`[Slack-Create] Result:`, result.success ? 'Success' : 'Failed');
@@ -111,9 +112,9 @@ const updateSlackIntegration = async ({ request, params, user }: ActionFunctionA
 
   try {
     const body = await request.json();
-    const { botToken, botUserId, workspaceId, workspaceName, channels } = body;
+    const { botToken, botUserId, workspaceId, workspaceName, channels, _encrypted } = body;
 
-    console.log(`[Slack-Update] Updating integration for tenant: ${tenantId}`);
+    console.log(`[Slack-Update] Updating integration for tenant: ${tenantId}, _encrypted: ${_encrypted}`);
 
     const result = await SlackIntegrationService.updateIntegration({
       tenantId,
@@ -122,7 +123,8 @@ const updateSlackIntegration = async ({ request, params, user }: ActionFunctionA
       workspaceId,
       workspaceName,
       channels,
-      userId: user.user.id
+      userId: user.user.id,
+      _encrypted, // Forward encryption flag to backend
     });
 
     return json(result);

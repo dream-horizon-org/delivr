@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { apiGet } from '~/utils/api-client';
 import type { ReleaseConfiguration } from '~/types/release-config';
@@ -94,11 +95,23 @@ export function useReleaseConfigs(tenantId?: string) {
     );
   };
 
-  // Selectors
-  const configs = data?.data || [];
-  const activeConfigs = configs.filter((c: ReleaseConfiguration) => c.isActive);
-  const defaultConfig = configs.find((c: ReleaseConfiguration) => c.isDefault);
-  const archivedConfigs = configs.filter((c: ReleaseConfiguration) => !c.isActive);
+  // Memoized selectors to prevent unnecessary re-renders
+  const configs = useMemo(() => data?.data || [], [data?.data]);
+  
+  const activeConfigs = useMemo(
+    () => configs.filter((c: ReleaseConfiguration) => c.isActive),
+    [configs]
+  );
+  
+  const defaultConfig = useMemo(
+    () => configs.find((c: ReleaseConfiguration) => c.isDefault),
+    [configs]
+  );
+  
+  const archivedConfigs = useMemo(
+    () => configs.filter((c: ReleaseConfiguration) => !c.isActive),
+    [configs]
+  );
 
   return {
     // Data
