@@ -89,7 +89,7 @@ function PipelineEditModalComponent({
   const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
   
   // Filter workflows by platform and environment
-  // System only supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only)
+  // System supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only), AAB_BUILD (Android)
   const relevantWorkflows = useMemo(() => {
     return workflows.filter(w => {
       const wfEnv = workflowTypeToEnvironment[w.workflowType];
@@ -99,6 +99,7 @@ function PipelineEditModalComponent({
         BUILD_ENVIRONMENTS.PRE_REGRESSION,
         BUILD_ENVIRONMENTS.REGRESSION,
         BUILD_ENVIRONMENTS.TESTFLIGHT,
+        BUILD_ENVIRONMENTS.AAB_BUILD,
       ];
       if (!validEnvironments.includes(wfEnv as BuildEnvironment)) return false;
       

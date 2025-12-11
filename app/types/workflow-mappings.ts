@@ -8,22 +8,24 @@ import type { BuildEnvironment, Platform } from './release-config';
 
 /**
  * Map backend WorkflowType to UI BuildEnvironment
- * Note: System only supports PRE_REGRESSION, REGRESSION, and TESTFLIGHT (iOS only)
+ * Note: System supports PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only), and AAB_BUILD (Android)
  */
 export const workflowTypeToEnvironment: Record<string, BuildEnvironment> = {
   PRE_REGRESSION_BUILD: BUILD_ENVIRONMENTS.PRE_REGRESSION,
   REGRESSION_BUILD: BUILD_ENVIRONMENTS.REGRESSION,
   TEST_FLIGHT_BUILD: BUILD_ENVIRONMENTS.TESTFLIGHT,
+  AAB_BUILD: BUILD_ENVIRONMENTS.AAB_BUILD,
 } as const;
 
 /**
  * Map UI BuildEnvironment to backend WorkflowType
- * Note: System only supports PRE_REGRESSION, REGRESSION, and TESTFLIGHT (iOS only)
+ * Note: System supports PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only), and AAB_BUILD (Android)
  */
 export const environmentToWorkflowType: Record<string, string> = {
   [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'PRE_REGRESSION_BUILD',
   [BUILD_ENVIRONMENTS.REGRESSION]: 'REGRESSION_BUILD',
   [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'TEST_FLIGHT_BUILD',
+  [BUILD_ENVIRONMENTS.AAB_BUILD]: 'AAB_BUILD',
 } as const;
 
 /**
@@ -33,13 +35,14 @@ export const environmentToWorkflowType: Record<string, string> = {
  * This mapping is extensible - add new platforms and environments here as the system grows.
  * 
  * Current support:
- * - ANDROID: PRE_REGRESSION, REGRESSION
+ * - ANDROID: PRE_REGRESSION, REGRESSION, AAB_BUILD
  * - IOS: PRE_REGRESSION, REGRESSION, TESTFLIGHT
  */
 export const platformToEnvironments: Record<Platform, readonly BuildEnvironment[]> = {
   [PLATFORMS.ANDROID]: [
     BUILD_ENVIRONMENTS.PRE_REGRESSION,
     BUILD_ENVIRONMENTS.REGRESSION,
+    BUILD_ENVIRONMENTS.AAB_BUILD,
   ] as const,
   [PLATFORMS.IOS]: [
     BUILD_ENVIRONMENTS.PRE_REGRESSION,

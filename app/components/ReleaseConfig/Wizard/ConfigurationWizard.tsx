@@ -3,7 +3,7 @@
  * Main wizard container that orchestrates all configuration steps
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from '@remix-run/react';
 import {
   Box,
@@ -80,9 +80,14 @@ export function ConfigurationWizard({
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Track if draft restoration has already happened (to prevent infinite loop)
+  const hasRestoredDraft = useRef(false);
+  
   // Restore wizard step from metadata when draft is loaded (ONCE on mount)
   useEffect(() => {
-    if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined) {
+    // IMPORTANT: Only restore ONCE to prevent infinite loop with auto-save
+    if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined && !hasRestoredDraft.current) {
+      hasRestoredDraft.current = true; // Mark as restored to prevent loop
       setCurrentStep(metadata.wizardStep);
       const completed = new Set<number>();
       for (let i = 0; i < metadata.wizardStep; i++) {
@@ -94,7 +99,8 @@ export function ConfigurationWizard({
   
   // Auto-save current wizard step to metadata
   useEffect(() => {
-    if (!isEditMode && updateMetadata) {
+    // Don't auto-save immediately after restoring draft (causes loop)
+    if (!isEditMode && updateMetadata && hasRestoredDraft.current) {
       updateMetadata({ wizardStep: currentStep });
     }
   }, [currentStep, isEditMode, updateMetadata]);

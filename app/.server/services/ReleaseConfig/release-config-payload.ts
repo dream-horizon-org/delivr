@@ -58,6 +58,7 @@ function mapWorkflowType(environment: string): string {
     'PRE_REGRESSION': 'PRE_REGRESSION_BUILD',
     'REGRESSION': 'REGRESSION_BUILD',
     'TESTFLIGHT': 'TEST_FLIGHT_BUILD',
+    'AAB_BUILD': 'AAB_BUILD',
     'PRODUCTION': 'CUSTOM',
   };
   return mapping[environment] || environment;

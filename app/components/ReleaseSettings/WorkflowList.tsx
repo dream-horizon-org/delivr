@@ -118,6 +118,7 @@ export function WorkflowList({
       REGRESSION: 'Regression',
       TESTFLIGHT: 'TestFlight',
       PRODUCTION: 'Production',
+      AAB_BUILD: 'AAB Build',
     };
     return mapping[workflowType] || workflowType;
   };
@@ -128,6 +129,7 @@ export function WorkflowList({
       REGRESSION: 'purple',
       TESTFLIGHT: 'orange',
       PRODUCTION: 'green',
+      AAB_BUILD: 'teal',
     };
     return mapping[workflowType] || 'gray';
   };
