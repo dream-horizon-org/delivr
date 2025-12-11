@@ -8,16 +8,17 @@
  * - Displays release details with backend data
  */
 
-import { useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
-import { useRelease } from '~/hooks/useRelease';
-import { ReleaseDetailsHeader } from '~/components/Releases/ReleaseDetailsHeader';
-import { ReleaseDetailsOverview } from '~/components/Releases/ReleaseDetailsOverview';
-import { ReleaseTasksList } from '~/components/Releases/ReleaseTasksList';
+import { useParams } from '@remix-run/react';
+import { PageLoader } from '~/components/Common/PageLoader';
 import { ReleaseBuildsSection } from '~/components/Releases/ReleaseBuildsSection';
 import { ReleaseCherryPicksSection } from '~/components/Releases/ReleaseCherryPicksSection';
+import { ReleaseDetailsHeader } from '~/components/Releases/ReleaseDetailsHeader';
+import { ReleaseDetailsOverview } from '~/components/Releases/ReleaseDetailsOverview';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
-import { PageLoader } from '~/components/Common/PageLoader';
+import { ReleaseStageStepper } from '~/components/Releases/ReleaseStageStepper';
+import { ReleaseTasksList } from '~/components/Releases/ReleaseTasksList';
+import { useRelease } from '~/hooks/useRelease';
 
 export default function ReleaseDetailsPage() {
   const params = useParams();
@@ -50,6 +51,12 @@ export default function ReleaseDetailsPage() {
   return (
     <Container size="xl" className="py-8">
       <ReleaseDetailsHeader release={release} org={org} onUpdate={refetch} />
+      <ReleaseStageStepper
+        releaseId={releaseId}
+        releaseStatus={release.status}
+        org={org}
+        releaseBranch={release.branch ?? undefined}
+      />
       <ReleaseDetailsOverview release={release} />
       <ReleaseTasksList tasks={tasks} />
       <ReleaseBuildsSection builds={builds} />

@@ -1,0 +1,460 @@
+{
+  "releases": [
+    {
+      "id": "rel_dev",
+      "version": "2.7.0",
+      "branch": "release/2.7.0",
+      "platforms": [
+        "ANDROID",
+        "IOS"
+      ],
+      "status": "IN_PROGRESS",
+      "type": "PLANNED",
+      "regressionComplete": false,
+      "targetReleaseDate": "2025-12-25T00:00:00Z",
+      "kickOffDate": "2025-12-10T10:00:00Z",
+      "createdAt": "2025-12-10T10:00:00Z",
+      "updatedAt": "2025-12-10T10:00:00Z"
+    },
+    {
+      "id": "rel_pre_android",
+      "version": "2.6.1",
+      "branch": "release/2.6.1-android",
+      "platforms": [
+        "ANDROID"
+      ],
+      "status": "PRE_RELEASE",
+      "type": "HOTFIX",
+      "regressionComplete": true,
+      "targetReleaseDate": "2025-12-12T00:00:00Z",
+      "kickOffDate": "2025-12-08T10:00:00Z",
+      "createdAt": "2025-12-08T10:00:00Z",
+      "updatedAt": "2025-12-10T08:00:00Z"
+    },
+    {
+      "id": "rel_pre_both",
+      "version": "2.6.0",
+      "branch": "release/2.6.0",
+      "platforms": [
+        "ANDROID",
+        "IOS"
+      ],
+      "status": "PRE_RELEASE",
+      "type": "PLANNED",
+      "regressionComplete": true,
+      "targetReleaseDate": "2025-12-15T00:00:00Z",
+      "kickOffDate": "2025-12-01T10:00:00Z",
+      "createdAt": "2025-12-01T10:00:00Z",
+      "updatedAt": "2025-12-09T10:00:00Z"
+    },
+    {
+      "id": "rel_dist_rolling",
+      "version": "2.5.0",
+      "branch": "release/2.5.0",
+      "platforms": [
+        "ANDROID",
+        "IOS"
+      ],
+      "status": "READY_FOR_SUBMISSION",
+      "type": "PLANNED",
+      "regressionComplete": true,
+      "targetReleaseDate": "2025-12-10T00:00:00Z",
+      "kickOffDate": "2025-11-25T10:00:00Z",
+      "createdAt": "2025-11-25T10:00:00Z",
+      "updatedAt": "2025-12-10T08:00:00Z"
+    },
+    {
+      "id": "rel_ios_only",
+      "version": "2.4.5",
+      "branch": "release/2.4.5-ios",
+      "platforms": [
+        "IOS"
+      ],
+      "status": "READY_FOR_SUBMISSION",
+      "type": "HOTFIX",
+      "regressionComplete": true,
+      "targetReleaseDate": "2025-12-08T00:00:00Z",
+      "kickOffDate": "2025-12-05T10:00:00Z",
+      "createdAt": "2025-12-05T10:00:00Z",
+      "updatedAt": "2025-12-08T12:00:00Z"
+    },
+    {
+      "id": "rel_completed",
+      "version": "2.4.0",
+      "branch": "release/2.4.0",
+      "platforms": [
+        "ANDROID",
+        "IOS"
+      ],
+      "status": "COMPLETED",
+      "type": "PLANNED",
+      "regressionComplete": true,
+      "targetReleaseDate": "2025-12-01T00:00:00Z",
+      "kickOffDate": "2025-11-15T10:00:00Z",
+      "releaseDate": "2025-12-01T15:00:00Z",
+      "createdAt": "2025-11-15T10:00:00Z",
+      "updatedAt": "2025-12-01T15:00:00Z"
+    }
+  ],
+  "builds": [
+    {
+      "id": "build_android_pre_android",
+      "releaseId": "rel_pre_android",
+      "platform": "ANDROID",
+      "buildType": "PRODUCTION",
+      "versionName": "2.6.1",
+      "versionCode": "261",
+      "artifactPath": "s3://delivr-builds/rel_pre_android/android-261.aab",
+      "internalTrackLink": "https://play.google.com/apps/internaltest/123",
+      "checksum": "sha256:abc123",
+      "buildStrategy": "MANUAL",
+      "buildUploadStatus": "UPLOADED",
+      "createdAt": "2025-12-09T11:00:00Z",
+      "updatedAt": "2025-12-09T11:15:00Z"
+    },
+    {
+      "id": "build_android_pre_both",
+      "releaseId": "rel_pre_both",
+      "platform": "ANDROID",
+      "buildType": "PRODUCTION",
+      "versionName": "2.6.0",
+      "versionCode": "260",
+      "artifactPath": "s3://delivr-builds/rel_pre_both/android-260.aab",
+      "internalTrackLink": "https://play.google.com/apps/internaltest/456",
+      "checksum": "sha256:def456",
+      "buildStrategy": "MANUAL",
+      "buildUploadStatus": "UPLOADED",
+      "createdAt": "2025-12-08T11:00:00Z",
+      "updatedAt": "2025-12-08T11:15:00Z"
+    },
+    {
+      "id": "build_ios_pre_both",
+      "releaseId": "rel_pre_both",
+      "platform": "IOS",
+      "buildType": "TESTFLIGHT",
+      "versionName": "2.6.0",
+      "versionCode": "260",
+      "testflightNumber": "18000",
+      "buildStrategy": "MANUAL",
+      "buildUploadStatus": "UPLOADED",
+      "createdAt": "2025-12-08T11:00:00Z",
+      "updatedAt": "2025-12-08T11:20:00Z"
+    },
+    {
+      "id": "build_android_dist",
+      "releaseId": "rel_dist_rolling",
+      "platform": "ANDROID",
+      "buildType": "PRODUCTION",
+      "versionName": "2.5.0",
+      "versionCode": "250",
+      "artifactPath": "s3://delivr-builds/rel_dist/android-250.aab",
+      "buildStrategy": "MANUAL",
+      "buildUploadStatus": "UPLOADED",
+      "createdAt": "2025-12-01T11:00:00Z",
+      "updatedAt": "2025-12-01T11:15:00Z"
+    },
+    {
+      "id": "build_ios_dist",
+      "releaseId": "rel_dist_rolling",
+      "platform": "IOS",
+      "buildType": "TESTFLIGHT",
+      "versionName": "2.5.0",
+      "versionCode": "250",
+      "testflightNumber": "17950",
+      "buildStrategy": "MANUAL",
+      "buildUploadStatus": "UPLOADED",
+      "createdAt": "2025-12-01T11:00:00Z",
+      "updatedAt": "2025-12-01T11:20:00Z"
+    },
+    {
+      "id": "build_ios_only",
+      "releaseId": "rel_ios_only",
+      "platform": "IOS",
+      "buildType": "TESTFLIGHT",
+      "versionName": "2.4.5",
+      "versionCode": "245",
+      "testflightNumber": "17800",
+      "buildStrategy": "MANUAL",
+      "buildUploadStatus": "UPLOADED",
+      "createdAt": "2025-12-05T11:00:00Z",
+      "updatedAt": "2025-12-05T11:20:00Z"
+    },
+    {
+      "id": "build_android_1765386566791",
+      "releaseId": "rel_test",
+      "platform": "ANDROID",
+      "buildType": "PRODUCTION",
+      "versionName": "1.0.0",
+      "versionCode": "566791",
+      "buildStrategy": "CICD",
+      "buildUploadStatus": "PENDING",
+      "workflowStatus": "QUEUED",
+      "ciRunType": "GITHUB_ACTIONS",
+      "ciRunId": "run_1765386566791",
+      "ciRunUrl": "https://github.com/org/repo/actions/runs/123",
+      "createdAt": "2025-12-10T17:09:26.791Z",
+      "updatedAt": "2025-12-10T17:09:26.791Z"
+    }
+  ],
+  "pmApprovals": [
+    {
+      "releaseId": "rel_pre_android",
+      "hasPmIntegration": true,
+      "approved": true,
+      "requiresManualApproval": false,
+      "approvedAt": "2025-12-09T14:00:00Z",
+      "approvedBy": {
+        "id": "user_pm_1",
+        "name": "Sarah Product",
+        "email": "sarah.pm@example.com"
+      },
+      "pmTicket": {
+        "id": "PROJ-1300",
+        "title": "Hotfix v2.6.1 - Android Crash Fix",
+        "status": "DONE",
+        "url": "https://jira.example.com/browse/PROJ-1300",
+        "lastUpdated": "2025-12-09T14:00:00Z"
+      }
+    },
+    {
+      "releaseId": "rel_pre_both",
+      "hasPmIntegration": true,
+      "approved": false,
+      "requiresManualApproval": false,
+      "pmTicket": {
+        "id": "PROJ-1234",
+        "title": "Release v2.6.0 - Q4 Feature Release",
+        "status": "IN_PROGRESS",
+        "url": "https://jira.example.com/browse/PROJ-1234",
+        "lastUpdated": "2025-12-09T10:00:00Z"
+      }
+    },
+    {
+      "releaseId": "rel_dist_rolling",
+      "hasPmIntegration": true,
+      "approved": true,
+      "requiresManualApproval": false,
+      "approvedAt": "2025-12-04T16:00:00Z",
+      "approvedBy": {
+        "id": "user_pm_1",
+        "name": "Sarah Product",
+        "email": "sarah.pm@example.com"
+      }
+    },
+    {
+      "releaseId": "rel_ios_only",
+      "hasPmIntegration": false,
+      "approved": true,
+      "requiresManualApproval": true,
+      "approvedAt": "2025-12-06T10:00:00Z",
+      "approvedBy": {
+        "id": "user_lead_1",
+        "name": "Mike Lead",
+        "email": "mike.lead@example.com",
+        "role": "RELEASE_LEAD"
+      }
+    }
+  ],
+  "extraCommits": [
+    {
+      "releaseId": "rel_pre_android",
+      "hasExtraCommits": false,
+      "releaseBranch": "release/2.6.1-android",
+      "lastRegressionCommit": "abc123",
+      "currentHeadCommit": "abc123",
+      "commitsAhead": 0
+    },
+    {
+      "releaseId": "rel_pre_both",
+      "hasExtraCommits": true,
+      "releaseBranch": "release/2.6.0",
+      "lastRegressionCommit": "def456",
+      "currentHeadCommit": "xyz789",
+      "commitsAhead": 2,
+      "commits": [
+        {
+          "sha": "ghi789",
+          "message": "fix: typo in login screen",
+          "author": "dev@example.com",
+          "date": "2025-12-09T14:00:00Z"
+        },
+        {
+          "sha": "xyz789",
+          "message": "chore: update dependencies",
+          "author": "dev@example.com",
+          "date": "2025-12-09T15:00:00Z"
+        }
+      ]
+    }
+  ],
+  "submissions": [
+    {
+      "id": "sub_android_dist",
+      "releaseId": "rel_dist_rolling",
+      "buildId": "build_android_dist",
+      "platform": "ANDROID",
+      "storeType": "PLAY_STORE",
+      "versionName": "2.5.0",
+      "versionCode": "250",
+      "submissionStatus": "LIVE",
+      "exposurePercent": 50,
+      "targetExposurePercent": 100,
+      "externalSubmissionId": "edit_123456",
+      "storeConsoleUrl": "https://play.google.com/console/app/123456/releases",
+      "track": "PRODUCTION",
+      "releaseNotes": "Bug fixes and performance improvements",
+      "submittedAt": "2025-12-05T10:00:00Z",
+      "approvedAt": "2025-12-05T12:00:00Z",
+      "availableActions": [
+        "UPDATE_ROLLOUT",
+        "PAUSE",
+        "HALT"
+      ],
+      "createdAt": "2025-12-05T10:00:00Z",
+      "updatedAt": "2025-12-10T08:00:00Z"
+    },
+    {
+      "id": "sub_ios_dist",
+      "releaseId": "rel_dist_rolling",
+      "buildId": "build_ios_dist",
+      "platform": "IOS",
+      "storeType": "APP_STORE",
+      "versionName": "2.5.0",
+      "versionCode": "250",
+      "submissionStatus": "IN_REVIEW",
+      "exposurePercent": 0,
+      "storeConsoleUrl": "https://appstoreconnect.apple.com/apps/123456",
+      "track": "PRODUCTION",
+      "releaseNotes": "Bug fixes and performance improvements",
+      "submittedAt": "2025-12-05T10:00:00Z",
+      "availableActions": [],
+      "createdAt": "2025-12-05T10:00:00Z",
+      "updatedAt": "2025-12-10T08:00:00Z"
+    },
+    {
+      "id": "sub_ios_only",
+      "releaseId": "rel_ios_only",
+      "buildId": "build_ios_only",
+      "platform": "IOS",
+      "storeType": "APP_STORE",
+      "versionName": "2.4.5",
+      "versionCode": "245",
+      "submissionStatus": "LIVE",
+      "exposurePercent": 100,
+      "storeConsoleUrl": "https://appstoreconnect.apple.com/apps/123456",
+      "track": "PRODUCTION",
+      "releaseNotes": "Critical iOS hotfix",
+      "submittedAt": "2025-12-06T10:00:00Z",
+      "approvedAt": "2025-12-07T08:00:00Z",
+      "releasedAt": "2025-12-08T12:00:00Z",
+      "availableActions": [],
+      "createdAt": "2025-12-06T10:00:00Z",
+      "updatedAt": "2025-12-08T12:00:00Z"
+    }
+  ],
+  "distributionStatus": [
+    {
+      "releaseId": "rel_dist_rolling",
+      "releaseVersion": "2.5.0",
+      "releaseStatus": "READY_FOR_SUBMISSION",
+      "platforms": {
+        "ANDROID": {
+          "status": "LIVE",
+          "exposurePercent": 50,
+          "submissionId": "sub_android_dist"
+        },
+        "IOS": {
+          "status": "IN_REVIEW",
+          "exposurePercent": 0,
+          "submissionId": "sub_ios_dist"
+        }
+      },
+      "isComplete": false,
+      "overallProgress": 25,
+      "startedAt": "2025-12-05T10:00:00Z",
+      "updatedAt": "2025-12-10T08:00:00Z"
+    },
+    {
+      "releaseId": "rel_ios_only",
+      "releaseVersion": "2.4.5",
+      "releaseStatus": "COMPLETED",
+      "platforms": {
+        "IOS": {
+          "status": "LIVE",
+          "exposurePercent": 100,
+          "submissionId": "sub_ios_only"
+        }
+      },
+      "isComplete": true,
+      "overallProgress": 100,
+      "startedAt": "2025-12-06T10:00:00Z",
+      "completedAt": "2025-12-08T12:00:00Z",
+      "updatedAt": "2025-12-08T12:00:00Z"
+    }
+  ],
+  "submissionHistory": [
+    {
+      "id": "event_1",
+      "submissionId": "sub_android_dist",
+      "eventType": "SUBMITTED",
+      "previousState": null,
+      "newState": {
+        "status": "IN_REVIEW"
+      },
+      "timestamp": "2025-12-05T10:00:00Z",
+      "actor": {
+        "id": "user_dev_1",
+        "name": "Alex Developer",
+        "type": "USER"
+      }
+    },
+    {
+      "id": "event_2",
+      "submissionId": "sub_android_dist",
+      "eventType": "APPROVED",
+      "previousState": {
+        "status": "IN_REVIEW"
+      },
+      "newState": {
+        "status": "LIVE"
+      },
+      "timestamp": "2025-12-05T12:00:00Z",
+      "actor": {
+        "type": "STORE"
+      }
+    },
+    {
+      "id": "event_3",
+      "submissionId": "sub_android_dist",
+      "eventType": "ROLLOUT_UPDATED",
+      "previousState": {
+        "percentage": 10
+      },
+      "newState": {
+        "percentage": 50
+      },
+      "timestamp": "2025-12-10T08:00:00Z",
+      "actor": {
+        "id": "user_dev_1",
+        "name": "Alex Developer",
+        "type": "USER"
+      }
+    }
+  ],
+  "storeIntegrations": [
+    {
+      "id": "store_android_1",
+      "platform": "ANDROID",
+      "storeType": "PLAY_STORE",
+      "name": "Play Store - Production",
+      "isConfigured": true
+    },
+    {
+      "id": "store_ios_1",
+      "platform": "IOS",
+      "storeType": "APP_STORE",
+      "name": "App Store Connect",
+      "isConfigured": true
+    }
+  ]
+}
