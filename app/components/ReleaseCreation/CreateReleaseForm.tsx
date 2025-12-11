@@ -143,7 +143,7 @@ export function CreateReleaseForm({
     const hasKickOffReminderDate = !!(state.kickOffReminderDate && state.kickOffReminderTime);
     const kickOffReminder = hasKickOffReminderDate 
       ? true 
-      : (userCronConfig.kickOffReminder ?? selectedConfig?.scheduling?.kickoffReminderEnabled ?? false);
+      : (userCronConfig.kickOffReminder ?? selectedConfig?.releaseSchedule?.kickoffReminderEnabled ?? false);
 
     if (!selectedConfig) {
       return {

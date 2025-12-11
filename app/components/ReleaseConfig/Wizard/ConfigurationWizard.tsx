@@ -288,8 +288,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.SCHEDULING:
         return (
           <SchedulingStepWrapper
-            scheduling={config.scheduling}
-            onChange={(scheduling) => setConfig({ ...config, scheduling })}
+            scheduling={config.releaseSchedule}
+            onChange={(releaseSchedule) => setConfig({ ...config, releaseSchedule })}
             selectedPlatforms={config.platforms || []}
           />
         );

@@ -281,11 +281,11 @@ export const canProceedFromStep = (
       
     case STEP_INDEX.SCHEDULING:
       // If user opted out of scheduling, allow proceed
-      if (!config.scheduling) {
+      if (!config.releaseSchedule) {
         return true;
       }
       // If user opted in, validate scheduling config
-      const schedulingErrors = validateScheduling(config.scheduling);
+      const schedulingErrors = validateScheduling(config.releaseSchedule);
       return schedulingErrors.length === 0;
       
     case STEP_INDEX.REVIEW:

@@ -78,7 +78,7 @@ export function ReleaseSchedulingPanel({
   const kickOffTimeValue = kickOffTime || DEFAULT_KICKOFF_TIME;
   
   // Pre-fill kickoff reminder time from config if available
-  const kickOffReminderTimeValue = kickOffReminderTime || config?.scheduling?.kickoffReminderTime || '';
+  const kickOffReminderTimeValue = kickOffReminderTime || config?.releaseSchedule?.kickoffReminderTime || '';
 
   // Validate kickoff reminder date/time is before kickoff date/time
   const reminderValidation = useMemo(() => {
@@ -146,20 +146,20 @@ export function ReleaseSchedulingPanel({
     }
 
     // Pre-fill times from config if available
-    if (config?.scheduling) {
+    if (config?.releaseSchedule) {
       const updates: Partial<ReleaseCreationState> = {};
       
-      if (config.scheduling.kickoffTime && !kickOffTime) {
-        updates.kickOffTime = config.scheduling.kickoffTime;
+      if (config.releaseSchedule.kickoffTime && !kickOffTime) {
+        updates.kickOffTime = config.releaseSchedule.kickoffTime;
       }
       
-      if (config.scheduling.targetReleaseTime && !targetReleaseTime) {
-        updates.targetReleaseTime = config.scheduling.targetReleaseTime;
+      if (config.releaseSchedule.targetReleaseTime && !targetReleaseTime) {
+        updates.targetReleaseTime = config.releaseSchedule.targetReleaseTime;
       }
 
       // Pre-fill kickoff reminder time from config if available and not already set
-      if (config.scheduling.kickoffReminderTime && !kickOffReminderTime && config.scheduling.kickoffReminderEnabled) {
-        updates.kickOffReminderTime = config.scheduling.kickoffReminderTime;
+      if (config.releaseSchedule.kickoffReminderTime && !kickOffReminderTime && config.releaseSchedule.kickoffReminderEnabled) {
+        updates.kickOffReminderTime = config.releaseSchedule.kickoffReminderTime;
       }
 
       if (Object.keys(updates).length > 0) {
@@ -333,7 +333,7 @@ export function ReleaseSchedulingPanel({
                     Kickoff Reminder
                   </Text>
                   <Text size="xs" c="dimmed">
-                    {config?.scheduling?.kickoffReminderEnabled
+                    {config?.releaseSchedule?.kickoffReminderEnabled
                       ? "Kickoff reminder is enabled in your release config"
                       : "Send a reminder before the release kickoff"}
                   </Text>
@@ -342,7 +342,7 @@ export function ReleaseSchedulingPanel({
               <Switch
                 checked={
                   !!(kickOffReminderDate && kickOffReminderTime) ||
-                  (state.cronConfig?.kickOffReminder ?? config?.scheduling?.kickoffReminderEnabled ?? false)
+                  (state.cronConfig?.kickOffReminder ?? config?.releaseSchedule?.kickoffReminderEnabled ?? false)
                 }
                 onChange={(e) => {
                   const currentCronConfig = state.cronConfig || {};
@@ -365,7 +365,7 @@ export function ReleaseSchedulingPanel({
             {/* Show date/time fields when reminder toggle is enabled */}
             {(state.cronConfig?.kickOffReminder === true || 
               (!state.cronConfig?.kickOffReminder && 
-               (kickOffReminderDate || config?.scheduling?.kickoffReminderEnabled))) && (
+               (kickOffReminderDate || config?.releaseSchedule?.kickoffReminderEnabled))) && (
               <DateTimeInput
                 dateLabel="Kickoff Reminder Date"
                 timeLabel="Kickoff Reminder Time"

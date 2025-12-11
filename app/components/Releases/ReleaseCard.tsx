@@ -150,9 +150,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                         {releaseConfig.releaseType}
                       </Badge>
                     )}
-                    {releaseConfig.scheduling?.regressionSlots && releaseConfig.scheduling.regressionSlots.length > 0 && (
+                    {releaseConfig.releaseSchedule?.regressionSlots && releaseConfig.releaseSchedule.regressionSlots.length > 0 && (
                       <Badge size="sm" variant="outline" color="green">
-                        {releaseConfig.scheduling.regressionSlots.length} Regression Slot{releaseConfig.scheduling.regressionSlots.length !== 1 ? 's' : ''}
+                        {releaseConfig.releaseSchedule.regressionSlots.length} Regression Slot{releaseConfig.releaseSchedule.regressionSlots.length !== 1 ? 's' : ''}
                       </Badge>
                     )}
                   </Group>

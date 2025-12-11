@@ -325,7 +325,7 @@ export function ConfigurationPreviewModal({
         )}
 
         {/* Scheduling */}
-        {config.scheduling && (
+        {config.releaseSchedule && (
           <Card shadow="sm" padding="md" radius="md" withBorder>
             <Group gap="sm" className="mb-3">
               <IconCalendar size={20} className="text-teal-600" />
@@ -338,27 +338,27 @@ export function ConfigurationPreviewModal({
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <Text c="dimmed">Frequency:</Text>
                 <Text fw={500} className="uppercase">
-                  {config.scheduling.releaseFrequency}
+                  {config.releaseSchedule.releaseFrequency}
                 </Text>
                 
-                {config.scheduling.kickoffTime && (
+                {config.releaseSchedule.kickoffTime && (
                   <>
                     <Text c="dimmed">Kickoff Time:</Text>
-                    <Text fw={500}>{config.scheduling.kickoffTime}</Text>
+                    <Text fw={500}>{config.releaseSchedule.kickoffTime}</Text>
                   </>
                 )}
                 
-                {config.scheduling.timezone && (
+                {config.releaseSchedule.timezone && (
                   <>
                     <Text c="dimmed">Timezone:</Text>
-                    <Text fw={500}>{config.scheduling.timezone}</Text>
+                    <Text fw={500}>{config.releaseSchedule.timezone}</Text>
                   </>
                 )}
                 
-                {config.scheduling.regressionSlots && (
+                {config.releaseSchedule.regressionSlots && (
                   <>
                     <Text c="dimmed">Regression Slots:</Text>
-                    <Text fw={500}>{config.scheduling.regressionSlots.length}</Text>
+                    <Text fw={500}>{config.releaseSchedule.regressionSlots.length}</Text>
                   </>
                 )}
               </div>

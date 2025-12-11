@@ -258,13 +258,13 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
 
         {/* Scheduling */}
         <SectionCard icon={IconCalendar} iconColor="cyan" title="Scheduling">
-          {config.scheduling ? (
+          {config.releaseSchedule ? (
             <Stack gap={0}>
               <InfoRow
                 label="Frequency"
                 value={
                   <Badge variant="light" size="sm" color="cyan">
-                    {config.scheduling.releaseFrequency}
+                    {config.releaseSchedule.releaseFrequency}
                   </Badge>
                 }
               />
@@ -272,7 +272,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 label="Timezone"
                 value={
                   <Text size="sm" fw={500}>
-                    {config.scheduling.timezone}
+                    {config.releaseSchedule.timezone}
                   </Text>
                 }
               />
@@ -280,7 +280,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
                 label="Regression Slots"
                 value={
                   <Text size="sm" fw={500}>
-                    {config.scheduling.regressionSlots?.length || 0}
+                    {config.releaseSchedule.regressionSlots?.length || 0}
                   </Text>
                 }
               />

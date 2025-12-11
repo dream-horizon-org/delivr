@@ -313,11 +313,12 @@ export function prepareReleaseConfigPayload(
   // ========================================================================
   // TRANSFORMATION 5: Scheduling - Lowercase releaseFrequency
   // Why: Backend expects lowercase enum ("weekly"), UI uses uppercase ("WEEKLY")
+  // Field name: releaseSchedule (not scheduling)
   // ========================================================================
-  if (config.scheduling) {
-    payload.scheduling = {
-      ...config.scheduling,
-      releaseFrequency: config.scheduling.releaseFrequency.toLowerCase(),
+  if (config.releaseSchedule) {
+    payload.releaseSchedule = {
+      ...config.releaseSchedule,
+      releaseFrequency: config.releaseSchedule.releaseFrequency.toLowerCase(),
     };
   }
 
@@ -638,13 +639,14 @@ export async function transformFromBackend(
   }
 
   // ========================================================================
-  // 5. Reverse scheduling.releaseFrequency (uppercase)
+  // 5. Reverse releaseSchedule.releaseFrequency (uppercase)
   // Backend: lowercase ("weekly") → UI: uppercase ("WEEKLY")
+  // Field name: releaseSchedule (not scheduling)
   // ========================================================================
-  if (backendConfig.scheduling?.releaseFrequency) {
-    frontendConfig.scheduling = {
-      ...backendConfig.scheduling,
-      releaseFrequency: backendConfig.scheduling.releaseFrequency.toUpperCase(),
+  if (backendConfig.releaseSchedule?.releaseFrequency) {
+    frontendConfig.releaseSchedule = {
+      ...backendConfig.releaseSchedule,
+      releaseFrequency: backendConfig.releaseSchedule.releaseFrequency.toUpperCase(),
     };
   }
 
@@ -757,8 +759,8 @@ export function logTransformation(before: any, after: any, operation: 'create' |
   if (before.communicationConfig && after.communicationConfig) {
     transformations.push('  • communicationConfig: extracted from slack wrapper');
   }
-  if (before.scheduling?.releaseFrequency) {
-    transformations.push(`  • scheduling.releaseFrequency: ${before.scheduling.releaseFrequency} → ${after.scheduling?.releaseFrequency} (case transform)`);
+  if (before.releaseSchedule?.releaseFrequency) {
+    transformations.push(`  • releaseSchedule.releaseFrequency: ${before.releaseSchedule.releaseFrequency} → ${after.releaseSchedule?.releaseFrequency} (case transform)`);
   }
   if (before.hasManualBuildUpload !== undefined && after.hasManualBuildUpload !== undefined) {
     transformations.push('  • hasManualBuildUpload: direct pass-through');

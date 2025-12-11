@@ -279,7 +279,7 @@ export function ConfigurationListItem({
             </Paper>
           )}
 
-          {config.scheduling && (
+          {config.releaseSchedule && (
             <>
               <Paper
                 p="xs"
@@ -292,12 +292,12 @@ export function ConfigurationListItem({
                 <Group gap="xs">
                   <IconCalendar size={14} color={theme.other.borders.brand} />
                   <Text size="xs" fw={500} c={theme.other.borders.brand}>
-                    {config.scheduling.releaseFrequency}
+                    {config.releaseSchedule.releaseFrequency}
                   </Text>
                 </Group>
               </Paper>
 
-              {config.scheduling.regressionSlots && config.scheduling.regressionSlots.length > 0 && (
+              {config.releaseSchedule.regressionSlots && config.releaseSchedule.regressionSlots.length > 0 && (
                 <Paper
                   p="xs"
                   radius="sm"
@@ -309,7 +309,7 @@ export function ConfigurationListItem({
                   <Group gap="xs">
                     <IconTarget size={14} color={theme.colors.green[7]} />
                     <Text size="xs" fw={500} c={theme.colors.green[7]}>
-                      {config.scheduling.regressionSlots.length} slots
+                      {config.releaseSchedule.regressionSlots.length} slots
                     </Text>
                   </Group>
                 </Paper>
