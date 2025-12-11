@@ -36,7 +36,14 @@ import {
   createReleaseConfigModel,
   ReleaseConfigRepository
 } from "../models/release-configs";
+import {
+  createReleaseScheduleModel,
+  ReleaseScheduleRepository
+} from "../models/release-schedules";
 import { ReleaseConfigService } from "../services/release-configs";
+import { ReleaseScheduleService } from "../services/release-schedules";
+import { createCronicleService } from "../services/cronicle";
+import type { CronicleService } from "../services/cronicle";
 import {
   createReleaseModel,
   createCronJobModel,
@@ -58,6 +65,7 @@ import { ReleaseCreationService } from "../services/release/release-creation.ser
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
 import { ReleaseStatusService } from "../services/release/release-status.service";
 import { ReleaseUpdateService } from "../services/release/release-update.service";
+import { ReleaseVersionService } from "../services/release/release-version.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -669,9 +677,12 @@ export class S3Storage implements storage.Storage {
     public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
+    public releaseScheduleService!: ReleaseScheduleService;
+    public cronicleService: CronicleService | null = null;
     public releaseCreationService!: ReleaseCreationService;
-    public releaseRetrievalService!: ReleaseRetrievalService; // Slack integration controller (OLD - for backwards compatibility)  // Slack integration repository (NEW - with delete method)
-    public releaseUpdateService!: ReleaseUpdateService;  // Slack integration controller
+    public releaseRetrievalService!: ReleaseRetrievalService;
+    public releaseVersionService!: ReleaseVersionService;
+    public releaseUpdateService!: ReleaseUpdateService;
     public releaseStatusService!: ReleaseStatusService;
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
@@ -886,8 +897,25 @@ export class S3Storage implements storage.Storage {
           // Initialize Release Config (AFTER all integration services are ready)
           const releaseConfigModel = createReleaseConfigModel(this.sequelize);
           this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          
+          // Initialize Release Schedule Repository
+          const releaseScheduleModel = createReleaseScheduleModel(this.sequelize);
+          const releaseScheduleRepository = new ReleaseScheduleRepository(releaseScheduleModel);
+          console.log("Release Schedule Repository initialized");
+          
+          // Initialize Cronicle Service (optional - only if configured)
+          this.cronicleService = this.initializeCronicleService();
+          
+          // Initialize Release Schedule Service
+          this.releaseScheduleService = new ReleaseScheduleService(
+            releaseScheduleRepository,
+            this.cronicleService
+          );
+          console.log("Release Schedule Service initialized");
+          
           this.releaseConfigService = new ReleaseConfigService(
             this.releaseConfigRepository,
+            this.releaseScheduleService,
             this.cicdConfigService,
             this.testManagementConfigService,
             this.commConfigService,
@@ -906,6 +934,12 @@ export class S3Storage implements storage.Storage {
             this.sequelize.models.StateHistory
           );
           
+          // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
+          this.releaseVersionService = new ReleaseVersionService(
+            platformTargetMappingRepo
+          );
+          console.log("Release Version Service initialized");
+          
           this.releaseCreationService = new ReleaseCreationService(
             releaseRepo,
             platformTargetMappingRepo,
@@ -913,7 +947,8 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo,
             stateHistoryRepo,
             this,
-            this.releaseConfigService
+            this.releaseConfigService,
+            this.releaseVersionService
           );
           console.log("Release Creation Service initialized");
           
@@ -924,6 +959,15 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo
           );
           console.log("Release Retrieval Service initialized");
+          
+          // Set dependencies for scheduled release creation (after all services are initialized)
+          this.releaseScheduleService.setReleaseCreationDependencies({
+            releaseConfigService: this.releaseConfigService,
+            releaseRetrievalService: this.releaseRetrievalService,
+            releaseCreationService: this.releaseCreationService,
+            releaseVersionService: this.releaseVersionService
+          });
+          console.log("Release Schedule Service dependencies set");
           
           this.releaseStatusService = new ReleaseStatusService(
             this.releaseRetrievalService,
@@ -970,6 +1014,39 @@ export class S3Storage implements storage.Storage {
           })
           .catch(reject);
       });
+    }
+
+    /**
+     * Initialize Cronicle service if environment variables are configured
+     * Returns null if Cronicle is not configured (optional dependency)
+     */
+    private initializeCronicleService(): CronicleService | null {
+      const cronicleUrl = process.env.CRONICLE_URL;
+      const cronicleApiKey = process.env.CRONICLE_API_KEY;
+      const webhookSecret = process.env.CRONICLE_WEBHOOK_SECRET;
+      const serverBaseUrl = process.env.SERVER_BASE_URL;
+
+      const isCronicleConfigured = cronicleUrl && cronicleApiKey && webhookSecret && serverBaseUrl;
+
+      if (!isCronicleConfigured) {
+        console.log("Cronicle not configured - release schedule jobs will not be created");
+        return null;
+      }
+
+      try {
+        const service = createCronicleService({
+          baseUrl: cronicleUrl,
+          apiKey: cronicleApiKey,
+          webhookSecret: webhookSecret,
+          serverBaseUrl: serverBaseUrl,
+          defaultTimezone: process.env.CRONICLE_DEFAULT_TIMEZONE ?? 'Asia/Kolkata'
+        });
+        console.log("Cronicle Service initialized");
+        return service;
+      } catch (error) {
+        console.error("Failed to initialize Cronicle Service:", error);
+        return null;
+      }
     }
   
     public addAccount(account: storage.Account): Promise<string> {

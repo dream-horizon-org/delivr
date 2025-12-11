@@ -22,6 +22,7 @@ import type { CreateReleasePayload, CreateReleaseResult } from '~types/release';
 import { hasSequelize } from '~types/release';
 import * as storageTypes from '../../storage/storage';
 import { ReleaseConfigService } from '../release-configs/release-config.service';
+import { ReleaseVersionService } from './release-version.service';
 import { validateReleaseCreation } from './release-creation.validation';
 import { createStage1Tasks } from '../../utils/task-creation';
 import { checkIntegrationAvailability } from '../../utils/integration-availability.utils';
@@ -34,7 +35,8 @@ export class ReleaseCreationService {
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly stateHistoryRepo: StateHistoryRepository,
     private readonly storage: storageTypes.Storage,
-    private readonly releaseConfigService: ReleaseConfigService
+    private readonly releaseConfigService: ReleaseConfigService,
+    private readonly releaseVersionService: ReleaseVersionService
   ) {}
 
   /**
@@ -45,7 +47,8 @@ export class ReleaseCreationService {
     const validationResult = await validateReleaseCreation(
       payload,
       this.releaseConfigService,
-      this.releaseRepo
+      this.releaseRepo,
+      this.releaseVersionService
     );
 
     if (!validationResult.isValid) {
@@ -96,7 +99,7 @@ export class ReleaseCreationService {
     const cronJobId = uuidv4();
     const cronConfig = payload.cronConfig || {
       kickOffReminder: true,
-      preRegressionBuilds: false,
+      preRegressionBuilds: true,
       automationBuilds: false,
       automationRuns: false,
       testFlightBuilds: true

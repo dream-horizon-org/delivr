@@ -247,7 +247,6 @@ export interface UpdateReleaseDto {
   kickOffDate?: Date | null;
   kickOffReminderDate?: Date | null;
   targetReleaseDate?: Date | null;
-  plannedDate?: Date | null;
   hasManualBuildUpload?: boolean;
   releasePilotAccountId?: string | null;
   lastUpdatedByAccountId?: string;

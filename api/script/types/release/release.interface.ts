@@ -49,6 +49,18 @@ export interface PlatformTargetVersion {
 }
 
 /**
+ * Lightweight release data with platform targets
+ * Used for scheduled release version bumping
+ */
+export type ReleaseWithPlatformTargets = {
+  id: string;
+  releaseId: string;
+  releaseConfigId: string | null;
+  tenantId: string;
+  platformTargets: PlatformTargetVersion[];
+};
+
+/**
  * Release creation payload (internal service layer)
  * Note: Uses Date objects (not strings) since this is internal to the service layer
  */
@@ -56,7 +68,7 @@ export interface CreateReleasePayload {
   tenantId: string;
   accountId: string;
   platformTargets: PlatformTargetVersion[]; // Array of platform-target-version combinations
-  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   releaseConfigId?: string;
   branch?: string;
   baseBranch?: string;
@@ -173,7 +185,7 @@ export interface ReleaseResponseBody {
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch: string | null;
   baseBranch: string | null;
@@ -217,7 +229,7 @@ export interface UpdateReleaseRequestBody {
   releaseId?: string;
   releaseConfigId?: string;
   tenantId?: string;
-  type?: 'MINOR' | 'HOTFIX' | 'MAJOR';
+  type?: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch?: string;
   baseBranch?: string;

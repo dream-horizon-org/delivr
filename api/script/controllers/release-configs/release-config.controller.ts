@@ -87,7 +87,9 @@ const createConfigHandler = (service: ReleaseConfigService) =>
       // STEP 1: Create release config with integration orchestration
       // ========================================================================
 
-      const result = await service.createConfig(requestBody, currentUserId);
+      // Override body's tenantId with URL param (security: prevent tenant spoofing)
+      const requestWithTenant = { ...requestBody, tenantId };
+      const result = await service.createConfig(requestWithTenant, currentUserId);
       
       if (!result.success) {
         const errorResult = result as { success: false; error: any };
@@ -174,7 +176,8 @@ const updateConfigHandler = (service: ReleaseConfigService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { configId } = req.params;
-      const updateData = req.body;
+      // Strip tenantId from update data - configs cannot change tenant (defense in depth)
+      const { tenantId: _ignoredTenantId, ...updateData } = req.body;
       const currentUserId = req.user?.id;
 
       if (!currentUserId) {

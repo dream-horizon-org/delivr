@@ -67,6 +67,19 @@ export class ReleaseRepository {
     return releases.map(this.toPlainObject.bind(this));
   }
 
+  /**
+   * Find the latest release for a release config
+   * Used for scheduled release version bumping
+   */
+  async findLatestByReleaseConfigId(releaseConfigId: string): Promise<Release | null> {
+    const release = await this.model.findOne({
+      where: { releaseConfigId },
+      order: [['createdAt', 'DESC']]
+    });
+    if (!release) return null;
+    return this.toPlainObject(release);
+  }
+
   async update(id: string, data: UpdateReleaseDto): Promise<Release | null> {
     await this.model.update(data, {
       where: { id }
