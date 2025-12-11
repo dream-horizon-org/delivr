@@ -26,10 +26,27 @@ export { createTargetModel } from './target.sequelize.model';
 export type { TargetAttributes, TargetModelType } from './target.sequelize.model';
 
 export { createBuildModel } from './build.sequelize.model';
-export type { BuildAttributes, BuildModelType, PlatformName, TargetName } from './build.sequelize.model';
+export type { 
+  BuildAttributes, 
+  BuildModelType, 
+  PlatformName, 
+  StoreType,
+  BuildUploadStatus,
+  BuildType,
+  BuildStage,
+  WorkflowStatus,
+  CIRunType
+} from './build.sequelize.model';
 
 export { createRegressionCycleModel } from './regression-cycle.sequelize.model';
 export type { RegressionCycleAttributes, RegressionCycleModelType } from './regression-cycle.sequelize.model';
+
+export { createReleaseUploadModel } from './release-uploads.sequelize.model';
+export type { 
+  ReleaseUploadAttributes, 
+  ReleaseUploadCreationAttributes,
+  UploadStage 
+} from './release-uploads.sequelize.model';
 
 // Repositories
 export { ReleaseRepository } from './release.repository';
@@ -41,6 +58,14 @@ export { PlatformRepository } from './platform.repository';
 export { TargetRepository } from './target.repository';
 export { RegressionCycleRepository } from './regression-cycle.repository';
 export { BuildRepository } from './build.repository';
+export type { Build, CreateBuildDto, UpdateBuildDto } from './build.repository';
+
+export { ReleaseUploadsRepository } from './release-uploads.repository';
+export type { 
+  ReleaseUpload, 
+  CreateReleaseUploadDto, 
+  UpdateReleaseUploadDto 
+} from './release-uploads.repository';
 
 // Interfaces
 export type {

@@ -29,6 +29,8 @@ import { TestManagementRunService } from '../../integrations/test-management/tes
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES } from '../release.constants';
+import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
+import type { PlatformName } from '../../../models/release/release.interface';
 
 /**
  * Task execution result
@@ -104,6 +106,7 @@ export class TaskExecutor {
   private releaseTaskRepo: ReleaseTaskRepository;
   private releaseRepo: ReleaseRepository;
   private sequelize: Sequelize;
+  private releaseUploadsRepo: ReleaseUploadsRepository | null;
 
   constructor(
     private scmService: SCMService,
@@ -114,10 +117,12 @@ export class TaskExecutor {
     private messagingService: MessagingService | null,
     private releaseConfigRepository: ReleaseConfigRepository,
     releaseTaskRepo: ReleaseTaskRepository,
-    releaseRepo: ReleaseRepository
+    releaseRepo: ReleaseRepository,
+    releaseUploadsRepo?: ReleaseUploadsRepository | null
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
+    this.releaseUploadsRepo = releaseUploadsRepo ?? null;
     
     // Initialize Sequelize instance (validate once at construction)
     const storage = getStorage();
@@ -294,7 +299,21 @@ export class TaskExecutor {
       // Extract externalId and externalData based on task category
       const [externalId, externalData] = this.extractExternalData(task.taskType, result);
 
-      // Update task status to COMPLETED
+      // Check if task is waiting for manual builds (don't overwrite AWAITING_CALLBACK)
+      const isAwaitingManualBuild = result === 'AWAITING_MANUAL_BUILD';
+      
+      if (isAwaitingManualBuild) {
+        // Task already set to AWAITING_CALLBACK by the task method - don't overwrite
+        console.log(`[TaskExecutor] Task is AWAITING_MANUAL_BUILD - preserving AWAITING_CALLBACK status`);
+        console.log(`[TaskExecutor] ✅ Task ${task.taskType} waiting for manual builds`);
+        return {
+          success: true,
+          externalId: externalId,
+          externalData: externalData
+        };
+      }
+
+      // Update task status to COMPLETED (normal flow)
       // Use updateById since we have the database ID, not taskId
       console.log(`[TaskExecutor] Updating task status to COMPLETED...`);
       console.log(`[TaskExecutor]   externalId: ${externalId}`);
@@ -497,21 +516,28 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId } = context;
+    const { release, task } = context;
 
-    // TODO: Implement notification sending via SlackChannelConfigService
-    // The SlackIntegrationService doesn't have sendMessage() method
-    // Need to use SlackChannelConfigService.sendMessage() instead
-    // For now, return mock response
-    console.log('[TaskExecutor] TODO: Implement pre-kickoff reminder notification');
-    
-    return {
-      messageId: `mock-${Date.now()}`,
-      template: 'pre-kickoff-reminder',
-      version: getReleaseVersion(release),
-      timestamp: new Date().toISOString(),
-      status: 'pending_implementation'
-    };
+    // Get comms config from release configuration
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const commsConfigId = releaseConfig.commsConfigId;
+
+    // If comms not configured, mark task as SKIPPED (not FAILED)
+    if (!commsConfigId || !this.messagingService) {
+      console.log(`[TaskExecutor] PRE_KICK_OFF_REMINDER: comms not configured, marking as SKIPPED`);
+      await this.releaseTaskRepo.update(task.id, {
+        taskStatus: TaskStatus.SKIPPED
+      });
+      return { skipped: true, reason: 'comms_not_configured' };
+    }
+
+    // TODO: Define Task enum value for pre-kickoff reminder in messaging.interface.ts
+    // For now, mark as SKIPPED until messaging templates are implemented
+    console.log(`[TaskExecutor] PRE_KICK_OFF_REMINDER: messaging not implemented, marking as SKIPPED`);
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.SKIPPED
+    });
+    return { skipped: true, reason: 'messaging_not_implemented' };
   }
 
   /**
@@ -542,24 +568,9 @@ export class TaskExecutor {
     // Get PlatformTargetMapping model for updating records
     const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
 
-    // If PM not configured, return mock success (allows tests to proceed)
+    // PM integration must be configured if this task exists
     if (!pmConfigId) {
-      console.log('[TaskExecutor] PM integration not configured - using mock ticket results');
-      const mockTicketIds = platformMappings.map(m => `MOCK-${m.platform}-${Date.now()}`);
-      
-      // Update mapping records with mock ticket IDs
-      for (let i = 0; i < platformMappings.length; i++) {
-        const mapping = platformMappings[i];
-        const mockTicketId = mockTicketIds[i];
-        if (PlatformTargetMappingModel) {
-          await PlatformTargetMappingModel.update(
-            { projectManagementRunId: mockTicketId },
-            { where: { id: mapping.id } }
-          );
-        }
-      }
-      
-      return mockTicketIds.join(',');
+      throw new Error(RELEASE_ERROR_MESSAGES.PM_INTEGRATION_NOT_CONFIGURED);
     }
 
     const ticketIds: string[] = [];
@@ -628,24 +639,13 @@ export class TaskExecutor {
     // Get PlatformTargetMapping model for updating records
     const PlatformTargetMappingModel = this.sequelize.models.PlatformTargetMapping;
     
-    // 3. Check if configured - return mock if not (allows tests to proceed)
-    if (!testConfigId || !this.testRunService) {
-      console.log('[TaskExecutor] Test Management not configured - using mock test run results');
-      const mockRunIds = platformMappings.map(m => `mock-test-${m.platform}-${Date.now()}`);
-      
-      // Update mapping records with mock run IDs
-      for (let i = 0; i < platformMappings.length; i++) {
-        const mapping = platformMappings[i];
-        const mockRunId = mockRunIds[i];
-        if (PlatformTargetMappingModel) {
-          await PlatformTargetMappingModel.update(
-            { testManagementRunId: mockRunId },
-            { where: { id: mapping.id } }
-          );
-        }
-      }
-      
-      return mockRunIds.join(',');
+    // 3. Test management must be configured if this task exists
+    if (!testConfigId) {
+      throw new Error(RELEASE_ERROR_MESSAGES.TEST_MANAGEMENT_NOT_CONFIGURED);
+    }
+    
+    if (!this.testRunService) {
+      throw new Error(RELEASE_ERROR_MESSAGES.TEST_PLATFORM_NOT_AVAILABLE);
     }
 
     const runIds: string[] = [];
@@ -683,104 +683,157 @@ export class TaskExecutor {
   /**
    * Execute TRIGGER_PRE_REGRESSION_BUILDS task (Category A)
    * 
-   * Triggers pre-regression builds via CI/CD integration.
-   * Creates build records in builds table for each platform.
+   * Two modes:
+   * 1. Manual Mode (hasManualBuildUpload=true): Checks release_uploads table for builds
+   * 2. CI/CD Mode (hasManualBuildUpload=false): Triggers CI/CD pipeline
+   * 
    * Returns: Simple string (comma-separated build numbers, e.g., '1.4.3-ios-1,1.4.3-and-1')
+   *          or 'AWAITING_MANUAL_BUILD' if waiting for uploads
    */
   private async executeTriggerPreRegressionBuilds(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId } = context;
+    const { release, tenantId, task } = context;
 
-    // Get release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
-    
     // Get platforms from platformTargetMappings (new schema uses ENUMs)
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings ?? [];
     if (platformMappings.length === 0) {
-      // No platforms configured - return empty success
       return '';
     }
+    
+    const platforms = platformMappings.map(m => m.platform as PlatformName);
 
-    // Get Build model for build operations (uses ENUM for platform/target, not FKs)
-    const BuildModel = this.sequelize.models.Build;
+    // ========================================================================
+    // MANUAL MODE: Check release_uploads table for builds
+    // ========================================================================
+    if (release.hasManualBuildUpload) {
+      console.log(`[TaskExecutor] Manual mode for PRE_REGRESSION: checking uploads for platforms [${platforms.join(', ')}]`);
+      
+      if (!this.releaseUploadsRepo) {
+        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
+      }
 
-    // If CI/CD not configured, return mock success (allows tests to proceed)
-    if (!workflowId) {
-      console.log('[TaskExecutor] CICD not configured - using mock pre-regression build results');
-      const mockBuildNumbers: string[] = [];
+      // Check if all platforms have uploads ready
+      const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
+        context.releaseId,
+        'PRE_REGRESSION',
+        platforms
+      );
+
+      console.log(`[TaskExecutor] Manual mode check for PRE_REGRESSION: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
+
+      if (!readiness.allReady) {
+        // Set task to AWAITING_CALLBACK and return special marker
+        await this.releaseTaskRepo.update(task.id, {
+          taskStatus: TaskStatus.AWAITING_CALLBACK
+        });
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual builds`);
+        return 'AWAITING_MANUAL_BUILD';
+      }
+
+      // All platforms ready - consume uploads and create build records
+      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'PRE_REGRESSION');
+      const BuildModel = this.sequelize.models.Build;
+      const buildNumbers: string[] = [];
+
       for (const mapping of platformMappings) {
-        const mockBuildNumber = `mock-pre-regression-${mapping.platform}-${Date.now()}`;
-        mockBuildNumbers.push(mockBuildNumber);
-        
-        // Create mock build record if model exists
-        if (BuildModel) {
-          await BuildModel.create({
-            id: `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            number: mockBuildNumber,
-            link: `https://mock-ci/builds/${mockBuildNumber}`,
-            releaseId: release.id,
-            platform: mapping.platform,
-            target: mapping.target,
-            regressionId: null
-          });
+        const platformName = mapping.platform as PlatformName;
+        const targetName = mapping.target;
+        const upload = uploads.find(u => u.platform === platformName);
+
+        if (upload) {
+          // Mark upload as used
+          await this.releaseUploadsRepo.markAsUsed(upload.id, task.id, null);
+          
+          // Extract filename from artifactPath for display
+          const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
+
+          // Create build record from manual upload
+          const buildId = uuidv4();
+          if (BuildModel) {
+            await BuildModel.create({
+              id: buildId,
+              tenantId: tenantId,
+              buildNumber: uploadFileName,
+              artifactPath: upload.artifactPath,
+              releaseId: context.releaseId,
+              platform: platformName,
+              storeType: targetName,
+              regressionId: null,
+              buildUploadStatus: 'UPLOADED',
+              buildType: 'MANUAL',
+              buildStage: 'KICK_OFF',
+              queueLocation: null,
+              workflowStatus: null
+            });
+          }
+
+          buildNumbers.push(uploadFileName);
+          console.log(`[TaskExecutor] Consumed manual upload for ${platformName}: ${uploadFileName}`);
         }
       }
-      return mockBuildNumbers.join(',');
+
+      console.log(`[TaskExecutor] Manual mode PRE_REGRESSION completed: ${buildNumbers.join(',')}`);
+      return buildNumbers.join(',');
     }
 
-    // Get the appropriate workflow service
+    // ========================================================================
+    // CI/CD MODE: Trigger CI/CD pipeline
+    // ========================================================================
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const workflowId = releaseConfig.ciConfigId;
+
+    if (!workflowId) {
+      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+    }
+
     const workflowService = await this.getWorkflowService(workflowId);
+    const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
       throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
     }
 
     const buildNumbers: string[] = [];
-    const createdBuilds: Array<{ platform: string; buildNumber: string; buildId: string }> = [];
 
-    // Trigger build for each platform-target mapping
     for (const mapping of platformMappings) {
-      const platformName = mapping.platform; // IOS, ANDROID, or WEB (ENUM)
-      const targetName = mapping.target; // PLAY_STORE, APP_STORE, WEB (ENUM)
+      const platformName = mapping.platform;
+      const targetName = mapping.target;
 
-      // Call workflow service trigger with correct parameters
       const result = await workflowService.trigger(tenantId, {
         workflowId: workflowId,
         workflowType: WorkflowType.PRE_REGRESSION_BUILD,
         platform: platformName,
         jobParameters: {
           platform: platformName,
-          version: mapping.version || getReleaseVersion(release),
-          branch: release.branch || `release/v${getReleaseVersion(release)}`,
+          version: mapping.version ?? getReleaseVersion(release),
+          branch: release.branch ?? `release/v${getReleaseVersion(release)}`,
           buildType: 'pre-regression'
         }
       });
 
-      const buildNumber = result.queueLocation || `build-${Date.now()}`;
-
-      // Create build record in builds table (using ENUM columns, not FK)
+      const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
+
       await BuildModel.create({
         id: buildId,
-        number: buildNumber,
-        link: result.queueLocation,
+        tenantId: tenantId,
+        buildNumber: buildNumber,
+        artifactPath: result.queueLocation,
         releaseId: context.releaseId,
-        platform: platformName,  // ENUM column
-        target: targetName,      // ENUM column
-        regressionId: null
+        platform: platformName,
+        storeType: targetName,
+        regressionId: null,
+        buildUploadStatus: 'PENDING',
+        buildType: 'CI_CD',
+        buildStage: 'KICK_OFF',
+        queueLocation: result.queueLocation,
+        workflowStatus: 'PENDING'
       });
 
       buildNumbers.push(buildNumber);
-      createdBuilds.push({
-        platform: platformName,
-        buildNumber: buildNumber,
-        buildId: buildId
-      });
     }
 
-    // Category A: Return raw string (comma-separated build numbers)
     return buildNumbers.join(',');
   }
 
@@ -982,8 +1035,12 @@ export class TaskExecutor {
   /**
    * Execute TRIGGER_REGRESSION_BUILDS task (Category A)
    * 
-   * Triggers regression builds via CI/CD integration.
+   * Two modes:
+   * 1. Manual Mode (hasManualBuildUpload=true): Checks release_uploads table for builds
+   * 2. CI/CD Mode (hasManualBuildUpload=false): Triggers CI/CD pipeline
+   * 
    * Returns: Simple string (comma-separated build numbers, e.g., '1.4.3-ios-2,1.4.3-and-2')
+   *          or 'AWAITING_MANUAL_BUILD' if waiting for uploads
    */
   private async executeTriggerRegressionBuilds(
     context: TaskExecutionContext
@@ -994,96 +1051,144 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
     }
 
-    // Get release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
-    
-    // Get platforms from platformTargetMappings (new schema uses ENUMs)
-    const platformMappings = context.platformTargetMappings || [];
+    const platformMappings = context.platformTargetMappings ?? [];
     if (platformMappings.length === 0) {
-      // No platforms configured - return empty success
       return '';
     }
-
-    // Get Build model (uses ENUM for platform/target, not FKs)
-    const BuildModel = this.sequelize.models.Build;
     
-    // If CI/CD not configured, return mock success (allows tests to proceed)
-    if (!workflowId) {
-      console.log('[TaskExecutor] CICD not configured - using mock build results');
-      const mockBuildNumbers: string[] = [];
+    const platforms = platformMappings.map(m => m.platform as PlatformName);
+
+    // ========================================================================
+    // MANUAL MODE: Check release_uploads table for builds
+    // ========================================================================
+    if (release.hasManualBuildUpload) {
+      console.log(`[TaskExecutor] Manual mode for REGRESSION (cycle ${task.regressionId}): checking uploads for platforms [${platforms.join(', ')}]`);
+      
+      if (!this.releaseUploadsRepo) {
+        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
+      }
+
+      // Check if all platforms have uploads ready
+      const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
+        context.releaseId,
+        'REGRESSION',
+        platforms
+      );
+
+      console.log(`[TaskExecutor] Manual mode check for REGRESSION: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
+
+      if (!readiness.allReady) {
+        await this.releaseTaskRepo.update(task.id, {
+          taskStatus: TaskStatus.AWAITING_CALLBACK
+        });
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual regression builds`);
+        return 'AWAITING_MANUAL_BUILD';
+      }
+
+      // All platforms ready - consume uploads
+      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'REGRESSION');
+      const BuildModel = this.sequelize.models.Build;
+      const buildNumbers: string[] = [];
+
       for (const mapping of platformMappings) {
-        const mockBuildNumber = `mock-regression-${mapping.platform}-${Date.now()}`;
-        mockBuildNumbers.push(mockBuildNumber);
-        
-        // Create mock build record if model exists
-        if (BuildModel) {
-          await BuildModel.create({
-            id: `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            number: mockBuildNumber,
-            link: `https://mock-ci/builds/${mockBuildNumber}`,
-            releaseId: release.id,
-            platform: mapping.platform,
-            target: mapping.target,
-            regressionId: task.regressionId
-          });
+        const platformName = mapping.platform as PlatformName;
+        const targetName = mapping.target;
+        const upload = uploads.find(u => u.platform === platformName);
+
+        if (upload) {
+          // Mark upload as used (with cycle ID for regression)
+          await this.releaseUploadsRepo.markAsUsed(upload.id, task.id, task.regressionId);
+          
+          // Extract filename from artifactPath for display
+          const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
+
+          // Create build record from manual upload
+          const buildId = uuidv4();
+          if (BuildModel) {
+            await BuildModel.create({
+              id: buildId,
+              tenantId: tenantId,
+              buildNumber: uploadFileName,
+              artifactPath: upload.artifactPath,
+              releaseId: context.releaseId,
+              platform: platformName,
+              storeType: targetName,
+              regressionId: task.regressionId,
+              buildUploadStatus: 'UPLOADED',
+              buildType: 'MANUAL',
+              buildStage: 'REGRESSION',
+              queueLocation: null,
+              workflowStatus: null
+            });
+          }
+
+          buildNumbers.push(uploadFileName);
+          console.log(`[TaskExecutor] Consumed manual upload for ${platformName} (cycle ${task.regressionId}): ${uploadFileName}`);
         }
       }
-      return mockBuildNumbers.join(',');
+
+      console.log(`[TaskExecutor] Manual mode REGRESSION completed: ${buildNumbers.join(',')}`);
+      return buildNumbers.join(',');
     }
 
-    // Get the appropriate workflow service
+    // ========================================================================
+    // CI/CD MODE: Trigger CI/CD pipeline
+    // ========================================================================
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const workflowId = releaseConfig.ciConfigId;
+
+    if (!workflowId) {
+      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+    }
+
     const workflowService = await this.getWorkflowService(workflowId);
+    const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
       throw new Error(RELEASE_ERROR_MESSAGES.REQUIRED_MODELS_NOT_FOUND_BUILD);
     }
 
     const buildNumbers: string[] = [];
-    const createdBuilds: Array<{ platform: string; buildNumber: string; buildId: string }> = [];
 
-    // Trigger build for each platform-target mapping
     for (const mapping of platformMappings) {
-      const platformName = mapping.platform; // IOS, ANDROID, or WEB (ENUM)
-      const targetName = mapping.target; // PLAY_STORE, APP_STORE, WEB (ENUM)
+      const platformName = mapping.platform;
+      const targetName = mapping.target;
 
-      // Call workflow service trigger with correct parameters
       const result = await workflowService.trigger(tenantId, {
         workflowId: workflowId,
         workflowType: WorkflowType.REGRESSION_BUILD,
         platform: platformName,
         jobParameters: {
           platform: platformName,
-          version: mapping.version || getReleaseVersion(release),
-          branch: release.branch || `release/v${getReleaseVersion(release)}`,
+          version: mapping.version ?? getReleaseVersion(release),
+          branch: release.branch ?? `release/v${getReleaseVersion(release)}`,
           buildType: 'regression',
           regressionId: task.regressionId
         }
       });
 
-      const buildNumber = result.queueLocation || `build-${Date.now()}`;
-
-      // Create build record in builds table (using ENUM columns, not FK)
+      const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
+
       await BuildModel.create({
         id: buildId,
-        number: buildNumber,
-        link: result.queueLocation,
+        tenantId: tenantId,
+        buildNumber: buildNumber,
+        artifactPath: result.queueLocation,
         releaseId: context.releaseId,
-        platform: platformName,  // ENUM column
-        target: targetName,      // ENUM column
-        regressionId: task.regressionId
+        platform: platformName,
+        storeType: targetName,
+        regressionId: task.regressionId,
+        buildUploadStatus: 'PENDING',
+        buildType: 'CI_CD',
+        buildStage: 'REGRESSION',
+        queueLocation: result.queueLocation,
+        workflowStatus: 'PENDING'
       });
 
       buildNumbers.push(buildNumber);
-      createdBuilds.push({
-        platform: platformName,
-        buildNumber: buildNumber,
-        buildId: buildId
-      });
     }
 
-    // Category A: Return raw string (comma-separated build numbers)
     return buildNumbers.join(',');
   }
 
@@ -1113,11 +1218,9 @@ export class TaskExecutor {
       return '';
     }
 
-    // If CI/CD not configured, return mock success (allows tests to proceed)
+    // CI/CD workflow must be configured if this task exists
     if (!workflowId) {
-      console.log('[TaskExecutor] CICD not configured - using mock automation run results');
-      const mockRunIds = platformMappings.map(m => `mock-automation-${m.platform}-${Date.now()}`);
-      return mockRunIds.join(',');
+      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
     // Get the appropriate workflow service
@@ -1232,10 +1335,19 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId, task } = context;
+    const { release, task } = context;
 
-    if (!this.messagingService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.NOTIFICATION_INTEGRATION_NOT_AVAILABLE);
+    // Get comms config from release configuration
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const commsConfigId = releaseConfig.commsConfigId;
+
+    // If comms not configured, mark task as SKIPPED (not FAILED)
+    if (!commsConfigId || !this.messagingService) {
+      console.log(`[TaskExecutor] SEND_REGRESSION_BUILD_MESSAGE: comms not configured, marking as SKIPPED`);
+      await this.releaseTaskRepo.update(task.id, {
+        taskStatus: TaskStatus.SKIPPED
+      });
+      return { skipped: true, reason: 'comms_not_configured' };
     }
 
     if (!task.regressionId) {
@@ -1254,21 +1366,13 @@ export class TaskExecutor {
       throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
     }
 
-    const cycleTag = (cycle as any).cycleTag;
-
-    // Send regression build message - returns messageId (string)
-    // TODO: Implement notification sending via SlackChannelConfigService
-    console.log("[TaskExecutor] TODO: Implement notification");
-    const messageId = `mock-${Date.now()}`;
-
-    // Category B: Return raw object
-    return {
-      messageId: messageId,
-      template: 'regression-builds',
-      cycleTag: cycleTag,
-      version: getReleaseVersion(release),
-      timestamp: new Date().toISOString()
-    };
+    // TODO: Define Task enum value for regression builds message in messaging.interface.ts
+    // For now, mark as SKIPPED until messaging templates are implemented
+    console.log(`[TaskExecutor] SEND_REGRESSION_BUILD_MESSAGE: messaging not implemented, marking as SKIPPED`);
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.SKIPPED
+    });
+    return { skipped: true, reason: 'messaging_not_implemented' };
   }
 
   /**
@@ -1286,25 +1390,28 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId } = context;
+    const { release, task } = context;
 
-    if (!this.messagingService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.NOTIFICATION_INTEGRATION_NOT_AVAILABLE);
+    // Get comms config from release configuration
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const commsConfigId = releaseConfig.commsConfigId;
+
+    // If comms not configured, mark task as SKIPPED (not FAILED)
+    if (!commsConfigId || !this.messagingService) {
+      console.log(`[TaskExecutor] PRE_RELEASE_CHERRY_PICKS_REMINDER: comms not configured, marking as SKIPPED`);
+      await this.releaseTaskRepo.update(task.id, {
+        taskStatus: TaskStatus.SKIPPED
+      });
+      return { skipped: true, reason: 'comms_not_configured' };
     }
 
-    // Send cherry picks reminder message - returns messageId (string)
-    // TODO: Implement notification sending via SlackChannelConfigService
-    console.log("[TaskExecutor] TODO: Implement notification");
-    const messageId = `mock-${Date.now()}`;
-
-    // Category B: Return raw object
-    return {
-      messageId: messageId,
-      template: 'cherry-picks-reminder',
-      version: getReleaseVersion(release),
-      branch: release.branch,
-      timestamp: new Date().toISOString()
-    };
+    // TODO: Define Task enum value for cherry picks reminder in messaging.interface.ts
+    // For now, mark as SKIPPED until messaging templates are implemented
+    console.log(`[TaskExecutor] PRE_RELEASE_CHERRY_PICKS_REMINDER: messaging not implemented, marking as SKIPPED`);
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.SKIPPED
+    });
+    return { skipped: true, reason: 'messaging_not_implemented' };
   }
 
   /**
@@ -1447,10 +1554,9 @@ export class TaskExecutor {
     // Get iOS mapping for version
     const iosMapping = platformMappings.find(m => m.platform === 'IOS');
 
-    // If CI/CD not configured, return mock success (allows tests to proceed)
+    // CI/CD workflow must be configured if this task exists
     if (!workflowId) {
-      console.log('[TaskExecutor] CICD not configured - using mock TestFlight build result');
-      return `mock-testflight-ios-${Date.now()}`;
+      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
     // Get the appropriate workflow service
@@ -1488,33 +1594,28 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId } = context;
+    const { release, task } = context;
 
-    if (!this.messagingService) {
-      throw new Error(RELEASE_ERROR_MESSAGES.NOTIFICATION_INTEGRATION_NOT_AVAILABLE);
+    // Get comms config from release configuration
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const commsConfigId = releaseConfig.commsConfigId;
+
+    // If comms not configured, mark task as SKIPPED (not FAILED)
+    if (!commsConfigId || !this.messagingService) {
+      console.log(`[TaskExecutor] SEND_POST_REGRESSION_MESSAGE: comms not configured, marking as SKIPPED`);
+      await this.releaseTaskRepo.update(task.id, {
+        taskStatus: TaskStatus.SKIPPED
+      });
+      return { skipped: true, reason: 'comms_not_configured' };
     }
 
-    // Get release tag from CREATE_RELEASE_TAG task
-    const stage3Tasks = await this.releaseTaskRepo.findByReleaseIdAndStage(
-      context.releaseId,
-      TaskStage.POST_REGRESSION
-    );
-    const createReleaseTagTask = stage3Tasks.find(t => t.taskType === TaskType.CREATE_RELEASE_TAG);
-    const releaseTag = createReleaseTagTask?.externalId || getReleaseVersion(release);
-
-    // Send post-regression message (approval request) - returns messageId (string)
-    // TODO: Implement notification sending via SlackChannelConfigService
-    console.log("[TaskExecutor] TODO: Implement notification");
-    const messageId = `mock-${Date.now()}`;
-
-    // Category B: Return raw object
-    return {
-      messageId: messageId,
-      template: 'post-regression-tag',
-      releaseTag: releaseTag,
-      version: getReleaseVersion(release),
-      timestamp: new Date().toISOString()
-    };
+    // TODO: Define Task enum value for post-regression message in messaging.interface.ts
+    // For now, mark as SKIPPED until messaging templates are implemented
+    console.log(`[TaskExecutor] SEND_POST_REGRESSION_MESSAGE: messaging not implemented, marking as SKIPPED`);
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.SKIPPED
+    });
+    return { skipped: true, reason: 'messaging_not_implemented' };
   }
 
   /**

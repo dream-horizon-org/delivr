@@ -20,6 +20,8 @@ import { CronJobRepository } from '~models/release/cron-job.repository';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
 import { RegressionCycleRepository } from '~models/release/regression-cycle.repository';
+import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
+import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
 import { TaskExecutor } from '~services/release/task-executor/task-executor';
 import { Storage } from '~storage/storage';
 import { StageStatus, CronStatus, ReleaseStatus } from '~models/release/release.interface';
@@ -35,7 +37,11 @@ export class CronJobStateMachine {
     private releaseTaskRepo: ReleaseTaskRepository,
     private regressionCycleRepo: RegressionCycleRepository,
     private taskExecutor: TaskExecutor,
-    private storage: Storage
+    private storage: Storage,
+    // Platform mapping repo - required for production, optional for unit tests with mocks
+    private platformMappingRepo?: ReleasePlatformTargetMappingRepository,
+    // Optional repository for manual build upload feature
+    private releaseUploadsRepo?: ReleaseUploadsRepository
   ) {
     // Note: We'll set initial state after async initialization
   }
@@ -326,6 +332,26 @@ export class CronJobStateMachine {
       throw new Error(`Cron job not found for release ${this.releaseId}`);
     }
     return cronJob.id;
+  }
+
+  // ========================================================================
+  // Optional Repository Getters (for manual build upload feature)
+  // ========================================================================
+
+  /**
+   * Get release uploads repository (for manual build upload feature)
+   * Returns undefined if not provided during construction
+   */
+  getReleaseUploadsRepo(): ReleaseUploadsRepository | undefined {
+    return this.releaseUploadsRepo;
+  }
+
+  /**
+   * Get platform mapping repository (for getting release platforms)
+   * Returns undefined if not provided during construction
+   */
+  getPlatformMappingRepo(): ReleasePlatformTargetMappingRepository | undefined {
+    return this.platformMappingRepo;
   }
 }
 

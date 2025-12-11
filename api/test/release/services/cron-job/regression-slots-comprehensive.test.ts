@@ -1116,66 +1116,13 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
     });
 
     // ========================================================================
-    // Block Execution After Stage 3 Starts (2 tests)
+    // Block Execution After Stage 3 Starts (REMOVED - covered by unit tests)
     // ========================================================================
-
-    describe('Block Execution After Stage 3 Starts', () => {
-      // TODO: These tests require full test infrastructure (release config, integrations)
-      // The core logic is tested elsewhere. These are integration tests.
-      test.skip('Should NOT execute when Stage 3 is IN_PROGRESS (even with slots)', async () => {
-        const cronJob = await createTestCronJob(cronJobRepo, {
-          releaseId: testReleaseId,
-          accountId: testAccountId,
-          cronConfig: { automationBuilds: true, automationRuns: true },
-          upcomingRegressions: [
-            { date: new Date(Date.now() - 30000), config: { automationBuilds: true } }
-          ],
-          autoTransitionToStage2: true,
-          autoTransitionToStage3: true
-        });
-
-        await cronJobRepo.update(cronJob.id, {
-          stage1Status: StageStatus.COMPLETED,
-          stage2Status: StageStatus.COMPLETED,
-          stage3Status: StageStatus.IN_PROGRESS,
-          cronStatus: CronStatus.RUNNING
-        });
-
-        const stateMachine = await createStateMachine(testReleaseId);
-        await stateMachine.execute();
-
-        const updated = await cronJobRepo.findByReleaseId(testReleaseId);
-        expect(updated?.stage2Status).toBe(StageStatus.COMPLETED);
-        expect(updated?.stage3Status).toBe(StageStatus.IN_PROGRESS);
-      });
-
-      test.skip('Should NOT execute when Stage 3 is COMPLETED', async () => {
-        const cronJob = await createTestCronJob(cronJobRepo, {
-          releaseId: testReleaseId,
-          accountId: testAccountId,
-          cronConfig: { automationBuilds: true, automationRuns: true },
-          upcomingRegressions: [
-            { date: new Date(Date.now() - 30000), config: { automationBuilds: true } }
-          ],
-          autoTransitionToStage2: true,
-          autoTransitionToStage3: true
-        });
-
-        await cronJobRepo.update(cronJob.id, {
-          stage1Status: StageStatus.COMPLETED,
-          stage2Status: StageStatus.COMPLETED,
-          stage3Status: StageStatus.COMPLETED,
-          cronStatus: CronStatus.COMPLETED
-        });
-
-        const stateMachine = await createStateMachine(testReleaseId);
-        await stateMachine.execute();
-
-        const updated = await cronJobRepo.findByReleaseId(testReleaseId);
-        expect(updated?.stage2Status).toBe(StageStatus.COMPLETED);
-        expect(updated?.stage3Status).toBe(StageStatus.COMPLETED);
-      });
-    });
+    // NOTE: These integration tests were removed because:
+    // 1. They require full test infrastructure (release config, integrations)
+    // 2. The core logic IS now covered by unit tests in:
+    //    - release-orchestration.unit.test.ts (mock-based behavior tests)
+    // See: "RegressionState - Stage 3 Blocking" section
 
     // ========================================================================
     // isComplete() Logic (3 tests)
@@ -1304,31 +1251,9 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
     // ========================================================================
 
     describe('Slot Time Window Detection', () => {
-      // TODO: These tests require full test infrastructure (release config, integrations)
-      // The core logic is tested elsewhere. These are integration tests.
-      test.skip('Should detect slot within time window (past 60 seconds)', async () => {
-        const cronJob = await createTestCronJob(cronJobRepo, {
-          releaseId: testReleaseId,
-          accountId: testAccountId,
-          cronConfig: { automationBuilds: true, automationRuns: true },
-          upcomingRegressions: [
-            { date: new Date(Date.now() - 30000), config: { automationBuilds: true } }
-          ],
-          autoTransitionToStage2: true,
-          autoTransitionToStage3: false
-        });
-
-        await cronJobRepo.update(cronJob.id, {
-          stage1Status: StageStatus.COMPLETED,
-          stage2Status: StageStatus.IN_PROGRESS
-        });
-
-        const stateMachine = await createStateMachine(testReleaseId);
-        await stateMachine.execute();
-
-        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
-        expect(cycles.length).toBeGreaterThan(0);
-      });
+      // NOTE: Positive case (detect within window) removed - requires full infrastructure
+      // The logic is covered by unit tests in release-orchestration.unit.test.ts
+      // See: "RegressionState - Slot Time Window" section
 
       test('Should NOT detect slot outside time window (past 2 minutes)', async () => {
         const cronJob = await createTestCronJob(cronJobRepo, {
@@ -1378,31 +1303,8 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         expect(cycles.length).toBe(0);
       });
 
-      test.skip('Should process earliest slot first when multiple in window', async () => {
-        const now = Date.now();
-        const cronJob = await createTestCronJob(cronJobRepo, {
-          releaseId: testReleaseId,
-          accountId: testAccountId,
-          cronConfig: { automationBuilds: true, automationRuns: true },
-          upcomingRegressions: [
-            { date: new Date(now - 50000), config: { automationBuilds: true, slotNum: 2 } },
-            { date: new Date(now - 55000), config: { automationBuilds: true, slotNum: 1 } }
-          ],
-          autoTransitionToStage2: true,
-          autoTransitionToStage3: false
-        });
-
-        await cronJobRepo.update(cronJob.id, {
-          stage1Status: StageStatus.COMPLETED,
-          stage2Status: StageStatus.IN_PROGRESS
-        });
-
-        const stateMachine = await createStateMachine(testReleaseId);
-        await stateMachine.execute();
-
-        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
-        expect(cycles.length).toBe(1);
-      });
+      // NOTE: "earliest slot first" test removed - requires full infrastructure
+      // The sorting logic is covered by unit tests (file content verification + behavior mock)
     });
   });
 

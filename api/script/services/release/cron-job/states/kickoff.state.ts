@@ -14,11 +14,12 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import type { CronJobStateMachine } from '../cron-job-state-machine';
-import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus } from '~models/release/release.interface';
+import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
 import { getOrderedTasks, canExecuteTask, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { hasSequelize } from '~types/release/api-types';
 import { startCronJob, stopCronJob } from '~services/release/cron-job/cron-scheduler';
+import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class KickoffState implements ICronJobState {
   constructor(private context: CronJobStateMachine) {}
@@ -95,6 +96,47 @@ export class KickoffState implements ICronJobState {
       
       const tasks = await tasksPromise;
       console.log(`[${instanceId}] [KickoffState] Found ${tasks.length} Stage 1 tasks`);
+
+      // ✅ MANUAL BUILD CHECK: Process any tasks waiting for manual builds
+      if (release.hasManualBuildUpload) {
+        const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
+        
+        if (releaseUploadsRepo) {
+          // Get release platforms
+          const platforms = await this.getReleasePlatforms(release);
+          
+          const manualBuildResults = await processAwaitingManualBuildTasks(
+            releaseId,
+            tasks,
+            true,
+            platforms,
+            releaseUploadsRepo,
+            releaseTaskRepo
+          );
+
+          // Log results
+          for (const [taskId, result] of manualBuildResults) {
+            if (result.consumed) {
+              console.log(
+                `[${instanceId}] [KickoffState] Manual build consumed for task ${taskId}. ` +
+                `Task is now COMPLETED.`
+              );
+            } else if (result.checked && !result.allReady) {
+              console.log(
+                `[${instanceId}] [KickoffState] Task ${taskId} still waiting for uploads. ` +
+                `Missing: [${result.missingPlatforms.join(', ')}]`
+              );
+            }
+          }
+          
+          // If any task was completed, re-fetch tasks to get updated statuses
+          const anyCompleted = Array.from(manualBuildResults.values()).some(r => r.consumed);
+          if (anyCompleted) {
+            console.log(`[${instanceId}] [KickoffState] Some tasks completed. Re-fetching task list.`);
+            // Continue with the rest of the execution - tasks will be re-checked
+          }
+        }
+      }
 
       // Check integration availability - use injected storage from context
       const storageInstance = this.context.getStorage();
@@ -303,6 +345,30 @@ export class KickoffState implements ICronJobState {
   // ========================================================================
   // Private Helper Methods
   // ========================================================================
+
+  /**
+   * Get release platforms from platform mappings
+   */
+  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
+    // Try to get from storage if available
+    const storageInstance = this.context.getStorage();
+    if (hasSequelize(storageInstance)) {
+      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
+      if (platformMappingRepo) {
+        const mappings = await platformMappingRepo.getByReleaseId(release.id);
+        if (mappings && mappings.length > 0) {
+          // Map to PlatformName enum values (mappings.platform is compatible with PlatformName)
+          const platforms = mappings
+            .map(m => m.platform as unknown as PlatformName)
+            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
+          return platforms;
+        }
+      }
+    }
+    
+    // No platform mappings found - this is a configuration error
+    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
+  }
 
   /**
    * Check if it's time to execute a specific task type
