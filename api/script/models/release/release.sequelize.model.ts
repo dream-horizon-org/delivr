@@ -77,7 +77,7 @@ export const createReleaseModel = (
         comment: 'Release lifecycle status'
       },
       type: {
-        type: DataTypes.ENUM('PLANNED', 'HOTFIX', 'MAJOR'),
+        type: DataTypes.ENUM('MINOR', 'HOTFIX', 'MAJOR'),
         allowNull: false,
         field: 'type'
       },

@@ -11,10 +11,14 @@ import { CronJobRepository } from '../../../models/release/cron-job.repository';
 import { ReleaseRepository } from '../../../models/release/release.repository';
 import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
 import { RegressionCycleRepository } from '../../../models/release/regression-cycle.repository';
+import { ReleasePlatformTargetMappingRepository } from '../../../models/release/release-platform-target-mapping.repository';
+import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import { createCronJobModel } from '../../../models/release/cron-job.sequelize.model';
 import { createReleaseModel } from '../../../models/release/release.sequelize.model';
 import { createReleaseTaskModel } from '../../../models/release/release-task.sequelize.model';
 import { createRegressionCycleModel } from '../../../models/release/regression-cycle.sequelize.model';
+import { createPlatformTargetMappingModel } from '../../../models/release/platform-target-mapping.sequelize.model';
+import { createReleaseUploadModel } from '../../../models/release/release-uploads.sequelize.model';
 import { hasSequelize } from '../../../types/release/api-types';
 
 /** Cached CronJobService instance */
@@ -45,12 +49,16 @@ export function getCronJobService(storage: Storage): CronJobService | null {
   const ReleaseModel = createReleaseModel(sequelize);
   const ReleaseTaskModel = createReleaseTaskModel(sequelize);
   const RegressionCycleModel = createRegressionCycleModel(sequelize);
+  const PlatformMappingModel = createPlatformTargetMappingModel(sequelize);
+  const ReleaseUploadModel = createReleaseUploadModel(sequelize);
 
   // Create repositories
   const cronJobRepo = new CronJobRepository(CronJobModel);
   const releaseRepo = new ReleaseRepository(ReleaseModel);
   const releaseTaskRepo = new ReleaseTaskRepository(ReleaseTaskModel);
   const regressionCycleRepo = new RegressionCycleRepository(RegressionCycleModel);
+  const platformMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformMappingModel);
+  const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
 
   // Create and cache service
   cachedService = new CronJobService(
@@ -58,7 +66,9 @@ export function getCronJobService(storage: Storage): CronJobService | null {
     releaseRepo,
     releaseTaskRepo,
     regressionCycleRepo,
-    storage
+    platformMappingRepo,
+    storage,
+    releaseUploadsRepo
   );
 
   return cachedService;

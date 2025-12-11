@@ -28,8 +28,10 @@ import { CommConfigRepository } from '../../../models/integrations/comm/comm-con
 import { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
 import { ReleaseRepository } from '../../../models/release/release.repository';
+import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import { createReleaseTaskModel } from '../../../models/release/release-task.sequelize.model';
 import { createReleaseModel } from '../../../models/release/release.sequelize.model';
+import { createReleaseUploadModel } from '../../../models/release/release-uploads.sequelize.model';
 import { getStorage } from '../../../storage/storage-instance';
 import { hasSequelize } from '../../../types/release/api-types';
 
@@ -88,10 +90,12 @@ export function getTaskExecutor(): TaskExecutor {
   // Release repositories (needed for task executor)
   const ReleaseTaskModel = createReleaseTaskModel(sequelize);
   const ReleaseModel = createReleaseModel(sequelize);
+  const ReleaseUploadModel = createReleaseUploadModel(sequelize);
   const releaseTaskRepo = new ReleaseTaskRepository(ReleaseTaskModel);
   const releaseRepo = new ReleaseRepository(ReleaseModel);
+  const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
   
-  // Create TaskExecutor with all 9 dependencies
+  // Create TaskExecutor with all 10 dependencies (including releaseUploadsRepo)
   taskExecutorInstance = new TaskExecutor(
     scmService,
     cicdIntegrationRepo,
@@ -101,7 +105,8 @@ export function getTaskExecutor(): TaskExecutor {
     messagingService,
     releaseConfigRepo,
     releaseTaskRepo,
-    releaseRepo
+    releaseRepo,
+    releaseUploadsRepo
   );
   
   return taskExecutorInstance;

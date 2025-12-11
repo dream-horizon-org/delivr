@@ -11,6 +11,18 @@
  */
 export class MockSCMService {
   /**
+   * Mock check if branch exists
+   * Always returns false so branch creation proceeds
+   */
+  async checkBranchExists(
+    tenantId: string,
+    branch: string
+  ): Promise<boolean> {
+    console.log(`[MockSCM] Check branch exists: ${branch}`);
+    return Promise.resolve(false);
+  }
+
+  /**
    * Mock fork branch operation
    */
   async forkOutBranch(

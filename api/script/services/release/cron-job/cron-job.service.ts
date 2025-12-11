@@ -21,6 +21,8 @@ import { CronJobRepository } from '~models/release/cron-job.repository';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
 import { RegressionCycleRepository } from '~models/release/regression-cycle.repository';
+import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
+import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
 import { getTaskExecutor } from '~services/release/task-executor/task-executor-factory';
 import { startCronJob, stopCronJob, isCronJobRunning } from './cron-scheduler';
 import { StageStatus, CronStatus, CronJob } from '~models/release/release.interface';
@@ -31,7 +33,9 @@ export class CronJobService {
     private readonly releaseRepo: ReleaseRepository,
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly regressionCycleRepo: RegressionCycleRepository,
-    private readonly storage: Storage
+    private readonly platformMappingRepo: ReleasePlatformTargetMappingRepository,
+    private readonly storage: Storage,
+    private readonly releaseUploadsRepo?: ReleaseUploadsRepository
   ) {}
 
   /**
@@ -127,7 +131,9 @@ export class CronJobService {
       this.releaseTaskRepo,
       this.regressionCycleRepo,
       taskExecutor,
-      this.storage
+      this.storage,
+      this.platformMappingRepo,
+      this.releaseUploadsRepo
     );
 
     // Initialize state machine (determines starting state from DB)
