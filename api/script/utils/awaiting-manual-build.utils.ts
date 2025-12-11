@@ -12,7 +12,7 @@
  * 4. If uploads missing → continue waiting (no action)
  */
 
-import { TaskType, TaskStatus, PlatformName, TaskStage } from '~models/release/release.interface';
+import { TaskType, TaskStatus, PlatformName } from '~models/release/release.interface';
 import { ReleaseUploadsRepository, ReleaseUpload } from '~models/release/release-uploads.repository';
 import { UploadStage } from '~models/release/release-uploads.sequelize.model';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
@@ -113,7 +113,7 @@ export const checkAndConsumeManualBuilds = async (
   context: ManualBuildCheckContext,
   releaseUploadsRepo: ReleaseUploadsRepository,
   releaseTaskRepo: ReleaseTaskRepository,
-  buildRepo?: BuildRepository
+  _buildRepo?: BuildRepository
 ): Promise<ManualBuildCheckResult> => {
   const { releaseId, taskId, taskType, cycleId, platforms } = context;
   
