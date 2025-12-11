@@ -41,7 +41,7 @@ function AllOrgsList({
           color: theme.colors.slate[4],
         }}
       >
-        Organizations
+        Projects
       </Text>
       <Stack gap={2}>
         {organizations.map((org) => {
@@ -129,7 +129,7 @@ function OrgSidebar({
 
   return (
     <Box>
-      {/* Organization Header */}
+      {/* Project Header */}
       <Box
         style={{
           padding: "16px 16px",
@@ -209,7 +209,7 @@ function OrgSidebar({
 
           <Divider my={16} color={theme.colors.slate[2]} />
 
-          {/* Organization Section */}
+          {/* Project Section */}
           <Text
             size="11px"
             fw={600}
@@ -221,10 +221,10 @@ function OrgSidebar({
               color: theme.colors.slate[4],
             }}
           >
-            Organization
+            Project
           </Text>
 
-          {/* Render Organization Routes */}
+          {/* Render Project Routes */}
           {orgRoutes.map((orgRoute) => {
             const isRouteActive = location.pathname.startsWith(orgRoute.path);
 

@@ -1,0 +1,130 @@
+import {
+  Box,
+  Text,
+  Title,
+  Container,
+  Stack,
+  ThemeIcon,
+  useMantineTheme,
+  Paper,
+  Group,
+} from "@mantine/core";
+import { IconRocket, IconBuildingSkyscraper, IconCheck } from "@tabler/icons-react";
+import { useNavigate } from "@remix-run/react";
+import { route } from "routes-gen";
+import { CreateOrgModal } from "~/components/Pages/components/OrgsPage/components/CreateOrgModal";
+import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
+
+export default function GettingStartedPage() {
+  const theme = useMantineTheme();
+  const navigate = useNavigate();
+
+  const handleOrgCreated = () => {
+    // Trigger org list refetch
+    actions.trigger(ACTION_EVENTS.REFETCH_ORGS);
+    
+    // Redirect to dashboard to show projects list
+    navigate(route("/dashboard"));
+  };
+
+  return (
+    <Box bg="white" mih="100vh">
+      {/* Header */}
+      <Box style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }} py="md">
+        <Container size="xl">
+          <Group gap="sm">
+            <ThemeIcon size="lg" color="brand" variant="light" radius="md">
+              <IconRocket size={20} />
+            </ThemeIcon>
+            <Text fw={700} size="lg" c="slate.9">
+              Delivr
+            </Text>
+          </Group>
+        </Container>
+      </Box>
+
+      {/* Main Content */}
+      <Container size="sm" py={80}>
+        <Stack gap="xl" align="center">
+          {/* Hero Section */}
+          <Stack align="center" gap="md" mb="xl">
+            <ThemeIcon 
+              size={80} 
+              radius="xl" 
+              variant="light" 
+              color="brand"
+              style={{
+                background: `linear-gradient(135deg, ${theme.colors.brand[0]} 0%, ${theme.colors.brand[1]} 100%)`,
+              }}
+            >
+              <IconBuildingSkyscraper size={40} stroke={1.5} />
+            </ThemeIcon>
+            
+            <Title 
+              order={1} 
+              ta="center"
+              style={{
+                fontSize: 42,
+                fontWeight: 700,
+                letterSpacing: '-1px',
+                lineHeight: 1.2,
+                color: theme.colors.slate[9],
+              }}
+            >
+              Let's Get Started
+            </Title>
+            
+            <Text size="lg" c="slate.5" ta="center" maw={480} lh={1.6}>
+              Create your first project to start deploying updates to your mobile apps.
+            </Text>
+          </Stack>
+
+          {/* Organization Creation Form */}
+          <Paper 
+            w="100%" 
+            p="xl" 
+            radius="lg" 
+            withBorder
+            style={{
+              borderColor: theme.colors.slate[2],
+              background: 'white',
+            }}
+          >
+            <CreateOrgModal onSuccess={handleOrgCreated} />
+          </Paper>
+
+          {/* Info Box */}
+          <Paper 
+            p="lg" 
+            radius="md" 
+            w="100%"
+            style={{
+              background: `linear-gradient(135deg, ${theme.colors.brand[0]} 0%, ${theme.colors.blue[0]} 100%)`,
+              border: `1px solid ${theme.colors.brand[2]}`,
+            }}
+          >
+            <Group gap="md">
+              <ThemeIcon 
+                size="lg" 
+                radius="md" 
+                variant="light" 
+                color="brand"
+                style={{ background: 'white' }}
+              >
+                <IconCheck size={20} color={theme.colors.brand[6]} />
+              </ThemeIcon>
+              <Box style={{ flex: 1 }}>
+                <Text fw={600} size="sm" c="slate.9" mb={4}>
+                  Start your 14-day free trial
+                </Text>
+                <Text size="sm" c="slate.6">
+                  No credit card required. Get full access to all features.
+                </Text>
+              </Box>
+            </Group>
+          </Paper>
+        </Stack>
+      </Container>
+    </Box>
+  );
+}

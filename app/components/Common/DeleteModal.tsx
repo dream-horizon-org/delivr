@@ -41,7 +41,7 @@ interface DeleteModalProps {
 function getModalTitle(type: DeleteType): string {
   switch (type) {
     case 'org':
-      return 'Delete Organization';
+      return 'Delete Project';
     case 'app':
       return 'Delete Application';
     case 'deployment':
@@ -157,7 +157,7 @@ function DeleteOrgContent({ orgId, orgName, onSuccess, onCancel }: DeleteOrgCont
 
   return (
     <>
-      <Text>Are you sure you want to delete this organization ({orgName})?</Text>
+      <Text>Are you sure you want to delete this project ({orgName})?</Text>
       <Group justify="flex-end" mt="lg">
         <Button variant="default" onClick={onCancel} disabled={isLoading}>
           Cancel

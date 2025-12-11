@@ -58,7 +58,8 @@ export default function Dashboard() {
 
   // Handle both /dashboard and /dashboard/ (with or without trailing slash)
   const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
-  const showSidebar = orgs.length > 0 && !isMainDashboard;
+  const isGettingStarted = location.pathname === "/dashboard/getting-started";
+  const showSidebar = orgs.length > 0 && !isMainDashboard && !isGettingStarted;
   
   // Theme colors
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
@@ -180,9 +181,9 @@ export default function Dashboard() {
                 background: bgColor,
               }}
             >
-              {/* Main dashboard page handles its own padding (full bleed) */}
+              {/* Main dashboard page and getting-started handle their own padding (full bleed) */}
               {/* All other pages get consistent padding */}
-              <Box p={isMainDashboard ? 0 : 32}>
+              <Box p={isMainDashboard || isGettingStarted ? 0 : 32}>
                 <Outlet />
               </Box>
             </Box>

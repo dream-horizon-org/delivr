@@ -63,9 +63,9 @@ export function Intro() {
   const theme = useMantineTheme();
 
   return (
-    <Box bg="white" minH="100vh">
+    <Box bg="white" mih="100vh">
       {/* Navbar placeholder style */}
-      <Box borderBottom={`1px solid ${theme.colors.slate[2]}`} py="md">
+      <Box style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }} py="md">
         <Container size="xl">
           <Group justify="space-between">
             <Group gap="sm">
@@ -119,7 +119,7 @@ export function Intro() {
             <CTAButton
               size="lg"
               variant="filled"
-              onClick={() => navigate(route("/dashboard/create-org"))}
+              onClick={() => navigate(route("/dashboard/getting-started"))}
             >
               Start Deploying
             </CTAButton>

@@ -131,7 +131,7 @@ export function OrgsPage() {
   const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
   const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
 
-  // Show intro page if no organizations exist
+  // Show intro page if no projects exist
   if (!isLoading && !isError && (!data || data.length === 0)) {
     return <Intro />;
   }
@@ -184,7 +184,7 @@ export function OrgsPage() {
         >
           <Group justify="space-between" align="center">
             <Group gap="md">
-              <Title order={2} c="dark.9" fw={700}>Organizations</Title>
+              <Title order={2} c="dark.9" fw={700}>Projects</Title>
             </Group>
           </Group>
         </Box>
@@ -195,7 +195,7 @@ export function OrgsPage() {
               <IconBuildingSkyscraper size={32} />
             </ThemeIcon>
             <Stack gap={4} align="center">
-              <Text fw={600} size="lg" c="dark.9">Unable to load organizations</Text>
+              <Text fw={600} size="lg" c="dark.9">Unable to load projects</Text>
               <Text c="dimmed" size="sm">There was a problem connecting to the server.</Text>
             </Stack>
             <Button 
@@ -225,7 +225,7 @@ export function OrgsPage() {
           <Group justify="space-between" align="center">
             <Group gap="md">
               <Title order={2} c="dark.9" fw={700}>
-                Organizations
+                Projects
               </Title>
               <Badge 
                 size="lg" 
@@ -243,7 +243,7 @@ export function OrgsPage() {
               onClick={() => setCreateOrgOpen(true)}
               size="sm"
             >
-              New Organization
+              New Project
             </CTAButton>
           </Group>
         </Box>
@@ -325,11 +325,11 @@ export function OrgsPage() {
         </Box>
       </Box>
 
-      {/* Create Organization Modal */}
+      {/* Create Project Modal */}
       <Modal
         opened={createOrgOpen}
         onClose={() => setCreateOrgOpen(false)}
-        title={<Text fw={600} size="md">Create Organization</Text>}
+        title={<Text fw={600} size="md">Create Project</Text>}
         centered
         size="sm"
         padding="lg"
