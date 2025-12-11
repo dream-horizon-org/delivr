@@ -5,11 +5,33 @@
  * Release Management Service
  * Consolidated service for all release operations
  * Uses real backend API calls for release CRUD operations
+ * 
+ * Supports mock mode via DELIVR_MOCK_MODE=true or DELIVR_HYBRID_MODE=true
  */
 
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+/**
+ * Get the base URL for Release Management APIs
+ * - If DELIVR_MOCK_MODE=true → use mock server for ALL APIs
+ * - If DELIVR_HYBRID_MODE=true → use mock server for releases (testing)
+ * - Otherwise → use real backend
+ */
+function getReleaseManagementBaseURL(): string {
+  const isMockMode = process.env.DELIVR_MOCK_MODE === 'true';
+  const isHybridMode = process.env.DELIVR_HYBRID_MODE === 'true';
+  const mockURL = process.env.DELIVR_MOCK_URL || 'http://localhost:4000';
+  const backendURL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+  
+  if (isMockMode || isHybridMode) {
+    console.log('[ReleaseManagement] Using mock server:', mockURL);
+    return mockURL;
+  }
+  
+  return backendURL;
+}
+
+const BACKEND_API_URL = getReleaseManagementBaseURL();
 
 /**
  * Backend release response structure

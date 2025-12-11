@@ -3,16 +3,14 @@
  * Displays a single release in a modern card format with gradient header
  */
 
-import { memo } from 'react';
+import { Badge, Box, Card, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { Link } from '@remix-run/react';
-import { Badge, Group, Stack, Card, Box, useMantineTheme, Text } from '@mantine/core';
-import { IconClock, IconTarget, IconFlag, IconSettings, IconRocket, IconCheck } from '@tabler/icons-react';
-import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
-import { formatReleaseDate, getReleaseTypeGradient, getReleaseActiveStatus, getActiveStatusColor } from '~/utils/release-utils';
+import { IconCheck, IconClock, IconFlag, IconRocket, IconSettings, IconTarget } from '@tabler/icons-react';
+import { memo } from 'react';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
+import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import type { ReleaseCardProps } from '~/types/release';
-
-
+import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient } from '~/utils/release-utils';
 
 /**
  * Release Card Component - Modern Full Width Design
@@ -167,18 +165,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.kickOffDate && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.green,
+                      backgroundColor: '#f0fdf4',
                       padding: '12px 16px',
-                      borderRadius: theme.defaultRadius,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconFlag size={16} color={theme.other.text.green} />
+                      <IconFlag size={16} color="#10b981" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Kickoff
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.brand}>
+                    <Text size="sm" fw={600} c="dark">
                       {formatReleaseDate(release.kickOffDate)}
                     </Text>
                   </Box>
@@ -188,18 +186,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.targetReleaseDate && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.blue,
+                      backgroundColor: '#eff6ff',
                       padding: '12px 16px',
-                      borderRadius: theme.defaultRadius,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconTarget size={16} color={theme.colors.brand[0]} />
+                      <IconTarget size={16} color="#3b82f6" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Target Date
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.brand}>
+                    <Text size="sm" fw={600} c="dark">
                       {formatReleaseDate(release.targetReleaseDate)}
                     </Text>
                   </Box>
@@ -209,18 +207,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.releaseDate && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.lightGreen,
+                      backgroundColor: '#ecfdf5',
                       padding: '12px 16px',
-                      borderRadius: theme.defaultRadius,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconRocket size={16} color={theme.other.text.green} />
+                      <IconRocket size={16} color="#10b981" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Released
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.brand}>
+                    <Text size="sm" fw={600} c="dark">
                       {formatReleaseDate(release.releaseDate)}
                     </Text>
                   </Box>
@@ -230,18 +228,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.tasks && release.tasks.length > 0 && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.active,
+                      backgroundColor: '#f0fdfa',
                       padding: '12px 16px',
-                      borderRadius: theme.defaultRadius,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconCheck size={16} color={theme.colors.brand[0]} />
+                      <IconCheck size={16} color="#14b8a6" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Tasks
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.brand}>
+                    <Text size="sm" fw={600} c="dark">
                       {release.tasks.length} task{release.tasks.length !== 1 ? 's' : ''}
                     </Text>
                   </Box>
@@ -251,7 +249,7 @@ export const ReleaseCard = memo(function ReleaseCard({
               {/* Footer with Created Date */}
               <Group justify="space-between" className="pt-2 border-t border-gray-200">
                 <Group gap="xs">
-                  <IconClock size={14} color={theme.other.text.tertiary} />
+                  <IconClock size={14} color="#94a3b8" />
                   <Text size="xs" c="dimmed">
                     Created {formatReleaseDate(release.createdAt)}
                   </Text>

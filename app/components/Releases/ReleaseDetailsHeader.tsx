@@ -3,19 +3,19 @@
  * Displays release title, branch, status badge, and action buttons
  */
 
-import { memo, useState } from 'react';
+import { Badge, Button, Group, Modal, Paper, ScrollArea, Title } from '@mantine/core';
 import { Link } from '@remix-run/react';
-import { Paper, Title, Text, Badge, Group, Button, Modal, ScrollArea } from '@mantine/core';
-import { useQueryClient } from 'react-query';
 import { IconArrowLeft, IconEdit } from '@tabler/icons-react';
-import { getStatusColor, getReleaseActiveStatus, getActiveStatusColor } from '~/utils/release-utils';
+import { memo, useState } from 'react';
+import { useQueryClient } from 'react-query';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
-import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
-import { invalidateReleases } from '~/utils/cache-invalidation';
-import { showSuccessToast } from '~/utils/toast';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
+import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
+import { invalidateReleases } from '~/utils/cache-invalidation';
+import { getActiveStatusColor, getReleaseActiveStatus, getStatusColor } from '~/utils/release-utils';
+import { showSuccessToast } from '~/utils/toast';
 
 interface ReleaseDetailsHeaderProps {
   release: BackendReleaseResponse;

@@ -1,20 +1,19 @@
 import {
-  Text,
   ActionIcon,
   Badge,
-  Menu,
   Box,
   Group,
+  Menu,
   Paper,
-  Stack,
-  useMantineTheme,
+  Text,
+  useMantineTheme
 } from "@mantine/core";
-import { 
-  IconTrash, 
-  IconDots, 
-  IconExternalLink, 
-  IconChevronRight,
+import {
   IconApps,
+  IconChevronRight,
+  IconDots,
+  IconExternalLink,
+  IconTrash,
 } from "@tabler/icons-react";
 
 type Organization = {
@@ -77,10 +76,6 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
             borderColor: orgTheme.accent,
             transform: 'translateY(-4px)',
             boxShadow: `0 16px 32px -8px rgba(0, 0, 0, 0.12)`,
-          },
-          "&:hover .chevron-icon": {
-            opacity: 1,
-            transform: 'translateX(0)',
           },
         },
       }}
@@ -187,11 +182,9 @@ export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
           </Group>
           
           <Box 
-            className="chevron-icon"
             style={{ 
               color: orgTheme.accent,
-              opacity: 0, 
-              transform: 'translateX(-6px)', 
+              opacity: 0.6, 
               transition: 'all 0.2s ease',
               display: 'flex',
               alignItems: 'center',
