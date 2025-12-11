@@ -12,6 +12,8 @@ import { formatReleaseDate, getReleaseTypeGradient, getReleaseActiveStatus, getA
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import type { ReleaseCardProps } from '~/types/release';
 
+
+
 /**
  * Release Card Component - Modern Full Width Design
  */
@@ -20,6 +22,7 @@ export const ReleaseCard = memo(function ReleaseCard({
   org
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
+  console.log(theme)
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -166,7 +169,7 @@ export const ReleaseCard = memo(function ReleaseCard({
                     style={{
                       backgroundColor: theme.other.backgrounds.green,
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.defaultRadius,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
@@ -175,7 +178,7 @@ export const ReleaseCard = memo(function ReleaseCard({
                         Kickoff
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c={theme.other.text.brand}>
                       {formatReleaseDate(release.kickOffDate)}
                     </Text>
                   </Box>
@@ -187,16 +190,16 @@ export const ReleaseCard = memo(function ReleaseCard({
                     style={{
                       backgroundColor: theme.other.backgrounds.blue,
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.defaultRadius,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconTarget size={16} color={theme.other.brand.primary} />
+                      <IconTarget size={16} color={theme.colors.brand[0]} />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Target Date
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c={theme.other.text.brand}>
                       {formatReleaseDate(release.targetReleaseDate)}
                     </Text>
                   </Box>
@@ -208,7 +211,7 @@ export const ReleaseCard = memo(function ReleaseCard({
                     style={{
                       backgroundColor: theme.other.backgrounds.lightGreen,
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.defaultRadius,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
@@ -217,7 +220,7 @@ export const ReleaseCard = memo(function ReleaseCard({
                         Released
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c={theme.other.text.brand}>
                       {formatReleaseDate(release.releaseDate)}
                     </Text>
                   </Box>
@@ -229,16 +232,16 @@ export const ReleaseCard = memo(function ReleaseCard({
                     style={{
                       backgroundColor: theme.other.backgrounds.active,
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.defaultRadius,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconCheck size={16} color={theme.other.brand.primary} />
+                      <IconCheck size={16} color={theme.colors.brand[0]} />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Tasks
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c={theme.other.text.brand}>
                       {release.tasks.length} task{release.tasks.length !== 1 ? 's' : ''}
                     </Text>
                   </Box>

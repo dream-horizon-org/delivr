@@ -37,6 +37,8 @@ import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-mess
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { CONFIG_STATUS, RELEASE_TYPE } from '~/constants/release-config-ui';
 import { exportConfig } from '~/utils/release-config-storage';
+import { generateStorageKey } from '~/hooks/useDraftStorage';
+import { useConfig } from '~/contexts/ConfigContext';
 
 interface ConfigurationsTabProps {
   org: string;
@@ -56,6 +58,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const {updateReleaseConfigInCache} = useConfig()
 
   // Merge backend configs with localStorage draft
   const configurations = useMemo(() => {
@@ -287,11 +290,11 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
                 <Badge size="lg" variant="light" color="green">
                   {stats.active} Active
                 </Badge>
-                {stats.draft > 0 && (
+                {/* {stats.draft > 0 && (
                   <Badge size="lg" variant="light" color="yellow">
                     {stats.draft} Draft
                   </Badge>
-                )}
+                )} */}
                 {stats.archived > 0 && (
                   <Badge size="lg" variant="light" color="gray">
                     {stats.archived} Archived

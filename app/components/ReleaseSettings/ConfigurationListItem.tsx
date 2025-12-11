@@ -285,13 +285,13 @@ export function ConfigurationListItem({
                 p="xs"
                 radius="sm"
                 style={{
-                  backgroundColor: theme.colors.purple[0],
-                  border: `1px solid ${theme.colors.purple[2]}`,
+                  backgroundColor: theme.colors.indigo,
+                  border: `1px solid ${theme.other.borders.brand}`,
                 }}
               >
                 <Group gap="xs">
-                  <IconCalendar size={14} color={theme.colors.purple[7]} />
-                  <Text size="xs" fw={500} c={theme.colors.purple[7]}>
+                  <IconCalendar size={14} color={theme.other.borders.brand} />
+                  <Text size="xs" fw={500} c={theme.other.borders.brand}>
                     {config.scheduling.releaseFrequency}
                   </Text>
                 </Group>
