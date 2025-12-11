@@ -47,7 +47,11 @@ import {
 import {
   fileDoesNotExistOrIsDirectory,
   isBinaryOrZip,
-  fileExists
+  fileExists,
+  isValidAABArtifactExtension,
+  getAllowedAABArtifactExtensions,
+  isValidRegressionArtifactExtension,
+  getAllowedRegressionArtifactExtensions
 } from "./utils/file-utils";
 import { DelivrConfigConstants } from "./utils/config.constants";
 
@@ -581,6 +585,15 @@ export function execute(command: cli.ICommand) {
 
       case cli.CommandType.applyPatch:
         return applyPatch(<cli.IApplyPatchCommand>command);
+      
+      case cli.CommandType.uploadRegressionArtifact:
+        return uploadRegressionArtifact(<cli.IUploadRegressionArtifactCommand>command);
+
+      case cli.CommandType.uploadTestFlightBuildNumber:
+        return uploadTestFlightBuildNumber(<cli.IUploadTestFlightBuildNumberCommand>command);
+
+      case cli.CommandType.uploadAABBuild:
+        return uploadAABBuild(<cli.IUploadAABBuildCommand>command);
 
       default:
         // We should never see this message as invalid commands should be caught by the argument parser.
@@ -1724,4 +1737,114 @@ function applyPatch(command: cli.IApplyPatchCommand): Promise<void> {
       reject(new Error(`Failed to start patch application: ${error.message}`));
     });
   });
+}
+
+function uploadRegressionArtifact(command: cli.IUploadRegressionArtifactCommand): Promise<void> {
+  const artifactPath = command.artifactPath;
+  const ciRunId = command.ciRunId;
+
+  const artifactPathNotProvided = !artifactPath;
+  if (artifactPathNotProvided) {
+    throw new Error("Artifact path is required.");
+  }
+
+  const ciRunIdNotProvided = !ciRunId;
+  if (ciRunIdNotProvided) {
+    throw new Error("CI Run ID is required.");
+  }
+
+  const artifactFileNotExists = fileDoesNotExistOrIsDirectory(artifactPath);
+  if (artifactFileNotExists) {
+    throw new Error(`Artifact file does not exist or is a directory: ${artifactPath}`);
+  }
+
+  const isInvalidArtifactType = !isValidRegressionArtifactExtension(artifactPath);
+  if (isInvalidArtifactType) {
+    const allowedExtensions = getAllowedRegressionArtifactExtensions();
+    throw new Error(`Invalid artifact type. Allowed types are: ${allowedExtensions}. For AAB builds, use the "upload-aab-build" command instead.`);
+  }
+
+  log(`Uploading artifact "${artifactPath}" to CI run "${ciRunId}"...`);
+
+  return sdk
+    .uploadRegressionArtifact(ciRunId, artifactPath)
+    .then((): void => {
+      log(`Successfully uploaded artifact "${artifactPath}" to CI run "${ciRunId}".`);
+    })
+    .catch((error: CodePushError): void => {
+      const errorMessage = `Failed to upload artifact: ${error.message}`;
+      throw new Error(errorMessage);
+    });
+}
+
+function uploadTestFlightBuildNumber(command: cli.IUploadTestFlightBuildNumberCommand): Promise<void> {
+  const ciRunId = command.ciRunId;
+  const testflightNumber = command.testflightNumber;
+
+  const ciRunIdNotProvided = !ciRunId;
+  if (ciRunIdNotProvided) {
+    throw new Error("CI Run ID is required.");
+  }
+
+  const testflightNumberNotProvided = !testflightNumber;
+  if (testflightNumberNotProvided) {
+    throw new Error("TestFlight number is required.");
+  }
+
+  log(`Uploading TestFlight build number "${testflightNumber}" for CI run "${ciRunId}"...`);
+
+  return sdk
+    .uploadTestFlightBuildNumber(ciRunId, testflightNumber)
+    .then((): void => {
+      log(`Successfully uploaded TestFlight build number "${testflightNumber}" for CI run "${ciRunId}".`);
+    })
+    .catch((error: CodePushError): void => {
+      const errorMessage = `Failed to upload TestFlight build number: ${error.message}`;
+      throw new Error(errorMessage);
+    });
+}
+
+function uploadAABBuild(command: cli.IUploadAABBuildCommand): Promise<void> {
+  const ciRunId = command.ciRunId;
+  const artifactPath = command.artifactPath;
+  const buildNumber = command.buildNumber;
+
+  const ciRunIdNotProvided = !ciRunId;
+  if (ciRunIdNotProvided) {
+    throw new Error("CI Run ID is required.");
+  }
+
+  const artifactPathNotProvided = !artifactPath;
+  if (artifactPathNotProvided) {
+    throw new Error("Artifact path is required.");
+  }
+
+  const artifactFileNotExists = fileDoesNotExistOrIsDirectory(artifactPath);
+  if (artifactFileNotExists) {
+    throw new Error(`Artifact file does not exist or is a directory: ${artifactPath}`);
+  }
+
+  const isInvalidArtifactType = !isValidAABArtifactExtension(artifactPath);
+  if (isInvalidArtifactType) {
+    const allowedExtensions = getAllowedAABArtifactExtensions();
+    throw new Error(`Invalid artifact type. Allowed types are: ${allowedExtensions}. For APK/IPA files, use "upload-regression-artifact" command instead.`);
+  }
+
+  const hasBuildNumber = buildNumber && buildNumber.length > 0;
+  if (hasBuildNumber) {
+    log(`Uploading build artifact "${artifactPath}" to CI run "${ciRunId}" with build number "${buildNumber}"...`);
+  } else {
+    log(`Uploading build artifact "${artifactPath}" to CI run "${ciRunId}"...`);
+    log("System will auto-upload to Play Store internal track.");
+  }
+
+  return sdk
+    .uploadAABBuild(ciRunId, artifactPath, buildNumber)
+    .then((): void => {
+      log(`Successfully uploaded build artifact "${artifactPath}" to CI run "${ciRunId}".`);
+    })
+    .catch((error: CodePushError): void => {
+      const errorMessage = `Failed to upload build artifact: ${error.message}`;
+      throw new Error(errorMessage);
+    });
 }

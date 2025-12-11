@@ -38,7 +38,10 @@ export enum CommandType {
   sessionRemove,
   whoami,
   createPatch,
-  applyPatch
+  applyPatch,
+  uploadRegressionArtifact,
+  uploadTestFlightBuildNumber,
+  uploadAABBuild
 }
 
 export interface ICommand {
@@ -257,4 +260,20 @@ export interface IApplyPatchCommand extends ICommand {
   oldBundle: string;
   patchFile: string;
   outputBundle: string;
+}
+
+export interface IUploadRegressionArtifactCommand extends ICommand {
+  ciRunId: string;
+  artifactPath: string;
+}
+
+export interface IUploadTestFlightBuildNumberCommand extends ICommand {
+  ciRunId: string;
+  testflightNumber: string;
+}
+
+export interface IUploadAABBuildCommand extends ICommand {
+  ciRunId: string;
+  artifactPath: string;
+  buildNumber?: string;
 }

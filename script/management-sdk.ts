@@ -483,6 +483,97 @@ class AccountManager {
     ).then(() => null);
   }
 
+  public uploadRegressionArtifact(ciRunId: string, artifactPath: string): Promise<void> {
+    return Promise<void>((resolve, reject) => {
+      const request: superagent.Request<any> = superagent.post(
+        this._serverUrl + urlEncode([`/builds/ci/${ciRunId}/artifact`])
+      );
+
+      this.attachCredentials(request);
+
+      const file: any = fs.createReadStream(artifactPath);
+
+      request
+        .attach("artifact", file)
+        .end((err: any, res: superagent.Response) => {
+          if (err) {
+            reject(this.getCodePushError(err, res));
+            return;
+          }
+
+          if (res.ok) {
+            resolve(<void>null);
+          } else {
+            let body;
+            try {
+              body = JSON.parse(res.text);
+            } catch (parseError) {
+              // Ignore parse error
+            }
+
+            const errorMessage = body ? body.message : res.text;
+            reject(<CodePushError>{
+              message: errorMessage,
+              statusCode: res && res.status,
+            });
+          }
+        });
+    });
+  }
+
+  public uploadAABBuild(ciRunId: string, artifactPath: string, buildNumber?: string): Promise<void> {
+    return Promise<void>((resolve, reject) => {
+      const request: superagent.Request<any> = superagent.post(
+        this._serverUrl + urlEncode([`/builds/ci/artifact`])
+      );
+
+      this.attachCredentials(request);
+
+      const file: any = fs.createReadStream(artifactPath);
+
+      request.field("ciRunId", ciRunId);
+      request.attach("artifact", file);
+
+      const hasBuildNumber = buildNumber && buildNumber.length > 0;
+      if (hasBuildNumber) {
+        request.field("buildNumber", buildNumber);
+      }
+
+      request.end((err: any, res: superagent.Response) => {
+        if (err) {
+          reject(this.getCodePushError(err, res));
+          return;
+        }
+
+        if (res.ok) {
+          resolve(<void>null);
+        } else {
+          let body;
+          try {
+            body = JSON.parse(res.text);
+          } catch (parseError) {
+            // Ignore parse error
+          }
+
+          const errorMessage = body ? body.message : res.text;
+          reject(<CodePushError>{
+            message: errorMessage,
+            statusCode: res && res.status,
+          });
+        }
+      });
+    });
+  }
+
+  public uploadTestFlightBuildNumber(ciRunId: string, testflightNumber: string): Promise<void> {
+    const requestBody = JSON.stringify({ ciRunId, testflightNumber });
+    return this.post(
+      urlEncode([`/builds/ci/testflight/verify`]),
+      requestBody,
+      /*expectResponseBody=*/ false
+    ).then(() => null);
+  }
+
   private packageFileFromPath(filePath: string, compression: string) {
     let getPackageFilePromise: Promise<PackageFile>;
     if (fs.lstatSync(filePath).isDirectory()) {
