@@ -21,7 +21,7 @@ export enum TargetName {
 
 export enum ReleaseType {
   HOTFIX = 'HOTFIX',
-  PLANNED = 'PLANNED',
+  MINOR = 'MINOR',
   MAJOR = 'MAJOR'
 }
 
@@ -196,7 +196,7 @@ export interface Release {
   releaseConfigId: string | null;
   tenantId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null; // Parent release ID (for hotfixes)
@@ -221,7 +221,7 @@ export interface CreateReleaseDto {
   releaseConfigId: string | null;
   tenantId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null;
@@ -238,7 +238,7 @@ export interface CreateReleaseDto {
 
 export interface UpdateReleaseDto {
   status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  type?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type?: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch?: string | null;
   baseBranch?: string | null;
   baseReleaseId?: string | null;
@@ -247,7 +247,6 @@ export interface UpdateReleaseDto {
   kickOffDate?: Date | null;
   kickOffReminderDate?: Date | null;
   targetReleaseDate?: Date | null;
-  plannedDate?: Date | null;
   hasManualBuildUpload?: boolean;
   releasePilotAccountId?: string | null;
   lastUpdatedByAccountId?: string;

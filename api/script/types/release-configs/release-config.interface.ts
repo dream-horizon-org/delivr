@@ -13,6 +13,16 @@ import type { TenantCICDConfig } from '~types/integrations/ci-cd/config.interfac
 import type { CreateWorkflowDto } from '~types/integrations/ci-cd/workflow.interface';
 import type { ProjectManagementConfig } from '~types/integrations/project-management/configuration';
 import type { TenantCommChannel } from '~types/integrations/comm/comm-integration';
+import type { ReleaseSchedule } from '~types/release-schedules/release-schedule.interface';
+
+// Re-export scheduling types for backward compatibility
+export type {
+  ReleaseFrequency,
+  WorkingDay,
+  InitialVersion,
+  RegressionSlot,
+  ReleaseSchedule
+} from '~types/release-schedules/release-schedule.interface';
 
 /**
  * Platform-Target pair for release config
@@ -26,20 +36,21 @@ export type PlatformTarget = {
  * Release Configuration (Database Model)
  * Contains integration config IDs for database relationships
  * NOTE: For API responses, use VerboseReleaseConfiguration which has nested objects
+ * NOTE: releaseScheduleId is NOT stored here - schedules reference configs (Schedule → Config)
  */
 export type ReleaseConfiguration = {
   id: string;
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
   platformTargets: PlatformTarget[];
   baseBranch: string | null;
   ciConfigId: string | null;
   testManagementConfigId: string | null;
   projectManagementConfigId: string | null;
   commsConfigId: string | null;
-  scheduling: ReleaseScheduling;
+  // NOTE: releaseScheduleId removed - schedule now references config via release_schedules.releaseConfigId
   hasManualBuildUpload: boolean;
   isActive: boolean;
   isDefault: boolean;
@@ -50,19 +61,20 @@ export type ReleaseConfiguration = {
 
 /**
  * DTO for creating release config
+ * NOTE: releaseScheduleId is NOT included - schedules are created separately and reference the config
  */
 export type CreateReleaseConfigDto = {
   tenantId: string;
   name: string;
   description?: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
   platformTargets: PlatformTarget[];
   baseBranch?: string;
   ciConfigId?: string;
   testManagementConfigId?: string;
   projectManagementConfigId?: string;
   commsConfigId?: string;
-  scheduling?: ReleaseScheduling;
+  // NOTE: releaseScheduleId removed - schedule references config, not vice versa
   hasManualBuildUpload?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
@@ -71,18 +83,19 @@ export type CreateReleaseConfigDto = {
 
 /**
  * DTO for updating release config
+ * NOTE: releaseScheduleId is NOT included - schedules are managed via ReleaseScheduleService
  */
 export type UpdateReleaseConfigDto = {
   name?: string;
   description?: string;
-  releaseType?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType?: 'MAJOR' | 'MINOR' | 'HOTFIX';
   platformTargets?: PlatformTarget[];
   baseBranch?: string | null;
   ciConfigId?: string | null;
   testManagementConfigId?: string | null;
   projectManagementConfigId?: string | null;
   commsConfigId?: string | null;
-  scheduling?: ReleaseScheduling;
+  // NOTE: releaseScheduleId removed - schedule references config, not vice versa
   hasManualBuildUpload?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
@@ -90,17 +103,16 @@ export type UpdateReleaseConfigDto = {
 
 /**
  * Request body structure from client for creating release configuration
- * STANDARDIZED: All integration keys have "Config" suffix (ciConfig, testManagementConfig, projectManagementConfig, communicationConfig)
+ * STANDARDIZED: All integration keys have "Config" suffix except releaseSchedule (matches table name)
  */
 export type CreateReleaseConfigRequest = {
   tenantId: string;
   name: string;
   description?: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
   isDefault?: boolean;
   platformTargets: PlatformTarget[];
   baseBranch?: string;
-  scheduling?: ReleaseScheduling;
   hasManualBuildUpload?: boolean;
   
   // INTEGRATION CONFIGS (standardized keys with "Config" suffix, nested objects)
@@ -112,6 +124,7 @@ export type CreateReleaseConfigRequest = {
   testManagementConfig?: TestManagementRequestConfig;
   projectManagementConfig?: any; // TODO: Use proper PM config type
   communicationConfig?: any;     // TODO: Use proper Communication config type
+  releaseSchedule?: ReleaseScheduleRequestConfig;
 };
 
 /**
@@ -123,7 +136,7 @@ export type CreateReleaseConfigRequest = {
  * - null = REMOVE config (detach from release config)
  * - object = UPSERT config (update if id present, create if not)
  * 
- * STANDARDIZED: All integration keys have "Config" suffix
+ * STANDARDIZED: All integration keys have "Config" suffix except releaseSchedule
  */
 export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest, 'tenantId'>> & {
   // Integration configs with explicit null support for removal
@@ -134,6 +147,7 @@ export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest
   testManagementConfig?: TestManagementRequestConfig | null;
   projectManagementConfig?: any | null;
   communicationConfig?: any | null;
+  releaseSchedule?: ReleaseScheduleRequestConfig | null;
 };
 
 /**
@@ -147,16 +161,16 @@ export type UpdateReleaseConfigRequest = Partial<Omit<CreateReleaseConfigRequest
  * - TestManagementConfig from Test Management service
  * - ProjectManagementConfig from Project Management service
  * - TenantCommChannel from Communication service
+ * - ReleaseScheduling from Release Schedules
  */
 export type VerboseReleaseConfiguration = {
   id: string;
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
   platformTargets: PlatformTarget[];
   baseBranch: string | null;
-  scheduling: ReleaseScheduling;
   hasManualBuildUpload: boolean;
   isActive: boolean;
   isDefault: boolean;
@@ -170,6 +184,7 @@ export type VerboseReleaseConfiguration = {
   testManagementConfig: TestManagementConfig | null;
   projectManagementConfig: ProjectManagementConfig | null;
   communicationConfig: TenantCommChannel | null;
+  releaseSchedule: ReleaseSchedule | null;
 };
 
 /**
@@ -182,7 +197,7 @@ export type SafeReleaseConfiguration = {
   tenantId: string;
   name: string;
   description: string | null;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  releaseType: 'MAJOR' | 'MINOR' | 'HOTFIX';
   platformTargets: PlatformTarget[];
   baseBranch: string | null;
   isActive: boolean;
@@ -213,6 +228,14 @@ export interface TestManagementRequestConfig {
   passThresholdPercent?: number;
   platformConfigurations?: TestManagementPlatformConfiguration[];
 }
+
+/**
+ * Release Schedule from client request
+ * Contains scheduling configuration for recurring releases
+ */
+export type ReleaseScheduleRequestConfig = {
+  id?: string; // Optional: if updating existing schedule
+} & ReleaseSchedule;
 
 // NOTE: Other integration config request types will use the same pattern:
 // - Include optional `id` for updates
@@ -288,52 +311,3 @@ export type ServiceResult<T> = {
     details?: any;
   };
 };
-
-// ============================================================================
-// SCHEDULING TYPES
-// ============================================================================
-
-/**
- * Release frequency options
- */
-export type ReleaseFrequency = 'weekly' | 'biweekly' | 'triweekly' | 'monthly';
-
-/**
- * Day of week (1 = Monday, 7 = Sunday)
- */
-export type WorkingDay = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-/**
- * Regression slot configuration
- */
-export interface RegressionSlot {
-  name?: string;
-  regressionSlotOffsetFromKickoff: number; // Should be <= targetReleaseDateOffsetFromKickoff
-  time: string; // Format: "HH:mm", should be <= targetReleaseTime if regressionSlotOffsetFromKickoff == targetReleaseDateOffsetFromKickoff
-  config: {
-    regressionBuilds: boolean;
-    postReleaseNotes: boolean;
-    automationBuilds: boolean;
-    automationRuns: boolean;
-  };
-}
-
-/**
- * Release scheduling configuration
- */
-export interface ReleaseScheduling {
-  releaseFrequency: ReleaseFrequency;
-  firstReleaseKickoffDate: string; // ISO date string
-  nextReleaseKickoffDate?: string; // Optional, may be absent in request body
-  initialVersions: Record<string, string>; // Platform -> Version mapping (e.g., {"ANDROID": "1.0.0", "IOS": "1.0.0"})
-  kickoffReminderTime: string; // Format: "HH:mm", should be <= kickoffTime
-  kickoffTime: string; // Format: "HH:mm"
-  targetReleaseTime: string; // Format: "HH:mm"
-  targetReleaseDateOffsetFromKickoff: number; // Should be >= 0
-  kickoffReminderEnabled: boolean;
-  timezone: string; // e.g., "Asia/Kolkata"
-  regressionSlots?: RegressionSlot[]; // Optional: can be absent or empty array
-  workingDays: WorkingDay[];
-}
-
-

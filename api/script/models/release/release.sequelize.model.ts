@@ -11,7 +11,7 @@ export type ReleaseAttributes = {
   releaseConfigId: string | null; // FK to release_configurations table
   tenantId: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null; // Release branch name (e.g., "release/v1.0.0")
   baseBranch: string | null; // Base branch forked from (e.g., "master")
   baseReleaseId: string | null; // Parent release ID (for hotfixes)

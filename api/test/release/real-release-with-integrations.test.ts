@@ -182,7 +182,7 @@ async function createTestRelease(
     releaseConfigId: options.releaseConfigId ?? null,
     tenantId: options.tenantId,
     status: 'IN_PROGRESS',
-    type: 'PLANNED',
+    type: 'MINOR',
     branch: options.branch,
     baseBranch: 'main',
     baseReleaseId: null,

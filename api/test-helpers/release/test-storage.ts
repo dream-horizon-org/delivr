@@ -125,9 +125,10 @@ export function createTestStorage(sequelize: Sequelize) {
   const releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
   const releaseConfigService = new ReleaseConfigService(
     releaseConfigRepository,
+    null as any, // releaseScheduleService - TODO: implement
     cicdConfigService,
     testManagementConfigService,
-    null as any, // slackChannelConfigService - TODO: implement
+    null as any, // commConfigService - TODO: implement
     projectManagementConfigService
   );
 

@@ -178,7 +178,7 @@ interface CreateTestReleaseOptions {
   baseBranch?: string;
   kickOffDate?: Date;
   targetReleaseDate?: Date;
-  type?: 'PLANNED' | 'HOTFIX' | 'MAJOR';
+  type?: 'MINOR' | 'HOTFIX' | 'MAJOR';
   releasePilotAccountId?: string | null;
   releaseConfigId?: string | null;
   hasManualBuildUpload?: boolean;
@@ -195,7 +195,7 @@ async function createTestRelease(
     releaseConfigId: options.releaseConfigId ?? null,
     tenantId: options.tenantId,
     status: 'IN_PROGRESS',
-    type: options.type ?? 'PLANNED',
+    type: options.type ?? 'MINOR',
     branch: options.branch ?? `release/v${Date.now()}`,
     baseBranch: options.baseBranch ?? 'master',
     baseReleaseId: null,
@@ -499,7 +499,7 @@ async function runChunk1DTOTests(sequelize: Sequelize) {
       releaseConfigId: null,
       tenantId: TEST_TENANT_ID,
       status: 'IN_PROGRESS',
-      type: 'PLANNED',
+      type: 'MINOR',
       branch: 'release/v1.0.0',
       baseBranch: 'master',
       baseReleaseId: null,

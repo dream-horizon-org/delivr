@@ -14,6 +14,10 @@ import type {
   ValidationResult,
   ServiceResult
 } from '~types/release-configs';
+import type {
+  ReleaseSchedule,
+  CreateReleaseScheduleDto
+} from '~types/release-schedules';
 import { validateScheduling } from './release-config.validation';
 import { IntegrationConfigMapper } from './integration-config.mapper';
 import type { TestManagementConfigService } from '~services/integrations/test-management/test-management-config';
@@ -21,6 +25,7 @@ import type { CreateTestManagementConfigDto } from '~types/integrations/test-man
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
 import type { CommConfigService } from '../integrations/comm/comm-config/comm-config.service';
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
+import type { ReleaseScheduleService } from '~services/release-schedules';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
 
@@ -31,6 +36,7 @@ shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX
 export class ReleaseConfigService {
   constructor(
     private readonly configRepo: ReleaseConfigRepository,
+    private readonly releaseScheduleService?: ReleaseScheduleService,
     private readonly cicdConfigService?: CICDConfigService,
     private readonly testManagementConfigService?: TestManagementConfigService,
     private readonly commConfigService?: CommConfigService,
@@ -87,12 +93,12 @@ export class ReleaseConfigService {
       validationResults.push(pmValidation);
     }
 
-    // Validate scheduling configuration if provided
-    if (requestData.scheduling) {
-      const schedulingErrors = validateScheduling(requestData.scheduling);
+    // Validate release schedule if provided
+    if (requestData.releaseSchedule) {
+      const schedulingErrors = validateScheduling(requestData.releaseSchedule);
       if (schedulingErrors.length > 0) {
         validationResults.push({
-          integration: 'scheduling',
+          integration: 'releaseSchedule',
           isValid: false,
           errors: schedulingErrors
         });
@@ -187,6 +193,9 @@ export class ReleaseConfigService {
       }
     }
 
+    // NOTE: Release Schedule is created AFTER config creation (since schedule references config)
+    // See createConfig method for schedule creation
+
     return integrationConfigIds;
   }
 
@@ -215,24 +224,8 @@ export class ReleaseConfigService {
       };
     }
 
-    // Step 2: Create integration configs
-    const integrationConfigIds = await this.createIntegrationConfigs(requestData, currentUserId);
-
-    // Step 3: Validate business rules (after integration processing)
-    // Note: Allowing release configs without integrations for flexibility
-    // const hasIntegration = hasAtLeastOneIntegration(integrationConfigIds);
-    // if (!hasIntegration) {
-    //   return {
-    //     success: false,
-    //     error: {
-    //       type: 'BUSINESS_RULE_ERROR',
-    //       message: 'At least one integration must be configured for a release profile',
-    //       code: 'NO_INTEGRATIONS_CONFIGURED'
-    //     }
-    //   };
-    // }
-
-    // Step 4: Check if configuration name already exists for this tenant
+    // Step 2: Check if configuration name already exists for this tenant
+    // (Must happen BEFORE creating integration configs to avoid orphan records)
     const existing = await this.configRepo.findByTenantIdAndName(requestData.tenantId, requestData.name);
     if (existing) {
       return {
@@ -244,6 +237,9 @@ export class ReleaseConfigService {
         }
       };
     }
+
+    // Step 3: Create integration configs
+    const integrationConfigIds = await this.createIntegrationConfigs(requestData, currentUserId);
 
     // Step 5: If this is marked as default, unset any existing default
     if (requestData.isDefault) {
@@ -260,7 +256,8 @@ export class ReleaseConfigService {
       releaseType: requestData.releaseType,
       platformTargets: requestData.platformTargets,
       baseBranch: requestData.baseBranch ?? null,
-      scheduling: requestData.scheduling ?? null,
+      // TODO: Implement release schedule handling - create schedule first, then pass releaseScheduleId
+      // releaseScheduleId will be set after creating the schedule in release_schedules table
       hasManualBuildUpload: requestData.hasManualBuildUpload ?? false,
       isActive: true,
       isDefault: requestData.isDefault ?? false,
@@ -272,6 +269,24 @@ export class ReleaseConfigService {
       ...createDto,
       id
     });
+
+    // Step 7: Create Release Schedule AFTER config is created (schedule references config)
+    if (requestData.releaseSchedule && this.releaseScheduleService) {
+      console.log('[createConfig] Creating Release Schedule for config:', id);
+      try {
+        await this.releaseScheduleService.create(
+          releaseConfig.id,           // releaseConfigId - required FK
+          releaseConfig.name,         // For Cronicle job title
+          requestData.releaseSchedule, // Schedule data
+          releaseConfig.tenantId,     // tenantId (denormalized)
+          currentUserId               // createdByAccountId
+        );
+        console.log('[createConfig] Release Schedule created successfully');
+      } catch (error) {
+        console.error('[createConfig] Failed to create Release Schedule:', error);
+        // Don't fail config creation if schedule creation fails
+      }
+    }
 
     return {
       success: true,
@@ -305,7 +320,7 @@ export class ReleaseConfigService {
     }
 
     // Fetch integration configs in parallel
-    const [ciConfig, testManagementConfig, communicationConfig, projectManagementConfig] = await Promise.all([
+    const [ciConfig, testManagementConfig, communicationConfig, projectManagementConfig, releaseScheduleRecord] = await Promise.all([
       config.ciConfigId && this.cicdConfigService 
         ? this.cicdConfigService.findById(config.ciConfigId)
         : Promise.resolve(null),
@@ -320,10 +335,18 @@ export class ReleaseConfigService {
       
       config.projectManagementConfigId && this.projectManagementConfigService
         ? this.projectManagementConfigService.getConfigById(config.projectManagementConfigId)
+        : Promise.resolve(null),
+      
+      // Schedule references config (not vice versa) - lookup by config ID
+      this.releaseScheduleService
+        ? this.releaseScheduleService.getByReleaseConfigId(config.id)
         : Promise.resolve(null)
     ]);
 
-    // Return verbose format with standardized keys (all have "Config" suffix)
+    // Map ReleaseScheduleRecord to ReleaseSchedule (strip DB-only fields)
+    const releaseSchedule = this.mapScheduleRecordToSchedule(releaseScheduleRecord);
+
+    // Return verbose format with standardized keys (all have "Config" suffix except releaseSchedule)
     // IMPORTANT: Omit config IDs from root, they're in nested objects
     return {
       id: config.id,
@@ -333,7 +356,6 @@ export class ReleaseConfigService {
       releaseType: config.releaseType,
       platformTargets: config.platformTargets,
       baseBranch: config.baseBranch,
-      scheduling: config.scheduling,
       hasManualBuildUpload: config.hasManualBuildUpload,
       isActive: config.isActive,
       isDefault: config.isDefault,
@@ -341,11 +363,42 @@ export class ReleaseConfigService {
       createdAt: config.createdAt instanceof Date ? config.createdAt.toISOString() : config.createdAt,
       updatedAt: config.updatedAt instanceof Date ? config.updatedAt.toISOString() : config.updatedAt,
       
-      // Nested integration configs with STANDARDIZED keys (all with "Config" suffix)
+      // Nested integration configs with STANDARDIZED keys (all with "Config" suffix except releaseSchedule)
       ciConfig,
       testManagementConfig,
       projectManagementConfig,
-      communicationConfig
+      communicationConfig,
+      releaseSchedule
+    };
+  }
+
+  /**
+   * Map ReleaseScheduleRecord to ReleaseSchedule
+   * Strips DB-only fields (tenantId, createdAt, updatedAt, etc.)
+   * Keeps scheduling configuration fields + runtime state
+   */
+  private mapScheduleRecordToSchedule(record: any): (ReleaseSchedule & { id: string }) | null {
+    if (!record) {
+      return null;
+    }
+
+    return {
+      id: record.id, // Include id for update operations
+      releaseFrequency: record.releaseFrequency,
+      firstReleaseKickoffDate: record.firstReleaseKickoffDate,
+      nextReleaseKickoffDate: record.nextReleaseKickoffDate,
+      initialVersions: record.initialVersions,
+      kickoffReminderTime: record.kickoffReminderTime,
+      kickoffTime: record.kickoffTime,
+      targetReleaseTime: record.targetReleaseTime,
+      targetReleaseDateOffsetFromKickoff: record.targetReleaseDateOffsetFromKickoff,
+      kickoffReminderEnabled: record.kickoffReminderEnabled,
+      timezone: record.timezone,
+      regressionSlots: record.regressionSlots,
+      workingDays: record.workingDays,
+      // Runtime state fields
+      isEnabled: record.isEnabled,
+      lastCreatedReleaseId: record.lastCreatedReleaseId
     };
   }
 
@@ -402,7 +455,6 @@ export class ReleaseConfigService {
     if (data.releaseType !== undefined) configUpdate.releaseType = data.releaseType;
     if (data.platformTargets !== undefined) configUpdate.platformTargets = data.platformTargets;
     if (data.baseBranch !== undefined) configUpdate.baseBranch = data.baseBranch;
-    if (data.scheduling !== undefined) configUpdate.scheduling = data.scheduling;
     if (data.hasManualBuildUpload !== undefined) configUpdate.hasManualBuildUpload = data.hasManualBuildUpload;
     if (data.isDefault !== undefined) configUpdate.isDefault = data.isDefault;
     if (data.isActive !== undefined) configUpdate.isActive = data.isActive;
@@ -412,6 +464,9 @@ export class ReleaseConfigService {
     const testManagementConfigId = await this.handleTestManagementConfigId(existingConfig, data, currentUserId);
     const projectManagementConfigId = await this.handleProjectManagementConfigId(existingConfig, data, currentUserId);
     const commsConfigId = await this.handleCommsConfigId(existingConfig, data, currentUserId);
+    
+    // Handle Release Schedule separately (schedule references config, not vice versa)
+    await this.handleReleaseSchedule(existingConfig, data, currentUserId);
 
     console.log('[updateConfig] Orchestrator results:', {
       ciConfigId,
@@ -439,6 +494,8 @@ export class ReleaseConfigService {
       console.log('[updateConfig] Setting commsConfigId =', commsConfigId);
       configUpdate.commsConfigId = commsConfigId;
     }
+    // NOTE: releaseSchedule is NOT stored on config - schedule references config via FK
+    // handleReleaseSchedule manages the schedule directly
 
     console.log('[updateConfig] Final configUpdate DTO:', JSON.stringify(configUpdate, null, 2));
 
@@ -700,26 +757,25 @@ export class ReleaseConfigService {
   private async createTestManagementConfig(
     tenantId: string,
     releaseConfigName: string,
-    testManagementConfigData: any,  // This IS the config object, not a wrapper
+    testManagementConfigData: any,
     currentUserId: string
   ): Promise<string | null> {
     if (!this.testManagementConfigService) return null;
 
-    // testManagementConfigData IS the config object - wrap it for the mapper
     const normalizedData = {
       tenantId,
-      testManagementConfig: testManagementConfigData  // Just wrap it, don't extract from it
+      testManagementConfig: testManagementConfigData
     };
 
-    console.log('[createTestManagementConfig] Creating with data:', JSON.stringify(testManagementConfigData, null, 2));
+    console.log('[createTestManagementConfig] Creating new config with data:', JSON.stringify(testManagementConfigData, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData as any,  // Cast to any for partial data
+      normalizedData as any,  // Cast to any for partial data during create
       currentUserId
     );
 
     if (!integrationConfigs.testManagement) {
-      console.log('[createTestManagementConfig] Mapper returned null - check data structure');
+      console.log('[createTestManagementConfig] Mapper returned null - no valid config data');
       return null;
     }
 
@@ -731,7 +787,7 @@ export class ReleaseConfigService {
 
     console.log('[createTestManagementConfig] Creating config with DTO:', JSON.stringify(tcmConfigDto, null, 2));
     const tcmResult = await this.testManagementConfigService.createConfig(tcmConfigDto);
-    console.log('[createTestManagementConfig] Created with ID:', tcmResult.id);
+    console.log('[createTestManagementConfig] Config created with ID:', tcmResult.id);
     return tcmResult.id;
   }
 
@@ -816,7 +872,7 @@ export class ReleaseConfigService {
     return await this.createProjectManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
-      projectMgmtData,  // Pass extracted config object, not full updateData
+      projectMgmtData,  // Pass the extracted projectManagementConfig object, not full updateData
       currentUserId
     );
   }
@@ -871,26 +927,25 @@ export class ReleaseConfigService {
   private async createProjectManagementConfig(
     tenantId: string,
     releaseConfigName: string,
-    projectManagementConfigData: any,  // This IS the config object, not a wrapper
+    projectManagementConfigData: any,
     currentUserId: string
   ): Promise<string | null> {
     if (!this.projectManagementConfigService) return null;
 
-    // projectManagementConfigData IS the config object - wrap it for the mapper
     const normalizedData = {
       tenantId,
-      projectManagementConfig: projectManagementConfigData  // Just wrap it, don't extract from it
+      projectManagementConfig: projectManagementConfigData
     };
 
-    console.log('[createProjectManagementConfig] Creating with data:', JSON.stringify(projectManagementConfigData, null, 2));
+    console.log('[createProjectManagementConfig] Creating new config with data:', JSON.stringify(projectManagementConfigData, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData as any,  // Cast to any for partial data
+      normalizedData as any,  // Cast to any for partial data during create
       currentUserId
     );
 
     if (!integrationConfigs.projectManagement) {
-      console.log('[createProjectManagementConfig] Mapper returned null - check data structure');
+      console.log('[createProjectManagementConfig] Mapper returned null - no valid config data');
       return null;
     }
 
@@ -901,7 +956,7 @@ export class ReleaseConfigService {
       createdByAccountId: currentUserId
     });
 
-    console.log('[createProjectManagementConfig] Created with ID:', pmResult.id);
+    console.log('[createProjectManagementConfig] Config created with ID:', pmResult.id);
     return pmResult.id;
   }
 
@@ -985,7 +1040,7 @@ export class ReleaseConfigService {
     console.log('[handleCommsConfigId] Creating new config');
     return await this.createCommsConfig(
       existingConfig.tenantId,
-      commsData,  // Pass extracted config object, not full updateData
+      commsData,  // Pass the extracted communicationConfig object, not full updateData
       currentUserId
     );
   }
@@ -1027,28 +1082,29 @@ export class ReleaseConfigService {
    */
   private async createCommsConfig(
     tenantId: string,
-    communicationConfigData: any,  // This IS the config object, not a wrapper
+    communicationConfigData: any,
     currentUserId: string
   ): Promise<string | null> {
     if (!this.commConfigService) return null;
 
-    // communicationConfigData IS the config object - wrap it for the mapper
+    // communicationConfigData IS the communicationConfig object
+    // Wrap it in the structure expected by the mapper
     const normalizedData = {
       tenantId,
-      communicationConfig: communicationConfigData  // Just wrap it, don't extract from it
+      communicationConfig: communicationConfigData
     };
 
-    console.log('[createCommsConfig] Creating with data:', JSON.stringify(communicationConfigData, null, 2));
+    console.log('[createCommsConfig] Creating new config with data:', JSON.stringify(communicationConfigData, null, 2));
 
     const integrationConfigs = IntegrationConfigMapper.prepareAllIntegrationConfigs(
-      normalizedData as any,  // Cast to any for partial data
+      normalizedData as any,  // Cast to any for partial data during create
       currentUserId
     );
 
     console.log('[createCommsConfig] Integration configs.communication:', JSON.stringify(integrationConfigs.communication, null, 2));
 
     if (!integrationConfigs.communication) {
-      console.log('[createCommsConfig] Mapper returned null - check data structure');
+      console.log('[createCommsConfig] Mapper returned null - no valid config data');
       return null;
     }
 
@@ -1059,9 +1115,155 @@ export class ReleaseConfigService {
 
     console.log('[createCommsConfig] Creating config with DTO:', JSON.stringify(createDto, null, 2));
     const commsResult = await this.commConfigService.createConfig(createDto);
-    console.log('[createCommsConfig] Created with ID:', commsResult.id);
+
+    console.log('[createCommsConfig] Config created with ID:', commsResult.id);
 
     return commsResult.id;
+  }
+
+  // ============================================================================
+  // RELEASE SCHEDULE HANDLERS (SRP: Separate orchestration, update, create)
+  // NOTE: Schedule → Config relationship (schedule has releaseConfigId FK)
+  // ============================================================================
+
+  /**
+   * Orchestrator: Handle Release Schedule (decides whether to update, create, or delete)
+   * Pattern 2 (Null Convention):
+   * - undefined (absent) → KEEP existing schedule
+   * - null → REMOVE schedule
+   * - object with id → UPDATE existing schedule (id must match)
+   * - object without id → CREATE new schedule if none exists
+   * 
+   * NOTE: Unlike other integration configs, schedule is NOT stored on the config.
+   * The schedule references the config via FK (release_schedules.releaseConfigId).
+   */
+  private async handleReleaseSchedule(
+    existingConfig: ReleaseConfiguration,
+    updateData: any,
+    currentUserId: string
+  ): Promise<void> {
+    if (!this.releaseScheduleService) {
+      console.log('[handleReleaseSchedule] No schedule service configured, skipping');
+      return;
+    }
+
+    // CRITICAL: Check for explicit presence
+    let scheduleData;
+    if ('releaseSchedule' in updateData) {
+      scheduleData = updateData.releaseSchedule;
+    } else {
+      scheduleData = undefined;
+    }
+
+    // Fetch existing schedule (schedule references config)
+    const existingSchedule = await this.releaseScheduleService.getByReleaseConfigId(existingConfig.id);
+
+    // STATE 1: undefined (field absent) → KEEP existing
+    if (scheduleData === undefined) {
+      console.log('[handleReleaseSchedule] Field absent - keeping existing schedule');
+      return;
+    }
+
+    // STATE 2: null (explicit null) → REMOVE (delete schedule)
+    if (scheduleData === null) {
+      console.log('[handleReleaseSchedule] Explicit null - removing schedule');
+      
+      if (existingSchedule) {
+        console.log('[handleReleaseSchedule] Deleting schedule:', existingSchedule.id);
+        await this.releaseScheduleService.delete(existingSchedule.id);
+        console.log('[handleReleaseSchedule] Schedule deleted successfully');
+      }
+      
+      return;
+    }
+
+    // STATE 3: object with ID → UPDATE existing schedule
+    const providedScheduleId = scheduleData.id;
+    
+    if (providedScheduleId) {
+      // Verify ID matches existing schedule
+      if (!existingSchedule || providedScheduleId !== existingSchedule.id) {
+        console.log('[handleReleaseSchedule] Provided ID does not match existing schedule - ignoring');
+        console.log(`  Provided: ${providedScheduleId}, Existing: ${existingSchedule?.id ?? 'none'}`);
+        return;
+      }
+
+      // IDs match - UPDATE existing schedule
+      console.log('[handleReleaseSchedule] IDs match - updating existing schedule:', providedScheduleId);
+      await this.updateReleaseSchedule(providedScheduleId, scheduleData, existingConfig.name);
+      return;
+    }
+
+    // STATE 4: object without ID → CREATE new schedule (only if none exists)
+    if (existingSchedule) {
+      console.log('[handleReleaseSchedule] No ID provided but existing schedule exists - keeping existing');
+      return;
+    }
+
+    // No existing schedule and no ID provided - CREATE new
+    console.log('[handleReleaseSchedule] Creating new schedule for config:', existingConfig.id);
+    await this.createReleaseSchedule(existingConfig, scheduleData, currentUserId);
+  }
+
+  /**
+   * Update existing Release Schedule
+   */
+  private async updateReleaseSchedule(
+    scheduleId: string,
+    updateData: any,
+    configName: string
+  ): Promise<void> {
+    if (!this.releaseScheduleService) return;
+
+    // Build update DTO - only include fields that are provided
+    const updateDto: any = {};
+
+    if (updateData.releaseFrequency !== undefined) updateDto.releaseFrequency = updateData.releaseFrequency;
+    if (updateData.firstReleaseKickoffDate !== undefined) updateDto.firstReleaseKickoffDate = updateData.firstReleaseKickoffDate;
+    if (updateData.nextReleaseKickoffDate !== undefined) updateDto.nextReleaseKickoffDate = updateData.nextReleaseKickoffDate;
+    if (updateData.initialVersions !== undefined) updateDto.initialVersions = updateData.initialVersions;
+    if (updateData.kickoffReminderTime !== undefined) updateDto.kickoffReminderTime = updateData.kickoffReminderTime;
+    if (updateData.kickoffTime !== undefined) updateDto.kickoffTime = updateData.kickoffTime;
+    if (updateData.targetReleaseTime !== undefined) updateDto.targetReleaseTime = updateData.targetReleaseTime;
+    if (updateData.targetReleaseDateOffsetFromKickoff !== undefined) updateDto.targetReleaseDateOffsetFromKickoff = updateData.targetReleaseDateOffsetFromKickoff;
+    if (updateData.kickoffReminderEnabled !== undefined) updateDto.kickoffReminderEnabled = updateData.kickoffReminderEnabled;
+    if (updateData.timezone !== undefined) updateDto.timezone = updateData.timezone;
+    if (updateData.regressionSlots !== undefined) updateDto.regressionSlots = updateData.regressionSlots;
+    if (updateData.workingDays !== undefined) updateDto.workingDays = updateData.workingDays;
+    if (updateData.isEnabled !== undefined) updateDto.isEnabled = updateData.isEnabled;
+
+    console.log('[updateReleaseSchedule] Updating schedule:', scheduleId, 'with:', JSON.stringify(updateDto, null, 2));
+
+    await this.releaseScheduleService.update(scheduleId, updateDto, configName);
+    console.log('[updateReleaseSchedule] Update completed for scheduleId:', scheduleId);
+  }
+
+  /**
+   * Create new Release Schedule
+   * Note: Schedule references config via FK, so we need the config object
+   * 
+   * After creating the schedule, immediately creates the first release
+   * using initialVersions from the schedule configuration.
+   */
+  private async createReleaseSchedule(
+    config: ReleaseConfiguration,
+    scheduleData: any,
+    currentUserId: string
+  ): Promise<void> {
+    if (!this.releaseScheduleService) return;
+
+    console.log('[createReleaseSchedule] Creating schedule for config:', config.id);
+    
+    const schedule = await this.releaseScheduleService.create(
+      config.id,           // releaseConfigId (FK)
+      config.name,         // For Cronicle job title
+      scheduleData,        // Schedule configuration
+      config.tenantId,     // tenantId (denormalized)
+      currentUserId        // createdByAccountId
+    );
+
+    console.log('[createReleaseSchedule] Created with ID:', schedule.id);
+    // Note: First release is created automatically by ReleaseScheduleService.create()
   }
 
   /**
@@ -1132,6 +1334,19 @@ export class ReleaseConfigService {
         console.log('[cascadeDeleteIntegrationConfigs] Communication config deleted successfully');
       } catch (error) {
         console.error('[cascadeDeleteIntegrationConfigs] Failed to delete Communication config:', error);
+        // Continue with other deletions even if one fails
+      }
+    }
+
+    // Delete Release Schedule if exists (schedule references config via FK)
+    // Note: FK cascade should handle this, but we also delete Cronicle job here
+    if (this.releaseScheduleService) {
+      console.log('[cascadeDeleteIntegrationConfigs] Deleting Release Schedule for config:', config.id);
+      try {
+        await this.releaseScheduleService.deleteByReleaseConfigId(config.id);
+        console.log('[cascadeDeleteIntegrationConfigs] Release Schedule deleted successfully');
+      } catch (error) {
+        console.error('[cascadeDeleteIntegrationConfigs] Failed to delete Release Schedule:', error);
         // Continue with other deletions even if one fails
       }
     }

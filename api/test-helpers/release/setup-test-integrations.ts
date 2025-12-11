@@ -136,7 +136,7 @@ export async function setupTestIntegrations(sequelize: Sequelize, tenantId: stri
         tenantId,
         name: 'Test Release Config',
         description: 'Test configuration for integration tests',
-        releaseType: 'PLANNED',
+        releaseType: 'MINOR',
         // New schema uses platformTargets (JSON array of {platform, target} objects)
         platformTargets: JSON.stringify([
           { platform: 'ANDROID', target: 'PLAY_STORE' },

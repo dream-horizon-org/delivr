@@ -138,7 +138,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             { id: "APP_STORE", name: "App Store", isAvailable: false, status: "COMING_SOON" },
           ],
           releaseTypes: [
-            { id: "PLANNED", name: "Planned" },
+            { id: "MINOR", name: "Minor" },
             { id: "HOTFIX", name: "Hotfix" },
             { id: "EMERGENCY", name: "Emergency" },
           ],
@@ -150,7 +150,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
             { id: "RELEASED", name: "Released", order: 5 },
           ],
           releaseStatuses: [
-            { id: "PLANNED", name: "Planned", stage: "PRE_KICKOFF" },
+            { id: "MINOR", name: "Minor", stage: "PRE_KICKOFF" },
             { id: "IN_PROGRESS", name: "In Progress", stage: "KICKOFF" },
             { id: "TESTING", name: "Testing", stage: "REGRESSION" },
             { id: "READY", name: "Ready", stage: "READY_FOR_RELEASE" },
@@ -752,7 +752,7 @@ export function getManagementRouter(config: ManagementConfig): Router {
         },
         enabledPlatforms: ["ANDROID", "IOS"], // TODO: Make this dynamic based on tenant settings
         enabledTargets: ["APP_STORE", "PLAY_STORE", "WEB"], // TODO: Make this dynamic
-        allowedReleaseTypes: ["PLANNED", "HOTFIX", "EMERGENCY"], // TODO: Make this dynamic
+        allowedReleaseTypes: ["MINOR", "HOTFIX", "MAJOR"], // TODO: Make this dynamic
         customSettings: {
           defaultKickoffLeadDays: 2,
           workingDays: [1, 2, 3, 4, 5],
