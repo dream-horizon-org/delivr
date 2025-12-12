@@ -224,12 +224,6 @@ export function RegressionSlotsManager({
           </Button>
         </Group>
 
-        {disableExistingSlots && regressionBuildSlots.length > 0 && (
-          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
-            <Text size="xs">Existing regression slots cannot be edited or deleted after kickoff. You can only add new slots.</Text>
-          </Alert>
-        )}
-
         {errors.regressionBuildSlots && (
           <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light" radius="md">
             <Text size="sm">{errors.regressionBuildSlots}</Text>

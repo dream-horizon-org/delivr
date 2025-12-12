@@ -115,15 +115,12 @@ export function ConfigurationWizard({
       
       // Auto-skip PIPELINES step if Manual upload is selected
       if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.hasManualBuildUpload) {
-        nextStep = currentStep + 2; // Skip pipelines step
+        // Skip pipelines step and mark it as completed
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
         setCurrentStep(currentStep + 2);
       } else {
         setCurrentStep(currentStep + 1);
       }
-      
-      // Move to next step
-      setCurrentStep(nextStep);
     }
   };
   

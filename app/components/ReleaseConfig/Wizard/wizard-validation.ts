@@ -257,7 +257,8 @@ export const canProceedFromStep = (
       return !!config.targets && config.targets.length > 0;
       
     case STEP_INDEX.BUILD_UPLOAD:
-      return true
+      // Ensure user has explicitly selected an upload method
+      return config.hasManualBuildUpload !== undefined
       
     case STEP_INDEX.PIPELINES:
       // Use the validation helper function for workflows
