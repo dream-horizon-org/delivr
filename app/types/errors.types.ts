@@ -5,6 +5,8 @@
  * Reference: docs/02-product-specs/distribution-api-specification.md (Section 6)
  */
 
+import type { Platform } from './distribution.types';
+
 // ============================================================================
 // ERROR CATEGORIES
 // ============================================================================
@@ -128,7 +130,7 @@ export type VersionConflictError = {
   code: ConflictErrorCode.VERSION_EXISTS | ConflictErrorCode.VERSION_EXISTS_DRAFT;
   message: string;
   details: {
-    platform: 'ANDROID' | 'IOS';
+    platform: Platform;
     version: string;
     existingStatus: 'LIVE' | 'IN_REVIEW' | 'DRAFT';
     resolution: {
@@ -150,7 +152,7 @@ export type ExposureControlConflictError = {
   code: ConflictErrorCode.EXPOSURE_CONTROL_CONFLICT;
   message: string;
   details: {
-    platform: 'ANDROID' | 'IOS';
+    platform: Platform;
     currentRelease: {
       version: string;
       exposurePercent: number;
@@ -187,7 +189,7 @@ export type BuildValidationError = {
       ready: boolean;
       reason?: string;
     };
-    missingPlatforms: Array<'ANDROID' | 'IOS'>;
+    missingPlatforms: Platform[];
   };
 };
 

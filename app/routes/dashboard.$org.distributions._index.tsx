@@ -7,40 +7,42 @@
  */
 
 import {
-    ActionIcon,
-    Badge,
-    Card,
-    Container,
-    Group,
-    Paper,
-    Progress,
-    SimpleGrid,
-    Stack,
-    Table,
-    Text,
-    ThemeIcon,
-    Title,
-    Tooltip,
+  ActionIcon,
+  Badge,
+  Card,
+  Container,
+  Group,
+  Paper,
+  Progress,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Title,
+  Tooltip,
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
 import {
-    IconBrandAndroid,
-    IconBrandApple,
-    IconCheck,
-    IconClock,
-    IconExternalLink,
-    IconPlayerPause,
-    IconRocket,
-    IconX,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconCheck,
+  IconClock,
+  IconExternalLink,
+  IconPlayerPause,
+  IconRocket,
+  IconX,
 } from '@tabler/icons-react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
+import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
+import { Platform, ReleaseStatus, SubmissionStatus } from '~/types/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 
 // Types - should match API response
 interface PlatformStatus {
-  platform: 'ANDROID' | 'IOS';
+  platform: Platform;
   status: string;
   exposurePercent: number;
   submissionId?: string;
@@ -130,8 +132,8 @@ function getStatusIcon(status: string) {
   }
 }
 
-function getPlatformIcon(platform: 'ANDROID' | 'IOS') {
-  return platform === 'ANDROID' ? (
+function getPlatformIcon(platform: Platform) {
+  return platform === Platform.ANDROID ? (
     <IconBrandAndroid size={16} />
   ) : (
     <IconBrandApple size={16} />
@@ -157,13 +159,13 @@ function DistributionStats({ distributions }: { distributions: DistributionEntry
   const stats = {
     total: distributions.length,
     rollingOut: distributions.filter(d => 
-      d.status === 'LIVE' || d.platforms.some(p => p.status === 'LIVE' && p.exposurePercent < 100)
+      d.status === ReleaseStatus.READY_FOR_SUBMISSION || d.platforms.some(p => p.status === SubmissionStatus.LIVE && p.exposurePercent < ROLLOUT_COMPLETE_PERCENT)
     ).length,
     inReview: distributions.filter(d => 
-      d.status === 'IN_REVIEW' ||
-      d.platforms.some(p => p.status === 'IN_REVIEW')
+      d.status === ReleaseStatus.READY_FOR_SUBMISSION ||
+      d.platforms.some(p => p.status === SubmissionStatus.IN_REVIEW)
     ).length,
-    released: distributions.filter(d => d.status === 'COMPLETED').length,
+    released: distributions.filter(d => d.status === ReleaseStatus.COMPLETED).length,
   };
 
   return (
@@ -190,7 +192,7 @@ function DistributionStats({ distributions }: { distributions: DistributionEntry
 
 function PlatformStatusBadge({ platformStatus }: { platformStatus: PlatformStatus }) {
   const { platform, status, exposurePercent } = platformStatus;
-  const isRollingOut = status === 'LIVE' && exposurePercent < 100;
+  const isRollingOut = status === SubmissionStatus.LIVE && exposurePercent < ROLLOUT_COMPLETE_PERCENT;
 
   return (
     <Group gap="xs">

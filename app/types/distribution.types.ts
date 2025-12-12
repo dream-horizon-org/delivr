@@ -21,6 +21,9 @@ export enum Platform {
   IOS = 'IOS',
 }
 
+// Platform values as array for validation
+export const PLATFORM_VALUES = [Platform.ANDROID, Platform.IOS] as const;
+
 export enum ReleaseStatus {
   PRE_RELEASE = 'PRE_RELEASE',
   READY_FOR_SUBMISSION = 'READY_FOR_SUBMISSION',
@@ -73,14 +76,54 @@ export enum CIRunType {
 }
 
 // ============================================================================
-// LITERAL TYPES - Extracted from repeated inline unions
+// ENUMS - Additional status and action types
 // ============================================================================
 
 /** Approver roles for manual approval */
-export type ApproverRole = 'RELEASE_LEAD' | 'RELEASE_PILOT';
+export enum ApproverRole {
+  RELEASE_LEAD = 'RELEASE_LEAD',
+  RELEASE_PILOT = 'RELEASE_PILOT',
+}
 
 /** Halt severity levels */
-export type HaltSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM';
+export enum HaltSeverity {
+  CRITICAL = 'CRITICAL',
+  HIGH = 'HIGH',
+  MEDIUM = 'MEDIUM',
+}
+
+/** Warning severity */
+export enum WarningSeverity {
+  ERROR = 'ERROR',
+  WARNING = 'WARNING',
+  INFO = 'INFO',
+}
+
+/** Submission actions */
+export enum SubmissionAction {
+  RETRY = 'RETRY',
+  UPDATE_ROLLOUT = 'UPDATE_ROLLOUT',
+  PAUSE = 'PAUSE',
+  RESUME = 'RESUME',
+  HALT = 'HALT',
+}
+
+/** Submission history event types */
+export enum SubmissionHistoryEventType {
+  SUBMITTED = 'SUBMITTED',
+  STATUS_CHANGED = 'STATUS_CHANGED',
+  ROLLOUT_UPDATED = 'ROLLOUT_UPDATED',
+  ROLLOUT_PAUSED = 'ROLLOUT_PAUSED',
+  ROLLOUT_RESUMED = 'ROLLOUT_RESUMED',
+  ROLLOUT_HALTED = 'ROLLOUT_HALTED',
+  REJECTED = 'REJECTED',
+  APPROVED = 'APPROVED',
+  RETRY_ATTEMPTED = 'RETRY_ATTEMPTED',
+}
+
+// ============================================================================
+// LITERAL TYPES - Keep as types for specific use cases
+// ============================================================================
 
 /** Android release tracks */
 export type AndroidTrack = 'INTERNAL' | 'ALPHA' | 'BETA' | 'PRODUCTION';
@@ -91,20 +134,14 @@ export type IOSReleaseType = 'MANUAL_RELEASE' | 'AFTER_APPROVAL' | 'SCHEDULED';
 /** Update priority (0-5) */
 export type UpdatePriority = 0 | 1 | 2 | 3 | 4 | 5;
 
-/** Warning severity */
-export type WarningSeverity = 'WARNING' | 'ERROR' | 'INFO';
-
 /** API error categories */
 export type APIErrorCategory = 'VALIDATION' | 'AUTH' | 'NOT_FOUND' | 'CONFLICT' | 'EXTERNAL' | 'INTERNAL';
 
 /** Event trigger source */
 export type EventTrigger = 'USER' | 'SYSTEM' | 'STORE';
 
-/** Submission actions */
-export type SubmissionAction = 'RETRY' | 'UPDATE_ROLLOUT' | 'PAUSE' | 'RESUME' | 'HALT';
-
 /** Rollout actions (subset for rollout controls) */
-export type RolloutAction = Exclude<SubmissionAction, 'RETRY'>;
+export type RolloutAction = Exclude<SubmissionAction, SubmissionAction.RETRY>;
 
 // ============================================================================
 // REUSABLE BASE TYPES - Common shapes used across multiple types
@@ -341,16 +378,7 @@ export type DistributionStatus = {
 // EVENT TYPES - For submission history
 // ============================================================================
 
-export type SubmissionHistoryEventType = 
-    | 'SUBMITTED'
-    | 'STATUS_CHANGED'
-    | 'ROLLOUT_UPDATED'
-    | 'ROLLOUT_PAUSED'
-    | 'ROLLOUT_RESUMED'
-    | 'ROLLOUT_HALTED'
-    | 'REJECTED'
-    | 'APPROVED'
-    | 'RETRY_ATTEMPTED';
+// Note: SubmissionHistoryEventType is now an enum, defined earlier in this file
   
 /** Rollout state change */
 export type RolloutEventState = {
@@ -535,6 +563,17 @@ export type BuildsResponse = APISuccessResponse<{
 
 /** Build Response (single) */
 export type BuildResponse = APISuccessResponse<Build>;
+
+/** Upload AAB Response */
+export type UploadAABResponse = APISuccessResponse<{
+  build: Build;
+}>;
+
+/** Verify TestFlight Response */
+export type VerifyTestFlightResponse = APISuccessResponse<{
+  build: Build;
+  verified: boolean;
+}>;
 
 /** Submission summary (subset of Submission for responses) */
 export type SubmissionSummary = Pick<Submission, 

@@ -7,19 +7,20 @@
  * - Confirmation with acknowledgment
  */
 
-import { useState, useCallback } from 'react';
-import { 
-  Modal, 
-  Stack, 
-  Group, 
-  Text, 
-  Button, 
-  Textarea,
+import {
   Alert,
+  Button,
+  Group,
+  Modal,
+  Stack,
+  Text,
+  Textarea,
   ThemeIcon,
 } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconUserCheck } from '@tabler/icons-react';
+import { useCallback, useState } from 'react';
 import { BUTTON_LABELS, DIALOG_TITLES } from '~/constants/distribution.constants';
+import { ApproverRole } from '~/types/distribution.types';
 import type { ManualApprovalDialogProps } from './distribution.types';
 
 // ============================================================================
@@ -38,11 +39,20 @@ export function ManualApprovalDialog(props: ManualApprovalDialogProps) {
 
   const [comments, setComments] = useState('');
 
-  const roleLabel = approverRole === 'RELEASE_LEAD' ? 'Release Lead' : 'Release Pilot';
+  const roleLabel = approverRole === ApproverRole.RELEASE_LEAD ? 'Release Lead' : 'Release Pilot';
+
+  const handleCommentsChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setComments(e.target.value);
+  }, []);
 
   const handleApprove = useCallback(() => {
     const trimmedComments = comments.trim();
-    onApprove(trimmedComments.length > 0 ? trimmedComments : undefined);
+    // Only pass comments if non-empty; function signature allows optional parameter
+    if (trimmedComments.length > 0) {
+      onApprove(trimmedComments);
+    } else {
+      onApprove();
+    }
   }, [comments, onApprove]);
 
   const handleClose = useCallback(() => {
@@ -93,7 +103,7 @@ export function ManualApprovalDialog(props: ManualApprovalDialogProps) {
           description="Add any notes about this approval"
           placeholder="e.g., Approved after QA sign-off"
           value={comments}
-          onChange={(e) => setComments(e.target.value)}
+          onChange={handleCommentsChange}
           minRows={3}
           disabled={isApproving}
         />

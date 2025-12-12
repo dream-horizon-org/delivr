@@ -14,7 +14,7 @@
  * For full management, use SubmissionManagementCard on Distribution Management Page
  */
 
-import { Badge, Card, Group, Progress, Stack, Text, ThemeIcon, Button } from '@mantine/core';
+import { Badge, Button, Card, Group, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
   IconBrandAndroid,
@@ -26,11 +26,13 @@ import {
 } from '@tabler/icons-react';
 import {
   PLATFORM_LABELS,
+  ROLLOUT_COMPLETE_PERCENT,
+  SUBMISSION_PROGRESS_COLORS,
   SUBMISSION_STATUS_COLORS,
   SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type { Submission } from '~/types/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution.types';
 
 // ============================================================================
 // TYPES
@@ -45,7 +47,7 @@ type SubmissionStatusCardProps = {
 };
 
 // ============================================================================
-// LOCAL HELPERS
+// LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
 function getSubmissionStatusIcon(status: SubmissionStatus) {
@@ -58,26 +60,15 @@ function getSubmissionStatusIcon(status: SubmissionStatus) {
   return <IconClock size={14} />;
 }
 
-function getProgressBarColor(status: SubmissionStatus): string {
-  switch (status) {
-    case SubmissionStatus.LIVE:
-    case SubmissionStatus.APPROVED:
-      return 'green';
-    case SubmissionStatus.IN_REVIEW:
-      return 'blue';
-    case SubmissionStatus.REJECTED:
-    case SubmissionStatus.HALTED:
-      return 'red';
-    default:
-      return 'gray';
-  }
-}
-
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
-function PlatformIcon({ platform }: { platform: Platform }) {
+type PlatformIconProps = {
+  platform: Platform;
+};
+
+function PlatformIcon({ platform }: PlatformIconProps) {
   const isAndroid = platform === Platform.ANDROID;
 
   return (
@@ -168,10 +159,10 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
             </Group>
             <Progress
               value={exposurePercent}
-              color={getProgressBarColor(submissionStatus)}
+              color={SUBMISSION_PROGRESS_COLORS[submissionStatus]}
               size="md"
               radius="md"
-              animated={exposurePercent < 100}
+              animated={exposurePercent < ROLLOUT_COMPLETE_PERCENT}
             />
           </div>
         )}
@@ -211,10 +202,10 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
           {submissionStatus === SubmissionStatus.APPROVED &&
             'Approved by store. Use Distribution Management to start rollout.'}
           {submissionStatus === SubmissionStatus.LIVE &&
-            exposurePercent < 100 &&
+            exposurePercent < ROLLOUT_COMPLETE_PERCENT &&
             'Rolling out. Use Distribution Management to update percentage.'}
           {submissionStatus === SubmissionStatus.LIVE &&
-            exposurePercent === 100 &&
+            exposurePercent === ROLLOUT_COMPLETE_PERCENT &&
             'Live to 100% of users!'}
           {submissionStatus === SubmissionStatus.HALTED &&
             'Rollout halted. Check Distribution Management for details.'}

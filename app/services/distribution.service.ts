@@ -4,19 +4,13 @@
  * Used by React components, loaders, and actions
  */
 
-import { apiGet, apiPost } from '~/utils/api-client';
 import type {
-  SubmitToStoresRequest,
-  SubmitToStoresResponse,
   DistributionStatusResponse,
-  GetSubmissionsResponse,
-  GetSubmissionDetailsResponse,
-  PollSubmissionStatusResponse,
   RetrySubmissionRequest,
-  RetrySubmissionResponse,
-  SubmissionStatus,
-  ReleaseStatus,
+  SubmitToStoreRequest
 } from '~/types/distribution.types';
+import { SubmissionStatus } from '~/types/distribution.types';
+import { apiGet, apiPost } from '~/utils/api-client';
 
 export class DistributionService {
   /**
@@ -24,9 +18,9 @@ export class DistributionService {
    */
   static async submitToStores(
     releaseId: string,
-    request: SubmitToStoresRequest
-  ): Promise<SubmitToStoresResponse> {
-    return apiPost<SubmitToStoresResponse>(
+    request: SubmitToStoreRequest
+  ): Promise<any> {
+    return apiPost<any>(
       `/api/v1/releases/${releaseId}/distribute`,
       request
     );
@@ -37,8 +31,8 @@ export class DistributionService {
    */
   static async getDistributionStatus(
     releaseId: string
-  ): Promise<DistributionStatusResponse> {
-    return apiGet<DistributionStatusResponse>(
+  ): Promise<any> {
+    return apiGet<any>(
       `/api/v1/releases/${releaseId}/distribute`
     );
   }
@@ -46,8 +40,8 @@ export class DistributionService {
   /**
    * Get all submissions for a release
    */
-  static async getSubmissions(releaseId: string): Promise<GetSubmissionsResponse> {
-    return apiGet<GetSubmissionsResponse>(
+  static async getSubmissions(releaseId: string): Promise<any> {
+    return apiGet<any>(
       `/api/v1/releases/${releaseId}/submissions`
     );
   }
@@ -57,8 +51,8 @@ export class DistributionService {
    */
   static async getSubmission(
     submissionId: string
-  ): Promise<GetSubmissionDetailsResponse> {
-    return apiGet<GetSubmissionDetailsResponse>(
+  ): Promise<any> {
+    return apiGet<any>(
       `/api/v1/submissions/${submissionId}`
     );
   }
@@ -68,8 +62,8 @@ export class DistributionService {
    */
   static async pollSubmissionStatus(
     submissionId: string
-  ): Promise<PollSubmissionStatusResponse> {
-    return apiGet<PollSubmissionStatusResponse>(
+  ): Promise<any> {
+    return apiGet<any>(
       `/api/v1/submissions/${submissionId}/status`
     );
   }
@@ -80,8 +74,8 @@ export class DistributionService {
   static async retrySubmission(
     submissionId: string,
     request?: RetrySubmissionRequest
-  ): Promise<RetrySubmissionResponse> {
-    return apiPost<RetrySubmissionResponse>(
+  ): Promise<any> {
+    return apiPost<any>(
       `/api/v1/submissions/${submissionId}`,
       request
     );
@@ -101,7 +95,7 @@ export class DistributionService {
     return platformStatuses.every(
       (p) =>
         p?.submitted &&
-        p.status === SubmissionStatus.RELEASED &&
+        p.status === SubmissionStatus.LIVE &&
         p.exposurePercent >= 100
     );
   }
@@ -110,10 +104,10 @@ export class DistributionService {
    * Get failed submissions
    */
   static getFailedSubmissions(
-    submissions: GetSubmissionDetailsResponse['data']['submissions']
-  ): GetSubmissionDetailsResponse['data']['submissions'] {
+    submissions: any[]
+  ): any[] {
     return submissions.filter(
-      (sub) => sub.submissionStatus === SubmissionStatus.REJECTED
+      (sub: any) => sub.submissionStatus === SubmissionStatus.REJECTED
     );
   }
 

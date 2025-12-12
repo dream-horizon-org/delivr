@@ -4,23 +4,17 @@
  * Used by React components, loaders, and actions
  */
 
+import { ReleaseStatus } from '~/types/distribution.types';
 import { apiGet, apiPatch } from '~/utils/api-client';
-import type {
-  GetReleaseDetailsResponse,
-  UpdateReleaseStatusRequest,
-  UpdateReleaseStatusResponse,
-  GetReleaseTimelineResponse,
-  ReleaseStatus,
-} from '~/types/distribution.types';
 
 export class ReleaseService {
   /**
    * Get release details
    */
-  static async getRelease(releaseId: string): Promise<GetReleaseDetailsResponse> {
+  static async getRelease(releaseId: string): Promise<any> {
     // Note: This endpoint might be in a different route format
     // Adjust based on your actual release API structure
-    return apiGet<GetReleaseDetailsResponse>(`/api/v1/releases/${releaseId}`);
+    return apiGet<any>(`/api/v1/releases/${releaseId}`);
   }
 
   /**
@@ -28,9 +22,9 @@ export class ReleaseService {
    */
   static async updateReleaseStatus(
     releaseId: string,
-    request: UpdateReleaseStatusRequest
-  ): Promise<UpdateReleaseStatusResponse> {
-    return apiPatch<UpdateReleaseStatusResponse>(
+    request: any
+  ): Promise<any> {
+    return apiPatch<any>(
       `/api/v1/releases/${releaseId}/status`,
       request
     );
@@ -41,8 +35,8 @@ export class ReleaseService {
    */
   static async getReleaseTimeline(
     releaseId: string
-  ): Promise<GetReleaseTimelineResponse> {
-    return apiGet<GetReleaseTimelineResponse>(
+  ): Promise<any> {
+    return apiGet<any>(
       `/api/v1/releases/${releaseId}/timeline`
     );
   }

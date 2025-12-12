@@ -9,7 +9,7 @@ import { Alert, Button, Group, Modal, Radio, Stack, Text, ThemeIcon } from '@man
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution.types';
 
 // Per API Spec - EXPOSURE_CONTROL_CONFLICT error details
 export type ExposureControlConflictDetails = {
@@ -17,7 +17,7 @@ export type ExposureControlConflictDetails = {
   currentRelease: {
     version: string;
     exposurePercent: number;
-    status: 'LIVE' | 'APPROVED';
+    status: SubmissionStatus.LIVE | SubmissionStatus.APPROVED;
   };
   resolution: {
     title: string;

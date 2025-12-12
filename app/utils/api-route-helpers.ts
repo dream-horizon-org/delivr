@@ -5,7 +5,7 @@
 
 import { json } from '@remix-run/node';
 import { HTTP_STATUS } from '~/constants/distribution-api.constants';
-import type { Platform } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution.types';
 
 /**
  * Standard error response structure
@@ -75,10 +75,9 @@ export function extractPlatformFromQuery(request: Request): Platform | undefined
     return undefined;
   }
 
-  const validPlatforms: Platform[] = ['ANDROID', 'IOS'];
-  const isValidPlatform = validPlatforms.includes(platformParam as Platform);
-
-  return isValidPlatform ? (platformParam as Platform) : undefined;
+  return platformParam === Platform.ANDROID || platformParam === Platform.IOS
+    ? (platformParam as Platform)
+    : undefined;
 }
 
 /**

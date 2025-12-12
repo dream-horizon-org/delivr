@@ -4,16 +4,13 @@
  * Used by React components, loaders, and actions
  */
 
-import { apiGet, apiPost } from '~/utils/api-client';
 import type {
-  BuildsResponse,
-  UploadAABResponse,
-  VerifyTestFlightRequest,
-  VerifyTestFlightResponse,
-  Platform,
-  BuildUploadStatus,
   Build,
+  UploadAABResponse,
+  VerifyTestFlightRequest
 } from '~/types/distribution.types';
+import { BuildUploadStatus, Platform } from '~/types/distribution.types';
+import { apiGet, apiPost } from '~/utils/api-client';
 
 export class BuildsService {
   /**
@@ -22,9 +19,9 @@ export class BuildsService {
   static async getBuilds(
     releaseId: string,
     platform?: Platform
-  ): Promise<BuildsResponse> {
+  ): Promise<any> {
     const params = platform ? `?platform=${platform}` : '';
-    return apiGet<BuildsResponse>(`/api/v1/releases/${releaseId}/builds${params}`);
+    return apiGet<any>(`/api/v1/releases/${releaseId}/builds${params}`);
   }
 
   /**
@@ -37,7 +34,7 @@ export class BuildsService {
   ): Promise<UploadAABResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('platform', 'ANDROID');
+    formData.append('platform', Platform.ANDROID);
 
     // Note: For file uploads, we use fetch directly instead of apiClient
     // to support upload progress tracking
@@ -61,8 +58,8 @@ export class BuildsService {
   static async verifyTestFlight(
     releaseId: string,
     request: VerifyTestFlightRequest
-  ): Promise<VerifyTestFlightResponse> {
-    return apiPost<VerifyTestFlightResponse>(
+  ): Promise<any> {
+    return apiPost<any>(
       `/api/v1/releases/${releaseId}/builds/verify-testflight`,
       request
     );
@@ -84,7 +81,7 @@ export class BuildsService {
       if (
         !build ||
         build.buildUploadStatus !== BuildUploadStatus.UPLOADED ||
-        (platform === Platform.IOS && build.buildStatus !== 'PROCESSED')
+        (platform === Platform.IOS && (build as any).buildStatus !== 'PROCESSED') // PROCESSED status not in our enums (TestFlight status)
       ) {
         missingPlatforms.push(platform);
       }

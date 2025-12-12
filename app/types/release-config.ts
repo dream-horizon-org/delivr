@@ -78,7 +78,7 @@ export interface TestManagementConfig {
 
 export interface CheckmatePlatformConfiguration {
   // Platform is a global system constant (not distribution-specific)
-  platform: 'ANDROID' | 'IOS';
+  platform: Platform;
   projectId?: number; // Platform-specific project ID
   sectionIds?: number[];
   labelIds?: number[];

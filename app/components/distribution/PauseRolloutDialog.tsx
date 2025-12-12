@@ -7,7 +7,7 @@
 
 import { Button, Group, Modal, Stack, Text, Textarea, ThemeIcon } from '@mantine/core';
 import { IconPlayerPause } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { PLATFORM_LABELS } from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
 
@@ -30,9 +30,19 @@ export function PauseRolloutDialog({
 }: PauseRolloutDialogProps) {
   const [reason, setReason] = useState('');
 
-  const handleConfirm = () => {
-    onConfirm(reason.trim() || undefined);
-  };
+  const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setReason(e.target.value);
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    const trimmedReason = reason.trim();
+    // Only pass reason if non-empty; function signature allows optional parameter
+    if (trimmedReason.length > 0) {
+      onConfirm(trimmedReason);
+    } else {
+      onConfirm();
+    }
+  }, [reason, onConfirm]);
 
   return (
     <Modal
@@ -61,7 +71,7 @@ export function PauseRolloutDialog({
           label="Reason (optional)"
           placeholder="Why are you pausing the rollout?"
           value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          onChange={handleReasonChange}
         />
 
         <Group justify="flex-end" mt="md">

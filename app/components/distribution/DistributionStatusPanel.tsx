@@ -7,18 +7,19 @@
  * - Timeline of distribution stages
  */
 
-import { Card, Group, Stack, Text, Badge, Progress, ThemeIcon, RingProgress } from '@mantine/core';
-import { IconRocket, IconCheck, IconClock, IconX, IconAlertTriangle } from '@tabler/icons-react';
-import { ReleaseStatus, Platform } from '~/types/distribution.types';
-import { 
-  RELEASE_STATUS_LABELS, 
-  RELEASE_STATUS_COLORS,
+import { Badge, Card, Group, RingProgress, Stack, Text, ThemeIcon } from '@mantine/core';
+import { IconCheck, IconClock, IconRocket } from '@tabler/icons-react';
+import {
   PLATFORM_LABELS,
+  RELEASE_STATUS_COLORS,
+  RELEASE_STATUS_LABELS,
+  ROLLOUT_COMPLETE_PERCENT,
 } from '~/constants/distribution.constants';
+import { Platform, ReleaseStatus } from '~/types/distribution.types';
 import type { DistributionStatusPanelProps } from './distribution.types';
 
 // ============================================================================
-// HELPER FUNCTIONS
+// LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
 function getStatusIcon(status: ReleaseStatus) {
@@ -34,35 +35,24 @@ function getStatusIcon(status: ReleaseStatus) {
   }
 }
 
-function getProgressColor(status: ReleaseStatus): string {
-  switch (status) {
-    case ReleaseStatus.COMPLETED:
-      return 'green';
-    case ReleaseStatus.READY_FOR_SUBMISSION:
-      return 'cyan';
-    case ReleaseStatus.PRE_RELEASE:
-      return 'gray';
-    default:
-      return 'gray';
-  }
-}
-
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
+
+type PlatformProgressItemProps = {
+  platform: Platform;
+  submitted: boolean;
+  status: string | null;
+  percentage: number;
+};
 
 function PlatformProgressItem({ 
   platform, 
   submitted, 
   status, 
   percentage 
-}: { 
-  platform: Platform;
-  submitted: boolean;
-  status: string | null;
-  percentage: number;
-}) {
-  const isComplete = percentage === 100;
+}: PlatformProgressItemProps) {
+  const isComplete = percentage === ROLLOUT_COMPLETE_PERCENT;
   const statusColor = isComplete ? 'green' : submitted ? 'blue' : 'gray';
   
   return (
@@ -91,8 +81,13 @@ function PlatformProgressItem({
   );
 }
 
-function OverallProgress({ progress, status }: { progress: number; status: ReleaseStatus }) {
-  const color = getProgressColor(status);
+type OverallProgressProps = {
+  progress: number;
+  status: ReleaseStatus;
+};
+
+function OverallProgress({ progress, status }: OverallProgressProps) {
+  const color = RELEASE_STATUS_COLORS[status];
   
   return (
     <Group gap="lg" align="center">
@@ -111,7 +106,7 @@ function OverallProgress({ progress, status }: { progress: number; status: Relea
       <div>
         <Text fw={600} size="lg">Distribution Progress</Text>
         <Text c="dimmed" size="sm">
-          {progress === 100 
+          {progress === ROLLOUT_COMPLETE_PERCENT 
             ? 'Distribution complete!' 
             : progress > 0 
               ? 'Distribution in progress...'
@@ -155,7 +150,7 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
             size="lg" 
             radius="md" 
             variant="light" 
-            color={getProgressColor(releaseStatus)}
+            color={RELEASE_STATUS_COLORS[releaseStatus]}
           >
             {getStatusIcon(releaseStatus)}
           </ThemeIcon>

@@ -450,6 +450,57 @@ server.post('/api/v1/releases/:releaseId/builds/verify-testflight', (req, res) =
 });
 
 /**
+ * POST /api/v1/releases/:releaseId/builds/:buildId/retry
+ * Retry failed build (triggers CI/CD workflow)
+ */
+server.post('/api/v1/releases/:releaseId/builds/:buildId/retry', (req, res) => {
+  const { releaseId, buildId } = req.params;
+  const db = router.db;
+  
+  const build = db.get('builds')
+    .find({ id: buildId, releaseId })
+    .value();
+  
+  if (!build) {
+    return res.status(404).json({
+      success: false,
+      error: { message: 'Build not found' },
+    });
+  }
+  
+  // Update build status to trigger retry
+  const updatedBuild = {
+    ...build,
+    buildUploadStatus: 'UPLOADING',
+    workflowStatus: 'QUEUED',
+    updatedAt: new Date().toISOString(),
+  };
+  
+  db.get('builds')
+    .find({ id: buildId })
+    .assign(updatedBuild)
+    .write();
+  
+  // Simulate async CI/CD workflow - after 3 seconds, mark as UPLOADED
+  setTimeout(() => {
+    db.get('builds')
+      .find({ id: buildId })
+      .assign({
+        buildUploadStatus: 'UPLOADED',
+        workflowStatus: 'COMPLETED',
+        updatedAt: new Date().toISOString(),
+      })
+      .write();
+  }, 3000);
+  
+  res.json({
+    success: true,
+    data: updatedBuild,
+    message: 'Build retry triggered successfully',
+  });
+});
+
+/**
  * GET /api/v1/releases/:releaseId/builds/:buildId
  * Get single build details (pre-release builds only)
  */

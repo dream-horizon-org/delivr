@@ -10,17 +10,17 @@
 
 import { Badge, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
-    IconBrandAndroid,
-    IconBrandApple,
-    IconCheck,
-    IconChevronRight,
-    IconClock,
-    IconX,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconCheck,
+  IconChevronRight,
+  IconClock,
+  IconX,
 } from '@tabler/icons-react';
 import {
-    PLATFORM_LABELS,
-    SUBMISSION_STATUS_COLORS,
-    SUBMISSION_STATUS_LABELS,
+  PLATFORM_LABELS,
+  SUBMISSION_STATUS_COLORS,
+  SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { RolloutProgressBar } from './RolloutProgressBar';
@@ -45,7 +45,11 @@ function getSubmissionStatusIcon(status: SubmissionStatus) {
 // SUB-COMPONENTS
 // ============================================================================
 
-function PlatformIcon({ platform }: { platform: Platform }) {
+type PlatformIconProps = {
+  platform: Platform;
+};
+
+function PlatformIcon({ platform }: PlatformIconProps) {
   const isAndroid = platform === Platform.ANDROID;
   
   return (
@@ -60,7 +64,11 @@ function PlatformIcon({ platform }: { platform: Platform }) {
   );
 }
 
-function SubmissionTimeline({ submission }: { submission: SubmissionCardProps['submission'] }) {
+type SubmissionTimelineProps = {
+  submission: SubmissionCardProps['submission'];
+};
+
+function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
   const { submittedAt, approvedAt, releasedAt } = submission;
   
   return (

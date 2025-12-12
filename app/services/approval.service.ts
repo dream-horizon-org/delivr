@@ -4,24 +4,37 @@
  * Used by React components, loaders, and actions
  */
 
-import { apiGet, apiPost } from '~/utils/api-client';
 import type {
-  PMStatusResponse,
   ManualApprovalRequest,
-  ApprovalResponse,
-  ExtraCommitsResponse,
-  BlockingIssue,
-  ReleaseStatus,
-  Platform,
+  Platform
 } from '~/types/distribution.types';
+import { ReleaseStatus } from '~/types/distribution.types';
+import { apiGet, apiPost } from '~/utils/api-client';
 import { BuildsService } from './builds.service';
+
+// Local type for blocking issues
+type BlockingIssue = {
+  code: string;
+  message: string;
+  severity: 'ERROR' | 'WARNING';
+  resolution: {
+    title: string;
+    message: string;
+    options: Array<{
+      action: string;
+      label: string;
+      url?: string;
+      roles?: string[];
+    }>;
+  };
+};
 
 export class ApprovalService {
   /**
    * Get PM approval status for a release
    */
-  static async getPMStatus(releaseId: string): Promise<PMStatusResponse> {
-    return apiGet<PMStatusResponse>(`/api/v1/releases/${releaseId}/pm-status`);
+  static async getPMStatus(releaseId: string): Promise<any> {
+    return apiGet<any>(`/api/v1/releases/${releaseId}/pm-status`);
   }
 
   /**
@@ -30,8 +43,8 @@ export class ApprovalService {
   static async manualApprove(
     releaseId: string,
     request: ManualApprovalRequest
-  ): Promise<ApprovalResponse> {
-    return apiPost<ApprovalResponse>(
+  ): Promise<any> {
+    return apiPost<any>(
       `/api/v1/releases/${releaseId}/pm-status`,
       request
     );
@@ -40,8 +53,8 @@ export class ApprovalService {
   /**
    * Check for extra commits after last regression
    */
-  static async checkExtraCommits(releaseId: string): Promise<ExtraCommitsResponse> {
-    return apiGet<ExtraCommitsResponse>(`/api/v1/releases/${releaseId}/extra-commits`);
+  static async checkExtraCommits(releaseId: string): Promise<any> {
+    return apiGet<any>(`/api/v1/releases/${releaseId}/extra-commits`);
   }
 
   /**
