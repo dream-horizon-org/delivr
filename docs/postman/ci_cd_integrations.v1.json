@@ -1,0 +1,525 @@
+{
+  "info": {
+    "name": "CI/CD Integrations",
+    "_postman_id": "9b4e2d2a-2d3e-4b1c-9f44-7f4a0f3b9d10",
+    "description": "Postman collection for CI/CD Integrations (GitHub Actions and Jenkins).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Providers",
+      "description": "Discovery endpoints for supported CI/CD providers.",
+      "item": [
+        {
+          "name": "List Providers",
+          "description": "Lists supported provider types (e.g., GITHUB_ACTIONS, JENKINS).",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/integrations/ci-cd/providers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "ci-cd",
+                "providers"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Connections",
+      "description": "Create/verify provider connections and manage them by integrationId.",
+      "item": [
+        {
+          "name": "Verify - GitHub Actions",
+          "description": "Verifies a GitHub token by probing the /user endpoint.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiToken\": \"ghp_xxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/github-actions/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "github-actions", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Verify - Jenkins",
+          "description": "Verifies Jenkins connectivity (optionally with crumb) and probes /api/json.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hostUrl\": \"https://jenkins.example.com\",\n  \"username\": \"ci-user\",\n  \"apiToken\": \"xxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/jenkins/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "jenkins", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Create - GitHub Actions",
+          "description": "Creates a GitHub Actions connection for the tenant.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiToken\": \"ghp_xxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/github-actions",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "github-actions"]
+            }
+          }
+        },
+        {
+          "name": "Create - Jenkins",
+          "description": "Creates a Jenkins connection for the tenant using BASIC credentials.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hostUrl\": \"https://jenkins.example.com\",\n  \"username\": \"ci-user\",\n  \"apiToken\": \"xxxx\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/jenkins",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "jenkins"]
+            }
+          }
+        },
+        {
+          "name": "Get Connection",
+          "description": "Fetches a connection by integrationId (secrets are omitted).",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/connections/{{integrationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "connections", "{{integrationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Connection",
+          "description": "Updates a connection by integrationId via provider adapter.",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \n}" },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/connections/{{integrationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "connections", "{{integrationId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Connection",
+          "description": "Deletes a connection by integrationId.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/connections/{{integrationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "connections", "{{integrationId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflows (CRUD)",
+      "description": "Provider-agnostic workflow metadata CRUD.",
+      "item": [
+        {
+          "name": "Create Workflow",
+          "description": "Creates workflow metadata referencing provider/integration and workflowUrl.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerType\":\"GITHUB_ACTIONS\",\n  \"integrationId\":\"{{integrationId}}\",\n  \"displayName\":\"Build & Test\",\n  \"platform\":\"ios\",\n  \"workflowType\":\"CUSTOM\",\n  \"workflowUrl\":\"owner/repo/.github/workflows/build.yml@main\",\n  \"parameters\":{}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/workflows",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "workflows"]
+            }
+          }
+        },
+        {
+          "name": "List Workflows",
+          "description": "Lists workflows for a tenant, with optional filters.",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/workflows",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "workflows"]
+            }
+          }
+        },
+        {
+          "name": "Get Workflow",
+          "description": "Fetches workflow metadata by workflowId.",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/workflows/{{workflowId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "workflows", "{{workflowId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Workflow",
+          "description": "Updates workflow metadata by workflowId.",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \n}" },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/workflows/{{workflowId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "workflows", "{{workflowId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Workflow",
+          "description": "Deletes workflow metadata by workflowId.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/workflows/{{workflowId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "workflows", "{{workflowId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workflow Actions",
+      "description": "Provider-specific workflow actions grouped by provider.",
+      "item": [
+        {
+          "name": "GitHub Actions",
+          "description": "GitHub Actions operations for parameters, trigger and run status.",
+          "item": [
+            {
+              "name": "Fetch Parameters (GHA)",
+              "description": "Extracts workflow_dispatch inputs from the workflow file.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"workflowUrl\": \"owner/repo/.github/workflows/build.yml@main\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/{{integrationId}}/job-parameters",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "{{integrationId}}", "job-parameters"]
+                }
+              }
+            },
+            {
+              "name": "Trigger (GHA)",
+              "description": "Dispatches a GitHub Actions workflow with optional inputs.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"workflowType\":\"CUSTOM\",\n  \"platform\":\"ios\",\n  \"jobParameters\": { \"ref\":\"main\", \"buildNumber\":\"1234\" }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/{{integrationId}}/trigger",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "{{integrationId}}", "trigger"]
+                }
+              }
+            },
+            {
+              "name": "Run Status (GHA)",
+              "description": "Fetches normalized status for a GitHub Actions run.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/{{integrationId}}/run-status?owner=owner&repo=repo&runId=123456",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "{{integrationId}}", "run-status"],
+                  "query": [
+                    { "key": "owner", "value": "owner" },
+                    { "key": "repo", "value": "repo" },
+                    { "key": "runId", "value": "123456" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Jenkins",
+          "description": "Jenkins operations for parameters, trigger and queue status.",
+          "item": [
+            {
+              "name": "Fetch Parameters (Jenkins)",
+              "description": "Discovers Jenkins job parameter definitions for a job URL.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"workflowUrl\": \"https://jenkins.example.com/job/mobile/job/build-ios/\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/{{integrationId}}/job-parameters",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "{{integrationId}}", "job-parameters"]
+                }
+              }
+            },
+            {
+              "name": "Trigger (Jenkins)",
+              "description": "Triggers a Jenkins job with parameters; returns queue location.",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"workflowId\":\"{{workflowId}}\",\n  \"jobParameters\": { \"BRANCH\":\"main\", \"BUILD_NUMBER\":\"1234\" }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/{{integrationId}}/trigger",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "{{integrationId}}", "trigger"]
+                }
+              }
+            },
+            {
+              "name": "Queue Status (Jenkins)",
+              "description": "Polls Jenkins queue item and infers build status when available.",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/{{integrationId}}/queue-status?queueUrl=https%3A%2F%2Fjenkins.example.com%2Fqueue%2Fitem%2F123",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "{{integrationId}}", "queue-status"],
+                  "query": [
+                    { "key": "queueUrl", "value": "https://jenkins.example.com/queue/item/123" }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Configs (CRUD)",
+      "description": "Tenant-scoped grouping of workflows; CRUD operations.",
+      "item": [
+        {
+          "name": "Create Config",
+          "description": "Creates a config by validating/creating workflows and saving their IDs.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflows\": [\n    {\n      \"providerType\":\"GITHUB_ACTIONS\",\n      \"integrationId\":\"{{integrationId}}\",\n      \"displayName\":\"Build & Test\",\n      \"platform\":\"ios\",\n      \"workflowType\":\"CUSTOM\",\n      \"workflowUrl\":\"owner/repo/.github/workflows/build.yml@main\",\n      \"parameters\":{}\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "configs"]
+            }
+          }
+        },
+        {
+          "name": "List Configs",
+          "description": "Lists all configs for a tenant.",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "configs"]
+            }
+          }
+        },
+        {
+          "name": "Get Config",
+          "description": "Fetches a config by id.",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/configs/{{configId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "configs", "{{configId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Config",
+          "description": "Updates a config (e.g., workflowIds).",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflowIds\": [\"{{workflowId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/configs/{{configId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "configs", "{{configId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Config",
+          "description": "Deletes a config.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants/{{tenantId}}/integrations/ci-cd/configs/{{configId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tenants", "{{tenantId}}", "integrations", "ci-cd", "configs", "{{configId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Config Actions",
+      "description": "Actions that resolve workflows from a config before forwarding to provider.",
+      "item": [
+        {
+          "name": "Trigger by Config",
+          "description": "Resolves a unique workflow by platform and workflowType, then triggers it.",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\":\"ios\",\n  \"workflowType\":\"CUSTOM\",\n  \"jobParameters\": { \"ref\": \"main\" }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/integrations/ci-cd/configs/{{configId}}/trigger",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "ci-cd", "configs", "{{configId}}", "trigger"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "tenantId", "value": "" },
+    { "key": "integrationId", "value": "" },
+    { "key": "workflowId", "value": "" },
+    { "key": "configId", "value": "" }
+  ]
+}
+
+
+
