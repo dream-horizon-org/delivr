@@ -9,7 +9,6 @@
 
 import { Request, Response, Router } from "express";
 import * as multer from "multer";
-import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
