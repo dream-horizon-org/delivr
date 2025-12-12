@@ -194,6 +194,41 @@ export class BuildRepository {
   }
 
   /**
+   * Find builds for a release with a specific workflow status.
+   * Used by workflow polling service to find PENDING or RUNNING builds.
+   */
+  async findByReleaseAndWorkflowStatus(
+    releaseId: string,
+    workflowStatus: WorkflowStatus
+  ): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { releaseId, workflowStatus },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find CI/CD builds for a release with a specific workflow status.
+   * Filters to only buildType = 'CI_CD' (excludes MANUAL uploads).
+   * Used by workflow polling service.
+   */
+  async findCiCdBuildsByReleaseAndWorkflowStatus(
+    releaseId: string,
+    workflowStatus: WorkflowStatus
+  ): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { 
+        releaseId, 
+        workflowStatus,
+        buildType: 'CI_CD'
+      },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
+  }
+
+  /**
    * Find builds awaiting completion for a task
    */
   async findPendingByTaskId(taskId: string): Promise<Build[]> {

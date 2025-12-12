@@ -60,6 +60,9 @@ export function getCronJobService(storage: Storage): CronJobService | null {
   const platformMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformMappingModel);
   const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
 
+  // Get cronicle service from storage (if available)
+  const cronicleService = (storage as any).cronicleService ?? null;
+
   // Create and cache service
   cachedService = new CronJobService(
     cronJobRepo,
@@ -68,7 +71,8 @@ export function getCronJobService(storage: Storage): CronJobService | null {
     regressionCycleRepo,
     platformMappingRepo,
     storage,
-    releaseUploadsRepo
+    releaseUploadsRepo,
+    cronicleService
   );
 
   return cachedService;

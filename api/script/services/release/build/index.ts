@@ -1,4 +1,6 @@
 export { BuildArtifactService } from './build-artifact.service';
+export { StoreDistributionService } from './store-distribution.service';
+export { TestflightVerificationService } from './testflight-verification.service';
 
 // Service-specific types
 export {
@@ -8,6 +10,14 @@ export {
   type ListBuildArtifactsInput,
   type BuildArtifactItem,
   type BuildArtifactErrorCode,
+  type StoreDistributionInput,
+  type StoreDistributionResult,
+  type UpdateInternalTrackInfoInput,
+  type ManualTestflightVerifyInput,
+  type CiTestflightVerifyInput,
+  type TestflightVerifyResult,
+  type TestflightVerificationInput,
+  type TestflightVerificationResult,
   BuildArtifactError
 } from './build-artifact.interface';
 
@@ -26,8 +36,10 @@ export {
   BUILD_ARTIFACT_ERROR_CODE,
   BUILD_ARTIFACT_ERROR_MESSAGES,
   BUILD_ARTIFACT_SUCCESS_MESSAGES,
-  BUILD_ARTIFACT_DEFAULTS
+  BUILD_ARTIFACT_DEFAULTS,
+  BUILD_ARTIFACT_FILE_EXTENSIONS
 } from './build-artifact.constants';
 
 // Service utilities
-export { executeOperation } from './build-artifact.utils';
+export { executeOperation, isAabFile, extractVersionFromAab, generateInternalTrackLink } from './build-artifact.utils';
+export type { AabVersionInfo } from './build-artifact.utils';

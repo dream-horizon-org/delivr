@@ -25,9 +25,16 @@ import {
   type CreateManualBuildInput,
   type ListBuildArtifactsInput,
   type BuildArtifactItem,
+  type StoreDistributionResult,
+  type ManualTestflightVerifyInput,
+  type CiTestflightVerifyInput,
+  type TestflightVerifyResult,
   BuildArtifactError
 } from './build-artifact.interface';
-import { executeOperation } from './build-artifact.utils';
+import { executeOperation, isAabFile, generateInternalTrackLink } from './build-artifact.utils';
+import { StoreType as PlayStoreType } from '../../../storage/integrations/store/store-types';
+import { StoreDistributionService } from './store-distribution.service';
+import { TestflightVerificationService } from './testflight-verification.service';
 
 /**
  * Service for handling build artifact operations.
@@ -36,6 +43,8 @@ import { executeOperation } from './build-artifact.utils';
 export class BuildArtifactService {
   private readonly storage: Storage;
   private readonly buildRepository: BuildRepository;
+  private readonly storeDistributionService: StoreDistributionService;
+  private readonly testflightVerificationService: TestflightVerificationService;
 
   constructor(storage: Storage) {
     this.storage = storage;
@@ -44,6 +53,8 @@ export class BuildArtifactService {
       throw new Error('BuildArtifactService requires S3Storage');
     }
     this.buildRepository = (storage as S3Storage).buildRepository;
+    this.storeDistributionService = new StoreDistributionService();
+    this.testflightVerificationService = new TestflightVerificationService();
   }
 
   /**
@@ -53,13 +64,16 @@ export class BuildArtifactService {
    * 1. Find build by ciRunId
    * 2. Upload artifact to S3
    * 3. Update build record with artifact path
+   * 4. Handle AAB internal track:
+   *    - If buildNumber provided, generate internalTrackLink using packageName from store_integrations
+   *    - If not provided, distribute to internal track automatically
    *
-   * @param input - The artifact upload input (ciRunId, buffer, filename)
+   * @param input - The artifact upload input (ciRunId, buffer, filename, optional buildNumber)
    * @returns The upload result with download URL and S3 URI
    * @throws BuildArtifactError if any step fails
    */
   uploadArtifactForCiBuild = async (input: UploadBuildArtifactInput): Promise<UploadBuildArtifactResult> => {
-    const { ciRunId, artifactBuffer, originalFilename } = input;
+    const { ciRunId, artifactBuffer, originalFilename, buildNumber } = input;
 
     // Step 1: Find build by ciRunId
     const build = await executeOperation(
@@ -87,12 +101,27 @@ export class BuildArtifactService {
       originalFilename
     });
 
-    // Step 3: Update build record with artifact path
+    // Step 3: Update build record with artifact path AND upload status
     await executeOperation(
-      () => this.buildRepository.updateArtifactPath(build.id, uploadResult.s3Uri),
+      () => this.buildRepository.update(build.id, {
+        artifactPath: uploadResult.s3Uri,
+        buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+      }),
       BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
     );
+
+    // Step 4: Handle AAB internal track (generate link using buildNumber + packageName)
+    const isAab = isAabFile(originalFilename);
+    if (isAab) {
+      await this.handleAabInternalTrackDistribution({
+        buildId: build.id,
+        tenantId: build.tenantId,
+        artifactBuffer,
+        artifactVersionName: build.artifactVersionName,
+        providedBuildNumber: buildNumber ?? null
+      });
+    }
 
     return {
       downloadUrl: uploadResult.downloadUrl,
@@ -106,7 +135,10 @@ export class BuildArtifactService {
    *
    * Steps:
    * 1. Upload artifact to S3
-   * 2. Create build record in database
+   * 2. Create build record in database (with internalTrackLink if provided)
+   * 3. Handle AAB internal track distribution:
+   *    - If internalTrackLink provided in input, it's already saved in step 2
+   *    - If not provided, distribute to internal track automatically
    *
    * @param input - The manual build creation input
    * @returns The upload result with download URL and S3 URI
@@ -122,7 +154,8 @@ export class BuildArtifactService {
       storeType,
       buildStage,
       artifactBuffer,
-      originalFilename
+      originalFilename,
+      internalTrackLink
     } = input;
 
     const buildId = shortid.generate();
@@ -139,8 +172,7 @@ export class BuildArtifactService {
       originalFilename
     });
 
-    // Step 2: Create build record
-
+    // Step 2: Create build record (with internalTrackLink if provided)
     await executeOperation(
       () => this.buildRepository.create({
         id: buildId,
@@ -162,12 +194,25 @@ export class BuildArtifactService {
         workflowStatus: null,
         ciRunType: null,
         taskId: null,
-        internalTrackLink: null,
+        internalTrackLink: internalTrackLink ?? null,
         testflightNumber: null
       }),
       BUILD_ARTIFACT_ERROR_CODE.DB_CREATE_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.DB_CREATE_FAILED
     );
+
+    // Step 3: Handle AAB internal track distribution (only if not already provided)
+    const isAab = isAabFile(originalFilename);
+    const hasProvidedInternalTrackLink = internalTrackLink !== undefined && internalTrackLink !== null;
+    const needsDistribution = isAab && !hasProvidedInternalTrackLink;
+
+    if (needsDistribution) {
+      await this.distributeAabToInternalTrack({
+        buildId,
+        artifactBuffer,
+        artifactVersionName
+      });
+    }
 
     return {
       downloadUrl: uploadResult.downloadUrl,
@@ -257,6 +302,155 @@ export class BuildArtifactService {
     }
 
     return results;
+  };
+
+  /**
+   * Manual TestFlight verification (for users without CI/CD).
+   * User manually uploads build to TestFlight and provides the build number.
+   * Creates a new build record after verification.
+   *
+   * Steps:
+   * 1. Verify TestFlight build number exists in App Store Connect
+   * 2. Create build record with testflight number
+   *
+   * @param input - The release ID, testflight number, and version info
+   * @returns The verification result with build details
+   * @throws BuildArtifactError if verification fails
+   */
+  verifyManualTestflightBuild = async (
+    input: ManualTestflightVerifyInput
+  ): Promise<TestflightVerifyResult> => {
+    const { tenantId, releaseId, testflightNumber, versionName, buildStage } = input;
+
+    // Step 1: Verify TestFlight build number exists in App Store Connect
+    const verificationResult = await executeOperation(
+      () => this.testflightVerificationService.verifyTestflightNumber({
+        testflightNumber
+      }),
+      BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
+    );
+
+    const verificationFailed = !verificationResult.isValid;
+    if (verificationFailed) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_NUMBER_INVALID,
+        BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_NUMBER_INVALID
+      );
+    }
+
+    // Step 2: Create build record with testflight number
+    const buildId = shortid.generate();
+    const now = new Date();
+
+    await executeOperation(
+      () => this.buildRepository.create({
+        id: buildId,
+        tenantId,
+        createdAt: now,
+        updatedAt: now,
+        buildNumber: testflightNumber,
+        artifactVersionName: versionName,
+        artifactPath: null,
+        releaseId,
+        platform: 'IOS' as BuildPlatform,
+        storeType: 'TESTFLIGHT' as StoreType,
+        buildStage,
+        regressionId: null,
+        ciRunId: null,
+        buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
+        buildType: BUILD_TYPE.MANUAL,
+        queueLocation: null,
+        workflowStatus: null,
+        ciRunType: null,
+        taskId: null,
+        internalTrackLink: null,
+        testflightNumber
+      }),
+      BUILD_ARTIFACT_ERROR_CODE.DB_CREATE_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_CREATE_FAILED
+    );
+
+    return {
+      buildId,
+      releaseId,
+      platform: 'IOS',
+      testflightNumber,
+      versionName,
+      verified: true,
+      buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
+      createdAt: now
+    };
+  };
+
+  /**
+   * CI/CD TestFlight verification.
+   * CI uploads build to TestFlight and provides ciRunId + testflight number.
+   * Updates existing build record after verification.
+   *
+   * Steps:
+   * 1. Find build by ciRunId
+   * 2. Verify TestFlight build number exists in App Store Connect
+   * 3. Update build record with testflight number
+   *
+   * @param input - The ciRunId and testflight number
+   * @returns The verification result with build details
+   * @throws BuildArtifactError if build not found or verification fails
+   */
+  verifyCiTestflightBuild = async (
+    input: CiTestflightVerifyInput
+  ): Promise<TestflightVerifyResult> => {
+    const { ciRunId, testflightNumber } = input;
+
+    // Step 1: Find build by ciRunId
+    const build = await executeOperation(
+      () => this.buildRepository.findByCiRunId(ciRunId),
+      BUILD_ARTIFACT_ERROR_CODE.DB_QUERY_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_QUERY_FAILED
+    );
+
+    const buildNotFound = !build;
+    if (buildNotFound) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.BUILD_NOT_FOUND
+      );
+    }
+
+    // Step 2: Verify TestFlight build number exists in App Store Connect
+    const verificationResult = await executeOperation(
+      () => this.testflightVerificationService.verifyTestflightNumber({
+        testflightNumber
+      }),
+      BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
+    );
+
+    const verificationFailed = !verificationResult.isValid;
+    if (verificationFailed) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_NUMBER_INVALID,
+        BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_NUMBER_INVALID
+      );
+    }
+
+    // Step 3: Update build record with testflight number
+    await executeOperation(
+      () => this.buildRepository.updateTestflightNumber(build.id, testflightNumber),
+      BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+    );
+
+    return {
+      buildId: build.id,
+      releaseId: build.releaseId,
+      platform: 'IOS',
+      testflightNumber,
+      versionName: build.artifactVersionName,
+      verified: true,
+      buildUploadStatus: build.buildUploadStatus as BuildUploadStatus,
+      createdAt: build.createdAt
+    };
   };
 
   /**
@@ -368,6 +562,131 @@ export class BuildArtifactService {
     );
 
     return { s3Uri, downloadUrl };
+  };
+
+  /**
+   * Handle AAB internal track distribution with conditional logic.
+   *
+   * - If buildNumber is provided by CI, generate internalTrackLink using packageName from store_integrations
+   * - If not provided, call store distribution service to upload automatically
+   *
+   * internalTrackLink format: https://play.google.com/apps/test/{packageName}/{versionCode}
+   *
+   * @param params - Build ID, tenantId, artifact buffer, version name, and optional buildNumber
+   * @throws BuildArtifactError if distribution or update fails
+   */
+  private handleAabInternalTrackDistribution = async (params: {
+    buildId: string;
+    tenantId: string;
+    artifactBuffer: Buffer;
+    artifactVersionName: string;
+    providedBuildNumber: string | null;
+  }): Promise<void> => {
+    const {
+      buildId,
+      tenantId,
+      artifactBuffer,
+      artifactVersionName,
+      providedBuildNumber
+    } = params;
+
+    const hasProvidedBuildNumber = providedBuildNumber !== null;
+
+    if (hasProvidedBuildNumber) {
+      // CI already uploaded to Play Store - get packageName from store_integrations and generate link
+      const packageName = await this.getPlayStorePackageName(tenantId);
+      const internalTrackLink = generateInternalTrackLink(packageName, providedBuildNumber);
+
+      await executeOperation(
+        () => this.buildRepository.updateInternalTrackInfo(
+          buildId,
+          internalTrackLink,
+          providedBuildNumber
+        ),
+        BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+        BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+      );
+    } else {
+      // Need to upload to internal track ourselves (buildNumber comes from Play Store response)
+      await this.distributeAabToInternalTrack({
+        buildId,
+        artifactBuffer,
+        artifactVersionName
+      });
+    }
+  };
+
+  /**
+   * Get Play Store package name (appIdentifier) from store_integrations table.
+   *
+   * @param tenantId - The tenant ID
+   * @returns The package name (appIdentifier)
+   * @throws BuildArtifactError if Play Store integration not found
+   */
+  private getPlayStorePackageName = async (tenantId: string): Promise<string> => {
+    const isS3Storage = this.storage instanceof S3Storage;
+    if (!isS3Storage) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.PLAY_STORE_INTEGRATION_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.PLAY_STORE_INTEGRATION_NOT_FOUND
+      );
+    }
+
+    const s3Storage = this.storage as S3Storage;
+    const integrations = await s3Storage.storeIntegrationController.findAll({
+      tenantId,
+      storeType: PlayStoreType.PLAY_STORE
+    });
+
+    const hasIntegration = integrations.length > 0;
+    if (!hasIntegration) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.PLAY_STORE_INTEGRATION_NOT_FOUND,
+        BUILD_ARTIFACT_ERROR_MESSAGES.PLAY_STORE_INTEGRATION_NOT_FOUND
+      );
+    }
+
+    // Use the first Play Store integration's appIdentifier as packageName
+    return integrations[0].appIdentifier;
+  };
+
+  /**
+   * Distribute an AAB artifact to Play Store internal track.
+   *
+   * Steps:
+   * 1. Call store distribution service to upload to internal track
+   * 2. Update build record with internal track link and build number
+   *
+   * @param params - Build ID, artifact buffer, and version name
+   * @throws BuildArtifactError if distribution or update fails
+   */
+  private distributeAabToInternalTrack = async (params: {
+    buildId: string;
+    artifactBuffer: Buffer;
+    artifactVersionName: string;
+  }): Promise<void> => {
+    const { buildId, artifactBuffer, artifactVersionName } = params;
+
+    // Step 1: Call store distribution service to upload to internal track
+    const distributionResult: StoreDistributionResult = await executeOperation(
+      () => this.storeDistributionService.uploadToInternalTrack({
+        artifactBuffer,
+        artifactVersionName
+      }),
+      BUILD_ARTIFACT_ERROR_CODE.STORE_DISTRIBUTION_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.STORE_DISTRIBUTION_FAILED
+    );
+
+    // Step 2: Update build record with internal track link and build number
+    await executeOperation(
+      () => this.buildRepository.updateInternalTrackInfo(
+        buildId,
+        distributionResult.internalTrackLink,
+        distributionResult.buildNumber
+      ),
+      BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+    );
   };
 
   /**

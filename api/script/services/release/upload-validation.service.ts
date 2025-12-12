@@ -143,7 +143,7 @@ export class UploadValidationService {
   ): Promise<UploadValidationResult> {
     switch (stage) {
       case 'KICK_OFF':
-        return this.validatePreRegressionWindow(releaseId);
+        return this.validateKickOffWindow(releaseId);
       case 'REGRESSION':
         return this.validateRegressionWindow(releaseId);
       case 'PRE_RELEASE':
@@ -162,7 +162,7 @@ export class UploadValidationService {
    * - Open: No task yet, or task is PENDING/AWAITING_MANUAL_BUILD
    * - Closed: Task is IN_PROGRESS or COMPLETED
    */
-  private async validatePreRegressionWindow(releaseId: string): Promise<UploadValidationResult> {
+  private async validateKickOffWindow(releaseId: string): Promise<UploadValidationResult> {
     const task = await this.taskRepo.findByTaskType(
       releaseId,
       TaskType.TRIGGER_PRE_REGRESSION_BUILDS

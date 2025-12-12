@@ -26,16 +26,27 @@ import type {
 
 /**
  * Input for uploading an artifact to an existing build (CI/CD flow)
+ *
+ * For AAB builds:
+ * - CI provides buildNumber (versionCode) after uploading to Play Store
+ * - System generates internalTrackLink using: https://play.google.com/apps/test/{packageName}/{versionCode}
+ * - packageName is fetched from store_integrations table using tenantId
  */
 export type UploadBuildArtifactInput = {
   ciRunId: string;
   artifactBuffer: Buffer;
   originalFilename: string;
+  /** Optional: Build number / versionCode from Play Store (for AAB builds) */
+  buildNumber?: string | null;
 };
 
 /**
  * Input for creating a new build with artifact (manual upload flow)
  * Note: storeType is optional (can be null for regression builds)
+ *
+ * For AAB builds:
+ * - If internalTrackLink is provided, it will be saved directly
+ * - If not provided, the system will upload to internal track automatically
  */
 export type CreateManualBuildInput = {
   tenantId: string;
@@ -47,6 +58,8 @@ export type CreateManualBuildInput = {
   buildStage: BuildStage;
   artifactBuffer: Buffer;
   originalFilename: string;
+  /** Optional: Play Store internal track link (if already uploaded) */
+  internalTrackLink?: string | null;
 };
 
 /**
@@ -113,3 +126,87 @@ export class BuildArtifactError extends Error {
     this.name = 'BuildArtifactError';
   }
 }
+
+/**
+ * Input for store distribution service (upload to internal track)
+ */
+export type StoreDistributionInput = {
+  artifactBuffer: Buffer;
+  artifactVersionName: string;
+};
+
+/**
+ * Result from store distribution service
+ */
+export type StoreDistributionResult = {
+  internalTrackLink: string;
+  buildNumber: string;  // artifactVersionCode from Play Store
+};
+
+/**
+ * Input for updating internal track info in builds table
+ */
+export type UpdateInternalTrackInfoInput = {
+  buildId: string;
+  internalTrackLink: string;
+  buildNumber: string;
+};
+
+/**
+ * Input for manual TestFlight verification (user without CI/CD).
+ * Creates a new build record after verification.
+ */
+export type ManualTestflightVerifyInput = {
+  tenantId: string;
+  releaseId: string;
+  testflightNumber: string;
+  versionName: string;
+  buildStage: BuildStage;
+};
+
+/**
+ * Input for CI/CD TestFlight verification.
+ * Updates existing build record by ciRunId.
+ */
+export type CiTestflightVerifyInput = {
+  ciRunId: string;
+  testflightNumber: string;
+};
+
+/**
+ * Result of TestFlight verification (both manual and CI/CD flows)
+ */
+export type TestflightVerifyResult = {
+  buildId: string;
+  releaseId: string;
+  platform: 'IOS';
+  testflightNumber: string;
+  versionName: string;
+  verified: boolean;
+  buildUploadStatus: BuildUploadStatus;
+  createdAt: Date;
+};
+
+/**
+ * Input for TestFlight verification service (App Store Connect API)
+ */
+export type TestflightVerificationInput = {
+  testflightNumber: string;
+  /** App bundle ID for verification */
+  bundleId?: string;
+};
+
+/**
+ * Result from TestFlight verification service (App Store Connect API)
+ */
+export type TestflightVerificationResult = {
+  isValid: boolean;
+  message: string;
+  /** Additional metadata from App Store Connect (when implemented) */
+  metadata?: {
+    appStoreConnectId?: string;
+    bundleId?: string;
+    expirationDate?: string;
+    testflightLink?: string;
+  };
+};

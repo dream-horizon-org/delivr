@@ -2,22 +2,27 @@ import { Request, Response } from 'express';
 import type { Storage } from '../../../storage/storage';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, validationErrorResponse } from '~utils/response.utils';
-import { BUILD_ERROR_MESSAGES, BUILD_SUCCESS_MESSAGES } from '~types/release-management/builds';
-import { getFileWithField } from '../../../file-upload-manager';
 import { getTrimmedString } from '~utils/string.utils';
 import {
   BuildArtifactService,
   BuildArtifactError,
-  BUILD_ARTIFACT_ERROR_CODE
+  BUILD_ARTIFACT_ERROR_CODE,
+  BUILD_ARTIFACT_SUCCESS_MESSAGES
 } from '~services/release/build';
 
 /**
- * HTTP handler for CI artifact upload.
- * Extracts HTTP-specific concerns and delegates to BuildArtifactService.
+ * HTTP handler for CI/CD TestFlight build verification.
+ * For users with CI/CD pipelines that upload builds to TestFlight.
+ *
+ * POST /builds/ci/testflight/verify
+ *
+ * ciRunId is passed in request body because it can be a URL
+ * containing special characters (e.g., https://jenkins.example.com/job/Release/1042/)
  */
-export const createCiArtifactUploadHandler = (storage: Storage) =>
+export const createCiTestflightVerifyHandler = (storage: Storage) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
+      // ciRunId from body - supports URLs with special characters
       const ciRunId = getTrimmedString(req.body.ciRunId);
 
       const ciRunIdInvalid = !ciRunId;
@@ -28,29 +33,24 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const artifactFile = getFileWithField(req, 'artifact');
-      const fileMissing = !artifactFile || !artifactFile.buffer || !artifactFile.originalname;
-      if (fileMissing) {
+      const testflightNumber = getTrimmedString(req.body.testflightNumber);
+      const testflightNumberInvalid = !testflightNumber;
+      if (testflightNumberInvalid) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
-          validationErrorResponse('artifact', BUILD_ERROR_MESSAGES.ARTIFACT_REQUIRED)
+          validationErrorResponse('testflightNumber', 'testflightNumber is required')
         );
         return;
       }
 
-      // Optional: buildNumber (versionCode) from body (for AAB builds where CI already uploaded to Play Store)
-      const buildNumber = getTrimmedString(req.body.buildNumber);
-
       // Use the service to handle the core business logic
       const buildArtifactService = new BuildArtifactService(storage);
-      const result = await buildArtifactService.uploadArtifactForCiBuild({
+      const result = await buildArtifactService.verifyCiTestflightBuild({
         ciRunId,
-        artifactBuffer: artifactFile.buffer,
-        originalFilename: artifactFile.originalname,
-        buildNumber: buildNumber ?? undefined
+        testflightNumber
       });
 
-      res.status(HTTP_STATUS.CREATED).json(
-        successResponse({ downloadUrl: result.downloadUrl }, BUILD_SUCCESS_MESSAGES.UPLOAD_COMPLETED)
+      res.status(HTTP_STATUS.OK).json(
+        successResponse(result, BUILD_ARTIFACT_SUCCESS_MESSAGES.TESTFLIGHT_VERIFIED)
       );
     } catch (err) {
       const isBuildArtifactError = err instanceof BuildArtifactError;
@@ -58,7 +58,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
       if (isBuildArtifactError) {
         const artifactError = err as BuildArtifactError;
         const isBuildNotFound = artifactError.code === BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND;
-        const isPlayStoreIntegrationNotFound = artifactError.code === BUILD_ARTIFACT_ERROR_CODE.PLAY_STORE_INTEGRATION_NOT_FOUND;
+        const isTestflightInvalid = artifactError.code === BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_NUMBER_INVALID;
 
         if (isBuildNotFound) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -67,7 +67,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
           return;
         }
 
-        if (isPlayStoreIntegrationNotFound) {
+        if (isTestflightInvalid) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
             errorResponse(artifactError, artifactError.message)
           );
@@ -84,6 +84,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
       // Unexpected error
       res
         .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-        .json(errorResponse(err, 'Unexpected error during CI artifact upload'));
+        .json(errorResponse(err, 'Unexpected error during TestFlight verification'));
     }
   };
+

@@ -19,6 +19,7 @@ import { checkIntegrationAvailability } from '~utils/integration-availability.ut
 import { createStage3Tasks } from '~utils/task-creation';
 import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
+import { deleteWorkflowPollingJobs } from '~services/release/workflow-polling';
 
 export class PostRegressionState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -326,6 +327,42 @@ export class PostRegressionState implements ICronJobState {
     stopCronJob(releaseId);
     console.log(`[PostRegressionState] ✅ Workflow COMPLETED: Stage 3 done, cron stopped`);
     console.log(`[PostRegressionState] Note: Release workflow ends here - no Stage 4. Submission tasks (SUBMIT_TO_TARGET) are manual APIs.`);
+
+    // Delete workflow polling Cronicle jobs (release is COMPLETED)
+    await this.deleteWorkflowPollingJobs(releaseId);
+  }
+
+  /**
+   * Delete workflow polling Cronicle jobs for a completed release.
+   * Called when the release workflow completes (Stage 3 done).
+   */
+  private async deleteWorkflowPollingJobs(releaseId: string): Promise<void> {
+    const storage = this.context.getStorage();
+    const cronicleService = (storage as any).cronicleService;
+    
+    const cronicleNotAvailable = !cronicleService;
+    if (cronicleNotAvailable) {
+      console.log(`[PostRegressionState] Cronicle not available, skipping workflow polling job deletion for release ${releaseId}`);
+      return;
+    }
+
+    try {
+      const result = await deleteWorkflowPollingJobs({
+        releaseId,
+        cronicleService
+      });
+
+      console.log(`[PostRegressionState] Workflow polling jobs deletion for release ${releaseId}: pending=${result.pendingDeleted}, running=${result.runningDeleted}`);
+      
+      const hasErrors = result.errors.length > 0;
+      if (hasErrors) {
+        console.warn(`[PostRegressionState] Some workflow polling jobs could not be deleted:`, result.errors);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[PostRegressionState] Error deleting workflow polling jobs for release ${releaseId}:`, errorMessage);
+      // Don't throw - cleanup failures shouldn't block release completion
+    }
   }
 
   // ========================================================================
