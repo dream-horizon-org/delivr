@@ -243,10 +243,24 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
       return data.data || data;
     },
     {
-      onSuccess: () => {
-        // Invalidate regression stage to show updated builds
+      onSuccess: (_, variables) => {
+        // Invalidate the appropriate stage based on upload stage
         if (tenantId && releaseId) {
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.REGRESSION));
+          let stageToInvalidate: TaskStage;
+          switch (variables.stage) {
+            case 'PRE_REGRESSION':
+              stageToInvalidate = TaskStage.KICKOFF;
+              break;
+            case 'REGRESSION':
+              stageToInvalidate = TaskStage.REGRESSION;
+              break;
+            case 'PRE_RELEASE':
+              stageToInvalidate = TaskStage.POST_REGRESSION;
+              break;
+            default:
+              stageToInvalidate = TaskStage.REGRESSION;
+          }
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
         }
       },
     }

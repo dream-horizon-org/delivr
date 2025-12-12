@@ -12,7 +12,7 @@ import { Container, Group, Stack } from '@mantine/core';
 import { useNavigate, useParams } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { KickoffStage, PreKickoffStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
+import { KickoffStage, PostRegressionStage, PreKickoffStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { useRelease } from '~/hooks/useRelease';
 import { Phase } from '~/types/release-process-enums';
@@ -111,11 +111,7 @@ export default function ReleaseDetailsPage() {
     }
 
     if (stageToRender === 'POST_REGRESSION') {
-      return (
-        <div>
-          <p>Post-Regression Stage - Coming in Phase 3</p>
-        </div>
-      );
+      return <PostRegressionStage tenantId={org} releaseId={releaseId} />;
     }
 
     return null;

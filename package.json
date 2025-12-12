@@ -9,6 +9,7 @@
     "dev": "remix vite:dev",
     "dev:mock": "concurrently \"pnpm run mock\" \"pnpm run dev\"",
     "mock": "node mock-server/server.js",
+    "mock-server": "node mock-server/server.js",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "typecheck": "tsc",
     "gen:routes": "pnpm routes-gen -d @routes-gen/remix",
