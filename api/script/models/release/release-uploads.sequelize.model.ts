@@ -19,8 +19,9 @@ import { PlatformName } from './release.interface';
 
 /**
  * Build stage for manual uploads
+ * Uses same values as builds.buildStage for consistency
  */
-export type UploadStage = 'PRE_REGRESSION' | 'REGRESSION' | 'PRE_RELEASE';
+export type UploadStage = 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
 
 /**
  * ReleaseUpload attributes (all fields)
@@ -99,7 +100,7 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
         allowNull: false,
       },
       stage: {
-        type: DataTypes.ENUM('PRE_REGRESSION', 'REGRESSION', 'PRE_RELEASE'),
+        type: DataTypes.ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE'),
         allowNull: false,
       },
       artifactPath: {

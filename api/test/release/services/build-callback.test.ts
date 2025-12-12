@@ -40,8 +40,8 @@ import { generatePlatformVersionString } from '../../../script/services/release/
 // ✅ Retry - IMPLEMENTED in ReleaseUpdateService
 import { ReleaseUpdateService, RetryTaskResult } from '../../../script/services/release/release-update.service';
 
-// ✅ Callback handler - IMPLEMENTED
-import { handleBuildCallback } from '../../../script/services/release/build-callback.handler';
+// ✅ Callback service - IMPLEMENTED (class-based, used by controller)
+import { BuildCallbackService } from '../../../script/services/release/build-callback.service';
 
 // ✅ Manual upload - DEPRECATED (moved to release_uploads staging table)
 // Tests for new architecture are in release-orchestration.unit.test.ts
@@ -147,10 +147,10 @@ describe('Build Callback & Retry Tests (TDD)', () => {
   });
 
   // ==========================================================================
-  // 2. CALLBACK HANDLER - services/release/build-callback.handler.ts ✅ IMPLEMENTED
+  // 2. CALLBACK SERVICE - services/release/build-callback.service.ts ✅ IMPLEMENTED
   // ==========================================================================
   
-  describe('Callback Handler (build-callback.handler.ts) ✅', () => {
+  describe('Callback Service (build-callback.service.ts) ✅', () => {
     
     // Helper to create mock repositories for callback handler tests
     const createCallbackMocks = (buildStatus: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'NO_BUILDS') => {
@@ -184,13 +184,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
     it('marks task COMPLETED when all builds uploaded', async () => {
       const mocks = createCallbackMocks('COMPLETED');
       
-      const result = await handleBuildCallback(
-        'task-123',
+      const service = new BuildCallbackService(
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any
       );
+      const result = await service.processCallback('task-123');
       
       expect(result.success).toBe(true);
       expect(result.message).toBe('All builds complete');
@@ -204,13 +204,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
     it('marks task FAILED and pauses release when any build fails', async () => {
       const mocks = createCallbackMocks('FAILED');
       
-      const result = await handleBuildCallback(
-        'task-123',
+      const service = new BuildCallbackService(
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any
       );
+      const result = await service.processCallback('task-123');
       
       expect(result.success).toBe(true);
       expect(result.message).toBe('Build failed, release paused');
@@ -231,13 +231,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
     it('returns waiting when builds still pending', async () => {
       const mocks = createCallbackMocks('PENDING');
       
-      const result = await handleBuildCallback(
-        'task-123',
+      const service = new BuildCallbackService(
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any
       );
+      const result = await service.processCallback('task-123');
       
       expect(result.success).toBe(true);
       expect(result.message).toBe('Waiting for builds');
@@ -249,13 +249,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
     it('returns waiting when builds still running', async () => {
       const mocks = createCallbackMocks('RUNNING');
       
-      const result = await handleBuildCallback(
-        'task-123',
+      const service = new BuildCallbackService(
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any
       );
+      const result = await service.processCallback('task-123');
       
       expect(result.success).toBe(true);
       expect(result.message).toBe('Waiting for builds');
@@ -265,13 +265,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
     it('handles NO_BUILDS status (task has no builds yet)', async () => {
       const mocks = createCallbackMocks('NO_BUILDS');
       
-      const result = await handleBuildCallback(
-        'task-123',
+      const service = new BuildCallbackService(
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any
       );
+      const result = await service.processCallback('task-123');
       
       expect(result.success).toBe(true);
       expect(result.message).toBe('Waiting for builds');
@@ -282,13 +282,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
       const mocks = createCallbackMocks('COMPLETED');
       mocks.taskRepo.findById = jest.fn().mockResolvedValue(null);
       
-      const result = await handleBuildCallback(
-        'task-123',
+      const service = new BuildCallbackService(
         mocks.buildRepo as any,
         mocks.taskRepo as any,
         mocks.releaseRepo as any,
         mocks.cronJobRepo as any
       );
+      const result = await service.processCallback('task-123');
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('not found');
@@ -408,19 +408,19 @@ describe('Build Callback & Retry Tests (TDD)', () => {
       const { getUploadStageForTaskType } = require('../../../script/utils/awaiting-manual-build.utils');
       const { TaskType } = require('../../../script/models/release/release.interface');
       
-      expect(getUploadStageForTaskType(TaskType.TRIGGER_PRE_REGRESSION_BUILDS)).toBe('PRE_REGRESSION');
+      expect(getUploadStageForTaskType(TaskType.TRIGGER_PRE_REGRESSION_BUILDS)).toBe('KICK_OFF');
       expect(getUploadStageForTaskType(TaskType.TRIGGER_REGRESSION_BUILDS)).toBe('REGRESSION');
       expect(getUploadStageForTaskType(TaskType.TRIGGER_TEST_FLIGHT_BUILD)).toBe('PRE_RELEASE');
       expect(getUploadStageForTaskType(TaskType.CREATE_AAB_BUILD)).toBe('PRE_RELEASE');
     });
 
-    it('should detect AWAITING_CALLBACK tasks waiting for manual builds', () => {
+    it('should detect AWAITING_MANUAL_BUILD tasks waiting for manual builds', () => {
       const { isAwaitingManualBuild } = require('../../../script/utils/awaiting-manual-build.utils');
       const { TaskType, TaskStatus } = require('../../../script/models/release/release.interface');
       
       const task = {
         taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       
       // Should be true when hasManualBuildUpload is true
@@ -432,7 +432,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
       // Should be false for non-build tasks
       const nonBuildTask = {
         taskType: TaskType.FORK_BRANCH,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       expect(isAwaitingManualBuild(nonBuildTask, true)).toBe(false);
     });
@@ -445,7 +445,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
       const platforms = [PlatformName.ANDROID];
       const task = {
         taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       
       expect(isAwaitingManualBuild(task, true)).toBe(true);
@@ -460,7 +460,7 @@ describe('Build Callback & Retry Tests (TDD)', () => {
       const platforms = [PlatformName.ANDROID, PlatformName.IOS, PlatformName.WEB];
       const task = {
         taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       
       expect(isAwaitingManualBuild(task, true)).toBe(true);
@@ -670,8 +670,8 @@ describe('Build Callback & Retry Tests (TDD)', () => {
  *    - For build tasks: resets failed build entries
  *    - LAZY approach: cron picks up and re-executes
  * 
- * 3. services/release/build-callback.handler.ts (NEW)
- *    - handleBuildCallback(taskId, repos) → reads buildUploadStatus, updates task/release
+ * 3. services/release/build-callback.service.ts (CLASS-BASED)
+ *    - BuildCallbackService.processCallback(taskId) → reads buildUploadStatus, updates task/release
  * 
  * 4. services/release/manual-upload.service.ts (NEW)
  *    - handleManualBuildUpload(releaseId, taskId, platform, artifact)

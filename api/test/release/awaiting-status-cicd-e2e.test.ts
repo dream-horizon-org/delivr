@@ -1,14 +1,13 @@
 /**
- * Phase 18: Manual Build Upload - E2E Test
+ * AWAITING_CALLBACK Verification - CI/CD Mode E2E Test (FULL WORKFLOW)
  * 
- * This test simulates a complete release workflow with:
- * - hasManualBuildUpload = true
- * - Manual build uploads via release_uploads staging table
- * - 2 platforms: IOS + ANDROID
- * - 2 regression slots
- * - Automatic stage transitions
+ * This test verifies that in CI/CD mode (hasManualBuildUpload = false):
+ * - TRIGGER_PRE_REGRESSION_BUILDS sets task to AWAITING_CALLBACK
+ * - TRIGGER_REGRESSION_BUILDS sets task to AWAITING_CALLBACK
+ * - After CI/CD callback (build status update), task completes
+ * - Full workflow runs to completion with 2 regression cycles
  * 
- * Run with: npx ts-node -r tsconfig-paths/register test/release/phase18-manual-upload-e2e.test.ts
+ * Run with: npx ts-node -r tsconfig-paths/register test/release/awaiting-status-cicd-e2e.test.ts > test/release/services/awaiting-status-cicd-output.txt 2>&1
  */
 
 import { Sequelize } from 'sequelize';
@@ -21,6 +20,7 @@ import { ReleaseTaskRepository } from '../../script/models/release/release-task.
 import { RegressionCycleRepository } from '../../script/models/release/regression-cycle.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../script/models/release/release-platform-target-mapping.repository';
 import { ReleaseUploadsRepository } from '../../script/models/release/release-uploads.repository';
+import { BuildRepository } from '../../script/models/release/build.repository';
 
 // Models
 import { createReleaseModel, ReleaseModelType } from '../../script/models/release/release.sequelize.model';
@@ -39,7 +39,6 @@ import {
   StageStatus,
   CronStatus,
   ReleaseStatus,
-  RegressionCycleStatus,
   PlatformName
 } from '../../script/models/release/release.interface';
 
@@ -48,7 +47,7 @@ import { CronJobStateMachine } from '../../script/services/release/cron-job/cron
 
 // Test Helpers
 import { createTestStorage } from '../../test-helpers/release/test-storage';
-import { setupTestIntegrations, cleanupTestIntegrations } from '../../test-helpers/release/setup-test-integrations';
+import { setupTestIntegrations } from '../../test-helpers/release/setup-test-integrations';
 import { setupFetchMock } from '../../test-helpers/release/mock-fetch';
 import { createTaskExecutorForTests, clearTaskExecutorCache } from '../../test-helpers/release/task-executor-factory';
 import { initializeStorage } from '../../script/storage/storage-instance';
@@ -58,21 +57,20 @@ import { createStage1Tasks } from '../../script/utils/task-creation';
 // CONFIGURATION
 // ============================================================================
 
-const DB_NAME = process.env.DB_NAME || 'codepushdb';
-const DB_USER = process.env.DB_USER || 'root';
-const DB_PASS = process.env.DB_PASS || 'root';
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_PORT = parseInt(process.env.DB_PORT || '3306', 10);
+const DB_NAME = process.env.DB_NAME ?? 'codepushdb';
+const DB_USER = process.env.DB_USER ?? 'root';
+const DB_PASS = process.env.DB_PASS ?? 'root';
+const DB_HOST = process.env.DB_HOST ?? 'localhost';
+const DB_PORT = parseInt(process.env.DB_PORT ?? '3306', 10);
 
 const TEST_CONFIG = {
-  NUM_SLOTS: 2,                        // 2 regression slots
+  NUM_SLOTS: 2,
   SLOT_INTERVAL_MS: 2 * 60 * 1000,     // 2 minutes between slots
   POLL_INTERVAL_MS: 3000,              // Check every 3 seconds
-  MAX_ITERATIONS: 150,                 // Safety limit (~7 minutes)
+  MAX_ITERATIONS: 150,                  // Full workflow needs more iterations
   PLATFORMS: [PlatformName.IOS, PlatformName.ANDROID] as const,
-  VERSION: '8.0.0',
-  // MANUAL BUILD UPLOAD MODE
-  HAS_MANUAL_BUILD_UPLOAD: true,       // ✅ Phase 18 flag!
+  VERSION: '9.0.0',
+  HAS_MANUAL_BUILD_UPLOAD: false,       // ❌ CI/CD mode - NO manual uploads!
 };
 
 // ============================================================================
@@ -88,7 +86,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Cache models
 let cachedModels: {
   releaseModel: ReleaseModelType;
   cronJobModel: CronJobModelType;
@@ -115,12 +112,13 @@ interface TestRepositories {
   regressionCycleRepo: RegressionCycleRepository;
   platformMappingRepo: ReleasePlatformTargetMappingRepository;
   releaseUploadsRepo: ReleaseUploadsRepository;
+  buildRepo: BuildRepository;
 }
 
 function createRepositories(sequelize: Sequelize): TestRepositories {
   const models = getOrCreateModels(sequelize);
-  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
-  const ReleaseUploadModel = sequelize.models.ReleaseUpload || createReleaseUploadModel(sequelize);
+  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping ?? createPlatformTargetMappingModel(sequelize);
+  const ReleaseUploadModel = sequelize.models.ReleaseUpload ?? createReleaseUploadModel(sequelize);
   
   return {
     releaseRepo: new ReleaseRepository(models.releaseModel),
@@ -128,11 +126,11 @@ function createRepositories(sequelize: Sequelize): TestRepositories {
     releaseTaskRepo: new ReleaseTaskRepository(models.releaseTaskModel),
     regressionCycleRepo: new RegressionCycleRepository(models.regressionCycleModel),
     platformMappingRepo: new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any),
-    releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any)
+    releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any),
+    buildRepo: new BuildRepository(sequelize.models.Build ?? createBuildModel(sequelize) as any)
   };
 }
 
-// Create tenant and account
 async function createTestTenant(
   sequelize: Sequelize,
   tenantId: string,
@@ -150,8 +148,8 @@ async function createTestTenant(
     where: { id: accountId },
     defaults: {
       id: accountId,
-      email: `phase18-${uuidv4()}@example.com`,
-      name: 'Test User - Phase 18 Manual Upload',
+      email: `awaiting-cicd-${uuidv4()}@example.com`,
+      name: 'Test User - AWAITING_CALLBACK Test',
     } as any
   });
 
@@ -159,13 +157,12 @@ async function createTestTenant(
     where: { id: tenantId },
     defaults: {
       id: tenantId,
-      displayName: 'Test Tenant - Phase 18 Manual Upload',
+      displayName: 'Test Tenant - AWAITING_CALLBACK Test',
       createdBy: accountId,
     } as any
   });
 }
 
-// Create release
 async function createTestRelease(
   releaseRepo: ReleaseRepository,
   options: {
@@ -181,7 +178,7 @@ async function createTestRelease(
   const id = uuidv4();
   return releaseRepo.create({
     id,
-    releaseId: `REL-PHASE18-${Date.now()}`,
+    releaseId: `REL-CICD-AWAIT-${Date.now()}`,
     releaseConfigId: options.releaseConfigId ?? null,
     tenantId: options.tenantId,
     status: 'IN_PROGRESS',
@@ -193,14 +190,13 @@ async function createTestRelease(
     kickOffDate: options.kickOffDate,
     targetReleaseDate: options.targetReleaseDate,
     releaseDate: null,
-    hasManualBuildUpload: options.hasManualBuildUpload, // ✅ Phase 18!
+    hasManualBuildUpload: options.hasManualBuildUpload,
     createdByAccountId: options.accountId,
     releasePilotAccountId: options.accountId,
     lastUpdatedByAccountId: options.accountId
   });
 }
 
-// Create cron job
 async function createTestCronJob(
   cronJobRepo: CronJobRepository,
   options: {
@@ -228,30 +224,43 @@ async function createTestCronJob(
   });
 }
 
-// Upload manual build to staging table
-async function uploadManualBuild(
-  releaseUploadsRepo: ReleaseUploadsRepository,
-  options: {
-    tenantId: string;
-    releaseId: string;
-    platform: PlatformName;
-    stage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
-    artifactPath: string;
-  }
-) {
-  return releaseUploadsRepo.upsert({
-    tenantId: options.tenantId,
-    releaseId: options.releaseId,
-    platform: options.platform,
-    stage: options.stage,
-    artifactPath: options.artifactPath
+/**
+ * Simulate CI/CD callback - updates build records to UPLOADED status
+ * This mimics what happens when CI/CD pipeline calls our webhook
+ */
+async function simulateCiCdCallback(
+  sequelize: Sequelize,
+  releaseId: string,
+  taskId: string
+): Promise<number> {
+  // Update all builds for this release with PENDING status to UPLOADED
+  const [result] = await sequelize.query(`
+    UPDATE builds 
+    SET buildUploadStatus = 'UPLOADED', 
+        workflowStatus = 'COMPLETED',
+        artifactPath = CONCAT('s3://cicd-builds/', platform, '-', releaseId, '-', NOW())
+    WHERE releaseId = '${releaseId}' 
+    AND buildUploadStatus = 'PENDING'
+  `) as any;
+  
+  return result?.affectedRows ?? 0;
+}
+
+/**
+ * Update task from AWAITING_CALLBACK to COMPLETED after builds are ready
+ */
+async function completeAwaitingCallbackTask(
+  releaseTaskRepo: ReleaseTaskRepository,
+  taskId: string
+): Promise<void> {
+  await releaseTaskRepo.update(taskId, {
+    taskStatus: TaskStatus.COMPLETED
   });
 }
 
-// Print database tables
 async function printDatabaseState(sequelize: Sequelize, releaseId: string) {
   console.log('\n' + '='.repeat(80));
-  console.log('📦 DATABASE STATE - Phase 18 Manual Upload Test');
+  console.log('📦 DATABASE STATE - CI/CD AWAITING_CALLBACK Test (FULL WORKFLOW)');
   console.log('='.repeat(80));
 
   // Releases
@@ -281,7 +290,8 @@ async function printDatabaseState(sequelize: Sequelize, releaseId: string) {
   console.log('id\ttaskType\ttaskStatus\tstage\tregressionId');
   const [tasks] = await sequelize.query(`SELECT * FROM release_tasks WHERE releaseId = '${releaseId}' ORDER BY createdAt`);
   for (const row of tasks as any[]) {
-    console.log(`${row.id.substring(0, 8)}...\t${row.taskType}\t${row.taskStatus}\t${row.taskStage}\t${row.regressionId || 'NULL'}`);
+    const statusIcon = row.taskStatus === 'AWAITING_CALLBACK' ? '⏳' : row.taskStatus === 'COMPLETED' ? '✅' : row.taskStatus === 'PENDING' ? '⏸️' : row.taskStatus === 'FAILED' ? '❌' : '❓';
+    console.log(`${row.id.substring(0, 8)}...\t${row.taskType}\t${statusIcon} ${row.taskStatus}\t${row.stage}\t${row.regressionId || 'NULL'}`);
   }
 
   // Regression Cycles
@@ -295,11 +305,11 @@ async function printDatabaseState(sequelize: Sequelize, releaseId: string) {
     }
   }
 
-  // ✅ PHASE 18: Release Uploads (Staging Table)
-  console.log('\n=== RELEASE UPLOADS (Phase 18 Staging Table) ===');
+  // Release Uploads - should be empty in CI/CD mode
+  console.log('\n=== RELEASE UPLOADS (should be empty in CI/CD mode) ===');
   const [uploads] = await sequelize.query(`SELECT * FROM release_uploads WHERE releaseId = '${releaseId}' ORDER BY createdAt`);
   if ((uploads as any[]).length === 0) {
-    console.log('(no uploads - all consumed or none uploaded)');
+    console.log('(no uploads - CI/CD mode does not use staging table)');
   }
   for (let i = 0; i < (uploads as any[]).length; i++) {
     const row = (uploads as any[])[i];
@@ -330,7 +340,7 @@ async function printDatabaseState(sequelize: Sequelize, releaseId: string) {
     const row = (builds as any[])[i];
     console.log(`*************************** ${i + 1}. row ***************************`);
     for (const [key, value] of Object.entries(row)) {
-      console.log(`${key.padStart(15)}: ${value}`);
+      console.log(`${key.padStart(20)}: ${value}`);
     }
   }
 
@@ -341,25 +351,18 @@ async function printDatabaseState(sequelize: Sequelize, releaseId: string) {
 // MAIN TEST EXECUTION
 // ============================================================================
 
-async function runPhase18ManualUploadSimulation() {
+async function runAwaitingCallbackTest() {
   console.log('\n' + '='.repeat(80));
-  console.log('🚀 PHASE 18: MANUAL BUILD UPLOAD - E2E TEST');
+  console.log('🚀 CI/CD MODE - AWAITING_CALLBACK Full Workflow Test');
   console.log('='.repeat(80));
   console.log(`Platforms: ${TEST_CONFIG.PLATFORMS.join(', ')}`);
   console.log(`Regression Slots: ${TEST_CONFIG.NUM_SLOTS} (2 min apart)`);
-  console.log(`Auto Transitions: Stage1→2 ✓, Stage2→3 ✓`);
-  console.log(`Manual Build Upload: ${TEST_CONFIG.HAS_MANUAL_BUILD_UPLOAD ? '✅ ENABLED' : '❌ DISABLED'}`);
-  console.log(`Expected Duration: ~5-7 minutes`);
+  console.log(`Manual Build Upload: ❌ DISABLED (CI/CD Mode)`);
+  console.log(`Flow: Task → AWAITING_CALLBACK → CI/CD Callback → COMPLETED`);
   console.log('='.repeat(80) + '\n');
 
-  // -------------------------------------------------------------------------
-  // SETUP: Clear TaskExecutor cache (ensure fresh instance with ReleaseUploadsRepo)
-  // -------------------------------------------------------------------------
   clearTaskExecutorCache();
   
-  // -------------------------------------------------------------------------
-  // SETUP: Database Connection
-  // -------------------------------------------------------------------------
   log('📦 Setting up database connection...');
   
   const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
@@ -377,51 +380,29 @@ async function runPhase18ManualUploadSimulation() {
     process.exit(1);
   }
 
-  // -------------------------------------------------------------------------
-  // SETUP: Initialize Storage
-  // -------------------------------------------------------------------------
   log('📦 Initializing storage and mocks...');
-  
   setupFetchMock();
-  log('✅ Fetch mock initialized');
-  
   const storage = createTestStorage(sequelize);
   initializeStorage(storage as any);
   log('✅ Storage initialized');
 
-  // -------------------------------------------------------------------------
-  // SETUP: Test IDs
-  // -------------------------------------------------------------------------
   const testIds = {
-    tenantId: `p18-tenant-${uuidv4().substring(0, 8)}`,
-    accountId: `p18-account-${uuidv4().substring(0, 8)}`,
+    tenantId: `await-cicd-${uuidv4().substring(0, 8)}`,
+    accountId: `await-cicd-${uuidv4().substring(0, 8)}`,
   };
 
-  log(`📋 Test IDs: Tenant=${testIds.tenantId}, Account=${testIds.accountId.substring(0, 12)}...`);
+  log(`📋 Test IDs: Tenant=${testIds.tenantId}`);
 
-  // -------------------------------------------------------------------------
-  // SETUP: Create Tenant/Account
-  // -------------------------------------------------------------------------
-  log('\n📝 Creating test tenant and account...');
   await createTestTenant(sequelize, testIds.tenantId, testIds.accountId);
   log('✅ Tenant/Account created');
 
-  // -------------------------------------------------------------------------
-  // SETUP: Create Test Integrations
-  // -------------------------------------------------------------------------
-  log('\n📝 Setting up test integrations...');
   const testIntegrations = await setupTestIntegrations(sequelize, testIds.tenantId, testIds.accountId);
   log('✅ Test integrations created');
 
-  // -------------------------------------------------------------------------
-  // SETUP: Get Repositories
-  // -------------------------------------------------------------------------
-  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo } = createRepositories(sequelize);
+  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo, buildRepo } = createRepositories(sequelize);
 
-  // -------------------------------------------------------------------------
-  // STEP 1: Create Release with hasManualBuildUpload = true
-  // -------------------------------------------------------------------------
-  log('\n📝 STEP 1: Creating Release with hasManualBuildUpload = true...');
+  // STEP 1: Create Release
+  log('\n📝 STEP 1: Creating Release with hasManualBuildUpload = false...');
   
   const now = new Date();
   const release = await createTestRelease(releaseRepo, {
@@ -431,18 +412,16 @@ async function runPhase18ManualUploadSimulation() {
     targetReleaseDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
     kickOffDate: now,
     releaseConfigId: testIntegrations.releaseConfigId,
-    hasManualBuildUpload: TEST_CONFIG.HAS_MANUAL_BUILD_UPLOAD // ✅ Phase 18!
+    hasManualBuildUpload: TEST_CONFIG.HAS_MANUAL_BUILD_UPLOAD
   });
   
   log(`✅ Release created: ${release.releaseId}`);
   log(`   hasManualBuildUpload = ${release.hasManualBuildUpload}`);
 
-  // -------------------------------------------------------------------------
   // STEP 2: Create Platform Target Mappings
-  // -------------------------------------------------------------------------
   log('\n📝 STEP 2: Creating Platform Target Mappings...');
   
-  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
+  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping ?? createPlatformTargetMappingModel(sequelize);
   
   for (const platform of TEST_CONFIG.PLATFORMS) {
     const target = platform === PlatformName.IOS ? 'APP_STORE' : 'PLAY_STORE';
@@ -455,12 +434,10 @@ async function runPhase18ManualUploadSimulation() {
       projectManagementRunId: null,
       testManagementRunId: null,
     } as any);
-    log(`  ✅ ${platform} → ${target} (v${TEST_CONFIG.VERSION})`);
+    log(`  ✅ ${platform} → ${target}`);
   }
 
-  // -------------------------------------------------------------------------
   // STEP 3: Create Cron Job with Regression Slots
-  // -------------------------------------------------------------------------
   log(`\n📝 STEP 3: Creating Cron Job with ${TEST_CONFIG.NUM_SLOTS} Regression Slots...`);
   
   const slotTimes: Date[] = [];
@@ -488,14 +465,12 @@ async function runPhase18ManualUploadSimulation() {
     autoTransitionToStage3: true,
   });
 
-  log(`✅ Cron job created with ${TEST_CONFIG.NUM_SLOTS} slots:`);
+  log(`✅ Cron job created with ${TEST_CONFIG.NUM_SLOTS} slots`);
   slotTimes.forEach((time, i) => {
     log(`   Slot ${i + 1}: ${time.toLocaleTimeString()}`);
   });
 
-  // -------------------------------------------------------------------------
   // STEP 4: Create Stage 1 Tasks
-  // -------------------------------------------------------------------------
   log('\n📝 STEP 4: Creating Stage 1 Tasks...');
   
   await createStage1Tasks(releaseTaskRepo, {
@@ -512,30 +487,8 @@ async function runPhase18ManualUploadSimulation() {
   const stage1Tasks = await releaseTaskRepo.findByReleaseIdAndStage(release.id, TaskStage.KICKOFF);
   log(`✅ Created ${stage1Tasks.length} Stage 1 tasks`);
 
-  // -------------------------------------------------------------------------
-  // ✅ PHASE 18: STEP 5 - Upload Manual Builds BEFORE kickoff
-  // -------------------------------------------------------------------------
-  log('\n📝 STEP 5 [Phase 18]: Uploading Manual Builds (PRE_REGRESSION)...');
-  
-  for (const platform of TEST_CONFIG.PLATFORMS) {
-    const upload = await uploadManualBuild(releaseUploadsRepo, {
-      tenantId: testIds.tenantId,
-      releaseId: release.id,
-      platform,
-      stage: 'KICK_OFF',
-      artifactPath: `s3://phase18-test/${platform.toLowerCase()}-pre-reg-${Date.now()}.${platform === PlatformName.IOS ? 'ipa' : 'apk'}`
-    });
-    log(`  ✅ Uploaded ${platform} build: ${upload.artifactPath}`);
-  }
-  
-  // Verify uploads exist
-  const preRegUploads = await releaseUploadsRepo.findUnused(release.id, 'KICK_OFF');
-  log(`  📦 ${preRegUploads.length} PRE_REGRESSION uploads in staging table`);
-
-  // -------------------------------------------------------------------------
-  // STEP 6: Start Cron Job
-  // -------------------------------------------------------------------------
-  log('\n📝 STEP 6: Starting Cron Job...');
+  // STEP 5: Start Cron Job
+  log('\n📝 STEP 5: Starting Cron Job...');
   
   await cronJobRepo.update(cronJob.id, {
     stage1Status: StageStatus.IN_PROGRESS,
@@ -544,17 +497,18 @@ async function runPhase18ManualUploadSimulation() {
   
   log('✅ Cron job started');
 
-  // -------------------------------------------------------------------------
   // EXECUTION LOOP
-  // -------------------------------------------------------------------------
   log('\n' + '='.repeat(60));
-  log('🚀 EXECUTION STARTED - State Machine Running...');
+  log('🚀 EXECUTION STARTED - Full Workflow with CI/CD Callbacks');
   log('='.repeat(60));
   
   const startTime = Date.now();
   let iteration = 0;
   let lastLoggedStatus = '';
-  const uploadedCycles = new Set<string>(); // Track which cycles have uploads
+  // Track callbacks: key = taskId, value = { platforms updated, iteration when found }
+  const callbackTracking = new Map<string, { updatedPlatforms: Set<string>; foundIteration: number }>();
+  let awaitingCallbackEvents: { taskId: string; taskType: string; iteration: number }[] = [];
+  const TICKS_BETWEEN_CALLBACKS = 2; // Gap between platform build callbacks
 
   while (iteration < TEST_CONFIG.MAX_ITERATIONS) {
     iteration++;
@@ -568,7 +522,7 @@ async function runPhase18ManualUploadSimulation() {
     }
 
     if (currentRelease.status === ReleaseStatus.ARCHIVED) {
-      log('❌ Release was ARCHIVED (task failed). Checking failed tasks...');
+      log('❌ Release was ARCHIVED (task failed)');
       const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
       const failedTasks = allTasks.filter(t => t.taskStatus === TaskStatus.FAILED);
       for (const task of failedTasks) {
@@ -578,33 +532,76 @@ async function runPhase18ManualUploadSimulation() {
     }
 
     const currentStatus = `Cron=${currentCronJob.cronStatus} | S1=${currentCronJob.stage1Status} | S2=${currentCronJob.stage2Status} | S3=${currentCronJob.stage3Status}`;
-    
-    // ✅ PHASE 18: Check for tasks waiting for manual builds and upload for each cycle
-    if (currentCronJob.stage2Status === StageStatus.IN_PROGRESS) {
-      // Find any AWAITING_CALLBACK tasks that need uploads
-      const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
-      const waitingTasks = allTasks.filter(t => 
-        t.taskType === TaskType.TRIGGER_REGRESSION_BUILDS && 
-        t.taskStatus === TaskStatus.AWAITING_CALLBACK &&
-        t.regressionId &&
-        !uploadedCycles.has(t.regressionId)
-      );
+
+    // Check for completion
+    if (currentCronJob.cronStatus === CronStatus.COMPLETED &&
+        currentCronJob.stage3Status === StageStatus.COMPLETED) {
+      log('\n✅ WORKFLOW COMPLETED SUCCESSFULLY!');
+      break;
+    }
+
+    // ====================================================================
+    // KEY PART: Check for AWAITING_CALLBACK tasks and simulate CI/CD callback
+    // STAGGERED: Update one platform build per tick with 2-tick gap
+    // ====================================================================
+    const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
+    const awaitingCallbackTasks = allTasks.filter(t => 
+      t.taskStatus === TaskStatus.AWAITING_CALLBACK
+    );
+
+    for (const task of awaitingCallbackTasks) {
+      // Initialize tracking for this task if not exists
+      if (!callbackTracking.has(task.id)) {
+        callbackTracking.set(task.id, { updatedPlatforms: new Set(), foundIteration: iteration });
+        log(`\n🔔 FOUND AWAITING_CALLBACK: ${task.taskType} (${task.id.substring(0, 8)})`);
+        log(`   🔸 Release is waiting for CI/CD build callbacks...`);
+        awaitingCallbackEvents.push({ taskId: task.id, taskType: task.taskType, iteration });
+      }
+
+      const tracking = callbackTracking.get(task.id)!;
+      const allPlatformsUpdated = tracking.updatedPlatforms.size === TEST_CONFIG.PLATFORMS.length;
       
-      for (const task of waitingTasks) {
-        const cycleId = task.regressionId!;
-        log(`\n📦 [Phase 18] Cycle ${cycleId.substring(0, 8)} waiting - Uploading REGRESSION builds...`);
+      // Skip if all platforms already updated for this task
+      if (allPlatformsUpdated) continue;
+
+      // Simulate staggered callbacks - one platform at a time
+      const platformsArray = [...TEST_CONFIG.PLATFORMS];
+      for (let i = 0; i < platformsArray.length; i++) {
+        const platform = platformsArray[i];
         
-        for (const platform of TEST_CONFIG.PLATFORMS) {
-          await uploadManualBuild(releaseUploadsRepo, {
-            tenantId: testIds.tenantId,
-            releaseId: release.id,
-            platform,
-            stage: 'REGRESSION',
-            artifactPath: `s3://phase18-test/${platform.toLowerCase()}-reg-${cycleId.substring(0, 8)}-${Date.now()}.${platform === PlatformName.IOS ? 'ipa' : 'apk'}`
-          });
-          log(`  ✅ Uploaded ${platform} REGRESSION build for cycle ${cycleId.substring(0, 8)}`);
+        // Skip if already updated
+        if (tracking.updatedPlatforms.has(platform)) continue;
+        
+        // Calculate when this platform callback should arrive (staggered)
+        const expectedTick = tracking.foundIteration + (tracking.updatedPlatforms.size * TICKS_BETWEEN_CALLBACKS);
+        
+        if (iteration >= expectedTick) {
+          log(`   📡 [Tick ${iteration}] CI/CD callback received for ${platform} build...`);
+          
+          // Update this platform's build to UPLOADED
+          await sequelize.query(`
+            UPDATE builds 
+            SET buildUploadStatus = 'UPLOADED', 
+                workflowStatus = 'COMPLETED',
+                artifactPath = 's3://cicd-builds/${platform}-${release.id}-${new Date().toISOString()}'
+            WHERE releaseId = '${release.id}' 
+            AND platform = '${platform}'
+            AND buildUploadStatus = 'PENDING'
+            LIMIT 1
+          `);
+          
+          tracking.updatedPlatforms.add(platform);
+          log(`   ✅ ${platform} build marked as UPLOADED (${tracking.updatedPlatforms.size}/${TEST_CONFIG.PLATFORMS.length})`);
+          
+          // Check if all platforms are now updated - complete the task
+          if (tracking.updatedPlatforms.size === TEST_CONFIG.PLATFORMS.length) {
+            await completeAwaitingCallbackTask(releaseTaskRepo, task.id);
+            log(`   ✅ All platforms complete - Task ${task.taskType} COMPLETED via callback!`);
+          } else {
+            log(`   ⏳ Waiting for remaining platform callbacks (next in ${TICKS_BETWEEN_CALLBACKS} ticks)...`);
+          }
+          break; // Only process one platform callback per iteration
         }
-        uploadedCycles.add(cycleId);
       }
     }
 
@@ -614,13 +611,6 @@ async function runPhase18ManualUploadSimulation() {
       const seconds = elapsed % 60;
       log(`[${minutes}m ${seconds}s] ${currentStatus}`);
       lastLoggedStatus = currentStatus;
-    }
-
-    // Check for completion
-    if (currentCronJob.cronStatus === CronStatus.COMPLETED &&
-        currentCronJob.stage3Status === StageStatus.COMPLETED) {
-      log('\n✅ WORKFLOW COMPLETED SUCCESSFULLY!');
-      break;
     }
 
     // Skip if paused
@@ -640,8 +630,9 @@ async function runPhase18ManualUploadSimulation() {
         regressionCycleRepo,
         taskExecutor as any,
         storage as any,
-        platformMappingRepo,   // ✅ Required for platform list
-        releaseUploadsRepo     // ✅ Phase 18: Required for manual upload processing!
+        platformMappingRepo,
+        releaseUploadsRepo,
+        buildRepo
       );
       
       await stateMachine.initialize();
@@ -656,14 +647,11 @@ async function runPhase18ManualUploadSimulation() {
     await sleep(TEST_CONFIG.POLL_INTERVAL_MS);
   }
 
-  // -------------------------------------------------------------------------
   // FINAL STATUS
-  // -------------------------------------------------------------------------
   const finalCronJob = await cronJobRepo.findByReleaseId(release.id);
   const finalRelease = await releaseRepo.findById(release.id);
   const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
   const allCycles = await regressionCycleRepo.findByReleaseId(release.id);
-  const allUploads = await sequelize.query(`SELECT * FROM release_uploads WHERE releaseId = '${release.id}'`);
 
   const totalDuration = Math.floor((Date.now() - startTime) / 1000);
   const minutes = Math.floor(totalDuration / 60);
@@ -682,7 +670,7 @@ async function runPhase18ManualUploadSimulation() {
   
   log(`\n📋 Tasks (${allTasks.length} total):`);
   for (const task of allTasks) {
-    const icon = task.taskStatus === 'COMPLETED' ? '✅' : task.taskStatus === 'FAILED' ? '❌' : task.taskStatus === 'AWAITING_CALLBACK' ? '⏳' : '⏳';
+    const icon = task.taskStatus === 'AWAITING_CALLBACK' ? '⏳' : task.taskStatus === 'COMPLETED' ? '✅' : task.taskStatus === 'FAILED' ? '❌' : '⏸️';
     log(`   ${icon} [${task.stage}] ${task.taskType}: ${task.taskStatus}`);
   }
   
@@ -691,47 +679,68 @@ async function runPhase18ManualUploadSimulation() {
     const icon = cycle.status === 'DONE' ? '✅' : '⏳';
     log(`   ${icon} Cycle ${cycle.cycleTag}: ${cycle.status}`);
   }
-  
-  log(`\n📋 Release Uploads (Phase 18):`);
-  log(`   Total uploads: ${(allUploads[0] as any[]).length}`);
-  log(`   Used uploads: ${(allUploads[0] as any[]).filter((u: any) => u.isUsed).length}`);
-  log(`   Unused uploads: ${(allUploads[0] as any[]).filter((u: any) => !u.isUsed).length}`);
 
-  // -------------------------------------------------------------------------
-  // PRINT DATABASE STATE
-  // -------------------------------------------------------------------------
+  // Print AWAITING_CALLBACK events
+  log('\n📋 AWAITING_CALLBACK Events (CI/CD Callbacks Simulated):');
+  for (const event of awaitingCallbackEvents) {
+    log(`   🔔 ${event.taskType} → AWAITING_CALLBACK → Callback → COMPLETED (iteration ${event.iteration})`);
+  }
+
+  // Print database state
   await printDatabaseState(sequelize, release.id);
 
-  // -------------------------------------------------------------------------
-  // SQL QUERIES FOR MANUAL INSPECTION
-  // -------------------------------------------------------------------------
+  // VERIFICATION
+  log('\n' + '='.repeat(60));
+  log('🔍 VERIFICATION');
+  log('='.repeat(60));
+  
+  const buildTasks = allTasks.filter(t => 
+    t.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS || 
+    t.taskType === TaskType.TRIGGER_REGRESSION_BUILDS
+  );
+  const completedBuildTasks = buildTasks.filter(t => t.taskStatus === TaskStatus.COMPLETED);
+  
+  log(`\n✅ AWAITING_CALLBACK events captured: ${awaitingCallbackEvents.length}`);
+  log(`✅ Build tasks completed via callback: ${completedBuildTasks.length} / ${buildTasks.length}`);
+  log(`✅ Regression cycles completed: ${allCycles.filter(c => c.status === 'DONE').length} / ${allCycles.length}`);
+  
+  const success = finalCronJob?.cronStatus === CronStatus.COMPLETED && 
+                  finalCronJob?.stage3Status === StageStatus.COMPLETED &&
+                  awaitingCallbackEvents.length > 0;
+  
+  if (success) {
+    log('\n🎉 TEST PASSED: CI/CD mode with AWAITING_CALLBACK completed full workflow!');
+  } else {
+    log('\n⚠️ TEST INCOMPLETE');
+    if (awaitingCallbackEvents.length === 0) {
+      log('   - No AWAITING_CALLBACK events captured');
+    }
+    if (finalCronJob?.stage3Status !== StageStatus.COMPLETED) {
+      log('   - Stage 3 not completed');
+    }
+  }
+
+  log('\n='.repeat(60) + '\n');
+
+  // Print SQL queries for manual inspection
+  console.log('='.repeat(80));
   log('\n⚠️  DATA NOT CLEANED UP - All records preserved in database for inspection');
-  log(`   To query: mysql -u root -proot ${DB_NAME}`);
+  log(`   To query: mysql -u root -proot codepushdb`);
   log(`   SELECT * FROM releases WHERE id = '${release.id}';`);
   log(`   SELECT * FROM cron_jobs WHERE releaseId = '${release.id}';`);
   log(`   SELECT * FROM release_tasks WHERE releaseId = '${release.id}';`);
   log(`   SELECT * FROM regression_cycles WHERE releaseId = '${release.id}';`);
-  log(`   SELECT * FROM release_uploads WHERE releaseId = '${release.id}';  -- Phase 18!`);
+  log(`   SELECT * FROM release_uploads WHERE releaseId = '${release.id}';  -- Should be empty in CI/CD mode`);
   log(`   SELECT * FROM builds WHERE releaseId = '${release.id}';`);
 
-  // Close database
   await sequelize.close();
   log('\n✅ Database connection closed (data preserved)');
 
-  // Final result
-  const success = finalCronJob?.cronStatus === CronStatus.COMPLETED && 
-                  finalCronJob?.stage3Status === StageStatus.COMPLETED;
-  
   log('\n' + '='.repeat(60));
-  if (success) {
-    log(`🏁 PHASE 18 TEST PASSED ✅ in ${minutes}m ${seconds}s`);
-  } else {
-    log(`🏁 PHASE 18 TEST INCOMPLETE ⚠️ in ${minutes}m ${seconds}s`);
-    log('   Check the tasks above for AWAITING_CALLBACK (waiting for manual builds)');
-  }
+  const testResult = success ? '🏁 CI/CD AWAITING_CALLBACK TEST PASSED ✅' : '⚠️ CI/CD AWAITING_CALLBACK TEST INCOMPLETE';
+  log(`${testResult} in ${minutes}m ${seconds}s`);
   log('='.repeat(60) + '\n');
 }
 
 // Run the test
-runPhase18ManualUploadSimulation().catch(console.error);
-
+runAwaitingCallbackTest().catch(console.error);

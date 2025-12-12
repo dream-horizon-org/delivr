@@ -142,7 +142,7 @@ export class UploadValidationService {
     platform: PlatformName
   ): Promise<UploadValidationResult> {
     switch (stage) {
-      case 'PRE_REGRESSION':
+      case 'KICK_OFF':
         return this.validatePreRegressionWindow(releaseId);
       case 'REGRESSION':
         return this.validateRegressionWindow(releaseId);
@@ -158,7 +158,7 @@ export class UploadValidationService {
   }
 
   /**
-   * PRE_REGRESSION upload window:
+   * KICK_OFF (Pre-Regression) upload window:
    * - Open: No task yet, or task is PENDING/AWAITING_MANUAL_BUILD
    * - Closed: Task is IN_PROGRESS or COMPLETED
    */
@@ -183,7 +183,7 @@ export class UploadValidationService {
 
     return {
       valid: false,
-      error: 'PRE_REGRESSION upload window closed',
+      error: 'KICK_OFF upload window closed',
       details: {
         reason: 'UPLOAD_WINDOW_CLOSED',
         currentStatus: task.taskStatus,
@@ -380,7 +380,7 @@ export class UploadValidationService {
    */
   private getWindowCloseDescription(stage: UploadStage): string {
     switch (stage) {
-      case 'PRE_REGRESSION':
+      case 'KICK_OFF':
         return 'When TRIGGER_PRE_REGRESSION_BUILDS task starts';
       case 'REGRESSION':
         return 'When TRIGGER_REGRESSION_BUILDS task starts for current cycle';

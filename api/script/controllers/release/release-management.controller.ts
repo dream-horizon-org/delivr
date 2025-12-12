@@ -646,7 +646,7 @@ export class ReleaseManagementController {
       if (!stage) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Stage is required (PRE_REGRESSION, REGRESSION, PRE_RELEASE)'
+          error: 'Stage is required (KICK_OFF, REGRESSION, PRE_RELEASE)'
         });
       }
 
@@ -658,7 +658,7 @@ export class ReleaseManagementController {
       }
 
       // Validate stage is valid
-      const validStages = ['PRE_REGRESSION', 'REGRESSION', 'PRE_RELEASE'];
+      const validStages = ['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'];
       const upperStage = stage.toUpperCase();
       if (!validStages.includes(upperStage)) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
