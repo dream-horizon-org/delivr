@@ -15,7 +15,7 @@
 import { ICronJobState } from './cron-job-state.interface';
 import type { CronJobStateMachine } from '../cron-job-state-machine';
 import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
-import { getOrderedTasks, canExecuteTask, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
+import { getOrderedTasks, canExecuteTask, getTaskBlockReason, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { hasSequelize } from '~types/release/api-types';
 import { startCronJob, stopCronJob } from '~services/release/cron-job/cron-scheduler';
@@ -105,18 +105,26 @@ export class KickoffState implements ICronJobState {
           // Get release platforms
           const platforms = await this.getReleasePlatforms(release);
           
+          // Get build repository for creating build records
+          const buildRepo = this.context.getBuildRepo?.();
+          
           const manualBuildResults = await processAwaitingManualBuildTasks(
             releaseId,
             tasks,
             true,
             platforms,
             releaseUploadsRepo,
-            releaseTaskRepo
+            releaseTaskRepo,
+            buildRepo
           );
 
+          // Track which tasks were just completed by manual build handler
+          const justCompletedTaskIds = new Set<string>();
+          
           // Log results
           for (const [taskId, result] of manualBuildResults) {
             if (result.consumed) {
+              justCompletedTaskIds.add(taskId);
               console.log(
                 `[${instanceId}] [KickoffState] Manual build consumed for task ${taskId}. ` +
                 `Task is now COMPLETED.`
@@ -129,12 +137,13 @@ export class KickoffState implements ICronJobState {
             }
           }
           
-          // If any task was completed, re-fetch tasks to get updated statuses
-          const anyCompleted = Array.from(manualBuildResults.values()).some(r => r.consumed);
-          if (anyCompleted) {
-            console.log(`[${instanceId}] [KickoffState] Some tasks completed. Re-fetching task list.`);
-            // Continue with the rest of the execution - tasks will be re-checked
+          // If any task was completed, log it (no re-fetch needed - we track completed IDs)
+          if (justCompletedTaskIds.size > 0) {
+            console.log(`[${instanceId}] [KickoffState] ${justCompletedTaskIds.size} task(s) completed via manual uploads.`);
           }
+          
+          // Store for later use in task loop
+          (this as any)._justCompletedTaskIds = justCompletedTaskIds;
         }
       }
 
@@ -159,13 +168,22 @@ export class KickoffState implements ICronJobState {
       // Get ordered tasks
       const orderedTasks = getOrderedTasks(tasks, TaskStage.KICKOFF);
       console.log(`[${instanceId}] [KickoffState] Processing ${orderedTasks.length} tasks`);
+      
+      // Get tasks that were just completed by manual build handler (if any)
+      const justCompletedTaskIds: Set<string> = (this as any)._justCompletedTaskIds ?? new Set();
 
       // Execute tasks
       for (const task of orderedTasks) {
         if (!task.taskType) continue;
         
+        // Skip logging for tasks that were just completed by manual build handler
+        // (their status in our array is stale but DB is updated)
+        if (justCompletedTaskIds.has(task.id)) {
+          continue;
+        }
+        
         // Single check handles all validation (required, dependencies, time, status)
-        const canExecute = canExecuteTask(
+        const blockReason = getTaskBlockReason(
           task,
           tasks,
           TaskStage.KICKOFF,
@@ -173,8 +191,13 @@ export class KickoffState implements ICronJobState {
           (t) => this.isTimeToExecuteTask(t.taskType, release, config)
         );
         
+        const canExecute = blockReason === 'EXECUTABLE';
         if (!canExecute) {
-          console.log(`[${instanceId}] [KickoffState] Cannot execute task yet: ${task.taskType}`);
+          // Only log non-completed tasks to reduce noise
+          const isAlreadyDone = blockReason === 'ALREADY_COMPLETED' || blockReason === 'ALREADY_SKIPPED';
+          if (!isAlreadyDone) {
+            console.log(`[${instanceId}] [KickoffState] Task ${task.taskType} blocked: ${blockReason}`);
+          }
           continue;
         }
         

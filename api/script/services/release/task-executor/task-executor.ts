@@ -299,13 +299,17 @@ export class TaskExecutor {
       // Extract externalId and externalData based on task category
       const [externalId, externalData] = this.extractExternalData(task.taskType, result);
 
-      // Check if task is waiting for manual builds (don't overwrite AWAITING_CALLBACK)
+      // Check if task is waiting for external completion (manual builds or CI/CD callback)
+      // Don't overwrite the status that was set by the task method
       const isAwaitingManualBuild = result === 'AWAITING_MANUAL_BUILD';
+      const isAwaitingCiCd = result === 'AWAITING_CI_CD';
+      const isAwaitingExternal = isAwaitingManualBuild || isAwaitingCiCd;
       
-      if (isAwaitingManualBuild) {
-        // Task already set to AWAITING_CALLBACK by the task method - don't overwrite
-        console.log(`[TaskExecutor] Task is AWAITING_MANUAL_BUILD - preserving AWAITING_CALLBACK status`);
-        console.log(`[TaskExecutor] ✅ Task ${task.taskType} waiting for manual builds`);
+      if (isAwaitingExternal) {
+        // Task already set status (AWAITING_MANUAL_BUILD or AWAITING_CALLBACK) - don't overwrite
+        const waitingFor = isAwaitingManualBuild ? 'manual builds' : 'CI/CD callback';
+        console.log(`[TaskExecutor] Task is waiting for ${waitingFor} - preserving status`);
+        console.log(`[TaskExecutor] ✅ Task ${task.taskType} waiting for ${waitingFor}`);
         return {
           success: true,
           externalId: externalId,
@@ -345,6 +349,10 @@ export class TaskExecutor {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[TaskExecutor] ❌ Task ${task.taskType} (${task.id}) FAILED with error:`, errorMessage);
+      if (error instanceof Error && error.stack) {
+        console.error(`[TaskExecutor] Stack trace:`, error.stack);
+      }
       
       // Update task status to FAILED
       // Use updateById since we have the database ID, not taskId
@@ -707,7 +715,7 @@ export class TaskExecutor {
     // MANUAL MODE: Check release_uploads table for builds
     // ========================================================================
     if (release.hasManualBuildUpload) {
-      console.log(`[TaskExecutor] Manual mode for PRE_REGRESSION: checking uploads for platforms [${platforms.join(', ')}]`);
+      console.log(`[TaskExecutor] Manual mode for KICK_OFF: checking uploads for platforms [${platforms.join(', ')}]`);
       
       if (!this.releaseUploadsRepo) {
         throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
@@ -716,23 +724,23 @@ export class TaskExecutor {
       // Check if all platforms have uploads ready
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
         context.releaseId,
-        'PRE_REGRESSION',
+        'KICK_OFF',
         platforms
       );
 
-      console.log(`[TaskExecutor] Manual mode check for PRE_REGRESSION: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
+      console.log(`[TaskExecutor] Manual mode check for KICK_OFF: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
-        // Set task to AWAITING_CALLBACK and return special marker
+        // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload builds
         await this.releaseTaskRepo.update(task.id, {
-          taskStatus: TaskStatus.AWAITING_CALLBACK
+          taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
         });
-        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual builds`);
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_MANUAL_BUILD - waiting for manual builds`);
         return 'AWAITING_MANUAL_BUILD';
       }
 
       // All platforms ready - consume uploads and create build records
-      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'PRE_REGRESSION');
+      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'KICK_OFF');
       const BuildModel = this.sequelize.models.Build;
       const buildNumbers: string[] = [];
 
@@ -755,16 +763,19 @@ export class TaskExecutor {
               id: buildId,
               tenantId: tenantId,
               buildNumber: uploadFileName,
+              artifactVersionName: mapping.version ?? getReleaseVersion(release),
               artifactPath: upload.artifactPath,
               releaseId: context.releaseId,
               platform: platformName,
               storeType: targetName,
               regressionId: null,
+              ciRunId: null,
               buildUploadStatus: 'UPLOADED',
               buildType: 'MANUAL',
               buildStage: 'KICK_OFF',
               queueLocation: null,
-              workflowStatus: null
+              workflowStatus: null,
+              taskId: task.id
             });
           }
 
@@ -773,7 +784,7 @@ export class TaskExecutor {
         }
       }
 
-      console.log(`[TaskExecutor] Manual mode PRE_REGRESSION completed: ${buildNumbers.join(',')}`);
+      console.log(`[TaskExecutor] Manual mode KICK_OFF completed: ${buildNumbers.join(',')}`);
       return buildNumbers.join(',');
     }
 
@@ -819,22 +830,32 @@ export class TaskExecutor {
         id: buildId,
         tenantId: tenantId,
         buildNumber: buildNumber,
+        artifactVersionName: mapping.version ?? getReleaseVersion(release),
         artifactPath: result.queueLocation,
         releaseId: context.releaseId,
         platform: platformName,
         storeType: targetName,
         regressionId: null,
+        ciRunId: null, // CI/CD system will populate this via callback
         buildUploadStatus: 'PENDING',
         buildType: 'CI_CD',
         buildStage: 'KICK_OFF',
         queueLocation: result.queueLocation,
-        workflowStatus: 'PENDING'
+        workflowStatus: 'PENDING',
+        taskId: task.id
       });
 
       buildNumbers.push(buildNumber);
     }
 
-    return buildNumbers.join(',');
+    // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.AWAITING_CALLBACK
+    });
+    console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for CI/CD callback`);
+
+    // Return special marker so executeTask() knows not to mark as COMPLETED
+    return 'AWAITING_CI_CD';
   }
 
   /**
@@ -1078,10 +1099,11 @@ export class TaskExecutor {
       console.log(`[TaskExecutor] Manual mode check for REGRESSION: allReady=${readiness.allReady}, uploaded=[${readiness.uploadedPlatforms.join(',')}], missing=[${readiness.missingPlatforms.join(',')}]`);
 
       if (!readiness.allReady) {
+        // Set task to AWAITING_MANUAL_BUILD - waiting for user to upload regression builds
         await this.releaseTaskRepo.update(task.id, {
-          taskStatus: TaskStatus.AWAITING_CALLBACK
+          taskStatus: TaskStatus.AWAITING_MANUAL_BUILD
         });
-        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual regression builds`);
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_MANUAL_BUILD - waiting for manual regression builds`);
         return 'AWAITING_MANUAL_BUILD';
       }
 
@@ -1109,16 +1131,19 @@ export class TaskExecutor {
               id: buildId,
               tenantId: tenantId,
               buildNumber: uploadFileName,
+              artifactVersionName: mapping.version ?? getReleaseVersion(release),
               artifactPath: upload.artifactPath,
               releaseId: context.releaseId,
               platform: platformName,
               storeType: targetName,
               regressionId: task.regressionId,
+              ciRunId: null,
               buildUploadStatus: 'UPLOADED',
               buildType: 'MANUAL',
               buildStage: 'REGRESSION',
               queueLocation: null,
-              workflowStatus: null
+              workflowStatus: null,
+              taskId: task.id
             });
           }
 
@@ -1174,22 +1199,32 @@ export class TaskExecutor {
         id: buildId,
         tenantId: tenantId,
         buildNumber: buildNumber,
+        artifactVersionName: mapping.version ?? getReleaseVersion(release),
         artifactPath: result.queueLocation,
         releaseId: context.releaseId,
         platform: platformName,
         storeType: targetName,
         regressionId: task.regressionId,
+        ciRunId: null, // CI/CD system will populate this via callback
         buildUploadStatus: 'PENDING',
         buildType: 'CI_CD',
         buildStage: 'REGRESSION',
         queueLocation: result.queueLocation,
-        workflowStatus: 'PENDING'
+        workflowStatus: 'PENDING',
+        taskId: task.id
       });
 
       buildNumbers.push(buildNumber);
     }
 
-    return buildNumbers.join(',');
+    // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
+    await this.releaseTaskRepo.update(task.id, {
+      taskStatus: TaskStatus.AWAITING_CALLBACK
+    });
+    console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for CI/CD callback`);
+
+    // Return special marker so executeTask() knows not to mark as COMPLETED
+    return 'AWAITING_CI_CD';
   }
 
   /**

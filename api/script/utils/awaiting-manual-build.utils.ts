@@ -6,7 +6,8 @@
  * if manual uploads are available and ready to be consumed.
  * 
  * Flow:
- * 1. Task is set to AWAITING_CALLBACK by TaskExecutor when waiting for manual builds
+ * 1. Task is set to AWAITING_MANUAL_BUILD by TaskExecutor when waiting for manual builds
+ *    (Note: AWAITING_CALLBACK is used for CI/CD mode - waiting for external callback)
  * 2. Cron state calls checkAndConsumeManualBuilds() on each tick
  * 3. If all platform uploads are ready → consume them, complete task
  * 4. If uploads missing → continue waiting (no action)
@@ -16,7 +17,8 @@ import { TaskType, TaskStatus, PlatformName } from '~models/release/release.inte
 import { ReleaseUploadsRepository, ReleaseUpload } from '~models/release/release-uploads.repository';
 import { UploadStage } from '~models/release/release-uploads.sequelize.model';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
-import { BuildRepository } from '~models/release/build.repository';
+import { BuildRepository, CreateBuildDto } from '~models/release/build.repository';
+import { v4 as uuidv4 } from 'uuid';
 
 // ============================================================================
 // TYPES
@@ -55,9 +57,10 @@ export const MANUAL_BUILD_TASK_TYPES = [
 
 /**
  * Map task type to upload stage
+ * Uses same values as builds.buildStage for consistency
  */
 export const TASK_TYPE_TO_UPLOAD_STAGE: Record<string, UploadStage> = {
-  [TaskType.TRIGGER_PRE_REGRESSION_BUILDS]: 'PRE_REGRESSION',
+  [TaskType.TRIGGER_PRE_REGRESSION_BUILDS]: 'KICK_OFF',
   [TaskType.TRIGGER_REGRESSION_BUILDS]: 'REGRESSION',
   [TaskType.TRIGGER_TEST_FLIGHT_BUILD]: 'PRE_RELEASE',
   [TaskType.CREATE_AAB_BUILD]: 'PRE_RELEASE',
@@ -83,15 +86,21 @@ export const getUploadStageForTaskType = (taskType: TaskType): UploadStage | nul
 
 /**
  * Check if a task is waiting for manual builds
+ * 
+ * A task is waiting for manual builds if:
+ * 1. Task status is AWAITING_MANUAL_BUILD (not AWAITING_CALLBACK - that's for CI/CD)
+ * 2. Task type is a build task that supports manual uploads
+ * 3. Release has manual build upload enabled
  */
 export const isAwaitingManualBuild = (
   task: { taskType: TaskType; taskStatus: TaskStatus },
   hasManualBuildUpload: boolean
 ): boolean => {
-  const isAwaitingCallback = task.taskStatus === TaskStatus.AWAITING_CALLBACK;
+  // AWAITING_MANUAL_BUILD = waiting for user uploads (manual mode)
+  const isAwaitingManualBuildStatus = task.taskStatus === TaskStatus.AWAITING_MANUAL_BUILD;
   const isBuildTask = isBuildTaskType(task.taskType);
   
-  return isAwaitingCallback && isBuildTask && hasManualBuildUpload;
+  return isAwaitingManualBuildStatus && isBuildTask && hasManualBuildUpload;
 };
 
 // ============================================================================
@@ -101,19 +110,19 @@ export const isAwaitingManualBuild = (
 /**
  * Check and consume manual builds for a task
  * 
- * This is the main function called by cron states to handle AWAITING_CALLBACK tasks.
+ * This is the main function called by cron states to handle AWAITING_MANUAL_BUILD tasks.
  * 
  * @param context - Task context (releaseId, taskId, taskType, cycleId, platforms)
  * @param releaseUploadsRepo - Repository for release_uploads table
  * @param releaseTaskRepo - Repository for release_tasks table
- * @param buildRepo - Repository for builds table (optional, for creating build records)
+ * @param buildRepo - Repository for builds table (for creating build records)
  * @returns Result object with check outcome
  */
 export const checkAndConsumeManualBuilds = async (
   context: ManualBuildCheckContext,
   releaseUploadsRepo: ReleaseUploadsRepository,
   releaseTaskRepo: ReleaseTaskRepository,
-  _buildRepo?: BuildRepository
+  buildRepo?: BuildRepository
 ): Promise<ManualBuildCheckResult> => {
   const { releaseId, taskId, taskType, cycleId, platforms } = context;
   
@@ -181,9 +190,38 @@ export const checkAndConsumeManualBuilds = async (
     );
   }
 
-  // Optionally create build records (if buildRepo provided)
-  // Note: This is handled separately in TaskExecutor.handleManualModeBuilds
-  // so we skip it here to avoid duplication
+  // Create build records from consumed uploads
+  if (buildRepo && uploadsToConsume.length > 0) {
+    console.log(`[ManualBuildHandler] Creating ${uploadsToConsume.length} build records...`);
+    
+    for (const upload of uploadsToConsume) {
+      const buildId = uuidv4();
+      const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
+      
+
+      const buildData: CreateBuildDto = {
+        id: buildId,
+        tenantId: upload.tenantId,
+        releaseId: upload.releaseId,
+        platform: upload.platform,
+        buildType: 'MANUAL',
+        buildStage: stage,
+        buildNumber: uploadFileName,
+        artifactVersionName: 'manual-upload',
+        artifactPath: upload.artifactPath,
+        storeType: upload.platform === 'IOS' ? 'APP_STORE' : 'PLAY_STORE',
+        regressionId: cycleId ?? null,
+        ciRunId: null,
+        buildUploadStatus: 'UPLOADED',
+        queueLocation: null,
+        workflowStatus: null,
+        taskId: taskId
+      };
+      
+      await buildRepo.create(buildData);
+      console.log(`[ManualBuildHandler] Created build record for ${upload.platform}: ${uploadFileName}`);
+    }
+  }
 
   // Update task status to COMPLETED
   await releaseTaskRepo.update(taskId, {
@@ -202,10 +240,13 @@ export const checkAndConsumeManualBuilds = async (
 };
 
 /**
- * Process all AWAITING_CALLBACK tasks for a release
+ * Process all AWAITING_MANUAL_BUILD tasks for a release
  * 
  * This is a convenience function that checks all waiting tasks at once.
  * Called by cron states at the start of each execution cycle.
+ * 
+ * Note: Only processes tasks with status AWAITING_MANUAL_BUILD.
+ * Tasks with AWAITING_CALLBACK are handled by the CI/CD callback handler.
  * 
  * @param releaseId - Release ID
  * @param tasks - All tasks for the stage
@@ -213,6 +254,7 @@ export const checkAndConsumeManualBuilds = async (
  * @param platforms - Release platforms
  * @param releaseUploadsRepo - Repository for release_uploads table
  * @param releaseTaskRepo - Repository for release_tasks table
+ * @param buildRepo - Repository for builds table (for creating build records)
  * @returns Array of results for each waiting task
  */
 export const processAwaitingManualBuildTasks = async (
@@ -221,7 +263,8 @@ export const processAwaitingManualBuildTasks = async (
   hasManualBuildUpload: boolean,
   platforms: PlatformName[],
   releaseUploadsRepo: ReleaseUploadsRepository,
-  releaseTaskRepo: ReleaseTaskRepository
+  releaseTaskRepo: ReleaseTaskRepository,
+  buildRepo?: BuildRepository
 ): Promise<Map<string, ManualBuildCheckResult>> => {
   const results = new Map<string, ManualBuildCheckResult>();
 
@@ -249,7 +292,8 @@ export const processAwaitingManualBuildTasks = async (
         platforms,
       },
       releaseUploadsRepo,
-      releaseTaskRepo
+      releaseTaskRepo,
+      buildRepo
     );
 
     results.set(task.id, result);

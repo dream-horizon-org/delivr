@@ -64,9 +64,9 @@ describe('awaiting-manual-build.utils.ts - REAL Implementation', () => {
   });
 
   describe('getUploadStageForTaskType()', () => {
-    it('should return PRE_REGRESSION for TRIGGER_PRE_REGRESSION_BUILDS', () => {
+    it('should return KICK_OFF for TRIGGER_PRE_REGRESSION_BUILDS', () => {
       const result = getUploadStageForTaskType(TaskType.TRIGGER_PRE_REGRESSION_BUILDS);
-      expect(result).toBe('PRE_REGRESSION');
+      expect(result).toBe('KICK_OFF');
     });
 
     it('should return REGRESSION for TRIGGER_REGRESSION_BUILDS', () => {
@@ -91,10 +91,10 @@ describe('awaiting-manual-build.utils.ts - REAL Implementation', () => {
   });
 
   describe('isAwaitingManualBuild()', () => {
-    it('should return true when task is AWAITING_CALLBACK + build task + manual upload enabled', () => {
+    it('should return true when task is AWAITING_MANUAL_BUILD + build task + manual upload enabled', () => {
       const task = {
         taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       
       const result = isAwaitingManualBuild(task, true);
@@ -104,14 +104,14 @@ describe('awaiting-manual-build.utils.ts - REAL Implementation', () => {
     it('should return false when hasManualBuildUpload is false', () => {
       const task = {
         taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       
       const result = isAwaitingManualBuild(task, false);
       expect(result).toBe(false);
     });
 
-    it('should return false when task status is not AWAITING_CALLBACK', () => {
+    it('should return false when task status is not AWAITING_MANUAL_BUILD', () => {
       const task = {
         taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
         taskStatus: TaskStatus.PENDING,
@@ -124,7 +124,7 @@ describe('awaiting-manual-build.utils.ts - REAL Implementation', () => {
     it('should return false when task is not a build task', () => {
       const task = {
         taskType: TaskType.FORK_BRANCH,
-        taskStatus: TaskStatus.AWAITING_CALLBACK,
+        taskStatus: TaskStatus.AWAITING_MANUAL_BUILD,
       };
       
       const result = isAwaitingManualBuild(task, true);
@@ -147,7 +147,7 @@ describe('awaiting-manual-build.utils.ts - REAL Implementation', () => {
 
   describe('TASK_TYPE_TO_UPLOAD_STAGE mapping', () => {
     it('should have correct mappings for all build task types', () => {
-      expect(TASK_TYPE_TO_UPLOAD_STAGE[TaskType.TRIGGER_PRE_REGRESSION_BUILDS]).toBe('PRE_REGRESSION');
+      expect(TASK_TYPE_TO_UPLOAD_STAGE[TaskType.TRIGGER_PRE_REGRESSION_BUILDS]).toBe('KICK_OFF');
       expect(TASK_TYPE_TO_UPLOAD_STAGE[TaskType.TRIGGER_REGRESSION_BUILDS]).toBe('REGRESSION');
       expect(TASK_TYPE_TO_UPLOAD_STAGE[TaskType.TRIGGER_TEST_FLIGHT_BUILD]).toBe('PRE_RELEASE');
       expect(TASK_TYPE_TO_UPLOAD_STAGE[TaskType.CREATE_AAB_BUILD]).toBe('PRE_RELEASE');

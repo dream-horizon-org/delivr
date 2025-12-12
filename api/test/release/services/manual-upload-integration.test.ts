@@ -132,7 +132,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/test-artifact.apk'
       };
 
@@ -145,7 +145,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
       expect(created.tenantId).toBe(testTenantId);
       expect(created.releaseId).toBe(testReleaseId);
       expect(created.platform).toBe(PlatformName.ANDROID);
-      expect(created.stage).toBe('PRE_REGRESSION');
+      expect(created.stage).toBe('KICK_OFF');
       expect(created.artifactPath).toBe('s3://bucket/test-artifact.apk');
       expect(created.isUsed).toBe(false);
       expect(created.usedByTaskId).toBeNull();
@@ -215,7 +215,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
@@ -352,21 +352,21 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
       await releaseUploadsRepo.create({
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.IOS,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/ios.ipa'
       });
 
       // Act
       const result = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'PRE_REGRESSION',
+        'KICK_OFF',
         [PlatformName.ANDROID, PlatformName.IOS]
       );
 
@@ -383,14 +383,14 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
       // Act
       const result = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'PRE_REGRESSION',
+        'KICK_OFF',
         [PlatformName.ANDROID, PlatformName.IOS]
       );
 
@@ -406,14 +406,14 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
       // Act
       const result = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'PRE_REGRESSION',
+        'KICK_OFF',
         [PlatformName.ANDROID] // Only Android required
       );
 
@@ -433,7 +433,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
@@ -454,7 +454,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION' as const,
+        stage: 'KICK_OFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
       await releaseUploadsRepo.markAsUsed(upload.id, 'task-123', null);
@@ -535,7 +535,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://bucket/stage1-android.apk'
       });
       expect(androidUpload.isUsed).toBe(false);
@@ -545,7 +545,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.IOS,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://bucket/stage1-ios.ipa'
       });
       expect(iosUpload.isUsed).toBe(false);
@@ -553,7 +553,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
       // Step 3: Task checks readiness
       const readiness = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'PRE_REGRESSION',
+        'KICK_OFF',
         [PlatformName.ANDROID, PlatformName.IOS]
       );
       expect(readiness.allReady).toBe(true);
@@ -569,7 +569,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
       expect(usedUploads.every(u => u.isUsed)).toBe(true);
 
       // No unused uploads should remain for this stage
-      const remaining = await releaseUploadsRepo.findUnused(testReleaseId, 'PRE_REGRESSION');
+      const remaining = await releaseUploadsRepo.findUnused(testReleaseId, 'KICK_OFF');
       expect(remaining).toHaveLength(0);
     });
   });
@@ -670,7 +670,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://bucket/android-v1.apk'
       });
 
@@ -679,7 +679,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://bucket/android-v2.apk' // New path
       });
 
@@ -688,9 +688,249 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
       expect(replaced.artifactPath).toBe('s3://bucket/android-v2.apk');
 
       // Only one upload should exist
-      const all = await releaseUploadsRepo.findUnused(testReleaseId, 'PRE_REGRESSION');
+      const all = await releaseUploadsRepo.findUnused(testReleaseId, 'KICK_OFF');
       expect(all).toHaveLength(1);
       expect(all[0].artifactPath).toBe('s3://bucket/android-v2.apk');
+    });
+  });
+});
+
+// ==========================================================================
+// AWAITING_MANUAL_BUILD Integration Tests (Phase 20 - TDD)
+// ==========================================================================
+// These tests verify the AWAITING_MANUAL_BUILD status in the real database
+// Reference: MANUAL_BUILD_UPLOAD_FLOW_1.md
+// ==========================================================================
+
+describeIfDb('AWAITING_MANUAL_BUILD Status - Integration Tests (TDD)', () => {
+  let sequelize: Sequelize;
+  
+  // Test identifiers
+  const testTenantId = `test-tenant-amb-${uuidv4().slice(0, 8)}`;
+  const testReleaseId = `test-release-amb-${uuidv4().slice(0, 8)}`;
+  const testAccountId = `test-account-amb-${uuidv4().slice(0, 8)}`;
+
+  beforeAll(async () => {
+    sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
+      host: DB_HOST,
+      port: DB_PORT,
+      dialect: 'mysql',
+      logging: false,
+    });
+
+    try {
+      await sequelize.authenticate();
+      console.log('✅ Database connection established for AWAITING_MANUAL_BUILD tests');
+      
+      // Disable foreign key checks for testing
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+    } catch (error) {
+      console.error('❌ Database connection failed:', error);
+      throw error;
+    }
+  });
+
+  afterAll(async () => {
+    // Clean up test data
+    try {
+      await sequelize.query(`DELETE FROM release_tasks WHERE releaseId LIKE 'test-release-amb-%'`);
+      console.log('✅ Test data cleaned up');
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+    
+    // Re-enable foreign key checks
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+    await sequelize.close();
+  });
+
+  // ==========================================================================
+  // Test 1: Database accepts AWAITING_MANUAL_BUILD status
+  // ==========================================================================
+  describe('Database Schema - AWAITING_MANUAL_BUILD', () => {
+    it('should INSERT task with AWAITING_MANUAL_BUILD status', async () => {
+      const taskId = `task-amb-${uuidv4().slice(0, 8)}`;
+      
+      // Insert a task with AWAITING_MANUAL_BUILD status
+      await sequelize.query(`
+        INSERT INTO release_tasks (id, releaseId, taskType, taskStatus, stage, createdAt, updatedAt)
+        VALUES (?, ?, 'TRIGGER_PRE_REGRESSION_BUILDS', 'AWAITING_MANUAL_BUILD', 'KICKOFF', NOW(), NOW())
+      `, {
+        replacements: [taskId, testReleaseId]
+      });
+
+      // Verify the task was inserted with correct status
+      const [rows] = await sequelize.query(`
+        SELECT taskStatus FROM release_tasks WHERE id = ?
+      `, {
+        replacements: [taskId]
+      }) as [any[], unknown];
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].taskStatus).toBe('AWAITING_MANUAL_BUILD');
+    });
+
+    it('should UPDATE task from PENDING to AWAITING_MANUAL_BUILD', async () => {
+      const taskId = `task-amb-update-${uuidv4().slice(0, 8)}`;
+      
+      // Insert with PENDING status
+      await sequelize.query(`
+        INSERT INTO release_tasks (id, releaseId, taskType, taskStatus, stage, createdAt, updatedAt)
+        VALUES (?, ?, 'TRIGGER_REGRESSION_BUILDS', 'PENDING', 'REGRESSION', NOW(), NOW())
+      `, {
+        replacements: [taskId, testReleaseId]
+      });
+
+      // Update to AWAITING_MANUAL_BUILD
+      await sequelize.query(`
+        UPDATE release_tasks SET taskStatus = 'AWAITING_MANUAL_BUILD', updatedAt = NOW()
+        WHERE id = ?
+      `, {
+        replacements: [taskId]
+      });
+
+      // Verify the update
+      const [rows] = await sequelize.query(`
+        SELECT taskStatus FROM release_tasks WHERE id = ?
+      `, {
+        replacements: [taskId]
+      }) as [any[], unknown];
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].taskStatus).toBe('AWAITING_MANUAL_BUILD');
+    });
+
+    it('should UPDATE task from AWAITING_MANUAL_BUILD to COMPLETED', async () => {
+      const taskId = `task-amb-complete-${uuidv4().slice(0, 8)}`;
+      
+      // Insert with AWAITING_MANUAL_BUILD status
+      await sequelize.query(`
+        INSERT INTO release_tasks (id, releaseId, taskType, taskStatus, stage, createdAt, updatedAt)
+        VALUES (?, ?, 'TRIGGER_TEST_FLIGHT_BUILD', 'AWAITING_MANUAL_BUILD', 'POST_REGRESSION', NOW(), NOW())
+      `, {
+        replacements: [taskId, testReleaseId]
+      });
+
+      // Update to COMPLETED (simulating when builds are uploaded)
+      await sequelize.query(`
+        UPDATE release_tasks SET taskStatus = 'COMPLETED', updatedAt = NOW()
+        WHERE id = ?
+      `, {
+        replacements: [taskId]
+      });
+
+      // Verify the update
+      const [rows] = await sequelize.query(`
+        SELECT taskStatus FROM release_tasks WHERE id = ?
+      `, {
+        replacements: [taskId]
+      }) as [any[], unknown];
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].taskStatus).toBe('COMPLETED');
+    });
+
+    it('should distinguish AWAITING_CALLBACK from AWAITING_MANUAL_BUILD in queries', async () => {
+      const taskIdCallback = `task-cb-${uuidv4().slice(0, 8)}`;
+      const taskIdManual = `task-mb-${uuidv4().slice(0, 8)}`;
+      
+      // Insert one task with AWAITING_CALLBACK (CI/CD mode)
+      await sequelize.query(`
+        INSERT INTO release_tasks (id, releaseId, taskType, taskStatus, stage, createdAt, updatedAt)
+        VALUES (?, ?, 'TRIGGER_PRE_REGRESSION_BUILDS', 'AWAITING_CALLBACK', 'KICKOFF', NOW(), NOW())
+      `, {
+        replacements: [taskIdCallback, testReleaseId]
+      });
+
+      // Insert one task with AWAITING_MANUAL_BUILD (Manual mode)
+      await sequelize.query(`
+        INSERT INTO release_tasks (id, releaseId, taskType, taskStatus, stage, createdAt, updatedAt)
+        VALUES (?, ?, 'TRIGGER_REGRESSION_BUILDS', 'AWAITING_MANUAL_BUILD', 'REGRESSION', NOW(), NOW())
+      `, {
+        replacements: [taskIdManual, testReleaseId]
+      });
+
+      // Query for AWAITING_CALLBACK tasks only
+      const [callbackTasks] = await sequelize.query(`
+        SELECT id, taskStatus FROM release_tasks 
+        WHERE releaseId = ? AND taskStatus = 'AWAITING_CALLBACK'
+      `, {
+        replacements: [testReleaseId]
+      }) as [any[], unknown];
+
+      // Query for AWAITING_MANUAL_BUILD tasks only
+      const [manualTasks] = await sequelize.query(`
+        SELECT id, taskStatus FROM release_tasks 
+        WHERE releaseId = ? AND taskStatus = 'AWAITING_MANUAL_BUILD'
+      `, {
+        replacements: [testReleaseId]
+      }) as [any[], unknown];
+
+      // Verify they are distinct
+      expect(callbackTasks.some((t: any) => t.id === taskIdCallback)).toBe(true);
+      expect(callbackTasks.some((t: any) => t.id === taskIdManual)).toBe(false);
+      
+      expect(manualTasks.some((t: any) => t.id === taskIdManual)).toBe(true);
+      expect(manualTasks.some((t: any) => t.id === taskIdCallback)).toBe(false);
+    });
+  });
+
+  // ==========================================================================
+  // Test 2: TaskExecutor sets correct status based on mode
+  // ==========================================================================
+  // These tests will FAIL until TaskExecutor is updated to use AWAITING_MANUAL_BUILD
+  // ==========================================================================
+  describe('TaskExecutor - Status Setting (TDD RED Phase)', () => {
+    /**
+     * This test verifies that TaskExecutor uses the CORRECT status based on mode.
+     * 
+     * Expected behavior (from MANUAL_BUILD_UPLOAD_FLOW_1.md):
+     * - Manual mode: AWAITING_MANUAL_BUILD
+     * - CI/CD mode: AWAITING_CALLBACK
+     * 
+     * This test should FAIL until task-executor.ts is updated.
+     */
+    it('should use AWAITING_MANUAL_BUILD for manual mode in task-executor.ts code', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const filePath = path.join(__dirname, '../../../script/services/release/task-executor/task-executor.ts');
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      
+      // Verify the code sets AWAITING_MANUAL_BUILD for manual mode
+      // This will FAIL because current code uses AWAITING_CALLBACK for both
+      expect(fileContent).toContain('TaskStatus.AWAITING_MANUAL_BUILD');
+      
+      // Verify both statuses are used distinctly
+      const hasAwaitingCallback = fileContent.includes('TaskStatus.AWAITING_CALLBACK');
+      const hasAwaitingManualBuild = fileContent.includes('TaskStatus.AWAITING_MANUAL_BUILD');
+      
+      expect(hasAwaitingCallback).toBe(true);
+      expect(hasAwaitingManualBuild).toBe(true);
+    });
+
+    it('should check for AWAITING_MANUAL_BUILD in awaiting-manual-build.utils.ts', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const filePath = path.join(__dirname, '../../../script/utils/awaiting-manual-build.utils.ts');
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      
+      // The utility should check for AWAITING_MANUAL_BUILD, not AWAITING_CALLBACK
+      expect(fileContent).toContain('TaskStatus.AWAITING_MANUAL_BUILD');
+    });
+  });
+
+  // ==========================================================================
+  // Test 3: Upload Validation with AWAITING_MANUAL_BUILD
+  // ==========================================================================
+  describe('Upload Validation - AWAITING_MANUAL_BUILD (TDD RED Phase)', () => {
+    it('should allow upload when task is AWAITING_MANUAL_BUILD', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const filePath = path.join(__dirname, '../../../script/services/release/upload-validation.service.ts');
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      
+      // Verify the validation allows AWAITING_MANUAL_BUILD
+      expect(fileContent).toContain('AWAITING_MANUAL_BUILD');
     });
   });
 });

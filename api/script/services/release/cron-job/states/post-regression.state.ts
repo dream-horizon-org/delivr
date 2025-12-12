@@ -17,7 +17,7 @@ import { stopCronJob } from '~services/release/cron-job/cron-scheduler';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { createStage3Tasks } from '~utils/task-creation';
-import { getOrderedTasks, canExecuteTask, OptionalTaskConfig, isTaskRequired, arePreviousTasksComplete } from '~utils/task-sequencing';
+import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class PostRegressionState implements ICronJobState {
@@ -159,18 +159,26 @@ export class PostRegressionState implements ICronJobState {
           // Get release platforms
           const platforms = await this.getReleasePlatforms(release);
           
+          // Get build repository for creating build records
+          const buildRepo = this.context.getBuildRepo?.();
+          
           const manualBuildResults = await processAwaitingManualBuildTasks(
             releaseId,
             existingStage3Tasks,
             true,
             platforms,
             releaseUploadsRepo,
-            releaseTaskRepo
+            releaseTaskRepo,
+            buildRepo
           );
 
+          // Track which tasks were just completed by manual build handler
+          const justCompletedTaskIds = new Set<string>();
+          
           // Log results
           for (const [taskId, result] of manualBuildResults) {
             if (result.consumed) {
+              justCompletedTaskIds.add(taskId);
               console.log(
                 `[${instanceId}] [PostRegressionState] Manual build consumed for task ${taskId}. ` +
                 `Task is now COMPLETED.`
@@ -182,8 +190,14 @@ export class PostRegressionState implements ICronJobState {
               );
             }
           }
+          
+          // Store for later use
+          (this as any)._justCompletedTaskIds = justCompletedTaskIds;
         }
       }
+      
+      // Get tasks that were just completed by manual build handler (if any)
+      const justCompletedTaskIds: Set<string> = (this as any)._justCompletedTaskIds ?? new Set();
 
       // Get ordered tasks
       const orderedTasks = getOrderedTasks(existingStage3Tasks, TaskStage.POST_REGRESSION);
@@ -200,7 +214,15 @@ export class PostRegressionState implements ICronJobState {
 
       // Execute tasks
       for (const task of orderedTasks) {
-        if (canExecuteTask(task, orderedTasks, TaskStage.POST_REGRESSION, config, isTimeToExecute)) {
+        // Skip tasks that were just completed by manual build handler
+        if (justCompletedTaskIds.has(task.id)) {
+          continue;
+        }
+        
+        const blockReason = getTaskBlockReason(task, orderedTasks, TaskStage.POST_REGRESSION, config, isTimeToExecute);
+        const canExecute = blockReason === 'EXECUTABLE';
+        
+        if (canExecute) {
           console.log(`[${instanceId}] [PostRegressionState] Executing task: ${task.taskType} (${task.id})`);
           
           try {
@@ -217,16 +239,11 @@ export class PostRegressionState implements ICronJobState {
             console.error(`[${instanceId}] [PostRegressionState] Task ${task.taskType} execution failed:`, errorMessage);
           }
         } else {
-          const reasons: string[] = [];
-          if (task.taskStatus !== 'PENDING') {
-            reasons.push(`Status: ${task.taskStatus}`);
+          // Only log non-completed tasks to reduce noise
+          const isAlreadyDone = blockReason === 'ALREADY_COMPLETED' || blockReason === 'ALREADY_SKIPPED';
+          if (!isAlreadyDone) {
+            console.log(`[${instanceId}] [PostRegressionState] Task ${task.taskType} blocked: ${blockReason}`);
           }
-          if (!isTaskRequired(task.taskType, config)) {
-            reasons.push('Task not required');
-          } else if (!arePreviousTasksComplete(task, orderedTasks, TaskStage.POST_REGRESSION, config)) {
-            reasons.push('Previous tasks not complete');
-          }
-          console.log(`[${instanceId}] [PostRegressionState] Task ${task.taskType} cannot execute: ${reasons.join(', ')}`);
         }
       }
 

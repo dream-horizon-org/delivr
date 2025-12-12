@@ -22,6 +22,7 @@ import { ReleaseTaskRepository } from '~models/release/release-task.repository';
 import { RegressionCycleRepository } from '~models/release/regression-cycle.repository';
 import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
 import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
+import { BuildRepository } from '~models/release/build.repository';
 import { TaskExecutor } from '~services/release/task-executor/task-executor';
 import { Storage } from '~storage/storage';
 import { StageStatus, CronStatus, ReleaseStatus } from '~models/release/release.interface';
@@ -41,7 +42,9 @@ export class CronJobStateMachine {
     // Platform mapping repo - required for production, optional for unit tests with mocks
     private platformMappingRepo?: ReleasePlatformTargetMappingRepository,
     // Optional repository for manual build upload feature
-    private releaseUploadsRepo?: ReleaseUploadsRepository
+    private releaseUploadsRepo?: ReleaseUploadsRepository,
+    // Optional repository for builds table (for manual build handler)
+    private buildRepo?: BuildRepository
   ) {
     // Note: We'll set initial state after async initialization
   }
@@ -344,6 +347,14 @@ export class CronJobStateMachine {
    */
   getReleaseUploadsRepo(): ReleaseUploadsRepository | undefined {
     return this.releaseUploadsRepo;
+  }
+
+  /**
+   * Get build repository (for manual build handler)
+   * Returns undefined if not provided during construction
+   */
+  getBuildRepo(): BuildRepository | undefined {
+    return this.buildRepo;
   }
 
   /**

@@ -235,6 +235,76 @@ export function getTaskOrderIndex(taskType: TaskType, stage: TaskStage): number 
 }
 
 /**
+ * Reasons why a task cannot be executed
+ */
+export type TaskBlockReason = 
+  | 'ALREADY_COMPLETED'       // Task is COMPLETED
+  | 'ALREADY_SKIPPED'         // Task is SKIPPED
+  | 'AWAITING_CALLBACK'       // Task is waiting for CI/CD callback
+  | 'AWAITING_MANUAL_BUILD'   // Task is waiting for manual build upload
+  | 'IN_PROGRESS'             // Task is currently running
+  | 'NOT_REQUIRED'            // Task is optional and not configured
+  | 'PREVIOUS_INCOMPLETE'     // Previous tasks not complete yet
+  | 'NOT_TIME_YET'            // Time condition not met
+  | 'EXECUTABLE';             // Task can be executed
+
+/**
+ * Get the reason why a task cannot be executed
+ * Useful for improved logging
+ * 
+ * @param task - The task to check
+ * @param allTasks - All tasks in the stage (should be ordered)
+ * @param stage - The stage these tasks belong to
+ * @param config - Optional task configuration
+ * @param isTimeToExecute - Function to check if time-based task should execute
+ * @returns TaskBlockReason indicating why task cannot execute or 'EXECUTABLE' if it can
+ */
+export function getTaskBlockReason(
+  task: ReleaseTask,
+  allTasks: ReleaseTask[],
+  stage: TaskStage,
+  config?: OptionalTaskConfig,
+  isTimeToExecute?: (task: ReleaseTask) => boolean
+): TaskBlockReason {
+  // Check task status first (most common case)
+  switch (task.taskStatus) {
+    case TaskStatus.COMPLETED:
+      return 'ALREADY_COMPLETED';
+    case TaskStatus.SKIPPED:
+      return 'ALREADY_SKIPPED';
+    case TaskStatus.AWAITING_CALLBACK:
+      return 'AWAITING_CALLBACK';
+    case TaskStatus.AWAITING_MANUAL_BUILD:
+      return 'AWAITING_MANUAL_BUILD';
+    case TaskStatus.IN_PROGRESS:
+      return 'IN_PROGRESS';
+  }
+
+  // Task must be in PENDING or FAILED status to proceed
+  const isExecutableStatus = task.taskStatus === TaskStatus.PENDING || task.taskStatus === TaskStatus.FAILED;
+  if (!isExecutableStatus) {
+    return 'IN_PROGRESS'; // Fallback for unknown status
+  }
+
+  // Check if task is required
+  if (!isTaskRequired(task.taskType, config)) {
+    return 'NOT_REQUIRED';
+  }
+
+  // Check if previous tasks are complete
+  if (!arePreviousTasksComplete(task, allTasks, stage, config)) {
+    return 'PREVIOUS_INCOMPLETE';
+  }
+
+  // Check time-based execution (if function provided)
+  if (isTimeToExecute && !isTimeToExecute(task)) {
+    return 'NOT_TIME_YET';
+  }
+
+  return 'EXECUTABLE';
+}
+
+/**
  * Check if a task can be executed
  * Combines time-based checks, previous task completion, and task status
  * 
@@ -252,28 +322,6 @@ export function canExecuteTask(
   config?: OptionalTaskConfig,
   isTimeToExecute?: (task: ReleaseTask) => boolean
 ): boolean {
-  // Task must be in PENDING or FAILED status (allow retries)
-  if (task.taskStatus !== TaskStatus.PENDING && task.taskStatus !== TaskStatus.FAILED) {
-    return false;
-  }
-
-  // Check if task is required
-  if (!isTaskRequired(task.taskType, config)) {
-    return false;
-  }
-
-  // Check if previous tasks are complete
-  if (!arePreviousTasksComplete(task, allTasks, stage, config)) {
-    return false;
-  }
-
-  // Check time-based execution (if function provided)
-  if (isTimeToExecute) {
-    if (!isTimeToExecute(task)) {
-      return false;
-    }
-  }
-
-  return true;
+  return getTaskBlockReason(task, allTasks, stage, config, isTimeToExecute) === 'EXECUTABLE';
 }
 
