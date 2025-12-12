@@ -331,12 +331,14 @@ export function convertUpdateStateToBackendRequest(
   }
 
   // Cron Config
-  if (state.cronConfig || state.upcomingRegressions) {
+  if (state.cronConfig || state.upcomingRegressions !== undefined) {
     request.cronJob = {};
     if (state.cronConfig) {
       request.cronJob.cronConfig = state.cronConfig as Record<string, unknown>;
     }
-    if (state.upcomingRegressions && state.upcomingRegressions.length > 0) {
+    // Always include upcomingRegressions if defined (even if empty array)
+    // This ensures backend deletes all slots when array is empty
+    if (state.upcomingRegressions !== undefined) {
       request.cronJob.upcomingRegressions = state.upcomingRegressions.map(slot => ({
         date: slot.date,
         config: slot.config as Record<string, unknown>,

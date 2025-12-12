@@ -82,6 +82,7 @@ interface ConfigContextValue {
   // Release Config Actions
   refreshReleaseConfigs: () => void;
   invalidateReleaseConfigs: () => void;
+  updateReleaseConfigInCache: (configId: string, updater: (config: ReleaseConfiguration) => ReleaseConfiguration) => void;
   
   // Release Config Selectors
   getReleaseConfig: (id: string) => ReleaseConfiguration | undefined;
@@ -127,6 +128,7 @@ export function ConfigProvider({
     error: releaseConfigsError,
     refetch: refreshReleaseConfigs,
     invalidateCache: invalidateReleaseConfigs,
+    updateConfigInCache: updateReleaseConfigInCache,
   } = useReleaseConfigs(tenantId);
   
   // Enrich backend data with frontend UI metadata
@@ -314,6 +316,7 @@ export function ConfigProvider({
     releaseConfigsError,
     refreshReleaseConfigs,
     invalidateReleaseConfigs,
+    updateReleaseConfigInCache,
     getReleaseConfig,
     getReleaseConfigsByType,
   };

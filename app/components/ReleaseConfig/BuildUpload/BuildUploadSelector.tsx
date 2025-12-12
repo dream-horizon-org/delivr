@@ -3,6 +3,7 @@
  * Allows users to choose between Manual Upload and CI/CD Workflows
  */
 
+import { useEffect } from 'react';
 import { Stack, Text, Paper, Radio, Group, Box, ThemeIcon, UnstyledButton, useMantineTheme, Anchor, Badge } from '@mantine/core';
 import { IconUpload, IconRocket, IconCheck, IconAlertCircle, IconPlug } from '@tabler/icons-react';
 import { Link, useParams } from '@remix-run/react';
@@ -17,6 +18,14 @@ export function BuildUploadSelector({
   const theme = useMantineTheme();
   const params = useParams();
   const tenantId = params.org || '';
+  
+  // Ensure hasManualBuildUpload is explicitly set (default to true if undefined)
+  useEffect(() => {
+    if (hasManualBuildUpload === undefined) {
+      onChange(true); // Default to manual upload
+    }
+  }, [hasManualBuildUpload, onChange]);
+  
   const selectedMode = hasManualBuildUpload ? BUILD_UPLOAD_STEPS.MANUAL : BUILD_UPLOAD_STEPS.CI_CD;
 
   const options = [

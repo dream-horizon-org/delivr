@@ -246,6 +246,14 @@ export const ANDROID_PIPELINE_CATEGORIES: readonly PipelineCategoryConfig[] = [
     description: 'Main regression build for Play Store release',
     required: true,
   },
+  {
+    id: 'android-aab',
+    platform: PLATFORM_CONSTANTS.ANDROID,
+    environment: BUILD_ENVIRONMENTS.AAB_BUILD,
+    label: 'Android AAB Build',
+    description: 'AAB build for Android releases',
+    required: false,
+  },
 ] as const;
 
 // iOS pipeline categories

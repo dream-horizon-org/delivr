@@ -10,7 +10,7 @@
 import { Group, Progress, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertOctagon, IconCheck, IconPlayerPause, IconTrendingUp } from '@tabler/icons-react';
 import { PROGRESS_BAR_HEIGHTS } from '~/constants/distribution.constants';
-import type { RolloutProgressBarProps, RolloutStatus, SizeVariant } from './distribution.types';
+import type { RolloutProgressBarProps, RolloutStatus } from './distribution.types';
 import { getRolloutStatusColor, getRolloutStatusLabel } from './distribution.utils';
 
 // ============================================================================

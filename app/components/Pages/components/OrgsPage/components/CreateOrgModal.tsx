@@ -26,8 +26,8 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     validateInputOnBlur: true,
     validate: {
       orgName: (value) => {
-        if (!value || value.length === 0) return "Organization name is required";
-        if (value.length < 3) return "Organization name must be at least 3 characters";
+        if (!value || value.length === 0) return "Project name is required";
+        if (value.length < 3) return "Project name must be at least 3 characters";
         return null;
       },
     },
@@ -51,12 +51,12 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create organization");
+        throw new Error(errorData.error || "Failed to create project");
       }
 
       notifications.show({
         title: "Success",
-        message: "Organization created successfully!",
+        message: "Project created successfully!",
         color: "teal",
       });
 
@@ -64,7 +64,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     } catch (error: any) {
       notifications.show({
         title: "Error",
-        message: error.message || "Failed to create organization",
+        message: error.message || "Failed to create project",
         color: "red",
       });
     } finally {
@@ -76,12 +76,12 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="lg">
         <Text size="sm" c="dimmed">
-          Create a new organization to manage your apps and team members.
+          Create a new project to manage your apps and team members.
         </Text>
 
         <TextInput
-          label="Organization Name"
-          placeholder="Enter organization name"
+          label="Project Name"
+          placeholder="Enter project name"
           leftSection={<IconBuilding size={18} stroke={1.5} />}
           required
           size="md"
@@ -101,7 +101,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
             !form.values.orgName?.trim()
           }
         >
-          Create Organization
+          Create Project
         </Button>
       </Stack>
     </form>

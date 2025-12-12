@@ -37,6 +37,8 @@ import { RELEASE_CONFIG_MESSAGES, getErrorMessage } from '~/constants/toast-mess
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { CONFIG_STATUS, RELEASE_TYPE } from '~/constants/release-config-ui';
 import { exportConfig } from '~/utils/release-config-storage';
+import { generateStorageKey } from '~/hooks/useDraftStorage';
+import { useConfig } from '~/contexts/ConfigContext';
 
 interface ConfigurationsTabProps {
   org: string;
@@ -56,6 +58,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const {updateReleaseConfigInCache} = useConfig()
 
   // Merge backend configs with localStorage draft
   const configurations = useMemo(() => {
@@ -89,9 +92,8 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
 
   // Calculate stats
   const stats = useMemo(() => ({
-    total: configurations.length,
+    total: configurations.filter((c: any) => c.status !== 'DRAFT').length,
     active: configurations.filter((c: any) => c.isActive === true).length,
-    draft: configurations.filter((c: any) => c.status === 'DRAFT').length,
     archived: configurations.filter((c: any) => c.isActive === false && c.status !== 'DRAFT').length,
   }), [configurations]);
 
@@ -141,7 +143,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
     
     if (isDraft) {
       try {
-        const draftKey = `delivr_release_config_draft_${org}`;
+        const draftKey = generateStorageKey('release-config', org);
         localStorage.removeItem(draftKey);
         invalidateReleaseConfigs();
       } catch (error) {
@@ -159,6 +161,11 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         invalidateReleaseConfigs();
         showSuccessToast(RELEASE_CONFIG_MESSAGES.ARCHIVE_SUCCESS);
       } else {
+        // ❌ Rollback optimistic update on failure
+        updateReleaseConfigInCache(configId, (config) => ({
+          ...config,
+          isActive: true,
+        }));
         showErrorToast(getErrorMessage(
           result.error || 'Unknown error',
           RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title
@@ -168,7 +175,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
       const errorMessage = getApiErrorMessage(error, 'Failed to archive configuration');
       showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.ARCHIVE_ERROR.title));
     }
-  }, [org, configurations, invalidateReleaseConfigs]);
+  }, [org, configurations, invalidateReleaseConfigs, updateReleaseConfigInCache]);
   
   const handleSetDefault = useCallback(async (configId: string) => {
     try {
@@ -182,7 +189,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
         showSuccessToast(RELEASE_CONFIG_MESSAGES.SET_DEFAULT_SUCCESS);
       } else {
         showErrorToast(getErrorMessage(
-          result.data?.error || 'Unknown error',
+          result.error || 'Unknown error',
           RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title
         ));
       }
@@ -283,11 +290,11 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
                 <Badge size="lg" variant="light" color="green">
                   {stats.active} Active
                 </Badge>
-                {stats.draft > 0 && (
+                {/* {stats.draft > 0 && (
                   <Badge size="lg" variant="light" color="yellow">
                     {stats.draft} Draft
                   </Badge>
-                )}
+                )} */}
                 {stats.archived > 0 && (
                   <Badge size="lg" variant="light" color="gray">
                     {stats.archived} Archived

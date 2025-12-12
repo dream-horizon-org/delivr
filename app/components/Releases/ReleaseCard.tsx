@@ -20,6 +20,7 @@ export const ReleaseCard = memo(function ReleaseCard({
   org
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
+  console.log(theme)
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -59,9 +60,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                     {release.branch}
                   </Text>
                 ) : (
-                  <Text fw={600} size="lg" c="white" className="truncate">
+                <Text fw={600} size="lg" c="white" className="truncate">
                     No branch
-                  </Text>
+                </Text>
                 )}
                 {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
                   <Group gap="xs">
@@ -149,9 +150,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                         {releaseConfig.releaseType}
                       </Badge>
                     )}
-                    {releaseConfig.scheduling?.regressionSlots && releaseConfig.scheduling.regressionSlots.length > 0 && (
+                    {releaseConfig.releaseSchedule?.regressionSlots && releaseConfig.releaseSchedule.regressionSlots.length > 0 && (
                       <Badge size="sm" variant="outline" color="green">
-                        {releaseConfig.scheduling.regressionSlots.length} Regression Slot{releaseConfig.scheduling.regressionSlots.length !== 1 ? 's' : ''}
+                        {releaseConfig.releaseSchedule.regressionSlots.length} Regression Slot{releaseConfig.releaseSchedule.regressionSlots.length !== 1 ? 's' : ''}
                       </Badge>
                     )}
                   </Group>

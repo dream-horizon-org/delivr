@@ -59,6 +59,7 @@ export interface ConfigurationWizardProps {
   existingConfig?: ReleaseConfiguration | null;
   isEditMode?: boolean;
   returnTo?: string | null;
+  skipDraftLoading?: boolean; // When true, start fresh without loading draft from localStorage
 }
 
 export interface WizardNavigationProps {
@@ -314,7 +315,8 @@ export interface RegressionSlotTimelineProps {
   targetReleaseDate: string;
 }
 
-export interface RegressionSlotCardProps {
+// This interface is deprecated - use the one below
+export interface RegressionSlotCardPropsOld {
   slot: RegressionSlot;
   index: number;
   onEdit: () => void;
@@ -381,6 +383,7 @@ export interface RegressionSlotCardProps {
   targetReleaseOffset: number;
   targetReleaseTime: string;
   kickoffTime: string;
+  allSlots?: RegressionSlot[]; // All slots for duplicate and chronological validation
 }
 
 // ============================================================================
@@ -419,8 +422,9 @@ export interface ConfigurationListProps {
 export interface ConfigurationListItemProps {
   config: ReleaseConfiguration;
   onEdit: () => void;
-  onDelete: () => void;
-  onClone: () => void;
+  onDuplicate: () => void;
+  onArchive: () => void;
+  onExport: () => void;
   onSetDefault: () => void;
 }
 

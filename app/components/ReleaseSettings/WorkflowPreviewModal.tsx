@@ -77,6 +77,7 @@ export function WorkflowPreviewModal({
     if (type.includes('pre')) return 'blue';
     if (type.includes('regression')) return 'purple';
     if (type.includes('testflight')) return 'orange';
+    if (type.includes('aab')) return 'teal';
     if (type.includes('production')) return 'green';
     return 'gray';
   };

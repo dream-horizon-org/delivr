@@ -25,9 +25,15 @@ export function useReleaseConfigs(tenantId?: string) {
         return { success: false, data: [] };
       }
       
+      console.log('[useReleaseConfigs] Fetching configs for tenant:', tenantId);
       const result = await apiGet<ReleaseConfiguration[]>(
         `/api/v1/tenants/${tenantId}/release-config`
       );
+      
+      console.log('[useReleaseConfigs] Received', result.data?.length || 0, 'configs');
+      (result.data || []).forEach((config: any, idx: number) => {
+        console.log(`[useReleaseConfigs] Config ${idx + 1}: id=${config.id}, name=${config.name}, isActive=${config.isActive}`);
+      });
       
       return {
         success: result.success,

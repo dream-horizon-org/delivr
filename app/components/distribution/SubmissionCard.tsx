@@ -10,17 +10,17 @@
 
 import { Badge, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
-    IconBrandAndroid,
-    IconBrandApple,
-    IconCheck,
-    IconChevronRight,
-    IconClock,
-    IconX,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconCheck,
+  IconChevronRight,
+  IconClock,
+  IconX,
 } from '@tabler/icons-react';
 import {
-    PLATFORM_LABELS,
-    SUBMISSION_STATUS_COLORS,
-    SUBMISSION_STATUS_LABELS,
+  PLATFORM_LABELS,
+  SUBMISSION_STATUS_COLORS,
+  SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { RolloutProgressBar } from './RolloutProgressBar';

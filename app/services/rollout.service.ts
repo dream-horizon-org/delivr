@@ -6,9 +6,9 @@
 
 import { ROLLOUT_PRESETS } from '~/constants/distribution.constants';
 import type {
-    HaltRolloutRequest,
-    PauseRolloutRequest,
-    UpdateRolloutRequest,
+  HaltRolloutRequest,
+  PauseRolloutRequest,
+  UpdateRolloutRequest,
 } from '~/types/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { apiGet, apiPatch, apiPost } from '~/utils/api-client';

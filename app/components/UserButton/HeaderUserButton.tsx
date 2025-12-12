@@ -1,9 +1,10 @@
-import { UnstyledButton, Avatar, Menu, rem, Tooltip, useMantineTheme, Text, Box, Group } from "@mantine/core";
+import { UnstyledButton, Avatar, Menu, rem, Tooltip, useMantineTheme, Text, Box, Group, Modal, Button, Stack } from "@mantine/core";
 import {
   IconLogout,
   IconKey,
   IconTrash,
   IconUser,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import { Form, useNavigate } from "@remix-run/react";
 import { User } from "~/.server/services/Auth/Auth.interface";
@@ -18,6 +19,7 @@ export type HeaderUserButtonProps = {
 export function HeaderUserButton({ user }: HeaderUserButtonProps) {
   const navigate = useNavigate();
   const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const theme = useMantineTheme();
   
   const brandColor = theme.colors?.brand?.[5] || '#14b8a6';
@@ -90,18 +92,14 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
           
           <Menu.Divider />
           
-          <Form method="post" action="/logout">
-            <Menu.Item
-              component="button"
-              type="submit"
-              color="red"
-              leftSection={<IconLogout size={16} />}
-              py={10}
-              style={{ width: '100%' }}
-            >
-              Sign Out
-            </Menu.Item>
-          </Form>
+          <Menu.Item
+            color="red"
+            leftSection={<IconLogout size={16} />}
+            onClick={() => setLogoutModalOpen(true)}
+            py={10}
+          >
+            Sign Out
+          </Menu.Item>
         </Menu.Dropdown>
       </Menu>
 
@@ -112,6 +110,48 @@ export function HeaderUserButton({ user }: HeaderUserButtonProps) {
         data={deleteModalData}
         onSuccess={() => navigate('/login')}
       />
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        opened={logoutModalOpen}
+        onClose={() => setLogoutModalOpen(false)}
+        title={
+          <Group gap="sm">
+            <IconAlertCircle size={24} color={theme.colors.red[6]} />
+            <Text fw={600} size="lg">
+              Sign Out
+            </Text>
+          </Group>
+        }
+        centered
+        size="sm"
+        radius="md"
+        overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+      >
+        <Stack gap="lg">
+          <Text size="sm" c="dimmed">
+            Are you sure you want to sign out? You'll need to sign in again to access your account.
+          </Text>
+
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setLogoutModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Form method="post" action="/logout">
+              <Button
+                type="submit"
+                color="red"
+                leftSection={<IconLogout size={16} />}
+              >
+                Sign Out
+              </Button>
+            </Form>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   );
 }

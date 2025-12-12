@@ -3,7 +3,7 @@
  * Main wizard container that orchestrates all configuration steps
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from '@remix-run/react';
 import {
   Box,
@@ -51,6 +51,7 @@ export function ConfigurationWizard({
   existingConfig,
   isEditMode = false,
   returnTo,
+  skipDraftLoading = false,
 }: ConfigurationWizardProps) {
   const theme = useMantineTheme();
   const { invalidateReleaseConfigs } = useConfig();
@@ -79,9 +80,14 @@ export function ConfigurationWizard({
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Restore wizard step from metadata when draft is loaded
+  // Track if draft restoration has already happened (to prevent infinite loop)
+  const hasRestoredDraft = useRef(false);
+  
+  // Restore wizard step from metadata when draft is loaded (ONCE on mount)
   useEffect(() => {
-    if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined) {
+    // IMPORTANT: Only restore ONCE to prevent infinite loop with auto-save
+    if (!isEditMode && isDraftRestored && metadata?.wizardStep !== undefined && !hasRestoredDraft.current) {
+      hasRestoredDraft.current = true; // Mark as restored to prevent loop
       setCurrentStep(metadata.wizardStep);
       const completed = new Set<number>();
       for (let i = 0; i < metadata.wizardStep; i++) {
@@ -93,7 +99,8 @@ export function ConfigurationWizard({
   
   // Auto-save current wizard step to metadata
   useEffect(() => {
-    if (!isEditMode && updateMetadata) {
+    // Don't auto-save immediately after restoring draft (causes loop)
+    if (!isEditMode && updateMetadata && hasRestoredDraft.current) {
       updateMetadata({ wizardStep: currentStep });
     }
   }, [currentStep, isEditMode, updateMetadata]);
@@ -108,6 +115,7 @@ export function ConfigurationWizard({
       
       // Auto-skip PIPELINES step if Manual upload is selected
       if (currentStep === STEP_INDEX.BUILD_UPLOAD && config.hasManualBuildUpload) {
+        // Skip pipelines step and mark it as completed
         setCompletedSteps(new Set([...completedSteps, currentStep, STEP_INDEX.PIPELINES]));
         setCurrentStep(currentStep + 2);
       } else {
@@ -283,8 +291,8 @@ export function ConfigurationWizard({
       case STEP_INDEX.SCHEDULING:
         return (
           <SchedulingStepWrapper
-            scheduling={config.scheduling}
-            onChange={(scheduling) => setConfig({ ...config, scheduling })}
+            scheduling={config.releaseSchedule}
+            onChange={(releaseSchedule) => setConfig({ ...config, releaseSchedule })}
             selectedPlatforms={config.platforms || []}
           />
         );

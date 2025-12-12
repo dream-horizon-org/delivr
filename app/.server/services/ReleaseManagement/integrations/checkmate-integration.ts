@@ -435,9 +435,22 @@ export class CheckmateIntegrationServiceClass extends IntegrationService {
       );
 
       this.logResponse('GET', endpoint, result.success);
+      
+      // The backend might return data in different formats
+      // For projects, it might be { projectsList: [...] } or just [...]
+      let responseData = result.data || [];
+      
+      // If it's an object with projectsList, extract it
+      if (metadataType === 'projects' && result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+        const dataObj = result.data as any;
+        if ('projectsList' in dataObj) {
+          responseData = dataObj.projectsList || [];
+        }
+      }
+      
       return {
         success: result.success,
-        data: result.data || [],
+        data: responseData,
         error: result.error
       };
     } catch (error: any) {

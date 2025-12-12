@@ -39,11 +39,12 @@ const platformOptions = [
   { value: PLATFORMS.IOS, label: PLATFORM_LABELS.IOS },
 ];
 
-// System only supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only)
+// System supports: PRE_REGRESSION, REGRESSION, TESTFLIGHT (iOS only), AAB_BUILD (Android)
 const environmentOptions = [
   { value: BUILD_ENVIRONMENTS.PRE_REGRESSION, label: ENVIRONMENT_LABELS.PRE_REGRESSION },
   { value: BUILD_ENVIRONMENTS.REGRESSION, label: ENVIRONMENT_LABELS.REGRESSION },
   { value: BUILD_ENVIRONMENTS.TESTFLIGHT, label: ENVIRONMENT_LABELS.TESTFLIGHT },
+  { value: BUILD_ENVIRONMENTS.AAB_BUILD, label: ENVIRONMENT_LABELS.AAB_BUILD },
 ];
 
 export interface WorkflowCreateModalProps {

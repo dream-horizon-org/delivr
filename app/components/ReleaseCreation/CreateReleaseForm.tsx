@@ -6,8 +6,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Stack, Button, Paper, Group, ScrollArea, Alert, Text, List } from '@mantine/core';
-import { IconRocket, IconArrowLeft, IconAlertCircle } from '@tabler/icons-react';
+import { Stack, Button, Box, Group, Alert, Text, List, Divider } from '@mantine/core';
+import { IconRocket, IconArrowLeft, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
+import { useMantineTheme } from '@mantine/core';
 import { useNavigate } from '@remix-run/react';
 import { showErrorToast, showWarningToast, showSuccessToast } from '~/utils/toast';
 import { RELEASE_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
@@ -53,6 +54,7 @@ export function CreateReleaseForm({
   const configurations = activeReleaseConfigs;
   const hasConfigurations = activeReleaseConfigs.length > 0;
   const navigate = useNavigate();
+  const theme = useMantineTheme();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -63,14 +65,14 @@ export function CreateReleaseForm({
   const initialReleaseState: Partial<ReleaseCreationState> = isEditMode && existingRelease
     ? convertReleaseToFormState(existingRelease)
     : {
-        type: 'PLANNED',
-        platformTargets: [],
-        baseBranch: '',
-        kickOffDate: '',
-        kickOffTime: DEFAULT_KICKOFF_TIME,
-        targetReleaseDate: '',
-        targetReleaseTime: DEFAULT_RELEASE_TIME,
-      };
+    type: 'PLANNED',
+    platformTargets: [],
+    baseBranch: '',
+    kickOffDate: '',
+    kickOffTime: DEFAULT_KICKOFF_TIME,
+    targetReleaseDate: '',
+    targetReleaseTime: DEFAULT_RELEASE_TIME,
+  };
 
   const {
     formData: state,
@@ -141,7 +143,7 @@ export function CreateReleaseForm({
     const hasKickOffReminderDate = !!(state.kickOffReminderDate && state.kickOffReminderTime);
     const kickOffReminder = hasKickOffReminderDate 
       ? true 
-      : (userCronConfig.kickOffReminder ?? selectedConfig?.scheduling?.kickoffReminderEnabled ?? false);
+      : (userCronConfig.kickOffReminder ?? selectedConfig?.releaseSchedule?.kickoffReminderEnabled ?? false);
 
     if (!selectedConfig) {
       return {
@@ -172,7 +174,7 @@ export function CreateReleaseForm({
       // In edit mode, use the release's config ID
       setSelectedConfigId(existingRelease.releaseConfigId);
     } else if (isDraftRestored && state.releaseConfigId) {
-      // Restore from draft first
+    // Restore from draft first
       setSelectedConfigId(state.releaseConfigId);
     } else if (defaultReleaseConfig && !selectedConfigId) {
       // Fallback to default config if no draft
@@ -206,8 +208,12 @@ export function CreateReleaseForm({
     navigate(`/dashboard/${org}/releases/configure?clone=${configId}&returnTo=create`);
   };
 
-  // Clear error for a specific field when it's updated
+  // Clear error for a specific field when it's updated and validate in real-time
   const handleStateChange = (updates: Partial<ReleaseCreationState>) => {
+    // Update state first
+    const newState = { ...state, ...updates };
+    setState(newState);
+    
     // Clear errors for fields that are being updated
     const updatedFields = Object.keys(updates);
     const clearedErrors = { ...errors };
@@ -235,14 +241,71 @@ export function CreateReleaseForm({
           }
         });
       }
+      
+      // Clear date/time related errors
+      if (field === 'kickOffDate' || field === 'kickOffTime') {
+        if (clearedErrors.kickOffDate) delete clearedErrors.kickOffDate;
+        if (clearedErrors.kickOffTime) delete clearedErrors.kickOffTime;
+        // Also clear targetReleaseDate error if it was about being before kickoff
+        if (clearedErrors.targetReleaseDate?.includes('after kickoff')) {
+          delete clearedErrors.targetReleaseDate;
+        }
+      }
+      
+      if (field === 'targetReleaseDate' || field === 'targetReleaseTime') {
+        if (clearedErrors.targetReleaseDate) delete clearedErrors.targetReleaseDate;
+        if (clearedErrors.targetReleaseTime) delete clearedErrors.targetReleaseTime;
+      }
+      
+      if (field === 'kickOffReminderDate' || field === 'kickOffReminderTime') {
+        if (clearedErrors.kickOffReminderDate) delete clearedErrors.kickOffReminderDate;
+        if (clearedErrors.kickOffReminderTime) delete clearedErrors.kickOffReminderTime;
+      }
     });
     
-    // Only update errors if something changed
-    if (Object.keys(clearedErrors).length !== Object.keys(errors).length) {
-      setErrors(clearedErrors);
+    // Validate updated fields in real-time (only for critical fields)
+    const criticalFields = ['baseBranch', 'branch', 'kickOffDate', 'kickOffTime', 'targetReleaseDate', 'targetReleaseTime', 'releaseConfigId', 'platformTargets'];
+    const hasCriticalUpdate = updatedFields.some(field => criticalFields.includes(field));
+    
+    if (hasCriticalUpdate) {
+      // Quick validation for the updated field
+      const fieldValidation = validateReleaseCreationState(newState);
+      const relevantErrors: Record<string, string> = {};
+      
+      // Only keep errors for fields that were updated or depend on updated fields
+      updatedFields.forEach(field => {
+        if (fieldValidation.errors[field]) {
+          relevantErrors[field] = fieldValidation.errors[field];
+        }
+        // Also check dependent fields
+        if (field === 'kickOffDate' || field === 'kickOffTime') {
+          if (fieldValidation.errors.targetReleaseDate) {
+            relevantErrors.targetReleaseDate = fieldValidation.errors.targetReleaseDate;
+          }
+        }
+        if (field === 'targetReleaseDate' || field === 'targetReleaseTime') {
+          if (fieldValidation.errors.kickOffDate) {
+            relevantErrors.kickOffDate = fieldValidation.errors.kickOffDate;
+          }
+        }
+        // Platform targets errors
+        if (field === 'platformTargets') {
+          Object.keys(fieldValidation.errors).forEach(key => {
+            if (key.startsWith('platformTargets') || key.startsWith('version-')) {
+              relevantErrors[key] = fieldValidation.errors[key];
+            }
+          });
+        }
+      });
+      
+      // Merge with cleared errors
+      Object.keys(relevantErrors).forEach(key => {
+        clearedErrors[key] = relevantErrors[key];
+      });
     }
     
-    setState((prev) => ({ ...prev, ...updates }));
+    // Update errors
+    setErrors(clearedErrors);
   };
 
   // Handle review and submit
@@ -303,13 +366,12 @@ export function CreateReleaseForm({
               version: pt.version,
             }));
           }
-          // Regression slots
-          if (state.regressionBuildSlots) {
-            updateState.upcomingRegressions = state.regressionBuildSlots.map(slot => ({
-              date: slot.date,
-              config: slot.config,
-            }));
-          }
+          // Regression slots - always include to ensure backend updates/deletes slots
+          // Even if empty array, backend needs to know to clear all slots
+          updateState.upcomingRegressions = (state.regressionBuildSlots || []).map(slot => ({
+            date: slot.date,
+            config: slot.config,
+          }));
           // Cron config
           const cronConfig = getCronConfig();
           if (Object.keys(cronConfig).length > 0) {
@@ -335,24 +397,24 @@ export function CreateReleaseForm({
         await onUpdate(updateRequest);
       } else {
         // Create mode: convert to create request
-        const backendRequest = convertStateToBackendRequest(state as ReleaseCreationState);
+      const backendRequest = convertStateToBackendRequest(state as ReleaseCreationState);
 
-        console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
+      console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
 
-        // Add cron config (auto-generated from config)
-        const cronConfig = getCronConfig();
-        if (Object.keys(cronConfig).length > 0) {
-          backendRequest.cronConfig = cronConfig as CronConfig;
-        }
+      // Add cron config (auto-generated from config)
+      const cronConfig = getCronConfig();
+      if (Object.keys(cronConfig).length > 0) {
+        backendRequest.cronConfig = cronConfig as CronConfig;
+      }
 
-        console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
+      console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
 
-        await onSubmit(backendRequest);
-        
-        // Mark draft as successfully saved (prevents auto-save on unmount)
-        markSaveSuccessful();
-        showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
-        setReviewModalOpened(false);
+      await onSubmit(backendRequest);
+
+      // Mark draft as successfully saved (prevents auto-save on unmount)
+      markSaveSuccessful();
+      showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
+      setReviewModalOpened(false);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : (isEditMode ? 'Failed to update release' : 'Failed to create release');
@@ -371,8 +433,26 @@ export function CreateReleaseForm({
   console.log('[CreateRelease] Errors:', errors);
 
   return (
-    <div className="flex flex-col min-h-0">
-      <Stack gap="xl" className="flex-1 pb-32">
+    <Box>
+      <Stack gap="xl">
+        {/* Info Banner */}
+        {!isEditMode && (
+          <Alert
+            icon={<IconInfoCircle size={18} />}
+            color="blue"
+            variant="light"
+            radius="md"
+          >
+            <Text size="sm" fw={500} mb={4}>
+              Creating a New Release
+            </Text>
+            <Text size="xs" c={theme.colors.slate[6]}>
+              This form will create a new release branch, configure platform targets and versions, and schedule the release timeline. 
+              All required fields are marked with an asterisk (*). Fill in the form below to get started.
+            </Text>
+          </Alert>
+        )}
+
         {/* Validation Errors Summary */}
         {hasValidationErrors && (
           <Alert
@@ -380,31 +460,43 @@ export function CreateReleaseForm({
             title="Validation Errors"
             color="red"
             variant="light"
+            radius="md"
           >
-            <Text size="sm" fw={500} className="mb-2">
+            <Text size="sm" fw={500} mb="xs">
               Please fix the following errors before submitting:
             </Text>
             <List size="sm" spacing="xs">
-              {Object.entries(errors).map(([field, message]) => (
-                <List.Item key={field}>
-                  <Text size="sm">
-                    <strong>{field}:</strong> {message}
-                  </Text>
-                </List.Item>
-              ))}
+              {Object.entries(errors).map(([field, message]) => {
+                // Format field names for better readability
+                const fieldLabel = field
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/^./, str => str.toUpperCase())
+                  .replace(/platform targets/i, 'Platform Targets')
+                  .replace(/kick off/i, 'Kickoff')
+                  .replace(/target release/i, 'Target Release')
+                  .replace(/release config/i, 'Configuration');
+                
+                return (
+                  <List.Item key={field}>
+                    <Text size="sm">
+                      <Text component="span" fw={600}>{fieldLabel}:</Text> {message}
+                    </Text>
+                  </List.Item>
+                );
+              })}
             </List>
           </Alert>
         )}
 
         {/* Edit Mode Info */}
         {isEditMode && (
-          <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
-            <Text size="sm" fw={500} className="mb-1">
+          <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light" radius="md">
+            <Text size="sm" fw={500} mb={4}>
               Editing Release
             </Text>
             <Text size="xs">
               {isUpcoming 
-                ? "You can edit branch, base branch, scheduling info, and platform versions. Configuration cannot be changed."
+                ? "You can edit branch, base branch, and scheduling info. Configuration and platform targets cannot be changed."
                 : isAfterKickoff
                 ? "You can only edit target release date and add regression slots."
                 : "This release cannot be edited."}
@@ -414,22 +506,34 @@ export function CreateReleaseForm({
 
         {/* Configuration Selection - Hidden in edit mode */}
         {!isEditMode && (
-          <Paper shadow="sm" p="xl" radius="md">
-            <ConfigurationSelector
-              configurations={configurations}
-              selectedMode={'WITH_CONFIG'}
-              selectedConfigId={selectedConfigId}
-              onModeChange={() => {}} // No-op since mode is fixed
-              onConfigSelect={setSelectedConfigId}
-              onCreateNew={handleCreateNewConfig}
-              onClone={handleCloneConfig}
-            />
-          </Paper>
+          <Box>
+            <Stack gap="md">
+              <Box>
+                <Text fw={600} size="lg" mb={4}>
+                  Configuration
+                </Text>
+                <Text size="sm" c={theme.colors.slate[5]}>
+                  Choose a configuration template that defines your release settings, platform targets, and build pipelines.
+                </Text>
+              </Box>
+              <ConfigurationSelector
+                configurations={configurations}
+                selectedMode={'WITH_CONFIG'}
+                selectedConfigId={selectedConfigId}
+                onModeChange={() => {}} // No-op since mode is fixed
+                onConfigSelect={setSelectedConfigId}
+                onCreateNew={handleCreateNewConfig}
+                onClone={handleCloneConfig}
+                errors={errors}
+              />
+            </Stack>
+          </Box>
         )}
 
         {/* Release Details - Hidden after kickoff, shown for upcoming */}
         {(!isEditMode || isUpcoming) && (
-          <Paper shadow="sm" p="xl" radius="md">
+          <Box>
+            {!isEditMode && <Divider mb="xl" />}
             <ReleaseDetailsForm
               state={state}
               onChange={handleStateChange}
@@ -438,80 +542,78 @@ export function CreateReleaseForm({
               tenantId={org}
               errors={errors}
             />
-          </Paper>
+          </Box>
         )}
 
         {/* Scheduling - Show different fields based on status */}
-        {!isEditMode || isUpcoming ? (
-          <Paper shadow="sm" p="xl" radius="md">
-            <ReleaseSchedulingPanel
-              state={state}
-              onChange={handleStateChange}
-              config={selectedConfig}
-              errors={errors}
-              isEditMode={isEditMode}
-              existingRelease={existingRelease}
-            />
-          </Paper>
-        ) : isAfterKickoff ? (
-          <Paper shadow="sm" p="xl" radius="md">
-            <ReleaseSchedulingPanel
-              state={state}
-              onChange={handleStateChange}
-              config={selectedConfig}
-              errors={errors}
-              showOnlyTargetDateAndSlots={true}
-              isEditMode={isEditMode}
-              existingRelease={existingRelease}
-            />
-          </Paper>
-        ) : null}
+        {(!isEditMode || isUpcoming || isAfterKickoff) && (
+          <Box>
+            <Divider mb="xl" />
+            {!isEditMode || isUpcoming ? (
+              <ReleaseSchedulingPanel
+                state={state}
+                onChange={handleStateChange}
+                config={selectedConfig}
+                errors={errors}
+                isEditMode={isEditMode}
+                existingRelease={existingRelease}
+              />
+            ) : isAfterKickoff ? (
+              <ReleaseSchedulingPanel
+                state={state}
+                onChange={handleStateChange}
+                config={selectedConfig}
+                errors={errors}
+                showOnlyTargetDateAndSlots={true}
+                isEditMode={isEditMode}
+                existingRelease={existingRelease}
+              />
+            ) : null}
+          </Box>
+        )}
 
+        {/* Submit Button */}
+        <Box
+          pt="xl"
+          style={{
+            borderTop: `1px solid ${theme.colors.slate[2]}`,
+          }}
+        >
+          <Group justify="flex-end">
+            {onCancel && (
+              <Button
+                variant="subtle"
+                leftSection={<IconArrowLeft size={18} />}
+                onClick={onCancel}
+                disabled={isSubmitting}
+                size="md"
+              >
+                Cancel
+              </Button>
+            )}
+            {!onCancel && (
+              <Button
+                variant="subtle"
+                leftSection={<IconArrowLeft size={18} />}
+                onClick={() => navigate(`/dashboard/${org}/releases`)}
+                size="md"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              color="brand"
+              leftSection={<IconRocket size={18} />}
+              onClick={handleReviewAndSubmit}
+              size="md"
+              loading={isSubmitting}
+              disabled={hasValidationErrors}
+            >
+              {isEditMode ? 'Update Release' : 'Review & Create Release'}
+            </Button>
+          </Group>
+        </Box>
       </Stack>
-
-      {/* Submit Button - Sticky footer */}
-      <Paper
-        shadow="lg"
-        p="md"
-        radius="md"
-        className="sticky bottom-0 z-10 bg-white border-t-2 border-gray-300 mt-6"
-        style={{ 
-          marginTop: 'auto',
-        }}
-      >
-        <Group justify="flex-end">
-          {onCancel && (
-            <Button
-              variant="subtle"
-              leftSection={<IconArrowLeft size={18} />}
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-          )}
-          {!onCancel && (
-            <Button
-              variant="subtle"
-              leftSection={<IconArrowLeft size={18} />}
-              onClick={() => navigate(`/dashboard/${org}/releases`)}
-            >
-              Cancel
-            </Button>
-          )}
-          <Button
-            variant="filled"
-            leftSection={<IconRocket size={18} />}
-            onClick={handleReviewAndSubmit}
-            className="bg-green-600 hover:bg-green-700"
-            size="sm"
-            loading={isSubmitting}
-            disabled={hasValidationErrors}
-          >
-            {isEditMode ? 'Update Release' : 'Review & Create Release'}
-          </Button>
-        </Group>
-      </Paper>
 
       {/* Review Modal */}
       <ReleaseReviewModal
@@ -523,7 +625,7 @@ export function CreateReleaseForm({
         cronConfig={getCronConfig()}
         isSubmitting={isSubmitting}
       />
-    </div>
+    </Box>
   );
 }
 

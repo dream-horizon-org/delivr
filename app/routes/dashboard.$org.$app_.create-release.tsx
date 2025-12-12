@@ -17,10 +17,16 @@ import {
   useMantineTheme,
   ThemeIcon,
   Badge,
+  Paper,
+  Breadcrumbs,
+  Anchor,
+  Divider,
+  Alert,
+  Skeleton,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useState, useMemo } from "react";
-import { useNavigate, useParams, useLoaderData } from "@remix-run/react";
+import { useNavigate, useParams, useLoaderData, Link } from "@remix-run/react";
 import { 
   IconArrowLeft, 
   IconCheck, 
@@ -30,6 +36,8 @@ import {
   IconRocket, 
   IconFileZip,
   IconSettings,
+  IconUpload,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { User } from "~/.server/services/Auth/Auth.interface";
@@ -177,67 +185,76 @@ export default function CreateReleasePage() {
 
   const isFormValid = directoryBlob && form.values.appVersion && form.values.deploymentName;
 
+  // Breadcrumb items
+  const breadcrumbItems = [
+    { title: currentApp?.name || "App", href: `/dashboard/${params.org}/${params.app}` },
+    { title: "Create Release", href: "#" },
+  ].map((item, index) => (
+    item.href === "#" ? (
+      <Text key={index} size="sm" c={theme.colors.slate[6]}>
+        {item.title}
+      </Text>
+    ) : (
+      <Anchor
+        key={index}
+        component={Link}
+        to={item.href}
+        size="sm"
+        c={theme.colors.slate[5]}
+      >
+        {item.title}
+      </Anchor>
+    )
+  ));
+
   return (
     <Box>
       {/* Header */}
-      <Group gap="md" mb={32}>
-        <ActionIcon
-          variant="light"
-          size="lg"
-          radius="md"
-          onClick={() => navigate(-1)}
-          color="gray"
-        >
-          <IconArrowLeft size={18} />
-        </ActionIcon>
-        <Box>
-          <Group gap={6} mb={2}>
-            <Text size="sm" c={theme.colors.slate[5]}>
-              {currentApp?.name || "App"}
+      <Box mb={32}>
+        <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
+        
+        <Group justify="space-between" align="flex-start">
+          <Box>
+            <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
+              Create New Release
+            </Title>
+            <Text size="md" c={theme.colors.slate[5]}>
+              Upload and configure a new release for {currentApp?.name || "your app"}
             </Text>
-            <IconChevronRight size={12} color={theme.colors.slate[4]} />
-            <Text size="sm" c={theme.colors.slate[7]}>
-              New Release
-            </Text>
-          </Group>
-          <Title order={3} fw={600} c={theme.colors.slate[9]}>
-            Create Release
-          </Title>
-        </Box>
-      </Group>
+          </Box>
+          
+          <Button
+            variant="default"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </Button>
+        </Group>
+      </Box>
 
       {/* Main Content */}
-      <Box maw={720} mx="auto">
-        <Card withBorder radius="lg" p={0} style={{ overflow: "hidden" }}>
+      <Box maw={800} mx="auto">
+        <Stack gap="xl">
           {/* Bundle Upload Section */}
-          <Box 
-            p="xl" 
-            style={{ 
-              background: directoryBlob 
-                ? `linear-gradient(135deg, ${theme.colors.brand[0]} 0%, #ffffff 100%)`
-                : theme.colors.slate[0],
-              borderBottom: `1px solid ${theme.colors.slate[2]}`,
-            }}
-          >
-            <Group justify="space-between" mb="md">
-              <Group gap="sm">
-                <ThemeIcon 
-                  size="lg" 
-                  radius="md" 
-                  color={directoryBlob ? "brand" : "gray"}
-                  variant={directoryBlob ? "filled" : "light"}
-                >
-                  {directoryBlob ? <IconCheck size={18} /> : <IconFileZip size={18} />}
-                </ThemeIcon>
-                <Box>
-                  <Text size="md" fw={600} c={theme.colors.slate[8]}>
-                    Application Bundle
-                  </Text>
-                  <Text size="xs" c={theme.colors.slate[5]}>
-                    {directoryBlob ? "Bundle ready for upload" : "Select your compiled app files"}
-                  </Text>
-                </Box>
-              </Group>
+          <Box>
+            <Group gap="sm" mb="lg">
+              <ThemeIcon 
+                size={32} 
+                radius="md" 
+                color={directoryBlob ? "brand" : "gray"}
+                variant="light"
+              >
+                {directoryBlob ? <IconCheck size={18} /> : <IconUpload size={18} />}
+              </ThemeIcon>
+              <Box style={{ flex: 1 }}>
+                <Text size="lg" fw={600} c={theme.colors.slate[8]} mb={4}>
+                  Application Bundle
+                </Text>
+                <Text size="sm" c={theme.colors.slate[5]}>
+                  {directoryBlob ? "Bundle ready for upload" : "Select your compiled app files"}
+                </Text>
+              </Box>
               {directoryBlob && (
                 <Badge color="brand" variant="light" size="lg">
                   Ready
@@ -246,23 +263,28 @@ export default function CreateReleasePage() {
             </Group>
 
             {directoryBlob && directoryName ? (
-              <Card 
-                p="md" 
-                radius="md"
+              <Box
+                p="md"
                 style={{
-                  background: "#ffffff",
+                  background: theme.colors.brand[0],
                   border: `1px solid ${theme.colors.brand[2]}`,
+                  borderRadius: theme.radius.md,
                 }}
               >
                 <Group justify="space-between">
                   <Group gap="sm">
                     <IconFileZip size={20} color={theme.colors.brand[6]} />
-                    <Text size="sm" fw={500} c={theme.colors.slate[8]}>
-                      {directoryName}
-                    </Text>
+                    <Box>
+                      <Text size="sm" fw={600} c={theme.colors.slate[8]}>
+                        {directoryName}
+                      </Text>
+                      <Text size="xs" c={theme.colors.slate[5]}>
+                        Bundle prepared and ready
+                      </Text>
+                    </Box>
                   </Group>
                   <Button 
-                    size="xs" 
+                    size="sm" 
                     variant="subtle" 
                     color="gray"
                     onClick={handleDirectoryCancel}
@@ -270,14 +292,14 @@ export default function CreateReleasePage() {
                     Change
                   </Button>
                 </Group>
-              </Card>
+              </Box>
             ) : (
-              <Card
+              <Box
                 p="xl"
-                radius="md"
                 style={{
-                  background: "#ffffff",
+                  background: theme.colors.slate[0],
                   border: `2px dashed ${theme.colors.slate[3]}`,
+                  borderRadius: theme.radius.md,
                 }}
               >
                 <Stack align="center" gap="md">
@@ -285,11 +307,11 @@ export default function CreateReleasePage() {
                     <IconFolderOpen size={28} />
                   </ThemeIcon>
                   <Box ta="center">
-                    <Text size="sm" fw={500} c={theme.colors.slate[7]} mb={4}>
+                    <Text size="md" fw={500} c={theme.colors.slate[7]} mb={4}>
                       Select your build folder
                     </Text>
-                    <Text size="xs" c={theme.colors.slate[5]}>
-                      Choose the directory containing your app bundle
+                    <Text size="sm" c={theme.colors.slate[5]}>
+                      Choose the directory containing your app bundle files
                     </Text>
                   </Box>
                   <DirectoryUpload
@@ -301,19 +323,26 @@ export default function CreateReleasePage() {
                     selectedDirectoryName=""
                   />
                 </Stack>
-              </Card>
+              </Box>
             )}
           </Box>
 
+          <Divider />
+
           {/* Configuration Section */}
-          <Box p="xl">
+          <Box>
             <Group gap="sm" mb="lg">
-              <ThemeIcon size="lg" radius="md" color="brand" variant="light">
+              <ThemeIcon size={32} radius="md" color="brand" variant="light">
                 <IconSettings size={18} />
               </ThemeIcon>
-              <Text size="md" fw={600} c={theme.colors.slate[8]}>
-                Release Configuration
-              </Text>
+              <Box style={{ flex: 1 }}>
+                <Text size="lg" fw={600} c={theme.colors.slate[8]} mb={4}>
+                  Release Configuration
+                </Text>
+                <Text size="sm" c={theme.colors.slate[5]}>
+                  Configure version, deployment, and rollout settings
+                </Text>
+              </Box>
             </Group>
 
             <Stack gap="lg">
@@ -323,8 +352,10 @@ export default function CreateReleasePage() {
                   label="App Version"
                   placeholder="1.0.0"
                   required
+                  withAsterisk
                   size="md"
                   {...form.getInputProps("appVersion")}
+                  description="Semantic version format (e.g., 1.0.0)"
                   styles={{
                     label: { fontWeight: 500, marginBottom: 6 },
                   }}
@@ -333,10 +364,12 @@ export default function CreateReleasePage() {
                   label="Deployment Key"
                   placeholder="Select deployment"
                   required
+                  withAsterisk
                   size="md"
                   data={deploymentOptions}
                   {...form.getInputProps("deploymentName")}
                   disabled={deploymentsLoading}
+                  description={deploymentsLoading ? "Loading deployments..." : "Select target deployment environment"}
                   styles={{
                     label: { fontWeight: 500, marginBottom: 6 },
                   }}
@@ -345,10 +378,15 @@ export default function CreateReleasePage() {
 
               {/* Rollout */}
               <Box>
-                <Group justify="space-between" mb={8}>
-                  <Text size="sm" fw={500} c={theme.colors.slate[7]}>
-                    Rollout Percentage
-                  </Text>
+                <Group justify="space-between" mb={12}>
+                  <Box>
+                    <Text size="sm" fw={500} c={theme.colors.slate[7]} mb={4}>
+                      Rollout Percentage
+                    </Text>
+                    <Text size="xs" c={theme.colors.slate[5]}>
+                      Percentage of users who will receive this release
+                    </Text>
+                  </Box>
                   <Badge size="lg" variant="filled" color="brand" radius="sm">
                     {form.values.rollout}%
                   </Badge>
@@ -370,7 +408,6 @@ export default function CreateReleasePage() {
                   styles={{
                     markLabel: { fontSize: 11, color: theme.colors.slate[5] },
                   }}
-                  mb="lg"
                 />
               </Box>
 
@@ -380,27 +417,31 @@ export default function CreateReleasePage() {
                 placeholder="Describe what's new in this release (optional)"
                 size="md"
                 {...form.getInputProps("description")}
-                minRows={3}
+                minRows={4}
                 autosize
-                maxRows={6}
+                maxRows={8}
+                description="Optional notes about this release for your team"
                 styles={{
                   label: { fontWeight: 500, marginBottom: 6 },
                 }}
               />
 
               {/* Options */}
-              <Card 
-                p="md" 
-                radius="md"
-                style={{ background: theme.colors.slate[0] }}
+              <Box
+                p="md"
+                style={{
+                  background: theme.colors.slate[0],
+                  borderRadius: theme.radius.md,
+                  border: `1px solid ${theme.colors.slate[2]}`,
+                }}
               >
                 <Group justify="space-between">
-                  <Box>
-                    <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+                  <Box style={{ flex: 1 }}>
+                    <Text size="sm" fw={500} c={theme.colors.slate[8]} mb={4}>
                       Start as Disabled
                     </Text>
                     <Text size="xs" c={theme.colors.slate[5]}>
-                      Release won't be distributed until you enable it
+                      Release won't be distributed until you manually enable it
                     </Text>
                   </Box>
                   <Switch
@@ -409,38 +450,34 @@ export default function CreateReleasePage() {
                     {...form.getInputProps("disabled", { type: "checkbox" })}
                   />
                 </Group>
-              </Card>
+              </Box>
             </Stack>
           </Box>
 
+          <Divider />
+
           {/* Actions Footer */}
-          <Box 
-            p="xl" 
-            style={{ 
-              borderTop: `1px solid ${theme.colors.slate[2]}`,
-              background: theme.colors.slate[0],
-            }}
-          >
-            <Group justify="space-between">
-              <Button 
-                variant="subtle" 
-                color="gray"
-                onClick={() => navigate(-1)}
-              >
-                Cancel
-              </Button>
-              <Button
-                color="brand"
-                size="md"
-                leftSection={<IconRocket size={18} />}
-                onClick={handleReviewClick}
-                disabled={!isFormValid}
-              >
-                Review & Create
-              </Button>
-            </Group>
-          </Box>
-        </Card>
+          <Group justify="space-between" pt="md">
+            <Button 
+              variant="subtle" 
+              color="gray"
+              onClick={() => navigate(-1)}
+              size="md"
+            >
+              Cancel
+            </Button>
+            <Button
+              color="brand"
+              size="md"
+              leftSection={<IconRocket size={18} />}
+              onClick={handleReviewClick}
+              disabled={!isFormValid}
+              loading={isUploading}
+            >
+              Review & Create
+            </Button>
+          </Group>
+        </Stack>
       </Box>
 
       {/* Review Modal */}
@@ -448,11 +485,16 @@ export default function CreateReleasePage() {
         opened={reviewModalOpen}
         onClose={() => !isSubmitting && setReviewModalOpen(false)}
         title={
-          <Text size="lg" fw={600} c={theme.colors.slate[9]}>
-            Confirm Release
-          </Text>
+          <Group gap="sm">
+            <ThemeIcon size={32} radius="md" color="brand" variant="light">
+              <IconRocket size={18} />
+            </ThemeIcon>
+            <Text size="lg" fw={600} c={theme.colors.slate[9]}>
+              Review & Confirm Release
+            </Text>
+          </Group>
         }
-        size="sm"
+        size="md"
         centered
         radius="md"
         closeOnClickOutside={!isSubmitting}
@@ -472,17 +514,30 @@ export default function CreateReleasePage() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 12,
+                borderRadius: theme.radius.md,
               }}
             >
               <Loader size="md" color="brand" />
-              <Text size="sm" c={theme.colors.slate[6]}>Creating release...</Text>
+              <Text size="sm" fw={500} c={theme.colors.slate[7]}>Creating release...</Text>
+              <Text size="xs" c={theme.colors.slate[5]}>This may take a few moments</Text>
             </Box>
           )}
+
+          <Alert
+            icon={<IconInfoCircle size={16} />}
+            color="blue"
+            variant="light"
+            radius="md"
+          >
+            <Text size="sm">
+              Please review the details below before creating the release. You can make changes by closing this dialog.
+            </Text>
+          </Alert>
 
           {/* Summary Table */}
           <Box
             style={{
-              background: theme.colors.slate[0],
+              border: `1px solid ${theme.colors.slate[2]}`,
               borderRadius: theme.radius.md,
               overflow: "hidden",
             }}
@@ -490,11 +545,14 @@ export default function CreateReleasePage() {
             {/* Bundle */}
             <Group 
               justify="space-between" 
-              p="sm"
+              p="md"
               style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }}
             >
-              <Text size="sm" c={theme.colors.slate[6]}>Bundle</Text>
-              <Text size="sm" fw={500} c={theme.colors.slate[8]} maw={200} truncate>
+              <Group gap="sm">
+                <IconFileZip size={18} color={theme.colors.brand[6]} />
+                <Text size="sm" fw={500} c={theme.colors.slate[6]}>Bundle</Text>
+              </Group>
+              <Text size="sm" fw={500} c={theme.colors.slate[8]} maw={250} truncate>
                 {directoryName}
               </Text>
             </Group>
@@ -502,46 +560,46 @@ export default function CreateReleasePage() {
             {/* Version */}
             <Group 
               justify="space-between" 
-              p="sm"
+              p="md"
               style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }}
             >
-              <Text size="sm" c={theme.colors.slate[6]}>Version</Text>
-              <Text size="sm" fw={600} c={theme.colors.slate[9]}>
+              <Text size="sm" fw={500} c={theme.colors.slate[6]}>Version</Text>
+              <Badge size="lg" variant="light" color="brand">
                 {form.values.appVersion}
-              </Text>
+              </Badge>
             </Group>
 
             {/* Deployment */}
             <Group 
               justify="space-between" 
-              p="sm"
+              p="md"
               style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }}
             >
-              <Text size="sm" c={theme.colors.slate[6]}>Deployment</Text>
-              <Text size="sm" fw={500} c={theme.colors.brand[6]}>
+              <Text size="sm" fw={500} c={theme.colors.slate[6]}>Deployment</Text>
+              <Badge size="lg" variant="light" color="blue">
                 {form.values.deploymentName}
-              </Text>
+              </Badge>
             </Group>
 
             {/* Rollout */}
             <Group 
               justify="space-between" 
-              p="sm"
+              p="md"
               style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }}
             >
-              <Text size="sm" c={theme.colors.slate[6]}>Rollout</Text>
-              <Text size="sm" fw={600} c={theme.colors.brand[6]}>
+              <Text size="sm" fw={500} c={theme.colors.slate[6]}>Rollout</Text>
+              <Badge size="lg" variant="filled" color="brand">
                 {form.values.rollout}%
-              </Text>
+              </Badge>
             </Group>
 
             {/* Status */}
-            <Group justify="space-between" p="sm">
-              <Text size="sm" c={theme.colors.slate[6]}>Status</Text>
+            <Group justify="space-between" p="md">
+              <Text size="sm" fw={500} c={theme.colors.slate[6]}>Status</Text>
               <Badge 
                 color={form.values.disabled ? "orange" : "green"} 
                 variant="light" 
-                size="sm"
+                size="lg"
               >
                 {form.values.disabled ? "Disabled" : "Active"}
               </Badge>
@@ -550,9 +608,16 @@ export default function CreateReleasePage() {
 
           {/* Notes */}
           {form.values.description && (
-            <Box>
-              <Text size="xs" fw={500} c={theme.colors.slate[5]} mb={6}>
-                RELEASE NOTES
+            <Box
+              p="md"
+              style={{
+                background: theme.colors.slate[0],
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.slate[2]}`,
+              }}
+            >
+              <Text size="xs" fw={600} c={theme.colors.slate[5]} tt="uppercase" mb={8}>
+                Release Notes
               </Text>
               <Text size="sm" c={theme.colors.slate[7]} style={{ whiteSpace: "pre-wrap" }}>
                 {form.values.description}
@@ -561,10 +626,10 @@ export default function CreateReleasePage() {
           )}
 
           {/* Actions */}
-          <Group justify="flex-end" gap="sm">
+          <Group justify="flex-end" gap="sm" mt="md">
             <Button 
               variant="default" 
-              size="sm"
+              size="md"
               onClick={() => setReviewModalOpen(false)}
               disabled={isSubmitting}
             >
@@ -572,8 +637,8 @@ export default function CreateReleasePage() {
             </Button>
             <Button
               color="brand"
-              size="sm"
-              leftSection={<IconRocket size={16} />}
+              size="md"
+              leftSection={<IconRocket size={18} />}
               onClick={handleSubmit}
               loading={isSubmitting}
             >

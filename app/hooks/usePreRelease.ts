@@ -10,10 +10,10 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type {
-    Build,
-    BuildsSummary,
-    ExtraCommitsData,
-    PMApprovalStatus
+  Build,
+  BuildsSummary,
+  ExtraCommitsData,
+  PMApprovalStatus
 } from '~/types/distribution.types';
 import { ApproverRole, BuildUploadStatus as BuildStatus, BuildStrategy, Platform } from '~/types/distribution.types';
 

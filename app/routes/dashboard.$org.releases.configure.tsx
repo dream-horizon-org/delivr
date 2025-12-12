@@ -178,6 +178,7 @@ export default function ReleasesConfigurePage() {
   const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [useDraft, setUseDraft] = useState(false);
   const [draftConfig, setDraftConfig] = useState<Partial<ReleaseConfiguration> | null>(null);
+  const [shouldSkipDraft, setShouldSkipDraft] = useState(forceNew); // ✅ Track if we should skip draft loading
   
   // Check for draft on mount (ONLY for NEW configs, NOT in edit mode)
   useEffect(() => {
@@ -219,6 +220,7 @@ export default function ReleasesConfigurePage() {
   const handleStartNew = () => {
     clearDraftConfig(organizationId);
     setUseDraft(false);
+    setShouldSkipDraft(true); // ✅ Set flag BEFORE hiding dialog to prevent draft loading
     setShowDraftDialog(false);
     navigate(`/dashboard/${organizationId}/releases/configure?new=true`, { replace: true });
   };

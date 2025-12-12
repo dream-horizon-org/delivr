@@ -68,6 +68,12 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
       fetchBranches();
     }
   }, [tenantId]);
+  // Separate useEffect for auto-selecting default branch
+  useEffect(() => {
+    if(!config.baseBranch && defaultBranch && defaultBranch !== 'main') {
+      onChange({...config, baseBranch: defaultBranch});
+    }
+  }, [defaultBranch]);
 
   return (
     <Stack gap="lg">

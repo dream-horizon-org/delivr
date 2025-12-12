@@ -6,21 +6,21 @@
  */
 
 import type {
-    ApproverRole,
-    AvailableAction,
-    Build,
-    BuildStrategy,
-    BuildUploadStatus,
-    DistributionStatus,
-    ExtraCommitsData,
-    HaltSeverity,
-    Platform,
-    PMApprovalStatus,
-    RejectionDetails,
-    RolloutAction,
-    Submission,
-    SubmissionHistoryEvent,
-    SubmissionStatus,
+  ApproverRole,
+  AvailableAction,
+  Build,
+  BuildStrategy,
+  BuildUploadStatus,
+  DistributionStatus,
+  ExtraCommitsData,
+  HaltSeverity,
+  Platform,
+  PMApprovalStatus,
+  RejectionDetails,
+  RolloutAction,
+  Submission,
+  SubmissionHistoryEvent,
+  SubmissionStatus,
 } from '~/types/distribution.types';
 
 // ============================================================================
