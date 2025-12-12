@@ -10,7 +10,10 @@ import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
+
+import { verifyTestFlightBuild } from "../../controllers/release/testflight-verification.controller";
 import { BuildCallbackController } from "../../controllers/release/build-callback.controller";
+
 import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
 import { BuildCallbackService } from "../../services/release/build-callback.service";
 import { ManualUploadService } from "../../services/release/manual-upload.service";
@@ -422,6 +425,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
     tenantPermissions.requireOwner({ storage }),
     controller.checkTestManagementRunStatus
+  );
+
+  // ============================================================================
+  // BUILD VERIFICATION
+  // ============================================================================
+
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/builds/verify-testflight",
+    tenantPermissions.requireOwner({ storage }),
+    verifyTestFlightBuild
   );
 
   return router;
