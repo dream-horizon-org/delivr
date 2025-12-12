@@ -1,16 +1,29 @@
 /**
  * Release Management Routes (Release Orchestration)
  * 
- * Handles all release-related API endpoints by delegating to ReleaseManagementController.
- * Routes are minimal - delegation to controller only.
+ * Handles all release-related API endpoints by delegating to controllers.
+ * Routes are minimal - routing only, no business logic.
  */
 
 import { Request, Response, Router } from "express";
+import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
+import { BuildCallbackController } from "../../controllers/release/build-callback.controller";
 import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
+import { BuildCallbackService } from "../../services/release/build-callback.service";
+import { ManualUploadService } from "../../services/release/manual-upload.service";
+import { UploadValidationService } from "../../services/release/upload-validation.service";
 import { HTTP_STATUS } from "../../constants/http";
+
+// Multer configuration for file uploads (memory storage)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB limit
+  }
+});
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -42,14 +55,58 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     return router;
   }
 
-  // Create controller with services
+  // Create ManualUploadService (optional - may not be available in all environments)
+  let manualUploadService: ManualUploadService | undefined;
+  const hasManualUploadDependencies = 
+    storageWithServices.releaseUploadsRepository &&
+    storageWithServices.releaseRepository &&
+    storageWithServices.platformMappingRepository &&
+    storageWithServices.cicdService;
+  
+  if (hasManualUploadDependencies) {
+    const validationService = new UploadValidationService(
+      storageWithServices.releaseRepository,
+      storageWithServices.cronJobRepository,
+      storageWithServices.releaseTaskRepository,
+      storageWithServices.regressionCycleRepository,
+      storageWithServices.platformMappingRepository
+    );
+    manualUploadService = new ManualUploadService(
+      storageWithServices.releaseUploadsRepository,
+      storageWithServices.releaseRepository,
+      storageWithServices.platformMappingRepository,
+      validationService,
+      storageWithServices.cicdService
+    );
+  }
+
+  // Create ReleaseManagementController with services
   const controller = new ReleaseManagementController(
     storageWithServices.releaseCreationService,
     storageWithServices.releaseRetrievalService,
     storageWithServices.releaseStatusService,
     storageWithServices.releaseUpdateService,
-    cronJobService
+    cronJobService,
+    manualUploadService
   );
+
+  // Create BuildCallbackController with service
+  let buildCallbackController: BuildCallbackController | undefined;
+  const hasBuildCallbackDependencies = 
+    storageWithServices.buildRepository &&
+    storageWithServices.releaseTaskRepository &&
+    storageWithServices.releaseRepository &&
+    storageWithServices.cronJobRepository;
+  
+  if (hasBuildCallbackDependencies) {
+    const buildCallbackService = new BuildCallbackService(
+      storageWithServices.buildRepository,
+      storageWithServices.releaseTaskRepository,
+      storageWithServices.releaseRepository,
+      storageWithServices.cronJobRepository
+    );
+    buildCallbackController = new BuildCallbackController(buildCallbackService);
+  }
 
   // ============================================================================
   // HEALTH CHECK
@@ -225,6 +282,81 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       });
     }
   );
+
+  // ============================================================================
+  // TASK RETRY
+  // ============================================================================
+
+  // Retry a failed task
+  // Resets task status to PENDING, cron will re-execute on next tick
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry",
+    tenantPermissions.requireOwner({ storage }),
+    controller.retryTask
+  );
+
+  // ============================================================================
+  // MANUAL BUILD UPLOAD
+  // ============================================================================
+
+  /**
+   * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+   * 
+   * Upload a build artifact manually for a specific platform.
+   * Used when hasManualBuildUpload = true.
+   * 
+   * Request: multipart/form-data with 'artifact' file field
+   * 
+   * Actions:
+   * - Validates upload is allowed (stage window, platform, hasManualBuildUpload)
+   * - Uploads to S3
+   * - Creates/updates entry in release_uploads staging table
+   * - Returns upload status (all platforms ready or not)
+   */
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform",
+    tenantPermissions.requireOwner({ storage }),
+    upload.single('artifact'),
+    controller.uploadManualBuild
+  );
+
+  // ============================================================================
+  // BUILD CALLBACK (CI/CD Webhook)
+  // ============================================================================
+
+  /**
+   * POST /webhooks/build-callback
+   * 
+   * Webhook endpoint for CI/CD systems to notify about build completion.
+   * Called by CI/CD system (GitHub Actions, Jenkins, etc.) when a build finishes.
+   * 
+   * Request body:
+   * - taskId: Task ID for the build task (required)
+   * 
+   * Note: This endpoint does NOT check tenant permissions as it's called by CI/CD.
+   * The taskId must be valid and associated with a release.
+   * 
+   * The build system updates buildUploadStatus in the builds table.
+   * This handler READS that status and updates task/release accordingly.
+   */
+  const buildCallbackControllerAvailable = buildCallbackController !== undefined;
+  if (buildCallbackControllerAvailable) {
+    router.post(
+      "/webhooks/build-callback",
+      buildCallbackController.handleBuildCallback
+    );
+  } else {
+    // Fallback if controller not available - return error
+    router.post(
+      "/webhooks/build-callback",
+      (_req: Request, res: Response): Response => {
+        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          error: 'Build callback service not configured'
+        });
+      }
+    );
+  }
 
   // ============================================================================
   // ARCHIVE RELEASE

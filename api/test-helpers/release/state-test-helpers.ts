@@ -222,7 +222,9 @@ export const createMockStateMachineDependencies = () => ({
   mockReleaseTasksDTO: createMockReleaseTasksDTO() as any,
   mockRegressionCycleDTO: createMockRegressionCycleDTO() as any,
   mockTaskExecutor: createMockTaskExecutor() as any,
-  mockStorage: createMockStorage()
+  mockStorage: createMockStorage(),
+  mockPlatformMappingRepo: createMockPlatformMappingRepo() as any,
+  mockReleaseUploadsRepo: createMockReleaseUploadsRepo() as any
 });
 
 /**
@@ -286,4 +288,166 @@ export interface ICronJobStateMachine {
   getReleaseId(): string;
   getCronJobId(): string;
 }
+
+// ================================================================================
+// MANUAL BUILD UPLOAD MOCK CREATORS
+// ================================================================================
+
+/**
+ * Mock creator for ReleaseUploadsRepository
+ * Used for testing manual build upload flow
+ */
+export const createMockReleaseUploadsRepo = () => {
+  const createMock = jest.fn();
+  const findByIdMock = jest.fn();
+  const findUnusedMock = jest.fn();
+  const findUnusedByPlatformMock = jest.fn();
+  const markAsUsedMock = jest.fn();
+  const upsertMock = jest.fn();
+  const deleteMock = jest.fn();
+  const checkAllPlatformsReadyMock = jest.fn();
+  const findByTaskIdMock = jest.fn();
+  const findByCycleIdMock = jest.fn();
+  const markMultipleAsUsedMock = jest.fn();
+
+  return {
+    // Repository interface methods
+    create: createMock,
+    findById: findByIdMock,
+    findByReleaseAndStage: jest.fn(),
+    findUnused: findUnusedMock,
+    findUnusedByPlatform: findUnusedByPlatformMock,
+    findByTaskId: findByTaskIdMock,
+    findByCycleId: findByCycleIdMock,
+    markAsUsed: markAsUsedMock,
+    markMultipleAsUsed: markMultipleAsUsedMock,
+    upsert: upsertMock,
+    delete: deleteMock,
+    deleteUnused: jest.fn(),
+    checkAllPlatformsReady: checkAllPlatformsReadyMock,
+    getUploadCount: jest.fn(),
+    // Required base properties
+    sequelize: {} as any,
+    model: {} as any,
+    toPlainObject: jest.fn((obj) => obj),
+  };
+};
+
+/**
+ * Mock creator for BuildRepository
+ * Used for testing build creation and status tracking
+ */
+export const createMockBuildRepo = () => {
+  const createMock = jest.fn();
+  const findByIdMock = jest.fn();
+  const findByTaskIdMock = jest.fn();
+  const findByTaskAndQueueLocationMock = jest.fn();
+  const getTaskBuildStatusMock = jest.fn();
+  const resetFailedBuildsForTaskMock = jest.fn();
+
+  return {
+    // Repository interface methods
+    create: createMock,
+    findById: findByIdMock,
+    findByTaskId: findByTaskIdMock,
+    findByTaskAndQueueLocation: findByTaskAndQueueLocationMock,
+    getTaskBuildStatus: getTaskBuildStatusMock,
+    getFailedBuildsCount: jest.fn(),
+    getFailedTriggerBuilds: jest.fn(),
+    getFailedWorkflowBuilds: jest.fn(),
+    resetFailedBuildsForTask: resetFailedBuildsForTaskMock,
+    update: jest.fn(),
+    delete: jest.fn(),
+    // Required base properties
+    sequelize: {} as any,
+    model: {} as any,
+    toPlainObject: jest.fn((obj) => obj),
+  };
+};
+
+/**
+ * Mock creator for PlatformMappingRepository
+ * Used for testing platform-specific operations
+ */
+export const createMockPlatformMappingRepo = () => {
+  const findByReleaseIdMock = jest.fn();
+
+  return {
+    // Repository interface methods
+    findByReleaseId: findByReleaseIdMock,
+    getByReleaseId: findByReleaseIdMock, // Legacy alias
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    // Required base properties
+    sequelize: {} as any,
+    model: {} as any,
+    toPlainObject: jest.fn((obj) => obj),
+  };
+};
+
+/**
+ * Mock creator for CICDService
+ * Used for testing S3 uploads and CI/CD operations
+ */
+export const createMockCICDService = () => {
+  return {
+    uploadToS3: jest.fn(),
+    triggerJob: jest.fn(),
+    reTriggerJob: jest.fn(),
+    getJobStatus: jest.fn(),
+  };
+};
+
+/**
+ * Mock creator for UploadValidationService
+ * Used for testing upload validation rules
+ */
+export const createMockUploadValidationService = () => {
+  return {
+    validateUpload: jest.fn(),
+    isUploadWindowOpen: jest.fn(),
+    getUploadWindowStatus: jest.fn(),
+  };
+};
+
+/**
+ * Mock release upload entry
+ */
+export const createMockReleaseUpload = (overrides: Partial<{
+  id: string;
+  releaseId: string;
+  platform: string;
+  stage: string;
+  artifactPath: string;
+  isUsed: boolean;
+  usedByTaskId: string | null;
+  usedByCycleId: string | null;
+}> = {}) => ({
+  id: overrides.id ?? `upload-${Date.now()}`,
+  tenantId: mockTenantId,
+  releaseId: overrides.releaseId ?? mockReleaseId,
+  platform: overrides.platform ?? 'ANDROID',
+  stage: overrides.stage ?? 'REGRESSION',
+  artifactPath: overrides.artifactPath ?? 's3://bucket/path/to/build.apk',
+  isUsed: overrides.isUsed ?? false,
+  usedByTaskId: overrides.usedByTaskId ?? null,
+  usedByCycleId: overrides.usedByCycleId ?? null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+/**
+ * Convenience function for manual build upload test dependencies
+ */
+export const createMockManualUploadDependencies = () => ({
+  mockReleaseUploadsRepo: createMockReleaseUploadsRepo() as any,
+  mockBuildRepo: createMockBuildRepo() as any,
+  mockPlatformMappingRepo: createMockPlatformMappingRepo() as any,
+  mockCICDService: createMockCICDService() as any,
+  mockUploadValidationService: createMockUploadValidationService() as any,
+  mockReleaseRepo: createMockReleaseDTO() as any,
+  mockCronJobRepo: createMockCronJobDTO() as any,
+  mockTaskRepo: createMockReleaseTasksDTO() as any,
+});
 

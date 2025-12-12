@@ -4,7 +4,8 @@
 -- 
 -- This migration is idempotent - can be run multiple times safely
 -- Tables: releases, cron_jobs, release_tasks, regression_cycles, state_history,
---         release_platforms_targets_mapping, release_configurations, builds
+--         release_platforms_targets_mapping, release_configurations, builds,
+--         release_uploads
 --
 -- Dependencies: accounts, tenants (must exist)
 
@@ -129,7 +130,7 @@ CREATE TABLE IF NOT EXISTS release_tasks (
   releaseId VARCHAR(255) NOT NULL,
   taskId VARCHAR(255) UNIQUE COMMENT 'Unique task identifier',
   taskType VARCHAR(255) NOT NULL COMMENT 'Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)',
-  taskStatus ENUM('PENDING', 'IN_PROGRESS', 'AWAITING_CALLBACK', 'COMPLETED', 'FAILED', 'SKIPPED') NOT NULL DEFAULT 'PENDING' COMMENT 'Task execution status',
+  taskStatus ENUM('PENDING', 'IN_PROGRESS', 'AWAITING_CALLBACK', 'AWAITING_MANUAL_BUILD', 'COMPLETED', 'FAILED', 'SKIPPED') NOT NULL DEFAULT 'PENDING' COMMENT 'Task execution status (AWAITING_CALLBACK for CI/CD, AWAITING_MANUAL_BUILD for manual uploads)',
   taskConclusion ENUM('success', 'failure', 'cancelled', 'skipped'),
   stage ENUM('KICKOFF', 'REGRESSION', 'POST_REGRESSION') NOT NULL COMMENT 'Which stage this task belongs to',
   branch VARCHAR(255),
@@ -192,26 +193,75 @@ CREATE TABLE IF NOT EXISTS release_platforms_targets_mapping (
 );
 
 -- ============================================================================
--- 8. BUILDS TABLE (New schema with ENUM instead of FK)
+-- 8. BUILDS TABLE (Enhanced schema for CI/CD tracking and platform-specific retry)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS builds (
   id VARCHAR(255) PRIMARY KEY,
-  number VARCHAR(255) NOT NULL COMMENT 'Build number from CI/CD',
-  link VARCHAR(500) COMMENT 'URL to build artifacts or CI/CD pipeline',
-  releaseId VARCHAR(255),
-  platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL COMMENT 'Platform: ANDROID, IOS, or WEB',
-  target ENUM('WEB', 'PLAY_STORE', 'APP_STORE') COMMENT 'Target: WEB, PLAY_STORE, or APP_STORE',
-  regressionId VARCHAR(255) COMMENT 'FK to regression_cycles table',
+  tenantId VARCHAR(255) NOT NULL COMMENT 'FK to tenants table',
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  buildNumber VARCHAR(255) NULL COMMENT 'Build number from CI/CD',
+  artifactVersionName VARCHAR(255) NULL COMMENT 'Version name of the artifact',
+  artifactPath VARCHAR(255) NULL COMMENT 'Path or URL to build artifacts',
+  releaseId VARCHAR(255) NOT NULL COMMENT 'FK to releases table',
+  platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL COMMENT 'Platform type',
+  storeType ENUM('APP_STORE', 'PLAY_STORE', 'TESTFLIGHT', 'MICROSOFT_STORE', 'FIREBASE', 'WEB') NULL COMMENT 'Store provider type',
+  regressionId VARCHAR(255) NULL COMMENT 'FK to regression_cycles table',
+  ciRunId VARCHAR(255) NULL COMMENT 'CI/CD run/job ID from the provider',
+  buildUploadStatus ENUM('PENDING', 'UPLOADED', 'FAILED') NOT NULL DEFAULT 'PENDING' COMMENT 'Build upload status',
+  buildType ENUM('MANUAL', 'CI_CD') NOT NULL COMMENT 'Build type - manual upload or CI/CD triggered',
+  buildStage ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE') NOT NULL COMMENT 'Build stage in release lifecycle',
+  queueLocation VARCHAR(255) NULL COMMENT 'Queue location for CI/CD job',
+  workflowStatus ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED') NULL COMMENT 'CI/CD workflow status - used for AWAITING_CALLBACK pattern',
+  ciRunType ENUM('JENKINS', 'GITHUB_ACTIONS', 'CIRCLE_CI', 'GITLAB_CI') NULL COMMENT 'CI/CD provider type',
+  taskId VARCHAR(255) NULL COMMENT 'FK to release_tasks table - links build to specific task for retry',
+  internalTrackLink VARCHAR(255) NULL COMMENT 'Play Store Internal Track Link',
+  testflightNumber VARCHAR(255) NULL COMMENT 'TestFlight build number',
+  
+  INDEX idx_builds_tenant (tenantId),
+  INDEX idx_builds_release (releaseId),
+  INDEX idx_builds_platform (platform),
+  INDEX idx_builds_store_type (storeType),
+  INDEX idx_builds_regression (regressionId),
+  INDEX idx_builds_task (taskId),
+  INDEX idx_builds_workflow_status (workflowStatus),
+  INDEX idx_builds_stage (buildStage),
+  INDEX idx_builds_regression_platform (regressionId, platform),
+  INDEX idx_builds_task_platform (taskId, platform),
+  UNIQUE INDEX idx_builds_task_queue_unique (taskId, queueLocation),
+  CONSTRAINT fk_builds_tenant FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE,
+  CONSTRAINT fk_builds_release FOREIGN KEY (releaseId) REFERENCES releases(id) ON DELETE CASCADE,
+  CONSTRAINT fk_builds_regression FOREIGN KEY (regressionId) REFERENCES regression_cycles(id) ON DELETE SET NULL,
+  CONSTRAINT fk_builds_task FOREIGN KEY (taskId) REFERENCES release_tasks(id) ON DELETE SET NULL
+);
+
+-- ============================================================================
+-- 9. RELEASE UPLOADS TABLE (Manual build uploads staging)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS release_uploads (
+  id VARCHAR(255) PRIMARY KEY,
+  tenantId VARCHAR(255) NOT NULL COMMENT 'FK to tenants table',
+  releaseId VARCHAR(255) NOT NULL COMMENT 'FK to releases table',
+  platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL COMMENT 'Platform for this upload',
+  stage ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE') NOT NULL COMMENT 'Stage this upload is for (matches buildStage)',
+  artifactPath VARCHAR(1024) NOT NULL COMMENT 'S3 path to uploaded artifact',
+  isUsed BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether this upload has been consumed by a task',
+  usedByTaskId VARCHAR(255) NULL COMMENT 'FK to release_tasks - which task consumed this upload',
+  usedByCycleId VARCHAR(255) NULL COMMENT 'FK to regression_cycles - which cycle consumed this upload (for REGRESSION stage)',
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
-  INDEX idx_builds_release (releaseId),
-  INDEX idx_builds_platform (platform),
-  INDEX idx_builds_target (target),
-  INDEX idx_builds_regression (regressionId),
-  UNIQUE INDEX idx_builds_regression_platform (regressionId, platform),
-  CONSTRAINT fk_builds_release FOREIGN KEY (releaseId) REFERENCES releases(id) ON DELETE SET NULL,
-  CONSTRAINT fk_builds_regression FOREIGN KEY (regressionId) REFERENCES regression_cycles(id) ON DELETE SET NULL
+  INDEX idx_release_uploads_tenant (tenantId),
+  INDEX idx_release_uploads_release (releaseId),
+  INDEX idx_release_uploads_release_stage (releaseId, stage),
+  INDEX idx_release_uploads_release_platform_stage (releaseId, platform, stage),
+  INDEX idx_release_uploads_unused (releaseId, stage, isUsed),
+  INDEX idx_release_uploads_task (usedByTaskId),
+  INDEX idx_release_uploads_cycle (usedByCycleId),
+  CONSTRAINT fk_release_uploads_tenant FOREIGN KEY (tenantId) REFERENCES tenants(id) ON DELETE CASCADE,
+  CONSTRAINT fk_release_uploads_release FOREIGN KEY (releaseId) REFERENCES releases(id) ON DELETE CASCADE,
+  CONSTRAINT fk_release_uploads_task FOREIGN KEY (usedByTaskId) REFERENCES release_tasks(id) ON DELETE SET NULL,
+  CONSTRAINT fk_release_uploads_cycle FOREIGN KEY (usedByCycleId) REFERENCES regression_cycles(id) ON DELETE SET NULL
 );
 
 -- ============================================================================

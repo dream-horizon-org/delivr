@@ -90,14 +90,21 @@ export enum TaskType {
 
 /**
  * TaskStatus - Task execution states
+ * 
+ * AWAITING_CALLBACK vs AWAITING_MANUAL_BUILD:
+ * - AWAITING_CALLBACK: CI/CD mode - waiting for external callback from build system
+ * - AWAITING_MANUAL_BUILD: Manual mode - waiting for user to upload builds via API
+ * 
+ * Reference: MANUAL_BUILD_UPLOAD_FLOW_1.md
  */
 export enum TaskStatus {
-  PENDING = 'PENDING',                   // Task not started
-  IN_PROGRESS = 'IN_PROGRESS',           // Task currently executing
-  AWAITING_CALLBACK = 'AWAITING_CALLBACK', // Task waiting for external callback (e.g., CI/CD)
-  COMPLETED = 'COMPLETED',               // Task finished successfully
-  FAILED = 'FAILED',                     // Task failed
-  SKIPPED = 'SKIPPED'                    // Task intentionally skipped (e.g., platform not applicable)
+  PENDING = 'PENDING',                             // Task not started
+  IN_PROGRESS = 'IN_PROGRESS',                     // Task currently executing
+  AWAITING_CALLBACK = 'AWAITING_CALLBACK',         // CI/CD mode: waiting for external callback
+  AWAITING_MANUAL_BUILD = 'AWAITING_MANUAL_BUILD', // Manual mode: waiting for user upload
+  COMPLETED = 'COMPLETED',                         // Task finished successfully
+  FAILED = 'FAILED',                               // Task failed
+  SKIPPED = 'SKIPPED'                              // Task intentionally skipped (e.g., platform not applicable)
 }
 
 export enum TaskIdentifier {

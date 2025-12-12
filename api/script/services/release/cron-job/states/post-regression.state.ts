@@ -12,12 +12,13 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
-import { StageStatus, TaskStage, CronStatus, ReleaseStatus } from '~models/release/release.interface';
+import { StageStatus, TaskStage, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
 import { stopCronJob } from '~services/release/cron-job/cron-scheduler';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { createStage3Tasks } from '~utils/task-creation';
-import { getOrderedTasks, canExecuteTask, OptionalTaskConfig, isTaskRequired, arePreviousTasksComplete } from '~utils/task-sequencing';
+import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
+import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class PostRegressionState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -150,6 +151,54 @@ export class PostRegressionState implements ICronJobState {
       // Use existingStage3Tasks we already fetched (no need to fetch again)
       console.log(`[${instanceId}] [PostRegressionState] Found ${existingStage3Tasks.length} Stage 3 tasks`);
 
+      // ✅ MANUAL BUILD CHECK: Process any tasks waiting for manual builds
+      if (release.hasManualBuildUpload) {
+        const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
+        
+        if (releaseUploadsRepo) {
+          // Get release platforms
+          const platforms = await this.getReleasePlatforms(release);
+          
+          // Get build repository for creating build records
+          const buildRepo = this.context.getBuildRepo?.();
+          
+          const manualBuildResults = await processAwaitingManualBuildTasks(
+            releaseId,
+            existingStage3Tasks,
+            true,
+            platforms,
+            releaseUploadsRepo,
+            releaseTaskRepo,
+            buildRepo
+          );
+
+          // Track which tasks were just completed by manual build handler
+          const justCompletedTaskIds = new Set<string>();
+          
+          // Log results
+          for (const [taskId, result] of manualBuildResults) {
+            if (result.consumed) {
+              justCompletedTaskIds.add(taskId);
+              console.log(
+                `[${instanceId}] [PostRegressionState] Manual build consumed for task ${taskId}. ` +
+                `Task is now COMPLETED.`
+              );
+            } else if (result.checked && !result.allReady) {
+              console.log(
+                `[${instanceId}] [PostRegressionState] Task ${taskId} still waiting for uploads. ` +
+                `Missing: [${result.missingPlatforms.join(', ')}]`
+              );
+            }
+          }
+          
+          // Store for later use
+          (this as any)._justCompletedTaskIds = justCompletedTaskIds;
+        }
+      }
+      
+      // Get tasks that were just completed by manual build handler (if any)
+      const justCompletedTaskIds: Set<string> = (this as any)._justCompletedTaskIds ?? new Set();
+
       // Get ordered tasks
       const orderedTasks = getOrderedTasks(existingStage3Tasks, TaskStage.POST_REGRESSION);
       
@@ -165,7 +214,15 @@ export class PostRegressionState implements ICronJobState {
 
       // Execute tasks
       for (const task of orderedTasks) {
-        if (canExecuteTask(task, orderedTasks, TaskStage.POST_REGRESSION, config, isTimeToExecute)) {
+        // Skip tasks that were just completed by manual build handler
+        if (justCompletedTaskIds.has(task.id)) {
+          continue;
+        }
+        
+        const blockReason = getTaskBlockReason(task, orderedTasks, TaskStage.POST_REGRESSION, config, isTimeToExecute);
+        const canExecute = blockReason === 'EXECUTABLE';
+        
+        if (canExecute) {
           console.log(`[${instanceId}] [PostRegressionState] Executing task: ${task.taskType} (${task.id})`);
           
           try {
@@ -182,16 +239,11 @@ export class PostRegressionState implements ICronJobState {
             console.error(`[${instanceId}] [PostRegressionState] Task ${task.taskType} execution failed:`, errorMessage);
           }
         } else {
-          const reasons: string[] = [];
-          if (task.taskStatus !== 'PENDING') {
-            reasons.push(`Status: ${task.taskStatus}`);
+          // Only log non-completed tasks to reduce noise
+          const isAlreadyDone = blockReason === 'ALREADY_COMPLETED' || blockReason === 'ALREADY_SKIPPED';
+          if (!isAlreadyDone) {
+            console.log(`[${instanceId}] [PostRegressionState] Task ${task.taskType} blocked: ${blockReason}`);
           }
-          if (!isTaskRequired(task.taskType, config)) {
-            reasons.push('Task not required');
-          } else if (!arePreviousTasksComplete(task, orderedTasks, TaskStage.POST_REGRESSION, config)) {
-            reasons.push('Previous tasks not complete');
-          }
-          console.log(`[${instanceId}] [PostRegressionState] Task ${task.taskType} cannot execute: ${reasons.join(', ')}`);
         }
       }
 
@@ -274,6 +326,34 @@ export class PostRegressionState implements ICronJobState {
     stopCronJob(releaseId);
     console.log(`[PostRegressionState] ✅ Workflow COMPLETED: Stage 3 done, cron stopped`);
     console.log(`[PostRegressionState] Note: Release workflow ends here - no Stage 4. Submission tasks (SUBMIT_TO_TARGET) are manual APIs.`);
+  }
+
+  // ========================================================================
+  // Private Helper Methods
+  // ========================================================================
+
+  /**
+   * Get release platforms from platform mappings
+   */
+  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
+    // Try to get from storage if available
+    const storageInstance = this.context.getStorage();
+    if (hasSequelize(storageInstance)) {
+      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
+      if (platformMappingRepo) {
+        const mappings = await platformMappingRepo.getByReleaseId(release.id);
+        if (mappings && mappings.length > 0) {
+          // Map to PlatformName enum values
+          const platforms = mappings
+            .map(m => m.platform as unknown as PlatformName)
+            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
+          return platforms;
+        }
+      }
+    }
+    
+    // No platform mappings found - this is a configuration error
+    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
   }
 }
 

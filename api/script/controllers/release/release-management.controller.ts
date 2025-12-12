@@ -11,6 +11,9 @@ import { ReleaseRetrievalService } from '../../services/release/release-retrieva
 import { ReleaseStatusService } from '../../services/release/release-status.service';
 import { ReleaseUpdateService } from '../../services/release/release-update.service';
 import { CronJobService } from '../../services/release/cron-job/cron-job.service';
+import { ManualUploadService } from '../../services/release/manual-upload.service';
+import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
+import { PlatformName } from '../../models/release/release.interface';
 import { HTTP_STATUS } from '../../constants/http';
 import type { 
   CreateReleaseRequestBody,
@@ -28,19 +31,22 @@ export class ReleaseManagementController {
   private statusService: ReleaseStatusService;
   private updateService: ReleaseUpdateService;
   private cronJobService: CronJobService;
+  private manualUploadService: ManualUploadService | null;
 
   constructor(
     creationService: ReleaseCreationService,
     retrievalService: ReleaseRetrievalService,
     statusService: ReleaseStatusService,
     updateService: ReleaseUpdateService,
-    cronJobService: CronJobService
+    cronJobService: CronJobService,
+    manualUploadService?: ManualUploadService
   ) {
     this.creationService = creationService;
     this.retrievalService = retrievalService;
     this.statusService = statusService;
     this.updateService = updateService;
     this.cronJobService = cronJobService;
+    this.manualUploadService = manualUploadService ?? null;
   }
 
   /**
@@ -526,4 +532,209 @@ export class ReleaseManagementController {
       });
     }
   }
+
+  /**
+   * Retry a failed task
+   * 
+   * POST /tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry
+   * 
+   * Resets the task status to PENDING so the cron job can pick it up
+   * and re-execute it. For build tasks, also resets failed build entries.
+   * 
+   * LAZY approach: Cron picks up and executes on next tick.
+   */
+  retryTask = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { releaseId, taskId } = req.params;
+      const accountId = (req as any).account?.id ?? (req as any).user?.id;
+
+      if (!accountId) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: 'Unauthorized: Account ID not found'
+        });
+      }
+
+      if (!taskId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Task ID is required'
+        });
+      }
+
+      // Delegate to service
+      const result = await this.updateService.retryTask(taskId, accountId);
+
+      if (!result.success) {
+        // Determine status code based on error
+        const isNotFound = result.error?.includes('not found');
+        const statusCode = isNotFound ? HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
+        
+        return res.status(statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Task retry initiated. Cron will re-execute on next tick.',
+        data: {
+          taskId: result.taskId,
+          releaseId,
+          previousStatus: result.previousStatus,
+          newStatus: result.newStatus
+        }
+      });
+    } catch (error: unknown) {
+      console.error('[Retry Task] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to retry task',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Upload Manual Build
+   * 
+   * Handles manual build upload for a specific platform.
+   * Used when hasManualBuildUpload = true.
+   * 
+   * Flow:
+   * 1. Validate request (releaseId, taskId, platform, artifactPath)
+   * 2. Create build entry with UPLOADED status
+   * 3. Check if all platforms are uploaded
+   * 4. If all uploaded → complete task and resume release
+   */
+  /**
+   * Upload manual build - Stage 1, 2, or 3
+   * 
+   * Uses release_uploads staging table approach:
+   * - Validates upload is allowed (hasManualBuildUpload, platform, window)
+   * - Uploads to S3
+   * - Creates entry in release_uploads table
+   * - Returns status (all platforms ready or not)
+   * 
+   * Task consumption happens separately when TaskExecutor runs.
+   * 
+   * TODO: Wire up ManualUploadService with actual dependencies
+   * Reference: docs/MANUAL_BUILD_UPLOAD_FLOW.md
+   */
+  uploadManualBuild = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { releaseId, stage, platform } = req.params;
+      const accountId = (req as any).account?.id ?? (req as any).user?.id;
+
+      if (!accountId) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: 'Unauthorized: Account ID not found'
+        });
+      }
+
+      // Validate required parameters
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      if (!stage) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Stage is required (KICK_OFF, REGRESSION, PRE_RELEASE)'
+        });
+      }
+
+      if (!platform) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Platform is required'
+        });
+      }
+
+      // Validate stage is valid
+      const validStages = ['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'];
+      const upperStage = stage.toUpperCase();
+      if (!validStages.includes(upperStage)) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: `Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`
+        });
+      }
+
+      // Validate platform is valid
+      const validPlatforms = [PlatformName.ANDROID, PlatformName.IOS, PlatformName.WEB];
+      const upperPlatform = platform.toUpperCase() as PlatformName;
+      const platformIsInvalid = !validPlatforms.includes(upperPlatform);
+      if (platformIsInvalid) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: `Invalid platform: ${platform}. Must be one of: ${validPlatforms.join(', ')}`
+        });
+      }
+
+      // Check if ManualUploadService is available
+      const serviceNotAvailable = !this.manualUploadService;
+      if (serviceNotAvailable) {
+        return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          error: 'Manual upload service not configured'
+        });
+      }
+
+      // Check if file is provided (from multer middleware)
+      const file = (req as any).file;
+      const fileNotProvided = !file?.buffer;
+      if (fileNotProvided) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Build artifact file is required'
+        });
+      }
+
+      // Map stage string to UploadStage type
+      const uploadStage = upperStage as UploadStage;
+
+      // Delegate to ManualUploadService
+      const result = await this.manualUploadService.handleUpload(
+        releaseId,
+        uploadStage,
+        upperPlatform,
+        file.buffer
+      );
+
+      if (!result.success) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          uploadId: result.uploadId,
+          platform: result.platform,
+          stage: result.stage,
+          artifactPath: result.artifactPath,
+          uploadedPlatforms: result.uploadedPlatforms,
+          missingPlatforms: result.missingPlatforms,
+          allPlatformsReady: result.allPlatformsReady
+        }
+      });
+    } catch (error: unknown) {
+      console.error('[Upload Manual Build] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to upload build',
+        message: errorMessage
+      });
+    }
+  };
 }
