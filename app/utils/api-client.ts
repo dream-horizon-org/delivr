@@ -44,6 +44,12 @@ async function apiRequest<T = unknown>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  // Log request for release-config endpoints
+  const isReleaseConfigRequest = endpoint.includes('/release-config');
+  if (isReleaseConfigRequest) {
+    console.log('[ApiClient] Request:', fetchOptions.method || 'GET', endpoint);
+  }
+
   try {
     const response = await fetch(url, {
       ...fetchOptions,
@@ -55,11 +61,18 @@ async function apiRequest<T = unknown>(
     });
 
     clearTimeout(timeoutId);
+    
+    if (isReleaseConfigRequest) {
+      console.log('[ApiClient] Response:', response.status, response.statusText);
+    }
 
     // Check content type before parsing
     const contentType = response.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
       const text = await response.text();
+      if (isReleaseConfigRequest) {
+        console.error('[ApiClient] Non-JSON response:', contentType);
+      }
       throw new ApiError(
         `Server returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType || 'unknown'}`,
         response.status,
@@ -68,12 +81,19 @@ async function apiRequest<T = unknown>(
     }
 
     const parsed = await response.json();
+    
+    if (isReleaseConfigRequest && parsed?.data && Array.isArray(parsed.data)) {
+      console.log('[ApiClient] Data received:', parsed.data.length, 'items');
+    }
 
     // If HTTP status is not OK, throw with best available message
     if (!response.ok) {
       const messageFromParsed =
         (parsed && (parsed.error || parsed.message)) ||
         `Request failed with status ${response.status}`;
+      if (isReleaseConfigRequest) {
+        console.error('[ApiClient] Request failed:', response.status, messageFromParsed);
+      }
       throw new ApiError(messageFromParsed, response.status, parsed);
     }
 
@@ -112,6 +132,11 @@ async function apiRequest<T = unknown>(
     return wrapped;
   } catch (error) {
     clearTimeout(timeoutId);
+    
+
+    if (isReleaseConfigRequest) {
+      console.error('[ApiClient] Request error:', error instanceof Error ? error.message : error);
+    }
 
     // Handle timeout
     if (error instanceof Error && error.name === 'AbortError') {

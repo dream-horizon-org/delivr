@@ -1,0 +1,611 @@
+/**
+ * Release Process Types
+ * TypeScript interfaces and types for release process APIs
+ */
+
+import type {
+  TaskStage,
+  TaskType,
+  TaskStatus,
+  TaskConclusion,
+  StageStatus,
+  RegressionCycleStatus,
+  BuildUploadStage,
+  Platform,
+  Phase,
+} from './release-process-enums';
+
+/**
+ * Task - Matches backend contract exactly
+ * Task-specific metadata is stored in externalData
+ */
+export interface Task {
+  id: string;                              // Primary key (UUID)
+  taskId: string;                          // Unique task identifier
+  taskType: TaskType;
+  stage: TaskStage;
+  taskStatus: TaskStatus;
+  taskConclusion: TaskConclusion;
+  accountId: string | null;
+  regressionId: string | null;             // FK to regression cycle (if regression task)
+  isReleaseKickOffTask: boolean;
+  isRegressionSubTasks: boolean;
+  identifier: string | null;
+  externalId: string | null;               // External system ID (e.g., Jira ticket ID)
+  externalData: Record<string, unknown> | null;
+  branch: string | null;
+  createdAt: string;                       // ISO 8601
+  updatedAt: string;                       // ISO 8601
+}
+
+/**
+ * TaskInfo - Legacy alias for Task (for backward compatibility during migration)
+ * @deprecated Use Task instead
+ */
+export type TaskInfo = Task;
+
+/**
+ * BuildInfo - Matches backend contract exactly
+ */
+export interface BuildInfo {
+  id: string;
+  tenantId: string;
+  releaseId: string;
+  platform: Platform;
+  storeType: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
+  buildNumber: string | null;
+  artifactVersionName: string | null;
+  artifactPath: string | null;
+  regressionId: string | null;          // FK to regression cycle
+  ciRunId: string | null;
+  buildUploadStatus: 'PENDING' | 'UPLOADED' | 'FAILED';
+  buildType: 'MANUAL' | 'CI_CD';
+  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  queueLocation: string | null;
+  workflowStatus: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
+  ciRunType: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  taskId: string | null;                // Reference to release_tasks table
+  internalTrackLink: string | null;     // Play Store Internal Track Link
+  testflightNumber: string | null;      // TestFlight build number
+  createdAt: string;                    // ISO 8601
+  updatedAt: string;                    // ISO 8601
+}
+
+/**
+ * Regression Slot - Matches backend contract
+ */
+export interface RegressionSlot {
+  date: string;                            // ISO 8601
+  config: Record<string, unknown>;
+}
+
+/**
+ * Regression Cycle - Matches backend contract exactly
+ */
+export interface RegressionCycle {
+  id: string;                           // Cycle UUID
+  releaseId: string;
+  isLatest: boolean;
+  status: RegressionCycleStatus;
+  cycleTag: string | null;              // e.g., "RC1", "RC2"
+  createdAt: string;                    // ISO 8601 (also serves as slot time)
+  completedAt: string | null;           // ISO 8601 (updatedAt when status = DONE)
+}
+
+/**
+ * Approval Requirements - Matches backend contract
+ */
+export interface ApprovalRequirements {
+  testManagementPassed: boolean;      // Test run threshold passed
+  cherryPickStatusOk: boolean;        // No new cherry picks found
+  cyclesCompleted: boolean;           // No active cycles AND no upcoming slots
+}
+
+/**
+ * Approval Status - Matches backend contract exactly
+ */
+export interface ApprovalStatus {
+  canApprove: boolean;                  // True if all requirements met
+  approvalRequirements: ApprovalRequirements;
+}
+
+/**
+ * Base Stage Response - Common fields for all stage APIs
+ * Matches backend contract for KICKOFF and POST_REGRESSION
+ */
+export interface StageTasksResponse {
+  success: true;
+  stage: TaskStage;
+  releaseId: string;
+  tasks: Task[];
+  stageStatus: StageStatus;
+}
+
+/**
+ * Kickoff Stage Response - Matches backend contract
+ */
+export interface KickoffStageResponse extends StageTasksResponse {
+  stage: TaskStage.KICKOFF;
+}
+
+/**
+ * Regression Stage Response - Matches backend contract exactly
+ * Includes additional regression-specific fields
+ */
+export interface RegressionStageResponse {
+  success: true;
+  stage: TaskStage.REGRESSION;
+  releaseId: string;
+  tasks: Task[];
+  stageStatus: StageStatus;
+  
+  // Regression-specific fields
+  cycles: RegressionCycle[];
+  currentCycle: RegressionCycle | null;
+  approvalStatus: ApprovalStatus;
+  availableBuilds: BuildInfo[];
+  upcomingSlot: RegressionSlot[] | null;
+}
+
+/**
+ * Post-Regression Stage Response
+ */
+export interface PostRegressionStageResponse extends StageTasksResponse {
+  stage: TaskStage.POST_REGRESSION;
+}
+
+/**
+ * Retry Task Request
+ */
+export interface RetryTaskRequest {
+  taskId: string;
+}
+
+/**
+ * Retry Task Response - Matches backend contract
+ */
+export interface RetryTaskResponse {
+  success: true;
+  message: string;                      // e.g., "Task queued for retry"
+  task: Task;                           // Updated task with status = PENDING
+}
+
+/**
+ * Build Upload Request
+ */
+export interface BuildUploadRequest {
+  file: File;
+  platform: Platform;
+  stage: BuildUploadStage;
+}
+
+/**
+ * Build Upload Response
+ */
+export interface BuildUploadResponse {
+  success: boolean;
+  buildId: string;
+  message: string;
+  build: BuildInfo;
+}
+
+/**
+ * Test Management Status Response - Single Platform
+ * Matches backend contract when platform query param is provided
+ */
+export interface GetTestManagementStatusResponse {
+  success: true;
+  releaseId: string;
+  testManagementConfigId: string;
+  platform: string;
+  target: string;
+  version: string;
+  hasTestRun: boolean;
+  runId: string | null;                 // This is the testRunId
+  status?: string;
+  runLink?: string;
+  total?: number;
+  testResults?: {
+    passed?: number;
+    failed?: number;
+    untested?: number;
+    skipped?: number;
+    blocked?: number;
+    inProgress?: number;
+    passPercentage?: number;
+    threshold?: number;
+    thresholdPassed?: boolean;
+  };
+}
+
+/**
+ * Test Management Status Result - Single platform result
+ */
+export type TestManagementStatusResult = {
+  platform: string;
+  target: string;
+  version: string;
+  hasTestRun: boolean;
+  runId: string | null;
+  status?: string;
+  runLink?: string;
+  total?: number;
+  testResults?: {
+    passed?: number;
+    failed?: number;
+    untested?: number;
+    skipped?: number;
+    blocked?: number;
+    inProgress?: number;
+    passPercentage?: number;
+    threshold?: number;
+    thresholdPassed?: boolean;
+  };
+};
+
+/**
+ * Test Management Status Response - All Platforms
+ * Matches backend contract when no platform query param
+ */
+export interface GetTestManagementStatusAllPlatformsResponse {
+  success: true;
+  releaseId: string;
+  testManagementConfigId: string;
+  platforms: TestManagementStatusResult[];
+}
+
+/**
+ * Test Management Status Response - Union type
+ */
+export type TestManagementStatusResponse = 
+  | GetTestManagementStatusResponse 
+  | GetTestManagementStatusAllPlatformsResponse;
+
+/**
+ * Project Management Status Response - Single Platform
+ * Matches backend contract when platform query param is provided
+ */
+export interface GetProjectManagementStatusResponse {
+  success: true;
+  releaseId: string;
+  projectManagementConfigId: string;
+  platform: string;
+  target: string;
+  version: string;
+  hasTicket: boolean;
+  ticketKey: string | null;
+  currentStatus?: string;
+  completedStatus?: string;
+  isCompleted?: boolean;
+  message: string;
+  error?: string;
+}
+
+/**
+ * Project Management Status Result - Single platform result
+ */
+export type ProjectManagementStatusResult = {
+  platform: string;
+  target: string;
+  version: string;
+  hasTicket: boolean;
+  ticketKey: string | null;
+  currentStatus?: string;
+  completedStatus?: string;
+  isCompleted?: boolean;
+  message: string;
+  error?: string;
+};
+
+/**
+ * Project Management Status Response - All Platforms
+ * Matches backend contract when no platform query param
+ */
+export interface GetProjectManagementStatusAllPlatformsResponse {
+  success: true;
+  releaseId: string;
+  projectManagementConfigId: string;
+  platforms: ProjectManagementStatusResult[];
+}
+
+/**
+ * Project Management Status Response - Union type
+ */
+export type ProjectManagementStatusResponse = 
+  | GetProjectManagementStatusResponse 
+  | GetProjectManagementStatusAllPlatformsResponse;
+
+/**
+ * Cherry Pick Status Response - Matches backend contract
+ */
+export interface CherryPickStatusResponse {
+  success: true;
+  releaseId: string;
+  latestReleaseTag: string;
+  commitIdsMatch: boolean;  // Whether branch head commit == tag commit
+}
+
+/**
+ * Approve Regression Request - Matches backend contract
+ */
+export interface ApproveRegressionStageRequest {
+  approvedBy: string;                   // Account ID of approver
+  comments?: string;                    // Optional approval comments
+  forceApprove?: boolean;               // Override requirements (not recommended)
+}
+
+/**
+ * Approve Regression Response - Matches backend contract
+ */
+export interface ApproveRegressionStageResponse {
+  success: true;
+  message: string;
+  releaseId: string;
+  approvedAt: string;                   // ISO 8601
+  approvedBy: string;
+  nextStage: 'POST_REGRESSION';
+}
+
+/**
+ * Approve Regression Request - Legacy alias (for backward compatibility)
+ * @deprecated Use ApproveRegressionStageRequest instead
+ */
+export type ApproveRegressionRequest = ApproveRegressionStageRequest;
+
+/**
+ * Approve Regression Response - Legacy alias (for backward compatibility)
+ * @deprecated Use ApproveRegressionStageResponse instead
+ */
+export type ApproveRegressionResponse = ApproveRegressionStageResponse;
+
+/**
+ * Complete Post-Regression Request
+ */
+export interface CompletePostRegressionRequest {
+  notes?: string;
+}
+
+/**
+ * Complete Post-Regression Response - Matches backend contract
+ */
+export interface CompletePreReleaseResponse {
+  success: true;
+  message: string;
+  releaseId: string;
+  completedAt: string;                  // ISO 8601
+  nextStage: 'RELEASE_SUBMISSION';
+}
+
+/**
+ * Complete Post-Regression Response - Legacy alias (for backward compatibility)
+ * @deprecated Use CompletePreReleaseResponse instead
+ */
+export type CompletePostRegressionResponse = CompletePreReleaseResponse;
+
+/**
+ * Post Slack Message Request
+ */
+export interface PostSlackMessageRequest {
+  message: string;
+  channel?: string;
+}
+
+/**
+ * Post Slack Message Response
+ */
+export interface PostSlackMessageResponse {
+  success: boolean;
+  message: string;
+  timestamp?: string;
+}
+
+/**
+ * Activity Log - Matches backend contract
+ */
+export interface ActivityLog {
+  id: string;
+  releaseId: string;
+  type: string;                          // Type of activity/change
+  previousValue: Record<string, any> | null;  // Previous value before change
+  newValue: Record<string, any> | null;       // New value after change
+  updatedAt: string;
+  updatedBy: string;                     // Account ID who made the change
+}
+
+/**
+ * Activity Logs Response - Matches backend contract
+ */
+export interface ActivityLogsResponse {
+  success: true;
+  releaseId: string;
+  activityLogs: ActivityLog[];
+}
+
+/**
+ * Activity Log Entry - Legacy alias (for backward compatibility)
+ * @deprecated Use ActivityLog instead
+ */
+export type ActivityLogEntry = ActivityLog;
+
+/**
+ * Activity Log Response - Legacy alias (for backward compatibility)
+ * @deprecated Use ActivityLogsResponse instead
+ */
+export type ActivityLogResponse = ActivityLogsResponse;
+
+/**
+ * Phase - Detailed release phase
+ * Matches backend contract from API #1: Get Release Details
+ * Re-exported from release-process-enums for backward compatibility
+ */
+export { Phase } from './release-process-enums';
+
+/**
+ * Platform Target Mapping - Matches backend contract
+ */
+export interface PlatformTargetMapping {
+  id: string;
+  releaseId: string;
+  platform: Platform;
+  target: 'PLAY_STORE' | 'APP_STORE' | 'WEB';
+  version: string;                         // e.g., "v6.5.0"
+  projectManagementRunId: string | null;   // Jira ticket ID
+  testManagementRunId: string | null;      // Test run ID
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Cron Job - Matches backend contract
+ */
+export interface CronJob {
+  id: string;
+  stage1Status: StageStatus;
+  stage2Status: StageStatus;
+  stage3Status: StageStatus;
+  stage4Status: StageStatus;
+  cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
+  cronConfig: Record<string, unknown>;
+  upcomingRegressions: RegressionSlot[] | null;
+  cronCreatedAt: string;
+  cronStoppedAt: string | null;
+  cronCreatedByAccountId: string;
+  autoTransitionToStage2: boolean;
+  autoTransitionToStage3: boolean;
+  stageData: Record<string, unknown> | null;
+}
+
+/**
+ * Release Details - Matches backend contract from API #1
+ */
+export interface ReleaseDetails {
+  // Primary identification
+  id: string;                              // Primary key (UUID)
+  releaseId: string;                       // User-facing release identifier (e.g., "REL-001")
+  releaseConfigId: string | null;          // FK to release configuration
+  tenantId: string;                        // Tenant UUID
+  
+  // Release metadata
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
+  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
+  releasePhase: Phase;                     // Detailed phase
+  
+  // Branch information
+  branch: string | null;                   // Release branch name (e.g., "release/v1.0.0")
+  baseBranch: string | null;               // Base branch forked from (e.g., "master")
+  baseReleaseId: string | null;            // Parent release ID (for hotfixes)
+  
+  // Dates (ISO 8601 format)
+  kickOffReminderDate: string | null;
+  kickOffDate: string | null;
+  targetReleaseDate: string | null;
+  releaseDate: string | null;              // Actual release date (populated when COMPLETED)
+  
+  // Platform targets
+  platformTargetMappings: PlatformTargetMapping[];
+  
+  // Configuration
+  hasManualBuildUpload: boolean;
+  
+  // Ownership
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
+  
+  // Timestamps
+  createdAt: string;                       // ISO 8601
+  updatedAt: string;                       // ISO 8601
+  
+  // Related data
+  cronJob?: CronJob;
+  tasks?: Task[];
+}
+
+/**
+ * Get Release Details Response - Matches backend contract
+ */
+export interface GetReleaseDetailsResponse {
+  success: true;
+  release: ReleaseDetails;
+}
+
+/**
+ * Get All Builds Response - Matches backend contract from API #14
+ */
+export interface GetBuildsResponse {
+  success: true;
+  releaseId: string;
+  builds: BuildInfo[];
+  total: number;
+}
+
+/**
+ * Notification Type - Values TBD based on notification_type DB enum
+ */
+export type NotificationType = string;
+
+/**
+ * Message Response - Raw response from MessagingService.sendMessage()
+ */
+export interface MessageResponse {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  // ... other provider-specific fields
+}
+
+/**
+ * Release Notification - Matches backend contract
+ */
+export interface ReleaseNotification {
+  id: number;
+  tenantId: number;
+  releaseId: number;
+  notificationType: NotificationType;
+  isSystemGenerated: boolean;
+  createdByUserId: number | null;
+  taskId: string | null;
+  delivery: Record<string, MessageResponse>;  // Map<channelId, MessageResponse>
+  createdAt: string;
+}
+
+/**
+ * Notifications Response - Matches backend contract from API #20
+ */
+export interface NotificationsResponse {
+  success: true;
+  releaseId: string;
+  notifications: ReleaseNotification[];
+}
+
+/**
+ * Message Type Enum - Values based on notification_type DB enum
+ */
+export type MessageTypeEnum = 
+  | 'RELEASE_KICKOFF'
+  | 'REGRESSION_SLOT_REMINDER'
+  | 'REGRESSION_COMPLETE'
+  | 'PRE_RELEASE_CHERRY_PICKS_REMINDER'
+  | 'RELEASE_APPROVED'
+  | 'RELEASE_SUBMITTED'
+  // ... other notification types
+  ;
+
+/**
+ * Notification Request - Matches backend contract from API #21
+ */
+export interface NotificationRequest {
+  messageType: MessageTypeEnum;
+}
+
+/**
+ * Send Notification Response - Matches backend contract from API #21
+ */
+export interface SendNotificationResponse {
+  success: true;
+  notification: ReleaseNotification;
+}
+
+

@@ -1,0 +1,121 @@
+/**
+ * Release Process Utilities
+ * Helper functions for determining release phase and stage
+ */
+
+import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import { Phase, TaskStage as TaskStageEnum } from '~/types/release-process-enums';
+import type { TaskStage } from '~/types/release-process-enums';
+
+/**
+ * Determine current phase based on release status and tasks
+ * This is a temporary solution until backend provides phase field
+ * 
+ * TODO: Replace with backend phase API when available
+ */
+export function determineReleasePhase(release: BackendReleaseResponse): Phase {
+  // If release is archived or completed, return appropriate phase
+  if (release.status === 'ARCHIVED') {
+    return Phase.ARCHIVED;
+  }
+  
+  if (release.status === 'COMPLETED') {
+    return Phase.COMPLETED;
+  }
+
+  // Check if release has started (has kickoff date)
+  if (!release.kickOffDate) {
+    return Phase.NOT_STARTED;
+  }
+
+  // For IN_PROGRESS releases, check tasks to determine stage
+  // This is a heuristic - backend should provide phase field
+  if (release.tasks && release.tasks.length > 0) {
+    // Check if any regression tasks exist
+    const hasRegressionTasks = release.tasks.some(
+      (task: any) => task.taskStage === 'REGRESSION' || task.stage === 'REGRESSION'
+    );
+    
+    if (hasRegressionTasks) {
+      return Phase.REGRESSION;
+    }
+
+    // Check if any post-regression tasks exist
+    const hasPostRegressionTasks = release.tasks.some(
+      (task: any) => task.taskStage === 'POST_REGRESSION' || task.stage === 'POST_REGRESSION'
+    );
+    
+    if (hasPostRegressionTasks) {
+      return Phase.POST_REGRESSION;
+    }
+
+    // Default to kickoff if tasks exist but no stage-specific tasks
+    return Phase.KICKOFF;
+  }
+
+  // Default to KICKOFF if release has started but no tasks yet
+  return Phase.KICKOFF;
+}
+
+/**
+ * Get current stage from phase
+ */
+export function getStageFromPhase(phase: Phase): TaskStage | null {
+  switch (phase) {
+    case Phase.NOT_STARTED:
+      return null; // Pre-kickoff (not a stage in stepper)
+    case Phase.KICKOFF:
+      return TaskStageEnum.KICKOFF;
+    case Phase.AWAITING_REGRESSION:
+    case Phase.REGRESSION:
+    case Phase.REGRESSION_AWAITING_NEXT_CYCLE:
+      return TaskStageEnum.REGRESSION;
+    case Phase.AWAITING_POST_REGRESSION:
+    case Phase.POST_REGRESSION:
+      return TaskStageEnum.POST_REGRESSION;
+    case Phase.AWAITING_SUBMISSION:
+    case Phase.SUBMISSION:
+    case Phase.SUBMITTED_PENDING_APPROVAL:
+      return TaskStageEnum.DISTRIBUTION;
+    case Phase.COMPLETED:
+    case Phase.ARCHIVED:
+      return TaskStageEnum.DISTRIBUTION; // Show distribution even when completed
+    default:
+      return TaskStageEnum.KICKOFF; // Default fallback
+  }
+}
+
+/**
+ * Get release version from platform mappings or branch
+ * Priority: platformTargetMappings[].version > branch extraction > releaseId
+ */
+export function getReleaseVersion(release: BackendReleaseResponse): string {
+  // Priority 1: Get version from platform mappings
+  if (release.platformTargetMappings && release.platformTargetMappings.length > 0) {
+    const firstMapping = release.platformTargetMappings[0];
+    if (firstMapping?.version) {
+      // Remove 'v' prefix if present for cleaner display
+      return firstMapping.version.replace(/^v/, '');
+    }
+  }
+  
+  // Priority 2: Extract version from branch name
+  if (release.branch) {
+    const match = release.branch.match(/v?(\d+\.\d+\.\d+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+  
+  // Priority 3: Use releaseId as last resort (but this is usually an identifier, not a version)
+  // Only use if it looks like a version number
+  if (release.releaseId) {
+    const versionMatch = release.releaseId.match(/(\d+\.\d+\.\d+)/);
+    if (versionMatch) {
+      return versionMatch[1];
+    }
+  }
+  
+  return 'Unknown';
+}
+

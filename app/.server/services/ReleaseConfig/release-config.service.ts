@@ -98,8 +98,6 @@ export class ReleaseConfigService {
       const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs?includeArchived=true`;
       console.log('[ReleaseConfigService] Listing configs for tenant:', tenantId, 'from:', url);
 
-      // Include archived configs by passing includeArchived=true query parameter
-      // ⚠️ Backend currently ignores this parameter (see comment above)
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -108,36 +106,35 @@ export class ReleaseConfigService {
         },
       });
 
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('[ReleaseConfigService] Non-JSON response:', contentType, '-', text.substring(0, 200));
+        throw new Error(`Backend returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType}`);
+      }
+
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('[ReleaseConfigService] List failed:', result);
+        console.error('[ReleaseConfigService] List failed:', response.status, result.error || result.message);
         return {
           success: false,
-          error: result.error || 'Failed to fetch release configurations',
+          error: result.error || result.message || 'Failed to fetch release configurations',
         };
       }
-
+      console.log('[ReleaseConfigService] List Configs result:', JSON.stringify(result, null, 2));
       console.log('[ReleaseConfigService] List successful:', result.data?.length || 0, 'configs');
-      // Log isActive status for each config
-      (result.data || []).forEach((config: any, idx: number) => {
-        console.log(`[ReleaseConfigService] Config ${idx + 1}: id=${config.id}, name=${config.name}, isActive=${config.isActive}`);
-      });
+
 
       const transformedConfigs = await Promise.all((result.data || []).map((config: any) => transformFromBackend(config, userId)));
-      
-      // Log transformed configs
-      console.log('[ReleaseConfigService] Transformed configs:');
-      transformedConfigs.forEach((config: any, idx: number) => {
-        console.log(`  ${idx + 1}. id=${config.id}, name=${config.name}, isActive=${config.isActive}`);
-      });
 
       return {
         success: true,
-        data: transformedConfigs, // Transform each config
+        data: transformedConfigs,
       };
     } catch (error: any) {
-      console.error('[ReleaseConfigService] List error:', error);
+      console.error('[ReleaseConfigService] List error:', error.message || error);
       return {
         success: false,
         error: error.message || 'Internal server error',

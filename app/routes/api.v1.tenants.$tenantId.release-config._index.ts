@@ -107,10 +107,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return config;
     }) ?? [];
 
-    // console.log('[BFF] List successful:', transformedConfigs.length, 'configs');
+    console.log('[BFF] List successful:', transformedConfigs.length, 'configs (active:', transformedConfigs.filter((c: any) => c.isActive).length + ', archived:', transformedConfigs.filter((c: any) => !c.isActive).length + ')');
+    
     return json({ success: true, data: transformedConfigs }, { status: 200 });
   } catch (error: any) {
-    console.error('[BFF] List error:', error);
+    console.error('[BFF] List error:', error.message || error);
     return json(
       { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }

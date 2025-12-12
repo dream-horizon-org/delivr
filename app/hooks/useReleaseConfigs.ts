@@ -30,10 +30,11 @@ export function useReleaseConfigs(tenantId?: string) {
         `/api/v1/tenants/${tenantId}/release-config`
       );
       
-      console.log('[useReleaseConfigs] Received', result.data?.length || 0, 'configs');
-      (result.data || []).forEach((config: any, idx: number) => {
-        console.log(`[useReleaseConfigs] Config ${idx + 1}: id=${config.id}, name=${config.name}, isActive=${config.isActive}`);
-      });
+      console.log('[useReleaseConfigs] Received', result.data?.length || 0, 'configs', result.success ? 'successfully' : 'with error');
+      
+      if (result.error) {
+        console.error('[useReleaseConfigs] Error:', result.error);
+      }
       
       return {
         success: result.success,
