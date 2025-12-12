@@ -9,13 +9,13 @@
  * 
  * States can call: context.getCronJobRepo(), context.getReleaseId(), etc.
  * 
- * Status: ✅ Fully implemented with all 3 states (Kickoff, Regression, Post-Regression)
+ * Status: ✅ Fully implemented with all 3 states (Kickoff, Regression, Pre-Release)
  */
 
 import { ICronJobState } from './states/cron-job-state.interface';
 import { KickoffState } from './states/kickoff.state';
 import { RegressionState } from './states/regression.state';
-import { PostRegressionState } from './states/post-regression.state';
+import { PreReleaseState } from './states/pre-release.state';
 import { CronJobRepository } from '~models/release/cron-job.repository';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
@@ -165,8 +165,8 @@ export class CronJobStateMachine {
 
         // No slots - proceed with normal Stage 3 transition logic
         if (cronJob.autoTransitionToStage3) {
-          this.currentState = new PostRegressionState(this);
-          console.log(`[StateMachine] Initialized with PostRegressionState (starting from PENDING)`);
+          this.currentState = new PreReleaseState(this);
+          console.log(`[StateMachine] Initialized with PreReleaseState (starting from PENDING)`);
         } else {
           // Auto-transition disabled - waiting for manual trigger
           console.log(
@@ -204,8 +204,8 @@ export class CronJobStateMachine {
       this.currentState = new RegressionState(this);
       console.log(`[StateMachine] Initialized with RegressionState for release ${this.releaseId}`);
     } else if (cronJob.stage3Status === StageStatus.IN_PROGRESS) {
-      this.currentState = new PostRegressionState(this);
-      console.log(`[StateMachine] Initialized with PostRegressionState for release ${this.releaseId}`);
+      this.currentState = new PreReleaseState(this);
+      console.log(`[StateMachine] Initialized with PreReleaseState for release ${this.releaseId}`);
     }
   }
 

@@ -7,7 +7,7 @@
  * Test Categories:
  * - Kick off State (Stage 1) - State identity, task execution, completion
  * - Regression State (Stage 2) - Cycle creation, task execution, stage completion
- * - Post-Regression State (Stage 3) - Task creation, execution, workflow completion
+ * - Pre-Release State (Stage 3) - Task creation, execution, workflow completion
  * - State Machine - Initialization, state transitions, full workflows
  */
 
@@ -62,7 +62,7 @@ jest.mock('../../../script/utils/task-creation', () => ({
 
 import { KickoffState } from '../../../script/services/release/cron-job/states/kickoff.state';
 import { RegressionState } from '../../../script/services/release/cron-job/states/regression.state';
-import { PostRegressionState } from '../../../script/services/release/cron-job/states/post-regression.state';
+import { PreReleaseState } from '../../../script/services/release/cron-job/states/pre-release.state';
 import { CronJobStateMachine } from '../../../script/services/release/cron-job/cron-job-state-machine';
 import { 
   TaskStage, 
@@ -934,10 +934,10 @@ describe('Release Orchestration - Unit Tests', () => {
   });
 
   // ================================================================================
-  // TESTS: POST-REGRESSION STATE (STAGE 3)
+  // TESTS: PRE-RELEASE STATE (STAGE 3)
   // ================================================================================
 
-  describe('PostRegressionState (Stage 3)', () => {
+  describe('PreReleaseState (Stage 3)', () => {
     let mockDeps: {
       mockCronJobDTO: ReturnType<typeof createMockCronJobDTO>;
       mockReleaseDTO: ReturnType<typeof createMockReleaseDTO>;
@@ -971,7 +971,7 @@ describe('Release Orchestration - Unit Tests', () => {
     });
 
     describe('Basic State Pattern Mechanics', () => {
-      it('should create PostRegressionState and verify it implements ICronJobState', () => {
+      it('should create PreReleaseState and verify it implements ICronJobState', () => {
         const stateMachine = new CronJobStateMachine(
           mockReleaseId,
           mockDeps.mockCronJobDTO as any,
@@ -982,14 +982,14 @@ describe('Release Orchestration - Unit Tests', () => {
           mockDeps.mockStorage as any,
           mockDeps.mockPlatformMappingRepo as any
         );
-        const postRegressionState = new PostRegressionState(stateMachine);
+        const preReleaseState = new PreReleaseState(stateMachine);
         
-        expect(postRegressionState).toBeDefined();
-        expect(postRegressionState).toHaveProperty('execute');
-        expect(postRegressionState).toHaveProperty('isComplete');
-        expect(postRegressionState).toHaveProperty('transitionToNext');
-        expect(postRegressionState).toHaveProperty('getStage');
-        expect(postRegressionState.getStage()).toBe('POST_REGRESSION');
+        expect(preReleaseState).toBeDefined();
+        expect(preReleaseState).toHaveProperty('execute');
+        expect(preReleaseState).toHaveProperty('isComplete');
+        expect(preReleaseState).toHaveProperty('transitionToNext');
+        expect(preReleaseState).toHaveProperty('getStage');
+        expect(preReleaseState.getStage()).toBe('PRE_RELEASE');
       });
 
       it('should demonstrate State Machine initialization with Stage 3', async () => {
@@ -1012,7 +1012,7 @@ describe('Release Orchestration - Unit Tests', () => {
         );
         await stateMachine.initialize();
 
-        expect(stateMachine['currentState']).toBeInstanceOf(PostRegressionState);
+        expect(stateMachine['currentState']).toBeInstanceOf(PreReleaseState);
       });
     });
 
@@ -1091,7 +1091,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING),
-          createMockTask(TaskType.SEND_POST_REGRESSION_MESSAGE, TaskStatus.PENDING),
+          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.PENDING),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1161,7 +1161,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.COMPLETED),
-          createMockTask(TaskType.SEND_POST_REGRESSION_MESSAGE, TaskStatus.COMPLETED),
+          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.COMPLETED),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1177,8 +1177,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
         await stateMachine.initialize();
         
-        const postRegressionState = stateMachine['currentState'] as PostRegressionState;
-        const isComplete = await postRegressionState.isComplete();
+        const preReleaseState = stateMachine['currentState'] as PreReleaseState;
+        const isComplete = await preReleaseState.isComplete();
 
         expect(isComplete).toBe(true);
       });
@@ -1194,7 +1194,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.COMPLETED),
-          createMockTask(TaskType.SEND_POST_REGRESSION_MESSAGE, TaskStatus.PENDING),
+          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.PENDING),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1210,8 +1210,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
         await stateMachine.initialize();
         
-        const postRegressionState = stateMachine['currentState'] as PostRegressionState;
-        const isComplete = await postRegressionState.isComplete();
+        const preReleaseState = stateMachine['currentState'] as PreReleaseState;
+        const isComplete = await preReleaseState.isComplete();
 
         expect(isComplete).toBe(false);
       });
@@ -1289,7 +1289,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING), // Optional
-          createMockTask(TaskType.SEND_POST_REGRESSION_MESSAGE, TaskStatus.COMPLETED), // Required
+          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.COMPLETED), // Required
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1310,8 +1310,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
         await stateMachine.initialize();
         
-        const postRegressionState = stateMachine['currentState'] as PostRegressionState;
-        const isComplete = await postRegressionState.isComplete();
+        const preReleaseState = stateMachine['currentState'] as PreReleaseState;
+        const isComplete = await preReleaseState.isComplete();
 
         // Verify: Stage 3 IS complete (optional task ignored)
         expect(isComplete).toBe(true);
@@ -2420,7 +2420,7 @@ describe('Release Orchestration - Unit Tests', () => {
         // Arrange
         const waitingTask = {
           ...createMockTask(TaskType.TRIGGER_TEST_FLIGHT_BUILD, TaskStatus.AWAITING_CALLBACK),
-          taskStage: TaskStage.POST_REGRESSION,
+          taskStage: TaskStage.PRE_RELEASE,
         };
 
         mockDeps.mockReleaseTasksDTO.findByReleaseId.mockResolvedValue([waitingTask]);

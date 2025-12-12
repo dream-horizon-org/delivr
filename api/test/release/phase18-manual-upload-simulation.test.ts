@@ -443,11 +443,11 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const taskRepo = createMockTaskRepo();
       
       // iOS Task (TestFlight)
-      const iosTask = createTask(release.id, TaskType.TRIGGER_TEST_FLIGHT_BUILD, TaskStage.POST_REGRESSION);
+      const iosTask = createTask(release.id, TaskType.TRIGGER_TEST_FLIGHT_BUILD, TaskStage.PRE_RELEASE);
       iosTask.taskStatus = TaskStatus.AWAITING_CALLBACK;
       
       // Android Task (AAB)
-      const androidTask = createTask(release.id, TaskType.CREATE_AAB_BUILD, TaskStage.POST_REGRESSION);
+      const androidTask = createTask(release.id, TaskType.CREATE_AAB_BUILD, TaskStage.PRE_RELEASE);
       androidTask.taskStatus = TaskStatus.AWAITING_CALLBACK;
       
       // Upload iOS only first

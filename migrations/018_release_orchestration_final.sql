@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS release_tasks (
   taskType VARCHAR(255) NOT NULL COMMENT 'Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)',
   taskStatus ENUM('PENDING', 'IN_PROGRESS', 'AWAITING_CALLBACK', 'AWAITING_MANUAL_BUILD', 'COMPLETED', 'FAILED', 'SKIPPED') NOT NULL DEFAULT 'PENDING' COMMENT 'Task execution status (AWAITING_CALLBACK for CI/CD, AWAITING_MANUAL_BUILD for manual uploads)',
   taskConclusion ENUM('success', 'failure', 'cancelled', 'skipped'),
-  stage ENUM('KICKOFF', 'REGRESSION', 'POST_REGRESSION') NOT NULL COMMENT 'Which stage this task belongs to',
+  stage ENUM('KICKOFF', 'REGRESSION', 'PRE_RELEASE') NOT NULL COMMENT 'Which stage this task belongs to',
   branch VARCHAR(255),
   isReleaseKickOffTask BOOLEAN NOT NULL DEFAULT FALSE,
   isRegressionSubTasks BOOLEAN NOT NULL DEFAULT FALSE,

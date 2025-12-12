@@ -23,7 +23,7 @@ import { createReleaseTaskModel } from '../../../../script/models/release/releas
 import { createRegressionCycleModel } from '../../../../script/models/release/regression-cycle.sequelize.model';
 import { CronJobStateMachine } from '../../../../script/services/release/cron-job/cron-job-state-machine';
 import { RegressionState } from '../../../../script/services/release/cron-job/states/regression.state';
-import { PostRegressionState } from '../../../../script/services/release/cron-job/states/post-regression.state';
+import { PreReleaseState } from '../../../../script/services/release/cron-job/states/pre-release.state';
 import { KickoffState } from '../../../../script/services/release/cron-job/states/kickoff.state';
 import { StageStatus, CronStatus, ReleaseType, RegressionCycleStatus, TaskStage } from '../../../../script/models/release/release.interface';
 import { initializeStorage, getStorage } from '../../../../script/storage/storage-instance';
@@ -1344,7 +1344,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         expect(currentState).toBeInstanceOf(RegressionState);
       });
 
-      test('Should initialize PostRegressionState when Stage 2 COMPLETED and NO slots', async () => {
+      test('Should initialize PreReleaseState when Stage 2 COMPLETED and NO slots', async () => {
         const cronJob = await createTestCronJob(cronJobRepo, {
           releaseId: testReleaseId,
           accountId: testAccountId,
@@ -1364,7 +1364,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         const stateMachine = await createStateMachine(testReleaseId);
 
         const currentState = stateMachine.getCurrentState();
-        expect(currentState).toBeInstanceOf(PostRegressionState);
+        expect(currentState).toBeInstanceOf(PreReleaseState);
       });
 
       test('Should initialize to null when Stage 2 COMPLETED, no slots, manual Stage 3', async () => {
@@ -1442,7 +1442,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         const stateMachine = await createStateMachine(testReleaseId);
 
         const currentState = stateMachine.getCurrentState();
-        expect(currentState).toBeInstanceOf(PostRegressionState);
+        expect(currentState).toBeInstanceOf(PreReleaseState);
         expect(currentState).not.toBeInstanceOf(RegressionState);
       });
 
@@ -1530,7 +1530,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         expect(currentState).toBeInstanceOf(RegressionState);
       });
 
-      test('Should initialize PostRegressionState when Stage 3 IN_PROGRESS', async () => {
+      test('Should initialize PreReleaseState when Stage 3 IN_PROGRESS', async () => {
         const cronJob = await createTestCronJob(cronJobRepo, {
           releaseId: testReleaseId,
           accountId: testAccountId,
@@ -1549,7 +1549,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         const stateMachine = await createStateMachine(testReleaseId);
 
         const currentState = stateMachine.getCurrentState();
-        expect(currentState).toBeInstanceOf(PostRegressionState);
+        expect(currentState).toBeInstanceOf(PreReleaseState);
       });
     });
 
@@ -1558,7 +1558,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
     // ========================================================================
 
     describe('Empty vs Null Slots Handling', () => {
-      test('Should treat empty array as NO slots (initialize PostRegressionState)', async () => {
+      test('Should treat empty array as NO slots (initialize PreReleaseState)', async () => {
         const cronJob = await createTestCronJob(cronJobRepo, {
           releaseId: testReleaseId,
           accountId: testAccountId,
@@ -1577,10 +1577,10 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         const stateMachine = await createStateMachine(testReleaseId);
 
         const currentState = stateMachine.getCurrentState();
-        expect(currentState).toBeInstanceOf(PostRegressionState);
+        expect(currentState).toBeInstanceOf(PreReleaseState);
       });
 
-      test('Should treat null as NO slots (initialize PostRegressionState)', async () => {
+      test('Should treat null as NO slots (initialize PreReleaseState)', async () => {
         const cronJob = await createTestCronJob(cronJobRepo, {
           releaseId: testReleaseId,
           accountId: testAccountId,
@@ -1599,7 +1599,7 @@ describe('Flexible Regression Slots - Comprehensive Test Suite', () => {
         const stateMachine = await createStateMachine(testReleaseId);
 
         const currentState = stateMachine.getCurrentState();
-        expect(currentState).toBeInstanceOf(PostRegressionState);
+        expect(currentState).toBeInstanceOf(PreReleaseState);
       });
 
       test('Should detect slots when stringified JSON', async () => {

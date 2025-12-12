@@ -2,7 +2,7 @@
  * Awaiting Manual Build Handler Utility
  * 
  * Handles tasks that are waiting for manual build uploads.
- * Called by cron states (Kickoff, Regression, PostRegression) to check
+ * Called by cron states (Kickoff, Regression, PreRelease) to check
  * if manual uploads are available and ready to be consumed.
  * 
  * Flow:

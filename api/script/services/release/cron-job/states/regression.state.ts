@@ -21,7 +21,7 @@ import { checkIntegrationAvailability } from '~utils/integration-availability.ut
 import { isRegressionSlotTime } from '~utils/time-utils';
 import { createRegressionCycleWithTasks } from '~utils/regression-cycle-creation';
 import { getOrderedTasks, canExecuteTask, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
-import { PostRegressionState } from './post-regression.state';
+import { PreReleaseState } from './pre-release.state';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class RegressionState implements ICronJobState {
@@ -431,13 +431,13 @@ export class RegressionState implements ICronJobState {
       console.log(`[RegressionState] ✅ Transitioned: Stage 2 → Stage 3 (automatic)`);
       
       // Set next state
-      this.context.setState(new PostRegressionState(this.context));
+      this.context.setState(new PreReleaseState(this.context));
       
-      // Start Stage 3 cron (State Machine will handle PostRegressionState execution)
+      // Start Stage 3 cron (State Machine will handle PreReleaseState execution)
       startCronJob(releaseId, async () => {
         await this.context.execute();
       });
-      console.log(`[RegressionState] Started post-regression cron job for release ${releaseId}`);
+      console.log(`[RegressionState] Started pre-release cron job for release ${releaseId}`);
     } else {
       console.log(`[RegressionState] Stage 2 complete. Waiting for manual Stage 3 trigger (autoTransitionToStage3 = false)`);
       

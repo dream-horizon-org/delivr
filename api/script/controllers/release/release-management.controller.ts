@@ -283,7 +283,7 @@ export class ReleaseManagementController {
   /**
    * Get tasks for a release
    * Query params:
-   * - stage: Optional stage filter (KICKOFF, REGRESSION, POST_REGRESSION)
+   * - stage: Optional stage filter (KICKOFF, REGRESSION, PRE_RELEASE)
    */
   getTasks = async (req: Request, res: Response): Promise<Response> => {
     try {

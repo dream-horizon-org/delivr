@@ -12,7 +12,7 @@ export type ReleaseTaskAttributes = {
   taskType: string; // Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)
   taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'AWAITING_MANUAL_BUILD' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
   taskConclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
-  stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION';
+  stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   branch: string | null;
   isReleaseKickOffTask: boolean;
   isRegressionSubTasks: boolean;
@@ -75,7 +75,7 @@ export const createReleaseTaskModel = (
         field: 'taskConclusion'
       },
       stage: {
-        type: DataTypes.ENUM('KICKOFF', 'REGRESSION', 'POST_REGRESSION'),
+        type: DataTypes.ENUM('KICKOFF', 'REGRESSION', 'PRE_RELEASE'),
         allowNull: false,
         field: 'stage',
         comment: 'Which stage this task belongs to'

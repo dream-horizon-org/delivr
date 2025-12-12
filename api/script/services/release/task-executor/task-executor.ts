@@ -441,7 +441,7 @@ export class TaskExecutor {
       case TaskType.SEND_REGRESSION_BUILD_MESSAGE:
         return await this.executeSendRegressionBuildMessage(context);
 
-      // Stage 3 (Post-Regression) tasks
+      // Stage 3 (Pre-Release) tasks
       case TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER:
         return await this.executePreReleaseCherryPicksReminder(context);
 
@@ -454,8 +454,8 @@ export class TaskExecutor {
       case TaskType.CREATE_AAB_BUILD:
         return await this.executeCreateAABBuild(context);
 
-      case TaskType.SEND_POST_REGRESSION_MESSAGE:
-        return await this.executeSendPostRegressionMessage(context);
+      case TaskType.SEND_PRE_RELEASE_MESSAGE:
+        return await this.executeSendPreReleaseMessage(context);
 
       case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
         return await this.executeCheckProjectReleaseApproval(context);
@@ -1816,17 +1816,17 @@ export class TaskExecutor {
   }
 
   /**
-   * Execute SEND_POST_REGRESSION_MESSAGE task
+   * Execute SEND_PRE_RELEASE_MESSAGE task
    * 
-   * Sends post-regression notification (approval request message).
+   * Sends pre-release notification (approval request message).
    */
   /**
-   * Execute SEND_POST_REGRESSION_MESSAGE task (Category B)
+   * Execute SEND_PRE_RELEASE_MESSAGE task (Category B)
    * 
-   * Sends post-regression notification.
+   * Sends pre-release notification.
    * Returns: Object with message details
    */
-  private async executeSendPostRegressionMessage(
+  private async executeSendPreReleaseMessage(
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
@@ -1838,16 +1838,16 @@ export class TaskExecutor {
 
     // If comms not configured, mark task as SKIPPED (not FAILED)
     if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] SEND_POST_REGRESSION_MESSAGE: comms not configured, marking as SKIPPED`);
+      console.log(`[TaskExecutor] SEND_PRE_RELEASE_MESSAGE: comms not configured, marking as SKIPPED`);
       await this.releaseTaskRepo.update(task.id, {
         taskStatus: TaskStatus.SKIPPED
       });
       return { skipped: true, reason: 'comms_not_configured' };
     }
 
-    // TODO: Define Task enum value for post-regression message in messaging.interface.ts
+    // TODO: Define Task enum value for pre-release message in messaging.interface.ts
     // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] SEND_POST_REGRESSION_MESSAGE: messaging not implemented, marking as SKIPPED`);
+    console.log(`[TaskExecutor] SEND_PRE_RELEASE_MESSAGE: messaging not implemented, marking as SKIPPED`);
     await this.releaseTaskRepo.update(task.id, {
       taskStatus: TaskStatus.SKIPPED
     });

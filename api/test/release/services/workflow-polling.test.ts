@@ -389,7 +389,7 @@ describe('Workflow Polling Service', () => {
     });
     
     it('should delete jobs on release COMPLETED', async () => {
-      // When release completes (transitionToNext in PostRegressionState)
+      // When release completes (transitionToNext in PreReleaseState)
       // Should delete both workflow polling jobs
       
       const releaseId = 'release-abc123';

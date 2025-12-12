@@ -76,13 +76,13 @@ export enum TaskType {
   TRIGGER_AUTOMATION_RUNS = 'TRIGGER_AUTOMATION_RUNS',
   AUTOMATION_RUNS = 'AUTOMATION_RUNS',
   SEND_REGRESSION_BUILD_MESSAGE = 'SEND_REGRESSION_BUILD_MESSAGE',
-  // Stage 3: Post-Regression (7 tasks)
+  // Stage 3: Pre-Release (7 tasks)
   PRE_RELEASE_CHERRY_PICKS_REMINDER = 'PRE_RELEASE_CHERRY_PICKS_REMINDER',
   CREATE_RELEASE_TAG = 'CREATE_RELEASE_TAG',
   CREATE_FINAL_RELEASE_NOTES = 'CREATE_FINAL_RELEASE_NOTES',
   TRIGGER_TEST_FLIGHT_BUILD = 'TRIGGER_TEST_FLIGHT_BUILD',
   CREATE_AAB_BUILD = 'CREATE_AAB_BUILD', // Android AAB build task
-  SEND_POST_REGRESSION_MESSAGE = 'SEND_POST_REGRESSION_MESSAGE',
+  SEND_PRE_RELEASE_MESSAGE = 'SEND_PRE_RELEASE_MESSAGE',
   CHECK_PROJECT_RELEASE_APPROVAL = 'CHECK_PROJECT_RELEASE_APPROVAL',
   // Manual API (1 task)
   SUBMIT_TO_TARGET = 'SUBMIT_TO_TARGET'
@@ -140,7 +140,7 @@ export enum StageStatus {
 export enum TaskStage {
   KICKOFF = 'KICKOFF',
   REGRESSION = 'REGRESSION',
-  POST_REGRESSION = 'POST_REGRESSION'
+  PRE_RELEASE = 'PRE_RELEASE'
 }
 
 /**
@@ -153,8 +153,8 @@ export type Phase =
   | 'AWAITING_REGRESSION'            // Stage 1 complete, waiting for Stage 2 trigger
   | 'REGRESSION'                     // Stage 2 running (current cycle active)
   | 'REGRESSION_AWAITING_NEXT_CYCLE' // Between regression cycles
-  | 'AWAITING_POST_REGRESSION'       // Stage 2 complete, waiting for Stage 3 trigger
-  | 'POST_REGRESSION'                // Stage 3 running
+  | 'AWAITING_PRE_RELEASE'       // Stage 2 complete, waiting for Stage 3 trigger
+  | 'PRE_RELEASE'                // Stage 3 running
   | 'AWAITING_SUBMISSION'            // Stage 3 complete, waiting for Stage 4 trigger
   | 'SUBMISSION'                     // Stage 4 running, release IN_PROGRESS
   | 'SUBMITTED_PENDING_APPROVAL'     // Stage 4 running, release SUBMITTED

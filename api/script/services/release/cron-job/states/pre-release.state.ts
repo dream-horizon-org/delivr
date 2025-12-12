@@ -1,13 +1,13 @@
 /**
- * PostRegressionState (Stage 3)
+ * PreReleaseState (Stage 3)
  * 
- * Handles Stage 3 (Post-Regression) execution:
+ * Handles Stage 3 (Pre-Release) execution:
  * - Creates Stage 3 tasks if not already created
  * - Executes Stage 3 tasks in order
  * - Detects Stage 3 completion
  * - Ends workflow when Stage 3 completes (no Stage 4)
  * 
- * Extracted from: post-regression-cron-job.ts
+ * Extracted from: pre-release-cron-job.ts
  */
 
 import { ICronJobState } from './cron-job-state.interface';
@@ -21,15 +21,15 @@ import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 import { deleteWorkflowPollingJobs } from '~services/release/workflow-polling';
 
-export class PostRegressionState implements ICronJobState {
+export class PreReleaseState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
 
   private getInstanceId(): string {
-    return `post-regression-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    return `pre-release-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
   }
 
   getStage(): TaskStage {
-    return TaskStage.POST_REGRESSION;
+    return TaskStage.PRE_RELEASE;
   }
 
   async execute(): Promise<void> {
@@ -40,7 +40,7 @@ export class PostRegressionState implements ICronJobState {
     const releaseTaskRepo = this.context.getReleaseTaskRepo();
     const taskExecutor = this.context.getTaskExecutor();
 
-    console.log(`[${instanceId}] [PostRegressionState] Executing Stage 3 for release ${releaseId}`);
+    console.log(`[${instanceId}] [PreReleaseState] Executing Stage 3 for release ${releaseId}`);
 
     try {
       // Use injected storage from context
@@ -49,24 +49,24 @@ export class PostRegressionState implements ICronJobState {
       // Start queries in parallel (lazy await pattern for early exit optimization)
       const cronJobPromise = cronJobRepo.findByReleaseId(releaseId);
       const releasePromise = releaseRepo.findById(releaseId);
-      const tasksPromise = releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.POST_REGRESSION);
+      const tasksPromise = releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.PRE_RELEASE);
       
       // Await in order of validation checks (enables early exit)
       const cronJob = await cronJobPromise;
       if (!cronJob || cronJob.stage3Status !== StageStatus.IN_PROGRESS) {
-        console.log(`[${instanceId}] [PostRegressionState] Stage 3 not in progress or cron job not found.`);
+        console.log(`[${instanceId}] [PreReleaseState] Stage 3 not in progress or cron job not found.`);
         return;  // Early exit - release + tasks queries still running but we don't wait
       }
 
       const release = await releasePromise;
       if (!release) {
-        console.log(`[${instanceId}] [PostRegressionState] Release ${releaseId} not found`);
+        console.log(`[${instanceId}] [PreReleaseState] Release ${releaseId} not found`);
         return;  // Early exit - tasks query still running but we don't wait
       }
 
       // ✅ ARCHIVE CHECK: Stop execution if release is archived
       if (release.status === ReleaseStatus.ARCHIVED) {
-        console.log(`[${instanceId}] [PostRegressionState] Release is ARCHIVED. Stopping execution.`);
+        console.log(`[${instanceId}] [PreReleaseState] Release is ARCHIVED. Stopping execution.`);
         
         // Update cron job status to PAUSED (if not already)
         if (cronJob.cronStatus !== CronStatus.PAUSED) {
@@ -117,10 +117,10 @@ export class PostRegressionState implements ICronJobState {
       // Check if Stage 3 tasks exist, create them if not
       
       if (existingStage3Tasks.length === 0) {
-        console.log(`[${instanceId}] [PostRegressionState] No Stage 3 tasks found. Creating Stage 3 tasks...`);
+        console.log(`[${instanceId}] [PreReleaseState] No Stage 3 tasks found. Creating Stage 3 tasks...`);
 
         try {
-          console.log(`[${instanceId}] [PostRegressionState] Creating Stage 3 tasks with config: hasProjectManagementIntegration=${integrationAvailability.hasProjectManagementIntegration}, hasIOSPlatform=${hasIOSPlatform}`);
+          console.log(`[${instanceId}] [PreReleaseState] Creating Stage 3 tasks with config: hasProjectManagementIntegration=${integrationAvailability.hasProjectManagementIntegration}, hasIOSPlatform=${hasIOSPlatform}`);
           const createdTaskIds = await createStage3Tasks(releaseTaskRepo, {
             releaseId,
             accountId: release.createdByAccountId || 'system',
@@ -129,18 +129,18 @@ export class PostRegressionState implements ICronJobState {
             hasIOSPlatform
           });
 
-          console.log(`[${instanceId}] [PostRegressionState] Stage 3 tasks created: ${createdTaskIds.length} tasks`);
+          console.log(`[${instanceId}] [PreReleaseState] Stage 3 tasks created: ${createdTaskIds.length} tasks`);
           
           // Return after creation to let next poll handle execution
           return;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`[${instanceId}] [PostRegressionState] Error creating Stage 3 tasks:`, errorMessage);
+          console.error(`[${instanceId}] [PreReleaseState] Error creating Stage 3 tasks:`, errorMessage);
           
           // Re-check if tasks exist now
-          const tasksAfterError = await releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.POST_REGRESSION);
+          const tasksAfterError = await releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.PRE_RELEASE);
           if (tasksAfterError.length > 0) {
-            console.log(`[${instanceId}] [PostRegressionState] Stage 3 tasks exist after error: ${tasksAfterError.length} tasks`);
+            console.log(`[${instanceId}] [PreReleaseState] Stage 3 tasks exist after error: ${tasksAfterError.length} tasks`);
           } else {
             throw error;
           }
@@ -150,7 +150,7 @@ export class PostRegressionState implements ICronJobState {
       }
 
       // Use existingStage3Tasks we already fetched (no need to fetch again)
-      console.log(`[${instanceId}] [PostRegressionState] Found ${existingStage3Tasks.length} Stage 3 tasks`);
+      console.log(`[${instanceId}] [PreReleaseState] Found ${existingStage3Tasks.length} Stage 3 tasks`);
 
       // ✅ MANUAL BUILD CHECK: Process any tasks waiting for manual builds
       if (release.hasManualBuildUpload) {
@@ -181,12 +181,12 @@ export class PostRegressionState implements ICronJobState {
             if (result.consumed) {
               justCompletedTaskIds.add(taskId);
               console.log(
-                `[${instanceId}] [PostRegressionState] Manual build consumed for task ${taskId}. ` +
+                `[${instanceId}] [PreReleaseState] Manual build consumed for task ${taskId}. ` +
                 `Task is now COMPLETED.`
               );
             } else if (result.checked && !result.allReady) {
               console.log(
-                `[${instanceId}] [PostRegressionState] Task ${taskId} still waiting for uploads. ` +
+                `[${instanceId}] [PreReleaseState] Task ${taskId} still waiting for uploads. ` +
                 `Missing: [${result.missingPlatforms.join(', ')}]`
               );
             }
@@ -201,7 +201,7 @@ export class PostRegressionState implements ICronJobState {
       const justCompletedTaskIds: Set<string> = (this as any)._justCompletedTaskIds ?? new Set();
 
       // Get ordered tasks
-      const orderedTasks = getOrderedTasks(existingStage3Tasks, TaskStage.POST_REGRESSION);
+      const orderedTasks = getOrderedTasks(existingStage3Tasks, TaskStage.PRE_RELEASE);
       
       const config: OptionalTaskConfig = {
         cronConfig: cronJob.cronConfig || {},
@@ -220,11 +220,11 @@ export class PostRegressionState implements ICronJobState {
           continue;
         }
         
-        const blockReason = getTaskBlockReason(task, orderedTasks, TaskStage.POST_REGRESSION, config, isTimeToExecute);
+        const blockReason = getTaskBlockReason(task, orderedTasks, TaskStage.PRE_RELEASE, config, isTimeToExecute);
         const canExecute = blockReason === 'EXECUTABLE';
         
         if (canExecute) {
-          console.log(`[${instanceId}] [PostRegressionState] Executing task: ${task.taskType} (${task.id})`);
+          console.log(`[${instanceId}] [PreReleaseState] Executing task: ${task.taskType} (${task.id})`);
           
           try {
             await taskExecutor.executeTask({
@@ -234,22 +234,22 @@ export class PostRegressionState implements ICronJobState {
               task
             });
             
-            console.log(`[${instanceId}] [PostRegressionState] Task ${task.taskType} executed successfully`);
+            console.log(`[${instanceId}] [PreReleaseState] Task ${task.taskType} executed successfully`);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(`[${instanceId}] [PostRegressionState] Task ${task.taskType} execution failed:`, errorMessage);
+            console.error(`[${instanceId}] [PreReleaseState] Task ${task.taskType} execution failed:`, errorMessage);
           }
         } else {
           // Only log non-completed tasks to reduce noise
           const isAlreadyDone = blockReason === 'ALREADY_COMPLETED' || blockReason === 'ALREADY_SKIPPED';
           if (!isAlreadyDone) {
-            console.log(`[${instanceId}] [PostRegressionState] Task ${task.taskType} blocked: ${blockReason}`);
+            console.log(`[${instanceId}] [PreReleaseState] Task ${task.taskType} blocked: ${blockReason}`);
           }
         }
       }
 
     } catch (error) {
-      console.error(`[${instanceId}] [PostRegressionState] Error during execution:`, error);
+      console.error(`[${instanceId}] [PreReleaseState] Error during execution:`, error);
     }
   }
 
@@ -262,7 +262,7 @@ export class PostRegressionState implements ICronJobState {
     // 🚀 Start all queries immediately (lazy await pattern for early exit optimization)
     const cronJobPromise = cronJobRepo.findByReleaseId(releaseId);
     const releasePromise = releaseRepo.findById(releaseId);
-    const tasksPromise = releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.POST_REGRESSION);
+    const tasksPromise = releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.PRE_RELEASE);
 
     // ⚡ Await in order (enables early exit)
     const cronJob = await cronJobPromise;
@@ -301,7 +301,7 @@ export class PostRegressionState implements ICronJobState {
       return task.taskStatus === 'COMPLETED';
     });
 
-    console.log(`[PostRegressionState] isComplete() = ${allComplete} (${allStage3Tasks.length} tasks)`);
+    console.log(`[PreReleaseState] isComplete() = ${allComplete} (${allStage3Tasks.length} tasks)`);
     
     return allComplete;
   }
@@ -312,11 +312,11 @@ export class PostRegressionState implements ICronJobState {
 
     const cronJob = await cronJobRepo.findByReleaseId(releaseId);
     if (!cronJob) {
-      console.log(`[PostRegressionState] Cannot transition: Cron job not found for release ${releaseId}`);
+      console.log(`[PreReleaseState] Cannot transition: Cron job not found for release ${releaseId}`);
       return;
     }
 
-    console.log(`[PostRegressionState] Stage 3 complete. Ending workflow (no Stage 4)...`);
+    console.log(`[PreReleaseState] Stage 3 complete. Ending workflow (no Stage 4)...`);
     
     await cronJobRepo.update(cronJob.id, {
       stage3Status: StageStatus.COMPLETED,
@@ -325,8 +325,8 @@ export class PostRegressionState implements ICronJobState {
     });
 
     stopCronJob(releaseId);
-    console.log(`[PostRegressionState] ✅ Workflow COMPLETED: Stage 3 done, cron stopped`);
-    console.log(`[PostRegressionState] Note: Release workflow ends here - no Stage 4. Submission tasks (SUBMIT_TO_TARGET) are manual APIs.`);
+    console.log(`[PreReleaseState] ✅ Workflow COMPLETED: Stage 3 done, cron stopped`);
+    console.log(`[PreReleaseState] Note: Release workflow ends here - no Stage 4. Submission tasks (SUBMIT_TO_TARGET) are manual APIs.`);
 
     // Delete workflow polling Cronicle jobs (release is COMPLETED)
     await this.deleteWorkflowPollingJobs(releaseId);
@@ -342,7 +342,7 @@ export class PostRegressionState implements ICronJobState {
     
     const cronicleNotAvailable = !cronicleService;
     if (cronicleNotAvailable) {
-      console.log(`[PostRegressionState] Cronicle not available, skipping workflow polling job deletion for release ${releaseId}`);
+      console.log(`[PreReleaseState] Cronicle not available, skipping workflow polling job deletion for release ${releaseId}`);
       return;
     }
 
@@ -352,15 +352,15 @@ export class PostRegressionState implements ICronJobState {
         cronicleService
       });
 
-      console.log(`[PostRegressionState] Workflow polling jobs deletion for release ${releaseId}: pending=${result.pendingDeleted}, running=${result.runningDeleted}`);
+      console.log(`[PreReleaseState] Workflow polling jobs deletion for release ${releaseId}: pending=${result.pendingDeleted}, running=${result.runningDeleted}`);
       
       const hasErrors = result.errors.length > 0;
       if (hasErrors) {
-        console.warn(`[PostRegressionState] Some workflow polling jobs could not be deleted:`, result.errors);
+        console.warn(`[PreReleaseState] Some workflow polling jobs could not be deleted:`, result.errors);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[PostRegressionState] Error deleting workflow polling jobs for release ${releaseId}:`, errorMessage);
+      console.error(`[PreReleaseState] Error deleting workflow polling jobs for release ${releaseId}:`, errorMessage);
       // Don't throw - cleanup failures shouldn't block release completion
     }
   }
