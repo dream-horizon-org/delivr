@@ -1,12 +1,15 @@
 /**
  * Release Config BFF Service
  * Handles communication with backend Release Config API
+ * 
+ * Supports mock mode via DELIVR_HYBRID_MODE=true
  */
 
+import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { prepareReleaseConfigPayload, prepareUpdatePayload, transformFromBackend, logTransformation } from './release-config-payload';
+import { logTransformation, prepareReleaseConfigPayload, prepareUpdatePayload, transformFromBackend } from './release-config-payload';
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+const BACKEND_API_URL = getBackendBaseURL();
 
 export class ReleaseConfigService {
   /**

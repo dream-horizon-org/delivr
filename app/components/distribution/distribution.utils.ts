@@ -1,0 +1,307 @@
+/**
+ * Distribution Module - Pure Utility Functions
+ * 
+ * Reusable, testable functions with no React dependencies.
+ * Each function is a single-purpose, deterministic transformation.
+ */
+
+import {
+  BUILD_UPLOAD_STATUS_COLORS,
+  BUILD_UPLOAD_STATUS_LABELS,
+  EVENT_COLORS,
+  EVENT_LABELS,
+  RELEASE_STATUS_COLORS,
+  ROLLOUT_COMPLETE_PERCENT,
+  ROLLOUT_STATUS_COLORS,
+  ROLLOUT_STATUS_LABELS,
+} from '~/constants/distribution.constants';
+import type {
+  AvailableAction,
+  Build,
+  EventState,
+  PMApprovalStatus,
+  ReleaseStatus,
+  RolloutAction,
+  RolloutEventState,
+  SubmissionHistoryEventType,
+} from '~/types/distribution.types';
+import {
+  BuildStrategy,
+  BuildUploadStatus,
+  Platform,
+  SubmissionAction,
+  SubmissionStatus,
+} from '~/types/distribution.types';
+import type {
+  ActionAvailability,
+  ApprovalState,
+  BuildState,
+} from './distribution.types';
+
+// ============================================================================
+// TYPE GUARDS
+// ============================================================================
+
+/**
+ * Type guard to check if EventState is a RolloutEventState
+ */
+export function isRolloutState(value: EventState): value is RolloutEventState {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'percentage' in value &&
+    typeof value.percentage === 'number'
+  );
+}
+
+// ============================================================================
+// PLATFORM UTILITIES
+// ============================================================================
+
+/**
+ * Check if platform is Android
+ */
+export function isAndroidPlatform(platform: Platform): boolean {
+  return platform === Platform.ANDROID;
+}
+
+/**
+ * Check if platform is iOS
+ */
+export function isIOSPlatform(platform: Platform): boolean {
+  return platform === Platform.IOS;
+}
+
+// ============================================================================
+// DATE FORMATTING
+// ============================================================================
+
+/**
+ * Format ISO date string to locale date
+ */
+export function formatDate(isoString: string): string {
+  return new Date(isoString).toLocaleDateString();
+}
+
+/**
+ * Format ISO date string to locale date and time
+ */
+export function formatDateTime(isoString: string): string {
+  return new Date(isoString).toLocaleString();
+}
+
+/**
+ * Format ISO date string to relative time (e.g., "2 days ago", "3 hours ago")
+ */
+export function formatRelativeTime(isoString: string | null): string {
+  if (!isoString) return 'N/A';
+  
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  
+  if (diffDay > 0) {
+    return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
+  }
+  if (diffHour > 0) {
+    return `${diffHour} hour${diffHour === 1 ? '' : 's'} ago`;
+  }
+  if (diffMin > 0) {
+    return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
+  }
+  return 'just now';
+}
+
+// ============================================================================
+// BUILD UTILITIES
+// ============================================================================
+
+/**
+ * Derive build state from props (pure function, not a hook)
+ */
+export function deriveBuildState(
+  build: Build | null,
+  platform: Platform,
+  buildStrategy: BuildStrategy
+): BuildState {
+  const hasBuild = build !== null;
+  const isUploaded = build?.buildUploadStatus === BuildUploadStatus.UPLOADED;
+  const isUploading = build?.buildUploadStatus === BuildUploadStatus.UPLOADING;
+  const isFailed = build?.buildUploadStatus === BuildUploadStatus.FAILED;
+  const isPending = build?.buildUploadStatus === BuildUploadStatus.PENDING;
+  
+  const isManualMode = buildStrategy === BuildStrategy.MANUAL;
+  const isAndroid = isAndroidPlatform(platform);
+  const isIOS = isIOSPlatform(platform);
+  
+  const canUpload = isManualMode && isAndroid && !hasBuild;
+  const canVerify = isManualMode && isIOS && !hasBuild;
+  
+  const testingLink = isAndroid 
+    ? build?.internalTrackLink ?? null
+    : build?.testflightNumber 
+      ? `TestFlight #${build.testflightNumber}` 
+      : null;
+
+  const statusLabel = hasBuild 
+    ? BUILD_UPLOAD_STATUS_LABELS[build.buildUploadStatus] 
+    : 'Not Available';
+
+  const statusColor = hasBuild 
+    ? BUILD_UPLOAD_STATUS_COLORS[build.buildUploadStatus] 
+    : 'gray';
+
+  return {
+    hasBuild,
+    isUploaded,
+    isUploading,
+    isFailed,
+    isPending,
+    isManualMode,
+    isAndroid,
+    isIOS,
+    canUpload,
+    canVerify,
+    testingLink,
+    statusLabel,
+    statusColor,
+  };
+}
+
+// ============================================================================
+// APPROVAL UTILITIES
+// ============================================================================
+
+/**
+ * Derive approval state from PM status (pure function, not a hook)
+ */
+export function deriveApprovalState(pmStatus: PMApprovalStatus): ApprovalState {
+  const hasIntegration = pmStatus.hasPmIntegration;
+  const isApproved = pmStatus.approved;
+  const requiresManualApproval = pmStatus.requiresManualApproval ?? false;
+  const ticket = pmStatus.pmTicket;
+  const blockedReason = pmStatus.blockedReason;
+  
+  const statusLabel = isApproved 
+    ? 'Approved' 
+    : hasIntegration 
+      ? ticket?.status ?? 'Pending'
+      : 'Manual Approval Required';
+
+  const statusColor = isApproved ? 'green' : hasIntegration ? 'yellow' : 'orange';
+
+  return {
+    hasIntegration,
+    isApproved,
+    requiresManualApproval,
+    ticket,
+    blockedReason,
+    statusLabel,
+    statusColor,
+  };
+}
+
+// ============================================================================
+// ROLLOUT UTILITIES
+// ============================================================================
+
+/**
+ * Derive action availability from props (pure function, not a hook)
+ */
+export function deriveActionAvailability(
+  availableActions: AvailableAction<RolloutAction>[],
+  status: SubmissionStatus,
+  platform: Platform,
+  currentPercentage: number
+): ActionAvailability {
+  const findAction = (actionName: RolloutAction) => 
+    availableActions.find(a => a.action === actionName);
+
+  const canUpdate = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.enabled ?? false;
+  const canPause = findAction(SubmissionAction.PAUSE as RolloutAction)?.enabled ?? false;
+  const canResume = findAction(SubmissionAction.RESUME as RolloutAction)?.enabled ?? false;
+  const canHalt = findAction(SubmissionAction.HALT as RolloutAction)?.enabled ?? false;
+
+  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason;
+  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason;
+  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason;
+  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason;
+
+  const supportsRollout = isAndroidPlatform(platform);
+  const isPaused = status === SubmissionStatus.IN_REVIEW;
+  const isComplete = status === SubmissionStatus.LIVE && currentPercentage === ROLLOUT_COMPLETE_PERCENT;
+
+  return {
+    canUpdate: canUpdate && supportsRollout,
+    canPause,
+    canResume,
+    canHalt,
+    updateReason,
+    pauseReason,
+    resumeReason,
+    haltReason,
+    supportsRollout,
+    isPaused,
+    isComplete,
+  };
+}
+
+/**
+ * Get rollout status for progress bar display
+ */
+export function getRolloutDisplayStatus(
+  percentage: number,
+  status: SubmissionStatus
+): 'active' | 'paused' | 'halted' | 'complete' {
+  if (percentage === ROLLOUT_COMPLETE_PERCENT) return 'complete';
+  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) return 'halted';
+  if (status === SubmissionStatus.IN_REVIEW) return 'paused';
+  return 'active';
+}
+
+/**
+ * Get rollout percentage display string from event state
+ */
+export function getRolloutPercentageDisplay(newState: EventState): string {
+  if (isRolloutState(newState)) {
+    return `${newState.percentage}%`;
+  }
+  return newState ? String(newState) : 'N/A';
+}
+
+// ============================================================================
+// STATUS COLOR/LABEL UTILITIES
+// ============================================================================
+
+/** Status to color mapping for release status */
+export function getReleaseStatusColor(status: ReleaseStatus): string {
+  return RELEASE_STATUS_COLORS[status];
+}
+
+/** Status to color mapping for rollout status */
+export function getRolloutStatusColor(status: 'active' | 'paused' | 'halted' | 'complete'): string {
+  return ROLLOUT_STATUS_COLORS[status];
+}
+
+/** Status to label mapping for rollout status */
+export function getRolloutStatusLabel(status: 'active' | 'paused' | 'halted' | 'complete'): string {
+  return ROLLOUT_STATUS_LABELS[status];
+}
+
+// ============================================================================
+// EVENT HISTORY UTILITIES
+// ============================================================================
+
+/** Event type to color mapping */
+export function getEventColor(eventType: SubmissionHistoryEventType): string {
+  return EVENT_COLORS[eventType];
+}
+
+/** Event type to label mapping */
+export function getEventLabel(eventType: SubmissionHistoryEventType): string {
+  return EVENT_LABELS[eventType];
+}

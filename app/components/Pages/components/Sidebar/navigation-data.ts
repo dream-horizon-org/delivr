@@ -1,13 +1,14 @@
 import {
-  IconRocket,
-  IconCloud,
+  IconAdjustmentsHorizontal,
+  IconApps,
   IconChartBar,
+  IconCloud,
+  IconGitBranch,
   IconList,
   IconPlug,
-  IconAdjustmentsHorizontal,
+  IconRocket,
+  IconSend,
   IconUsers,
-  IconApps,
-  IconGitBranch,
 } from "@tabler/icons-react";
 import type { Organization } from "./types";
 
@@ -49,6 +50,12 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
           icon: IconList,
           path: `/dashboard/${org.id}/releases/`,
           prefetch: "render",
+        },
+        {
+          label: "Distributions",
+          icon: IconSend,
+          path: `/dashboard/${org.id}/distributions`,
+          prefetch: "intent",
         },
         {
           label: "Configurations",

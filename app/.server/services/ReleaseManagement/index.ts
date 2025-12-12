@@ -5,11 +5,14 @@
  * Release Management Service
  * Consolidated service for all release operations
  * Uses real backend API calls for release CRUD operations
+ * 
+ * Supports mock mode via DELIVR_MOCK_MODE=true or DELIVR_HYBRID_MODE=true
  */
 
+import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+const BACKEND_API_URL = getBackendBaseURL();
 
 /**
  * Backend release response structure
