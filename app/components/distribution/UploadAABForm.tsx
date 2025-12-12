@@ -8,93 +8,37 @@
  * - Version info extraction display
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { useFetcher } from '@remix-run/react';
-import { 
-  Stack, 
-  Group, 
-  Text, 
-  Button, 
-  Progress, 
-  Paper,
+import {
   Alert,
   Box,
+  Button,
+  Group,
+  Paper,
+  Progress,
+  Stack,
+  Text,
 } from '@mantine/core';
-import { IconUpload, IconX, IconFile, IconAlertCircle } from '@tabler/icons-react';
-import { 
-  MAX_AAB_FILE_SIZE, 
-  MAX_AAB_FILE_SIZE_LABEL,
+import { IconAlertCircle, IconFile, IconUpload, IconX } from '@tabler/icons-react';
+import { useCallback, useRef } from 'react';
+import {
   BUTTON_LABELS,
-  ERROR_MESSAGES,
+  MAX_AAB_FILE_SIZE_LABEL
 } from '~/constants/distribution.constants';
-import type { BuildOperationResponse } from '~/types/distribution.types';
 import type { UploadAABFormProps } from './distribution.types';
+import { getDropZoneClassName } from './getDropZoneClassName';
+import { useUploadState } from './useUploadState';
 
-// ============================================================================
-// HELPER HOOKS
-// ============================================================================
-
-function useUploadState() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fetcher = useFetcher<BuildOperationResponse>();
-  
-  const isUploading = fetcher.state === 'submitting';
-  const uploadError = fetcher.data?.error?.message ?? null;
-  const uploadSuccess = fetcher.data?.success === true;
-
-  const clearFile = useCallback(() => {
-    setSelectedFile(null);
-    setValidationError(null);
-  }, []);
-
-  const validateFile = useCallback((file: File): string | null => {
-    // Check file extension
-    if (!file.name.endsWith('.aab')) {
-      return ERROR_MESSAGES.INVALID_FILE;
-    }
-    
-    // Check file size
-    if (file.size > MAX_AAB_FILE_SIZE) {
-      return ERROR_MESSAGES.FILE_TOO_LARGE;
-    }
-    
-    return null;
-  }, []);
-
-  const handleFileSelect = useCallback((file: File | null) => {
-    if (!file) return;
-
-    const error = validateFile(file);
-    if (error) {
-      setValidationError(error);
-      setSelectedFile(null);
-    } else {
-      setValidationError(null);
-      setSelectedFile(file);
-    }
-  }, [validateFile]);
-
-  return {
-    selectedFile,
-    validationError,
-    isDragging,
-    setIsDragging,
-    isUploading,
-    uploadError,
-    uploadSuccess,
-    fetcher,
-    clearFile,
-    handleFileSelect,
-  };
-}
 
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
-function FilePreview({ file, onClear }: { file: File; onClear: () => void }) {
+type FilePreviewProps = {
+  file: File;
+  onClear: () => void;
+};
+
+function FilePreview({ file, onClear }: FilePreviewProps) {
   const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
   
   return (
@@ -122,15 +66,14 @@ function FilePreview({ file, onClear }: { file: File; onClear: () => void }) {
   );
 }
 
-function useDropZoneClassName(isDragging: boolean, disabled: boolean): string {
-  const baseClasses = 'border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200';
-  const draggingClasses = isDragging 
-    ? 'border-blue-500 bg-blue-50' 
-    : 'border-gray-300 hover:border-gray-400 bg-gray-50';
-  const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : '';
-  
-  return `${baseClasses} ${draggingClasses} ${disabledClasses}`;
-}
+
+type FileDropZoneProps = {
+  onFileSelect: (file: File | null) => void;
+  disabled: boolean;
+  isDragging: boolean;
+  onDragEnter: () => void;
+  onDragLeave: () => void;
+};
 
 function FileDropZone({ 
   onFileSelect, 
@@ -138,15 +81,9 @@ function FileDropZone({
   isDragging,
   onDragEnter,
   onDragLeave,
-}: { 
-  onFileSelect: (file: File | null) => void;
-  disabled: boolean;
-  isDragging: boolean;
-  onDragEnter: () => void;
-  onDragLeave: () => void;
-}) {
+}: FileDropZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneClassName = useDropZoneClassName(isDragging, disabled);
+  const dropZoneClassName = getDropZoneClassName(isDragging, disabled);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

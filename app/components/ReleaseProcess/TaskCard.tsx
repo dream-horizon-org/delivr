@@ -9,6 +9,7 @@ import {
   Anchor,
   Badge,
   Button,
+  Grid,
   Group,
   Paper,
   Stack,
@@ -30,9 +31,11 @@ import {
   getTaskStatusLabel,
   getTaskTypeLabel,
 } from '~/constants/release-process-ui';
+import { PMApprovalStatus } from '~/components/distribution';
 import { useRelease } from '~/hooks/useRelease';
 import type { Task } from '~/types/release-process.types';
-import { TaskStatus, TaskType, BuildUploadStage } from '~/types/release-process-enums';
+import { TaskStatus, TaskType, BuildUploadStage, Platform } from '~/types/release-process-enums';
+import type { PMStatusResponse } from '~/types/distribution.types';
 import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 
 interface TaskCardProps {
@@ -42,6 +45,9 @@ interface TaskCardProps {
   onRetry?: (taskId: string) => void;
   onViewDetails?: (task: Task) => void;
   className?: string;
+  // Enhanced props for post-regression
+  pmStatus?: PMStatusResponse['data'];
+  onApproveRequested?: () => void;
 }
 
 function getTaskStatusIcon(status: TaskStatus) {
@@ -99,6 +105,8 @@ export function TaskCard({
   onRetry,
   onViewDetails,
   className,
+  pmStatus,
+  onApproveRequested,
 }: TaskCardProps) {
   const statusColor = getTaskStatusColor(task.taskStatus);
   const statusLabel = getTaskStatusLabel(task.taskStatus);
@@ -114,7 +122,8 @@ export function TaskCard({
   const isBuildTriggerTask =
     task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS ||
     task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS ||
-    task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD;
+    task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ||
+    task.taskType === TaskType.CREATE_AAB_BUILD;
 
   // Determine build stage based on task type
   const getBuildStage = (): BuildUploadStage | null => {
@@ -124,7 +133,7 @@ export function TaskCard({
     if (task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) {
       return BuildUploadStage.REGRESSION;
     }
-    if (task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD) {
+    if (task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD || task.taskType === TaskType.CREATE_AAB_BUILD) {
       return BuildUploadStage.PRE_RELEASE;
     }
     return null;
@@ -144,6 +153,51 @@ export function TaskCard({
   const branchUrl = task.externalData?.branchUrl as string | undefined;
   const ticketUrl = task.externalData?.ticketUrl as string | undefined;
   const runLink = task.externalData?.runLink as string | undefined;
+  
+  // Extract artifact links for successful build tasks
+  // Only show for file-based builds (not TestFlight/AAB which go to internal tracks)
+  const isFileBasedBuildTask = 
+    task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS ||
+    task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS;
+  const hasCompletedBuild = 
+    task.taskStatus === TaskStatus.COMPLETED && 
+    isFileBasedBuildTask;
+  
+  // Artifact links can be stored as artifactPath, artifactUrl, or builds array
+  const artifactPath = task.externalData?.artifactPath as string | undefined;
+  const artifactUrl = task.externalData?.artifactUrl as string | undefined;
+  const builds = task.externalData?.builds as Array<{ 
+    artifactPath?: string; 
+    artifactUrl?: string; 
+    platform?: string;
+    downloadUrl?: string;
+  }> | undefined;
+  
+  // Collect all artifact links
+  const artifactLinks: Array<{ url: string; platform?: string; label: string }> = [];
+  
+  if (hasCompletedBuild) {
+    // Single artifact path/url (for single platform builds)
+    const singleArtifactUrl = artifactUrl || artifactPath;
+    if (singleArtifactUrl && (!builds || builds.length === 0)) {
+      artifactLinks.push({ url: singleArtifactUrl, label: 'Download Artifact' });
+    }
+    
+    // Multiple builds (for regression cycles with multiple platforms)
+    if (builds && Array.isArray(builds) && builds.length > 0) {
+      builds.forEach((build) => {
+        const buildUrl = build.downloadUrl || build.artifactUrl || build.artifactPath;
+        if (buildUrl) {
+          const platformLabel = build.platform ? ` (${build.platform})` : '';
+          artifactLinks.push({ 
+            url: buildUrl, 
+            platform: build.platform,
+            label: `Download Artifact${platformLabel}` 
+          });
+        }
+      });
+    }
+  }
 
   const handleUploadComplete = () => {
     // Refetch will be handled by parent component
@@ -239,28 +293,9 @@ export function TaskCard({
           <Accordion.Panel>
             <Stack gap="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
               {/* Task Details */}
-              <Stack gap="xs">
-                <Text size="xs" c="dimmed" fw={500}>
-                  Task Details
-                </Text>
-                <Group gap="md">
-                  <div>
-                    <Text size="xs" c="dimmed">
-                      Task Type
-                    </Text>
-                    <Text size="sm" fw={500}>
-                      {task.taskType}
-                    </Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">
-                      Task ID
-                    </Text>
-                    <Text size="sm" fw={500} className="font-mono">
-                      {task.taskId}
-                    </Text>
-                  </div>
-                  {task.externalId && (
+              {task.externalId && (
+                <Stack gap="xs">
+                  <Group gap="md">
                     <div>
                       <Text size="xs" c="dimmed">
                         External ID
@@ -269,12 +304,12 @@ export function TaskCard({
                         {task.externalId}
                       </Text>
                     </div>
-                  )}
-                </Group>
-              </Stack>
+                  </Group>
+                </Stack>
+              )}
 
               {/* External Links */}
-              {(branchUrl || ticketUrl || runLink) && (
+              {(branchUrl || ticketUrl || runLink || artifactLinks.length > 0) && (
                 <Stack gap="xs">
                   <Text size="xs" c="dimmed" fw={500}>
                     Links
@@ -304,24 +339,117 @@ export function TaskCard({
                         </Group>
                       </Anchor>
                     )}
+                    {artifactLinks.map((artifact, index) => (
+                      <Anchor 
+                        key={index} 
+                        href={artifact.url} 
+                        target="_blank" 
+                        size="sm" 
+                        c="brand"
+                        download
+                      >
+                        <Group gap={4}>
+                          <IconExternalLink size={14} />
+                          <Text size="sm">{artifact.label}</Text>
+                        </Group>
+                      </Anchor>
+                    ))}
                   </Group>
                 </Stack>
               )}
 
-              {/* Build Upload Widget - Only for build trigger tasks in manual mode */}
+              {/* Build Upload Widget - Unified for all build tasks in manual mode */}
               {showBuildUpload && buildStage && tenantId && releaseId && (
                 <Stack gap="xs">
                   <Text size="xs" c="dimmed" fw={500}>
                     Upload Builds
                   </Text>
-                  <ManualBuildUploadWidget
-                    tenantId={tenantId}
-                    releaseId={releaseId}
-                    stage={buildStage}
-                    onUploadComplete={handleUploadComplete}
+                  {task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS ? (
+                    // Pre-Regression: Show one widget per platform in a row
+                    (() => {
+                      const platforms = release?.platformTargetMappings
+                        ?.map(m => m.platform)
+                        .filter((p, i, arr) => arr.indexOf(p) === i) || [];
+                      
+                      return platforms.length > 0 ? (
+                        <Grid gutter="md">
+                          {platforms.map((platform) => (
+                            <Grid.Col key={platform} span={{ base: 12, sm: 6, md: platforms.length === 2 ? 6 : platforms.length === 3 ? 4 : 6 }}>
+                              <ManualBuildUploadWidget
+                                tenantId={tenantId}
+                                releaseId={releaseId}
+                                stage={buildStage}
+                                taskType={task.taskType}
+                                platform={platform}
+                                onUploadComplete={handleUploadComplete}
+                              />
+                            </Grid.Col>
+                          ))}
+                        </Grid>
+                      ) : null;
+                    })()
+                  ) : task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ? (
+                    // Post-Regression TestFlight: Only iOS
+                    <ManualBuildUploadWidget
+                      tenantId={tenantId}
+                      releaseId={releaseId}
+                      stage={buildStage}
+                      taskType={task.taskType}
+                      platform={Platform.IOS}
+                      onUploadComplete={handleUploadComplete}
+                    />
+                  ) : task.taskType === TaskType.CREATE_AAB_BUILD ? (
+                    // Post-Regression AAB: Only Android
+                    <ManualBuildUploadWidget
+                      tenantId={tenantId}
+                      releaseId={releaseId}
+                      stage={buildStage}
+                      taskType={task.taskType}
+                      platform={Platform.ANDROID}
+                      onUploadComplete={handleUploadComplete}
+                    />
+                  ) : task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS ? (
+                    // Regression builds: Show Android and iOS widgets in a row
+                    <Grid gutter="md">
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <ManualBuildUploadWidget
+                          tenantId={tenantId}
+                          releaseId={releaseId}
+                          stage={buildStage}
+                          taskType={task.taskType}
+                          platform={Platform.ANDROID}
+                          onUploadComplete={handleUploadComplete}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <ManualBuildUploadWidget
+                          tenantId={tenantId}
+                          releaseId={releaseId}
+                          stage={buildStage}
+                          taskType={task.taskType}
+                          platform={Platform.IOS}
+                          onUploadComplete={handleUploadComplete}
+                        />
+                      </Grid.Col>
+                    </Grid>
+                  ) : null}
+                </Stack>
+              )}
+
+              {/* PM Approval Status - For CHECK_PROJECT_RELEASE_APPROVAL task */}
+              {task.taskType === TaskType.CHECK_PROJECT_RELEASE_APPROVAL && pmStatus && (
+                <Stack gap="xs">
+                  <Text size="xs" c="dimmed" fw={500}>
+                    Approval Status
+                  </Text>
+                  <PMApprovalStatus
+                    pmStatus={pmStatus}
+                    isApproving={false}
+                    onApproveRequested={onApproveRequested}
                   />
                 </Stack>
               )}
+
 
               {/* Task Metadata */}
               {task.externalData && Object.keys(task.externalData).length > 0 && (

@@ -230,6 +230,8 @@ class ReleaseProcess {
    * Get activity logs - Matches backend contract API #23
    */
   async getActivityLogs(tenantId: string, releaseId: string) {
+    return 
+
     return this.__client.get<null, AxiosResponse<ActivityLogsResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/activity-logs`
     );

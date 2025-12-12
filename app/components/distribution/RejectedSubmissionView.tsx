@@ -10,14 +10,7 @@
 import { Alert, Button, Card, Group, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
 import { PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
-
-// Per API Spec - Rejection details structure
-export type RejectionDetails = {
-  guideline?: string;
-  description?: string;
-  screenshot?: string;
-};
+import { Platform, RejectionDetails } from '~/types/distribution.types';
 
 export type RejectedSubmissionViewProps = {
   platform: Platform;

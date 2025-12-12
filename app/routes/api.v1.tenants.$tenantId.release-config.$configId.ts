@@ -8,11 +8,11 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
-import type { ReleaseConfiguration, Platform } from '~/types/release-config';
-import { 
-  transformToPlatformTargetsArray,
-  transformFromPlatformTargetsArray,
-  type PlatformTarget,
+import type { Platform, ReleaseConfiguration } from '~/types/release-config';
+import {
+    transformFromPlatformTargetsArray,
+    transformToPlatformTargetsArray,
+    type PlatformTarget,
 } from '~/utils/platform-mapper';
 
 // Backend response includes platformTargets which isn't in frontend ReleaseConfiguration type
@@ -64,7 +64,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   } catch (error: any) {
     console.error('[BFF] Get error:', error);
     return json(
-      { success: false, error: error.message || 'Internal server error' },
+      { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }
     );
   }
@@ -94,16 +94,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
       console.log('[BFF] Updating release config:', configId, Object.keys(updates));
 
       // Transform UI format to backend format if targets are present
-      let backendUpdates: BackendReleaseConfig = { ...updates };
+      let backendUpdates: BackendReleaseConfig;
       if (updates.targets && Array.isArray(updates.targets)) {
         const platformTargets = transformToPlatformTargetsArray(updates.targets);
+        const { platforms: _platforms, targets: _targets, ...restUpdates } = updates as any;
         backendUpdates = {
-          ...updates,
+          ...restUpdates,
           platformTargets,
-          platforms: undefined,
-          targets: undefined,
         };
         console.log('[BFF] Transformed platformTargets:', platformTargets);
+      } else {
+        backendUpdates = { ...updates };
       }
 
       const result = await ReleaseConfigService.update(configId, backendUpdates, tenantId, userId);
@@ -132,7 +133,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     } catch (error: any) {
       console.error('[BFF] Update error:', error);
       return json(
-        { success: false, error: error.message || 'Internal server error' },
+        { success: false, error: error.message ?? 'Internal server error' },
         { status: 500 }
       );
     }
@@ -155,7 +156,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     } catch (error: any) {
       console.error('[BFF] Delete error:', error);
       return json(
-        { success: false, error: error.message || 'Internal server error' },
+        { success: false, error: error.message ?? 'Internal server error' },
         { status: 500 }
       );
     }

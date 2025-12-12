@@ -387,3 +387,15 @@ export interface VerifySCMResponse {
   };
   error?: string;
 }
+
+export interface CreateSCMIntegrationRequest {
+  tenantId: string;
+  scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  owner: string;
+  repo: string;
+  accessToken: string;
+  displayName?: string;
+  branch?: string;
+  status: 'VALID' | 'INVALID' | 'PENDING';
+  isActive: boolean;
+}

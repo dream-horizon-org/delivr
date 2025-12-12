@@ -3,15 +3,17 @@
  * Displays kickoff stage with tasks only
  */
 
-import { Alert, Stack, Text, Title } from '@mantine/core';
+import { Alert, Group, Select, Stack, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ERROR_MESSAGES,
   KICKOFF_LABELS,
+  TASK_STATUS_LABELS,
 } from '~/constants/release-process-ui';
 import { useKickoffStage, useRetryTask } from '~/hooks/useReleaseProcess';
 import type { Task } from '~/types/release-process.types';
+import { TaskStatus } from '~/types/release-process-enums';
 import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { TaskCard } from './TaskCard';
@@ -25,6 +27,36 @@ interface KickoffStageProps {
 export function KickoffStage({ tenantId, releaseId, className }: KickoffStageProps) {
   const { data, isLoading, error, refetch } = useKickoffStage(tenantId, releaseId);
   const retryMutation = useRetryTask(tenantId, releaseId);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  // Extract tasks from data (safe to access even if data is null)
+  const tasks = data?.tasks || [];
+
+  // Sort and filter tasks by status - MUST be called before any early returns
+  const filteredTasks = useMemo(() => {
+    if (!tasks || tasks.length === 0) return [];
+    
+    // First filter by status if filter is selected
+    let filtered = statusFilter 
+      ? tasks.filter((task: Task) => task.taskStatus === statusFilter)
+      : tasks;
+    
+    // Sort: PENDING -> IN_PROGRESS/AWAITING_CALLBACK -> COMPLETED -> FAILED -> SKIPPED
+    const statusOrder: Record<TaskStatus, number> = {
+      [TaskStatus.PENDING]: 1,
+      [TaskStatus.IN_PROGRESS]: 2,
+      [TaskStatus.AWAITING_CALLBACK]: 2,
+      [TaskStatus.COMPLETED]: 3,
+      [TaskStatus.FAILED]: 4,
+      [TaskStatus.SKIPPED]: 5,
+    };
+    
+    return filtered.sort((a: Task, b: Task) => {
+      const orderA = statusOrder[a.taskStatus] || 99;
+      const orderB = statusOrder[b.taskStatus] || 99;
+      return orderA - orderB;
+    });
+  }, [tasks, statusFilter]);
 
   const handleRetry = useCallback(
     async (taskId: string) => {
@@ -70,30 +102,43 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
     );
   }
 
-  const { tasks } = data;
   const hasTasks = tasks && tasks.length > 0;
+
+  // Status filter options
+  const statusOptions = [
+    { value: '', label: 'All Statuses' },
+    { value: TaskStatus.PENDING, label: TASK_STATUS_LABELS.PENDING },
+    { value: TaskStatus.IN_PROGRESS, label: TASK_STATUS_LABELS.IN_PROGRESS },
+    { value: TaskStatus.AWAITING_CALLBACK, label: 'Awaiting Callback' },
+    { value: TaskStatus.COMPLETED, label: TASK_STATUS_LABELS.COMPLETED },
+    { value: TaskStatus.FAILED, label: TASK_STATUS_LABELS.FAILED },
+    { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },
+  ];
 
   return (
     <Stack gap="lg" className={className}>
-      {/* Header */}
-      <div>
-        <Title order={3} mb="xs">
-          {KICKOFF_LABELS.TITLE}
-        </Title>
-        <Text size="sm" c="dimmed">
-          {KICKOFF_LABELS.DESCRIPTION}
-        </Text>
-      </div>
+      {/* Tasks Header with Filter */}
+      {hasTasks && (
+        <Group justify="space-between" align="center">
+          <Text fw={600} size="lg">
+            Tasks
+          </Text>
+          <Select
+            placeholder="Filter by status"
+            data={statusOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            clearable
+            style={{ width: '200px' }}
+          />
+        </Group>
+      )}
 
       {/* Tasks - Full width, stacked */}
-      <div>
-        <Text fw={600} size="md" mb="md">
-          {KICKOFF_LABELS.TASKS}
-        </Text>
-        
-        {hasTasks ? (
+      {hasTasks ? (
+        filteredTasks.length > 0 ? (
           <Stack gap="md">
-            {tasks.map((task: Task) => (
+            {filteredTasks.map((task: Task) => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -106,10 +151,14 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
           </Stack>
         ) : (
           <Alert color="gray" variant="light">
-            {KICKOFF_LABELS.NO_TASKS}
+            No tasks match the selected filter
           </Alert>
-        )}
-      </div>
+        )
+      ) : (
+        <Alert color="gray" variant="light">
+          {KICKOFF_LABELS.NO_TASKS}
+        </Alert>
+      )}
     </Stack>
   );
 }

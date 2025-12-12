@@ -7,26 +7,27 @@
  * - Quick actions (view details, retry)
  */
 
-import { Card, Group, Stack, Text, Badge, Button, ThemeIcon, Anchor } from '@mantine/core';
-import { 
-  IconBrandAndroid,
-  IconBrandApple, 
-  IconApple, 
-  IconExternalLink, 
-  IconRefresh,
+import { Anchor, Badge, Button, Card, Group, Text } from '@mantine/core';
+import {
   IconCheck,
   IconClock,
-  IconX,
+  IconExternalLink,
   IconEye,
+  IconRefresh,
+  IconX,
 } from '@tabler/icons-react';
-import { Platform, SubmissionStatus, StoreType } from '~/types/distribution.types';
-import { 
-  PLATFORM_LABELS,
-  SUBMISSION_STATUS_LABELS,
-  SUBMISSION_STATUS_COLORS,
+import {
   BUTTON_LABELS,
+  PLATFORM_LABELS,
+  STORE_URLS,
+  SUBMISSION_STATUS_COLORS,
+  SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
+import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type { PlatformSubmissionCardProps } from './distribution.types';
+import { PlatformIcon } from './PlatformIcon';
+import { PlatformSubmissionEmptyState } from './PlatformSubmissionEmptyState';
+import { SubmissionDetails } from './SubmissionDetails';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -46,81 +47,6 @@ function getStatusIcon(status: SubmissionStatus | null) {
       return <IconClock size={14} />;
   }
 }
-
-function getStoreUrl(platform: Platform): string {
-  return platform === Platform.ANDROID
-    ? 'https://play.google.com/console'
-    : 'https://appstoreconnect.apple.com';
-}
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-function PlatformIcon({ platform }: { platform: Platform }) {
-  const isAndroid = platform === Platform.ANDROID;
-  
-  return (
-    <ThemeIcon 
-      size="lg" 
-      radius="md" 
-      variant="light" 
-      color={isAndroid ? 'green' : 'blue'}
-    >
-      {isAndroid ? <IconBrandAndroid size={20} /> : <IconBrandApple size={20} />}
-    </ThemeIcon>
-  );
-}
-
-function EmptyState({ platform }: { platform: Platform }) {
-  return (
-    <Stack gap="sm" align="center" py="md">
-      <Text c="dimmed" size="sm" ta="center">
-        Not submitted to {platform === Platform.ANDROID ? 'Play Store' : 'App Store'} yet.
-      </Text>
-    </Stack>
-  );
-}
-
-function SubmissionDetails({ 
-  submission 
-}: { 
-  submission: NonNullable<PlatformSubmissionCardProps['submission']>;
-}) {
-  return (
-    <Stack gap="xs">
-      <Group gap="xs">
-        <Text size="sm" c="dimmed">Version:</Text>
-        <Text size="sm" fw={500}>
-          {submission.versionName} ({submission.versionCode})
-        </Text>
-      </Group>
-      
-      {submission.track && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">Track:</Text>
-          <Badge size="xs" variant="light">{submission.track}</Badge>
-        </Group>
-      )}
-
-      <Group gap="xs">
-        <Text size="sm" c="dimmed">Exposure:</Text>
-        <Text size="sm" fw={500}>{submission.exposurePercent}%</Text>
-      </Group>
-
-      {submission.submittedAt && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">Submitted:</Text>
-          <Text size="sm">{new Date(submission.submittedAt).toLocaleDateString()}</Text>
-        </Group>
-      )}
-    </Stack>
-  );
-}
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
 
 export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
   const { 
@@ -208,7 +134,7 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
             )}
 
             <Anchor
-              href={getStoreUrl(platform)}
+              href={STORE_URLS[platform]}
               target="_blank"
               rel="noopener noreferrer"
               size="xs"
@@ -221,7 +147,7 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
           </Group>
         </>
       ) : (
-        <EmptyState platform={platform} />
+        <PlatformSubmissionEmptyState platform={platform} />
       )}
     </Card>
   );

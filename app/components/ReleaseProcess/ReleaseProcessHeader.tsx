@@ -65,13 +65,13 @@ export function ReleaseProcessHeader({
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
   const queryClient = useQueryClient();
-//   console.log('[ReleaseProcessHeader] release:', release);
+
   // Use API data directly - no derivation
   const releaseStatus: ReleaseStatus = release.status;
   const releasePhase: Phase | undefined = release.releasePhase;
-  const isPaused = 
-    releaseStatus === ReleaseStatus.PAUSED || 
-    releasePhase === Phase.PAUSED_BY_USER || 
+  const isPaused =
+    releaseStatus === ReleaseStatus.PAUSED ||
+    releasePhase === Phase.PAUSED_BY_USER ||
     releasePhase === Phase.PAUSED_BY_FAILURE;
 
   // Activity logs hook
@@ -88,15 +88,13 @@ export function ReleaseProcessHeader({
         updateRequest
       );
 
-      console.log('[ReleaseProcessHeader] Update result:', result);
-
       await invalidateReleases(queryClient, org);
       showSuccessToast(RELEASE_MESSAGES.UPDATE_SUCCESS);
-      
+
       if (onUpdate) {
         onUpdate();
       }
-      
+
       setEditModalOpened(false);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to update release');
@@ -127,12 +125,11 @@ export function ReleaseProcessHeader({
       showSuccessToast({
         message: isPaused ? 'Release resumed successfully' : 'Release paused successfully',
       });
-      
+
       if (onUpdate) {
         onUpdate();
       }
-      
-      // Close confirmation modal if it was open
+
       setPauseConfirmModalOpened(false);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to pause/resume release');
@@ -145,7 +142,7 @@ export function ReleaseProcessHeader({
     setPauseConfirmModalOpened(true);
   };
 
-  // Handle resume button click - direct action (no confirmation needed)
+  // Handle resume button click - direct action
   const handleResumeClick = () => {
     handlePauseResume();
   };
@@ -154,7 +151,7 @@ export function ReleaseProcessHeader({
   const handleSendNotification = async (messageType: string) => {
     try {
       await sendNotificationMutation.mutateAsync({
-        messageType: messageType as any, // TODO: Use proper MessageTypeEnum type
+        messageType: messageType as any,
       });
       showSuccessToast({ message: 'Notification sent successfully' });
       setSlackMessageModalOpened(false);
@@ -171,8 +168,9 @@ export function ReleaseProcessHeader({
     <>
       <Paper shadow="sm" p="lg" radius="md" withBorder className={className}>
         <Stack gap="md">
-          {/* Top Section: Navigation, Title, Status Badges, Actions */}
+          {/* Top Row: Left (Back + Title + Platform Badges) | Right (Status Badges) */}
           <Group justify="space-between" align="flex-start" wrap="wrap">
+            {/* Left Side: Back Button + Title + Platform Badges */}
             <Group gap="md" align="flex-start">
               <Link to={`/dashboard/${org}/releases`}>
                 <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
@@ -205,8 +203,8 @@ export function ReleaseProcessHeader({
               </div>
             </Group>
             
-            {/* Status Badges and Actions */}
-            <Group gap="sm">
+            {/* Right Side: Status Badges (Top Right) */}
+            <Group gap="xs" align="center">
               {/* Show releasePhase if present (primary badge - most detailed) */}
               {releasePhase && (
                 <Badge
@@ -232,86 +230,99 @@ export function ReleaseProcessHeader({
             </Group>
           </Group>
 
-          {/* Main Info Section: Version, Branch, Stage - Compact */}
-          <Group gap="lg" wrap="wrap">
-            <Group gap="xs">
-              <IconTag size={18} className="text-brand-600" />
-              <div>
-                <Text size="xs" c="dimmed">
-                  {HEADER_LABELS.RELEASE_VERSION}
-                </Text>
-                <Text fw={600} size="sm">
-                  {releaseVersion}
-                </Text>
-              </div>
-            </Group>
-
-            {release.branch && (
+          {/* Bottom Row: Left (Version, Branch, Stage) | Right (Action Buttons) */}
+          <Group justify="space-between" align="center" wrap="wrap">
+            {/* Left Side: Version, Branch, Stage Info */}
+            <Group gap="lg" wrap="wrap">
               <Group gap="xs">
-                <IconGitBranch size={18} className="text-slate-600" />
+                <IconTag size={18} className="text-brand-600" />
                 <div>
                   <Text size="xs" c="dimmed">
-                    {HEADER_LABELS.RELEASE_BRANCH}
-                  </Text>
-                  <Text fw={600} size="sm" className="font-mono">
-                    {release.branch}
-                  </Text>
-                </div>
-              </Group>
-            )}
-
-            {currentStage && (
-              <Group gap="xs">
-                <div>
-                  <Text size="xs" c="dimmed">
-                    {HEADER_LABELS.CURRENT_STAGE}
+                    {HEADER_LABELS.RELEASE_VERSION}
                   </Text>
                   <Text fw={600} size="sm">
-                    {STAGE_LABELS[currentStage]}
+                    {releaseVersion}
                   </Text>
                 </div>
               </Group>
-            )}
-          </Group>
 
-          {/* Action Buttons */}
-          <Group gap="sm" wrap="wrap">
-            <Button 
-              variant="outline" 
-              leftSection={<IconEdit size={16} />}
-              onClick={() => setEditModalOpened(true)}
-            >
-              {BUTTON_LABELS.EDIT_RELEASE}
-            </Button>
-            
-            {/* Pause/Resume - Only show if release is in progress or paused */}
-            {(releaseStatus === ReleaseStatus.IN_PROGRESS || releaseStatus === ReleaseStatus.PAUSED) && (
+              {release.branch && (
+                <Group gap="xs">
+                  <IconGitBranch size={18} className="text-slate-600" />
+                  <div>
+                    <Text size="xs" c="dimmed">
+                      {HEADER_LABELS.RELEASE_BRANCH}
+                    </Text>
+                    <Text fw={600} size="sm" className="font-mono">
+                      {release.branch}
+                    </Text>
+                  </div>
+                </Group>
+              )}
+
+              {currentStage && (
+                <Group gap="xs">
+                  <div>
+                    <Text size="xs" c="dimmed" mb={4}>
+                      {HEADER_LABELS.CURRENT_STAGE}
+                    </Text>
+                    <Badge
+                      size="lg"
+                      variant="filled"
+                      color="blue"
+                      style={{ fontSize: '0.875rem', fontWeight: 600 }}
+                    >
+                      {STAGE_LABELS[currentStage]}
+                    </Badge>
+                  </div>
+                </Group>
+              )}
+            </Group>
+
+            {/* Right Side: Action Buttons (Bottom Right) */}
+            <Group gap="xs" align="center">
               <Button
                 variant="outline"
-                color={isPaused ? 'green' : 'orange'}
-                leftSection={isPaused ? <IconPlayerPlay size={16} /> : <IconPlayerPause size={16} />}
-                onClick={isPaused ? handleResumeClick : handlePauseClick}
+                size="sm"
+                leftSection={<IconEdit size={16} />}
+                onClick={() => setEditModalOpened(true)}
               >
-                {isPaused ? BUTTON_LABELS.RESUME : BUTTON_LABELS.PAUSE}
+                {BUTTON_LABELS.EDIT_RELEASE}
               </Button>
-            )}
-            
-            <Button
-              variant="outline"
-              leftSection={<IconHistory size={16} />}
-              onClick={() => setActivityLogModalOpened(true)}
-            >
-              {BUTTON_LABELS.ACTIVITY_LOG}
-            </Button>
-            
-            <Button
-              variant="outline"
-              leftSection={<IconMessageCircle size={16} />}
-              onClick={() => setSlackMessageModalOpened(true)}
-            >
-              {BUTTON_LABELS.POST_SLACK_MESSAGE}
-            </Button>
+
+              {/* Pause/Resume */}
+              {(releaseStatus === ReleaseStatus.IN_PROGRESS || releaseStatus === ReleaseStatus.PAUSED) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  color={isPaused ? 'green' : 'orange'}
+                  leftSection={isPaused ? <IconPlayerPlay size={16} /> : <IconPlayerPause size={16} />}
+                  onClick={isPaused ? handleResumeClick : handlePauseClick}
+                >
+                  {isPaused ? BUTTON_LABELS.RESUME : BUTTON_LABELS.PAUSE}
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                leftSection={<IconHistory size={16} />}
+                onClick={() => setActivityLogModalOpened(true)}
+              >
+                {BUTTON_LABELS.ACTIVITY_LOG}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                leftSection={<IconMessageCircle size={16} />}
+                onClick={() => setSlackMessageModalOpened(true)}
+              >
+                {BUTTON_LABELS.POST_SLACK_MESSAGE}
+              </Button>
+            </Group>
           </Group>
+
         </Stack>
       </Paper>
 
@@ -320,7 +331,7 @@ export function ReleaseProcessHeader({
         opened={editModalOpened}
         onClose={() => setEditModalOpened(false)}
         title={BUTTON_LABELS.EDIT_RELEASE}
-        size="90%"
+        size="xl"
         scrollAreaComponent={ScrollArea.Autosize}
       >
         <CreateReleaseForm
@@ -340,34 +351,40 @@ export function ReleaseProcessHeader({
         onClose={() => setActivityLogModalOpened(false)}
         title={BUTTON_LABELS.ACTIVITY_LOG}
         size="lg"
-        scrollAreaComponent={ScrollArea.Autosize}
       >
-        {isLoadingLogs ? (
-          <Text c="dimmed">Loading activity logs...</Text>
-        ) : activityLogs?.activityLogs && activityLogs.activityLogs.length > 0 ? (
-          <Stack gap="sm">
-            {activityLogs.activityLogs.map((log) => (
-              <div key={log.id} style={{ padding: '8px', borderBottom: '1px solid var(--mantine-color-slate-2)' }}>
-                <Text size="sm" fw={500}>
-                  {log.type}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {new Date(log.updatedAt).toLocaleString()}
-                </Text>
-                {log.updatedBy && (
+        <ScrollArea h={400}>
+          {isLoadingLogs ? (
+            <Text c="dimmed">Loading activity logs...</Text>
+          ) : activityLogs?.activityLogs && activityLogs.activityLogs.length > 0 ? (
+            <Stack gap="sm">
+              {activityLogs.activityLogs.map((log: any) => (
+                <Paper key={log.id} p="sm" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="sm" fw={500}>
+                      {log.action}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </Text>
+                  </Group>
                   <Text size="xs" c="dimmed">
-                    By: {log.updatedBy}
+                    Stage: {log.stage} • Task: {log.taskType || 'N/A'}
                   </Text>
-                )}
-              </div>
-            ))}
-          </Stack>
-        ) : (
-          <Text c="dimmed">No activity logs available</Text>
-        )}
+                  {log.performedBy && (
+                    <Text size="xs" c="dimmed" mt="xs">
+                      By: {log.performedBy}
+                    </Text>
+                  )}
+                </Paper>
+              ))}
+            </Stack>
+          ) : (
+            <Text c="dimmed">No activity logs available</Text>
+          )}
+        </ScrollArea>
       </Modal>
 
-      {/* Slack Message Modal - Send predefined notification */}
+      {/* Post Slack Message Modal */}
       <Modal
         opened={slackMessageModalOpened}
         onClose={() => setSlackMessageModalOpened(false)}
@@ -376,37 +393,20 @@ export function ReleaseProcessHeader({
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            Send a notification to the Slack channel for this release
+            Select a message type to send to Slack:
           </Text>
-          <Group gap="sm">
+          <Group>
             <Button
               variant="outline"
-              onClick={() => handleSendNotification('RELEASE_KICKOFF')}
-              loading={sendNotificationMutation.isLoading}
-              disabled={sendNotificationMutation.isLoading}
+              onClick={() => handleSendNotification('REGRESSION_BUILD_READY')}
             >
-              Release Kickoff
+              Regression Build Ready
             </Button>
             <Button
               variant="outline"
-              onClick={() => handleSendNotification('REGRESSION_COMPLETE')}
-              loading={sendNotificationMutation.isLoading}
-              disabled={sendNotificationMutation.isLoading}
+              onClick={() => handleSendNotification('POST_REGRESSION_BUILD_READY')}
             >
-              Regression Complete
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleSendNotification('RELEASE_SUBMITTED')}
-              loading={sendNotificationMutation.isLoading}
-              disabled={sendNotificationMutation.isLoading}
-            >
-              Release Submitted
-            </Button>
-          </Group>
-          <Group justify="flex-end" mt="md">
-            <Button variant="subtle" onClick={() => setSlackMessageModalOpened(false)}>
-              {BUTTON_LABELS.CANCEL}
+              Post-Regression Build Ready
             </Button>
           </Group>
         </Stack>
@@ -416,26 +416,19 @@ export function ReleaseProcessHeader({
       <Modal
         opened={pauseConfirmModalOpened}
         onClose={() => setPauseConfirmModalOpened(false)}
-        title="Confirm Pause Release"
+        title="Confirm Pause"
         size="md"
       >
         <Stack gap="md">
           <Text size="sm">
-            Are you sure you want to pause this release? The release process will be stopped and can be resumed later.
+            Are you sure you want to pause this release? The release process will stop until you resume it.
           </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button
-              variant="subtle"
-              onClick={() => setPauseConfirmModalOpened(false)}
-            >
-              {BUTTON_LABELS.CANCEL}
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setPauseConfirmModalOpened(false)}>
+              Cancel
             </Button>
-            <Button
-              color="orange"
-              leftSection={<IconPlayerPause size={16} />}
-              onClick={handlePauseResume}
-            >
-              {BUTTON_LABELS.PAUSE}
+            <Button color="orange" onClick={handlePauseResume}>
+              Pause Release
             </Button>
           </Group>
         </Stack>

@@ -91,8 +91,8 @@ export default function IntegrationsPage() {
 
         integrations.push({
           ...provider,
-          description: provider.description || '',
-          icon: provider.icon || '',
+          description: provider.description ?? '',
+          icon: provider.icon ?? '',
           category,
           status: connected ? IntegrationStatus.CONNECTED : IntegrationStatus.NOT_CONNECTED,
           ...(connected && {
@@ -100,7 +100,7 @@ export default function IntegrationsPage() {
               id: connected.id,
               ...connected.config,
             },
-            connectedAt: connected.connectedAt ? new Date(connected.connectedAt) : undefined,
+            ...(connected.connectedAt && { connectedAt: new Date(connected.connectedAt) }),
             connectedBy: connected.connectedBy,
           }),
         });
@@ -145,7 +145,7 @@ export default function IntegrationsPage() {
   const handleConnect = useCallback((integrationId: string, data?: any) => {
     if (!params.org) return;
 
-    const displayName = INTEGRATION_DISPLAY_NAMES[integrationId] || integrationId;
+    const displayName = INTEGRATION_DISPLAY_NAMES[integrationId] ?? integrationId;
     const isKnownIntegration = integrationId in INTEGRATION_DISPLAY_NAMES;
     if (isKnownIntegration) {
       showSuccessToast(INTEGRATION_MESSAGES.CONNECT_SUCCESS(displayName, !!editingIntegration));
@@ -300,7 +300,7 @@ export default function IntegrationsPage() {
         `}</style>
         <Tabs.List>
           {Object.keys(integrationsByCategory).map((category) => {
-            const categoryIntegrations = integrationsByCategory[category as IntegrationCategory] || [];
+            const categoryIntegrations = integrationsByCategory[category as IntegrationCategory] ?? [];
             const connectedInCategory = categoryIntegrations.filter(
               i => i.status === IntegrationStatus.CONNECTED
             ).length;
@@ -318,7 +318,7 @@ export default function IntegrationsPage() {
                   ) : null
                 }
               >
-                {INTEGRATION_CATEGORY_LABELS[category] || category}
+                {INTEGRATION_CATEGORY_LABELS[category] ?? category}
               </Tabs.Tab>
             );
           })}
@@ -350,7 +350,7 @@ export default function IntegrationsPage() {
                     {INTEGRATION_CATEGORY_LABELS[category]}
                   </Text>
                   <Text size="xs" c={theme.colors.slate[5]}>
-                    {CATEGORY_DESCRIPTIONS[category] || 'Configure and manage your integrations'}
+                    {CATEGORY_DESCRIPTIONS[category] ?? 'Configure and manage your integrations'}
                   </Text>
                 </Box>
               </Group>
@@ -381,7 +381,7 @@ export default function IntegrationsPage() {
       />
 
       <IntegrationConnectModal
-        integration={editingIntegration || connectingIntegration}
+        integration={editingIntegration ?? connectingIntegration}
         opened={connectModalOpened}
         onClose={handleCloseConnectModal}
         onConnect={handleConnect}

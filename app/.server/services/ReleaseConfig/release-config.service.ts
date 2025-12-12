@@ -5,26 +5,11 @@
  * Supports mock mode via DELIVR_HYBRID_MODE=true
  */
 
+import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { logTransformation, prepareReleaseConfigPayload, prepareUpdatePayload, transformFromBackend } from './release-config-payload';
 
-/**
- * Get the base URL for Release Config APIs
- */
-function getReleaseConfigBaseURL(): string {
-  const isMockMode = process.env.DELIVR_MOCK_MODE === 'true';
-  const isHybridMode = process.env.DELIVR_HYBRID_MODE === 'true';
-  const mockURL = process.env.DELIVR_MOCK_URL || 'http://localhost:4000';
-  const backendURL = process.env.BACKEND_API_URL || 'http://localhost:3010';
-  
-  if (isMockMode || isHybridMode) {
-    return mockURL;
-  }
-  
-  return backendURL;
-}
-
-const BACKEND_API_URL = getReleaseConfigBaseURL();
+const BACKEND_API_URL = getBackendBaseURL();
 
 export class ReleaseConfigService {
   /**

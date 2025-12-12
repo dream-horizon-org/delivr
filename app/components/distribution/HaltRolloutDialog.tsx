@@ -7,37 +7,31 @@
  * - Clear warning about consequences
  */
 
-import { useState, useCallback } from 'react';
-import { 
-  Modal, 
-  Stack, 
-  Group, 
-  Text, 
-  Button, 
-  Textarea,
-  Radio,
+import {
   Alert,
+  Button,
+  Group,
+  Modal,
+  Radio,
+  Stack,
+  Text,
+  Textarea,
   ThemeIcon,
 } from '@mantine/core';
 import { IconAlertOctagon, IconAlertTriangle } from '@tabler/icons-react';
-import { Platform } from '~/types/distribution.types';
-import { 
-  BUTTON_LABELS, 
+import { useCallback, useState } from 'react';
+import {
+  BUTTON_LABELS,
   DIALOG_TITLES,
   HALT_SEVERITY_LEVELS,
   PLATFORM_LABELS,
 } from '~/constants/distribution.constants';
+import { HaltSeverity } from '~/types/distribution.types';
 import type { HaltRolloutDialogProps } from './distribution.types';
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-
-type HaltSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM';
-
-function isValidSeverity(value: string): value is HaltSeverity {
-  return value === 'CRITICAL' || value === 'HIGH' || value === 'MEDIUM';
-}
 
 export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
   const { 
@@ -50,12 +44,16 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
   } = props;
 
   const [reason, setReason] = useState('');
-  const [severity, setSeverity] = useState<HaltSeverity>('HIGH');
+  const [severity, setSeverity] = useState<HaltSeverity>(HaltSeverity.HIGH);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleSeverityChange = useCallback((value: string) => {
-    if (isValidSeverity(value)) {
-      setSeverity(value);
+  const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setReason(e.target.value);
+  }, []);
+
+  const handleSeverityChange = useCallback((value: string | null) => {
+    if (value && (value === HaltSeverity.CRITICAL || value === HaltSeverity.HIGH || value === HaltSeverity.MEDIUM)) {
+      setSeverity(value as HaltSeverity);
     }
   }, []);
 
@@ -71,7 +69,7 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
 
   const handleClose = useCallback(() => {
     setReason('');
-    setSeverity('HIGH');
+    setSeverity(HaltSeverity.HIGH);
     setValidationError(null);
     onClose();
   }, [onClose]);
@@ -125,9 +123,9 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
                     <Group gap="xs">
                       <Text size="sm" fw={500} c={level.color}>{level.label}</Text>
                       <Text size="xs" c="dimmed">
-                        {level.value === 'CRITICAL' && '- App crashes, data loss, security issue'}
-                        {level.value === 'HIGH' && '- Major bug affecting core functionality'}
-                        {level.value === 'MEDIUM' && '- Significant issue but not critical'}
+                        {level.value === HaltSeverity.CRITICAL && '- App crashes, data loss, security issue'}
+                        {level.value === HaltSeverity.HIGH && '- Major bug affecting core functionality'}
+                        {level.value === HaltSeverity.MEDIUM && '- Significant issue but not critical'}
                       </Text>
                     </Group>
                   }
@@ -144,7 +142,7 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
           description="Describe the issue that requires halting this rollout"
           placeholder="e.g., Critical crash affecting login flow for users on Android 12+"
           value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          onChange={handleReasonChange}
           error={validationError}
           minRows={3}
           required

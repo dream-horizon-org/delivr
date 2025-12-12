@@ -30,14 +30,34 @@ export const TASK_STATUS_COLORS = {
 // ============================================================================
 
 export const TASK_TYPE_LABELS = {
+  // Stage 1: Kickoff
+  PRE_KICK_OFF_REMINDER: 'Pre Kickoff Reminder',
   FORK_BRANCH: 'Fork Branch',
+  CREATE_PROJECT_MANAGEMENT_TICKET: 'Create Project Management Ticket',
+  CREATE_TEST_SUITE: 'Create Test Suite',
   TRIGGER_PRE_REGRESSION_BUILDS: 'Trigger Pre-Regression Builds',
+  
+  // Stage 2: Regression
+  RESET_TEST_SUITE: 'Reset Test Suite',
+  CREATE_RC_TAG: 'Create RC Tag',
+  CREATE_RELEASE_NOTES: 'Create Release Notes',
   TRIGGER_REGRESSION_BUILDS: 'Trigger Regression Builds',
-  TRIGGER_PRE_RELEASE_BUILDS: 'Trigger Pre-Release Builds',
-  RUN_TESTS: 'Run Tests',
-  CREATE_TICKET: 'Create Ticket',
-  UPDATE_TICKET: 'Update Ticket',
-  CHERRY_PICK: 'Cherry Pick',
+  TRIGGER_AUTOMATION_RUNS: 'Trigger Automation Runs',
+  AUTOMATION_RUNS: 'Automation Runs',
+  SEND_REGRESSION_BUILD_MESSAGE: 'Send Regression Build Message',
+  
+  // Stage 3: Post-Regression
+  PRE_RELEASE_CHERRY_PICKS_REMINDER: 'Pre-Release Cherry Picks Reminder',
+  CREATE_RELEASE_TAG: 'Create Release Tag',
+  CREATE_FINAL_RELEASE_NOTES: 'Create Final Release Notes',
+  TRIGGER_TEST_FLIGHT_BUILD: 'Trigger TestFlight Build',
+  CREATE_AAB_BUILD: 'Create AAB Build',
+  SEND_POST_REGRESSION_MESSAGE: 'Send Post-Regression Message',
+  CHECK_PROJECT_RELEASE_APPROVAL: 'Check Project Release Approval',
+  COMPLETE_POST_REGRESSION: 'Complete Post-Regression',
+  
+  // Manual API
+  SUBMIT_TO_TARGET: 'Submit to Target',
 } as const;
 
 // ============================================================================
@@ -179,6 +199,20 @@ export const KICKOFF_LABELS = {
   BUILD_UPLOAD: 'Build Upload',
   UPLOAD_WINDOW_OPEN: 'Upload window is open',
   UPLOAD_WINDOW_CLOSED: 'Upload window is closed',
+} as const;
+
+// ============================================================================
+// Post-Regression Stage Labels
+// ============================================================================
+
+export const POST_REGRESSION_LABELS = {
+  TITLE: 'Post-Regression Stage',
+  DESCRIPTION: 'Pre-release tasks before distribution',
+  TASKS: 'Tasks',
+  NO_TASKS: 'No tasks available',
+  BUILD_UPLOAD: 'Build Upload',
+  PROMOTION_READY: 'Ready for Distribution',
+  PROMOTION_NOT_READY: 'Complete all prerequisite tasks first',
 } as const;
 
 // ============================================================================

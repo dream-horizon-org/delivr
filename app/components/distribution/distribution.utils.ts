@@ -5,24 +5,38 @@
  * Each function is a single-purpose, deterministic transformation.
  */
 
+import {
+  BUILD_UPLOAD_STATUS_COLORS,
+  BUILD_UPLOAD_STATUS_LABELS,
+  EVENT_COLORS,
+  EVENT_LABELS,
+  RELEASE_STATUS_COLORS,
+  ROLLOUT_COMPLETE_PERCENT,
+  ROLLOUT_STATUS_COLORS,
+  ROLLOUT_STATUS_LABELS,
+} from '~/constants/distribution.constants';
 import type {
-  Platform,
-  ReleaseStatus,
-  SubmissionStatus,
-  BuildUploadStatus,
-  Build,
-  PMApprovalStatus,
-  SubmissionHistoryEventType,
-  EventState,
-  RolloutEventState,
   AvailableAction,
+  Build,
+  EventState,
+  PMApprovalStatus,
+  ReleaseStatus,
   RolloutAction,
-  BuildStrategy,
+  RolloutEventState,
+  SubmissionHistoryEventType,
 } from '~/types/distribution.types';
 import {
-  BUILD_UPLOAD_STATUS_LABELS,
-  BUILD_UPLOAD_STATUS_COLORS,
-} from '~/constants/distribution.constants';
+  BuildStrategy,
+  BuildUploadStatus,
+  Platform,
+  SubmissionAction,
+  SubmissionStatus,
+} from '~/types/distribution.types';
+import type {
+  ActionAvailability,
+  ApprovalState,
+  BuildState,
+} from './distribution.types';
 
 // ============================================================================
 // TYPE GUARDS
@@ -48,14 +62,14 @@ export function isRolloutState(value: EventState): value is RolloutEventState {
  * Check if platform is Android
  */
 export function isAndroidPlatform(platform: Platform): boolean {
-  return platform === 'ANDROID';
+  return platform === Platform.ANDROID;
 }
 
 /**
  * Check if platform is iOS
  */
 export function isIOSPlatform(platform: Platform): boolean {
-  return platform === 'IOS';
+  return platform === Platform.IOS;
 }
 
 // ============================================================================
@@ -106,23 +120,6 @@ export function formatRelativeTime(isoString: string | null): string {
 // BUILD UTILITIES
 // ============================================================================
 
-/** Computed build state (no React hooks) */
-export type BuildState = {
-  hasBuild: boolean;
-  isUploaded: boolean;
-  isUploading: boolean;
-  isFailed: boolean;
-  isPending: boolean;
-  isManualMode: boolean;
-  isAndroid: boolean;
-  isIOS: boolean;
-  canUpload: boolean;
-  canVerify: boolean;
-  testingLink: string | null;
-  statusLabel: string;
-  statusColor: string;
-};
-
 /**
  * Derive build state from props (pure function, not a hook)
  */
@@ -132,12 +129,12 @@ export function deriveBuildState(
   buildStrategy: BuildStrategy
 ): BuildState {
   const hasBuild = build !== null;
-  const isUploaded = build?.buildUploadStatus === 'UPLOADED';
-  const isUploading = build?.buildUploadStatus === 'UPLOADING';
-  const isFailed = build?.buildUploadStatus === 'FAILED';
-  const isPending = build?.buildUploadStatus === 'PENDING';
+  const isUploaded = build?.buildUploadStatus === BuildUploadStatus.UPLOADED;
+  const isUploading = build?.buildUploadStatus === BuildUploadStatus.UPLOADING;
+  const isFailed = build?.buildUploadStatus === BuildUploadStatus.FAILED;
+  const isPending = build?.buildUploadStatus === BuildUploadStatus.PENDING;
   
-  const isManualMode = buildStrategy === 'MANUAL';
+  const isManualMode = buildStrategy === BuildStrategy.MANUAL;
   const isAndroid = isAndroidPlatform(platform);
   const isIOS = isIOSPlatform(platform);
   
@@ -179,17 +176,6 @@ export function deriveBuildState(
 // APPROVAL UTILITIES
 // ============================================================================
 
-/** Computed approval state */
-export type ApprovalState = {
-  hasIntegration: boolean;
-  isApproved: boolean;
-  requiresManualApproval: boolean;
-  ticket: PMApprovalStatus['pmTicket'];
-  blockedReason: string | undefined;
-  statusLabel: string;
-  statusColor: string;
-};
-
 /**
  * Derive approval state from PM status (pure function, not a hook)
  */
@@ -223,21 +209,6 @@ export function deriveApprovalState(pmStatus: PMApprovalStatus): ApprovalState {
 // ROLLOUT UTILITIES
 // ============================================================================
 
-/** Action availability state */
-export type ActionAvailability = {
-  canUpdate: boolean;
-  canPause: boolean;
-  canResume: boolean;
-  canHalt: boolean;
-  updateReason: string | undefined;
-  pauseReason: string | undefined;
-  resumeReason: string | undefined;
-  haltReason: string | undefined;
-  supportsRollout: boolean;
-  isPaused: boolean;
-  isComplete: boolean;
-};
-
 /**
  * Derive action availability from props (pure function, not a hook)
  */
@@ -250,19 +221,19 @@ export function deriveActionAvailability(
   const findAction = (actionName: RolloutAction) => 
     availableActions.find(a => a.action === actionName);
 
-  const canUpdate = findAction('UPDATE_ROLLOUT')?.enabled ?? false;
-  const canPause = findAction('PAUSE')?.enabled ?? false;
-  const canResume = findAction('RESUME')?.enabled ?? false;
-  const canHalt = findAction('HALT')?.enabled ?? false;
+  const canUpdate = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.enabled ?? false;
+  const canPause = findAction(SubmissionAction.PAUSE as RolloutAction)?.enabled ?? false;
+  const canResume = findAction(SubmissionAction.RESUME as RolloutAction)?.enabled ?? false;
+  const canHalt = findAction(SubmissionAction.HALT as RolloutAction)?.enabled ?? false;
 
-  const updateReason = findAction('UPDATE_ROLLOUT')?.reason;
-  const pauseReason = findAction('PAUSE')?.reason;
-  const resumeReason = findAction('RESUME')?.reason;
-  const haltReason = findAction('HALT')?.reason;
+  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason;
+  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason;
+  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason;
+  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason;
 
   const supportsRollout = isAndroidPlatform(platform);
-  const isPaused = status === 'IN_REVIEW';
-  const isComplete = status === 'LIVE' && currentPercentage === 100;
+  const isPaused = status === SubmissionStatus.IN_REVIEW;
+  const isComplete = status === SubmissionStatus.LIVE && currentPercentage === ROLLOUT_COMPLETE_PERCENT;
 
   return {
     canUpdate: canUpdate && supportsRollout,
@@ -286,9 +257,9 @@ export function getRolloutDisplayStatus(
   percentage: number,
   status: SubmissionStatus
 ): 'active' | 'paused' | 'halted' | 'complete' {
-  if (percentage === 100) return 'complete';
-  if (status === 'REJECTED' || status === 'HALTED') return 'halted';
-  if (status === 'IN_REVIEW') return 'paused';
+  if (percentage === ROLLOUT_COMPLETE_PERCENT) return 'complete';
+  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) return 'halted';
+  if (status === SubmissionStatus.IN_REVIEW) return 'paused';
   return 'active';
 }
 
@@ -308,34 +279,17 @@ export function getRolloutPercentageDisplay(newState: EventState): string {
 
 /** Status to color mapping for release status */
 export function getReleaseStatusColor(status: ReleaseStatus): string {
-  const colorMap: Record<ReleaseStatus, string> = {
-    PRE_RELEASE: 'gray',
-    READY_FOR_SUBMISSION: 'cyan',
-    COMPLETED: 'green',
-  };
-  return colorMap[status];
+  return RELEASE_STATUS_COLORS[status];
 }
 
 /** Status to color mapping for rollout status */
 export function getRolloutStatusColor(status: 'active' | 'paused' | 'halted' | 'complete'): string {
-  const colorMap = {
-    complete: 'green',
-    active: 'blue',
-    paused: 'yellow',
-    halted: 'red',
-  };
-  return colorMap[status];
+  return ROLLOUT_STATUS_COLORS[status];
 }
 
 /** Status to label mapping for rollout status */
 export function getRolloutStatusLabel(status: 'active' | 'paused' | 'halted' | 'complete'): string {
-  const labelMap = {
-    complete: 'Complete',
-    active: 'Active',
-    paused: 'Paused',
-    halted: 'Halted',
-  };
-  return labelMap[status];
+  return ROLLOUT_STATUS_LABELS[status];
 }
 
 // ============================================================================
@@ -344,33 +298,10 @@ export function getRolloutStatusLabel(status: 'active' | 'paused' | 'halted' | '
 
 /** Event type to color mapping */
 export function getEventColor(eventType: SubmissionHistoryEventType): string {
-  const colorMap: Record<SubmissionHistoryEventType, string> = {
-    SUBMITTED: 'blue',
-    APPROVED: 'green',
-    ROLLOUT_RESUMED: 'green',
-    REJECTED: 'red',
-    ROLLOUT_HALTED: 'red',
-    ROLLOUT_PAUSED: 'yellow',
-    ROLLOUT_UPDATED: 'cyan',
-    RETRY_ATTEMPTED: 'orange',
-    STATUS_CHANGED: 'gray',
-  };
-  return colorMap[eventType];
+  return EVENT_COLORS[eventType];
 }
 
 /** Event type to label mapping */
 export function getEventLabel(eventType: SubmissionHistoryEventType): string {
-  const labelMap: Record<SubmissionHistoryEventType, string> = {
-    SUBMITTED: 'Submitted',
-    STATUS_CHANGED: 'Status Changed',
-    ROLLOUT_UPDATED: 'Rollout Updated',
-    ROLLOUT_PAUSED: 'Rollout Paused',
-    ROLLOUT_RESUMED: 'Rollout Resumed',
-    ROLLOUT_HALTED: 'Rollout Halted',
-    REJECTED: 'Rejected',
-    APPROVED: 'Approved',
-    RETRY_ATTEMPTED: 'Retry Attempted',
-  };
-  return labelMap[eventType];
+  return EVENT_LABELS[eventType];
 }
-

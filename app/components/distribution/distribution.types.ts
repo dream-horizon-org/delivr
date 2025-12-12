@@ -6,21 +6,21 @@
  */
 
 import type {
+  ApproverRole,
+  AvailableAction,
   Build,
   BuildStrategy,
   BuildUploadStatus,
+  DistributionStatus,
+  ExtraCommitsData,
+  HaltSeverity,
   Platform,
   PMApprovalStatus,
-  ExtraCommitsData,
-  DistributionStatus,
-  Submission,
-  SubmissionStatus,
-  SubmissionHistoryEvent,
-  ApproverRole,
-  HaltSeverity,
-  AvailableAction,
-  RolloutAction,
   RejectionDetails,
+  RolloutAction,
+  Submission,
+  SubmissionHistoryEvent,
+  SubmissionStatus,
 } from '~/types/distribution.types';
 
 // ============================================================================
@@ -94,9 +94,8 @@ export type BuildStatusCardProps = BaseProps & WithPlatform & {
   // Manual mode callbacks
   onUploadRequested?: () => void;
   onVerifyRequested?: () => void;
-  // Note: No onRetryBuild - CICD builds are auto-triggered by Release Orchestrator
-  // If CI fails, user retries via their CI system directly (Jenkins, GitHub Actions)
-  // We link to the CI run URL so user can retry there
+  // CICD mode callback
+  onRetryBuild?: (buildId: string) => void;
   ciRetryUrl?: string;
 };
 
@@ -248,4 +247,51 @@ export type RejectionDetailsCardProps = BaseProps & {
   details: RejectionDetails | null;
   canRetry?: boolean;
   onRetry?: () => void;
+};
+
+// ============================================================================
+// DERIVED STATE TYPES (from utility functions)
+// ============================================================================
+
+/** Computed build state (no React hooks) */
+export type BuildState = {
+  hasBuild: boolean;
+  isUploaded: boolean;
+  isUploading: boolean;
+  isFailed: boolean;
+  isPending: boolean;
+  isManualMode: boolean;
+  isAndroid: boolean;
+  isIOS: boolean;
+  canUpload: boolean;
+  canVerify: boolean;
+  testingLink: string | null;
+  statusLabel: string;
+  statusColor: string;
+};
+
+/** Computed approval state */
+export type ApprovalState = {
+  hasIntegration: boolean;
+  isApproved: boolean;
+  requiresManualApproval: boolean;
+  ticket: PMApprovalStatus['pmTicket'];
+  blockedReason: string | undefined;
+  statusLabel: string;
+  statusColor: string;
+};
+
+/** Action availability state */
+export type ActionAvailability = {
+  canUpdate: boolean;
+  canPause: boolean;
+  canResume: boolean;
+  canHalt: boolean;
+  updateReason: string | undefined;
+  pauseReason: string | undefined;
+  resumeReason: string | undefined;
+  haltReason: string | undefined;
+  supportsRollout: boolean;
+  isPaused: boolean;
+  isComplete: boolean;
 };

@@ -12,42 +12,43 @@
  * - Retry submission
  */
 
-import { useState, useCallback } from 'react';
-import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
-import { useLoaderData, useNavigate, useFetcher, useRevalidator } from '@remix-run/react';
-import { Container, Card, Badge, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Badge, Button, Card, Container, Group, Stack, Text, Title } from '@mantine/core';
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
+import { useFetcher, useLoaderData, useNavigate, useRevalidator } from '@remix-run/react';
 import { IconArrowLeft, IconRefresh } from '@tabler/icons-react';
-import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
-import { DistributionService } from '~/.server/services/Distribution';
+import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
-import {
-  createValidationError,
-  handleAxiosError,
-  logApiError,
-  validateRequired,
-  isValidPercentage,
-} from '~/utils/api-route-helpers';
+import { DistributionService } from '~/.server/services/Distribution';
 import {
   ERROR_MESSAGES,
   LOG_CONTEXT,
 } from '~/constants/distribution-api.constants';
 import {
-  SUBMISSION_STATUS_LABELS,
-  SUBMISSION_STATUS_COLORS,
-  PLATFORM_LABELS,
   BUTTON_LABELS,
+  PLATFORM_LABELS,
+  ROLLOUT_COMPLETE_PERCENT,
+  SUBMISSION_STATUS_COLORS,
+  SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type {
   Submission,
   SubmissionHistoryResponse,
 } from '~/types/distribution.types';
+import { HaltSeverity, Platform, SubmissionAction, SubmissionStatus } from '~/types/distribution.types';
+import {
+  createValidationError,
+  handleAxiosError,
+  isValidPercentage,
+  logApiError,
+  validateRequired,
+} from '~/utils/api-route-helpers';
+import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/authenticate';
 
 // Components
 import {
-  SubmissionCard,
-  RolloutControls,
   HaltRolloutDialog,
+  RolloutControls,
+  SubmissionCard,
   SubmissionHistoryPanel,
 } from '~/components/distribution';
 
@@ -57,7 +58,7 @@ import {
 
 type SubmissionLoaderData = {
   submission: Submission;
-  history: SubmissionHistoryResponse;
+  history: SubmissionHistoryResponse['data'];
   releaseId: string;
   org: string;
 };
@@ -67,7 +68,7 @@ type SubmissionLoaderData = {
 // ============================================================================
 
 export const loader = authenticateLoaderRequest(
-  async ({ params, request, user }: LoaderFunctionArgs & { user: User }) => {
+  async ({ params }: LoaderFunctionArgs & { user: User }) => {
     const { submissionId, releaseId, org } = params;
 
     if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
@@ -86,7 +87,7 @@ export const loader = authenticateLoaderRequest(
       ]);
 
       const loaderData: SubmissionLoaderData = {
-        submission: submissionResponse.data.data,
+        submission: submissionResponse.data,
         history: historyResponse.data,
         releaseId: releaseId!,
         org: org!,
@@ -105,7 +106,7 @@ export const loader = authenticateLoaderRequest(
 // ============================================================================
 
 export const action = authenticateActionRequest({
-  POST: async ({ request, params, user }: ActionFunctionArgs & { user: User }) => {
+  POST: async ({ request, params }: ActionFunctionArgs & { user: User }) => {
     const { submissionId } = params;
 
     if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
@@ -147,12 +148,12 @@ export const action = authenticateActionRequest({
 // ============================================================================
 
 export default function SubmissionDetailsPage() {
-  const data = useLoaderData<typeof loader>();
+  const data = useLoaderData<SubmissionLoaderData>();
   const navigate = useNavigate();
   const fetcher = useFetcher();
   const revalidator = useRevalidator();
 
-  const { submission, history } = data;
+  const { submission, history, org, releaseId } = data;
 
   // Halt dialog state
   const [showHaltDialog, setShowHaltDialog] = useState(false);
@@ -160,7 +161,7 @@ export default function SubmissionDetailsPage() {
   // Determine state
   const isAndroid = submission.platform === Platform.ANDROID;
   const isRejected = submission.submissionStatus === SubmissionStatus.REJECTED;
-  const isReleased = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === 100;
+  const isReleased = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === ROLLOUT_COMPLETE_PERCENT;
   const showRolloutControls = isAndroid && 
     (submission.submissionStatus === SubmissionStatus.LIVE ||
      submission.submissionStatus === SubmissionStatus.APPROVED);
@@ -187,7 +188,7 @@ export default function SubmissionDetailsPage() {
     fetcher.submit(formData, { method: 'post' });
   }, [fetcher]);
 
-  const handleHalt = useCallback((reason: string, severity: 'CRITICAL' | 'HIGH' | 'MEDIUM') => {
+  const handleHalt = useCallback((reason: string, severity: HaltSeverity) => {
     const formData = new FormData();
     formData.append('_action', 'halt-rollout');
     formData.append('reason', reason);
@@ -215,12 +216,12 @@ export default function SubmissionDetailsPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate(`/dashboard/${data.org}/releases/${data.releaseId}/distribution`)}
+            onClick={() => navigate(`/dashboard/${org}/releases/${releaseId}/distribution`)}
           >
             Back to Distribution
           </Button>
           <Title order={2} mt="md">
-            {PLATFORM_LABELS[submission.platform]} Submission
+            {PLATFORM_LABELS[submission.platform as Platform]} Submission
           </Title>
           <Text c="dimmed" size="sm">
             Version {submission.versionName} ({submission.versionCode})
@@ -228,11 +229,11 @@ export default function SubmissionDetailsPage() {
         </div>
 
         <Badge 
-          color={SUBMISSION_STATUS_COLORS[submission.submissionStatus]} 
+          color={SUBMISSION_STATUS_COLORS[submission.submissionStatus as SubmissionStatus]} 
           size="xl"
           variant="light"
         >
-          {SUBMISSION_STATUS_LABELS[submission.submissionStatus]}
+          {SUBMISSION_STATUS_LABELS[submission.submissionStatus as SubmissionStatus]}
         </Badge>
       </Group>
 
@@ -252,7 +253,9 @@ export default function SubmissionDetailsPage() {
                 status={submission.submissionStatus}
                 platform={submission.platform}
                 isLoading={isLoading}
-                availableActions={submission.availableActions}
+                availableActions={submission.availableActions.filter(
+                  (action) => action.action !== SubmissionAction.RETRY
+                ) as any}
                 onUpdateRollout={handleUpdateRollout}
                 onPause={handlePause}
                 onResume={handleResume}
@@ -308,8 +311,8 @@ export default function SubmissionDetailsPage() {
         {/* Right Column - History */}
         <div className="lg:col-span-1">
           <SubmissionHistoryPanel
-            events={history.data.events}
-            hasMore={history.data.pagination.hasMore}
+            events={history.events}
+            hasMore={history.pagination.hasMore}
             isLoadingMore={revalidator.state === 'loading'}
             onLoadMore={handleLoadMoreHistory}
           />
@@ -320,7 +323,7 @@ export default function SubmissionDetailsPage() {
       <HaltRolloutDialog
         opened={showHaltDialog}
         submissionId={submission.id}
-        platform={submission.platform}
+        platform={submission.platform as Platform}
         isHalting={isLoading}
         onHalt={handleHalt}
         onClose={() => setShowHaltDialog(false)}
@@ -342,7 +345,7 @@ async function handleUpdateRollout(submissionId: string, formData: FormData) {
   }
 
   try {
-    const requestData = { submissionId, percentage };
+    const requestData = { submissionId, exposurePercent: percentage };
     const response = await DistributionService.updateRollout(submissionId, requestData);
     return json(response.data);
   } catch (error) {
@@ -376,7 +379,7 @@ async function handleResumeRollout(submissionId: string) {
 
 async function handleHaltRollout(submissionId: string, formData: FormData) {
   const reason = formData.get('reason') as string;
-  const severity = formData.get('severity') as string;
+  const severity = formData.get('severity') as HaltSeverity;
 
   if (!reason) {
     return createValidationError(ERROR_MESSAGES.REASON_REQUIRED);
