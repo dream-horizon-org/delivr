@@ -69,7 +69,7 @@ const encryptCredentials = (payload: string): Buffer => {
 // Helper: Generate JWT token for App Store Connect API
 // ============================================================================
 
-const generateAppStoreConnectJWT = (
+export const generateAppStoreConnectJWT = (
   issuerId: string,
   keyId: string,
   privateKeyPem: string

@@ -9,6 +9,7 @@ import { Request, Response, Router } from "express";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
+import { verifyTestFlightBuild } from "../../controllers/release/testflight-verification.controller";
 import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
 import { HTTP_STATUS } from "../../constants/http";
 
@@ -290,6 +291,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
     tenantPermissions.requireOwner({ storage }),
     controller.checkTestManagementRunStatus
+  );
+
+  // ============================================================================
+  // BUILD VERIFICATION
+  // ============================================================================
+
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/builds/verify-testflight",
+    tenantPermissions.requireOwner({ storage }),
+    verifyTestFlightBuild
   );
 
   return router;
