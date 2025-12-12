@@ -11,7 +11,7 @@ import type {
   JenkinsBuildStatusResult
 } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
-import { normalizePlatform, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
+import { normalizePlatform, mergeWorkflowInputs } from '../utils/cicd.utils';
 
 export class JenkinsWorkflowService extends WorkflowService {
   /**
@@ -95,14 +95,8 @@ export class JenkinsWorkflowService extends WorkflowService {
       throw new Error(msg);
     }
 
-    const defaults = extractDefaultsFromWorkflow(workflow.parameters);
-    const provided = input.jobParameters ?? {};
-    const formParams: Record<string, string> = {};
-    const allKeys = new Set<string>([...Object.keys(defaults), ...Object.keys(provided as Record<string, unknown>)]);
-    for (const key of allKeys) {
-      const value = (provided as any)[key] ?? (defaults as any)[key];
-      if (value !== undefined && value !== null) formParams[key] = String(value);
-    }
+    // Merge workflow defaults with provided job parameters, converting to strings for Jenkins form
+    const formParams = mergeWorkflowInputs(workflow.parameters, input.jobParameters, String);
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
     const authHeader = 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64');

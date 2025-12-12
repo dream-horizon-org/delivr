@@ -3,7 +3,7 @@ import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams, GHAWorkflowDispatchParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
-import { parseGitHubRunUrl, parseGitHubWorkflowUrl, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
+import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs } from '../utils/cicd.utils';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
   /**
@@ -80,14 +80,8 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     const token = await this.getGithubTokenForTenant(tenantId);
     if (!token) throw new Error(ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE);
 
-    const defaults = extractDefaultsFromWorkflow(workflow.parameters);
-    const provided = input.jobParameters ?? {};
-    const inputs: Record<string, unknown> = {};
-    const allKeys = new Set<string>([...Object.keys(defaults), ...Object.keys(provided as Record<string, unknown>)]);
-    for (const key of allKeys) {
-      const value = (provided as any)[key] ?? (defaults as any)[key];
-      if (value !== undefined && value !== null) inputs[key] = value;
-    }
+    // Merge workflow defaults with provided job parameters (ignores extra keys from overrides)
+    const inputs = mergeWorkflowInputs(workflow.parameters, input.jobParameters);
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
     const args: GHAWorkflowDispatchParams = {

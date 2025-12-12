@@ -10,7 +10,7 @@ export const normalizePlatform = (platform: unknown): string | undefined => {
   return trimmed.toLowerCase();
 };
 
-import { WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
+import { WorkflowType, WorkflowParameter } from '~types/integrations/ci-cd/workflow.interface';
 
 export const normalizeWorkflowType = (value: unknown): WorkflowType | undefined => {
   const isString = typeof value === 'string';
@@ -98,13 +98,53 @@ export const normalizeJenkinsParamType = (rawClass: string, choices?: string[]):
   return 'string';
 };
 
-export const extractDefaultsFromWorkflow = (parameters: any): Record<string, any> => {
-  if (!Array.isArray(parameters)) return {};
-  const out: Record<string, any> = {};
-  for (const p of parameters) {
-    if (p && p.name) out[p.name] = p.defaultValue;
+export const extractDefaultsFromWorkflow = (parameters: WorkflowParameter[] | null | undefined): Record<string, unknown> => {
+  const isNotArray = !Array.isArray(parameters);
+  if (isNotArray) return {};
+
+  const defaults: Record<string, unknown> = {};
+
+  for (const param of parameters) {
+    const hasValidName = param && typeof param.name === 'string';
+    if (hasValidName) {
+      defaults[param.name] = param.defaultValue;
+    }
   }
-  return out;
+
+  return defaults;
+};
+
+/**
+ * Merge workflow parameter defaults with job parameter overrides.
+ * Only processes keys defined in workflow parameters (ignores extra keys from overrides).
+ *
+ * @param workflowParameters - Workflow parameter definitions from the database
+ * @param jobParameterOverrides - User-provided overrides for workflow parameters
+ * @param transform - Optional function to transform values (e.g., String for Jenkins form params)
+ * @returns Merged parameters with overrides applied
+ */
+export const mergeWorkflowInputs = <T = unknown>(
+  workflowParameters: WorkflowParameter[] | null | undefined,
+  jobParameterOverrides: Record<string, unknown> | undefined,
+  transform?: (value: unknown) => T
+): Record<string, T> => {
+  const defaults = extractDefaultsFromWorkflow(workflowParameters);
+  const overrides = jobParameterOverrides ?? {};
+  const result: Record<string, T> = {};
+
+  const workflowParameterKeys = Object.keys(defaults);
+
+  for (const key of workflowParameterKeys) {
+    // Use override if defined (not null/undefined), otherwise fall back to default
+    const value = overrides[key] ?? defaults[key];
+
+    const isValueDefined = value !== undefined && value !== null;
+    if (isValueDefined) {
+      result[key] = transform ? transform(value) : (value as T);
+    }
+  }
+
+  return result;
 };
 
 export const ensureTrailingSlash = (u: string): string => {

@@ -104,12 +104,14 @@ export class JenkinsProvider implements JenkinsProviderContract {
       const isBoolean = p.type === 'boolean';
       const isChoice = p.type === 'choice';
       const normalizedType: 'boolean' | 'string' | 'choice' = isBoolean ? 'boolean' : (isChoice ? 'choice' : 'string');
+      // Normalize Jenkins 'choices' to 'options' for consistency across providers
+      const choicesArray = Array.isArray(p.choices) ? p.choices : undefined;
       return {
         name: p.name as string,
         type: normalizedType,
         description: p.description,
         defaultValue: p.defaultValue,
-        choices: Array.isArray(p.choices) ? p.choices : undefined
+        options: choicesArray  // Use 'options' for consistency (Jenkins calls it 'choices')
       };
     });
     return { parameters };
