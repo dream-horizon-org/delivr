@@ -240,9 +240,6 @@ export function TaskCard({
             <Stack gap="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
               {/* Task Details */}
               <Stack gap="xs">
-                <Text size="xs" c="dimmed" fw={500}>
-                  Task Details
-                </Text>
                 <Group gap="md">
                   <div>
                     <Text size="xs" c="dimmed">

@@ -8,13 +8,12 @@
  * - Phase-based rendering of stage components
  */
 
-import { Container, Stack } from '@mantine/core';
+import { Container, Group, Stack } from '@mantine/core';
 import { useNavigate, useParams } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { KickoffStage, PreKickoffStage, ReleaseProcessHeader } from '~/components/ReleaseProcess';
+import { KickoffStage, PreKickoffStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
-import { ReleaseStageStepper } from '~/components/Releases/ReleaseStageStepper';
 import { useRelease } from '~/hooks/useRelease';
 import { Phase } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
@@ -125,7 +124,7 @@ export default function ReleaseDetailsPage() {
   return (
     <Container size="xl" className="py-8">
       <Stack gap="lg">
-        {/* Unified Release Process Header - Consolidates all header info and actions */}
+        {/* Header with Actions */}
         <ReleaseProcessHeader
           release={release}
           org={org}
@@ -134,18 +133,20 @@ export default function ReleaseDetailsPage() {
           onUpdate={refetch}
         />
 
-        {/* Stage Stepper */}
-        <ReleaseStageStepper
-          releaseId={releaseId}
-          org={org}
-          releaseBranch={release.branch ?? undefined}
-          currentStage={currentStage}
-          selectedStage={selectedStage}
-          onStageSelect={handleStageSelect}
-        />
+        {/* Main Content with Stage Stepper Sidebar */}
+        <Group align="stretch" gap="lg" wrap="nowrap" style={{ alignItems: 'flex-start' }}>
+          {/* Main Content Area */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {renderStageComponent()}
+          </div>
 
-        {/* Phase-based Stage Component */}
-        {renderStageComponent()}
+          {/* Right Sidebar - Stage Stepper (beside tasks) */}
+          <ReleaseProcessSidebar
+            currentStage={currentStage}
+            selectedStage={selectedStage}
+            onStageSelect={handleStageSelect}
+          />
+        </Group>
       </Stack>
     </Container>
   );
