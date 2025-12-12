@@ -251,6 +251,8 @@ export function mockFetch(url: string | URL | Request, options?: RequestInit): P
 
   // Mock GitHub Actions workflow runs query (GET to /runs endpoint)
   if (urlString.includes('api.github.com') && urlString.includes('/runs') && method === 'GET') {
+    // Generate unique ID for each call to avoid unique constraint violations
+    const uniqueRunId = `mock-run-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     return Promise.resolve({
       ok: true,
       status: 200,
@@ -258,8 +260,8 @@ export function mockFetch(url: string | URL | Request, options?: RequestInit): P
       json: async () => ({
         total_count: 1,
         workflow_runs: [{
-          id: 'mock-run-' + Math.floor(Math.random() * 100000),
-          html_url: `https://github.com/test-owner/test-repo/actions/runs/mock-run-id`,
+          id: uniqueRunId,
+          html_url: `https://github.com/test-owner/test-repo/actions/runs/${uniqueRunId}`,
           status: 'queued',
           conclusion: null
         }]

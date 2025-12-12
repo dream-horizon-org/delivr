@@ -5,9 +5,23 @@
 
 import { ReleaseRepository } from '../../models/release/release.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
+import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
+import { BuildRepository } from '../../models/release/build.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { UpdateReleaseRequestBody } from '../../types/release/release.interface';
-import { Release, UpdateReleaseDto, UpdateCronJobDto, CronJob, StageStatus, CronStatus, RegressionSlot } from '../../models/release/release.interface';
+import { 
+  Release, 
+  UpdateReleaseDto, 
+  UpdateCronJobDto, 
+  CronJob, 
+  StageStatus, 
+  CronStatus, 
+  RegressionSlot,
+  TaskStatus,
+  ReleaseStatus,
+  PauseType,
+  TaskType
+} from '../../models/release/release.interface';
 import { CronJobService } from './cron-job/cron-job.service';
 
 export interface UpdateReleasePayload {
@@ -26,13 +40,56 @@ export interface ReleaseUpdateValidationResult {
   canEditKickOffDate?: boolean;
 }
 
+export interface RetryTaskResult {
+  success: boolean;
+  error?: string;
+  taskId?: string;
+  previousStatus?: string;
+  newStatus?: string;
+}
+
+/**
+ * Build-related task types that require build entry reset on retry
+ */
+const BUILD_TASK_TYPES: TaskType[] = [
+  TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
+  TaskType.TRIGGER_REGRESSION_BUILDS,
+  TaskType.TRIGGER_TEST_FLIGHT_BUILD,
+  TaskType.CREATE_AAB_BUILD
+];
+
 export class ReleaseUpdateService {
   constructor(
     private readonly releaseRepository: ReleaseRepository,
     private readonly cronJobRepository: CronJobRepository,
     private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
-    private readonly cronJobService: CronJobService
+    private readonly cronJobService: CronJobService,
+    private readonly taskRepository?: ReleaseTaskRepository,
+    private readonly buildRepository?: BuildRepository
   ) {}
+
+  // Repository getters for manual upload flow
+  getBuildRepository(): BuildRepository {
+    if (!this.buildRepository) {
+      throw new Error('BuildRepository not initialized');
+    }
+    return this.buildRepository;
+  }
+
+  getTaskRepository(): ReleaseTaskRepository {
+    if (!this.taskRepository) {
+      throw new Error('ReleaseTaskRepository not initialized');
+    }
+    return this.taskRepository;
+  }
+
+  getReleaseRepository(): ReleaseRepository {
+    return this.releaseRepository;
+  }
+
+  getPlatformMappingRepository(): ReleasePlatformTargetMappingRepository {
+    return this.platformMappingRepository;
+  }
 
   /**
    * Update an existing release with business rule validations
@@ -318,5 +375,94 @@ export class ReleaseUpdateService {
     }
     
     return slots;
+  }
+
+  // ===========================================================================
+  // RETRY TASK
+  // ===========================================================================
+
+  /**
+   * Retry a failed task
+   * 
+   * This resets the task status to PENDING so the cron job can pick it up
+   * and re-execute it on the next tick (LAZY approach).
+   * 
+   * For build tasks, also resets failed build entries so TaskExecutor
+   * knows which platforms to re-trigger.
+   * 
+   * @param taskId - ID of the task to retry
+   * @param accountId - Account ID of user initiating retry
+   * @returns RetryTaskResult with success status
+   */
+  async retryTask(taskId: string, accountId: string): Promise<RetryTaskResult> {
+    // Validate repositories are available
+    if (!this.taskRepository) {
+      return { success: false, error: 'Task repository not configured' };
+    }
+
+    // Step 1: Find the task
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return { success: false, error: 'Task not found' };
+    }
+
+    // Step 2: Validate task can be retried (only FAILED tasks)
+    if (task.taskStatus !== TaskStatus.FAILED) {
+      return { 
+        success: false, 
+        error: `Only FAILED tasks can be retried. Current status: ${task.taskStatus}` 
+      };
+    }
+
+    const previousStatus = task.taskStatus;
+
+    // Step 3: Reset task status to PENDING
+    await this.taskRepository.update(taskId, { 
+      taskStatus: TaskStatus.PENDING 
+    });
+
+    // Step 4: Resume release if it was paused
+    const release = await this.releaseRepository.findById(task.releaseId);
+    if (release && release.status === ReleaseStatus.PAUSED) {
+      await this.releaseRepository.update(task.releaseId, { 
+        status: ReleaseStatus.IN_PROGRESS,
+        lastUpdatedByAccountId: accountId
+      });
+
+      // Also reset cronJob pauseType
+      const cronJob = await this.cronJobRepository.findByReleaseId(task.releaseId);
+      if (cronJob) {
+        await this.cronJobRepository.update(cronJob.id, { 
+          pauseType: PauseType.NONE 
+        });
+      }
+
+      console.log(`[ReleaseUpdateService] Release ${task.releaseId} resumed after task retry`);
+    }
+
+    // Step 5: For build tasks, reset failed build entries
+    if (this.isBuildTask(task.taskType) && this.buildRepository) {
+      const resetCount = await this.buildRepository.resetFailedBuildsForTask(taskId);
+      console.log(`[ReleaseUpdateService] Reset ${resetCount} failed build entries for task ${taskId}`);
+    }
+
+    console.log(
+      `[ReleaseUpdateService] Task ${taskId} retry initiated by ${accountId}. ` +
+      `Status: ${previousStatus} → PENDING. Cron will pick up on next tick.`
+    );
+
+    return {
+      success: true,
+      taskId,
+      previousStatus,
+      newStatus: TaskStatus.PENDING
+    };
+  }
+
+  /**
+   * Check if task type is a build-related task
+   */
+  private isBuildTask(taskType: TaskType): boolean {
+    return BUILD_TASK_TYPES.includes(taskType);
   }
 }

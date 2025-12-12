@@ -1,4 +1,14 @@
-import type { BuildModelType, BuildAttributes, PlatformName, TargetName } from './build.sequelize.model';
+import type { 
+  BuildModelType, 
+  BuildAttributes, 
+  PlatformName, 
+  StoreType,
+  BuildUploadStatus,
+  BuildType,
+  BuildStage,
+  WorkflowStatus,
+  CIRunType
+} from './build.sequelize.model';
 
 /**
  * Build database record type
@@ -10,22 +20,43 @@ export type Build = BuildAttributes;
  */
 export type CreateBuildDto = {
   id: string;
-  number: string;
-  link?: string | null;
+  tenantId: string;
   releaseId: string;
   platform: PlatformName;
-  target?: TargetName | null;
+  buildType: BuildType;
+  buildStage: BuildStage;
+  buildNumber?: string | null;
+  artifactVersionName?: string | null;
+  artifactPath?: string | null;
+  storeType?: StoreType | null;
   regressionId?: string | null;
+  ciRunId?: string | null;
+  buildUploadStatus?: BuildUploadStatus;
+  queueLocation?: string | null;
+  workflowStatus?: WorkflowStatus | null;
+  ciRunType?: CIRunType | null;
+  taskId?: string | null;
+  internalTrackLink?: string | null;
+  testflightNumber?: string | null;
 };
 
 /**
  * DTO for updating a build
  */
 export type UpdateBuildDto = {
-  number?: string;
-  link?: string | null;
-  target?: TargetName | null;
+  buildNumber?: string | null;
+  artifactVersionName?: string | null;
+  artifactPath?: string | null;
+  storeType?: StoreType | null;
   regressionId?: string | null;
+  ciRunId?: string | null;
+  buildUploadStatus?: BuildUploadStatus;
+  queueLocation?: string | null;
+  workflowStatus?: WorkflowStatus | null;
+  ciRunType?: CIRunType | null;
+  taskId?: string | null;
+  internalTrackLink?: string | null;
+  testflightNumber?: string | null;
 };
 
 export class BuildRepository {
@@ -41,12 +72,24 @@ export class BuildRepository {
   async create(data: CreateBuildDto): Promise<Build> {
     const build = await this.model.create({
       id: data.id,
-      number: data.number,
-      link: data.link ?? null,
+      tenantId: data.tenantId,
       releaseId: data.releaseId,
       platform: data.platform,
-      target: data.target ?? null,
-      regressionId: data.regressionId ?? null
+      buildType: data.buildType,
+      buildStage: data.buildStage,
+      buildNumber: data.buildNumber ?? null,
+      artifactVersionName: data.artifactVersionName ?? null,
+      artifactPath: data.artifactPath ?? null,
+      storeType: data.storeType ?? null,
+      regressionId: data.regressionId ?? null,
+      ciRunId: data.ciRunId ?? null,
+      buildUploadStatus: data.buildUploadStatus ?? 'PENDING',
+      queueLocation: data.queueLocation ?? null,
+      workflowStatus: data.workflowStatus ?? null,
+      ciRunType: data.ciRunType ?? null,
+      taskId: data.taskId ?? null,
+      internalTrackLink: data.internalTrackLink ?? null,
+      testflightNumber: data.testflightNumber ?? null
     });
 
     return this.toPlainObject(build);
@@ -95,7 +138,7 @@ export class BuildRepository {
   }
 
   /**
-   * Find build for a regression cycle and platform (unique combination)
+   * Find build for a regression cycle and platform
    */
   async findByRegressionAndPlatform(regressionId: string, platform: PlatformName): Promise<Build | null> {
     const build = await this.model.findOne({
@@ -103,6 +146,93 @@ export class BuildRepository {
     });
     if (!build) return null;
     return this.toPlainObject(build);
+  }
+
+  /**
+   * Find all builds for a task (for platform-specific retry)
+   */
+  async findByTaskId(taskId: string): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { taskId },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find build for a task and platform
+   */
+  async findByTaskAndPlatform(taskId: string, platform: PlatformName): Promise<Build | null> {
+    const build = await this.model.findOne({
+      where: { taskId, platform }
+    });
+    if (!build) return null;
+    return this.toPlainObject(build);
+  }
+
+  /**
+   * Find build by taskId and queueLocation (unique combination)
+   * Used by CI/CD callback handler to identify the specific build
+   */
+  async findByTaskAndQueueLocation(taskId: string, queueLocation: string): Promise<Build | null> {
+    const build = await this.model.findOne({
+      where: { taskId, queueLocation }
+    });
+    if (!build) return null;
+    return this.toPlainObject(build);
+  }
+
+  /**
+   * Find builds by workflow status (for callback handling)
+   */
+  async findByWorkflowStatus(workflowStatus: WorkflowStatus): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { workflowStatus },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find builds awaiting completion for a task
+   */
+  async findPendingByTaskId(taskId: string): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { 
+        taskId,
+        workflowStatus: ['PENDING', 'RUNNING']
+      },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find failed builds for a task (for retry)
+   */
+  async findFailedByTaskId(taskId: string): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { 
+        taskId,
+        workflowStatus: 'FAILED'
+      },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find completed builds for a task
+   */
+  async findCompletedByTaskId(taskId: string): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { 
+        taskId,
+        workflowStatus: 'COMPLETED'
+      },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b: any) => this.toPlainObject(b));
   }
 
   /**
@@ -115,18 +245,71 @@ export class BuildRepository {
   }
 
   /**
+   * Update workflow status for a build
+   */
+  async updateWorkflowStatus(id: string, workflowStatus: WorkflowStatus): Promise<void> {
+    await this.model.update(
+      { workflowStatus },
+      { where: { id } }
+    );
+  }
+
+  /**
+   * Update build upload status
+   */
+  async updateBuildUploadStatus(id: string, buildUploadStatus: BuildUploadStatus): Promise<void> {
+    await this.model.update(
+      { buildUploadStatus },
+      { where: { id } }
+    );
+  }
+
+  /**
+   * Reset failed builds to pending (for retry)
+   */
+  async resetFailedBuildsForTask(taskId: string, platforms?: PlatformName[]): Promise<number> {
+    const where: any = { 
+      taskId,
+      workflowStatus: 'FAILED'
+    };
+    
+    if (platforms && platforms.length > 0) {
+      where.platform = platforms;
+    }
+
+    const [affectedCount] = await this.model.update(
+      { workflowStatus: 'PENDING' },
+      { where }
+    );
+
+    return affectedCount;
+  }
+
+  /**
    * Bulk create builds
    */
   async bulkCreate(data: CreateBuildDto[]): Promise<Build[]> {
     const builds = await this.model.bulkCreate(
       data.map(d => ({
         id: d.id,
-        number: d.number,
-        link: d.link ?? null,
+        tenantId: d.tenantId,
         releaseId: d.releaseId,
         platform: d.platform,
-        target: d.target ?? null,
-        regressionId: d.regressionId ?? null
+        buildType: d.buildType,
+        buildStage: d.buildStage,
+        buildNumber: d.buildNumber ?? null,
+        artifactVersionName: d.artifactVersionName ?? null,
+        artifactPath: d.artifactPath ?? null,
+        storeType: d.storeType ?? null,
+        regressionId: d.regressionId ?? null,
+        ciRunId: d.ciRunId ?? null,
+        buildUploadStatus: d.buildUploadStatus ?? 'PENDING',
+        queueLocation: d.queueLocation ?? null,
+        workflowStatus: d.workflowStatus ?? null,
+        ciRunType: d.ciRunType ?? null,
+        taskId: d.taskId ?? null,
+        internalTrackLink: d.internalTrackLink ?? null,
+        testflightNumber: d.testflightNumber ?? null
       }))
     );
     return builds.map((b: any) => this.toPlainObject(b));
@@ -140,5 +323,102 @@ export class BuildRepository {
       where: { id }
     });
   }
-}
 
+  /**
+   * Check if all builds for a task are completed
+   * Task is COMPLETED when ALL platforms have buildUploadStatus = UPLOADED
+   * 
+   * For CI_CD builds: workflowStatus should be COMPLETED (set by build system)
+   * For MANUAL builds: workflowStatus is NULL, only buildUploadStatus matters
+   */
+  async areAllBuildsCompleted(taskId: string): Promise<boolean> {
+    const builds = await this.findByTaskId(taskId);
+    if (builds.length === 0) return true;
+    
+    // Task complete = ALL platforms have buildUploadStatus = UPLOADED
+    return builds.every(b => b.buildUploadStatus === 'UPLOADED');
+  }
+
+  /**
+   * Check if any build for a task has failed
+   * Task is FAILED if:
+   * - ANY platform has buildUploadStatus = FAILED, OR
+   * - ANY CI_CD build has workflowStatus = FAILED (set by build system via callback)
+   */
+  async hasAnyBuildFailed(taskId: string): Promise<boolean> {
+    const builds = await this.findByTaskId(taskId);
+    return builds.some(b => 
+      b.buildUploadStatus === 'FAILED' || 
+      b.workflowStatus === 'FAILED'
+    );
+  }
+
+  /**
+   * Check if all CI/CD triggers succeeded (have queueLocation)
+   * Used to determine if task can transition to AWAITING_CALLBACK
+   */
+  async allTriggersSucceeded(taskId: string): Promise<boolean> {
+    const builds = await this.findByTaskId(taskId);
+    const cicdBuilds = builds.filter(b => b.buildType === 'CI_CD');
+    
+    if (cicdBuilds.length === 0) return true;
+    
+    // All CI/CD builds must have queueLocation (trigger succeeded)
+    return cicdBuilds.every(b => b.queueLocation !== null);
+  }
+
+  /**
+   * Get builds that failed to trigger (no queueLocation)
+   * These need triggerJob() on retry
+   */
+  async getFailedTriggerBuilds(taskId: string): Promise<Build[]> {
+    const builds = await this.findByTaskId(taskId);
+    return builds.filter(b => 
+      b.buildType === 'CI_CD' && 
+      b.queueLocation === null
+    );
+  }
+
+  /**
+   * Get builds that triggered but workflow failed (have ciRunId)
+   * These need reTriggerJob(ciRunId) on retry
+   */
+  async getFailedWorkflowBuilds(taskId: string): Promise<Build[]> {
+    const builds = await this.findByTaskId(taskId);
+    return builds.filter(b => 
+      b.buildType === 'CI_CD' && 
+      b.ciRunId !== null && 
+      b.workflowStatus === 'FAILED'
+    );
+  }
+
+  /**
+   * Get aggregated status for a task's builds
+   * Based on buildUploadStatus (primary) and workflowStatus (for CI_CD)
+   */
+  async getTaskBuildStatus(taskId: string): Promise<'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'NO_BUILDS'> {
+    const builds = await this.findByTaskId(taskId);
+    
+    if (builds.length === 0) return 'NO_BUILDS';
+    
+    // Check for failures first
+    const hasAnyFailed = builds.some(b => 
+      b.buildUploadStatus === 'FAILED' || 
+      b.workflowStatus === 'FAILED'
+    );
+    if (hasAnyFailed) return 'FAILED';
+    
+    // Check if all uploaded
+    const allUploaded = builds.every(b => b.buildUploadStatus === 'UPLOADED');
+    if (allUploaded) return 'COMPLETED';
+    
+    // Check for running CI_CD builds
+    const hasAnyRunning = builds.some(b => 
+      b.buildType === 'CI_CD' && 
+      b.workflowStatus === 'RUNNING'
+    );
+    if (hasAnyRunning) return 'RUNNING';
+    
+    return 'PENDING';
+  }
+}

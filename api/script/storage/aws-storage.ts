@@ -54,6 +54,7 @@ import {
   createTargetModel,
   createBuildModel,
   createRegressionCycleModel,
+  createReleaseUploadModel,
   ReleaseRepository,
   ReleasePlatformTargetMappingRepository,
   CronJobRepository,
@@ -437,6 +438,7 @@ export function createModelss(sequelize: Sequelize) {
   const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
   const Build = createBuildModel(sequelize);  // Build records (CI/CD)
   const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
+  const ReleaseUpload = createReleaseUploadModel(sequelize);  // Manual build uploads staging
 
   // ============================================
   const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
@@ -603,6 +605,7 @@ export function createModelss(sequelize: Sequelize) {
     stateHistory: StateHistory,
     build: Build,  // Build records for CI/CD
     regressionCycle: RegressionCycle,  // Regression cycles within release workflow
+    releaseUpload: ReleaseUpload,  // Manual build uploads staging table
     CommIntegrations,  // Communication integrations
     SlackIntegrations: CommIntegrations,  // Legacy alias
     StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)

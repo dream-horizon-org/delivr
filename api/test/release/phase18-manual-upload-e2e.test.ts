@@ -1,16 +1,14 @@
 /**
- * Real Release Simulation Test - WITH INTEGRATIONS
+ * Phase 18: Manual Build Upload - E2E Test
  * 
  * This test simulates a complete release workflow with:
+ * - hasManualBuildUpload = true
+ * - Manual build uploads via release_uploads staging table
  * - 2 platforms: IOS + ANDROID
- * - 3 regression slots (3 minutes apart)
+ * - 2 regression slots
  * - Automatic stage transitions
- * - Project Management Integration ENABLED
- * - Test Management Integration ENABLED
  * 
- * Expected Duration: ~12-15 minutes
- * 
- * Run with: npx ts-node -r tsconfig-paths/register test/release/real-release-with-integrations.test.ts
+ * Run with: npx ts-node -r tsconfig-paths/register test/release/phase18-manual-upload-e2e.test.ts
  */
 
 import { Sequelize } from 'sequelize';
@@ -22,6 +20,7 @@ import { CronJobRepository } from '../../script/models/release/cron-job.reposito
 import { ReleaseTaskRepository } from '../../script/models/release/release-task.repository';
 import { RegressionCycleRepository } from '../../script/models/release/regression-cycle.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../script/models/release/release-platform-target-mapping.repository';
+import { ReleaseUploadsRepository } from '../../script/models/release/release-uploads.repository';
 
 // Models
 import { createReleaseModel, ReleaseModelType } from '../../script/models/release/release.sequelize.model';
@@ -30,6 +29,7 @@ import { createReleaseTaskModel, ReleaseTaskModelType } from '../../script/model
 import { createRegressionCycleModel, RegressionCycleModelType } from '../../script/models/release/regression-cycle.sequelize.model';
 import { createPlatformTargetMappingModel } from '../../script/models/release/platform-target-mapping.sequelize.model';
 import { createBuildModel } from '../../script/models/release/build.sequelize.model';
+import { createReleaseUploadModel } from '../../script/models/release/release-uploads.sequelize.model';
 
 // Enums & Types
 import {
@@ -39,7 +39,8 @@ import {
   StageStatus,
   CronStatus,
   ReleaseStatus,
-  RegressionCycleStatus
+  RegressionCycleStatus,
+  PlatformName
 } from '../../script/models/release/release.interface';
 
 // State Machine
@@ -49,7 +50,7 @@ import { CronJobStateMachine } from '../../script/services/release/cron-job/cron
 import { createTestStorage } from '../../test-helpers/release/test-storage';
 import { setupTestIntegrations, cleanupTestIntegrations } from '../../test-helpers/release/setup-test-integrations';
 import { setupFetchMock } from '../../test-helpers/release/mock-fetch';
-import { createTaskExecutorForTests } from '../../test-helpers/release/task-executor-factory';
+import { createTaskExecutorForTests, clearTaskExecutorCache } from '../../test-helpers/release/task-executor-factory';
 import { initializeStorage } from '../../script/storage/storage-instance';
 import { createStage1Tasks } from '../../script/utils/task-creation';
 
@@ -64,15 +65,14 @@ const DB_HOST = process.env.DB_HOST || 'localhost';
 const DB_PORT = parseInt(process.env.DB_PORT || '3306', 10);
 
 const TEST_CONFIG = {
-  NUM_SLOTS: 3,                        // 3 regression slots
-  SLOT_INTERVAL_MS: 3 * 60 * 1000,     // 3 minutes between slots
-  POLL_INTERVAL_MS: 5000,              // Check every 5 seconds
-  MAX_ITERATIONS: 200,                 // Safety limit (~16 minutes)
-  PLATFORMS: ['IOS', 'ANDROID'] as const,
-  VERSION: '7.0.0',
-  // INTEGRATIONS ENABLED
-  ENABLE_PROJECT_MANAGEMENT: true,
-  ENABLE_TEST_MANAGEMENT: true,
+  NUM_SLOTS: 2,                        // 2 regression slots
+  SLOT_INTERVAL_MS: 2 * 60 * 1000,     // 2 minutes between slots
+  POLL_INTERVAL_MS: 3000,              // Check every 3 seconds
+  MAX_ITERATIONS: 150,                 // Safety limit (~7 minutes)
+  PLATFORMS: [PlatformName.IOS, PlatformName.ANDROID] as const,
+  VERSION: '8.0.0',
+  // MANUAL BUILD UPLOAD MODE
+  HAS_MANUAL_BUILD_UPLOAD: true,       // ✅ Phase 18 flag!
 };
 
 // ============================================================================
@@ -114,18 +114,21 @@ interface TestRepositories {
   releaseTaskRepo: ReleaseTaskRepository;
   regressionCycleRepo: RegressionCycleRepository;
   platformMappingRepo: ReleasePlatformTargetMappingRepository;
+  releaseUploadsRepo: ReleaseUploadsRepository;
 }
 
 function createRepositories(sequelize: Sequelize): TestRepositories {
   const models = getOrCreateModels(sequelize);
   const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
+  const ReleaseUploadModel = sequelize.models.ReleaseUpload || createReleaseUploadModel(sequelize);
   
   return {
     releaseRepo: new ReleaseRepository(models.releaseModel),
     cronJobRepo: new CronJobRepository(models.cronJobModel),
     releaseTaskRepo: new ReleaseTaskRepository(models.releaseTaskModel),
     regressionCycleRepo: new RegressionCycleRepository(models.regressionCycleModel),
-    platformMappingRepo: new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any)
+    platformMappingRepo: new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any),
+    releaseUploadsRepo: new ReleaseUploadsRepository(sequelize, ReleaseUploadModel as any)
   };
 }
 
@@ -147,8 +150,8 @@ async function createTestTenant(
     where: { id: accountId },
     defaults: {
       id: accountId,
-      email: `test-${uuidv4()}@example.com`,
-      name: 'Test User - Release With Integrations',
+      email: `phase18-${uuidv4()}@example.com`,
+      name: 'Test User - Phase 18 Manual Upload',
     } as any
   });
 
@@ -156,7 +159,7 @@ async function createTestTenant(
     where: { id: tenantId },
     defaults: {
       id: tenantId,
-      displayName: 'Test Tenant - Release With Integrations',
+      displayName: 'Test Tenant - Phase 18 Manual Upload',
       createdBy: accountId,
     } as any
   });
@@ -172,13 +175,13 @@ async function createTestRelease(
     targetReleaseDate: Date;
     kickOffDate: Date;
     releaseConfigId?: string;
-    hasManualBuildUpload?: boolean;
+    hasManualBuildUpload: boolean;
   }
 ) {
   const id = uuidv4();
   return releaseRepo.create({
     id,
-    releaseId: `REL-INT-${Date.now()}`,
+    releaseId: `REL-PHASE18-${Date.now()}`,
     releaseConfigId: options.releaseConfigId ?? null,
     tenantId: options.tenantId,
     status: 'IN_PROGRESS',
@@ -190,7 +193,7 @@ async function createTestRelease(
     kickOffDate: options.kickOffDate,
     targetReleaseDate: options.targetReleaseDate,
     releaseDate: null,
-    hasManualBuildUpload: options.hasManualBuildUpload ?? false,
+    hasManualBuildUpload: options.hasManualBuildUpload, // ✅ Phase 18!
     createdByAccountId: options.accountId,
     releasePilotAccountId: options.accountId,
     lastUpdatedByAccountId: options.accountId
@@ -225,22 +228,135 @@ async function createTestCronJob(
   });
 }
 
+// Upload manual build to staging table
+async function uploadManualBuild(
+  releaseUploadsRepo: ReleaseUploadsRepository,
+  options: {
+    tenantId: string;
+    releaseId: string;
+    platform: PlatformName;
+    stage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+    artifactPath: string;
+  }
+) {
+  return releaseUploadsRepo.upsert({
+    tenantId: options.tenantId,
+    releaseId: options.releaseId,
+    platform: options.platform,
+    stage: options.stage,
+    artifactPath: options.artifactPath
+  });
+}
+
+// Print database tables
+async function printDatabaseState(sequelize: Sequelize, releaseId: string) {
+  console.log('\n' + '='.repeat(80));
+  console.log('📦 DATABASE STATE - Phase 18 Manual Upload Test');
+  console.log('='.repeat(80));
+
+  // Releases
+  console.log('\n=== RELEASES ===');
+  const [releases] = await sequelize.query(`SELECT * FROM releases WHERE id = '${releaseId}'`);
+  for (const row of releases as any[]) {
+    console.log('*************************** 1. row ***************************');
+    for (const [key, value] of Object.entries(row)) {
+      const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+      console.log(`${key.padStart(25)}: ${displayValue}`);
+    }
+  }
+
+  // Cron Jobs
+  console.log('\n=== CRON JOBS ===');
+  const [cronJobs] = await sequelize.query(`SELECT * FROM cron_jobs WHERE releaseId = '${releaseId}'`);
+  for (const row of cronJobs as any[]) {
+    console.log('*************************** 1. row ***************************');
+    for (const [key, value] of Object.entries(row)) {
+      const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+      console.log(`${key.padStart(25)}: ${displayValue}`);
+    }
+  }
+
+  // Release Tasks
+  console.log('\n=== RELEASE TASKS ===');
+  console.log('id\ttaskType\ttaskStatus\tstage\tregressionId');
+  const [tasks] = await sequelize.query(`SELECT * FROM release_tasks WHERE releaseId = '${releaseId}' ORDER BY createdAt`);
+  for (const row of tasks as any[]) {
+    console.log(`${row.id.substring(0, 8)}...\t${row.taskType}\t${row.taskStatus}\t${row.taskStage}\t${row.regressionId || 'NULL'}`);
+  }
+
+  // Regression Cycles
+  console.log('\n=== REGRESSION CYCLES ===');
+  const [cycles] = await sequelize.query(`SELECT * FROM regression_cycles WHERE releaseId = '${releaseId}' ORDER BY createdAt`);
+  for (let i = 0; i < (cycles as any[]).length; i++) {
+    const row = (cycles as any[])[i];
+    console.log(`*************************** ${i + 1}. row ***************************`);
+    for (const [key, value] of Object.entries(row)) {
+      console.log(`${key.padStart(15)}: ${value}`);
+    }
+  }
+
+  // ✅ PHASE 18: Release Uploads (Staging Table)
+  console.log('\n=== RELEASE UPLOADS (Phase 18 Staging Table) ===');
+  const [uploads] = await sequelize.query(`SELECT * FROM release_uploads WHERE releaseId = '${releaseId}' ORDER BY createdAt`);
+  if ((uploads as any[]).length === 0) {
+    console.log('(no uploads - all consumed or none uploaded)');
+  }
+  for (let i = 0; i < (uploads as any[]).length; i++) {
+    const row = (uploads as any[])[i];
+    console.log(`*************************** ${i + 1}. row ***************************`);
+    for (const [key, value] of Object.entries(row)) {
+      console.log(`${key.padStart(20)}: ${value}`);
+    }
+  }
+
+  // Platform Target Mappings
+  console.log('\n=== PLATFORM TARGET MAPPINGS ===');
+  const [mappings] = await sequelize.query(`SELECT * FROM release_platforms_targets_mapping WHERE releaseId = '${releaseId}'`);
+  for (let i = 0; i < (mappings as any[]).length; i++) {
+    const row = (mappings as any[])[i];
+    console.log(`*************************** ${i + 1}. row ***************************`);
+    for (const [key, value] of Object.entries(row)) {
+      console.log(`${key.padStart(25)}: ${value}`);
+    }
+  }
+
+  // Builds
+  console.log('\n=== BUILDS ===');
+  const [builds] = await sequelize.query(`SELECT * FROM builds WHERE releaseId = '${releaseId}'`);
+  if ((builds as any[]).length === 0) {
+    console.log('(no builds yet)');
+  }
+  for (let i = 0; i < (builds as any[]).length; i++) {
+    const row = (builds as any[])[i];
+    console.log(`*************************** ${i + 1}. row ***************************`);
+    for (const [key, value] of Object.entries(row)) {
+      console.log(`${key.padStart(15)}: ${value}`);
+    }
+  }
+
+  console.log('\n' + '='.repeat(80));
+}
+
 // ============================================================================
 // MAIN TEST EXECUTION
 // ============================================================================
 
-async function runReleaseWithIntegrationsSimulation() {
+async function runPhase18ManualUploadSimulation() {
   console.log('\n' + '='.repeat(80));
-  console.log('🚀 REAL RELEASE SIMULATION TEST - WITH INTEGRATIONS');
+  console.log('🚀 PHASE 18: MANUAL BUILD UPLOAD - E2E TEST');
   console.log('='.repeat(80));
   console.log(`Platforms: ${TEST_CONFIG.PLATFORMS.join(', ')}`);
-  console.log(`Regression Slots: ${TEST_CONFIG.NUM_SLOTS} (3 min apart)`);
+  console.log(`Regression Slots: ${TEST_CONFIG.NUM_SLOTS} (2 min apart)`);
   console.log(`Auto Transitions: Stage1→2 ✓, Stage2→3 ✓`);
-  console.log(`Project Management: ${TEST_CONFIG.ENABLE_PROJECT_MANAGEMENT ? '✓ ENABLED' : '✗ DISABLED'}`);
-  console.log(`Test Management: ${TEST_CONFIG.ENABLE_TEST_MANAGEMENT ? '✓ ENABLED' : '✗ DISABLED'}`);
-  console.log(`Expected Duration: ~12-15 minutes`);
+  console.log(`Manual Build Upload: ${TEST_CONFIG.HAS_MANUAL_BUILD_UPLOAD ? '✅ ENABLED' : '❌ DISABLED'}`);
+  console.log(`Expected Duration: ~5-7 minutes`);
   console.log('='.repeat(80) + '\n');
 
+  // -------------------------------------------------------------------------
+  // SETUP: Clear TaskExecutor cache (ensure fresh instance with ReleaseUploadsRepo)
+  // -------------------------------------------------------------------------
+  clearTaskExecutorCache();
+  
   // -------------------------------------------------------------------------
   // SETUP: Database Connection
   // -------------------------------------------------------------------------
@@ -272,14 +388,13 @@ async function runReleaseWithIntegrationsSimulation() {
   const storage = createTestStorage(sequelize);
   initializeStorage(storage as any);
   log('✅ Storage initialized');
-  log('✅ Using existing database schema');
 
   // -------------------------------------------------------------------------
   // SETUP: Test IDs
   // -------------------------------------------------------------------------
   const testIds = {
-    tenantId: `int-tenant-${uuidv4().substring(0, 8)}`,
-    accountId: `int-account-${uuidv4().substring(0, 8)}`,
+    tenantId: `p18-tenant-${uuidv4().substring(0, 8)}`,
+    accountId: `p18-account-${uuidv4().substring(0, 8)}`,
   };
 
   log(`📋 Test IDs: Tenant=${testIds.tenantId}, Account=${testIds.accountId.substring(0, 12)}...`);
@@ -292,23 +407,21 @@ async function runReleaseWithIntegrationsSimulation() {
   log('✅ Tenant/Account created');
 
   // -------------------------------------------------------------------------
-  // SETUP: Create Test Integrations (with PM and TM enabled)
+  // SETUP: Create Test Integrations
   // -------------------------------------------------------------------------
   log('\n📝 Setting up test integrations...');
   const testIntegrations = await setupTestIntegrations(sequelize, testIds.tenantId, testIds.accountId);
   log('✅ Test integrations created');
-  log(`   - Project Management: ${TEST_CONFIG.ENABLE_PROJECT_MANAGEMENT ? 'ENABLED' : 'DISABLED'}`);
-  log(`   - Test Management: ${TEST_CONFIG.ENABLE_TEST_MANAGEMENT ? 'ENABLED' : 'DISABLED'}`);
 
   // -------------------------------------------------------------------------
   // SETUP: Get Repositories
   // -------------------------------------------------------------------------
-  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo } = createRepositories(sequelize);
+  const { releaseRepo, cronJobRepo, releaseTaskRepo, regressionCycleRepo, platformMappingRepo, releaseUploadsRepo } = createRepositories(sequelize);
 
   // -------------------------------------------------------------------------
-  // STEP 1: Create Release
+  // STEP 1: Create Release with hasManualBuildUpload = true
   // -------------------------------------------------------------------------
-  log('\n📝 STEP 1: Creating Release...');
+  log('\n📝 STEP 1: Creating Release with hasManualBuildUpload = true...');
   
   const now = new Date();
   const release = await createTestRelease(releaseRepo, {
@@ -318,10 +431,11 @@ async function runReleaseWithIntegrationsSimulation() {
     targetReleaseDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
     kickOffDate: now,
     releaseConfigId: testIntegrations.releaseConfigId,
-    hasManualBuildUpload: false
+    hasManualBuildUpload: TEST_CONFIG.HAS_MANUAL_BUILD_UPLOAD // ✅ Phase 18!
   });
   
   log(`✅ Release created: ${release.releaseId}`);
+  log(`   hasManualBuildUpload = ${release.hasManualBuildUpload}`);
 
   // -------------------------------------------------------------------------
   // STEP 2: Create Platform Target Mappings
@@ -331,7 +445,7 @@ async function runReleaseWithIntegrationsSimulation() {
   const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
   
   for (const platform of TEST_CONFIG.PLATFORMS) {
-    const target = platform === 'IOS' ? 'APP_STORE' : 'PLAY_STORE';
+    const target = platform === PlatformName.IOS ? 'APP_STORE' : 'PLAY_STORE';
     await PlatformTargetMappingModel.create({
       id: uuidv4(),
       releaseId: release.id,
@@ -345,7 +459,7 @@ async function runReleaseWithIntegrationsSimulation() {
   }
 
   // -------------------------------------------------------------------------
-  // STEP 3: Create Cron Job with 3 Regression Slots
+  // STEP 3: Create Cron Job with Regression Slots
   // -------------------------------------------------------------------------
   log(`\n📝 STEP 3: Creating Cron Job with ${TEST_CONFIG.NUM_SLOTS} Regression Slots...`);
   
@@ -353,7 +467,7 @@ async function runReleaseWithIntegrationsSimulation() {
   const upcomingRegressions: any[] = [];
   
   for (let i = 0; i < TEST_CONFIG.NUM_SLOTS; i++) {
-    const slotTime = new Date(now.getTime() + (30 * 1000) + (i * TEST_CONFIG.SLOT_INTERVAL_MS));
+    const slotTime = new Date(now.getTime() + (60 * 1000) + (i * TEST_CONFIG.SLOT_INTERVAL_MS));
     slotTimes.push(slotTime);
     upcomingRegressions.push({
       date: slotTime.toISOString(),
@@ -380,9 +494,9 @@ async function runReleaseWithIntegrationsSimulation() {
   });
 
   // -------------------------------------------------------------------------
-  // STEP 4: Create Stage 1 Tasks (with PM and TM tasks)
+  // STEP 4: Create Stage 1 Tasks
   // -------------------------------------------------------------------------
-  log('\n📝 STEP 4: Creating Stage 1 Tasks (with PM & TM integration tasks)...');
+  log('\n📝 STEP 4: Creating Stage 1 Tasks...');
   
   await createStage1Tasks(releaseTaskRepo, {
     releaseId: release.id,
@@ -391,23 +505,37 @@ async function runReleaseWithIntegrationsSimulation() {
       kickOffReminder: false,
       preRegressionBuilds: true
     },
-    hasProjectManagementIntegration: TEST_CONFIG.ENABLE_PROJECT_MANAGEMENT,
-    hasTestPlatformIntegration: TEST_CONFIG.ENABLE_TEST_MANAGEMENT
+    hasProjectManagementIntegration: false,
+    hasTestPlatformIntegration: false
   });
   
   const stage1Tasks = await releaseTaskRepo.findByReleaseIdAndStage(release.id, TaskStage.KICKOFF);
   log(`✅ Created ${stage1Tasks.length} Stage 1 tasks`);
-  for (const task of stage1Tasks) {
-    const integrationTag = 
-      task.taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET ? ' (PM)' :
-      task.taskType === TaskType.CREATE_TEST_SUITE ? ' (TM)' : '';
-    log(`   - ${task.taskType}${integrationTag}`);
-  }
 
   // -------------------------------------------------------------------------
-  // STEP 5: Start Cron Job
+  // ✅ PHASE 18: STEP 5 - Upload Manual Builds BEFORE kickoff
   // -------------------------------------------------------------------------
-  log('\n📝 STEP 5: Starting Cron Job...');
+  log('\n📝 STEP 5 [Phase 18]: Uploading Manual Builds (PRE_REGRESSION)...');
+  
+  for (const platform of TEST_CONFIG.PLATFORMS) {
+    const upload = await uploadManualBuild(releaseUploadsRepo, {
+      tenantId: testIds.tenantId,
+      releaseId: release.id,
+      platform,
+      stage: 'KICK_OFF',
+      artifactPath: `s3://phase18-test/${platform.toLowerCase()}-pre-reg-${Date.now()}.${platform === PlatformName.IOS ? 'ipa' : 'apk'}`
+    });
+    log(`  ✅ Uploaded ${platform} build: ${upload.artifactPath}`);
+  }
+  
+  // Verify uploads exist
+  const preRegUploads = await releaseUploadsRepo.findUnused(release.id, 'KICK_OFF');
+  log(`  📦 ${preRegUploads.length} PRE_REGRESSION uploads in staging table`);
+
+  // -------------------------------------------------------------------------
+  // STEP 6: Start Cron Job
+  // -------------------------------------------------------------------------
+  log('\n📝 STEP 6: Starting Cron Job...');
   
   await cronJobRepo.update(cronJob.id, {
     stage1Status: StageStatus.IN_PROGRESS,
@@ -426,6 +554,7 @@ async function runReleaseWithIntegrationsSimulation() {
   const startTime = Date.now();
   let iteration = 0;
   let lastLoggedStatus = '';
+  const uploadedCycles = new Set<string>(); // Track which cycles have uploads
 
   while (iteration < TEST_CONFIG.MAX_ITERATIONS) {
     iteration++;
@@ -450,7 +579,36 @@ async function runReleaseWithIntegrationsSimulation() {
 
     const currentStatus = `Cron=${currentCronJob.cronStatus} | S1=${currentCronJob.stage1Status} | S2=${currentCronJob.stage2Status} | S3=${currentCronJob.stage3Status}`;
     
-    if (currentStatus !== lastLoggedStatus || iteration % 12 === 0) {
+    // ✅ PHASE 18: Check for tasks waiting for manual builds and upload for each cycle
+    if (currentCronJob.stage2Status === StageStatus.IN_PROGRESS) {
+      // Find any AWAITING_CALLBACK tasks that need uploads
+      const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
+      const waitingTasks = allTasks.filter(t => 
+        t.taskType === TaskType.TRIGGER_REGRESSION_BUILDS && 
+        t.taskStatus === TaskStatus.AWAITING_CALLBACK &&
+        t.regressionId &&
+        !uploadedCycles.has(t.regressionId)
+      );
+      
+      for (const task of waitingTasks) {
+        const cycleId = task.regressionId!;
+        log(`\n📦 [Phase 18] Cycle ${cycleId.substring(0, 8)} waiting - Uploading REGRESSION builds...`);
+        
+        for (const platform of TEST_CONFIG.PLATFORMS) {
+          await uploadManualBuild(releaseUploadsRepo, {
+            tenantId: testIds.tenantId,
+            releaseId: release.id,
+            platform,
+            stage: 'REGRESSION',
+            artifactPath: `s3://phase18-test/${platform.toLowerCase()}-reg-${cycleId.substring(0, 8)}-${Date.now()}.${platform === PlatformName.IOS ? 'ipa' : 'apk'}`
+          });
+          log(`  ✅ Uploaded ${platform} REGRESSION build for cycle ${cycleId.substring(0, 8)}`);
+        }
+        uploadedCycles.add(cycleId);
+      }
+    }
+
+    if (currentStatus !== lastLoggedStatus || iteration % 10 === 0) {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const minutes = Math.floor(elapsed / 60);
       const seconds = elapsed % 60;
@@ -482,7 +640,8 @@ async function runReleaseWithIntegrationsSimulation() {
         regressionCycleRepo,
         taskExecutor as any,
         storage as any,
-        platformMappingRepo as any
+        platformMappingRepo,   // ✅ Required for platform list
+        releaseUploadsRepo     // ✅ Phase 18: Required for manual upload processing!
       );
       
       await stateMachine.initialize();
@@ -504,10 +663,7 @@ async function runReleaseWithIntegrationsSimulation() {
   const finalRelease = await releaseRepo.findById(release.id);
   const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
   const allCycles = await regressionCycleRepo.findByReleaseId(release.id);
-  const platformMappings = await platformMappingRepo.getByReleaseId(release.id);
-
-  const BuildModel = sequelize.models.Build || createBuildModel(sequelize);
-  const builds = await BuildModel.findAll({ where: { releaseId: release.id } });
+  const allUploads = await sequelize.query(`SELECT * FROM release_uploads WHERE releaseId = '${release.id}'`);
 
   const totalDuration = Math.floor((Date.now() - startTime) / 1000);
   const minutes = Math.floor(totalDuration / 60);
@@ -518,17 +674,16 @@ async function runReleaseWithIntegrationsSimulation() {
   log('='.repeat(60));
   log(`\n⏱️  Total Duration: ${minutes}m ${seconds}s`);
   log(`\n📋 Release: ${finalRelease?.releaseId} (${finalRelease?.status})`);
-  log(`📋 Cron Status: ${finalCronJob?.cronStatus}`);
+  log(`   hasManualBuildUpload: ${finalRelease?.hasManualBuildUpload}`);
+  log(`\n📋 Cron Status: ${finalCronJob?.cronStatus}`);
   log(`   Stage 1: ${finalCronJob?.stage1Status}`);
   log(`   Stage 2: ${finalCronJob?.stage2Status}`);
   log(`   Stage 3: ${finalCronJob?.stage3Status}`);
   
   log(`\n📋 Tasks (${allTasks.length} total):`);
   for (const task of allTasks) {
-    const icon = task.taskStatus === 'COMPLETED' ? '✅' : task.taskStatus === 'FAILED' ? '❌' : '⏳';
-    const pmTag = task.taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET ? ' [PM]' : '';
-    const tmTag = task.taskType === TaskType.CREATE_TEST_SUITE ? ' [TM]' : '';
-    log(`   ${icon} [${task.stage}] ${task.taskType}${pmTag}${tmTag}: ${task.taskStatus}`);
+    const icon = task.taskStatus === 'COMPLETED' ? '✅' : task.taskStatus === 'FAILED' ? '❌' : task.taskStatus === 'AWAITING_CALLBACK' ? '⏳' : '⏳';
+    log(`   ${icon} [${task.stage}] ${task.taskType}: ${task.taskStatus}`);
   }
   
   log(`\n📋 Regression Cycles (${allCycles.length}):`);
@@ -537,67 +692,26 @@ async function runReleaseWithIntegrationsSimulation() {
     log(`   ${icon} Cycle ${cycle.cycleTag}: ${cycle.status}`);
   }
   
-  log(`\n📋 Platform Mappings (${platformMappings.length}):`);
-  for (const pm of platformMappings) {
-    const pmId = (pm as any).projectManagementRunId || 'N/A';
-    const tmId = (pm as any).testManagementRunId || 'N/A';
-    log(`   ${pm.platform} → ${pm.target} | PM: ${pmId} | TM: ${tmId}`);
-  }
-  
-  log(`\n📋 Builds (${builds.length}):`);
-  for (const build of builds) {
-    const b = build.toJSON();
-    log(`   ${b.platform}: ${b.number}`);
-  }
+  log(`\n📋 Release Uploads (Phase 18):`);
+  log(`   Total uploads: ${(allUploads[0] as any[]).length}`);
+  log(`   Used uploads: ${(allUploads[0] as any[]).filter((u: any) => u.isUsed).length}`);
+  log(`   Unused uploads: ${(allUploads[0] as any[]).filter((u: any) => !u.isUsed).length}`);
 
   // -------------------------------------------------------------------------
-  // DATA RECORDS (preserved for inspection)
+  // PRINT DATABASE STATE
   // -------------------------------------------------------------------------
-  log('\n' + '='.repeat(60));
-  log('📦 DATA RECORDS CREATED (Preserved for Inspection)');
-  log('='.repeat(60));
-  
-  log('\n🔑 KEY IDs:');
-  log(`   Tenant ID:         ${testIds.tenantId}`);
-  log(`   Account ID:        ${testIds.accountId}`);
-  log(`   Release ID:        ${release.id}`);
-  log(`   Release User ID:   ${release.releaseId}`);
-  log(`   Cron Job ID:       ${cronJob.id}`);
-  log(`   Release Config ID: ${testIntegrations.releaseConfigId}`);
-  
-  log('\n📋 INTEGRATION IDs:');
-  log(`   SCM Integration:   ${testIntegrations.scmIntegrationId}`);
-  log(`   CI/CD Integration: ${testIntegrations.cicdIntegrationId}`);
-  log(`   Workflow IDs:      ${testIntegrations.workflowIds.join(', ')}`);
-  
-  log('\n📋 PLATFORM MAPPINGS:');
-  for (const pm of platformMappings) {
-    log(`   ${pm.id} | ${pm.platform} → ${pm.target} | v${pm.version}`);
-  }
-  
-  log('\n📋 TASKS:');
-  for (const task of allTasks) {
-    log(`   ${task.id} | [${task.stage}] ${task.taskType} | ${task.taskStatus}`);
-  }
-  
-  log('\n📋 REGRESSION CYCLES:');
-  for (const cycle of allCycles) {
-    log(`   ${cycle.id} | ${cycle.cycleTag} | ${cycle.status}`);
-  }
-  
-  log('\n📋 BUILDS:');
-  for (const build of builds) {
-    const b = build.toJSON();
-    log(`   ${b.id} | ${b.platform} | ${b.number}`);
-  }
-  
+  await printDatabaseState(sequelize, release.id);
+
+  // -------------------------------------------------------------------------
+  // SQL QUERIES FOR MANUAL INSPECTION
+  // -------------------------------------------------------------------------
   log('\n⚠️  DATA NOT CLEANED UP - All records preserved in database for inspection');
   log(`   To query: mysql -u root -proot ${DB_NAME}`);
   log(`   SELECT * FROM releases WHERE id = '${release.id}';`);
   log(`   SELECT * FROM cron_jobs WHERE releaseId = '${release.id}';`);
   log(`   SELECT * FROM release_tasks WHERE releaseId = '${release.id}';`);
   log(`   SELECT * FROM regression_cycles WHERE releaseId = '${release.id}';`);
-  log(`   SELECT * FROM release_platforms_targets_mapping WHERE releaseId = '${release.id}';`);
+  log(`   SELECT * FROM release_uploads WHERE releaseId = '${release.id}';  -- Phase 18!`);
   log(`   SELECT * FROM builds WHERE releaseId = '${release.id}';`);
 
   // Close database
@@ -610,14 +724,14 @@ async function runReleaseWithIntegrationsSimulation() {
   
   log('\n' + '='.repeat(60));
   if (success) {
-    log(`🏁 TEST PASSED ✅ in ${minutes}m ${seconds}s`);
+    log(`🏁 PHASE 18 TEST PASSED ✅ in ${minutes}m ${seconds}s`);
   } else {
-    log(`🏁 TEST INCOMPLETE ⚠️ in ${minutes}m ${seconds}s`);
-    log('   Check the tasks above for failures or pending items.');
+    log(`🏁 PHASE 18 TEST INCOMPLETE ⚠️ in ${minutes}m ${seconds}s`);
+    log('   Check the tasks above for AWAITING_CALLBACK (waiting for manual builds)');
   }
   log('='.repeat(60) + '\n');
 }
 
 // Run the test
-runReleaseWithIntegrationsSimulation().catch(console.error);
+runPhase18ManualUploadSimulation().catch(console.error);
 

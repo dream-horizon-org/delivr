@@ -40,6 +40,11 @@ export const RELEASE_ERROR_MESSAGES = {
   
   // Integration errors - Notification
   NOTIFICATION_INTEGRATION_NOT_AVAILABLE: 'Notification integration not available',
+  COMMS_CONFIG_NOT_CONFIGURED: 'Communications configuration not configured for this release',
+  MESSAGING_TASK_NOT_IMPLEMENTED: (taskType: string) => `Messaging task ${taskType} implementation pending - commsConfigId required`,
+  
+  // Repository errors
+  RELEASE_UPLOADS_REPO_NOT_AVAILABLE: 'ReleaseUploadsRepository not available for manual upload mode',
   
   // Platform-specific errors
   IOS_PLATFORM_REQUIRED: 'TRIGGER_TEST_FLIGHT_BUILD task requires iOS platform, but no iOS platform found',
