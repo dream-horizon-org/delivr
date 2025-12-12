@@ -186,27 +186,3 @@ export type TestflightVerifyResult = {
   buildUploadStatus: BuildUploadStatus;
   createdAt: Date;
 };
-
-/**
- * Input for TestFlight verification service (App Store Connect API)
- */
-export type TestflightVerificationInput = {
-  testflightNumber: string;
-  /** App bundle ID for verification */
-  bundleId?: string;
-};
-
-/**
- * Result from TestFlight verification service (App Store Connect API)
- */
-export type TestflightVerificationResult = {
-  isValid: boolean;
-  message: string;
-  /** Additional metadata from App Store Connect (when implemented) */
-  metadata?: {
-    appStoreConnectId?: string;
-    bundleId?: string;
-    expirationDate?: string;
-    testflightLink?: string;
-  };
-};

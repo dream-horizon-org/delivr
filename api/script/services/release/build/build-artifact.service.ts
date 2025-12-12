@@ -34,7 +34,7 @@ import {
 import { executeOperation, isAabFile, generateInternalTrackLink } from './build-artifact.utils';
 import { StoreType as PlayStoreType } from '../../../storage/integrations/store/store-types';
 import { StoreDistributionService } from './store-distribution.service';
-import { TestflightVerificationService } from './testflight-verification.service';
+import { TestFlightBuildVerificationService } from '../testflight-build-verification.service';
 
 /**
  * Service for handling build artifact operations.
@@ -44,7 +44,7 @@ export class BuildArtifactService {
   private readonly storage: Storage;
   private readonly buildRepository: BuildRepository;
   private readonly storeDistributionService: StoreDistributionService;
-  private readonly testflightVerificationService: TestflightVerificationService;
+  private readonly testflightVerificationService: TestFlightBuildVerificationService;
 
   constructor(storage: Storage) {
     this.storage = storage;
@@ -52,9 +52,13 @@ export class BuildArtifactService {
     if (!isS3Storage) {
       throw new Error('BuildArtifactService requires S3Storage');
     }
-    this.buildRepository = (storage as S3Storage).buildRepository;
+    const s3Storage = storage as S3Storage;
+    this.buildRepository = s3Storage.buildRepository;
     this.storeDistributionService = new StoreDistributionService();
-    this.testflightVerificationService = new TestflightVerificationService();
+    this.testflightVerificationService = new TestFlightBuildVerificationService(
+      s3Storage.storeIntegrationController,
+      s3Storage.storeCredentialController
+    );
   }
 
   /**
@@ -324,18 +328,24 @@ export class BuildArtifactService {
 
     // Step 1: Verify TestFlight build number exists in App Store Connect
     const verificationResult = await executeOperation(
-      () => this.testflightVerificationService.verifyTestflightNumber({
-        testflightNumber
+      () => this.testflightVerificationService.verifyBuild({
+        releaseId,
+        tenantId,
+        request: {
+          testflightBuildNumber: testflightNumber,
+          versionName
+        }
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
     );
 
-    const verificationFailed = !verificationResult.isValid;
+    const verificationFailed = !verificationResult.success;
     if (verificationFailed) {
+      const errorMessage = verificationResult.error?.message ?? BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_NUMBER_INVALID;
       throw new BuildArtifactError(
         BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_NUMBER_INVALID,
-        BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_NUMBER_INVALID
+        errorMessage
       );
     }
 
@@ -419,18 +429,24 @@ export class BuildArtifactService {
 
     // Step 2: Verify TestFlight build number exists in App Store Connect
     const verificationResult = await executeOperation(
-      () => this.testflightVerificationService.verifyTestflightNumber({
-        testflightNumber
+      () => this.testflightVerificationService.verifyBuild({
+        releaseId: build.releaseId,
+        tenantId: build.tenantId,
+        request: {
+          testflightBuildNumber: testflightNumber,
+          versionName: build.artifactVersionName
+        }
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
     );
 
-    const verificationFailed = !verificationResult.isValid;
+    const verificationFailed = !verificationResult.success;
     if (verificationFailed) {
+      const errorMessage = verificationResult.error?.message ?? BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_NUMBER_INVALID;
       throw new BuildArtifactError(
         BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_NUMBER_INVALID,
-        BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_NUMBER_INVALID
+        errorMessage
       );
     }
 

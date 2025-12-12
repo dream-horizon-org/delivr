@@ -1,6 +1,6 @@
 export { BuildArtifactService } from './build-artifact.service';
 export { StoreDistributionService } from './store-distribution.service';
-export { TestflightVerificationService } from './testflight-verification.service';
+export { TestFlightBuildVerificationService } from '../testflight-build-verification.service';
 
 // Service-specific types
 export {
@@ -16,8 +16,6 @@ export {
   type ManualTestflightVerifyInput,
   type CiTestflightVerifyInput,
   type TestflightVerifyResult,
-  type TestflightVerificationInput,
-  type TestflightVerificationResult,
   BuildArtifactError
 } from './build-artifact.interface';
 
