@@ -1,6 +1,6 @@
 import type { Storage } from '../../../storage/storage';
 import { S3Storage } from '../../../storage/aws-storage';
-import { BuildRepository } from '~models/build/build.repository';
+import { BuildRepository } from '~models/release/build.repository';
 import { buildArtifactS3Key, buildS3Uri, deriveStandardArtifactFilename, parseS3Uri } from '~utils/s3-path.utils';
 import { uploadToS3, inferContentType, generatePresignedGetUrl } from '~utils/s3-upload.utils';
 import {
@@ -163,7 +163,6 @@ export class BuildArtifactService {
     } = input;
 
     const buildId = shortid.generate();
-    const now = new Date();
 
     // Step 1: Upload artifact to S3
     const uploadResult = await this.uploadArtifactToS3({
@@ -177,12 +176,11 @@ export class BuildArtifactService {
     });
 
     // Step 2: Create build record (with internalTrackLink if provided)
+    // Note: createdAt/updatedAt are handled automatically by Sequelize (timestamps: true)
     await executeOperation(
       () => this.buildRepository.create({
         id: buildId,
         tenantId,
-        createdAt: now,
-        updatedAt: now,
         buildNumber,
         artifactVersionName,
         artifactPath: uploadResult.s3Uri,
@@ -350,15 +348,13 @@ export class BuildArtifactService {
     }
 
     // Step 2: Create build record with testflight number
+    // Note: createdAt/updatedAt are handled automatically by Sequelize (timestamps: true)
     const buildId = shortid.generate();
-    const now = new Date();
 
     await executeOperation(
       () => this.buildRepository.create({
         id: buildId,
         tenantId,
-        createdAt: now,
-        updatedAt: now,
         buildNumber: testflightNumber,
         artifactVersionName: versionName,
         artifactPath: null,
@@ -389,7 +385,7 @@ export class BuildArtifactService {
       versionName,
       verified: true,
       buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
-      createdAt: now
+      createdAt: new Date()
     };
   };
 

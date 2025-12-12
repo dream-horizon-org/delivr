@@ -10,7 +10,7 @@
  */
 
 import type { BuildRepository, Build } from '~models/release/build.repository';
-import type { CIRunType } from '~models/release/build.sequelize.model';
+import type { CiRunType } from '~types/release-management/builds';
 import { JenkinsWorkflowService } from '~services/integrations/ci-cd/workflows/jenkins-workflow.service';
 import { GitHubActionsWorkflowService } from '~services/integrations/ci-cd/workflows/github-actions-workflow.service';
 import { BuildCallbackService } from '../build-callback.service';
@@ -38,7 +38,7 @@ export class WorkflowPollingService {
    * Map of CI/CD provider type to status checker functions.
    * Add new providers here - no if-else needed!
    */
-  private readonly providerCheckers: Record<CIRunType, ProviderStatusChecker>;
+  private readonly providerCheckers: Record<CiRunType, ProviderStatusChecker>;
 
   constructor(
     private readonly buildRepo: BuildRepository,
@@ -143,7 +143,7 @@ export class WorkflowPollingService {
    * Check queue status from the appropriate CI/CD provider.
    */
   private checkQueueStatus = async (
-    ciRunType: CIRunType,
+    ciRunType: CiRunType,
     tenantId: string,
     queueLocation: string
   ): Promise<WorkflowStatusCheckResult> => {
@@ -159,7 +159,7 @@ export class WorkflowPollingService {
    * Check build status from the appropriate CI/CD provider.
    */
   private checkBuildStatus = async (
-    ciRunType: CIRunType,
+    ciRunType: CiRunType,
     tenantId: string,
     ciRunId: string
   ): Promise<WorkflowStatusCheckResult> => {
@@ -316,7 +316,7 @@ export class WorkflowPollingService {
     try {
       // Check queue status from CI/CD provider
       const statusResult = await this.checkQueueStatus(
-        build.ciRunType as CIRunType,
+        build.ciRunType as CiRunType,
         tenantId,
         build.queueLocation as string
       );
@@ -423,7 +423,7 @@ export class WorkflowPollingService {
     try {
       // Check build status from CI/CD provider
       const statusResult = await this.checkBuildStatus(
-        build.ciRunType as CIRunType,
+        build.ciRunType as CiRunType,
         tenantId,
         build.ciRunId as string
       );

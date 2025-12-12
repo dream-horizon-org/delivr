@@ -81,8 +81,7 @@ import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
 import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
-import { createBuildModel } from "../models/build/build.sequelize.model";
-import { BuildRepository } from "../models/build/build.repository";
+import { createBuildModel, BuildRepository } from "../models/release";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {

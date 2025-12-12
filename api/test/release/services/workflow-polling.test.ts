@@ -11,7 +11,7 @@
  */
 
 import type { Build } from '../../../script/models/release/build.repository';
-import type { CIRunType, WorkflowStatus } from '../../../script/models/release/build.sequelize.model';
+import type { CiRunType, WorkflowStatus } from '../../../script/types/release-management/builds';
 
 // ============================================================================
 // MOCK DATA HELPERS
@@ -28,7 +28,7 @@ const createMockBuild = (overrides: Partial<Build> = {}): Build => ({
   artifactVersionName: '1.0.0',
   buildType: 'CI_CD' as any,
   buildStage: 'PRE_REGRESSION' as any,
-  ciRunType: 'JENKINS' as CIRunType,
+  ciRunType: 'JENKINS' as CiRunType,
   queueLocation: 'https://jenkins.example.com/queue/item/123/',
   ciRunId: null,
   workflowStatus: 'PENDING' as WorkflowStatus,
@@ -321,7 +321,7 @@ describe('Workflow Polling Service', () => {
     
     it('should handle unsupported CI provider gracefully', async () => {
       const buildWithUnknownProvider = createMockBuild({
-        ciRunType: 'UNKNOWN_PROVIDER' as CIRunType
+        ciRunType: 'UNKNOWN_PROVIDER' as CiRunType
       });
       
       // Should return error result with UNSUPPORTED_PROVIDER message
@@ -348,7 +348,7 @@ describe('Workflow Polling Service', () => {
     
     it('should use provider map instead of if-else chains', async () => {
       // The WorkflowPollingService should have a providerCheckers map
-      // that maps CIRunType to status checker functions
+      // that maps CiRunType to status checker functions
       
       const providerTypes = ['JENKINS', 'GITHUB_ACTIONS', 'CIRCLE_CI', 'GITLAB_CI'];
       
