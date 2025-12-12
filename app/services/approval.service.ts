@@ -5,10 +5,13 @@
  */
 
 import type {
+  ExtraCommitsData,
   ManualApprovalRequest,
-  Platform
+  Platform,
+  PMApprovalStatus,
 } from '~/types/distribution.types';
 import { ReleaseStatus } from '~/types/distribution.types';
+import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPost } from '~/utils/api-client';
 import { BuildsService } from './builds.service';
 
@@ -29,12 +32,19 @@ type BlockingIssue = {
   };
 };
 
+type ApprovalData = {
+  releaseId: string;
+  approved: boolean;
+  approver: string;
+  approvedAt: string;
+};
+
 export class ApprovalService {
   /**
    * Get PM approval status for a release
    */
-  static async getPMStatus(releaseId: string): Promise<any> {
-    return apiGet<any>(`/api/v1/releases/${releaseId}/pm-status`);
+  static async getPMStatus(releaseId: string): Promise<ApiResponse<PMApprovalStatus>> {
+    return apiGet<PMApprovalStatus>(`/api/v1/releases/${releaseId}/pm-status`);
   }
 
   /**
@@ -43,8 +53,8 @@ export class ApprovalService {
   static async manualApprove(
     releaseId: string,
     request: ManualApprovalRequest
-  ): Promise<any> {
-    return apiPost<any>(
+  ): Promise<ApiResponse<ApprovalData>> {
+    return apiPost<ApprovalData>(
       `/api/v1/releases/${releaseId}/pm-status`,
       request
     );
@@ -53,8 +63,8 @@ export class ApprovalService {
   /**
    * Check for extra commits after last regression
    */
-  static async checkExtraCommits(releaseId: string): Promise<any> {
-    return apiGet<any>(`/api/v1/releases/${releaseId}/extra-commits`);
+  static async checkExtraCommits(releaseId: string): Promise<ApiResponse<ExtraCommitsData>> {
+    return apiGet<ExtraCommitsData>(`/api/v1/releases/${releaseId}/extra-commits`);
   }
 
   /**
@@ -91,21 +101,22 @@ export class ApprovalService {
 
     // 2. Check PM approval (if not already approved)
     if (currentReleaseStatus === ReleaseStatus.PRE_RELEASE) {
-      const pmStatus = await this.getPMStatus(releaseId);
+      const pmStatusResponse = await this.getPMStatus(releaseId);
+      const pmStatus = pmStatusResponse.data;
       
-      if (pmStatus.data?.hasPmIntegration && !pmStatus.data?.approved) {
+      if (pmStatus?.hasPmIntegration && !pmStatus?.approved) {
         issues.push({
           code: 'PM_APPROVAL_REQUIRED',
-          message: pmStatus.data?.blockedReason || 'PM approval is required.',
+          message: pmStatus?.blockedReason ?? 'PM approval is required.',
           severity: 'ERROR',
           resolution: {
             title: 'Awaiting Project Management Approval',
-            message: `The associated PM ticket (${pmStatus.data?.pmTicket?.id}) is not marked as DONE.`,
+            message: `The associated PM ticket (${pmStatus?.pmTicket?.id ?? 'N/A'}) is not marked as DONE.`,
             options: [
               {
                 action: 'VIEW_PM_TICKET',
                 label: 'View PM Ticket',
-                url: pmStatus.data?.pmTicket?.url,
+                url: pmStatus?.pmTicket?.url,
               },
               {
                 action: 'MANUAL_APPROVE',
@@ -116,9 +127,9 @@ export class ApprovalService {
           },
         });
       } else if (
-        !pmStatus.data?.hasPmIntegration &&
-        pmStatus.data?.requiresManualApproval &&
-        !pmStatus.data?.approved
+        !pmStatus?.hasPmIntegration &&
+        pmStatus?.requiresManualApproval &&
+        !pmStatus?.approved
       ) {
         issues.push({
           code: 'MANUAL_APPROVAL_REQUIRED',
@@ -141,12 +152,13 @@ export class ApprovalService {
     }
 
     // 3. Check for extra commits (warning, not blocking)
-    const extraCommits = await this.checkExtraCommits(releaseId);
+    const extraCommitsResponse = await this.checkExtraCommits(releaseId);
+    const extraCommits = extraCommitsResponse.data;
     
-    if (extraCommits.data?.hasExtraCommits) {
+    if (extraCommits?.hasExtraCommits) {
       issues.push({
         code: 'UNTESTED_COMMITS',
-        message: extraCommits.data?.warning?.message || 'Untested commits detected.',
+        message: extraCommits?.warning?.message ?? 'Untested commits detected.',
         severity: 'WARNING',
         resolution: {
           title: 'Untested Code Detected',

@@ -8,9 +8,13 @@ import { ROLLOUT_PRESETS } from '~/constants/distribution.constants';
 import type {
   HaltRolloutRequest,
   PauseRolloutRequest,
+  RolloutUpdateResponse,
+  Submission,
+  SubmissionHistoryResponse,
   UpdateRolloutRequest,
 } from '~/types/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
+import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPatch, apiPost } from '~/utils/api-client';
 
 export class RolloutService {
@@ -20,8 +24,8 @@ export class RolloutService {
   static async updateRollout(
     submissionId: string,
     request: UpdateRolloutRequest
-  ): Promise<any> {
-    return apiPatch<any>(
+  ): Promise<ApiResponse<RolloutUpdateResponse>> {
+    return apiPatch<RolloutUpdateResponse>(
       `/api/v1/submissions/${submissionId}/rollout`,
       request
     );
@@ -33,8 +37,8 @@ export class RolloutService {
   static async pauseRollout(
     submissionId: string,
     request: PauseRolloutRequest
-  ): Promise<any> {
-    return apiPost<any>(
+  ): Promise<ApiResponse<Submission>> {
+    return apiPost<Submission>(
       `/api/v1/submissions/${submissionId}/rollout/pause`,
       request
     );
@@ -43,8 +47,8 @@ export class RolloutService {
   /**
    * Resume rollout
    */
-  static async resumeRollout(submissionId: string): Promise<any> {
-    return apiPost<any>(
+  static async resumeRollout(submissionId: string): Promise<ApiResponse<Submission>> {
+    return apiPost<Submission>(
       `/api/v1/submissions/${submissionId}/rollout/resume`
     );
   }
@@ -55,8 +59,8 @@ export class RolloutService {
   static async haltRollout(
     submissionId: string,
     request: HaltRolloutRequest
-  ): Promise<any> {
-    return apiPost<any>(
+  ): Promise<ApiResponse<Submission>> {
+    return apiPost<Submission>(
       `/api/v1/submissions/${submissionId}/rollout/halt`,
       request
     );
@@ -69,14 +73,14 @@ export class RolloutService {
     submissionId: string,
     limit?: number,
     offset?: number
-  ): Promise<any> {
+  ): Promise<ApiResponse<SubmissionHistoryResponse>> {
     const params = new URLSearchParams();
     if (limit !== undefined) params.append('limit', limit.toString());
     if (offset !== undefined) params.append('offset', offset.toString());
 
     const queryString = params.toString() ? `?${params.toString()}` : '';
 
-    return apiGet<any>(
+    return apiGet<SubmissionHistoryResponse>(
       `/api/v1/submissions/${submissionId}/history${queryString}`
     );
   }
@@ -99,7 +103,7 @@ export class RolloutService {
   static async incrementRollout(
     submissionId: string,
     currentPercentage: number
-  ): Promise<any | null> {
+  ): Promise<ApiResponse<RolloutUpdateResponse> | null> {
     const nextPercentage = this.getSuggestedNextPercentage(currentPercentage);
     if (nextPercentage) {
       return this.updateRollout(submissionId, { submissionId, exposurePercent: nextPercentage });
@@ -110,7 +114,7 @@ export class RolloutService {
   /**
    * Complete rollout (set to 100%)
    */
-  static async completeRollout(submissionId: string): Promise<any> {
+  static async completeRollout(submissionId: string): Promise<ApiResponse<RolloutUpdateResponse>> {
     return this.updateRollout(submissionId, { submissionId, exposurePercent: 100 });
   }
 
@@ -118,7 +122,7 @@ export class RolloutService {
    * Check if rollout can be increased
    */
   static canIncreaseRollout(
-    submission: any
+    submission: Submission
   ): boolean {
     return (
       submission.platform === Platform.ANDROID && // Only Android supports manual rollout

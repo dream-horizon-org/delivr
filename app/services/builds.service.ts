@@ -6,11 +6,19 @@
 
 import type {
   Build,
+  BuildsResponse,
   UploadAABResponse,
-  VerifyTestFlightRequest
+  VerifyTestFlightRequest,
+  VerifyTestFlightResponse,
 } from '~/types/distribution.types';
 import { BuildUploadStatus, Platform } from '~/types/distribution.types';
+import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPost } from '~/utils/api-client';
+
+type ProgressEvent = {
+  loaded: number;
+  total: number;
+};
 
 export class BuildsService {
   /**
@@ -19,9 +27,9 @@ export class BuildsService {
   static async getBuilds(
     releaseId: string,
     platform?: Platform
-  ): Promise<any> {
+  ): Promise<ApiResponse<BuildsResponse>> {
     const params = platform ? `?platform=${platform}` : '';
-    return apiGet<any>(`/api/v1/releases/${releaseId}/builds${params}`);
+    return apiGet<BuildsResponse>(`/api/v1/releases/${releaseId}/builds${params}`);
   }
 
   /**
@@ -30,8 +38,8 @@ export class BuildsService {
   static async uploadAAB(
     releaseId: string,
     file: File,
-    onUploadProgress?: (progressEvent: any) => void
-  ): Promise<UploadAABResponse> {
+    onUploadProgress?: (progressEvent: ProgressEvent) => void
+  ): Promise<ApiResponse<UploadAABResponse>> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('platform', Platform.ANDROID);
@@ -45,11 +53,12 @@ export class BuildsService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to upload AAB');
+      const error = await response.json() as { error?: string };
+      throw new Error(error.error ?? 'Failed to upload AAB');
     }
 
-    return response.json();
+    const result = await response.json() as ApiResponse<UploadAABResponse>;
+    return result;
   }
 
   /**
@@ -58,8 +67,8 @@ export class BuildsService {
   static async verifyTestFlight(
     releaseId: string,
     request: VerifyTestFlightRequest
-  ): Promise<any> {
-    return apiPost<any>(
+  ): Promise<ApiResponse<VerifyTestFlightResponse>> {
+    return apiPost<VerifyTestFlightResponse>(
       `/api/v1/releases/${releaseId}/builds/verify-testflight`,
       request
     );
@@ -73,15 +82,20 @@ export class BuildsService {
     platforms: Platform[]
   ): Promise<{ ready: boolean; missingPlatforms: Platform[] }> {
     const response = await this.getBuilds(releaseId);
-    const builds = response.data?.builds || [];
+    const builds = response.data?.data?.builds ?? [];
     const missingPlatforms: Platform[] = [];
 
     for (const platform of platforms) {
       const build = builds.find((b: Build) => b.platform === platform);
+      
+      // Type-safe check for TestFlight PROCESSED status
+      type BuildWithStatus = Build & { buildStatus?: string };
+      const buildWithStatus = build as BuildWithStatus | undefined;
+      
       if (
         !build ||
         build.buildUploadStatus !== BuildUploadStatus.UPLOADED ||
-        (platform === Platform.IOS && (build as any).buildStatus !== 'PROCESSED') // PROCESSED status not in our enums (TestFlight status)
+        (platform === Platform.IOS && buildWithStatus?.buildStatus !== 'PROCESSED')
       ) {
         missingPlatforms.push(platform);
       }
