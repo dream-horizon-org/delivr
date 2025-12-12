@@ -85,7 +85,7 @@ export class ReleaseUploadsRepository {
   }
 
   /**
-   * Upsert: Create or update an existing unused upload for the same platform+stage
+   * Upsert: Create or update an existing unused upload for the same platform+buildStage
    * This allows replacing an upload before it's consumed
    */
   async upsert(data: CreateReleaseUploadDto): Promise<ReleaseUpload> {
@@ -281,22 +281,22 @@ export class ReleaseUploadsRepository {
   // ============================================================================
 
   /**
-   * Check if all platforms have unused uploads for a stage
+   * Check if all platforms have unused uploads for a buildStage
    * @param releaseId Release ID
-   * @param stage Stage to check
+   * @param buildStage Build stage to check (KICK_OFF, REGRESSION, PRE_RELEASE)
    * @param requiredPlatforms List of platforms that need uploads
    * @returns Object with ready status and missing platforms
    */
   async checkAllPlatformsReady(
     releaseId: string,
-    stage: UploadStage,
+    buildStage: UploadStage,
     requiredPlatforms: PlatformName[]
   ): Promise<{
     allReady: boolean;
     uploadedPlatforms: PlatformName[];
     missingPlatforms: PlatformName[];
   }> {
-    const uploads = await this.findUnused(releaseId, stage);
+    const uploads = await this.findUnused(releaseId, buildStage);
     const uploadedPlatforms = uploads.map(u => u.platform);
     const missingPlatforms = requiredPlatforms.filter(p => !uploadedPlatforms.includes(p));
 

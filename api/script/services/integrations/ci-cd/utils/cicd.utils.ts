@@ -238,10 +238,37 @@ export const parseGitHubRunUrl = (url: string): { owner: string; repo: string; r
   }
 };
 
-export const mapGitHubRunStatus = (status: string, conclusion?: string): 'pending' | 'running' | 'completed' => {
+/**
+ * Map GitHub Actions run status to normalized status.
+ * 
+ * GitHub API returns:
+ * - status: 'queued' | 'in_progress' | 'completed' | 'waiting' | 'requested'
+ * - conclusion: 'success' | 'failure' | 'cancelled' | 'timed_out' | 'action_required' | 'neutral' | 'skipped' | 'stale' | null
+ * 
+ * @param status - GitHub run status
+ * @param conclusion - GitHub run conclusion (only set when status is 'completed')
+ * @returns Normalized status: 'pending' | 'running' | 'completed' | 'failed'
+ */
+export const mapGitHubRunStatus = (
+  status: string, 
+  conclusion?: string | null
+): 'pending' | 'running' | 'completed' | 'failed' => {
   const s = (status || '').toLowerCase();
-  if (s === 'queued' || s === 'waiting' || s === 'requested') return 'pending';
-  if (s === 'in_progress') return 'running';
+  
+  // Queued states
+  const isQueued = s === 'queued' || s === 'waiting' || s === 'requested';
+  if (isQueued) return 'pending';
+  
+  // Running state
+  const isRunning = s === 'in_progress';
+  if (isRunning) return 'running';
+  
+  // Completed - check conclusion for success/failure
+  const c = (conclusion || '').toLowerCase();
+  const isFailure = c === 'failure' || c === 'cancelled' || c === 'timed_out';
+  if (isFailure) return 'failed';
+  
+  // Success or neutral/skipped outcomes
   return 'completed';
 };
 

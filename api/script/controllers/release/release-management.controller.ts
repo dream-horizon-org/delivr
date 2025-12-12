@@ -663,7 +663,7 @@ export class ReleaseManagementController {
       if (!validStages.includes(upperStage)) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: `Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`
+          error: `Invalid buildStage: ${stage}. Must be one of: ${validStages.join(', ')}`
         });
       }
 

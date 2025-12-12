@@ -1,6 +1,15 @@
 import type { CICDProvider } from '../provider.interface';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 
+/**
+ * Jenkins build result values we care about.
+ * SUCCESS = completed, FAILURE (or anything else) = failed.
+ */
+export const JENKINS_BUILD_RESULTS = {
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE'
+} as const;
+
 export type JenkinsVerifyParams = {
   hostUrl: string;
   username: string;
@@ -60,12 +69,46 @@ export type JenkinsQueueStatusRequest = {
 
 export type JenkinsQueueStatus = 'pending' | 'running' | 'completed' | 'cancelled';
 
+/**
+ * Enhanced result from queue status check.
+ * Includes executableUrl when job transitions from queue to running.
+ */
+export type JenkinsQueueStatusResult = {
+  status: JenkinsQueueStatus;
+  /** 
+   * The actual build URL (executable.url from Jenkins API).
+   * Available when job has started running (status !== 'pending').
+   * This is the ciRunId for Jenkins builds.
+   */
+  executableUrl?: string;
+};
+
+/**
+ * Request to check status of a running Jenkins build.
+ * Use this when you have the build URL (ciRunId) from a previous queue status check.
+ */
+export type JenkinsBuildStatusRequest = {
+  buildUrl: string;
+  authHeader: string;
+  timeoutMs: number;
+};
+
+export type JenkinsBuildStatus = 'running' | 'completed' | 'failed';
+
+/**
+ * Result from build status check.
+ */
+export type JenkinsBuildStatusResult = {
+  status: JenkinsBuildStatus;
+};
+
 export interface JenkinsProviderContract extends CICDProvider {
   readonly type: CICDProviderType.JENKINS;
   verifyConnection(params: JenkinsVerifyParams): Promise<JenkinsVerifyResult>;
   fetchJobParameters(req: JenkinsJobParamsRequest): Promise<JenkinsJobParamsResult>;
   triggerJob(req: JenkinsTriggerRequest): Promise<JenkinsTriggerResult>;
-  getQueueStatus(req: JenkinsQueueStatusRequest): Promise<JenkinsQueueStatus>;
+  getQueueStatus(req: JenkinsQueueStatusRequest): Promise<JenkinsQueueStatusResult>;
+  getBuildStatus(req: JenkinsBuildStatusRequest): Promise<JenkinsBuildStatusResult>;
 }
 
 

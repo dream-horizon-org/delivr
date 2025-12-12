@@ -132,8 +132,10 @@ export class GitHubActionsWorkflowService extends WorkflowService {
 
   /**
    * Get normalized run status for a GitHub Actions workflow run.
+   * 
+   * @returns 'pending' | 'running' | 'completed' | 'failed'
    */
-  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<'pending'|'running'|'completed'> => {
+  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<'pending'|'running'|'completed'|'failed'> => {
     let parsed = { owner: input.owner, repo: input.repo, runId: input.runId };
     if (input.runUrl) {
       const p = parseGitHubRunUrl(input.runUrl);

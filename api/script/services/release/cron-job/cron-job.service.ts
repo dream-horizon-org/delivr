@@ -16,6 +16,7 @@
  */
 
 import type { Storage } from '~storage/storage';
+import type { CronicleService } from '~services/cronicle';
 import { CronJobStateMachine } from './cron-job-state-machine';
 import { CronJobRepository } from '~models/release/cron-job.repository';
 import { ReleaseRepository } from '~models/release/release.repository';
@@ -26,6 +27,10 @@ import { ReleaseUploadsRepository } from '~models/release/release-uploads.reposi
 import { getTaskExecutor } from '~services/release/task-executor/task-executor-factory';
 import { startCronJob, stopCronJob, isCronJobRunning } from './cron-scheduler';
 import { StageStatus, CronStatus, CronJob } from '~models/release/release.interface';
+import {
+  createWorkflowPollingJobs,
+  deleteWorkflowPollingJobs
+} from '~services/release/workflow-polling';
 
 export class CronJobService {
   constructor(
@@ -35,7 +40,8 @@ export class CronJobService {
     private readonly regressionCycleRepo: RegressionCycleRepository,
     private readonly platformMappingRepo: ReleasePlatformTargetMappingRepository,
     private readonly storage: Storage,
-    private readonly releaseUploadsRepo?: ReleaseUploadsRepository
+    private readonly releaseUploadsRepo?: ReleaseUploadsRepository,
+    private readonly cronicleService?: CronicleService | null
   ) {}
 
   /**
@@ -86,6 +92,9 @@ export class CronJobService {
     });
 
     console.log(`[CronJobService] Cron job started for release ${releaseId}`);
+
+    // Create workflow polling Cronicle jobs (if Cronicle is available)
+    await this.createWorkflowPollingJobsIfEnabled(releaseId);
 
     // Return updated cron job
     return {
@@ -332,6 +341,9 @@ export class CronJobService {
       }
     }
 
+    // Delete workflow polling Cronicle jobs (release is ARCHIVED)
+    await this.deleteWorkflowPollingJobsIfEnabled(releaseId);
+
     return {
       success: true,
       data: {
@@ -350,6 +362,84 @@ export class CronJobService {
   private validateReleaseId(releaseId: string): void {
     if (!releaseId || typeof releaseId !== 'string') {
       throw new Error('Release ID is required and must be a string');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Workflow Polling Job Management
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Create workflow polling Cronicle jobs for a release.
+   * Only creates if Cronicle service is available.
+   * 
+   * @param releaseId - The release to create jobs for
+   */
+  private async createWorkflowPollingJobsIfEnabled(releaseId: string): Promise<void> {
+    const cronicleNotAvailable = !this.cronicleService;
+    if (cronicleNotAvailable) {
+      console.log(`[CronJobService] Cronicle not available, skipping workflow polling job creation for release ${releaseId}`);
+      return;
+    }
+
+    // Get release to get tenantId
+    const release = await this.releaseRepo.findById(releaseId);
+    const releaseNotFound = !release;
+    if (releaseNotFound) {
+      console.warn(`[CronJobService] Release ${releaseId} not found, cannot create workflow polling jobs`);
+      return;
+    }
+
+    try {
+      const result = await createWorkflowPollingJobs({
+        releaseId,
+        tenantId: release.tenantId,
+        cronicleService: this.cronicleService
+      });
+
+      const jobsCreated = result.success;
+      if (jobsCreated) {
+        console.log(`[CronJobService] Workflow polling jobs created for release ${releaseId}: pending=${result.pendingJobId}, running=${result.runningJobId}`);
+      } else {
+        console.warn(`[CronJobService] Failed to create workflow polling jobs for release ${releaseId}: ${result.error}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[CronJobService] Error creating workflow polling jobs for release ${releaseId}:`, errorMessage);
+      // Don't throw - workflow polling is optional, main cron job should continue
+    }
+  }
+
+  /**
+   * Delete workflow polling Cronicle jobs for a release.
+   * Only deletes if Cronicle service is available.
+   * Called when release is COMPLETED or ARCHIVED.
+   * 
+   * @param releaseId - The release to delete jobs for
+   */
+  async deleteWorkflowPollingJobsIfEnabled(releaseId: string): Promise<void> {
+    const cronicleNotAvailable = !this.cronicleService;
+    if (cronicleNotAvailable) {
+      console.log(`[CronJobService] Cronicle not available, skipping workflow polling job deletion for release ${releaseId}`);
+      return;
+    }
+
+    try {
+      const result = await deleteWorkflowPollingJobs({
+        releaseId,
+        cronicleService: this.cronicleService
+      });
+
+      console.log(`[CronJobService] Workflow polling jobs deletion for release ${releaseId}: pending=${result.pendingDeleted}, running=${result.runningDeleted}`);
+      
+      const hasErrors = result.errors.length > 0;
+      if (hasErrors) {
+        console.warn(`[CronJobService] Some workflow polling jobs could not be deleted:`, result.errors);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[CronJobService] Error deleting workflow polling jobs for release ${releaseId}:`, errorMessage);
+      // Don't throw - cleanup failures shouldn't block release completion
     }
   }
 }

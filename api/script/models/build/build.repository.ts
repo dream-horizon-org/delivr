@@ -28,6 +28,49 @@ export class BuildRepository {
     );
   }
 
+  /**
+   * Update build with partial data
+   */
+  async update(buildId: string, data: Partial<Omit<BuildAttributes, 'id' | 'tenantId' | 'createdAt'>>): Promise<void> {
+    await this.model.update(
+      { ...data, updatedAt: new Date() },
+      { where: { id: buildId } }
+    );
+  }
+
+  async updateInternalTrackInfo(
+    buildId: string,
+    internalTrackLink: string,
+    buildNumber: string
+  ): Promise<void> {
+    await this.model.update(
+      {
+        internalTrackLink,
+        buildNumber,
+        updatedAt: new Date()
+      },
+      { where: { id: buildId } }
+    );
+  }
+
+  async findById(buildId: string): Promise<BuildAttributes | null> {
+    const row = await this.model.findOne({
+      where: { id: buildId }
+    });
+    if (!row) return null;
+    return row.get() as unknown as BuildAttributes;
+  }
+
+  async updateTestflightNumber(buildId: string, testflightNumber: string): Promise<void> {
+    await this.model.update(
+      {
+        testflightNumber,
+        updatedAt: new Date()
+      },
+      { where: { id: buildId } }
+    );
+  }
+
   async findBuilds(params: {
     tenantId: string;
     releaseId: string;

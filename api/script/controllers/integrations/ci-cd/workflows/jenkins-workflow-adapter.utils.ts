@@ -57,8 +57,9 @@ export const createJenkinsAdapter = (): WorkflowAdapter => {
     } catch {
       throw new Error(ERROR_MESSAGES.JENKINS_INVALID_QUEUE_URL);
     }
-    const status = await service.getQueueStatus(tenantId, queueUrl as string);
-    const validStatus: QueueStatus = status;
+    const result = await service.getQueueStatus(tenantId, queueUrl as string);
+    // Extract just the status for the adapter (executableUrl used by polling service directly)
+    const validStatus: QueueStatus = result.status;
     return validStatus;
   };
 

@@ -1,7 +1,15 @@
 import { WorkflowService } from './workflow.service';
 import { CICDProviderType, AuthType } from '~types/integrations/ci-cd/connection.interface';
 import { ProviderFactory } from '../providers/provider.factory';
-import type { JenkinsProviderContract, JenkinsJobParamsRequest, JenkinsTriggerRequest, JenkinsQueueStatusRequest } from '../providers/jenkins/jenkins.interface';
+import type {
+  JenkinsProviderContract,
+  JenkinsJobParamsRequest,
+  JenkinsTriggerRequest,
+  JenkinsQueueStatusRequest,
+  JenkinsQueueStatusResult,
+  JenkinsBuildStatusRequest,
+  JenkinsBuildStatusResult
+} from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import { normalizePlatform, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
 
@@ -117,18 +125,30 @@ export class JenkinsWorkflowService extends WorkflowService {
   };
 
   /**
-   * Poll Jenkins queue status and infer build state when executable URL exists.
+   * Poll Jenkins queue status and return status with executable URL when available.
+   * The executableUrl is the ciRunId that should be stored in the build table.
+   * 
+   * @param tenantId - Tenant identifier for credential lookup
+   * @param queueUrl - Jenkins queue item URL (queueLocation from trigger)
+   * @returns Status and executableUrl (ciRunId) when job has started
    */
-  getQueueStatus = async (tenantId: string, queueUrl: string): Promise<'pending'|'running'|'completed'|'cancelled'> => {
+  getQueueStatus = async (tenantId: string, queueUrl: string): Promise<JenkinsQueueStatusResult> => {
     const urlObj = new URL(queueUrl);
     const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
-    if (!integration) throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
+    const integrationNotFound = !integration;
+    if (integrationNotFound) {
+      throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
+    }
 
     const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
-    if (!hasBasicCreds) throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
+    const missingCreds = !hasBasicCreds;
+    if (missingCreds) {
+      throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
+    }
 
     const hostFromIntegration = new URL(integration.hostUrl).host;
-    if (hostFromIntegration !== urlObj.host) {
+    const hostMismatch = hostFromIntegration !== urlObj.host;
+    if (hostMismatch) {
       const msg = `${ERROR_MESSAGES.JENKINS_HOST_MISMATCH}: ${urlObj.host} != ${hostFromIntegration}`;
       throw new Error(msg);
     }
@@ -137,10 +157,49 @@ export class JenkinsWorkflowService extends WorkflowService {
     const req: JenkinsQueueStatusRequest = {
       queueUrl,
       authHeader: 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64'),
-      timeoutMs: Number(process.env.JENKINS_QUEUE_TIMEOUT_MS || process.env.JENKINS_PROBE_TIMEOUT_MS || 5000)
+      timeoutMs: Number(process.env.JENKINS_QUEUE_TIMEOUT_MS ?? process.env.JENKINS_PROBE_TIMEOUT_MS ?? 5000)
     };
-    const status = await provider.getQueueStatus(req);
-    return status;
+    const result = await provider.getQueueStatus(req);
+    return result;
+  };
+
+  /**
+   * Check status of a running Jenkins build using its build URL (ciRunId).
+   * Use this after a build has started running (when you have ciRunId from getQueueStatus).
+   * 
+   * @param tenantId - Tenant identifier for credential lookup
+   * @param buildUrl - Jenkins build URL (ciRunId from build table)
+   * @returns Build status (running, completed, failed) and result info
+   */
+  getBuildStatus = async (tenantId: string, buildUrl: string): Promise<JenkinsBuildStatusResult> => {
+    const urlObj = new URL(buildUrl);
+    const integration = await this.integrationRepository.findByTenantAndProvider(tenantId, CICDProviderType.JENKINS);
+    const integrationNotFound = !integration;
+    if (integrationNotFound) {
+      throw new Error(ERROR_MESSAGES.JENKINS_CONNECTION_NOT_FOUND);
+    }
+
+    const hasBasicCreds = integration.authType === AuthType.BASIC && !!integration.username && !!integration.apiToken;
+    const missingCreds = !hasBasicCreds;
+    if (missingCreds) {
+      throw new Error(ERROR_MESSAGES.JENKINS_BASIC_REQUIRED);
+    }
+
+    const hostFromIntegration = new URL(integration.hostUrl).host;
+    const hostMismatch = hostFromIntegration !== urlObj.host;
+    if (hostMismatch) {
+      const msg = `${ERROR_MESSAGES.JENKINS_HOST_MISMATCH}: ${urlObj.host} != ${hostFromIntegration}`;
+      throw new Error(msg);
+    }
+
+    const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
+    const req: JenkinsBuildStatusRequest = {
+      buildUrl,
+      authHeader: 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64'),
+      timeoutMs: Number(process.env.JENKINS_BUILD_TIMEOUT_MS ?? process.env.JENKINS_PROBE_TIMEOUT_MS ?? 5000)
+    };
+    const result = await provider.getBuildStatus(req);
+    return result;
   };
 }
 
