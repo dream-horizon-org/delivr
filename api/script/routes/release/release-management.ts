@@ -3,27 +3,24 @@
  * 
  * Handles all release-related API endpoints by delegating to controllers.
  * Routes are minimal - routing only, no business logic.
+ * Handles all release-related API endpoints by delegating to controllers.
+ * Routes are minimal - routing only, no business logic.
  */
 
 import { Request, Response, Router } from "express";
 import * as multer from "multer";
+import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
+
+import { verifyTestFlightBuild } from "../../controllers/release/testflight-verification.controller";
 import { BuildCallbackController } from "../../controllers/release/build-callback.controller";
+
 import { getCronJobService } from "../../services/release/cron-job/cron-job-service.factory";
 import { BuildCallbackService } from "../../services/release/build-callback.service";
 import { ManualUploadService } from "../../services/release/manual-upload.service";
 import { UploadValidationService } from "../../services/release/upload-validation.service";
-import type { ReleaseCreationService } from "../../services/release/release-creation.service";
-import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
-import { fileUploadMiddleware } from "../../file-upload-manager";
-import { createManualBuildUploadHandler } from "~controllers/release-management/builds/manual-upload.controller";
-import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
-import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
-import type { ReleaseStatusService } from "../../services/release/release-status.service";
-import type { ReleaseUpdateService } from "../../services/release/release-update.service";
-import type { CronJobService } from "../../services/release/cron-job/cron-job.service";
 import { HTTP_STATUS } from "../../constants/http";
 
 // Multer configuration for file uploads (memory storage)
@@ -433,31 +430,14 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     controller.checkTestManagementRunStatus
   );
 
-  // Manual build upload (artifact upload to S3 + DB record)
-  // Uses file upload middleware only for this route
-  router.post(
-    "/tenants/:tenantId/releases/:releaseId/builds/manual-upload",
-    tenantPermissions.requireOwner({ storage }),
-    fileUploadMiddleware,
-    createManualBuildUploadHandler(storage)
-  );
+  // ============================================================================
+  // BUILD VERIFICATION
+  // ============================================================================
 
-  // List artifact paths for a release filtered by platform (query param)
-  // GET /tenants/:tenantId/releases/:releaseId/builds/artifacts?platform=ANDROID&regression_id=123
-  router.get(
-    "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
-    tenantPermissions.requireOwner({ storage }),
-    createBuildListArtifactsHandler(storage)
-  );
-
-  // CI artifact upload using ci_run_id lookup for CLI
-  // POST /builds/ci/:ciRunId/artifact
   router.post(
-    "/builds/ci/:ciRunId/artifact",
-    // TODO: Add middleware to derive tenantId from accessToken
-    tenantPermissions.allowAll({ storage }),
-    fileUploadMiddleware,
-    createCiArtifactUploadHandler(storage)
+    "/tenants/:tenantId/releases/:releaseId/builds/verify-testflight",
+    tenantPermissions.requireOwner({ storage }),
+    verifyTestFlightBuild
   );
 
   return router;
