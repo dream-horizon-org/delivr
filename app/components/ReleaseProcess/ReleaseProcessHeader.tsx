@@ -171,146 +171,147 @@ export function ReleaseProcessHeader({
     <>
       <Paper shadow="sm" p="lg" radius="md" withBorder className={className}>
         <Stack gap="md">
-          {/* Top Section: Navigation, Title, Status Badges, Actions */}
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Group gap="md" align="flex-start">
-              <Link to={`/dashboard/${org}/releases`}>
-                <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-                  {BUTTON_LABELS.BACK}
-                </Button>
-              </Link>
-              
-              <div>
-                {release.branch ? (
-                  <Title order={2} className="mb-2 font-mono">
-                    {release.branch}
-                  </Title>
-                ) : (
-                  <Title order={2} className="mb-2">
-                    {HEADER_LABELS.NO_BRANCH}
-                  </Title>
-                )}
-                
-                {/* Platform Badges - Only show in title section */}
-                {platformMappings.length > 0 && (
-                  <Group gap="xs" mt="xs">
-                    {platformMappings.map((mapping, idx) => (
-                      <Badge key={idx} size="md" variant="light" color="blue">
-                        {mapping.platform} {HEADER_LABELS.PLATFORM_SEPARATOR} {mapping.target}
-                        {mapping.version && ` (${mapping.version})`}
-                      </Badge>
-                    ))}
-                  </Group>
-                )}
-              </div>
-            </Group>
-            
-            {/* Status Badges and Actions */}
-            <Group gap="sm">
-              {/* Show releasePhase if present (primary badge - most detailed) */}
-              {releasePhase && (
-                <Badge
-                  color={getPhaseColor(releasePhase)}
-                  variant="light"
-                  size="md"
-                  style={{ fontSize: '0.7rem' }}
-                >
-                  {getPhaseLabel(releasePhase)}
-                </Badge>
-              )}
-              {/* Show releaseStatus if present and adds context (e.g., PAUSED, SUBMITTED, COMPLETED) */}
-              {releaseStatus && (
-                <Badge
-                  color={getReleaseStatusColor(releaseStatus)}
-                  variant="light"
-                  size="md"
-                  style={{ fontSize: '0.7rem' }}
-                >
-                  {getReleaseStatusLabel(releaseStatus)}
-                </Badge>
-              )}
-            </Group>
+          {/* Top Section: Back Button */}
+          <Group>
+            <Link to={`/dashboard/${org}/releases`}>
+              <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+                {BUTTON_LABELS.BACK}
+              </Button>
+            </Link>
           </Group>
 
-          {/* Main Info Section: Version, Branch, Stage - Compact */}
-          <Group gap="lg" wrap="wrap">
-            <Group gap="xs">
-              <IconTag size={18} className="text-brand-600" />
-              <div>
-                <Text size="xs" c="dimmed">
-                  {HEADER_LABELS.RELEASE_VERSION}
-                </Text>
-                <Text fw={600} size="sm">
-                  {releaseVersion}
-                </Text>
-              </div>
+          {/* Release Title, Status Badges, and Platform Badges */}
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Group gap="md" align="center">
+              {release.branch ? (
+                <Title order={2} className="font-mono">
+                  {release.branch}
+                </Title>
+              ) : (
+                <Title order={2}>
+                  {HEADER_LABELS.NO_BRANCH}
+                </Title>
+              )}
+
+              {/* Status Badges - Next to Title */}
+              <Group gap="sm">
+                {releasePhase && (
+                  <Badge
+                    color={getPhaseColor(releasePhase)}
+                    variant="light"
+                    size="md"
+                    style={{ fontSize: '0.7rem' }}
+                  >
+                    {getPhaseLabel(releasePhase)}
+                  </Badge>
+                )}
+                {releaseStatus && (
+                  <Badge
+                    color={getReleaseStatusColor(releaseStatus)}
+                    variant="light"
+                    size="md"
+                    style={{ fontSize: '0.7rem' }}
+                  >
+                    {getReleaseStatusLabel(releaseStatus)}
+                  </Badge>
+                )}
+              </Group>
             </Group>
 
-            {release.branch && (
+            {/* Platform Badges - Right Side */}
+            {platformMappings.length > 0 && (
               <Group gap="xs">
-                <IconGitBranch size={18} className="text-slate-600" />
-                <div>
-                  <Text size="xs" c="dimmed">
-                    {HEADER_LABELS.RELEASE_BRANCH}
-                  </Text>
-                  <Text fw={600} size="sm" className="font-mono">
-                    {release.branch}
-                  </Text>
-                </div>
+                {platformMappings.map((mapping, idx) => (
+                  <Badge key={idx} size="md" variant="light" color="blue">
+                    {mapping.platform} {HEADER_LABELS.PLATFORM_SEPARATOR} {mapping.target}
+                    {mapping.version && <span style={{ fontWeight: 700 }}> ({mapping.version})</span>}
+                  </Badge>
+                ))}
               </Group>
             )}
+          </Group>
 
-            {currentStage && (
+          {/* Info Section and Action Buttons */}
+          <Group justify="space-between" align="center" wrap="wrap">
+            <Group gap="xl">
               <Group gap="xs">
+                <IconTag size={18} className="text-brand-600" />
                 <div>
                   <Text size="xs" c="dimmed">
-                    {HEADER_LABELS.CURRENT_STAGE}
+                    {HEADER_LABELS.RELEASE_VERSION}
                   </Text>
                   <Text fw={600} size="sm">
-                    {STAGE_LABELS[currentStage]}
+                    {releaseVersion}
                   </Text>
                 </div>
               </Group>
-            )}
-          </Group>
 
-          {/* Action Buttons */}
-          <Group gap="sm" wrap="wrap">
-            <Button 
-              variant="outline" 
-              leftSection={<IconEdit size={16} />}
-              onClick={() => setEditModalOpened(true)}
-            >
-              {BUTTON_LABELS.EDIT_RELEASE}
-            </Button>
-            
-            {/* Pause/Resume - Only show if release is in progress or paused */}
-            {(releaseStatus === ReleaseStatus.IN_PROGRESS || releaseStatus === ReleaseStatus.PAUSED) && (
+              {release.branch && (
+                <Group gap="xs">
+                  <IconGitBranch size={18} className="text-slate-600" />
+                  <div>
+                    <Text size="xs" c="dimmed">
+                      {HEADER_LABELS.RELEASE_BRANCH}
+                    </Text>
+                    <Text fw={600} size="sm" className="font-mono">
+                      {release.branch}
+                    </Text>
+                  </div>
+                </Group>
+              )}
+
+              {currentStage && (
+                <Group gap="xs">
+                  <div>
+                    <Text size="xs" c="dimmed">
+                      {HEADER_LABELS.CURRENT_STAGE}
+                    </Text>
+                    <Text fw={600} size="sm">
+                      {STAGE_LABELS[currentStage]}
+                    </Text>
+                  </div>
+                </Group>
+              )}
+            </Group>
+
+            {/* Action Buttons - Right Side */}
+            <Group gap="sm" wrap="wrap">
+              <Button 
+                variant="outline" 
+                leftSection={<IconEdit size={16} />}
+                onClick={() => setEditModalOpened(true)}
+              >
+                {BUTTON_LABELS.EDIT_RELEASE}
+              </Button>
+              
+              {/* Pause/Resume - Only show if release is in progress or paused */}
+              {(releaseStatus === ReleaseStatus.IN_PROGRESS || releaseStatus === ReleaseStatus.PAUSED) && (
+                <Button
+                  variant="outline"
+                  color={isPaused ? 'green' : 'orange'}
+                  leftSection={isPaused ? <IconPlayerPlay size={16} /> : <IconPlayerPause size={16} />}
+                  onClick={isPaused ? handleResumeClick : handlePauseClick}
+                >
+                  {isPaused ? BUTTON_LABELS.RESUME : BUTTON_LABELS.PAUSE}
+                </Button>
+              )}
+              
               <Button
                 variant="outline"
-                color={isPaused ? 'green' : 'orange'}
-                leftSection={isPaused ? <IconPlayerPlay size={16} /> : <IconPlayerPause size={16} />}
-                onClick={isPaused ? handleResumeClick : handlePauseClick}
+                leftSection={<IconHistory size={16} />}
+                onClick={() => setActivityLogModalOpened(true)}
               >
-                {isPaused ? BUTTON_LABELS.RESUME : BUTTON_LABELS.PAUSE}
+                {BUTTON_LABELS.ACTIVITY_LOG}
               </Button>
-            )}
-            
-            <Button
-              variant="outline"
-              leftSection={<IconHistory size={16} />}
-              onClick={() => setActivityLogModalOpened(true)}
-            >
-              {BUTTON_LABELS.ACTIVITY_LOG}
-            </Button>
-            
-            <Button
-              variant="outline"
-              leftSection={<IconMessageCircle size={16} />}
-              onClick={() => setSlackMessageModalOpened(true)}
-            >
-              {BUTTON_LABELS.POST_SLACK_MESSAGE}
-            </Button>
+              
+              <Button
+                variant="outline"
+                leftSection={<IconMessageCircle size={16} />}
+                onClick={() => setSlackMessageModalOpened(true)}
+              >
+                {BUTTON_LABELS.POST_SLACK_MESSAGE}
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Paper>
