@@ -12,7 +12,7 @@
 
 export enum ReleaseType {
   HOTFIX = 'HOTFIX',
-  PLANNED = 'PLANNED',
+  MINOR = 'MINOR',
   MAJOR = 'MAJOR'
 }
 

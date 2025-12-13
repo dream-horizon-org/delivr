@@ -237,10 +237,12 @@ export function convertPlatformTargetsToConfig(
  * Convert UI state to backend-compatible request format
  * 
  * @param state - Release creation state from UI
+ * @param configReleaseType - Release type from the selected config (MAJOR, MINOR, HOTFIX)
  * @returns Backend-compatible request payload
  */
 export function convertStateToBackendRequest(
-  state: ReleaseCreationState
+  state: ReleaseCreationState,
+  configReleaseType?: string
 ): CreateReleaseBackendRequest {
   // Convert dates to ISO strings
   const kickOffDate = combineDateAndTime(state.kickOffDate, state.kickOffTime);
@@ -253,7 +255,8 @@ export function convertStateToBackendRequest(
     : undefined;
 
   const request: CreateReleaseBackendRequest = {
-    type: state.type,
+    // Use config's releaseType (MAJOR/MINOR/HOTFIX) instead of state.type (PLANNED/IMMEDIATE)
+    type: (configReleaseType || state.type) as any,
     platformTargets: state.platformTargets,
     releaseConfigId: state.releaseConfigId || '',
     baseBranch: state.baseBranch,

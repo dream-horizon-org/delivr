@@ -270,9 +270,6 @@ export function WorkflowList({
                             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                             borderRadius: theme.radius.sm,
                             fontSize: theme.fontSizes.sm,
-                            '&[data-hovered]': {
-                              backgroundColor: theme.colors.slate[0],
-                            },
                           },
                         }}
                       >
@@ -300,15 +297,7 @@ export function WorkflowList({
                               <Menu.Item
                                 leftSection={<IconTrash size={16} stroke={1.5} />}
                                 onClick={() => handleDeleteClick(workflow)}
-                                styles={{
-                                  item: {
-                                    color: theme.colors.red[7],
-                                    '&[data-hovered]': {
-                                      backgroundColor: theme.colors.red[0],
-                                      color: theme.colors.red[8],
-                                    },
-                                  },
-                                }}
+                                color="red"
                               >
                                 Delete
                               </Menu.Item>
@@ -402,9 +391,6 @@ export function WorkflowList({
                             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                             borderRadius: theme.radius.sm,
                             fontSize: theme.fontSizes.sm,
-                            '&[data-hovered]': {
-                              backgroundColor: theme.colors.slate[0],
-                            },
                           },
                         }}
                       >
@@ -432,15 +418,7 @@ export function WorkflowList({
                               <Menu.Item
                                 leftSection={<IconTrash size={16} stroke={1.5} />}
                                 onClick={() => handleDeleteClick(workflow)}
-                                styles={{
-                                  item: {
-                                    color: theme.colors.red[7],
-                                    '&[data-hovered]': {
-                                      backgroundColor: theme.colors.red[0],
-                                      color: theme.colors.red[8],
-                                    },
-                                  },
-                                }}
+                                color="red"
                               >
                                 Delete
                               </Menu.Item>

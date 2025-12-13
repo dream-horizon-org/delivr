@@ -179,25 +179,98 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
   
   const handleSetDefault = useCallback(async (configId: string) => {
     try {
-      const result = await apiPut<{ success: boolean; error?: string }>(
+      // Find current default configuration and the config being set as default
+      const currentDefault = configurations.find((c: any) => c.isDefault && c.status !== 'DRAFT');
+      const configToSetDefault = configurations.find((c: any) => c.id === configId);
+      
+      if (!configToSetDefault) {
+        showErrorToast(getErrorMessage('Configuration not found', RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title));
+        return;
+      }
+      
+      // Optimistically update UI first for immediate feedback
+      if (currentDefault && currentDefault.id !== configId) {
+        updateReleaseConfigInCache(currentDefault.id, (config) => ({
+          ...config,
+          isDefault: false,
+        }));
+      }
+      updateReleaseConfigInCache(configId, (config) => ({
+        ...config,
+        isDefault: true,
+      }));
+      
+      // First, unset the previous default (if exists)
+      // Send the FULL config object to prevent backend from wiping out other fields
+      if (currentDefault && currentDefault.id !== configId) {
+        console.log('[ConfigurationsTab] Unsetting previous default:', currentDefault.id);
+        const unsetResult = await apiPut(
+          `/api/v1/tenants/${org}/release-config/${currentDefault.id}`,
+          { ...currentDefault, isDefault: false } // Send full config with only isDefault changed
+        );
+        
+        if (!unsetResult.success) {
+          console.error('[ConfigurationsTab] Failed to unset previous default:', unsetResult.error);
+          // Rollback optimistic update
+          updateReleaseConfigInCache(currentDefault.id, (config) => ({
+            ...config,
+            isDefault: true,
+          }));
+          showErrorToast(getErrorMessage(
+            unsetResult.error || 'Failed to unset previous default',
+            RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title
+          ));
+          return;
+        }
+      }
+      
+      // Now set the new default
+      // Send the FULL config object to prevent backend from wiping out other fields
+      const result = await apiPut(
         `/api/v1/tenants/${org}/release-config/${configId}`,
-        { isDefault: true }
+        { ...configToSetDefault, isDefault: true } // Send full config with only isDefault changed
       );
       
-      if (result.data?.success) {
-        invalidateReleaseConfigs();
+      if (result.success) {
+        // Success! The optimistic update is already applied
         showSuccessToast(RELEASE_CONFIG_MESSAGES.SET_DEFAULT_SUCCESS);
+        // Invalidate to ensure we're in sync with backend
+        invalidateReleaseConfigs();
       } else {
+        // Rollback optimistic update
+        updateReleaseConfigInCache(configId, (config) => ({
+          ...config,
+          isDefault: false,
+        }));
+        if (currentDefault) {
+          updateReleaseConfigInCache(currentDefault.id, (config) => ({
+            ...config,
+            isDefault: true,
+          }));
+        }
         showErrorToast(getErrorMessage(
           result.error || 'Unknown error',
           RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title
         ));
       }
     } catch (error) {
+      // Rollback optimistic update on error
+      const currentDefault = configurations.find((c: any) => c.isDefault && c.status !== 'DRAFT' && c.id !== configId);
+      updateReleaseConfigInCache(configId, (config) => ({
+        ...config,
+        isDefault: false,
+      }));
+      if (currentDefault) {
+        updateReleaseConfigInCache(currentDefault.id, (config) => ({
+          ...config,
+          isDefault: true,
+        }));
+      }
+      
       const errorMessage = getApiErrorMessage(error, 'Failed to set as default');
       showErrorToast(getErrorMessage(errorMessage, RELEASE_CONFIG_MESSAGES.SET_DEFAULT_ERROR.title));
     }
-  }, [org, invalidateReleaseConfigs]);
+  }, [org, configurations, invalidateReleaseConfigs, updateReleaseConfigInCache]);
 
   const handleExport = useCallback((config: ReleaseConfiguration) => {
     const jsonString = exportConfig(config);
@@ -345,7 +418,7 @@ export const ConfigurationsTab = memo(function ConfigurationsTab({
           value={typeFilter}
           onChange={setTypeFilter}
           data={[
-            { value: RELEASE_TYPE.PLANNED, label: 'Planned' },
+            { value: RELEASE_TYPE.MINOR, label: 'Minor' },
             { value: RELEASE_TYPE.HOTFIX, label: 'Hotfix' },
             { value: RELEASE_TYPE.MAJOR, label: 'Major' },
           ]}

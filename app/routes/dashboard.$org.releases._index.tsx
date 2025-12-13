@@ -10,6 +10,7 @@
  * - Displays release cards with backend data
  */
 
+import { useEffect } from 'react';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
@@ -27,7 +28,7 @@ import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagemen
  * Server-side loader to fetch initial releases
  * Provides data for fast first load, React Query handles caching
  */
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org: tenantId } = params;
 
   if (!tenantId) {
@@ -36,6 +37,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
   try {
     const userId = user.user.id;
+    
+    // Check if this is a fresh request after creating/updating a release
+    const url = new URL(request.url);
+    const hasRefreshParam = url.searchParams.has('refresh');
+    
     const result = await listReleases(tenantId, userId, { includeTasks: false });
 
     if (!result.success) {
@@ -58,9 +64,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
       initialReleases: result.releases || [],
     }, {
       headers: {
-        // Browser caches for 2 minutes
-        // After 2 minutes, serves stale while revalidating for 5 minutes
-        'Cache-Control': 'private, max-age=120, stale-while-revalidate=300',
+        // If refresh param is present (after create/update), don't cache
+        // Otherwise, cache for 30 seconds (reduced from 2 minutes for fresher data)
+        'Cache-Control': hasRefreshParam 
+          ? 'no-cache, no-store, must-revalidate' 
+          : 'private, max-age=30, stale-while-revalidate=60',
       },
     });
   } catch (error: any) {
@@ -88,7 +96,6 @@ export type ReleasesListLoaderData = {
 export default function ReleasesListPage() {
   const { org, initialReleases } = useLoaderData<ReleasesListLoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || RELEASE_TABS.UPCOMING;
 
   // Use React Query with initialData from server-side loader
   const {
@@ -104,6 +111,36 @@ export default function ReleasesListPage() {
       releases: initialReleases,
     },
   });
+
+  // Smart default tab selection:
+  // 1. If user has explicitly selected a tab via URL, use that
+  // 2. If there are active releases, default to "active" tab
+  // 3. Otherwise, default to "upcoming" tab
+  const hasExplicitTab = searchParams.has('tab');
+  const defaultTab = active.length > 0 ? RELEASE_TABS.ACTIVE : RELEASE_TABS.UPCOMING;
+  const activeTab = hasExplicitTab ? (searchParams.get('tab') || defaultTab) : defaultTab;
+
+  // Set the smart default tab in URL if no explicit tab is set
+  // This ensures the URL reflects the actual tab being displayed
+  useEffect(() => {
+    if (!hasExplicitTab && !isLoading) {
+      setSearchParams({ tab: defaultTab }, { replace: true });
+    }
+  }, [hasExplicitTab, defaultTab, isLoading, setSearchParams]);
+
+  // Clean up refresh parameter from URL after data is loaded
+  // This prevents the parameter from sticking around in the URL
+  useEffect(() => {
+    if (searchParams.has('refresh') && !isLoading) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('refresh');
+      // Keep tab parameter if it exists
+      if (activeTab) {
+        newParams.set('tab', activeTab);
+      }
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, isLoading, activeTab, setSearchParams]);
 
   const handleTabChange = (value: string | null) => {
     if (value) {

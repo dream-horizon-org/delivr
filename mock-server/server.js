@@ -111,7 +111,7 @@ function transformRelease(release, tenantId) {
     releaseId: release.releaseId || release.id,
     releaseConfigId: release.releaseConfigId || null,
     tenantId: tenantId,
-    type: release.type || 'PLANNED',
+    type: release.type || 'MINOR',
     status: release.status || 'IN_PROGRESS',
     releasePhase: release.releasePhase || null,
     branch: release.branch || null,

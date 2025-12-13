@@ -70,7 +70,7 @@ export type BuildUploadStepValue = typeof BUILD_UPLOAD_STEPS[keyof typeof BUILD_
 // ============================================================================
 
 export const RELEASE_TYPES = {
-  PLANNED: 'PLANNED',
+  MINOR: 'MINOR',
   HOTFIX: 'HOTFIX',
   MAJOR: 'MAJOR',
 } as const;
