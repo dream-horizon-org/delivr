@@ -17,6 +17,9 @@ export const TESTFLIGHT_BUILD_ERROR_MESSAGES = {
   TESTFLIGHT_NUMBER_REQUIRED: 'testflightBuildNumber is required',
   VERSION_NAME_REQUIRED: 'versionName is required',
   RELEASE_ID_REQUIRED: 'releaseId is required',
+  RELEASE_UPLOADS_REPO_NOT_INITIALIZED: 'Release uploads repository not initialized',
+  PLATFORM_MAPPING_NOT_FOUND: 'Platform mapping not found for iOS',
+  FAILED_TO_STAGE_TESTFLIGHT_BUILD: 'Failed to stage TestFlight build',
 } as const;
 
 export const TESTFLIGHT_BUILD_SUGGESTIONS = {

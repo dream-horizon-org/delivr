@@ -21,16 +21,8 @@ import { BuildCallbackService } from "../../services/release/build-callback.serv
 import { ManualUploadService } from "../../services/release/manual-upload.service";
 import { UploadValidationService } from "../../services/release/upload-validation.service";
 import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
-import type { ReleaseCreationService } from "../../services/release/release-creation.service";
-import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
-import { fileUploadMiddleware } from "../../file-upload-manager";
 import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
-import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
-import { createManualTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-manual-verify.controller";
 import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
-import type { ReleaseStatusService } from "../../services/release/release-status.service";
-import type { ReleaseUpdateService } from "../../services/release/release-update.service";
-import type { CronJobService } from "../../services/release/cron-job/cron-job.service";
 import { HTTP_STATUS } from "../../constants/http";
 
 // Multer configuration for file uploads (memory storage)
@@ -452,14 +444,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     tenantPermissions.requireOwner({ storage }),
     verifyTestFlightBuild
   );
-
-  // // Manual TestFlight verification (for users without CI/CD)
-  // // POST /tenants/:tenantId/releases/:releaseId/builds/testflight/verify
-  // router.post(
-  //   "/tenants/:tenantId/releases/:releaseId/builds/testflight/verify",
-  //   tenantPermissions.requireOwner({ storage }),
-  //   createManualTestflightVerifyHandler(storage)
-  // );
 
   // CI/CD TestFlight verification
   // POST /builds/ci/testflight/verify

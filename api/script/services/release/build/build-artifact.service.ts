@@ -6,6 +6,8 @@ import { uploadToS3, inferContentType, generatePresignedGetUrl } from '~utils/s3
 import {
   BUILD_UPLOAD_STATUS,
   BUILD_TYPE,
+  BUILD_PLATFORM,
+  STORE_TYPE,
   BuildPlatform,
   StoreType,
   BuildStage,
@@ -407,8 +409,8 @@ export class BuildArtifactService {
         artifactVersionName: versionName,
         artifactPath: null,
         releaseId,
-        platform: 'IOS' as BuildPlatform,
-        storeType: 'TESTFLIGHT' as StoreType,
+        platform: BUILD_PLATFORM.IOS,
+        storeType: STORE_TYPE.TESTFLIGHT,
         buildStage,
         regressionId: null,
         ciRunId: null,
@@ -428,7 +430,7 @@ export class BuildArtifactService {
     return {
       buildId,
       releaseId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       testflightNumber,
       versionName,
       verified: true,
@@ -502,7 +504,7 @@ export class BuildArtifactService {
     return {
       buildId: build.id,
       releaseId: build.releaseId,
-      platform: 'IOS',
+      platform: BUILD_PLATFORM.IOS,
       testflightNumber,
       versionName: build.artifactVersionName,
       verified: true,

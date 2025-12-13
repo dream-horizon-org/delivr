@@ -32,8 +32,9 @@ export type ReleaseUploadAttributes = {
   releaseId: string;
   platform: PlatformName;
   stage: UploadStage;
-  artifactPath: string;
+  artifactPath: string | null;
   internalTrackLink: string | null;
+  testflightNumber: string | null;
   isUsed: boolean;
   usedByTaskId: string | null;
   usedByCycleId: string | null;
@@ -46,7 +47,7 @@ export type ReleaseUploadAttributes = {
  */
 export type ReleaseUploadCreationAttributes = Optional<
   ReleaseUploadAttributes,
-  'id' | 'internalTrackLink' | 'isUsed' | 'usedByTaskId' | 'usedByCycleId' | 'createdAt' | 'updatedAt'
+  'id' | 'artifactPath' | 'internalTrackLink' | 'testflightNumber' | 'isUsed' | 'usedByTaskId' | 'usedByCycleId' | 'createdAt' | 'updatedAt'
 >;
 
 // ============================================================================
@@ -59,8 +60,9 @@ export class ReleaseUploadModel extends Model<ReleaseUploadAttributes, ReleaseUp
   declare releaseId: string;
   declare platform: PlatformName;
   declare stage: UploadStage;
-  declare artifactPath: string;
+  declare artifactPath: string | null;
   declare internalTrackLink: string | null;
+  declare testflightNumber: string | null;
   declare isUsed: boolean;
   declare usedByTaskId: string | null;
   declare usedByCycleId: string | null;
@@ -107,13 +109,20 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
       },
       artifactPath: {
         type: DataTypes.STRING(1024),
-        allowNull: false,
+        allowNull: true,
         field: 'artifactPath',
+        comment: 'S3 artifact path (null for TestFlight builds)',
       },
       internalTrackLink: {
         type: DataTypes.STRING(1024),
         allowNull: true,
         field: 'internalTrackLink',
+      },
+      testflightNumber: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'testflightNumber',
+        comment: 'TestFlight build number (for iOS TestFlight builds)',
       },
       isUsed: {
         type: DataTypes.BOOLEAN,

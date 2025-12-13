@@ -25,6 +25,7 @@ import type {
 import { validateCreateReleaseRequest, validateUpdateReleaseRequest } from './release-validation';
 import type { Platform } from '~types/integrations/project-management';
 import { RELEASE_MANAGEMENT_ERROR_MESSAGES } from './release-management.constants';
+import { isValidUploadStage } from '../../utils/upload-stage.utils';
 import { isValidArtifactExtension } from '../../services/release/build/build-artifact.utils';
 
 export class ReleaseManagementController {
@@ -641,31 +642,31 @@ export class ReleaseManagementController {
       if (!releaseId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Release ID is required'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.RELEASE_ID_REQUIRED
         });
       }
 
       if (!stage) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Stage is required (KICK_OFF, REGRESSION, PRE_RELEASE)'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.STAGE_REQUIRED
         });
       }
 
       if (!platform) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Platform is required'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.PLATFORM_REQUIRED
         });
       }
 
       // Validate stage is valid
-      const validStages = ['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'];
       const upperStage = stage.toUpperCase();
-      if (!validStages.includes(upperStage)) {
+      const stageIsInvalid = !isValidUploadStage(upperStage);
+      if (stageIsInvalid) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: `Invalid buildStage: ${stage}. Must be one of: ${validStages.join(', ')}`
+          error: `Invalid stage: ${stage}. ${RELEASE_MANAGEMENT_ERROR_MESSAGES.INVALID_STAGE}`
         });
       }
 
@@ -743,7 +744,6 @@ export class ReleaseManagementController {
           uploadId: result.uploadId,
           platform: result.platform,
           stage: result.stage,
-          artifactPath: result.artifactPath,
           downloadUrl: result.downloadUrl,
           internalTrackLink: result.internalTrackLink ?? null,
           uploadedPlatforms: result.uploadedPlatforms,

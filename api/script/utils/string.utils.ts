@@ -1,5 +1,5 @@
 /**
- * Request/parameter utility functions
+ * String utility functions
  */
 
 /**
@@ -14,4 +14,15 @@ export const getTrimmedString = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+/**
+ * Check if a value is a non-empty string (after trimming)
+ */
+export const isNonEmptyString = (value: unknown): value is string => {
+  const isString = typeof value === 'string';
+  if (!isString) {
+    return false;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0;
+};
 

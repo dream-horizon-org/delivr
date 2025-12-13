@@ -22,16 +22,18 @@ export type CreateReleaseUploadDto = {
   releaseId: string;
   platform: PlatformName;
   stage: UploadStage;
-  artifactPath: string;
+  artifactPath?: string | null;
   internalTrackLink?: string | null;
+  testflightNumber?: string | null;
 };
 
 /**
  * Data for updating an upload
  */
 export type UpdateReleaseUploadDto = Partial<{
-  artifactPath: string;
+  artifactPath: string | null;
   internalTrackLink: string | null;
+  testflightNumber: string | null;
   isUsed: boolean;
   usedByTaskId: string | null;
   usedByCycleId: string | null;
@@ -78,8 +80,9 @@ export class ReleaseUploadsRepository {
       releaseId: data.releaseId,
       platform: data.platform,
       stage: data.stage,
-      artifactPath: data.artifactPath,
+      artifactPath: data.artifactPath ?? null,
       internalTrackLink: data.internalTrackLink ?? null,
+      testflightNumber: data.testflightNumber ?? null,
       isUsed: false,
       usedByTaskId: null,
       usedByCycleId: null,
@@ -101,10 +104,11 @@ export class ReleaseUploadsRepository {
 
     const hasExisting = existing !== null;
     if (hasExisting) {
-      // Update existing (including internalTrackLink if provided)
+      // Update existing (including internalTrackLink and testflightNumber if provided)
       await this.update(existing.id, {
-        artifactPath: data.artifactPath,
+        artifactPath: data.artifactPath ?? null,
         internalTrackLink: data.internalTrackLink ?? null,
+        testflightNumber: data.testflightNumber ?? null,
       });
       const updated = await this.findById(existing.id);
       return updated as ReleaseUpload;

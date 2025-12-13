@@ -34,7 +34,6 @@ export type ManualUploadResult = {
   uploadId?: string;
   platform?: PlatformName;
   stage?: UploadStage;
-  artifactPath?: string;
   downloadUrl?: string;
   internalTrackLink?: string | null;
   uploadedPlatforms?: PlatformName[];
@@ -49,7 +48,6 @@ export type UploadStatusResult = {
     platform: PlatformName;
     hasUpload: boolean;
     uploadId?: string;
-    artifactPath?: string;
     uploadedAt?: Date;
   }>;
   allPlatformsReady: boolean;
@@ -173,7 +171,6 @@ export class ManualUploadService {
       uploadId: upload.id,
       platform,
       stage,
-      artifactPath,
       downloadUrl,
       internalTrackLink,
       uploadedPlatforms: platformStatus.uploadedPlatforms,
@@ -196,7 +193,6 @@ export class ManualUploadService {
         platform,
         hasUpload,
         uploadId: upload?.id,
-        artifactPath: upload?.artifactPath,
         uploadedAt: upload?.createdAt,
       };
     });
@@ -237,7 +233,6 @@ export class ManualUploadService {
       uploadId: upload.id,
       platform: upload.platform,
       stage: upload.stage,
-      artifactPath: upload.artifactPath,
     };
   }
 
