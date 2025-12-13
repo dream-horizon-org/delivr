@@ -169,7 +169,6 @@ export interface ConnectStoreRequestBody {
   storeType: StoreType;
   platform: 'ANDROID' | 'IOS' | 'android' | 'ios';
   tenantId: string;
-  userId: string;
   payload: AppStoreConnectPayload | GooglePlayStorePayload;
 }
 
@@ -228,4 +227,25 @@ export const mapStoreTypeFromApi = (storeType: string): StoreType => {
   };
   return storeTypeMap[storeTypeLower] || StoreType.APP_STORE;
 };
+
+/**
+ * Upload AAB to Play Store Request
+ */
+export interface UploadAabToPlayStoreRequest {
+  tenantId: string;
+  storeType: string; // 'play_store'
+  platform: string; // 'ANDROID'
+  versionName: string;
+  releaseNotes?: string;
+}
+
+/**
+ * Upload AAB to Play Store Response
+ */
+export interface UploadAabToPlayStoreResponse {
+  versionCode: number;
+  versionSpecificUrl: string; // "https://play.google.com/apps/test/{packageName}/{versionCode}"
+  packageName: string;
+  versionName: string;
+}
 
