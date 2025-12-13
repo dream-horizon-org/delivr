@@ -12,7 +12,7 @@ import {
 } from '../../constants/testflight-build';
 import type { StoreIntegrationController, StoreCredentialController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
-import { decrypt } from '../../utils/encryption.utils';
+import { decrypt } from '../../utils/encryption';
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
 
 // ============================================================================
