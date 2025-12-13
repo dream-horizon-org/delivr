@@ -186,3 +186,26 @@ export type TestflightVerifyResult = {
   buildUploadStatus: BuildUploadStatus;
   createdAt: Date;
 };
+
+/**
+ * Input for staging artifact upload (manual upload flow).
+ * Used to upload artifacts to S3 staging area before build record is created.
+ * Does NOT create a build record - that happens when TaskExecutor consumes the upload.
+ */
+export type UploadStagingArtifactInput = {
+  tenantId: string;
+  releaseId: string;
+  platform: string;
+  stage: string;  // KICK_OFF | REGRESSION | PRE_RELEASE
+  artifactBuffer: Buffer;
+  originalFilename: string;  // Required to preserve file extension (.ipa, .apk, .aab)
+};
+
+/**
+ * Result of staging artifact upload
+ */
+export type UploadStagingArtifactResult = {
+  s3Uri: string;      // Full S3 URI for storage in release_uploads table
+  uploadId: string;   // Generated ID for tracking/debugging
+  downloadUrl: string; // Presigned URL for immediate download
+};

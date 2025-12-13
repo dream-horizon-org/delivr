@@ -23,12 +23,7 @@ import {
   PauseType
 } from '../../../script/models/release/release.interface';
 
-import type {
-  BuildPlatform,
-  BuildType,
-  BuildUploadStatus,
-  WorkflowStatus
-} from '../../../script/types/release-management/builds';
+import type { BuildPlatform } from '../../../script/types/release-management/builds';
 
 // ============================================================================
 // ACTUAL IMPLEMENTATIONS

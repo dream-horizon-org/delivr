@@ -62,6 +62,19 @@ export const BUILD_ARTIFACT_DEFAULTS = {
  * File extension constants for build artifacts
  */
 export const BUILD_ARTIFACT_FILE_EXTENSIONS = {
+  IPA: '.ipa',
+  APK: '.apk',
   AAB: '.aab'
 } as const;
+
+/**
+ * All allowed artifact file extensions for build uploads
+ */
+export const ALLOWED_ARTIFACT_EXTENSIONS = [
+  BUILD_ARTIFACT_FILE_EXTENSIONS.IPA,
+  BUILD_ARTIFACT_FILE_EXTENSIONS.APK,
+  BUILD_ARTIFACT_FILE_EXTENSIONS.AAB
+] as const;
+
+export type AllowedArtifactExtension = typeof ALLOWED_ARTIFACT_EXTENSIONS[number];
 

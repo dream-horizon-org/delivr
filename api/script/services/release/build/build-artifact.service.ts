@@ -29,6 +29,8 @@ import {
   type ManualTestflightVerifyInput,
   type CiTestflightVerifyInput,
   type TestflightVerifyResult,
+  type UploadStagingArtifactInput,
+  type UploadStagingArtifactResult,
   BuildArtifactError
 } from './build-artifact.interface';
 import { executeOperation, isAabFile, generateInternalTrackLink } from './build-artifact.utils';
@@ -221,6 +223,87 @@ export class BuildArtifactService {
       s3Uri: uploadResult.s3Uri,
       buildId
     };
+  };
+
+  /**
+   * Upload artifact for staging (manual upload flow).
+   * Does NOT create a build record - that happens when TaskExecutor consumes the upload.
+   * 
+   * Path structure: {tenantId}/{releaseId}/{platform}/{stage}/{uploadId}.{ext}
+   * 
+   * Steps:
+   * 1. Generate unique upload ID
+   * 2. Extract file extension from original filename
+   * 3. Generate S3 key using stage as version segment
+   * 4. Upload buffer to S3
+   * 5. Generate presigned download URL
+   * 
+   * @param input - Staging upload input with originalFilename to preserve extension
+   * @returns S3 URI, uploadId, and presigned download URL
+   * @throws BuildArtifactError if upload fails
+   */
+  uploadStagingArtifact = async (
+    input: UploadStagingArtifactInput
+  ): Promise<UploadStagingArtifactResult> => {
+    const { tenantId, releaseId, platform, stage, artifactBuffer, originalFilename } = input;
+
+    // Step 1: Generate unique upload ID for this staging artifact
+    const uploadId = shortid.generate();
+
+    // Step 2: Extract file extension from original filename (preserves .ipa, .apk, .aab)
+    const fileName = deriveStandardArtifactFilename(originalFilename, uploadId);
+
+    // Step 3: Generate S3 key using stage as the version segment for path organization
+    // Result: {tenantId}/{releaseId}/{platform}/{KICK_OFF}/{x7k9m2}.ipa
+    const s3Key = buildArtifactS3Key(
+      { tenantId, releaseId, platform, artifactVersionName: stage },
+      fileName
+    );
+
+    const bucketName = this.getBucketName();
+    const contentType = inferContentType(fileName);
+
+    // Step 4: Upload buffer to S3
+    await executeOperation(
+      async () => {
+        const isS3Storage = this.storage instanceof S3Storage;
+        if (isS3Storage) {
+          await (this.storage as S3Storage).uploadBufferToS3(s3Key, artifactBuffer, contentType);
+        } else {
+          await uploadToS3({
+            bucketName,
+            key: s3Key,
+            body: artifactBuffer,
+            contentType
+          });
+        }
+      },
+      BUILD_ARTIFACT_ERROR_CODE.S3_UPLOAD_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.S3_UPLOAD_FAILED
+    );
+
+    // Step 5: Generate presigned download URL
+    const s3Uri = buildS3Uri(bucketName, s3Key);
+    const downloadUrl = await executeOperation(
+      async () => {
+        const isS3Storage = this.storage instanceof S3Storage;
+        if (isS3Storage) {
+          return (this.storage as S3Storage).getSignedObjectUrl(
+            s3Key,
+            BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
+          );
+        }
+        return generatePresignedGetUrl({
+          bucketName,
+          key: s3Key,
+          expiresSeconds: BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
+        });
+      },
+      BUILD_ARTIFACT_ERROR_CODE.PRESIGNED_URL_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.PRESIGNED_URL_FAILED
+    );
+
+    return { s3Uri, uploadId, downloadUrl };
   };
 
   /**

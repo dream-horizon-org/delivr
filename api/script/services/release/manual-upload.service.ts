@@ -6,7 +6,7 @@
  * Flow:
  * 1. User uploads artifact via API
  * 2. Validate upload is allowed (using UploadValidationService)
- * 3. Upload to S3 and get artifact path
+ * 3. Upload to S3 using BuildArtifactService and get artifact path
  * 4. Create/upsert entry in release_uploads table
  * 5. Return status (including whether all platforms are ready)
  * 
@@ -16,13 +16,13 @@
  * Reference: docs/MANUAL_BUILD_UPLOAD_FLOW.md
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import { ReleaseUploadsRepository, CreateReleaseUploadDto } from '../../models/release/release-uploads.repository';
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
 import { ReleaseRepository } from '../../models/release/release.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { PlatformName } from '../../models/release/release.interface';
 import { UploadValidationService } from './upload-validation.service';
+import { BuildArtifactService } from './build/build-artifact.service';
 
 // ============================================================================
 // TYPES
@@ -35,6 +35,7 @@ export type ManualUploadResult = {
   platform?: PlatformName;
   stage?: UploadStage;
   artifactPath?: string;
+  downloadUrl?: string;
   uploadedPlatforms?: PlatformName[];
   missingPlatforms?: PlatformName[];
   allPlatformsReady?: boolean;
@@ -55,18 +56,6 @@ export type UploadStatusResult = {
 };
 
 // ============================================================================
-// CICD SERVICE INTERFACE (for S3 upload)
-// ============================================================================
-
-export type CICDServiceInterface = {
-  uploadBuildToS3(
-    file: Buffer,
-    platform: PlatformName,
-    metadata: { releaseId: string; tenantId: string; stage: UploadStage }
-  ): Promise<string>;
-};
-
-// ============================================================================
 // SERVICE CLASS
 // ============================================================================
 
@@ -76,7 +65,7 @@ export class ManualUploadService {
     private readonly releaseRepo: ReleaseRepository,
     private readonly platformMappingRepo: ReleasePlatformTargetMappingRepository,
     private readonly validationService: UploadValidationService,
-    private readonly cicdService: CICDServiceInterface
+    private readonly buildArtifactService: BuildArtifactService
   ) {}
 
   /**
@@ -86,13 +75,15 @@ export class ManualUploadService {
    * @param stage Stage the upload is for (KICK_OFF, REGRESSION, PRE_RELEASE)
    * @param platform Platform being uploaded
    * @param file File buffer to upload
+   * @param originalFilename Original filename to preserve extension (.ipa, .apk, .aab)
    * @returns Result with upload status
    */
   async handleUpload(
     releaseId: string,
     stage: UploadStage,
     platform: PlatformName,
-    file: Buffer
+    file: Buffer,
+    originalFilename: string
   ): Promise<ManualUploadResult> {
     // Step 1: Validate upload is allowed
     const validation = await this.validationService.validateUpload(releaseId, stage, platform);
@@ -114,14 +105,20 @@ export class ManualUploadService {
       };
     }
 
-    // Step 3: Upload to S3
+    // Step 3: Upload to S3 using BuildArtifactService
     let artifactPath: string;
+    let downloadUrl: string;
     try {
-      artifactPath = await this.cicdService.uploadBuildToS3(file, platform, {
-        releaseId,
+      const uploadResult = await this.buildArtifactService.uploadStagingArtifact({
         tenantId: release.tenantId,
+        releaseId,
+        platform,
         stage,
+        artifactBuffer: file,
+        originalFilename,
       });
+      artifactPath = uploadResult.s3Uri;
+      downloadUrl = uploadResult.downloadUrl;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'S3 upload failed';
       return {
@@ -160,6 +157,7 @@ export class ManualUploadService {
       platform,
       stage,
       artifactPath,
+      downloadUrl,
       uploadedPlatforms: platformStatus.uploadedPlatforms,
       missingPlatforms: platformStatus.missingPlatforms,
       allPlatformsReady: platformStatus.allReady,

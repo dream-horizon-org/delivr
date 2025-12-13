@@ -20,6 +20,7 @@ import { getCronJobService } from "../../services/release/cron-job/cron-job-serv
 import { BuildCallbackService } from "../../services/release/build-callback.service";
 import { ManualUploadService } from "../../services/release/manual-upload.service";
 import { UploadValidationService } from "../../services/release/upload-validation.service";
+import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
 import type { ReleaseCreationService } from "../../services/release/release-creation.service";
 import type { ReleaseRetrievalService } from "../../services/release/release-retrieval.service";
 import { fileUploadMiddleware } from "../../file-upload-manager";
@@ -75,8 +76,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const hasManualUploadDependencies = 
     storageWithServices.releaseUploadsRepository &&
     storageWithServices.releaseRepository &&
-    storageWithServices.platformMappingRepository &&
-    storageWithServices.cicdService;
+    storageWithServices.platformMappingRepository;
   
   if (hasManualUploadDependencies) {
     const validationService = new UploadValidationService(
@@ -86,12 +86,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       storageWithServices.regressionCycleRepository,
       storageWithServices.platformMappingRepository
     );
+    
+    // Create BuildArtifactService for S3 uploads
+    const buildArtifactService = new BuildArtifactService(storage);
+    
     manualUploadService = new ManualUploadService(
       storageWithServices.releaseUploadsRepository,
       storageWithServices.releaseRepository,
       storageWithServices.platformMappingRepository,
       validationService,
-      storageWithServices.cicdService
+      buildArtifactService
     );
   }
 
@@ -328,7 +332,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    * - Creates/updates entry in release_uploads staging table
    * - Returns upload status (all platforms ready or not)
    */
-  router.post(
+  router.put(
     "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform",
     tenantPermissions.requireOwner({ storage }),
     upload.single('artifact'),
@@ -444,18 +448,18 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/builds/verify-testflight",
+    "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight",
     tenantPermissions.requireOwner({ storage }),
     verifyTestFlightBuild
   );
 
-  // Manual TestFlight verification (for users without CI/CD)
-  // POST /tenants/:tenantId/releases/:releaseId/builds/testflight/verify
-  router.post(
-    "/tenants/:tenantId/releases/:releaseId/builds/testflight/verify",
-    tenantPermissions.requireOwner({ storage }),
-    createManualTestflightVerifyHandler(storage)
-  );
+  // // Manual TestFlight verification (for users without CI/CD)
+  // // POST /tenants/:tenantId/releases/:releaseId/builds/testflight/verify
+  // router.post(
+  //   "/tenants/:tenantId/releases/:releaseId/builds/testflight/verify",
+  //   tenantPermissions.requireOwner({ storage }),
+  //   createManualTestflightVerifyHandler(storage)
+  // );
 
   // CI/CD TestFlight verification
   // POST /builds/ci/testflight/verify
@@ -465,6 +469,13 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     tenantPermissions.allowAll({ storage }),
     createCiTestflightVerifyHandler(storage)
   );
+
+  // Get build artifacts
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
+    tenantPermissions.requireOwner({ storage }),
+    createBuildListArtifactsHandler(storage)
+  )
 
   return router;
 }

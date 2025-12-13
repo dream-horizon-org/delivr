@@ -1,5 +1,5 @@
 import { BuildArtifactError, type BuildArtifactErrorCode } from './build-artifact.interface';
-import { BUILD_ARTIFACT_FILE_EXTENSIONS } from './build-artifact.constants';
+import { BUILD_ARTIFACT_FILE_EXTENSIONS, ALLOWED_ARTIFACT_EXTENSIONS } from './build-artifact.constants';
 
 /**
  * Helper to execute an async operation with consistent error handling.
@@ -38,6 +38,29 @@ export const executeOperation = async <T>(
 export const isAabFile = (filename: string): boolean => {
   const lowercaseFilename = filename.toLowerCase();
   return lowercaseFilename.endsWith(BUILD_ARTIFACT_FILE_EXTENSIONS.AAB);
+};
+
+/**
+ * Check if filename has a valid artifact extension (.ipa, .apk, .aab).
+ *
+ * @param filename - The original filename to check
+ * @returns true if extension is allowed, false otherwise
+ */
+export const isValidArtifactExtension = (filename: string): boolean => {
+  const lowerFilename = filename.toLowerCase();
+  return ALLOWED_ARTIFACT_EXTENSIONS.some(ext => lowerFilename.endsWith(ext));
+};
+
+/**
+ * Get file extension from filename.
+ *
+ * @param filename - The original filename
+ * @returns The file extension (lowercase with dot) or empty string if no extension
+ */
+export const getFileExtension = (filename: string): string => {
+  const dotIndex = filename.lastIndexOf('.');
+  const hasExtension = dotIndex > -1 && dotIndex < filename.length - 1;
+  return hasExtension ? filename.slice(dotIndex).toLowerCase() : '';
 };
 
 /**
