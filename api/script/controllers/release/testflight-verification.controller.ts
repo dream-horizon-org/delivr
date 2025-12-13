@@ -1,7 +1,8 @@
 /**
  * TestFlight Verification Controller
  * 
- * POST /tenants/:tenantId/releases/:releaseId/builds/verify-testflight
+ * POST /tenants/:tenantId/builds/verify-testflight
+ * Body: { releaseId, testflightBuildNumber, versionName }
  */
 
 import { Request, Response } from 'express';
@@ -23,8 +24,8 @@ const isNonEmptyString = (value: unknown): value is string => {
  */
 export const verifyTestFlightBuild = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tenantId, releaseId } = req.params;
-    const { testflightBuildNumber, versionName } = req.body;
+    const { tenantId } = req.params;
+    const { releaseId, testflightBuildNumber, versionName } = req.body;
 
     // Validate required fields
     if (!isNonEmptyString(releaseId)) {
@@ -48,25 +49,33 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Get controllers from storage
+    // Get controllers and repositories from storage
     const storage = getStorage() as any;
     const storeController = storage.storeIntegrationController;
     const credentialController = storage.storeCredentialController;
+    const platformTargetMappingRepository = storage.releasePlatformTargetMappingRepository;
+    const releaseRepository = storage.releaseRepository;
 
-    if (!storeController || !credentialController) {
+    if (!storeController || !credentialController || !platformTargetMappingRepository || !releaseRepository) {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: RESPONSE_STATUS.FAILURE,
-        error: 'Store controllers not initialized',
+        error: 'Required controllers or repositories not initialized',
       });
       return;
     }
 
     // Call service
-    const service = new TestFlightBuildVerificationService(storeController, credentialController);
+    const service = new TestFlightBuildVerificationService(
+      storeController,
+      credentialController,
+      platformTargetMappingRepository,
+      releaseRepository
+    );
     const result = await service.verifyBuild({
       releaseId,
       tenantId,
-      request: { testflightBuildNumber, versionName },
+      testflightBuildNumber,
+      versionName,
     });
 
     // Return success
@@ -80,10 +89,16 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     let httpStatus: number;
 
     switch (errorCode) {
+      case 'RELEASE_NOT_FOUND':
       case 'TESTFLIGHT_BUILD_NOT_FOUND':
+      case 'IOS_RELEASE_NOT_FOUND':
         httpStatus = HTTP_STATUS.NOT_FOUND;
         break;
+      case 'RELEASE_TENANT_MISMATCH':
+        httpStatus = HTTP_STATUS.FORBIDDEN;
+        break;
       case 'VERSION_MISMATCH':
+      case 'VERSION_MISMATCH_WITH_RELEASE':
       case 'STORE_INTEGRATION_NOT_FOUND':
       case 'STORE_INTEGRATION_INVALID':
         httpStatus = HTTP_STATUS.BAD_REQUEST;

@@ -54,8 +54,22 @@ export class JenkinsProvider implements JenkinsProviderContract {
       if (isTimeout) {
         return { isValid: false, message: ERROR_MESSAGES.JENKINS_QUEUE_TIMEOUT };
       }
-      const message = e?.message ? String(e.message) : 'Unknown error';
-      return { isValid: false, message: `Connection failed: ${message}` };
+      
+      // Provide more helpful error messages for common network issues
+      const errorMessage = e?.message ? String(e.message) : 'Unknown error';
+      let userFriendlyMessage = `Connection failed: ${errorMessage}`;
+      
+      // Check for common Docker networking issues
+      if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
+        const isLocalhost = hostUrl.includes('localhost') || hostUrl.includes('127.0.0.1');
+        if (isLocalhost) {
+          userFriendlyMessage = `Connection failed: Cannot reach Jenkins at ${hostUrl}. If your API server is running in Docker, use 'host.docker.internal:8080' (Mac/Windows) or '172.17.0.1:8080' (Linux) instead of 'localhost:8080'. Original error: ${errorMessage}`;
+        } else {
+          userFriendlyMessage = `Connection failed: Cannot reach Jenkins at ${hostUrl}. Please verify the URL is correct and accessible from the API server. Original error: ${errorMessage}`;
+        }
+      }
+      
+      return { isValid: false, message: userFriendlyMessage };
     }
   };
 

@@ -4,6 +4,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAVerifyParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
+import { decryptIfEncrypted, decryptFromStorage } from '~utils/encryption';
 
 type CreateInput = {
   displayName?: string;
@@ -22,13 +23,25 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
     if (existing) {
       throw new Error(ERROR_MESSAGES.GHA_ALREADY_EXISTS);
     }
+    
+    // Decrypt token for verification
+    // The adapter already handles frontend decryption and backend encryption,
+    // so input.apiToken is backend-encrypted at this point
+    let decryptedToken: string;
+    try {
+      decryptedToken = decryptFromStorage(input.apiToken);
+    } catch (error) {
+      throw new Error(`Failed to decrypt API token for verification: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
     const verify = await this.verifyConnection({
-      apiToken: input.apiToken,
+      apiToken: decryptedToken,
       githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
       userAgent: HEADERS.USER_AGENT,
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
     });
+    
+    // Store the ORIGINAL (encrypted) token in database
     const createData: CreateCICDIntegrationDto & { id: string } = {
       id: shortid.generate(),
       tenantId,
@@ -36,7 +49,7 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       displayName: input.displayName ?? 'GitHub Actions',
       hostUrl: PROVIDER_DEFAULTS.GITHUB_API,
       authType: AuthType.BEARER,
-      apiToken: input.apiToken,
+      apiToken: input.apiToken, // Store encrypted value
       providerConfig: null as any,
       createdByAccountId: accountId,
       verificationStatus: verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID,
@@ -60,23 +73,40 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
 
     // Always verify on update
     const withSecrets = await this.repository.findById(existing.id);
-    const tokenToCheck: string | undefined = updateData.apiToken ?? (withSecrets as any)?.apiToken as (string | undefined);
+    const storedToken: string | undefined = (withSecrets as any)?.apiToken as (string | undefined);
+    const tokenToCheck: string | undefined = updateData.apiToken ?? storedToken;
     const tokenMissing = !tokenToCheck;
     if (tokenMissing) {
       updateData.verificationStatus = VerificationStatus.INVALID;
       updateData.lastVerifiedAt = new Date();
       updateData.verificationError = ERROR_MESSAGES.MISSING_TOKEN_AND_SCM;
     } else {
-      const verify = await this.verifyConnection({
-        apiToken: tokenToCheck,
-        githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
-        userAgent: HEADERS.USER_AGENT,
-        acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
-        timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
-      });
-      updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
-      updateData.lastVerifiedAt = new Date();
-      updateData.verificationError = verify.isValid ? null : verify.message;
+      // Decrypt the token before verification
+      // updateData.apiToken is now backend-encrypted (from adapter), storedToken might be either format
+      // decryptFromStorage handles both backend and frontend formats
+      let decryptedToken: string | undefined;
+      try {
+        decryptedToken = decryptFromStorage(tokenToCheck);
+      } catch (error: any) {
+        //console.error('[GitHub Actions] Failed to decrypt token for verification:', error.message);
+        updateData.verificationStatus = VerificationStatus.INVALID;
+        updateData.lastVerifiedAt = new Date();
+        updateData.verificationError = 'Failed to decrypt token for verification';
+        // Continue to save with invalid status
+      }
+      
+      if (decryptedToken) {
+        const verify = await this.verifyConnection({
+          apiToken: decryptedToken,
+          githubApiBase: PROVIDER_DEFAULTS.GITHUB_API,
+          userAgent: HEADERS.USER_AGENT,
+          acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
+          timeoutMs: Number(process.env.GHA_VERIFY_TIMEOUT_MS || 6000)
+        });
+        updateData.verificationStatus = verify.isValid ? VerificationStatus.VALID : VerificationStatus.INVALID;
+        updateData.lastVerifiedAt = new Date();
+        updateData.verificationError = verify.isValid ? null : verify.message;
+      }
     }
 
     const updated = await this.repository.update(existing.id, updateData);

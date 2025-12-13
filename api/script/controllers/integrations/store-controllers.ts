@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
 // @ts-ignore - jsonwebtoken types may not be available
 import * as jwt from 'jsonwebtoken';
+import fetch from 'node-fetch';
 // For Google Play Store verification
 const { GoogleAuth } = require('google-auth-library');
+// For multipart/form-data file uploads
+const FormData = require('form-data');
 import { getStorage } from '../../storage/storage-instance';
 import { 
   StoreIntegrationController, 
@@ -22,11 +25,18 @@ import {
   mapStoreTypeFromApi,
   isValidTrackForStoreType,
   getInvalidTrackErrorMessage,
+  UploadAabToPlayStoreRequest,
+  UploadAabToPlayStoreResponse,
 } from '../../storage/integrations/store/store-types';
 import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
-import { ERROR_MESSAGES } from '../../constants/store';
+import { ERROR_MESSAGES, PLAY_STORE_UPLOAD_ERROR_MESSAGES, PLAY_STORE_UPLOAD_CONSTANTS } from '../../constants/store';
 import { getErrorMessage } from '../../utils/error.utils';
-import { decrypt } from '../../utils/encryption.utils';
+import type { StoreIntegration } from '../../storage/integrations/store/store-types';
+import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
+import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
+import { ReleaseRepository } from '~models/release/release.repository';
+import { createReleaseModel } from '~models/release/release.sequelize.model';
+import { decrypt, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -56,13 +66,62 @@ const getCredentialController = (): StoreCredentialController => {
 };
 
 // ============================================================================
-// Helper: Encrypt credentials (placeholder - implement actual encryption)
+// Common Helper: Validate Integration Status
+// ============================================================================
+// This function validates that an integration is in VERIFIED status before
+// proceeding with operations that require credentials (e.g., uploads, API calls).
+// Can be used by both Android (Play Store) and iOS (App Store) services.
+
+/**
+ * Validates that a store integration is in VERIFIED status
+ * This is a common function that can be used by both Android (Play Store) and iOS (App Store) services
+ * @param integration - The store integration to validate (can be StoreIntegration or SafeStoreIntegration)
+ * @throws Error if integration status is not VERIFIED
+ */
+export const validateIntegrationStatus = (integration: StoreIntegration | SafeStoreIntegration): void => {
+  const status = integration.status;
+  const isVerified = status === IntegrationStatus.VERIFIED;
+  
+  if (isVerified) {
+    return; // Status is valid, proceed
+  }
+
+  // Status is not VERIFIED, throw appropriate error
+  let errorMessage: string;
+
+  if (status === IntegrationStatus.REVOKED) {
+    errorMessage = PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_STATUS_REVOKED;
+  } else if (status === IntegrationStatus.PENDING) {
+    errorMessage = PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_STATUS_PENDING;
+  } else {
+    errorMessage = `${PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_STATUS_INVALID} Current status: ${status}`;
+  }
+
+  throw new Error(errorMessage);
+};
+
+// ============================================================================
+// Helper: Encrypt credentials for backend storage
+// Uses BACKEND_STORAGE_ENCRYPTION_KEY (backend-only, frontend never sees this)
 // ============================================================================
 
 const encryptCredentials = (payload: string): Buffer => {
-  // TODO: Implement actual encryption (e.g., using crypto module or KMS)
-  // For now, return as Buffer (in production, use proper encryption)
-  return Buffer.from(payload, 'utf-8');
+  // Encrypt using backend storage encryption (double-layer security)
+  const encryptedString = encryptForStorage(payload);
+  // Store as Buffer in database
+  return Buffer.from(encryptedString, 'utf-8');
+};
+
+// ============================================================================
+// Helper: Decrypt credentials from backend storage
+// Uses BACKEND_STORAGE_ENCRYPTION_KEY to decrypt values stored in database
+// ============================================================================
+
+const decryptCredentials = (encryptedBuffer: Buffer): string => {
+  // Convert Buffer to string (contains backend-encrypted value)
+  const encryptedString = encryptedBuffer.toString('utf-8');
+  // Decrypt using backend storage decryption
+  return decryptFromStorage(encryptedString);
 };
 
 // ============================================================================
@@ -589,7 +648,15 @@ export const verifyStore = async (req: Request, res: Response): Promise<void> =>
 export const connectStore = async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as ConnectStoreRequestBody;
-    const { storeType, platform, tenantId, userId, payload } = body;
+    const { storeType, platform, tenantId, payload } = body;
+    
+    // Get userId from authenticated user (set by auth middleware) or header (for local dev)
+    // Authentication is handled by middleware layer, not business logic
+    const userIdFromAuth = (req as any).user?.id;
+    const userIdFromHeader = Array.isArray(req.headers.userid) 
+      ? req.headers.userid[0] 
+      : req.headers.userid;
+    const userId = userIdFromAuth || userIdFromHeader || 'system'; // Use 'system' as fallback if neither available
     
     // Normalize platform to uppercase
     const platformUpper = platform.toUpperCase() as 'ANDROID' | 'IOS';
@@ -746,14 +813,30 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
     }
 
     // Create credentials based on store type
+    // IMPORTANT: Decrypt any frontend-encrypted values before backend encryption
     if (isAppStoreType) {
       const appStorePayload = payload as AppStoreConnectPayload;
+      
+      // Decrypt privateKeyPem if it's frontend-encrypted (not in PEM format)
+      let privateKeyPem = appStorePayload.privateKeyPem;
+      if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
+        try {
+          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
+          privateKeyPem = decrypt(appStorePayload.privateKeyPem);
+        } catch (error) {
+          console.error('[Store] Failed to decrypt privateKeyPem before storage:', error);
+          // If decryption fails, use as-is (might already be plaintext or backend-encrypted)
+        }
+      }
+      
+      // Create credential payload with plaintext values
       const credentialPayload = JSON.stringify({
         issuerId: appStorePayload.issuerId,
         keyId: appStorePayload.keyId,
-        privateKeyPem: appStorePayload.privateKeyPem,
+        privateKeyPem: privateKeyPem, // Now plaintext
       });
 
+      // Encrypt with backend storage encryption (double-layer security)
       const encryptedPayload = encryptCredentials(credentialPayload);
 
       await credentialController.create({
@@ -766,8 +849,25 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
 
     if (isPlayStoreType) {
       const playStorePayload = payload as GooglePlayStorePayload;
-      const credentialPayload = JSON.stringify(playStorePayload.serviceAccountJson);
+      const serviceAccountJson = { ...playStorePayload.serviceAccountJson } as any;
+      
+      // Decrypt private_key if it's frontend-encrypted
+      if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
+        try {
+          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
+          serviceAccountJson.private_key = decrypt(serviceAccountJson.private_key);
+          delete serviceAccountJson._encrypted;
+        } catch (error) {
+          console.error('[Store] Failed to decrypt private_key before storage:', error);
+          // If decryption fails, use as-is
+          delete serviceAccountJson._encrypted;
+        }
+      }
+      
+      // Create credential payload with plaintext values
+      const credentialPayload = JSON.stringify(serviceAccountJson);
 
+      // Encrypt with backend storage encryption (double-layer security)
       const encryptedPayload = encryptCredentials(credentialPayload);
 
       await credentialController.create({
@@ -921,25 +1021,22 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
         return;
       }
 
-      // Read existing credential payload (stored as plain text in encryptedPayload column)
-      // The column name is encryptedPayload but data is stored as plain JSON text
-      // Read directly as UTF-8 string (no decryption needed)
+      // Read and decrypt existing credential payload from backend storage
       let decryptedPayload: string;
       try {
         const buffer = existingCredential.encryptedPayload;
         
-        // Since encryptCredentials() stores as plain Buffer (no encryption),
-        // read directly as UTF-8 string
+        // Decrypt using backend storage decryption (double-layer security)
         if (Buffer.isBuffer(buffer)) {
-          decryptedPayload = buffer.toString('utf-8');
+          decryptedPayload = decryptCredentials(buffer);
         } else {
-          // Fallback: treat as string
-          decryptedPayload = String(buffer);
+          // Fallback: treat as string and try to decrypt
+          decryptedPayload = decryptFromStorage(String(buffer));
         }
       } catch (readError) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
           success: RESPONSE_STATUS.FAILURE,
-          error: 'Failed to read existing credentials',
+          error: 'Failed to decrypt existing credentials',
         });
         return;
       }
@@ -1505,6 +1602,419 @@ export const getStoreIntegrationById = async (
     });
   } catch (error) {
     const message = getErrorMessage(error, 'Failed to get store integration');
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: RESPONSE_STATUS.FAILURE,
+      error: message,
+    });
+  }
+};
+
+// ============================================================================
+// Helper: Get GoogleAuth Client from Integration
+// ============================================================================
+
+const getGoogleAuthClientFromIntegration = async (
+  integrationId: string
+): Promise<{ accessToken: string; appIdentifier: string }> => {
+  const credentialController = getCredentialController();
+  
+  // Get credentials from DB
+  const existingCredential = await credentialController.findByIntegrationId(integrationId);
+  if (!existingCredential) {
+    throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.CREDENTIALS_NOT_FOUND);
+  }
+
+  // Read existing credential payload (stored as plain text in encryptedPayload column)
+  let decryptedPayload: string;
+  try {
+    const buffer = existingCredential.encryptedPayload;
+    if (Buffer.isBuffer(buffer)) {
+      decryptedPayload = buffer.toString('utf-8');
+    } else {
+      decryptedPayload = String(buffer);
+    }
+  } catch (readError) {
+    throw new Error('Failed to read existing credentials');
+  }
+
+  // Parse credential JSON
+  let credentialData: any;
+  try {
+    credentialData = JSON.parse(decryptedPayload);
+  } catch (parseError) {
+    throw new Error('Failed to parse existing credential data');
+  }
+
+  // Get service account JSON
+  const serviceAccountJson = credentialData;
+  
+  // Fix escaped newlines in private key
+  const privateKey = serviceAccountJson.private_key.replace(/\\n/g, '\n');
+
+  // Create GoogleAuth instance with service account credentials
+  const credentials: any = {
+    type: serviceAccountJson.type,
+    private_key: privateKey,
+    client_email: serviceAccountJson.client_email,
+  };
+
+  // Add optional fields if present
+  if (serviceAccountJson.project_id) {
+    credentials.project_id = serviceAccountJson.project_id;
+  }
+  if (serviceAccountJson.private_key_id) {
+    credentials.private_key_id = serviceAccountJson.private_key_id;
+  }
+  if (serviceAccountJson.client_id) {
+    credentials.client_id = serviceAccountJson.client_id;
+  }
+  if (serviceAccountJson.auth_uri) {
+    credentials.auth_uri = serviceAccountJson.auth_uri;
+  } else {
+    credentials.auth_uri = 'https://accounts.google.com/o/oauth2/auth';
+  }
+  if (serviceAccountJson.token_uri) {
+    credentials.token_uri = serviceAccountJson.token_uri;
+  } else {
+    credentials.token_uri = 'https://oauth2.googleapis.com/token';
+  }
+  if (serviceAccountJson.auth_provider_x509_cert_url) {
+    credentials.auth_provider_x509_cert_url = serviceAccountJson.auth_provider_x509_cert_url;
+  }
+  if (serviceAccountJson.client_x509_cert_url) {
+    credentials.client_x509_cert_url = serviceAccountJson.client_x509_cert_url;
+  }
+
+  const googleAuth = new GoogleAuth({
+    credentials,
+    scopes: [
+      'https://www.googleapis.com/auth/androidpublisher',
+    ],
+  });
+
+  // Get access token
+  const client = await googleAuth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  const tokenMissing = !tokenResponse.token;
+  
+  if (tokenMissing) {
+    throw new Error('Failed to obtain access token from Google service account');
+  }
+
+  // Get appIdentifier from integration
+  const integrationController = getStoreController();
+  const integration = await integrationController.findById(integrationId);
+  if (!integration) {
+    throw new Error(ERROR_MESSAGES.INTEGRATION_NOT_FOUND);
+  }
+
+  return {
+    accessToken: tokenResponse.token,
+    appIdentifier: integration.appIdentifier,
+  };
+};
+
+// ============================================================================
+// Internal Function: Upload AAB to Play Store Internal Track
+// ============================================================================
+
+export const uploadAabToPlayStoreInternal = async (
+  aabBuffer: Buffer,
+  versionName: string,
+  tenantId: string,
+  storeType: string,
+  platform: string,
+  releaseId: string,
+  releaseNotes?: string
+): Promise<UploadAabToPlayStoreResponse> => {
+  const mappedStoreType = mapStoreTypeFromApi(storeType);
+  const platformUpper = platform.toUpperCase() as 'ANDROID' | 'IOS';
+  
+  // Validate storeType and platform
+  const isPlayStore = mappedStoreType === StoreType.PLAY_STORE;
+  const isAndroid = platformUpper === 'ANDROID';
+  
+  if (!isPlayStore || !isAndroid) {
+    throw new Error('storeType must be "play_store" and platform must be "ANDROID"');
+  }
+
+  // Map StoreType to target (for release_platforms_targets_mapping table)
+  // StoreType.PLAY_STORE -> target 'PLAY_STORE'
+  // StoreType.APP_STORE -> target 'APP_STORE'
+  const isPlayStoreType = mappedStoreType === StoreType.PLAY_STORE;
+  
+  if (!isPlayStoreType && mappedStoreType !== StoreType.APP_STORE) {
+    throw new Error('storeType must be "play_store" or "app_store" for version validation');
+  }
+
+  // Determine target based on storeType
+  const target: 'PLAY_STORE' | 'APP_STORE' = isPlayStoreType ? 'PLAY_STORE' : 'APP_STORE';
+
+  // Validate version against release_platforms_targets_mapping
+  const storage = getStorage();
+  const sequelize = (storage as any).sequelize;
+  const sequelizeMissing = !sequelize;
+  
+  if (sequelizeMissing) {
+    throw new Error('Sequelize instance not available');
+  }
+
+  // Get repository instances
+  const ReleaseModel = sequelize.models.Release || createReleaseModel(sequelize);
+  const releaseRepo = new ReleaseRepository(ReleaseModel as any);
+  
+  const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
+  const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any);
+
+  // First, verify that the release exists and belongs to the tenant
+  const release = await releaseRepo.findByReleaseId(releaseId, tenantId);
+  const releaseNotFound = !release;
+  if (releaseNotFound) {
+    throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.RELEASE_NOT_FOUND);
+  }
+
+  // Query release_platforms_targets_mapping for releaseId, platform, and target
+  const mapping = await platformTargetMappingRepo.getByReleasePlatformTarget(
+    releaseId,
+    platformUpper,
+    target
+  );
+
+  const mappingNotFound = !mapping;
+  if (mappingNotFound) {
+    throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.RELEASE_PLATFORM_TARGET_MAPPING_NOT_FOUND);
+  }
+
+  // Compare version from mapping with versionName provided by user
+  const releaseVersion = mapping.version;
+  const versionMismatch = releaseVersion !== versionName;
+  if (versionMismatch) {
+    throw new Error(`${PLAY_STORE_UPLOAD_ERROR_MESSAGES.VERSION_MISMATCH} Release version: ${releaseVersion}, Artifact version: ${versionName}`);
+  }
+
+  // Find integration by tenantId, storeType, and platform
+  const integrationController = getStoreController();
+  const integrations = await integrationController.findAll({
+    tenantId,
+    storeType: mappedStoreType,
+    platform: platformUpper,
+  });
+
+  const integrationNotFound = integrations.length === 0;
+  if (integrationNotFound) {
+    throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD);
+  }
+
+  // Use first integration found
+  const integration = integrations[0];
+  const integrationId = integration.id;
+  const packageName = integration.appIdentifier;
+
+  // Validate integration status before proceeding with credential operations
+  // This prevents attempting to decrypt credentials or generate access tokens
+  // for integrations that are not verified
+  validateIntegrationStatus(integration);
+
+  // Get GoogleAuth client and access token
+  // Only proceed if integration status is VERIFIED
+  const { accessToken } = await getGoogleAuthClientFromIntegration(integrationId);
+
+  console.log('accessToken', accessToken);
+
+  const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
+  const internalTrack = PLAY_STORE_UPLOAD_CONSTANTS.INTERNAL_TRACK;
+
+  // Step 1: Create edit
+  const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
+  const createEditResponse = await fetch(createEditUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!createEditResponse.ok) {
+    const errorText = await createEditResponse.text().catch(() => 'Unknown error');
+    throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+  }
+
+  const editData = await createEditResponse.json();
+  const editId = editData.id;
+
+  console.log('editId', editId);
+
+  try {
+    // Step 2: Upload bundle
+    // CRITICAL: Use /upload/ prefix with ?uploadType=media query parameter
+    // POST /upload/androidpublisher/v3/applications/{packageName}/edits/{editId}/bundles?uploadType=media
+    // Google Play API upload endpoint expects raw binary data with uploadType=media
+    const uploadBundleUrl = `https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editId}/bundles?uploadType=media`;
+    
+    // Send file as raw binary data with application/octet-stream content type
+    const uploadBundleResponse = await fetch(uploadBundleUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/octet-stream',
+      },
+      body: aabBuffer,
+    });
+
+    if (!uploadBundleResponse.ok) {
+      const errorText = await uploadBundleResponse.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to upload bundle: ${uploadBundleResponse.status} ${errorText}`);
+    }
+
+    const bundleData = await uploadBundleResponse.json();
+    const versionCode = bundleData.versionCode;
+
+    if (!versionCode || typeof versionCode !== 'number') {
+      throw new Error('Failed to get version code from bundle upload response');
+    }
+
+    // Step 3: Create/update release in Internal track
+    // PUT /androidpublisher/v3/applications/{packageName}/edits/{editId}/tracks/internal
+    // Create release with status="completed" and versionCodes from bundle upload
+    const releaseNotesText = releaseNotes ?? PLAY_STORE_UPLOAD_CONSTANTS.DEFAULT_RELEASE_NOTES;
+    
+    const trackUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}/tracks/${internalTrack}`;
+    
+    // Build release object with status="completed" (as per tested API)
+    const release = {
+      status: 'completed' as const,
+      versionCodes: [versionCode], // version code from bundle upload
+      name: versionName, // version name from user request
+      releaseNotes: [
+        {
+          language: 'en-US',
+          text: releaseNotesText,
+        },
+      ],
+    };
+
+    // Create/update track with the release
+    const trackPayload = {
+      releases: [release],
+    };
+
+    const updateTrackResponse = await fetch(trackUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(trackPayload),
+    });
+
+    if (!updateTrackResponse.ok) {
+      const errorText = await updateTrackResponse.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to create/update release: ${updateTrackResponse.status} ${errorText}`);
+    }
+
+    // Verify the response has status="completed" and status code is 200
+    const trackResponseData = await updateTrackResponse.json();
+    const isStatusCompleted = trackResponseData.releases && 
+      trackResponseData.releases.length > 0 && 
+      trackResponseData.releases[0].status === 'completed';
+    
+    if (!isStatusCompleted) {
+      throw new Error('Release was not created with completed status');
+    }
+
+    // Step 4: Commit edit
+    // POST /androidpublisher/v3/applications/{packageName}/edits/{editId}:commit
+    // If status code is 200 then success, otherwise return exact Google API error
+    const commitEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}:commit`;
+    const commitEditResponse = await fetch(commitEditUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!commitEditResponse.ok) {
+      // Return exact Google API error response
+      const errorData = await commitEditResponse.json().catch(() => ({ error: { message: 'Unknown error' } }));
+      throw new Error(`Failed to commit edit: ${commitEditResponse.status} ${JSON.stringify(errorData)}`);
+    }
+
+    // Step 5: Generate shareable link
+    // versionSpecificUrl = "https://play.google.com/apps/test/{packageName}/{versionCode}"
+    const versionSpecificUrl = `https://play.google.com/apps/test/${packageName}/${versionCode}`;
+
+    return {
+      versionCode,
+      versionSpecificUrl,
+      packageName,
+      versionName,
+    };
+  } catch (error) {
+    // Clean up: Delete edit if it was created
+    console.log('Deleting the edit with editId', editId);
+    try {
+      const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
+      await fetch(deleteEditUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+    } catch (deleteError) {
+      // Ignore delete errors - edit will expire automatically
+      console.warn('Failed to delete edit after error, it will expire automatically');
+    }
+    throw error;
+  }
+};
+
+// ============================================================================
+// POST /integrations/store/play-store/upload
+// ============================================================================
+
+export const uploadAabToPlayStore = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Extract .aab file from request (attached by validation middleware)
+    const aabFile = (req as any).aabFile as Express.Multer.File;
+    const aabFileMissing = !aabFile || !aabFile.buffer;
+    
+    if (aabFileMissing) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.AAB_FILE_REQUIRED,
+      });
+      return;
+    }
+
+    // Extract form fields
+    const tenantId = req.body.tenantId as string;
+    const storeType = req.body.storeType as string;
+    const platform = req.body.platform as string;
+    const versionName = req.body.versionName as string;
+    const releaseId = req.body.releaseId as string;
+    const releaseNotes = req.body.releaseNotes as string | undefined;
+
+    // Call internal function
+    const result = await uploadAabToPlayStoreInternal(
+      aabFile.buffer,
+      versionName,
+      tenantId,
+      storeType,
+      platform,
+      releaseId,
+      releaseNotes
+    );
+
+    res.status(HTTP_STATUS.OK).json({
+      success: RESPONSE_STATUS.SUCCESS,
+      data: result,
+      message: 'AAB uploaded to Play Store Internal track successfully',
+    });
+  } catch (error) {
+    const message = getErrorMessage(error, PLAY_STORE_UPLOAD_ERROR_MESSAGES.PLAY_STORE_UPLOAD_FAILED);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message,

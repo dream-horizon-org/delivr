@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as storeControllers from '../controllers/integrations/store-controllers';
 import * as validateStore from '../middleware/validate-store';
+import { fileUploadMiddleware } from '../file-upload-manager';
 
 export function createStoreIntegrationRoutes(): Router {
   const router = Router();
@@ -54,6 +55,14 @@ export function createStoreIntegrationRoutes(): Router {
     '/integrations/store/:integrationId',
     validateStore.validateIntegrationId,
     storeControllers.getStoreIntegrationById
+  );
+
+  // Upload AAB to Play Store Internal track
+  router.post(
+    '/integrations/store/play-store/upload',
+    fileUploadMiddleware,
+    validateStore.validatePlayStoreUploadBody,
+    storeControllers.uploadAabToPlayStore
   );
 
   return router;
