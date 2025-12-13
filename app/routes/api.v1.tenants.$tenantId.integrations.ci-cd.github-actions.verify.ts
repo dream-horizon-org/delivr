@@ -17,7 +17,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   try {
     const body = await request.json();
-    const { apiToken, displayName, hostUrl } = body;
+    const { apiToken, displayName, hostUrl, _encrypted } = body;
 
     const result = await GitHubActionsIntegrationService.verifyConnection(
       tenantId,
@@ -26,6 +26,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         displayName,
         hostUrl,
         apiToken,
+        _encrypted, // Forward encryption flag to backend
       }
     );
 

@@ -52,9 +52,9 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
 
   try {
     const body = await request.json();
-    const { scmType, owner, repo, accessToken, displayName, branch } = body;
+    const { scmType, owner, repo, accessToken, displayName, branch, _encrypted } = body;
 
-    console.log(`[Frontend-Create-Route] Request body:`, { scmType, owner, repo, displayName, branch, hasAccessToken: !!accessToken });
+    console.log(`[Frontend-Create-Route] Request body:`, { scmType, owner, repo, displayName, branch, hasAccessToken: !!accessToken, _encrypted });
 
     // Validate required fields
     if (!scmType || !owner || !repo || !accessToken) {
@@ -81,6 +81,7 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
         branch,
         status: 'VALID',
         isActive: true,
+        _encrypted, // Forward encryption flag to backend
       } as any
     );
 
@@ -146,6 +147,8 @@ const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     return json({ error: 'Tenant ID required' }, { status: 400 });
   }
 
+  console.log(`[Frontend-Delete-Route] Attempting to delete SCM integration for tenant: ${tenantId}, userId: ${user.user.id}`);
+
   try {
     // For DELETE requests, body might be empty, so we'll fetch the integration first
     // to get the scmType, or accept it from query params/body
@@ -154,28 +157,41 @@ const deleteSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     try {
       const body = await request.json().catch(() => ({}));
       scmType = body.scmType || scmType;
+      console.log(`[Frontend-Delete-Route] Got scmType from body: ${body.scmType || 'not provided, using default'}`);
     } catch {
       // Body might be empty, try to get integration to determine scmType
+      console.log(`[Frontend-Delete-Route] No body, trying to fetch existing integration to get scmType`);
       try {
         const integration = await SCMIntegrationService.getSCMIntegration(tenantId, user.user.id);
+        console.log(`[Frontend-Delete-Route] Fetched integration:`, integration ? { id: integration.id, scmType: integration.scmType } : 'null');
         if (integration?.scmType) {
           scmType = integration.scmType;
         }
-      } catch {
+      } catch (fetchError: any) {
+        console.log(`[Frontend-Delete-Route] Failed to fetch integration: ${fetchError.message}`);
         // If we can't get integration, use default
       }
     }
 
+    console.log(`[Frontend-Delete-Route] Calling deleteSCMIntegration with tenantId: ${tenantId}, scmType: ${scmType}`);
     await SCMIntegrationService.deleteSCMIntegration(tenantId, user.user.id, '', scmType);
 
+    console.log(`[Frontend-Delete-Route] Successfully deleted SCM integration`);
     return json({ success: true });
-  } catch (error) {
-    console.error('Delete SCM integration error:', error);
+  } catch (error: any) {
+    console.error('[Frontend-Delete-Route] Delete SCM integration error:', error);
+    console.error('[Frontend-Delete-Route] Error details:', {
+      message: error?.message,
+      status: error?.status,
+      data: error?.data,
+    });
+    // Propagate the actual status code from the backend (e.g., 404 for not found)
+    const statusCode = error?.status || 500;
     return json(
       {
         error: error instanceof Error ? error.message : 'Failed to delete SCM integration',
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 };

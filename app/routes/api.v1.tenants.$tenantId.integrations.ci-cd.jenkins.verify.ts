@@ -18,7 +18,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     // Parse request body
     const body = await request.json();
-    const { displayName, hostUrl, username, apiToken, useCrumb, crumbPath, providerConfig } = body;
+    const { displayName, hostUrl, username, apiToken, useCrumb, crumbPath, providerConfig, _encrypted } = body;
 
     if (!hostUrl || !username || !apiToken) {
       return json(
@@ -26,6 +26,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
         { status: 400 }
       );
     }
+
+    console.log('[Jenkins Verify] _encrypted:', _encrypted);
 
     const result = await JenkinsIntegrationService.verifyJenkins({
       tenantId,
@@ -36,6 +38,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       useCrumb: providerConfig?.useCrumb ?? useCrumb ?? true,
       crumbPath: providerConfig?.crumbPath ?? crumbPath,
       userId,
+      _encrypted, // Forward encryption flag to backend
     });
 
     if (result.verified) {

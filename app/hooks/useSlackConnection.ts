@@ -7,10 +7,11 @@
  * Note: Channel configuration is done separately in Release Config
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams } from '@remix-run/react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { CONNECTION_STEPS } from '~/constants/integration-ui';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 
 export interface SlackChannel {
   id: string;
@@ -51,6 +52,14 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
+
   /**
    * Step 1: Verify Slack bot token
    */
@@ -69,14 +78,23 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
     setError(null);
 
     try {
+      // Encrypt the bot token before sending
+      const encryptedBotToken = await encrypt(token);
+      
+      const verifyPayload = { 
+        botToken: encryptedBotToken,
+        _encrypted: true, // Flag to indicate encryption
+      };
+      
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/slack/verify`;
       const result = await apiPost<{
         verified: boolean;
         workspaceId: string;
         workspaceName: string;
         botUserId: string;
       }>(
-        `/api/v1/tenants/${tenantId}/integrations/slack/verify`,
-        { botToken: token }
+        endpoint,
+        verifyPayload
       );
 
       if (!result.data?.verified) {
@@ -128,15 +146,17 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
 
       // Only include botToken if provided (required for create, optional for update)
       if (token) {
-        payload.botToken = token;
+        // Encrypt the bot token before sending
+        const encryptedBotToken = await encrypt(token);
+        payload.botToken = encryptedBotToken;
+        payload._encrypted = true; // Flag to indicate encryption
       }
 
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/slack`;
+      
       if (isUpdate) {
         // Use PATCH for updates
-        await apiPatch(
-          `/api/v1/tenants/${tenantId}/integrations/slack`,
-          payload
-        );
+        await apiPatch(endpoint, payload);
       } else {
         // Use POST for creates
         if (!token) {
@@ -144,10 +164,7 @@ export function useSlackConnection(existingData?: any, isEditMode: boolean = fal
           setIsSaving(false);
           return false;
         }
-        await apiPost(
-          `/api/v1/tenants/${tenantId}/integrations/slack`,
-          payload
-        );
+        await apiPost(endpoint, payload);
       }
 
       setIsSaving(false);

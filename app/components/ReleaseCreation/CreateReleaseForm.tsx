@@ -113,25 +113,35 @@ export function CreateReleaseForm({
 
   // Ensure platformTargets only contain targets from selected config
   useEffect(() => {
-    if (selectedConfig && state.platformTargets && state.platformTargets.length > 0) {
-      const configTargets = selectedConfig.targets || [];
-      const validTargets = state.platformTargets.filter((pt) => 
+    if (!selectedConfig?.targets) return;
+    
+    const configTargets = selectedConfig.targets;
+    
+    setState((prev) => {
+      if (!prev.platformTargets || prev.platformTargets.length === 0) {
+        return prev; // Let pre-fill logic handle empty state
+      }
+      
+      const validTargets = prev.platformTargets.filter((pt) => 
         configTargets.includes(pt.target)
       );
       
-      // If any targets were filtered out, update state
-      if (validTargets.length !== state.platformTargets.length) {
-        // If all were filtered out, we'll let the pre-fill logic handle it
-        // Otherwise, keep only valid targets
-        if (validTargets.length > 0) {
-          setState({
-            ...state,
-            platformTargets: validTargets,
-          });
-        }
+      // If no targets were filtered out, no change needed
+      if (validTargets.length === prev.platformTargets.length) {
+        return prev;
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      
+      // If all were filtered out, let pre-fill logic handle it
+      if (validTargets.length === 0) {
+        return prev;
+      }
+      
+      // Keep only valid targets
+      return {
+        ...prev,
+        platformTargets: validTargets,
+      };
+    });
   }, [selectedConfig?.targets]);
   // Cron config: use user-provided values if available, otherwise auto-derive from config
   const getCronConfig = (): Partial<CronConfig> => {
@@ -168,19 +178,25 @@ export function CreateReleaseForm({
     };
   };
 
-  // Restore selectedConfigId from draft, existing release, or use default
+  // Restore selectedConfigId from draft, existing release, or use default (runs only once on mount)
   useEffect(() => {
+    // Skip if already have a selectedConfigId
+    if (selectedConfigId) return;
+    
     if (isEditMode && existingRelease?.releaseConfigId) {
       // In edit mode, use the release's config ID
       setSelectedConfigId(existingRelease.releaseConfigId);
     } else if (isDraftRestored && state.releaseConfigId) {
     // Restore from draft first
       setSelectedConfigId(state.releaseConfigId);
-    } else if (defaultReleaseConfig && !selectedConfigId) {
+    } else if (defaultReleaseConfig) {
       // Fallback to default config if no draft
       setSelectedConfigId(defaultReleaseConfig.id);
     }
-  }, [isEditMode, existingRelease, isDraftRestored, state.releaseConfigId, defaultReleaseConfig, selectedConfigId]);
+    // Note: Intentionally not including state.releaseConfigId to avoid loops
+    // This effect is only for initial setup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, existingRelease?.releaseConfigId, isDraftRestored, defaultReleaseConfig?.id]);
 
   // Load the full configuration when a config is selected
   useEffect(() => {
@@ -188,10 +204,16 @@ export function CreateReleaseForm({
       const config = configurations.find((c) => c.id === selectedConfigId);
       if (config) {
         setSelectedConfig(config);
-        setState((prev) => ({
-          ...prev,
-          releaseConfigId: config.id,
-        }));
+        // Only update state if releaseConfigId is different to avoid loops
+        setState((prev) => {
+          if (prev.releaseConfigId === config.id) {
+            return prev; // No change needed
+          }
+          return {
+            ...prev,
+            releaseConfigId: config.id,
+          };
+        });
       }
     } else {
       setSelectedConfig(undefined);

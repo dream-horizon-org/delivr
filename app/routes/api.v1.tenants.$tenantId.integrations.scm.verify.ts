@@ -15,9 +15,9 @@ const verifySCM: AuthenticatedActionFunction = async ({ request, params, user })
 
   try {
     const body = await request.json();
-    const { scmType, owner, repo, accessToken } = body;
+    const { scmType, owner, repo, accessToken, _encrypted } = body;
 
-    console.log(`[Frontend-Verify-Route] Request body: scmType=${scmType}, owner=${owner}, repo=${repo}`);
+    console.log(`[Frontend-Verify-Route] Request body: scmType=${scmType}, owner=${owner}, repo=${repo}, _encrypted=${_encrypted}`);
 
     // Validate required fields
     if (!scmType || !owner || !repo || !accessToken) {
@@ -39,6 +39,7 @@ const verifySCM: AuthenticatedActionFunction = async ({ request, params, user })
         owner,
         repo,
         accessToken,
+        _encrypted, // Forward encryption flag to backend
       },
       user.user.id
     );
