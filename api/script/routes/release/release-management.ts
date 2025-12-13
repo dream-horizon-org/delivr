@@ -20,6 +20,7 @@ import { UploadValidationService } from "../../services/release/upload-validatio
 import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
 import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
 import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
+import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 import { HTTP_STATUS } from "../../constants/http";
 import {
   hasReleaseCreationService,
@@ -450,6 +451,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/builds/ci/testflight/verify",
     tenantPermissions.allowAll({ storage }),
     createCiTestflightVerifyHandler(storage)
+  );
+
+  // CI/CD Artifact Upload
+  // POST /builds/ci/artifact
+  // Body: multipart/form-data with ciRunId, artifactVersion, artifact file, optional buildNumber
+  router.post(
+    "/builds/ci/artifact",
+    tenantPermissions.allowAll({ storage }),
+    upload.single('artifact'),
+    createCiArtifactUploadHandler(storage)
   );
 
   // Get build artifacts
