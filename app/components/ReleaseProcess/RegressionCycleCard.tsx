@@ -23,6 +23,7 @@ import {
 } from '~/constants/release-process-ui';
 import type { RegressionCycle, Task, BuildInfo } from '~/types/release-process.types';
 import { RegressionCycleStatus } from '~/types/release-process-enums';
+import { formatReleaseDateTime } from '~/utils/release-process-date';
 import { TaskCard } from './TaskCard';
 
 interface RegressionCycleCardProps {
@@ -53,28 +54,13 @@ export function RegressionCycleCard({
 
   // Format cycle date/time
   const cycleDateTime = useMemo(() => {
-    if (!cycle.createdAt) return 'Unknown date';
-    const date = new Date(cycle.createdAt);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatReleaseDateTime(cycle.createdAt);
   }, [cycle.createdAt]);
 
   // Format completion date if available
   const completedDateTime = useMemo(() => {
     if (!cycle.completedAt) return null;
-    const date = new Date(cycle.completedAt);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatReleaseDateTime(cycle.completedAt);
   }, [cycle.completedAt]);
 
   // Get status icon

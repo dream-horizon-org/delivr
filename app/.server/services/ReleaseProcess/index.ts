@@ -14,6 +14,7 @@ import type {
   PostRegressionStageResponse,
   RetryTaskResponse,
   BuildUploadResponse,
+  ListBuildArtifactsResponse,
   TestManagementStatusResponse,
   ProjectManagementStatusResponse,
   CherryPickStatusResponse,
@@ -118,23 +119,44 @@ class ReleaseProcess {
     releaseId: string,
     file: Blob,
     platform: Platform,
-    stage: BuildUploadStage
+    stage: BuildUploadStage,
+    filename?: string
   ) {
     // Map BuildUploadStage to TaskStage for backend
     const backendStage = mapBuildUploadStageToTaskStage(stage);
     
     const formData = new FormData();
-    formData.append('artifact', file); // Backend expects 'artifact' field
+    
+    // Append blob directly - Node.js FormData accepts Blob
+    // If filename is provided, include it (some backends require filename for proper file handling)
+    if (filename) {
+      formData.append('artifact', file, filename); // Backend expects 'artifact' field
+    } else {
+      formData.append('artifact', file);
+    }
 
-    return this.__client.post<FormData, AxiosResponse<BuildUploadResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ReleaseProcess/index.ts:127',message:'FormData created before axios request',data:{formDataKeys:Array.from(formData.keys()),fileSize:file.size,fileType:file.type,filename},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
+    console.log('[ReleaseProcessService.uploadBuild]', {
+      tenantId,
+      releaseId,
+      backendStage,
+      platform,
+      filename,
+      fileSize: file.size,
+      fileType: file.type,
+      formDataKeys: Array.from(formData.keys()),
+    });
+
+    // Note: Don't set Content-Type header manually - axios will set it automatically
+    // with the correct boundary for multipart/form-data
+        // API contract specifies PUT for upload
+        return this.__client.put<FormData, AxiosResponse<BuildUploadResponse>>(
+          `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
+          formData
+        );
   }
 
   /**
@@ -256,6 +278,57 @@ class ReleaseProcess {
   // ======================
   // Builds API
   // ======================
+
+  /**
+   * List build artifacts - Matches backend contract
+   * GET /tenants/:tenantId/releases/:releaseId/builds/artifacts
+   */
+  async listBuildArtifacts(
+    tenantId: string,
+    releaseId: string,
+    filters?: { platform?: Platform; buildStage?: string }
+  ) {
+    const params: Record<string, string> = {};
+    if (filters?.platform) params.platform = filters.platform;
+    if (filters?.buildStage) params.buildStage = filters.buildStage;
+
+    return this.__client.get<null, AxiosResponse<ListBuildArtifactsResponse>>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts`,
+      { params }
+    );
+  }
+
+  /**
+   * Delete build artifact - Matches backend contract
+   * DELETE /tenants/:tenantId/releases/:releaseId/builds/artifacts/:uploadId
+   */
+  async deleteBuildArtifact(tenantId: string, releaseId: string, uploadId: string) {
+    return this.__client.delete<null, AxiosResponse<{ success: boolean; message: string }>>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts/${uploadId}`
+    );
+  }
+
+  /**
+   * Verify TestFlight build - Matches backend contract
+   * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+   */
+  async verifyTestFlight(
+    tenantId: string,
+    releaseId: string,
+    stage: BuildUploadStage,
+    request: { testflightBuildNumber: string; versionName: string }
+  ) {
+    // Map BuildUploadStage to TaskStage for backend
+    const backendStage = mapBuildUploadStageToTaskStage(stage);
+    
+    return this.__client.post<
+      { testflightBuildNumber: string; versionName: string },
+      AxiosResponse<BuildUploadResponse>
+    >(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/ios/verify-testflight`,
+      request
+    );
+  }
 
   /**
    * Get all builds - Matches backend contract API #14

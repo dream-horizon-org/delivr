@@ -5,8 +5,8 @@
  * TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD
  */
 
-import { Alert, Box, Button, Card, Group, Select, Stack, Text, TextInput } from '@mantine/core';
-import { IconAlertCircle, IconBrandApple, IconCheck, IconFile, IconUpload, IconX } from '@tabler/icons-react';
+import { Alert, Anchor, Box, Button, Card, Group, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { IconAlertCircle, IconBrandApple, IconCheck, IconFile, IconTrash, IconUpload, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BUILD_UPLOAD_LABELS,
@@ -15,12 +15,13 @@ import {
   SUCCESS_MESSAGES,
 } from '~/constants/release-process-ui';
 import { BuildsService } from '~/services/builds.service';
-import { useManualBuildUpload } from '~/hooks/useReleaseProcess';
+import { useBuildArtifacts, useDeleteBuildArtifact, useManualBuildUpload } from '~/hooks/useReleaseProcess';
 import { useRelease } from '~/hooks/useRelease';
 import type { BuildUploadStage, Platform } from '~/types/release-process-enums';
 import { TaskType } from '~/types/release-process-enums';
 import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { mapBuildUploadStageToTaskStage } from '~/utils/build-upload-mapper';
 
 interface ManualBuildUploadWidgetProps {
   tenantId: string;
@@ -118,6 +119,57 @@ export function ManualBuildUploadWidget({
   const [isVerifying, setIsVerifying] = useState(false);
 
   const uploadMutation = useManualBuildUpload(tenantId, releaseId);
+  const deleteMutation = useDeleteBuildArtifact(tenantId, releaseId);
+
+  // Map BuildUploadStage to backend stage format for filtering
+  const backendStage = useMemo(() => {
+    const taskStage = mapBuildUploadStageToTaskStage(stage);
+    // Backend uses KICK_OFF, REGRESSION, PRE_RELEASE
+    return taskStage === 'KICKOFF' ? 'KICK_OFF' : taskStage === 'POST_REGRESSION' ? 'PRE_RELEASE' : taskStage;
+  }, [stage]);
+
+  // Fetch artifacts for this stage
+  const { data: artifactsData, isLoading: isLoadingArtifacts, refetch: refetchArtifacts } = useBuildArtifacts(
+    tenantId,
+    releaseId,
+    { buildStage: backendStage }
+  );
+
+  // Get artifacts for current platform(s)
+  const platformArtifacts = useMemo(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ManualBuildUploadWidget.tsx:139',message:'artifactsData structure check',data:{hasArtifactsData:!!artifactsData,artifactsDataType:typeof artifactsData,hasData:!!artifactsData?.data,dataType:typeof artifactsData?.data,isArray:Array.isArray(artifactsData?.data),dataKeys:artifactsData?Object.keys(artifactsData):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
+    if (!artifactsData?.data) return [];
+    
+    // Ensure data is an array
+    if (!Array.isArray(artifactsData.data)) {
+      console.error('[ManualBuildUploadWidget] artifactsData.data is not an array:', artifactsData.data);
+      return [];
+    }
+    
+    // If platform is fixed, filter by that platform
+    if (fixedPlatform) {
+      return artifactsData.data.filter(a => a.platform === fixedPlatform);
+    }
+    
+    // Otherwise return all artifacts for available platforms
+    return artifactsData.data.filter(a => availablePlatforms.includes(a.platform as Platform));
+  }, [artifactsData, fixedPlatform, availablePlatforms]);
+
+  // Check if we should show upload widget (no artifact for platform)
+  const shouldShowUploadWidget = useMemo(() => {
+    if (fixedPlatform) {
+      // Single platform widget: show upload if no artifact for this platform
+      return !platformArtifacts.some(a => a.platform === fixedPlatform);
+    }
+    
+    // Multi-platform widget: show upload if any platform is missing artifact
+    return availablePlatforms.some(platform => 
+      !platformArtifacts.some(a => a.platform === platform)
+    );
+  }, [platformArtifacts, fixedPlatform, availablePlatforms]);
 
   // Pre-fill version from release if available
   useEffect(() => {
@@ -171,6 +223,8 @@ export function ManualBuildUploadWidget({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      // Refetch artifacts to show the new upload
+      await refetchArtifacts();
       onUploadComplete?.();
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, ERROR_MESSAGES.FAILED_TO_UPLOAD_BUILD);
@@ -203,6 +257,8 @@ export function ManualBuildUploadWidget({
       showSuccessToast({ message: 'TestFlight build verified successfully' });
       setTestflightBuildNumber('');
       setVersionName('');
+      // Refetch artifacts to show the new upload
+      await refetchArtifacts();
       onUploadComplete?.();
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to verify TestFlight build');
@@ -220,6 +276,19 @@ export function ManualBuildUploadWidget({
       fileInputRef.current.value = '';
     }
   }, []);
+
+  // Handle artifact deletion
+  const handleDeleteArtifact = useCallback(async (uploadId: string) => {
+    try {
+      await deleteMutation.mutateAsync({ uploadId });
+      showSuccessToast({ message: 'Artifact deleted successfully' });
+      await refetchArtifacts();
+      onUploadComplete?.();
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to delete artifact');
+      showErrorToast({ message: errorMessage });
+    }
+  }, [deleteMutation, refetchArtifacts, onUploadComplete]);
 
   const isUploading = uploadMutation.isLoading;
   const isLoading = isUploading || isVerifying;
@@ -259,54 +328,103 @@ export function ManualBuildUploadWidget({
           )}
         </Group>
 
-        {/* TestFlight Verification Mode */}
-        {isTestFlightVerification ? (
+        {/* Show Artifacts if they exist */}
+        {!isLoadingArtifacts && platformArtifacts.length > 0 && (
+          <Stack gap="sm">
+            <Text size="sm" fw={500} c="dimmed">
+              Uploaded Artifacts
+            </Text>
+            {platformArtifacts.map((artifact) => (
+              <Group key={artifact.id} justify="space-between" align="center" p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: '4px' }}>
+                <Group gap="xs">
+                  <IconFile size={16} />
+                  <div>
+                    <Text size="sm" fw={500}>
+                      {artifact.platform}
+                    </Text>
+                    {artifact.downloadUrl ? (
+                      <Anchor href={artifact.downloadUrl} target="_blank" size="xs" c="blue">
+                        Download Artifact
+                      </Anchor>
+                    ) : (
+                      <Text size="xs" c="dimmed">
+                        {artifact.storeType === 'TESTFLIGHT' ? `TestFlight Build #${artifact.buildNumber || 'N/A'}` : 'No download available'}
+                      </Text>
+                    )}
+                  </div>
+                </Group>
+                <Tooltip label="Delete artifact">
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    size="xs"
+                    leftSection={<IconTrash size={14} />}
+                    onClick={() => {
+                      // Extract uploadId from artifact - may need to use id or a different field
+                      // Based on API contract, we need uploadId which might be in artifact.id or a separate field
+                      handleDeleteArtifact(artifact.id);
+                    }}
+                    loading={deleteMutation.isLoading}
+                  >
+                    Delete
+                  </Button>
+                </Tooltip>
+              </Group>
+            ))}
+          </Stack>
+        )}
+
+        {/* Show Upload Widget if no artifacts or if some platforms are missing */}
+        {shouldShowUploadWidget && (
           <>
-            <TextInput
-              label="TestFlight Build Number"
-              description="The build number shown in App Store Connect / TestFlight"
-              placeholder="e.g., 17965"
-              value={testflightBuildNumber}
-              onChange={(e) => {
-                setTestflightBuildNumber(e.target.value);
-                setValidationError(null);
-              }}
-              disabled={isLoading}
-              required
-            />
+            {/* TestFlight Verification Mode */}
+            {isTestFlightVerification ? (
+              <>
+                <TextInput
+                  label="TestFlight Build Number"
+                  description="The build number shown in App Store Connect / TestFlight"
+                  placeholder="e.g., 17965"
+                  value={testflightBuildNumber}
+                  onChange={(e) => {
+                    setTestflightBuildNumber(e.target.value);
+                    setValidationError(null);
+                  }}
+                  disabled={isLoading}
+                  required
+                />
 
-            <TextInput
-              label="Version Name"
-              description="The version string (must match release version)"
-              placeholder="e.g., 6.5.0"
-              value={versionName}
-              onChange={(e) => {
-                setVersionName(e.target.value);
-                setValidationError(null);
-              }}
-              disabled={isLoading}
-              required
-            />
+                <TextInput
+                  label="Version Name"
+                  description="The version string (must match release version)"
+                  placeholder="e.g., 6.5.0"
+                  value={versionName}
+                  onChange={(e) => {
+                    setVersionName(e.target.value);
+                    setValidationError(null);
+                  }}
+                  disabled={isLoading}
+                  required
+                />
 
-            {/* Error Alert */}
-            {validationError && (
-              <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-                {validationError}
-              </Alert>
-            )}
+                {/* Error Alert */}
+                {validationError && (
+                  <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+                    {validationError}
+                  </Alert>
+                )}
 
-            {/* Verify Button */}
-            <Button
-              leftSection={<IconCheck size={16} />}
-              onClick={handleTestFlightVerify}
-              disabled={!canVerifyTestFlight}
-              loading={isVerifying}
-              fullWidth
-            >
-              {isVerifying ? 'Verifying...' : 'Verify TestFlight Build'}
-            </Button>
-          </>
-        ) : (
+                {/* Verify Button */}
+                <Button
+                  leftSection={<IconCheck size={16} />}
+                  onClick={handleTestFlightVerify}
+                  disabled={!canVerifyTestFlight}
+                  loading={isVerifying}
+                  fullWidth
+                >
+                  {isVerifying ? 'Verifying...' : 'Verify TestFlight Build'}
+                </Button>
+              </>
+            ) : (
           <>
             {/* Platform Selection - File Upload Mode */}
             {!fixedPlatform && (
@@ -401,6 +519,8 @@ export function ManualBuildUploadWidget({
             >
               {isUploading ? BUILD_UPLOAD_LABELS.UPLOADING : BUTTON_LABELS.UPLOAD_BUILD}
             </Button>
+          </>
+            )}
           </>
         )}
       </Stack>

@@ -10,6 +10,8 @@
  * - Activity log
  */
 
+import crypto from 'crypto';
+
 /**
  * Helper to extract release ID from path
  */
@@ -35,9 +37,98 @@ function extractTenantId(path) {
 }
 
 /**
+ * Get builds for a task based on task type and stage
+ * Returns BuildInfo[] array matching the backend contract
+ */
+function getBuildsForTask(task, db, releaseId) {
+  const buildTaskTypes = [
+    'TRIGGER_PRE_REGRESSION_BUILDS',
+    'TRIGGER_REGRESSION_BUILDS',
+    'TRIGGER_TEST_FLIGHT_BUILD',
+    'CREATE_AAB_BUILD',
+  ];
+
+  // Only attach builds for build-related tasks
+  if (!buildTaskTypes.includes(task.taskType)) {
+    return undefined;
+  }
+
+  const taskStage = task.taskStage || task.stage;
+  let buildStage = null;
+  
+  // Map task stage to build stage
+  if (taskStage === 'KICKOFF') {
+    buildStage = 'PRE_REGRESSION';
+  } else if (taskStage === 'REGRESSION') {
+    buildStage = 'REGRESSION';
+  } else if (taskStage === 'POST_REGRESSION') {
+    buildStage = 'PRE_RELEASE';
+  }
+
+  if (!buildStage) {
+    return undefined;
+  }
+
+  // Get builds from both builds table (consumed) and buildUploadsStaging (unconsumed)
+  const consumedBuilds = db.get('builds')
+    .filter({ releaseId, taskId: task.id })
+    .value() || [];
+  
+  const stagingBuilds = db.get('buildUploadsStaging')
+    .filter({ releaseId, stage: buildStage, isUsed: false })
+    .value() || [];
+
+  // Combine and map to BuildInfo structure
+  const allBuilds = [...consumedBuilds, ...stagingBuilds];
+  
+  if (allBuilds.length === 0) {
+    return undefined;
+  }
+
+  return allBuilds.map(build => {
+    // Determine platform from build
+    const platform = build.platform || 'ANDROID';
+    
+    // For Post-Regression tasks, set storeType based on platform
+    let storeType = build.storeType || null;
+    if (taskStage === 'POST_REGRESSION') {
+      if (platform === 'IOS') {
+        storeType = 'TESTFLIGHT';
+      } else if (platform === 'ANDROID') {
+        storeType = 'PLAY_STORE';
+      }
+    }
+
+    return {
+      id: build.id,
+      tenantId: build.tenantId || null,
+      releaseId: build.releaseId || releaseId,
+      platform: platform,
+      storeType: storeType,
+      buildNumber: build.buildNumber || build.testflightNumber || null,
+      artifactVersionName: build.artifactVersionName || build.versionName || null,
+      artifactPath: build.artifactPath || null,
+      regressionId: build.regressionId || null,
+      ciRunId: build.ciRunId || null,
+      buildUploadStatus: build.buildUploadStatus || (build.isUsed === false ? 'UPLOADED' : 'UPLOADED'),
+      buildType: build.buildType || 'MANUAL',
+      buildStage: buildStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
+      queueLocation: build.queueLocation || null,
+      workflowStatus: build.workflowStatus || null,
+      ciRunType: build.ciRunType || null,
+      taskId: build.taskId || task.id,
+      internalTrackLink: build.internalTrackLink || (platform === 'ANDROID' && taskStage === 'POST_REGRESSION' ? 'https://play.google.com/apps/internaltest/...' : null),
+      testflightNumber: build.testflightNumber || (platform === 'IOS' && taskStage === 'POST_REGRESSION' ? build.buildNumber : null),
+      createdAt: build.createdAt || new Date().toISOString(),
+      updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
+    };
+  });
+}
+
+/**
  * Map old task structure to new Task interface (backend contract)
  */
-function mapTaskToBackendContract(task) {
+function mapTaskToBackendContract(task, db = null, releaseId = null) {
   // Extract metadata from old structure and put in externalData
   const externalData = {};
   if (task.branchUrl) externalData.branchUrl = task.branchUrl;
@@ -49,8 +140,11 @@ function mapTaskToBackendContract(task) {
   if (task.runLink) externalData.runLink = task.runLink;
   if (task.tag) externalData.tag = task.tag;
   if (task.notesUrl) externalData.notesUrl = task.notesUrl;
-  if (task.builds) externalData.builds = task.builds;
   if (task.error) externalData.error = task.error;
+  // Note: task.builds is no longer moved to externalData - it's now a direct property
+
+  // Get builds for this task if db and releaseId are provided
+  const builds = db && releaseId ? getBuildsForTask(task, db, releaseId) : undefined;
 
   return {
     id: task.id,
@@ -66,6 +160,7 @@ function mapTaskToBackendContract(task) {
     identifier: task.identifier || null,
     externalId: task.externalId || task.ticketId || task.testSuiteId || null,
     externalData: Object.keys(externalData).length > 0 ? externalData : null,
+    builds: builds, // Include builds array if available
     branch: task.branch || null,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt || task.createdAt,
@@ -105,18 +200,6 @@ function mapCycleStatus(oldStatus) {
     'ABANDONED': 'ABANDONED',
   };
   return statusMap[oldStatus] || oldStatus || 'NOT_STARTED';
-}
-
-/**
- * Map old stage status to new StageStatus enum
- */
-function mapStageStatus(oldStatus) {
-  const statusMap = {
-    'NOT_STARTED': 'PENDING',
-    'FAILED': 'IN_PROGRESS', // Failed stages are still in progress
-    'PAUSED': 'IN_PROGRESS', // Paused stages are still in progress
-  };
-  return statusMap[oldStatus] || oldStatus || 'PENDING';
 }
 
 /**
@@ -191,8 +274,8 @@ function createReleaseProcessMiddleware(router) {
           success: true,
           stage: 'KICKOFF',
           releaseId: release.id, // Return the UUID id
-          tasks: tasks.map(mapTaskToBackendContract),
-          stageStatus: mapStageStatus(release.cronJob?.stage1Status || release.stage1Status || 'PENDING'),
+          tasks: tasks.map(task => mapTaskToBackendContract(task, db, releaseUuid)),
+          stageStatus: release.cronJob?.stage1Status || release.stage1Status || 'PENDING',
         });
       }
 
@@ -264,19 +347,29 @@ function createReleaseProcessMiddleware(router) {
           c.status === 'IN_PROGRESS' || c.status === 'ACTIVE' || c.status === 'NOT_STARTED'
         );
 
+        // Check test management status (check CREATE_TEST_SUITE task)
+        const testSuiteTask = tasks.find(t => t.taskType === 'CREATE_TEST_SUITE');
+        const testManagementPassed = testSuiteTask?.taskStatus === 'COMPLETED' || false;
+
+        // Check cherry pick status (mock: check if cycles are completed)
+        // In real implementation, this would call the cherry pick status API
+        const cherryPickStatusOk = cyclesCompleted && noActiveCycles;
+
+        const allRequirementsMet = testManagementPassed && cherryPickStatusOk && cyclesCompleted && noActiveCycles;
+
         return res.json({
           success: true,
           stage: 'REGRESSION',
           releaseId,
-          tasks: tasks.map(mapTaskToBackendContract),
-          stageStatus: mapStageStatus(release.stage2Status || 'PENDING'),
+          tasks: tasks.map(task => mapTaskToBackendContract(task, db, releaseUuid)),
+          stageStatus: release.stage2Status || 'PENDING',
           cycles: mappedCycles,
           currentCycle: currentCycle ? mapCycleToBackendContract(currentCycle, allCycles) : null,
           approvalStatus: {
-            canApprove: cyclesCompleted && noActiveCycles,
+            canApprove: allRequirementsMet,
             approvalRequirements: {
-              testManagementPassed: true, // Mock: always true
-              cherryPickStatusOk: true, // Mock: always true
+              testManagementPassed: testManagementPassed,
+              cherryPickStatusOk: cherryPickStatusOk,
               cyclesCompleted: cyclesCompleted && noActiveCycles,
             },
           },
@@ -317,8 +410,8 @@ function createReleaseProcessMiddleware(router) {
           success: true,
           stage: 'POST_REGRESSION',
           releaseId: release.id, // Return the UUID id
-          tasks: tasks.map(mapTaskToBackendContract),
-          stageStatus: mapStageStatus(release.stage3Status || 'PENDING'),
+          tasks: tasks.map(task => mapTaskToBackendContract(task, db, releaseUuid)),
+          stageStatus: release.stage3Status || 'PENDING',
         });
       }
 
@@ -336,6 +429,7 @@ function createReleaseProcessMiddleware(router) {
     // POST /api/v1/tenants/:tenantId/releases/:releaseId/tasks/:taskId/retry
     if (method === 'POST' && path.includes('/tasks/') && path.includes('/retry')) {
       const taskId = extractTaskId(path);
+      const releaseId = extractReleaseId(path);
       const task = db.get('releaseTasks').find({ id: taskId }).value();
 
       if (!task) {
@@ -343,6 +437,17 @@ function createReleaseProcessMiddleware(router) {
           success: false,
           error: 'Task not found',
         });
+      }
+
+      // Get release UUID if needed
+      let releaseUuid = releaseId;
+      if (releaseId) {
+        const release = db.get('releases').find({ id: releaseId }).value() ||
+                       db.get('releases').find({ releaseId: releaseId }).value();
+        releaseUuid = release?.id || releaseId;
+      } else {
+        // Fallback to task's releaseId
+        releaseUuid = task.releaseId;
       }
 
       // Update task status to PENDING
@@ -361,8 +466,13 @@ function createReleaseProcessMiddleware(router) {
 
       return res.json({
         success: true,
-        message: 'Task queued for retry',
-        task: mapTaskToBackendContract(updatedTask),
+        message: 'Task retry initiated. Cron will re-execute on next tick.',
+        data: {
+          taskId: updatedTask.id,
+          releaseId: releaseUuid,
+          previousStatus: task.taskStatus || task.status || 'FAILED',
+          newStatus: 'PENDING',
+        },
       });
     }
 
@@ -370,12 +480,13 @@ function createReleaseProcessMiddleware(router) {
     // BUILD APIs
     // ============================================================================
 
-    // POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+    // PUT/POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
     // Backend route structure: stage and platform are path parameters
     // Stage can be: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' (TaskStage)
     // Frontend sends: 'PRE_REGRESSION' | 'REGRESSION' | 'PRE_RELEASE' (BuildUploadStage)
     // BFF route handles the mapping, so mock server receives TaskStage values
-    if (method === 'POST' && path.includes('/stages/') && path.includes('/builds/')) {
+    // API contract specifies PUT, but we support both PUT and POST for compatibility
+    if ((method === 'PUT' || method === 'POST') && path.includes('/stages/') && path.includes('/builds/')) {
       // Extract stage and platform from path
       // Path format: /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
       const stageMatch = path.match(/\/stages\/([^/]+)\/builds\/([^/]+)/);
@@ -389,8 +500,22 @@ function createReleaseProcessMiddleware(router) {
       const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION'
       const platform = stageMatch[2]; // Platform: 'ANDROID' | 'IOS' | 'WEB'
 
-      // Extract file from form data (backend expects 'artifact' field, but BFF receives 'file')
-      const file = req.file || (body && body.file) || (body && body.artifact);
+      // Extract file from multer (multer.any() puts files in req.files array)
+      // Backend expects 'artifact' field name
+      const file = req.files?.find(f => f.fieldname === 'artifact') || req.file;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'release-process.middleware.js:394',message:'Mock server file extraction',data:{filesCount:req.files?.length||0,fileFieldnames:req.files?.map(f=>f.fieldname)||[],hasFile:!!file,fileSize:file?.size,fileName:file?.originalname||file?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      console.log('[Mock Server] Build upload request:', { 
+        method, 
+        path, 
+        body, 
+        files: req.files,
+        file,
+        contentType: req.headers['content-type']
+      });
 
       if (!file) {
         return res.status(400).json({
@@ -406,9 +531,9 @@ function createReleaseProcessMiddleware(router) {
         stage === 'POST_REGRESSION' ? 'PRE_RELEASE' :
         stage; // Fallback
 
-      const buildId = `build_${Date.now()}`;
+      const uploadId = `upload_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
       const buildData = {
-        id: buildId,
+        id: uploadId,
         tenantId,
         releaseId,
         platform,
@@ -416,37 +541,248 @@ function createReleaseProcessMiddleware(router) {
         artifactPath: `s3://bucket/releases/${releaseId}/${platform}/${file.name || file.originalname || 'build'}`,
         isUsed: false,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       db.get('buildUploadsStaging').push(buildData).write();
 
+      // Get all staging builds for this release and stage to determine platform status
+      const allStagingBuilds = db.get('buildUploadsStaging')
+        .filter({ releaseId, stage: buildUploadStage, isUsed: false })
+        .value() || [];
+      
+      // Get required platforms from release
+      const release = db.get('releases').find({ id: releaseId }).value() || 
+                      db.get('releases').find({ releaseId: releaseId }).value();
+      const requiredPlatforms = release?.platforms || ['ANDROID', 'IOS'];
+      
+      const uploadedPlatforms = [...new Set(allStagingBuilds.map(b => b.platform))];
+      const missingPlatforms = requiredPlatforms.filter(p => !uploadedPlatforms.includes(p));
+      const allPlatformsReady = missingPlatforms.length === 0;
+
+      // Generate presigned download URL (mock)
+      const downloadUrl = `https://s3.amazonaws.com/bucket/releases/${releaseId}/${platform}/${file.name || file.originalname || 'build'}?presigned=true`;
+
       return res.json({
         success: true,
-        buildId,
-        message: 'Build uploaded successfully',
-        build: {
-          id: buildId,
-          tenantId,
-          releaseId,
+        data: {
+          uploadId,
           platform,
-          storeType: null,
-          buildNumber: null,
-          artifactVersionName: null,
-          artifactPath: buildData.artifactPath,
-          regressionId: null,
-          ciRunId: null,
-          buildUploadStatus: 'UPLOADED',
-          buildType: 'MANUAL',
-          buildStage: buildUploadStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
-          queueLocation: null,
-          workflowStatus: null,
-          ciRunType: null,
-          taskId: null,
-          internalTrackLink: null,
-          testflightNumber: null,
-          createdAt: buildData.createdAt,
-          updatedAt: buildData.createdAt,
+          stage: buildUploadStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
+          downloadUrl,
+          internalTrackLink: platform === 'ANDROID' && allPlatformsReady ? 'https://play.google.com/apps/internaltest/...' : null,
+          uploadedPlatforms,
+          missingPlatforms,
+          allPlatformsReady,
         },
+      });
+    }
+
+    // POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+    if (method === 'POST' && path.includes('/builds/ios/verify-testflight')) {
+      const stageMatch = path.match(/\/stages\/([^/]+)\/builds\/ios\/verify-testflight/);
+      if (!stageMatch) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid route format. Expected: /stages/:stage/builds/ios/verify-testflight',
+        });
+      }
+
+      const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION'
+      const { testflightBuildNumber, versionName } = body;
+
+      if (!testflightBuildNumber || !versionName) {
+        return res.status(400).json({
+          success: false,
+          error: 'testflightBuildNumber and versionName are required',
+        });
+      }
+
+      // Map TaskStage back to BuildUploadStage
+      const buildUploadStage = 
+        stage === 'KICKOFF' ? 'PRE_REGRESSION' :
+        stage === 'REGRESSION' ? 'REGRESSION' :
+        stage === 'POST_REGRESSION' ? 'PRE_RELEASE' :
+        stage;
+
+      const uploadId = `upload_testflight_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+      const buildData = {
+        id: uploadId,
+          tenantId,
+        releaseId,
+        platform: 'IOS',
+        stage: buildUploadStage,
+        artifactPath: null, // TestFlight builds don't have S3 path
+        testflightNumber: testflightBuildNumber,
+        versionName,
+        isUsed: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      db.get('buildUploadsStaging').push(buildData).write();
+
+      // Get all staging builds for this release and stage
+      const allStagingBuilds = db.get('buildUploadsStaging')
+        .filter({ releaseId, stage: buildUploadStage, isUsed: false })
+        .value() || [];
+      
+      const release = db.get('releases').find({ id: releaseId }).value() || 
+                      db.get('releases').find({ releaseId: releaseId }).value();
+      const requiredPlatforms = release?.platforms || ['ANDROID', 'IOS'];
+      
+      const uploadedPlatforms = [...new Set(allStagingBuilds.map(b => b.platform))];
+      const missingPlatforms = requiredPlatforms.filter(p => !uploadedPlatforms.includes(p));
+      const allPlatformsReady = missingPlatforms.length === 0;
+
+      return res.json({
+        success: true,
+        data: {
+          uploadId,
+          releaseId,
+          platform: 'IOS',
+          stage: buildUploadStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
+          testflightNumber,
+          versionName,
+          verified: true,
+          isUsed: false,
+          uploadedPlatforms,
+          missingPlatforms,
+          allPlatformsReady,
+          createdAt: buildData.createdAt,
+        },
+      });
+    }
+
+    // GET /api/v1/tenants/:tenantId/releases/:releaseId/builds/artifacts
+    if (method === 'GET' && path.includes('/builds/artifacts') && !path.includes('/builds/artifacts/')) {
+      const platform = query.platform;
+      const buildStage = query.buildStage;
+
+      // Get artifacts from builds table (consumed builds)
+      let consumedArtifacts = db.get('builds').filter({ releaseId }).value() || [];
+
+      // ALSO get staging builds (unconsumed uploads) - these should be visible in UI
+      // Map staging stage to buildStage format
+      const stagingBuilds = db.get('buildUploadsStaging')
+        .filter({ releaseId, isUsed: false })
+        .value() || [];
+      
+      // Convert staging builds to BuildArtifact format
+      const mappedStagingBuilds = stagingBuilds.map(staging => {
+        const stage = staging.stage;
+        const buildStageValue = 
+          stage === 'PRE_REGRESSION' ? 'KICK_OFF' :
+          stage === 'REGRESSION' ? 'REGRESSION' :
+          stage === 'PRE_RELEASE' ? 'PRE_RELEASE' :
+          stage;
+        
+        return {
+          id: staging.id, // Use staging id as uploadId
+          artifactPath: staging.artifactPath || null,
+          downloadUrl: staging.artifactPath ? `https://s3.amazonaws.com/bucket/${staging.artifactPath.replace('s3://bucket/', '')}?presigned=true` : null,
+          artifactVersionName: staging.versionName || '1.0.0',
+          buildNumber: staging.testflightNumber || null,
+          releaseId: staging.releaseId,
+          platform: staging.platform,
+          storeType: staging.testflightNumber ? 'TESTFLIGHT' : null,
+          buildStage: buildStageValue,
+          buildType: 'MANUAL',
+          buildUploadStatus: staging.buildUploadStatus || 'UPLOADED',
+          workflowStatus: null,
+          regressionId: staging.regressionId || null,
+          ciRunId: null,
+          createdAt: staging.createdAt || new Date().toISOString(),
+          updatedAt: staging.updatedAt || staging.createdAt || new Date().toISOString(),
+        };
+      });
+
+      // Combine consumed and staging artifacts
+      let allArtifacts = [...consumedArtifacts, ...mappedStagingBuilds];
+
+      // Apply filters
+      if (platform) {
+        allArtifacts = allArtifacts.filter(a => a.platform === platform);
+      }
+      if (buildStage) {
+        allArtifacts = allArtifacts.filter(a => {
+          const stage = a.buildStage || a.stage;
+          return stage === buildStage;
+        });
+      }
+
+      // Map consumed artifacts to BuildArtifact interface
+      const mappedConsumedArtifacts = consumedArtifacts.map(artifact => ({
+        id: artifact.id,
+        artifactPath: artifact.artifactPath || null,
+        downloadUrl: artifact.artifactPath ? `https://s3.amazonaws.com/bucket/${artifact.artifactPath.replace('s3://bucket/', '')}?presigned=true` : null,
+        artifactVersionName: artifact.artifactVersionName || artifact.versionName || '1.0.0',
+        buildNumber: artifact.buildNumber || artifact.testflightNumber || null,
+        releaseId: artifact.releaseId,
+        platform: artifact.platform,
+        storeType: artifact.storeType || (artifact.testflightNumber ? 'TESTFLIGHT' : null),
+        buildStage: artifact.buildStage || (artifact.stage === 'PRE_REGRESSION' ? 'KICK_OFF' : artifact.stage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE'),
+        buildType: artifact.buildType || 'MANUAL',
+        buildUploadStatus: artifact.buildUploadStatus || 'UPLOADED',
+        workflowStatus: artifact.workflowStatus || null,
+        regressionId: artifact.regressionId || null,
+        ciRunId: artifact.ciRunId || null,
+        createdAt: artifact.createdAt || new Date().toISOString(),
+        updatedAt: artifact.updatedAt || artifact.createdAt || new Date().toISOString(),
+      }));
+
+      // Combine and return (staging builds are already mapped above)
+      const finalArtifacts = [...mappedConsumedArtifacts, ...mappedStagingBuilds];
+
+      // Remove duplicates (in case a staging build was consumed and exists in both)
+      const uniqueArtifacts = finalArtifacts.filter((artifact, index, self) =>
+        index === self.findIndex(a => a.id === artifact.id)
+      );
+
+      return res.json({
+        success: true,
+        data: uniqueArtifacts,
+      });
+    }
+
+    // DELETE /api/v1/tenants/:tenantId/releases/:releaseId/builds/artifacts/:uploadId
+    if (method === 'DELETE' && path.includes('/builds/artifacts/')) {
+      const uploadId = path.split('/builds/artifacts/')[1];
+      
+      // Try to find in builds table first (consumed artifacts)
+      let artifact = db.get('builds').find({ id: uploadId }).value();
+      
+      if (artifact) {
+        // Check if already consumed by task
+        if (artifact.taskId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Cannot delete artifact that is already consumed by a task',
+          });
+        }
+        
+        db.get('builds').remove({ id: uploadId }).write();
+        return res.json({
+          success: true,
+          message: 'Build artifact deleted successfully',
+        });
+      }
+
+      // Try staging table (unconsumed uploads)
+      artifact = db.get('buildUploadsStaging').find({ id: uploadId }).value();
+      
+      if (!artifact) {
+        return res.status(404).json({
+          success: false,
+          error: 'Build artifact not found',
+        });
+      }
+
+      db.get('buildUploadsStaging').remove({ id: uploadId }).write();
+
+      return res.json({
+        success: true,
+        message: 'Build artifact deleted successfully',
       });
     }
 
@@ -483,6 +819,10 @@ function createReleaseProcessMiddleware(router) {
 
       if (platform) {
         // Single platform response
+        const taskStatus = task?.taskStatus || task?.status || 'PENDING';
+        const isCompleted = taskStatus === 'COMPLETED';
+        const isFailed = taskStatus === 'FAILED';
+        
         return res.json({
           success: true,
           releaseId,
@@ -492,24 +832,29 @@ function createReleaseProcessMiddleware(router) {
           version: '1.0.0',
           hasTestRun: !!task?.testRunId,
           runId: task?.testRunId || null,
-          status: task?.status === 'COMPLETED' ? 'PASSED' : task?.status === 'FAILED' ? 'FAILED' : 'PENDING',
-          runLink: task?.runLink,
+          status: isCompleted ? 'PASSED' : isFailed ? 'FAILED' : 'PENDING', // Component expects 'PASSED', not 'COMPLETED'
+          runLink: task?.runLink || (isCompleted ? `https://test-management.example.com/runs/${task?.testRunId || '123'}` : undefined),
           total: 100,
           testResults: {
-            passed: 95,
-            failed: 2,
-            untested: 3,
+            passed: isCompleted ? 95 : 0,
+            failed: isFailed ? 5 : (isCompleted ? 2 : 0),
+            untested: isCompleted ? 3 : 100,
             skipped: 0,
             blocked: 0,
             inProgress: 0,
-            passPercentage: 95,
+            passPercentage: isCompleted ? 95 : 0,
             threshold: 90,
-            thresholdPassed: true,
+            thresholdPassed: isCompleted,
           },
+          lastUpdated: task?.updatedAt || task?.createdAt || new Date().toISOString(),
         });
       } else {
         // All platforms response
         const platforms = ['ANDROID', 'IOS'];
+        const taskStatus = task?.taskStatus || task?.status || 'PENDING';
+        const isCompleted = taskStatus === 'COMPLETED';
+        const isFailed = taskStatus === 'FAILED';
+        
         return res.json({
           success: true,
           releaseId,
@@ -520,20 +865,21 @@ function createReleaseProcessMiddleware(router) {
             version: '1.0.0',
             hasTestRun: !!task?.testRunId,
             runId: task?.testRunId || null,
-            status: task?.status === 'COMPLETED' ? 'PASSED' : task?.status === 'FAILED' ? 'FAILED' : 'PENDING',
-            runLink: task?.runLink,
+            status: isCompleted ? 'PASSED' : isFailed ? 'FAILED' : 'PENDING', // Component expects 'PASSED', not 'COMPLETED'
+            runLink: task?.runLink || (isCompleted ? `https://test-management.example.com/runs/${task?.testRunId || '123'}` : undefined),
             total: 100,
             testResults: {
-              passed: 95,
-              failed: 2,
-              untested: 3,
+              passed: isCompleted ? 95 : 0,
+              failed: isFailed ? 5 : (isCompleted ? 2 : 0),
+              untested: isCompleted ? 3 : 100,
               skipped: 0,
               blocked: 0,
               inProgress: 0,
-              passPercentage: 95,
+              passPercentage: isCompleted ? 95 : 0,
               threshold: 90,
-              thresholdPassed: true,
+              thresholdPassed: isCompleted,
             },
+            lastUpdated: task?.updatedAt || task?.createdAt || new Date().toISOString(),
           })),
         });
       }
@@ -586,11 +932,18 @@ function createReleaseProcessMiddleware(router) {
 
     // GET /api/v1/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
     if (method === 'GET' && path.includes('/check-cherry-pick-status')) {
+      // Get release to determine cherry pick status
+      const release = db.get('releases').find({ id: releaseId }).value();
+      
+      // Mock: Determine status based on release state
+      // In real implementation, this would check if branch head commit == latest tag commit
+      // cherryPickAvailable: true = cherry picks exist, false = commits match
+      const cherryPickAvailable = release?.stage2Status !== 'COMPLETED' && Math.random() > 0.3; // 70% chance of no cherry picks when stage2 is completed
+      
       return res.json({
         success: true,
         releaseId,
-        latestReleaseTag: 'v1.0.0',
-        commitIdsMatch: true,
+        cherryPickAvailable: cherryPickAvailable,
       });
     }
 
@@ -619,7 +972,7 @@ function createReleaseProcessMiddleware(router) {
 
       return res.json({
         success: true,
-        message: 'Regression stage approved',
+        message: 'Regression stage approved and Post-Regression stage triggered successfully',
         releaseId,
         approvedAt: new Date().toISOString(),
         approvedBy: body.approvedBy || 'user-123',

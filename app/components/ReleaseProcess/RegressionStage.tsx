@@ -17,18 +17,15 @@ import { IconCheck, IconInfoCircle, IconRocket, IconX } from '@tabler/icons-reac
 import { useCallback, useMemo } from 'react';
 import {
   ERROR_MESSAGES,
-  TASK_STATUS_LABELS,
 } from '~/constants/release-process-ui';
 import {
   useRegressionStage,
-  useRetryTask,
   useApproveRegression,
   useTestManagementStatus,
   useCherryPickStatus,
 } from '~/hooks/useReleaseProcess';
-import { useRelease } from '~/hooks/useRelease';
+import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import type { Task } from '~/types/release-process.types';
-import { TaskStatus } from '~/types/release-process-enums';
 import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { RegressionCyclesList } from './RegressionCyclesList';
@@ -41,13 +38,18 @@ interface RegressionStageProps {
 
 export function RegressionStage({ tenantId, releaseId, className }: RegressionStageProps) {
   const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId);
-  const retryMutation = useRetryTask(tenantId, releaseId);
   const approveMutation = useApproveRegression(tenantId, releaseId);
-  const { release } = useRelease(tenantId, releaseId);
 
   // Fetch status checks
   const testManagementStatus = useTestManagementStatus(tenantId, releaseId);
   const cherryPickStatus = useCherryPickStatus(tenantId, releaseId);
+
+  // Use shared task handlers
+  const { handleRetry, handleViewDetails } = useTaskHandlers({
+    tenantId,
+    releaseId,
+    refetch,
+  });
 
   // Extract data from response
   const cycles = data?.cycles || [];
@@ -57,24 +59,6 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   const upcomingSlot = data?.upcomingSlot;
   const approvalStatus = data?.approvalStatus;
 
-  const handleRetry = useCallback(
-    async (taskId: string) => {
-      try {
-        await retryMutation.mutateAsync({ taskId });
-        showSuccessToast({ message: 'Task retry initiated successfully' });
-        await refetch();
-      } catch (error) {
-        const errorMessage = getApiErrorMessage(error, ERROR_MESSAGES.FAILED_TO_RETRY_TASK);
-        showErrorToast({ message: errorMessage });
-      }
-    },
-    [retryMutation, refetch]
-  );
-
-  const handleViewTaskDetails = useCallback((task: Task) => {
-    console.log('View task details:', task);
-  }, []);
-
   const handleApprove = useCallback(async () => {
     if (!approvalStatus?.canApprove) {
       showErrorToast({ message: 'Approval requirements not met' });
@@ -82,12 +66,10 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
     }
 
     try {
-      // TODO: Get current user ID from auth context or pass as prop
-      // For now, backend will extract from authenticated session
-      const approvedBy = 'user-from-session'; // Backend will use authenticated user
-      
+      // Backend will extract user ID from authenticated session
+      // The BFF route uses authenticateActionRequest which provides user context
       await approveMutation.mutateAsync({
-        approvedBy,
+        approvedBy: '', // Backend extracts from session, this field may be optional
         comments: 'Regression stage approved',
       });
       
@@ -139,11 +121,11 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
         currentCycle={currentCycle}
         tasks={tasks}
         availableBuilds={availableBuilds}
-        upcomingSlot={upcomingSlot}
+        upcomingSlot={upcomingSlot ?? null}
         tenantId={tenantId}
         releaseId={releaseId}
         onRetryTask={handleRetry}
-        onViewTaskDetails={handleViewTaskDetails}
+        onViewTaskDetails={handleViewDetails}
       />
 
       {/* Approval Section */}
@@ -170,16 +152,16 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
               </Text>
               
               {/* Test Management Status */}
-              {testManagementStatus.data && (
+              {testManagementStatus.data && 'status' in testManagementStatus.data && (
                 <Group gap="sm">
-                  {testManagementStatus.data.status === 'COMPLETED' ? (
+                  {testManagementStatus.data.status === 'PASSED' ? (
                     <IconCheck size={16} color="green" />
                   ) : (
                     <IconX size={16} color="red" />
                   )}
                   <Text size="sm">
                     Test Management:{' '}
-                    {testManagementStatus.data.status === 'COMPLETED' ? (
+                    {testManagementStatus.data.status === 'PASSED' ? (
                       <Text component="span" c="green" fw={500}>
                         Passed
                       </Text>
@@ -189,7 +171,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
                       </Text>
                     )}
                   </Text>
-                  {testManagementStatus.data.runLink && (
+                  {'runLink' in testManagementStatus.data && testManagementStatus.data.runLink && (
                     <Anchor href={testManagementStatus.data.runLink} target="_blank" size="sm">
                       View Results
                     </Anchor>
@@ -200,28 +182,23 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
               {/* Cherry Pick Status */}
               {cherryPickStatus.data && (
                 <Group gap="sm">
-                  {cherryPickStatus.data.status === 'OK' ? (
+                  {!cherryPickStatus.data.cherryPickAvailable ? (
                     <IconCheck size={16} color="green" />
                   ) : (
                     <IconX size={16} color="red" />
                   )}
                   <Text size="sm">
                     Cherry Pick Status:{' '}
-                    {cherryPickStatus.data.status === 'OK' ? (
+                    {!cherryPickStatus.data.cherryPickAvailable ? (
                       <Text component="span" c="green" fw={500}>
                         OK
                       </Text>
                     ) : (
                       <Text component="span" c="red" fw={500}>
-                        {cherryPickStatus.data.status || 'Pending'}
+                        Pending
                       </Text>
                     )}
                   </Text>
-                  {cherryPickStatus.data.status !== 'OK' && cherryPickStatus.data.pendingCherryPicks && (
-                    <Text size="xs" c="dimmed">
-                      ({cherryPickStatus.data.pendingCherryPicks.length} pending)
-                    </Text>
-                  )}
                 </Group>
               )}
 
@@ -260,26 +237,6 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
             >
               Approve Regression Stage
             </Button>
-
-            {/* Approval Requirements Not Met Warning */}
-            {!canApprove && approvalRequirements && (
-              <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
-                <Text size="sm">
-                  Cannot approve yet. Please ensure:
-                </Text>
-                <Stack gap="xs" mt="xs">
-                  {!approvalRequirements.testManagementPassed && (
-                    <Text size="xs">• Test management must pass</Text>
-                  )}
-                  {!approvalRequirements.cherryPickStatusOk && (
-                    <Text size="xs">• Cherry pick status must be OK</Text>
-                  )}
-                  {!approvalRequirements.cyclesCompleted && (
-                    <Text size="xs">• All regression cycles must be completed</Text>
-                  )}
-                </Stack>
-              </Alert>
-            )}
           </Stack>
         </Card>
       )}

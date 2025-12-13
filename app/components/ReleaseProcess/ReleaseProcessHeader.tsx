@@ -14,7 +14,7 @@
 
 import { Badge, Button, Group, Modal, Paper, ScrollArea, Stack, Text, Title } from '@mantine/core';
 import { Link } from '@remix-run/react';
-import { IconArrowLeft, IconEdit, IconGitBranch, IconHistory, IconMessageCircle, IconPlayerPause, IconPlayerPlay, IconTag } from '@tabler/icons-react';
+import { IconArrowLeft, IconCloudUpload, IconCode, IconEdit, IconGitBranch, IconHistory, IconMessageCircle, IconPlayerPause, IconPlayerPlay, IconTag } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
@@ -198,6 +198,20 @@ export function ReleaseProcessHeader({
                         {mapping.version && ` (${mapping.version})`}
                       </Badge>
                     ))}
+                  </Group>
+                )}
+                
+                {/* Build Mode Badge */}
+                {release.hasManualBuildUpload !== undefined && (
+                  <Group gap="xs" mt="xs">
+                    <Badge
+                      size="md"
+                      variant="light"
+                      color={release.hasManualBuildUpload ? 'orange' : 'green'}
+                      leftSection={release.hasManualBuildUpload ? <IconCloudUpload size={14} /> : <IconCode size={14} />}
+                    >
+                      {release.hasManualBuildUpload ? HEADER_LABELS.MANUAL_BUILD : HEADER_LABELS.CI_CD_BUILD}
+                    </Badge>
                   </Group>
                 )}
               </div>

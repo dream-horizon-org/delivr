@@ -75,21 +75,32 @@ const uploadBuild: AuthenticatedActionFunction = async ({ params, request, user 
       return createValidationError('File is required');
     }
 
-    // Convert File to Blob for backend upload
+    // Convert File to Blob for backend upload (preserve filename and type)
     const arrayBuffer = await file.arrayBuffer();
     const blob = new Blob([arrayBuffer], { type: file.type || 'application/octet-stream' });
+
+    console.log('[BFF] File received:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      blobSize: blob.size,
+      blobType: blob.type,
+    });
 
     // Map BuildUploadStage to TaskStage for backend
     const buildUploadStage = stage as BuildUploadStage;
     const platformEnum = platform as Platform;
 
     // Call service - it will handle the stage mapping and route to backend
+    // Pass filename so it can be included in FormData if needed
+    console.log('[BFF] Uploading build to backend:', { tenantId, releaseId, platformEnum, buildUploadStage, fileName: file.name, blobSize: blob.size, blobType: blob.type });
     const response = await ReleaseProcessService.uploadBuild(
       tenantId,
       releaseId,
       blob,
       platformEnum,
-      buildUploadStage
+      buildUploadStage,
+      file.name // Pass filename
     );
 
     // Return response data
@@ -100,5 +111,6 @@ const uploadBuild: AuthenticatedActionFunction = async ({ params, request, user 
   }
 };
 
-export const action = authenticateActionRequest({ POST: uploadBuild });
+// API contract specifies PUT, but we support both PUT and POST for compatibility
+export const action = authenticateActionRequest({ POST: uploadBuild, PUT: uploadBuild });
 

@@ -5,17 +5,18 @@
 
 import { Alert, Group, Select, Stack, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ERROR_MESSAGES,
   KICKOFF_LABELS,
   TASK_STATUS_LABELS,
 } from '~/constants/release-process-ui';
-import { useKickoffStage, useRetryTask } from '~/hooks/useReleaseProcess';
+import { useKickoffStage } from '~/hooks/useReleaseProcess';
+import { useTaskHandlers } from '~/hooks/useTaskHandlers';
+import { filterAndSortTasks } from '~/utils/task-filtering';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus } from '~/types/release-process-enums';
 import { getApiErrorMessage } from '~/utils/api-client';
-import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { TaskCard } from './TaskCard';
 
 interface KickoffStageProps {
@@ -26,57 +27,22 @@ interface KickoffStageProps {
 
 export function KickoffStage({ tenantId, releaseId, className }: KickoffStageProps) {
   const { data, isLoading, error, refetch } = useKickoffStage(tenantId, releaseId);
-  const retryMutation = useRetryTask(tenantId, releaseId);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  // Use shared task handlers
+  const { handleRetry, handleViewDetails } = useTaskHandlers({
+    tenantId,
+    releaseId,
+    refetch,
+  });
 
   // Extract tasks from data (safe to access even if data is null)
   const tasks = data?.tasks || [];
 
   // Sort and filter tasks by status - MUST be called before any early returns
   const filteredTasks = useMemo(() => {
-    if (!tasks || tasks.length === 0) return [];
-    
-    // First filter by status if filter is selected
-    let filtered = statusFilter 
-      ? tasks.filter((task: Task) => task.taskStatus === statusFilter)
-      : tasks;
-    
-    // Sort: PENDING -> IN_PROGRESS/AWAITING_CALLBACK -> COMPLETED -> FAILED -> SKIPPED
-    const statusOrder: Record<TaskStatus, number> = {
-      [TaskStatus.PENDING]: 1,
-      [TaskStatus.IN_PROGRESS]: 2,
-      [TaskStatus.AWAITING_CALLBACK]: 2,
-      [TaskStatus.COMPLETED]: 3,
-      [TaskStatus.FAILED]: 4,
-      [TaskStatus.SKIPPED]: 5,
-    };
-    
-    return filtered.sort((a: Task, b: Task) => {
-      const orderA = statusOrder[a.taskStatus] || 99;
-      const orderB = statusOrder[b.taskStatus] || 99;
-      return orderA - orderB;
-    });
+    return filterAndSortTasks(tasks, statusFilter);
   }, [tasks, statusFilter]);
-
-  const handleRetry = useCallback(
-    async (taskId: string) => {
-      try {
-        await retryMutation.mutateAsync({ taskId });
-        showSuccessToast({ message: 'Task retry initiated successfully' });
-        // Refetch stage data to show updated task status
-        await refetch();
-      } catch (error) {
-        const errorMessage = getApiErrorMessage(error, ERROR_MESSAGES.FAILED_TO_RETRY_TASK);
-        showErrorToast({ message: errorMessage });
-      }
-    },
-    [retryMutation, refetch]
-  );
-
-  const handleViewDetails = useCallback((task: Task) => {
-    // TODO: Open task details modal
-    console.log('View task details:', task);
-  }, []);
 
   if (isLoading) {
     return (
@@ -109,7 +75,8 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
     { value: '', label: 'All Statuses' },
     { value: TaskStatus.PENDING, label: TASK_STATUS_LABELS.PENDING },
     { value: TaskStatus.IN_PROGRESS, label: TASK_STATUS_LABELS.IN_PROGRESS },
-    { value: TaskStatus.AWAITING_CALLBACK, label: 'Awaiting Callback' },
+    { value: TaskStatus.AWAITING_CALLBACK, label: TASK_STATUS_LABELS.AWAITING_CALLBACK },
+    { value: TaskStatus.AWAITING_MANUAL_BUILD, label: TASK_STATUS_LABELS.AWAITING_MANUAL_BUILD },
     { value: TaskStatus.COMPLETED, label: TASK_STATUS_LABELS.COMPLETED },
     { value: TaskStatus.FAILED, label: TASK_STATUS_LABELS.FAILED },
     { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },

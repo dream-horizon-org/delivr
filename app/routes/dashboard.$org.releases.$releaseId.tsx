@@ -12,11 +12,11 @@ import { Container, Group, Stack } from '@mantine/core';
 import { useNavigate, useParams } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { KickoffStage, PostRegressionStage, PreKickoffStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
+import { KickoffStage, PostRegressionStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { useRelease } from '~/hooks/useRelease';
-import { Phase } from '~/types/release-process-enums';
-import type { TaskStage } from '~/types/release-process-enums';
+import { useKickoffStage, useRegressionStage, usePostRegressionStage } from '~/hooks/useReleaseProcess';
+import { Phase, TaskStage } from '~/types/release-process-enums';
 import {
   determineReleasePhase,
   getReleaseVersion,
@@ -45,12 +45,43 @@ export default function ReleaseDetailsPage() {
   const currentStage = getStageFromPhase(currentPhase);
 
   // State for selected stage (user can click stepper to view different stages)
-  const [selectedStage, setSelectedStage] = useState<TaskStage | null>(currentStage);
+  // Initialize to null, will be set to currentStage when release loads
+  const [selectedStage, setSelectedStage] = useState<TaskStage | null>(null);
 
-  // Update selected stage when current stage changes (e.g., after phase transition)
+  // Fetch stage data for console logging
+  const kickoffData = useKickoffStage(org, releaseId);
+  const regressionData = useRegressionStage(org, releaseId);
+  const postRegressionData = usePostRegressionStage(org, releaseId);
+
+  // Always land on active stage when release loads or current stage changes
   useEffect(() => {
-    setSelectedStage(currentStage);
+    if (currentStage) {
+      setSelectedStage(currentStage);
+    }
   }, [currentStage]);
+
+  // Console log for current stage tasks (single console.log as requested)
+  useEffect(() => {
+    if (!release || !selectedStage) return;
+
+    let stageData;
+    if (selectedStage === TaskStage.KICKOFF) {
+      stageData = kickoffData.data;
+    } else if (selectedStage === TaskStage.REGRESSION) {
+      stageData = regressionData.data;
+    } else if (selectedStage === TaskStage.POST_REGRESSION) {
+      stageData = postRegressionData.data;
+    }
+
+    if (stageData?.tasks) {
+      console.log(`[Release Process] Current Stage: ${selectedStage} | Release: ${release.branch || releaseId} | Tasks:`, stageData.tasks.map((t: any) => ({
+        id: t.id,
+        taskType: t.taskType,
+        taskStatus: t.taskStatus,
+        stage: t.stage,
+      })));
+    }
+  }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, postRegressionData.data]);
 
   // Handle navigation to distribution stage
   useEffect(() => {
@@ -100,14 +131,8 @@ export default function ReleaseDetailsPage() {
       return <KickoffStage tenantId={org} releaseId={releaseId} />;
     }
 
-    // TODO: Add RegressionStage and PostRegressionStage in Phase 3
-    // For now, show placeholder
     if (stageToRender === 'REGRESSION') {
-      return (
-        <div>
-          <p>Regression Stage - Coming in Phase 3</p>
-        </div>
-      );
+      return <RegressionStage tenantId={org} releaseId={releaseId} />;
     }
 
     if (stageToRender === 'POST_REGRESSION') {

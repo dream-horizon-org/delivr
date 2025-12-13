@@ -39,12 +39,15 @@ export enum TaskType {
 
 /**
  * Task Status - Current status of a task
- * Matches backend contract: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'COMPLETED' | 'FAILED' | 'SKIPPED'
+ * Matches backend contract: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'AWAITING_MANUAL_BUILD' | 'COMPLETED' | 'FAILED' | 'SKIPPED'
+ * - AWAITING_CALLBACK: For CI/CD builds waiting for callback
+ * - AWAITING_MANUAL_BUILD: For manual builds waiting for upload
  */
 export enum TaskStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
   AWAITING_CALLBACK = 'AWAITING_CALLBACK',
+  AWAITING_MANUAL_BUILD = 'AWAITING_MANUAL_BUILD',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
   SKIPPED = 'SKIPPED',

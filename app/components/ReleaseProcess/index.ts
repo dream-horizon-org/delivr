@@ -3,8 +3,13 @@
  * Central export for all release process components
  */
 
+export { BuildArtifactsList } from './BuildArtifactsList';
+export { BuildTaskDetails } from './BuildTaskDetails';
+export { BuildsList } from './BuildsList';
+export { BuildUploadSection } from './BuildUploadSection';
 export { KickoffStage } from './KickoffStage';
 export { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
+export { RegularTaskDetails } from './RegularTaskDetails';
 export { PostRegressionStage } from './PostRegressionStage';
 export { PreKickoffStage } from './PreKickoffStage';
 export { RegressionCycleCard } from './RegressionCycleCard';

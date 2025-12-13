@@ -68,6 +68,7 @@
     "fs-extra": "^11.2.0",
     "happy-dom": "^15.11.6",
     "json-server": "^0.17.4",
+    "multer": "^2.0.2",
     "postcss": "^8.4.47",
     "postcss-preset-mantine": "^1.17.0",
     "postcss-simple-vars": "^7.0.1",

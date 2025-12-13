@@ -12,6 +12,8 @@
 export const TASK_STATUS_LABELS = {
   PENDING: 'Pending',
   IN_PROGRESS: 'In Progress',
+  AWAITING_CALLBACK: 'Awaiting Callback',
+  AWAITING_MANUAL_BUILD: 'Awaiting Manual Build',
   COMPLETED: 'Completed',
   FAILED: 'Failed',
   SKIPPED: 'Skipped',
@@ -20,9 +22,25 @@ export const TASK_STATUS_LABELS = {
 export const TASK_STATUS_COLORS = {
   PENDING: 'gray',
   IN_PROGRESS: 'blue',
+  AWAITING_CALLBACK: 'yellow',
+  AWAITING_MANUAL_BUILD: 'orange',
   COMPLETED: 'green',
   FAILED: 'red',
   SKIPPED: 'yellow',
+} as const;
+
+/**
+ * Task Status Order for Sorting
+ * Lower numbers = higher priority (shown first)
+ */
+export const TASK_STATUS_ORDER: Record<string, number> = {
+  PENDING: 1,
+  IN_PROGRESS: 2,
+  AWAITING_CALLBACK: 2,
+  AWAITING_MANUAL_BUILD: 2,
+  COMPLETED: 3,
+  FAILED: 4,
+  SKIPPED: 5,
 } as const;
 
 // ============================================================================
@@ -148,6 +166,9 @@ export const HEADER_LABELS = {
   NO_BRANCH: 'No branch',
   NOT_AVAILABLE: 'N/A',
   PLATFORM_SEPARATOR: '→',
+  BUILD_MODE: 'Build Mode',
+  MANUAL_BUILD: 'Manual Build',
+  CI_CD_BUILD: 'CI/CD Build',
 } as const;
 
 // ============================================================================

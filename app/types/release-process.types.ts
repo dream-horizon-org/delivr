@@ -17,14 +17,16 @@ import type {
 
 /**
  * Task - Matches backend contract exactly
- * Task-specific metadata is stored in externalData
+ * Note: Backend API contract uses `taskStage` and `status`, but our implementation uses `stage` and `taskStatus`
+ * The mock server maps between these field names for compatibility
+ * Task-specific metadata is stored in externalData (maps to backend's `metadata` and `output`)
  */
 export interface Task {
   id: string;                              // Primary key (UUID)
   taskId: string;                          // Unique task identifier
   taskType: TaskType;
-  stage: TaskStage;
-  taskStatus: TaskStatus;
+  stage: TaskStage;                        // Backend contract uses `taskStage`, mock server maps it
+  taskStatus: TaskStatus;                  // Backend contract uses `status`, mock server maps it
   taskConclusion: TaskConclusion;
   accountId: string | null;
   regressionId: string | null;             // FK to regression cycle (if regression task)
@@ -32,17 +34,13 @@ export interface Task {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;               // External system ID (e.g., Jira ticket ID)
-  externalData: Record<string, unknown> | null;
+  externalData: Record<string, unknown> | null; // Maps to backend's `metadata` and `output`
+  builds?: BuildInfo[];                    // Builds associated with this task (for Kickoff/Regression/Post-Regression)
   branch: string | null;
   createdAt: string;                       // ISO 8601
   updatedAt: string;                       // ISO 8601
 }
 
-/**
- * TaskInfo - Legacy alias for Task (for backward compatibility during migration)
- * @deprecated Use Task instead
- */
-export type TaskInfo = Task;
 
 /**
  * BuildInfo - Matches backend contract exactly
@@ -166,8 +164,13 @@ export interface RetryTaskRequest {
  */
 export interface RetryTaskResponse {
   success: true;
-  message: string;                      // e.g., "Task queued for retry"
-  task: Task;                           // Updated task with status = PENDING
+  message: string;                      // "Task retry initiated. Cron will re-execute on next tick."
+  data: {
+    taskId: string;                     // Task UUID
+    releaseId: string;                  // Release UUID (primary key)
+    previousStatus: string;             // Previous task status (should be "FAILED")
+    newStatus: string;                  // New task status (should be "PENDING")
+  };
 }
 
 /**
@@ -180,13 +183,50 @@ export interface BuildUploadRequest {
 }
 
 /**
- * Build Upload Response
+ * Build Upload Response - Matches API contract
  */
 export interface BuildUploadResponse {
   success: boolean;
-  buildId: string;
-  message: string;
-  build: BuildInfo;
+  data: {
+    uploadId: string;
+    platform: string;
+    stage: string;
+    downloadUrl: string;
+    internalTrackLink: string | null;
+    uploadedPlatforms: string[];
+    missingPlatforms: string[];
+    allPlatformsReady: boolean;
+  };
+}
+
+/**
+ * Build Artifact - From list artifacts API
+ */
+export interface BuildArtifact {
+  id: string;
+  artifactPath: string | null;
+  downloadUrl: string | null;
+  artifactVersionName: string;
+  buildNumber: string | null;
+  releaseId: string;
+  platform: string;
+  storeType: string | null;
+  buildStage: string;
+  buildType: string;
+  buildUploadStatus: string;
+  workflowStatus: string | null;
+  regressionId: string | null;
+  ciRunId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * List Build Artifacts Response
+ */
+export interface ListBuildArtifactsResponse {
+  success: boolean;
+  data: BuildArtifact[];
 }
 
 /**
@@ -202,7 +242,7 @@ export interface GetTestManagementStatusResponse {
   version: string;
   hasTestRun: boolean;
   runId: string | null;                 // This is the testRunId
-  status?: string;
+  status?: string;                      // 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PASSED' (PASSED is used by component)
   runLink?: string;
   total?: number;
   testResults?: {
@@ -216,6 +256,7 @@ export interface GetTestManagementStatusResponse {
     threshold?: number;
     thresholdPassed?: boolean;
   };
+  lastUpdated: string;                 // ISO 8601 timestamp - Required by API contract
 }
 
 /**
@@ -227,7 +268,7 @@ export type TestManagementStatusResult = {
   version: string;
   hasTestRun: boolean;
   runId: string | null;
-  status?: string;
+  status?: string;                      // 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PASSED'
   runLink?: string;
   total?: number;
   testResults?: {
@@ -241,6 +282,7 @@ export type TestManagementStatusResult = {
     threshold?: number;
     thresholdPassed?: boolean;
   };
+  lastUpdated: string;                 // ISO 8601 timestamp - Required by API contract
 };
 
 /**
@@ -316,13 +358,12 @@ export type ProjectManagementStatusResponse =
   | GetProjectManagementStatusAllPlatformsResponse;
 
 /**
- * Cherry Pick Status Response - Matches backend contract
+ * Cherry Pick Status Response - Matches backend contract exactly
  */
 export interface CherryPickStatusResponse {
   success: true;
   releaseId: string;
-  latestReleaseTag: string;
-  commitIdsMatch: boolean;  // Whether branch head commit == tag commit
+  cherryPickAvailable: boolean;  // true = cherry picks exist, false = commits match
 }
 
 /**

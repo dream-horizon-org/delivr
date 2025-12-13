@@ -13,6 +13,7 @@
 import jsonServer from 'json-server';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
 import distributionMiddleware from './middleware/distribution.middleware.js';
 import createReleaseProcessMiddleware from './middleware/release-process.middleware.js';
 
@@ -31,7 +32,45 @@ const middlewares = jsonServer.defaults();
 // Default middlewares (CORS, logger, static, etc.)
 server.use(middlewares);
 
-// Body parser
+// Configure multer for file uploads (multipart/form-data)
+// Only process multipart requests, skip others
+const upload = multer({
+  storage: multer.memoryStorage(), // Store in memory for mock server
+  limits: {
+    fileSize: 200 * 1024 * 1024, // 200MB limit
+  },
+});
+
+// Multer middleware for file upload routes
+// This must come BEFORE jsonServer.bodyParser to handle multipart/form-data
+server.use((req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  
+  // Only process multipart requests
+  if (contentType.includes('multipart/form-data')) {
+    // Use .any() to accept any field name (both files and regular fields)
+    upload.any()(req, res, (err) => {
+      if (err) {
+        console.error('[Multer] Error processing file upload:', err);
+        return res.status(400).json({
+          success: false,
+          error: err.message || 'File upload error',
+        });
+      }
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:50',message:'Multer processed request',data:{path:req.path,method:req.method,filesCount:req.files?.length||0,fileFieldnames:req.files?.map(f=>f.fieldname)||[],contentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
+      next();
+    });
+  } else {
+    // For non-multipart requests, continue to body parser
+    next();
+  }
+});
+
+// Body parser (for JSON requests)
 server.use(jsonServer.bodyParser);
 
 // Request logger

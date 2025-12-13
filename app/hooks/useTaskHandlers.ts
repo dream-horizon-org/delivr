@@ -1,0 +1,43 @@
+/**
+ * Shared Task Handlers Hook
+ * Provides common task handler functions for stage components
+ */
+
+import { useCallback } from 'react';
+import { useRetryTask } from './useReleaseProcess';
+import type { Task } from '~/types/release-process.types';
+import { ERROR_MESSAGES } from '~/constants/release-process-ui';
+import { getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
+
+interface UseTaskHandlersOptions {
+  tenantId: string;
+  releaseId: string;
+  refetch: () => unknown;
+}
+
+export function useTaskHandlers({ tenantId, releaseId, refetch }: UseTaskHandlersOptions) {
+  const retryMutation = useRetryTask(tenantId, releaseId);
+
+  const handleRetry = useCallback(
+    async (taskId: string) => {
+      try {
+        await retryMutation.mutateAsync({ taskId });
+        showSuccessToast({ message: 'Task retry initiated successfully' });
+        void refetch(); // Fire and forget - refetch doesn't need to be awaited
+      } catch (error) {
+        const errorMessage = getApiErrorMessage(error, ERROR_MESSAGES.FAILED_TO_RETRY_TASK);
+        showErrorToast({ message: errorMessage });
+      }
+    },
+    [retryMutation, refetch]
+  );
+
+  const handleViewDetails = useCallback((task: Task) => {
+    // TODO: Open task details modal
+    // For now, this is a placeholder
+  }, []);
+
+  return { handleRetry, handleViewDetails };
+}
+

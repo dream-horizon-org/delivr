@@ -15,6 +15,8 @@ import {
 import { IconInfoCircle, IconCalendar } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useRelease } from '~/hooks/useRelease';
+import { formatReleaseDateTime } from '~/utils/release-process-date';
+import { Platform } from '~/types/release-process-enums';
 import type {
   RegressionCycle,
   RegressionSlot,
@@ -139,15 +141,13 @@ export function RegressionCyclesList({
     if (!upcomingSlot || upcomingSlot.length === 0) return null;
     const slot = upcomingSlot[0];
     if (!slot.date) return null;
-    const date = new Date(slot.date);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatReleaseDateTime(slot.date);
   }, [upcomingSlot]);
+
+  // Type guard for platform validation
+  const isValidPlatform = (platform: string): platform is Platform => {
+    return Object.values(Platform).includes(platform as Platform);
+  };
 
   return (
     <Stack gap="lg" className={className}>
@@ -187,20 +187,22 @@ export function RegressionCyclesList({
 
           {platformsNeedingBuilds.length > 0 ? (
             <Grid>
-              {platformsNeedingBuilds.map((platform) => (
-                <Grid.Col key={platform} span={{ base: 12, sm: 6 }}>
-                  <ManualBuildUploadWidget
-                    tenantId={tenantId}
-                    releaseId={releaseId}
-                    stage={BuildUploadStage.REGRESSION}
-                    taskType={TaskType.TRIGGER_REGRESSION_BUILDS}
-                    platform={platform as Platform}
-                    onUploadComplete={() => {
-                      // Refetch will be handled by query invalidation in hook
-                    }}
-                  />
-                </Grid.Col>
-              ))}
+              {platformsNeedingBuilds
+                .filter(isValidPlatform)
+                .map((platform) => (
+                  <Grid.Col key={platform} span={{ base: 12, sm: 6 }}>
+                    <ManualBuildUploadWidget
+                      tenantId={tenantId}
+                      releaseId={releaseId}
+                      stage={BuildUploadStage.REGRESSION}
+                      taskType={TaskType.TRIGGER_REGRESSION_BUILDS}
+                      platform={platform}
+                      onUploadComplete={() => {
+                        // Refetch will be handled by query invalidation in hook
+                      }}
+                    />
+                  </Grid.Col>
+                ))}
             </Grid>
           ) : (
             <Alert icon={<IconInfoCircle size={16} />} color="green" variant="light">
