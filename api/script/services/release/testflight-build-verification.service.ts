@@ -12,7 +12,7 @@ import {
 } from '../../constants/testflight-build';
 import type { StoreIntegrationController, StoreCredentialController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
-import { decrypt } from '../../utils/encryption';
+import { decrypt, decryptFromStorage } from '../../utils/encryption';
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
 import type { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import type { ReleaseRepository } from '../../models/release/release.repository';
@@ -50,6 +50,17 @@ type Credentials = {
   privateKeyPem: string;
   targetAppId?: string;
   bundleId: string;
+};
+
+// ============================================================================
+// HELPER: Decrypt credentials from backend storage
+// ============================================================================
+
+const decryptCredentials = (encryptedBuffer: Buffer): string => {
+  // Convert Buffer to string (contains backend-encrypted value)
+  const encryptedString = encryptedBuffer.toString('utf-8');
+  // Decrypt using backend storage decryption
+  return decryptFromStorage(encryptedString);
 };
 
 // ============================================================================
@@ -247,14 +258,26 @@ export class TestFlightBuildVerificationService {
       };
     }
 
+    // Read and decrypt existing credential payload from backend storage
     let credentialPayload: any;
     try {
-      credentialPayload = JSON.parse(credential.encryptedPayload.toString('utf-8'));
-    } catch {
+      const buffer = credential.encryptedPayload;
+      
+      // Decrypt using backend storage decryption
+      let decryptedPayload: string;
+      if (Buffer.isBuffer(buffer)) {
+        decryptedPayload = decryptCredentials(buffer);
+      } else {
+        decryptedPayload = decryptFromStorage(String(buffer));
+      }
+      
+      // Parse decrypted JSON
+      credentialPayload = JSON.parse(decryptedPayload);
+    } catch (error) {
       return {
         success: false,
         errorCode: 'STORE_INTEGRATION_INVALID',
-        errorMessage: 'Failed to parse App Store Connect credentials',
+        errorMessage: 'Failed to decrypt or parse App Store Connect credentials',
       };
     }
 
