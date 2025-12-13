@@ -64,14 +64,6 @@ export const getFileExtension = (filename: string): string => {
 };
 
 /**
- * Version info extracted from an AAB file.
- */
-export type AabVersionInfo = {
-  versionCode: string;
-  versionName: string | null;
-};
-
-/**
  * Play Store internal track link base URL
  */
 const PLAY_STORE_INTERNAL_TRACK_BASE_URL = 'https://play.google.com/apps/test';
@@ -86,45 +78,3 @@ const PLAY_STORE_INTERNAL_TRACK_BASE_URL = 'https://play.google.com/apps/test';
 export const generateInternalTrackLink = (packageName: string, versionCode: string): string => {
   return `${PLAY_STORE_INTERNAL_TRACK_BASE_URL}/${packageName}/${versionCode}`;
 };
-
-/**
- * Extract version information (versionCode, versionName) from an AAB file buffer.
- *
- * AAB files are ZIP archives containing:
- * - base/manifest/AndroidManifest.xml (binary protobuf format)
- *
- * @param aabBuffer - The AAB file buffer
- * @returns Version info with versionCode and versionName
- *
- * TODO: Implement actual AAB parsing using:
- * - yauzl or adm-zip for ZIP extraction
- * - Protocol buffer parsing for AndroidManifest.xml
- * - Or bundletool CLI if available
- *
- * Expected implementation steps:
- * 1. Open AAB as ZIP archive
- * 2. Extract base/manifest/AndroidManifest.xml
- * 3. Parse protobuf to get versionCode and versionName
- */
-export const extractVersionFromAab = async (aabBuffer: Buffer): Promise<AabVersionInfo> => {
-  // TODO: Replace with actual AAB parsing implementation
-  // For now, log the operation for debugging
-  const bufferSizeBytes = aabBuffer.length;
-  console.log(
-    `[extractVersionFromAab] Placeholder: Would extract version from AAB (${bufferSizeBytes} bytes)`
-  );
-
-  // TODO: Remove placeholder and implement actual logic
-  // This will throw an error until implemented
-  throw new Error(
-    'extractVersionFromAab is not implemented. ' +
-    'Please implement AAB parsing to extract versionCode.'
-  );
-
-  // Expected return format after implementation:
-  // return {
-  //   versionCode: '12345',
-  //   versionName: '1.2.3'
-  // };
-};
-

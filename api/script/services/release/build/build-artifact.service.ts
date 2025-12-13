@@ -22,10 +22,8 @@ import {
 import {
   type UploadBuildArtifactInput,
   type UploadBuildArtifactResult,
-  type CreateManualBuildInput,
   type ListBuildArtifactsInput,
   type BuildArtifactItem,
-  type StoreDistributionResult,
   type ManualTestflightVerifyInput,
   type CiTestflightVerifyInput,
   type TestflightVerifyResult,
@@ -35,7 +33,6 @@ import {
 } from './build-artifact.interface';
 import { executeOperation, isAabFile, generateInternalTrackLink } from './build-artifact.utils';
 import { StoreType as PlayStoreType } from '../../../storage/integrations/store/store-types';
-import { StoreDistributionService } from './store-distribution.service';
 import { TestFlightBuildVerificationService } from '../testflight-build-verification.service';
 import { uploadAabToPlayStoreInternal } from '~controllers/integrations/store-controllers';
 import { STORE_TYPE_MAP } from '../../../constants/store';
@@ -47,7 +44,6 @@ import { STORE_TYPE_MAP } from '../../../constants/store';
 export class BuildArtifactService {
   private readonly storage: Storage;
   private readonly buildRepository: BuildRepository;
-  private readonly storeDistributionService: StoreDistributionService;
   private readonly testflightVerificationService: TestFlightBuildVerificationService;
 
   constructor(storage: Storage) {
@@ -58,7 +54,6 @@ export class BuildArtifactService {
     }
     const s3Storage = storage as S3Storage;
     this.buildRepository = s3Storage.buildRepository;
-    this.storeDistributionService = new StoreDistributionService();
     this.testflightVerificationService = new TestFlightBuildVerificationService(
       s3Storage.storeIntegrationController,
       s3Storage.storeCredentialController,
@@ -75,8 +70,8 @@ export class BuildArtifactService {
    * 2. Upload artifact to S3
    * 3. Update build record with artifact path
    * 4. Handle AAB internal track:
-   *    - If buildNumber provided, generate internalTrackLink using packageName from store_integrations
-   *    - If not provided, distribute to internal track automatically
+   *    - If buildNumber provided: Generate internalTrackLink using packageName from store_integrations
+   *    - If not provided: Upload to Play Store internal track and get the link
    *
    * @param input - The artifact upload input (ciRunId, buffer, filename, optional buildNumber)
    * @returns The upload result with download URL and S3 URI
@@ -121,111 +116,59 @@ export class BuildArtifactService {
       BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
     );
 
-    // Step 4: Handle AAB internal track (generate link using buildNumber + packageName)
+    // Step 4: Handle AAB internal track
     const isAab = isAabFile(originalFilename);
     if (isAab) {
-      await this.handleAabInternalTrackDistribution({
-        buildId: build.id,
-        tenantId: build.tenantId,
-        artifactBuffer,
-        artifactVersionName: build.artifactVersionName,
-        providedBuildNumber: buildNumber ?? null
-      });
+      const hasProvidedBuildNumber = buildNumber !== null && buildNumber !== undefined;
+      
+      if (hasProvidedBuildNumber) {
+        // CI already uploaded to Play Store - generate link using packageName + buildNumber
+        const packageName = await this.getPlayStorePackageName(build.tenantId);
+        const internalTrackLink = generateInternalTrackLink(packageName, buildNumber);
+
+        await executeOperation(
+          () => this.buildRepository.updateInternalTrackInfo(
+            build.id,
+            internalTrackLink,
+            buildNumber
+          ),
+          BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+          BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+        );
+      } else {
+        // CI didn't upload to Play Store - upload it ourselves
+        const playStoreResult = await executeOperation(
+          () => uploadAabToPlayStoreInternal(
+            artifactBuffer,
+            build.artifactVersionName,
+            build.tenantId,
+            STORE_TYPE_MAP.PLAY_STORE,
+            build.platform,
+            build.releaseId
+          ),
+          BUILD_ARTIFACT_ERROR_CODE.STORE_DISTRIBUTION_FAILED,
+          BUILD_ARTIFACT_ERROR_MESSAGES.STORE_DISTRIBUTION_FAILED
+        );
+
+        const internalTrackLink = playStoreResult.versionSpecificUrl;
+        const versionCode = playStoreResult.versionCode?.toString() ?? null;
+
+        await executeOperation(
+          () => this.buildRepository.updateInternalTrackInfo(
+            build.id,
+            internalTrackLink,
+            versionCode
+          ),
+          BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+          BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+        );
+      }
     }
 
     return {
       downloadUrl: uploadResult.downloadUrl,
       s3Uri: uploadResult.s3Uri,
       buildId: build.id
-    };
-  };
-
-  /**
-   * Create a new build with artifact (manual upload flow).
-   *
-   * Steps:
-   * 1. Upload artifact to S3
-   * 2. Create build record in database (with internalTrackLink if provided)
-   * 3. Handle AAB internal track distribution:
-   *    - If internalTrackLink provided in input, it's already saved in step 2
-   *    - If not provided, distribute to internal track automatically
-   *
-   * @param input - The manual build creation input
-   * @returns The upload result with download URL and S3 URI
-   * @throws BuildArtifactError if any step fails
-   */
-  createManualBuild = async (input: CreateManualBuildInput): Promise<UploadBuildArtifactResult> => {
-    const {
-      tenantId,
-      releaseId,
-      artifactVersionName,
-      buildNumber,
-      platform,
-      storeType,
-      buildStage,
-      artifactBuffer,
-      originalFilename,
-      internalTrackLink
-    } = input;
-
-    const buildId = shortid.generate();
-
-    // Step 1: Upload artifact to S3
-    const uploadResult = await this.uploadArtifactToS3({
-      tenantId,
-      releaseId,
-      platform,
-      artifactVersionName,
-      buildId,
-      artifactBuffer,
-      originalFilename
-    });
-
-    // Step 2: Create build record (with internalTrackLink if provided)
-    // Note: createdAt/updatedAt are handled automatically by Sequelize (timestamps: true)
-    await executeOperation(
-      () => this.buildRepository.create({
-        id: buildId,
-        tenantId,
-        buildNumber,
-        artifactVersionName,
-        artifactPath: uploadResult.s3Uri,
-        releaseId,
-        platform,
-        storeType,
-        buildStage,
-        regressionId: null,
-        ciRunId: null,
-        buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
-        buildType: BUILD_TYPE.MANUAL,
-        queueLocation: null,
-        workflowStatus: null,
-        ciRunType: null,
-        taskId: null,
-        internalTrackLink: internalTrackLink ?? null,
-        testflightNumber: null
-      }),
-      BUILD_ARTIFACT_ERROR_CODE.DB_CREATE_FAILED,
-      BUILD_ARTIFACT_ERROR_MESSAGES.DB_CREATE_FAILED
-    );
-
-    // Step 3: Handle AAB internal track distribution (only if not already provided)
-    const isAab = isAabFile(originalFilename);
-    const hasProvidedInternalTrackLink = internalTrackLink !== undefined && internalTrackLink !== null;
-    const needsDistribution = isAab && !hasProvidedInternalTrackLink;
-
-    if (needsDistribution) {
-      await this.distributeAabToInternalTrack({
-        buildId,
-        artifactBuffer,
-        artifactVersionName
-      });
-    }
-
-    return {
-      downloadUrl: uploadResult.downloadUrl,
-      s3Uri: uploadResult.s3Uri,
-      buildId
     };
   };
 
@@ -680,58 +623,6 @@ export class BuildArtifactService {
   };
 
   /**
-   * Handle AAB internal track distribution with conditional logic.
-   *
-   * - If buildNumber is provided by CI, generate internalTrackLink using packageName from store_integrations
-   * - If not provided, call store distribution service to upload automatically
-   *
-   * internalTrackLink format: https://play.google.com/apps/test/{packageName}/{versionCode}
-   *
-   * @param params - Build ID, tenantId, artifact buffer, version name, and optional buildNumber
-   * @throws BuildArtifactError if distribution or update fails
-   */
-  private handleAabInternalTrackDistribution = async (params: {
-    buildId: string;
-    tenantId: string;
-    artifactBuffer: Buffer;
-    artifactVersionName: string;
-    providedBuildNumber: string | null;
-  }): Promise<void> => {
-    const {
-      buildId,
-      tenantId,
-      artifactBuffer,
-      artifactVersionName,
-      providedBuildNumber
-    } = params;
-
-    const hasProvidedBuildNumber = providedBuildNumber !== null;
-
-    if (hasProvidedBuildNumber) {
-      // CI already uploaded to Play Store - get packageName from store_integrations and generate link
-      const packageName = await this.getPlayStorePackageName(tenantId);
-      const internalTrackLink = generateInternalTrackLink(packageName, providedBuildNumber);
-
-      await executeOperation(
-        () => this.buildRepository.updateInternalTrackInfo(
-          buildId,
-          internalTrackLink,
-          providedBuildNumber
-        ),
-        BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
-        BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
-      );
-    } else {
-      // Need to upload to internal track ourselves (buildNumber comes from Play Store response)
-      await this.distributeAabToInternalTrack({
-        buildId,
-        artifactBuffer,
-        artifactVersionName
-      });
-    }
-  };
-
-  /**
    * Get Play Store package name (appIdentifier) from store_integrations table.
    *
    * @param tenantId - The tenant ID
@@ -763,45 +654,6 @@ export class BuildArtifactService {
 
     // Use the first Play Store integration's appIdentifier as packageName
     return integrations[0].appIdentifier;
-  };
-
-  /**
-   * Distribute an AAB artifact to Play Store internal track.
-   *
-   * Steps:
-   * 1. Call store distribution service to upload to internal track
-   * 2. Update build record with internal track link and build number
-   *
-   * @param params - Build ID, artifact buffer, and version name
-   * @throws BuildArtifactError if distribution or update fails
-   */
-  private distributeAabToInternalTrack = async (params: {
-    buildId: string;
-    artifactBuffer: Buffer;
-    artifactVersionName: string;
-  }): Promise<void> => {
-    const { buildId, artifactBuffer, artifactVersionName } = params;
-
-    // Step 1: Call store distribution service to upload to internal track
-    const distributionResult: StoreDistributionResult = await executeOperation(
-      () => this.storeDistributionService.uploadToInternalTrack({
-        artifactBuffer,
-        artifactVersionName
-      }),
-      BUILD_ARTIFACT_ERROR_CODE.STORE_DISTRIBUTION_FAILED,
-      BUILD_ARTIFACT_ERROR_MESSAGES.STORE_DISTRIBUTION_FAILED
-    );
-
-    // Step 2: Update build record with internal track link and build number
-    await executeOperation(
-      () => this.buildRepository.updateInternalTrackInfo(
-        buildId,
-        distributionResult.internalTrackLink,
-        distributionResult.buildNumber
-      ),
-      BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
-      BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
-    );
   };
 
   /**

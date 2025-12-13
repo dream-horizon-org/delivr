@@ -1,17 +1,13 @@
 export { BuildArtifactService } from './build-artifact.service';
-export { StoreDistributionService } from './store-distribution.service';
 export { TestFlightBuildVerificationService } from '../testflight-build-verification.service';
 
 // Service-specific types
 export {
   type UploadBuildArtifactInput,
   type UploadBuildArtifactResult,
-  type CreateManualBuildInput,
   type ListBuildArtifactsInput,
   type BuildArtifactItem,
   type BuildArtifactErrorCode,
-  type StoreDistributionInput,
-  type StoreDistributionResult,
   type UpdateInternalTrackInfoInput,
   type ManualTestflightVerifyInput,
   type CiTestflightVerifyInput,
@@ -39,5 +35,4 @@ export {
 } from './build-artifact.constants';
 
 // Service utilities
-export { executeOperation, isAabFile, extractVersionFromAab, generateInternalTrackLink } from './build-artifact.utils';
-export type { AabVersionInfo } from './build-artifact.utils';
+export { executeOperation, isAabFile, generateInternalTrackLink, isValidArtifactExtension } from './build-artifact.utils';

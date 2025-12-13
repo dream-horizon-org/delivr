@@ -41,28 +41,6 @@ export type UploadBuildArtifactInput = {
 };
 
 /**
- * Input for creating a new build with artifact (manual upload flow)
- * Note: storeType is optional (can be null for regression builds)
- *
- * For AAB builds:
- * - If internalTrackLink is provided, it will be saved directly
- * - If not provided, the system will upload to internal track automatically
- */
-export type CreateManualBuildInput = {
-  tenantId: string;
-  releaseId: string;
-  artifactVersionName: string;
-  buildNumber?: string | null;
-  platform: BuildPlatform;
-  storeType?: StoreType | null;
-  buildStage: BuildStage;
-  artifactBuffer: Buffer;
-  originalFilename: string;
-  /** Optional: Play Store internal track link (if already uploaded) */
-  internalTrackLink?: string | null;
-};
-
-/**
  * Input for listing build artifacts (tenantId and releaseId required, rest optional)
  */
 export type ListBuildArtifactsInput = {
@@ -126,22 +104,6 @@ export class BuildArtifactError extends Error {
     this.name = 'BuildArtifactError';
   }
 }
-
-/**
- * Input for store distribution service (upload to internal track)
- */
-export type StoreDistributionInput = {
-  artifactBuffer: Buffer;
-  artifactVersionName: string;
-};
-
-/**
- * Result from store distribution service
- */
-export type StoreDistributionResult = {
-  internalTrackLink: string;
-  buildNumber: string;  // artifactVersionCode from Play Store
-};
 
 /**
  * Input for updating internal track info in builds table
