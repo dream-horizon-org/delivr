@@ -14,11 +14,12 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import type { CronJobStateMachine } from '../cron-job-state-machine';
-import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus } from '~models/release/release.interface';
-import { getOrderedTasks, canExecuteTask, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
+import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
+import { getOrderedTasks, canExecuteTask, getTaskBlockReason, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { hasSequelize } from '~types/release/api-types';
 import { startCronJob, stopCronJob } from '~services/release/cron-job/cron-scheduler';
+import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class KickoffState implements ICronJobState {
   constructor(private context: CronJobStateMachine) {}
@@ -96,6 +97,56 @@ export class KickoffState implements ICronJobState {
       const tasks = await tasksPromise;
       console.log(`[${instanceId}] [KickoffState] Found ${tasks.length} Stage 1 tasks`);
 
+      // ✅ MANUAL BUILD CHECK: Process any tasks waiting for manual builds
+      if (release.hasManualBuildUpload) {
+        const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
+        
+        if (releaseUploadsRepo) {
+          // Get release platforms
+          const platforms = await this.getReleasePlatforms(release);
+          
+          // Get build repository for creating build records
+          const buildRepo = this.context.getBuildRepo?.();
+          
+          const manualBuildResults = await processAwaitingManualBuildTasks(
+            releaseId,
+            tasks,
+            true,
+            platforms,
+            releaseUploadsRepo,
+            releaseTaskRepo,
+            buildRepo
+          );
+
+          // Track which tasks were just completed by manual build handler
+          const justCompletedTaskIds = new Set<string>();
+          
+          // Log results
+          for (const [taskId, result] of manualBuildResults) {
+            if (result.consumed) {
+              justCompletedTaskIds.add(taskId);
+              console.log(
+                `[${instanceId}] [KickoffState] Manual build consumed for task ${taskId}. ` +
+                `Task is now COMPLETED.`
+              );
+            } else if (result.checked && !result.allReady) {
+              console.log(
+                `[${instanceId}] [KickoffState] Task ${taskId} still waiting for uploads. ` +
+                `Missing: [${result.missingPlatforms.join(', ')}]`
+              );
+            }
+          }
+          
+          // If any task was completed, log it (no re-fetch needed - we track completed IDs)
+          if (justCompletedTaskIds.size > 0) {
+            console.log(`[${instanceId}] [KickoffState] ${justCompletedTaskIds.size} task(s) completed via manual uploads.`);
+          }
+          
+          // Store for later use in task loop
+          (this as any)._justCompletedTaskIds = justCompletedTaskIds;
+        }
+      }
+
       // Check integration availability - use injected storage from context
       const storageInstance = this.context.getStorage();
       if (!hasSequelize(storageInstance)) {
@@ -117,13 +168,22 @@ export class KickoffState implements ICronJobState {
       // Get ordered tasks
       const orderedTasks = getOrderedTasks(tasks, TaskStage.KICKOFF);
       console.log(`[${instanceId}] [KickoffState] Processing ${orderedTasks.length} tasks`);
+      
+      // Get tasks that were just completed by manual build handler (if any)
+      const justCompletedTaskIds: Set<string> = (this as any)._justCompletedTaskIds ?? new Set();
 
       // Execute tasks
       for (const task of orderedTasks) {
         if (!task.taskType) continue;
         
+        // Skip logging for tasks that were just completed by manual build handler
+        // (their status in our array is stale but DB is updated)
+        if (justCompletedTaskIds.has(task.id)) {
+          continue;
+        }
+        
         // Single check handles all validation (required, dependencies, time, status)
-        const canExecute = canExecuteTask(
+        const blockReason = getTaskBlockReason(
           task,
           tasks,
           TaskStage.KICKOFF,
@@ -131,8 +191,13 @@ export class KickoffState implements ICronJobState {
           (t) => this.isTimeToExecuteTask(t.taskType, release, config)
         );
         
+        const canExecute = blockReason === 'EXECUTABLE';
         if (!canExecute) {
-          console.log(`[${instanceId}] [KickoffState] Cannot execute task yet: ${task.taskType}`);
+          // Only log non-completed tasks to reduce noise
+          const isAlreadyDone = blockReason === 'ALREADY_COMPLETED' || blockReason === 'ALREADY_SKIPPED';
+          if (!isAlreadyDone) {
+            console.log(`[${instanceId}] [KickoffState] Task ${task.taskType} blocked: ${blockReason}`);
+          }
           continue;
         }
         
@@ -303,6 +368,30 @@ export class KickoffState implements ICronJobState {
   // ========================================================================
   // Private Helper Methods
   // ========================================================================
+
+  /**
+   * Get release platforms from platform mappings
+   */
+  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
+    // Try to get from storage if available
+    const storageInstance = this.context.getStorage();
+    if (hasSequelize(storageInstance)) {
+      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
+      if (platformMappingRepo) {
+        const mappings = await platformMappingRepo.getByReleaseId(release.id);
+        if (mappings && mappings.length > 0) {
+          // Map to PlatformName enum values (mappings.platform is compatible with PlatformName)
+          const platforms = mappings
+            .map(m => m.platform as unknown as PlatformName)
+            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
+          return platforms;
+        }
+      }
+    }
+    
+    // No platform mappings found - this is a configuration error
+    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
+  }
 
   /**
    * Check if it's time to execute a specific task type

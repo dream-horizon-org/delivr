@@ -1665,6 +1665,53 @@ export type TestRunStatus = typeof TestRunStatus[keyof typeof TestRunStatus];
 
 **Never** commit with compilation errors!
 
+## TDD with Schema Changes
+
+### CRITICAL RULE: Schema Changes BEFORE Tests
+
+**When implementing features requiring schema/enum changes, follow this STRICT order:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ STEP 1: SCHEMA CHANGES FIRST (Before ANY Tests!)                │
+├─────────────────────────────────────────────────────────────────┤
+│   1.1 Update TypeScript enums (release.interface.ts)            │
+│   1.2 Update Sequelize models (.sequelize.model.ts)             │
+│   1.3 Update migration file (SQL)                               │
+│   1.4 Apply migration to Docker DB                              │
+│   1.5 Run `npm run build` - MUST pass                           │
+├─────────────────────────────────────────────────────────────────┤
+│ STEP 2: WRITE FAILING TESTS (RED Phase)                         │
+│   - Tests should fail on BUSINESS LOGIC, not compilation!       │
+├─────────────────────────────────────────────────────────────────┤
+│ STEP 3: IMPLEMENT LOGIC (GREEN Phase)                           │
+│   - Implement feature code to make tests pass                   │
+├─────────────────────────────────────────────────────────────────┤
+│ STEP 4: REFACTOR                                                │
+│   - Clean up code, keep tests green                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**❌ WRONG: Test fails on TypeScript (schema doesn't exist)**
+```typescript
+// Test fails because AWAITING_MANUAL_BUILD doesn't exist yet!
+expect(TaskStatus.AWAITING_MANUAL_BUILD).toBe('AWAITING_MANUAL_BUILD');
+// ERROR: Property 'AWAITING_MANUAL_BUILD' does not exist
+```
+
+**✅ CORRECT: Schema first, THEN test logic**
+```typescript
+// STEP 1: Add AWAITING_MANUAL_BUILD to TaskStatus enum first
+// STEP 2: THEN write test that checks business logic
+expect(result.taskStatus).toBe(TaskStatus.AWAITING_MANUAL_BUILD);
+// Test PASSES compilation, but FAILS because logic isn't implemented
+```
+
+**Why this matters:**
+- ✅ TypeScript compilation succeeds
+- ✅ Tests fail on LOGIC, not on missing types
+- ✅ Clear distinction: schema exists vs logic implemented
+- ❌ Wrong order causes confusing compilation errors
 
 ## Utility File Organization
 

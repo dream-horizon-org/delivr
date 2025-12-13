@@ -184,10 +184,10 @@ describe('Enum Values Tests', () => {
       expect(values).toContain('SKIPPED');
     });
 
-    it('should have exactly 6 values', () => {
-      // PENDING, IN_PROGRESS, AWAITING_CALLBACK, COMPLETED, FAILED, SKIPPED
+    it('should have exactly 7 values', () => {
+      // PENDING, IN_PROGRESS, AWAITING_CALLBACK, AWAITING_MANUAL_BUILD, COMPLETED, FAILED, SKIPPED
       const values = getEnumValues(TaskStatus);
-      expect(values).toHaveLength(6);
+      expect(values).toHaveLength(7);
     });
   });
 

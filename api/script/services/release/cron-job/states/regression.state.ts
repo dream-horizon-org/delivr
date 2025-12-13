@@ -14,14 +14,15 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
-import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus } from '~models/release/release.interface';
+import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
 import { stopCronJob, startCronJob } from '~services/release/cron-job/cron-scheduler';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { isRegressionSlotTime } from '~utils/time-utils';
 import { createRegressionCycleWithTasks } from '~utils/regression-cycle-creation';
-import { getOrderedTasks, canExecuteTask, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
+import { getOrderedTasks, canExecuteTask, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { PostRegressionState } from './post-regression.state';
+import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class RegressionState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -240,6 +241,60 @@ export class RegressionState implements ICronJobState {
 
       // Check if cycle is complete
       const cycleTasks = await releaseTaskRepo.findByRegressionCycleId(latestCycle.id);
+
+      // ✅ MANUAL BUILD CHECK: Process any tasks waiting for manual builds
+      if (release.hasManualBuildUpload) {
+        const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
+        
+        if (releaseUploadsRepo) {
+          // Get release platforms
+          const platforms = await this.getReleasePlatforms(release);
+          
+          // Add cycleId to tasks for proper linking
+          const tasksWithCycle = cycleTasks.map(t => ({
+            ...t,
+            cycleId: latestCycle.id
+          }));
+          
+          // Get build repository for creating build records
+          const buildRepo = this.context.getBuildRepo?.();
+          
+          const manualBuildResults = await processAwaitingManualBuildTasks(
+            releaseId,
+            tasksWithCycle,
+            true,
+            platforms,
+            releaseUploadsRepo,
+            releaseTaskRepo,
+            buildRepo
+          );
+
+          // Track which tasks were just completed by manual build handler
+          const justCompletedTaskIds = new Set<string>();
+          
+          // Log results
+          for (const [taskId, result] of manualBuildResults) {
+            if (result.consumed) {
+              justCompletedTaskIds.add(taskId);
+              console.log(
+                `[${instanceId}] [RegressionState] Manual build consumed for task ${taskId}. ` +
+                `Task is now COMPLETED. Cycle: ${latestCycle.id}`
+              );
+            } else if (result.checked && !result.allReady) {
+              console.log(
+                `[${instanceId}] [RegressionState] Task ${taskId} still waiting for uploads. ` +
+                `Missing: [${result.missingPlatforms.join(', ')}]`
+              );
+            }
+          }
+          
+          // Store for later use
+          (this as any)._justCompletedTaskIds = justCompletedTaskIds;
+        }
+      }
+      
+      // Get tasks that were just completed by manual build handler (if any)
+      const justCompletedTaskIds: Set<string> = (this as any)._justCompletedTaskIds ?? new Set();
       
       const allCycles = await regressionCycleRepo.findByReleaseId(releaseId);
       const cycleIndex = allCycles.findIndex(c => c.id === latestCycle.id);
@@ -254,6 +309,12 @@ export class RegressionState implements ICronJobState {
 
       const allCycleTasksComplete = cycleTasks.every(task => {
         if (!task.taskType) return true;
+        
+        // Tasks just completed by manual build handler are considered complete
+        // (their status in our array is stale but DB is updated)
+        if (justCompletedTaskIds.has(task.id)) {
+          return true;
+        }
         
         const required = isTaskRequired(task.taskType, config);
         if (!required) {
@@ -280,9 +341,22 @@ export class RegressionState implements ICronJobState {
         for (const task of orderedTasks) {
           if (!task.taskType) continue;
           
+          // Skip tasks that were just completed by manual build handler
+          if (justCompletedTaskIds.has(task.id)) {
+            continue;
+          }
+          
           // Single check handles all validation (required, dependencies, status)
-          const canExecute = canExecuteTask(task, cycleTasks, TaskStage.REGRESSION, config);
-          if (!canExecute) continue;
+          const blockReason = getTaskBlockReason(task, cycleTasks, TaskStage.REGRESSION, config);
+          const canExecute = blockReason === 'EXECUTABLE';
+          if (!canExecute) {
+            // Only log non-completed tasks to reduce noise
+            const isAlreadyDone = blockReason === 'ALREADY_COMPLETED' || blockReason === 'ALREADY_SKIPPED';
+            if (!isAlreadyDone) {
+              console.log(`[${instanceId}] [RegressionState] Task ${task.taskType} blocked: ${blockReason}`);
+            }
+            continue;
+          }
           
           console.log(`[${instanceId}] [RegressionState] Executing task: ${task.taskType} (${task.id})`);
           
@@ -375,6 +449,34 @@ export class RegressionState implements ICronJobState {
       stopCronJob(releaseId);
       console.log(`[RegressionState] ⏸️ Stage 2 complete. Manual transition required (use trigger-pre-release API)`);
     }
+  }
+
+  // ========================================================================
+  // Private Helper Methods
+  // ========================================================================
+
+  /**
+   * Get release platforms from platform mappings
+   */
+  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
+    // Try to get from storage if available
+    const storageInstance = this.context.getStorage();
+    if (hasSequelize(storageInstance)) {
+      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
+      if (platformMappingRepo) {
+        const mappings = await platformMappingRepo.getByReleaseId(release.id);
+        if (mappings && mappings.length > 0) {
+          // Map to PlatformName enum values
+          const platforms = mappings
+            .map(m => m.platform as unknown as PlatformName)
+            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
+          return platforms;
+        }
+      }
+    }
+    
+    // No platform mappings found - this is a configuration error
+    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
   }
 }
 

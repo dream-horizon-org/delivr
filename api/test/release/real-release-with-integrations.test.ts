@@ -481,7 +481,8 @@ async function runReleaseWithIntegrationsSimulation() {
         releaseTaskRepo,
         regressionCycleRepo,
         taskExecutor as any,
-        storage as any
+        storage as any,
+        platformMappingRepo as any
       );
       
       await stateMachine.initialize();

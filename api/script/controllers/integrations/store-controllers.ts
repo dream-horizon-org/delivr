@@ -31,12 +31,12 @@ import {
 import { HTTP_STATUS, RESPONSE_STATUS } from '../../constants/http';
 import { ERROR_MESSAGES, PLAY_STORE_UPLOAD_ERROR_MESSAGES, PLAY_STORE_UPLOAD_CONSTANTS } from '../../constants/store';
 import { getErrorMessage } from '../../utils/error.utils';
-import { decrypt } from '../../utils/encryption.utils';
 import type { StoreIntegration } from '../../storage/integrations/store/store-types';
 import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
 import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { createReleaseModel } from '~models/release/release.sequelize.model';
+import { decrypt, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -101,20 +101,34 @@ export const validateIntegrationStatus = (integration: StoreIntegration | SafeSt
 };
 
 // ============================================================================
-// Helper: Encrypt credentials (placeholder - implement actual encryption)
+// Helper: Encrypt credentials for backend storage
+// Uses BACKEND_STORAGE_ENCRYPTION_KEY (backend-only, frontend never sees this)
 // ============================================================================
 
 const encryptCredentials = (payload: string): Buffer => {
-  // TODO: Implement actual encryption (e.g., using crypto module or KMS)
-  // For now, return as Buffer (in production, use proper encryption)
-  return Buffer.from(payload, 'utf-8');
+  // Encrypt using backend storage encryption (double-layer security)
+  const encryptedString = encryptForStorage(payload);
+  // Store as Buffer in database
+  return Buffer.from(encryptedString, 'utf-8');
+};
+
+// ============================================================================
+// Helper: Decrypt credentials from backend storage
+// Uses BACKEND_STORAGE_ENCRYPTION_KEY to decrypt values stored in database
+// ============================================================================
+
+const decryptCredentials = (encryptedBuffer: Buffer): string => {
+  // Convert Buffer to string (contains backend-encrypted value)
+  const encryptedString = encryptedBuffer.toString('utf-8');
+  // Decrypt using backend storage decryption
+  return decryptFromStorage(encryptedString);
 };
 
 // ============================================================================
 // Helper: Generate JWT token for App Store Connect API
 // ============================================================================
 
-const generateAppStoreConnectJWT = (
+export const generateAppStoreConnectJWT = (
   issuerId: string,
   keyId: string,
   privateKeyPem: string
@@ -799,14 +813,30 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
     }
 
     // Create credentials based on store type
+    // IMPORTANT: Decrypt any frontend-encrypted values before backend encryption
     if (isAppStoreType) {
       const appStorePayload = payload as AppStoreConnectPayload;
+      
+      // Decrypt privateKeyPem if it's frontend-encrypted (not in PEM format)
+      let privateKeyPem = appStorePayload.privateKeyPem;
+      if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
+        try {
+          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
+          privateKeyPem = decrypt(appStorePayload.privateKeyPem);
+        } catch (error) {
+          console.error('[Store] Failed to decrypt privateKeyPem before storage:', error);
+          // If decryption fails, use as-is (might already be plaintext or backend-encrypted)
+        }
+      }
+      
+      // Create credential payload with plaintext values
       const credentialPayload = JSON.stringify({
         issuerId: appStorePayload.issuerId,
         keyId: appStorePayload.keyId,
-        privateKeyPem: appStorePayload.privateKeyPem,
+        privateKeyPem: privateKeyPem, // Now plaintext
       });
 
+      // Encrypt with backend storage encryption (double-layer security)
       const encryptedPayload = encryptCredentials(credentialPayload);
 
       await credentialController.create({
@@ -819,8 +849,25 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
 
     if (isPlayStoreType) {
       const playStorePayload = payload as GooglePlayStorePayload;
-      const credentialPayload = JSON.stringify(playStorePayload.serviceAccountJson);
+      const serviceAccountJson = { ...playStorePayload.serviceAccountJson } as any;
+      
+      // Decrypt private_key if it's frontend-encrypted
+      if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
+        try {
+          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
+          serviceAccountJson.private_key = decrypt(serviceAccountJson.private_key);
+          delete serviceAccountJson._encrypted;
+        } catch (error) {
+          console.error('[Store] Failed to decrypt private_key before storage:', error);
+          // If decryption fails, use as-is
+          delete serviceAccountJson._encrypted;
+        }
+      }
+      
+      // Create credential payload with plaintext values
+      const credentialPayload = JSON.stringify(serviceAccountJson);
 
+      // Encrypt with backend storage encryption (double-layer security)
       const encryptedPayload = encryptCredentials(credentialPayload);
 
       await credentialController.create({
@@ -974,25 +1021,22 @@ export const patchStoreIntegration = async (req: Request, res: Response): Promis
         return;
       }
 
-      // Read existing credential payload (stored as plain text in encryptedPayload column)
-      // The column name is encryptedPayload but data is stored as plain JSON text
-      // Read directly as UTF-8 string (no decryption needed)
+      // Read and decrypt existing credential payload from backend storage
       let decryptedPayload: string;
       try {
         const buffer = existingCredential.encryptedPayload;
         
-        // Since encryptCredentials() stores as plain Buffer (no encryption),
-        // read directly as UTF-8 string
+        // Decrypt using backend storage decryption (double-layer security)
         if (Buffer.isBuffer(buffer)) {
-          decryptedPayload = buffer.toString('utf-8');
+          decryptedPayload = decryptCredentials(buffer);
         } else {
-          // Fallback: treat as string
-          decryptedPayload = String(buffer);
+          // Fallback: treat as string and try to decrypt
+          decryptedPayload = decryptFromStorage(String(buffer));
         }
       } catch (readError) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
           success: RESPONSE_STATUS.FAILURE,
-          error: 'Failed to read existing credentials',
+          error: 'Failed to decrypt existing credentials',
         });
         return;
       }

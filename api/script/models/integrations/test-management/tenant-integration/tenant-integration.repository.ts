@@ -5,6 +5,7 @@ import type {
   UpdateTenantTestManagementIntegrationDto
 } from '~types/integrations/test-management/tenant-integration';
 import type { TenantTestManagementIntegrationModelType } from './tenant-integration.sequelize.model';
+import { encryptConfigFields, decryptConfigFields, decryptFields } from '~utils/encryption';
 
 export class TenantTestManagementIntegrationRepository {
   private model: TenantTestManagementIntegrationModelType;
@@ -15,24 +16,39 @@ export class TenantTestManagementIntegrationRepository {
 
   /**
    * Convert Sequelize model instance to plain object
-   * Return type is declared, TypeScript trusts the signature
+   * Automatically decrypts sensitive fields (authToken) from backend storage
    */
   private toPlainObject = (instance: InstanceType<TenantTestManagementIntegrationModelType>): TenantTestManagementIntegration => {
     const json = instance.toJSON();
+    
+    // Decrypt sensitive fields before returning (from backend storage)
+    if (json.config) {
+      json.config = decryptConfigFields(json.config, ['authToken', 'apiToken']);
+    }
+    
     return json;
   };
 
-  // Create new integration
+  /**
+   * Create new integration
+   * Double-layer encryption: Decrypt frontend-encrypted values, then encrypt with backend storage key
+   */
   create = async (
     data: CreateTenantTestManagementIntegrationDto
   ): Promise<TenantTestManagementIntegration> => {
     const createdByAccountIdValue = data.createdByAccountId ?? null;
     
+    // Step 1: Decrypt any frontend-encrypted values (using ENCRYPTION_KEY)
+    const { decrypted: decryptedConfig } = decryptFields(data.config, ['authToken', 'apiToken']);
+    
+    // Step 2: Encrypt with backend storage encryption (using BACKEND_STORAGE_ENCRYPTION_KEY)
+    const encryptedConfig = encryptConfigFields(decryptedConfig, ['authToken', 'apiToken']);
+    
     const integration = await this.model.create({
       tenantId: data.tenantId,
       name: data.name,
       providerType: data.providerType,
-      config: data.config,
+      config: encryptedConfig,
       createdByAccountId: createdByAccountIdValue
     });
 
@@ -97,11 +113,53 @@ export class TenantTestManagementIntegrationRepository {
     }
 
     if (data.config !== undefined) {
-      // Merge config - start with existing config to ensure required fields
-      updateData.config = {
-        ...integration.config,
-        ...data.config
-      };
+      // Get raw encrypted config from database (before decryption)
+      const rawConfig = integration.get('config') as Record<string, any> | undefined;
+      
+      // Check which sensitive fields are in the update
+      const sensitiveFields = ['authToken', 'apiToken'];
+      const fieldsInUpdate = sensitiveFields.filter(field => data.config && field in data.config);
+      
+      // Start with existing encrypted config (preserves encrypted values for fields not in update)
+      const finalConfig = rawConfig ? { ...rawConfig } : {};
+      
+      // Merge non-sensitive fields from update
+      Object.keys(data.config).forEach(key => {
+        if (!sensitiveFields.includes(key)) {
+          finalConfig[key] = data.config[key];
+        }
+      });
+      
+      // For sensitive fields in the update: decrypt frontend-encrypted values, then encrypt with backend storage
+      if (fieldsInUpdate.length > 0) {
+        const updateSensitiveFields: Record<string, string> = {};
+        fieldsInUpdate.forEach(field => {
+          if (data.config && data.config[field]) {
+            const fieldValue = data.config[field];
+            if (typeof fieldValue === 'string') {
+              updateSensitiveFields[field] = fieldValue;
+            }
+          }
+        });
+        
+        // Step 1: Decrypt any frontend-encrypted values (using ENCRYPTION_KEY)
+        const { decrypted: decryptedFields } = decryptFields(updateSensitiveFields, fieldsInUpdate);
+        
+        // Step 2: Encrypt with backend storage encryption (using BACKEND_STORAGE_ENCRYPTION_KEY)
+        const encryptedFields = encryptConfigFields(decryptedFields, fieldsInUpdate);
+        
+        // Merge encrypted sensitive fields into final config
+        fieldsInUpdate.forEach(field => {
+          if (encryptedFields[field]) {
+            finalConfig[field] = encryptedFields[field];
+          }
+        });
+      }
+      
+      // Fields not in update: preserve original encrypted values from database
+      // (already in finalConfig from rawConfig copy above)
+      
+      updateData.config = finalConfig as any; // Type assertion: config structure is valid, encrypted fields preserved
     }
 
     await integration.update(updateData);

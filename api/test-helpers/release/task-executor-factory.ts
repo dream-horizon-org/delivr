@@ -18,12 +18,23 @@ import { ReleaseRepository } from '../../script/models/release/release.repositor
 import { ReleaseTaskRepository } from '../../script/models/release/release-task.repository';
 import { createReleaseModel } from '../../script/models/release/release.sequelize.model';
 import { createReleaseTaskModel } from '../../script/models/release/release-task.sequelize.model';
+import { ReleaseUploadsRepository } from '../../script/models/release/release-uploads.repository';
+import { createReleaseUploadModel } from '../../script/models/release/release-uploads.sequelize.model';
 
 /**
  * Cached TaskExecutor instance for tests (singleton pattern for performance)
  * Reusing same instance across test iterations avoids overhead of creating services 30 times
  */
 let cachedTestTaskExecutor: TaskExecutor | null = null;
+
+/**
+ * Clear the cached TaskExecutor instance
+ * Use this when you need a fresh TaskExecutor (e.g., after updating factory)
+ */
+export function clearTaskExecutorCache(): void {
+  cachedTestTaskExecutor = null;
+  console.log('[TEST FACTORY] TaskExecutor cache cleared');
+}
 
 /**
  * Creates TaskExecutor with mock SCM service for testing
@@ -84,23 +95,28 @@ export function createTaskExecutorForTests(sequelize: Sequelize): TaskExecutor {
   // Get release models for repositories
   const releaseModel = sequelize.models.releases || createReleaseModel(sequelize);
   const releaseTaskModel = sequelize.models.release_tasks || createReleaseTaskModel(sequelize);
+  const releaseUploadModel = sequelize.models.ReleaseUpload || createReleaseUploadModel(sequelize);
   
   const releaseTaskRepo = new ReleaseTaskRepository(releaseTaskModel as any);
   const releaseRepo = new ReleaseRepository(releaseModel as any);
-  
+  const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, releaseUploadModel as any);
+
   // Create and cache TaskExecutor (singleton for performance)
-  // TaskExecutor requires 9 arguments: 7 services + 2 repositories
+  // TaskExecutor requires 9-10 arguments: 7 services + 2-3 repositories (releaseUploadsRepo optional)
   cachedTestTaskExecutor = new TaskExecutor(
     scmService,
     cicdIntegrationRepository,
     cicdWorkflowRepository,
     pmTicketService,
     testRunService,
-    slackService as any,
+    slackService as any,  // MessagingService placeholder
     releaseConfigRepository,
     releaseTaskRepo,
-    releaseRepo
+    releaseRepo,
+    releaseUploadsRepo  // Optional: for Phase 18 manual build uploads
   );
+  
+  console.log('[TEST FACTORY] TaskExecutor created with ReleaseUploadsRepository ✅');
   
   return cachedTestTaskExecutor;
 }
