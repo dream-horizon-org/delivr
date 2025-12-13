@@ -45,3 +45,25 @@ export const ENCRYPTION_SCHEME = {
   DEFAULT: 'AES-256-GCM',
 } as const;
 
+export const PLAY_STORE_UPLOAD_CONSTANTS = {
+  DEFAULT_RELEASE_NOTES: 'Release uploaded via API',
+  INTERNAL_TRACK: 'internal',
+  API_BASE_URL: 'https://androidpublisher.googleapis.com/androidpublisher/v3',
+} as const;
+
+export const PLAY_STORE_UPLOAD_ERROR_MESSAGES = {
+  INTEGRATION_NOT_FOUND_FOR_UPLOAD: 'Store integration not found for upload. Please ensure a Play Store integration exists for the specified tenant, storeType, and platform.',
+  CREDENTIALS_NOT_FOUND: 'Credentials not found for store integration',
+  AAB_FILE_REQUIRED: '.aab file is required in the request',
+  INVALID_AAB_FILE: 'Invalid .aab file. File must have .aab extension',
+  PLAY_STORE_UPLOAD_FAILED: 'Failed to upload .aab to Google Play Store',
+  VERSION_NAME_REQUIRED: 'versionName is required',
+  INTEGRATION_STATUS_REVOKED: 'Integration status is Revoked. Please verify the integration before uploading.',
+  INTEGRATION_STATUS_PENDING: 'Integration status is Pending. Please verify the integration before uploading.',
+  INTEGRATION_STATUS_INVALID: 'Integration status is invalid. Integration must be verified before uploading.',
+  RELEASE_ID_REQUIRED: 'releaseId is required',
+  RELEASE_NOT_FOUND: 'Release not found for the specified releaseId and tenantId',
+  RELEASE_PLATFORM_TARGET_MAPPING_NOT_FOUND: 'Release platform target mapping not found for the specified releaseId, storeType, and platform',
+  VERSION_MISMATCH: 'The artifact version does not match the release version. Please ensure the versionName matches the version configured for this release.',
+} as const;
+
