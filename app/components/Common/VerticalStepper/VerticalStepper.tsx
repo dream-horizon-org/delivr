@@ -1,10 +1,9 @@
 /**
  * Vertical Stepper Component
- * Reusable vertical step indicator for multi-step flows
- * Used by: Release Configuration, Onboarding Flow, etc.
+ * Reusable vertical step indicator with brand styling
  */
 
-import { Text } from '@mantine/core';
+import { Box, Text, Stack, useMantineTheme, Paper, Group, Badge } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 
 export interface Step {
@@ -29,85 +28,177 @@ export function VerticalStepper({
   onStepClick,
   allowNavigation = false,
 }: VerticalStepperProps) {
+  const theme = useMantineTheme();
+
   return (
-    <div className="flex flex-col">
+    <Stack gap={0}>
       {steps.map((step, index) => {
         const Icon = step.icon;
         const isActive = index === currentStep;
         const isCompleted = completedSteps.has(index);
         const isPast = index < currentStep;
         const isClickable = allowNavigation && (isCompleted || isPast);
-        
+        const isLast = index === steps.length - 1;
+
         return (
-          <div key={step.id} className="relative">
+          <Box key={step.id} style={{ position: 'relative' }}>
             {/* Step content */}
-            <div
-              className={`
-                flex items-center w-full p-3 rounded-lg transition-all relative
-                ${isActive ? 'bg-blue-50 border-2 border-blue-500' : 'border-2 border-transparent'}
-                ${isClickable ? 'cursor-pointer hover:bg-gray-50' : ''}
-              `}
+            <Paper
+              p="md"
+              radius="md"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                cursor: isClickable ? 'pointer' : 'default',
+                backgroundColor: isActive 
+                  ? theme.colors.brand[0] 
+                  : 'transparent',
+                border: isActive 
+                  ? `2px solid ${theme.colors.brand[5]}` 
+                  : `1px solid ${isCompleted || isPast ? theme.colors.green[2] : theme.colors.slate[2]}`,
+                transition: 'all 200ms ease',
+                marginBottom: isLast ? 0 : 8,
+                boxShadow: isActive 
+                  ? `0 2px 8px ${theme.colors.brand[2]}` 
+                  : 'none',
+              }}
               onClick={() => isClickable && onStepClick?.(index)}
+              onMouseEnter={(e) => {
+                if (isClickable) {
+                  e.currentTarget.style.backgroundColor = theme.colors.slate[0];
+                  e.currentTarget.style.transform = 'translateX(4px)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isClickable) {
+                  e.currentTarget.style.backgroundColor = isActive ? theme.colors.brand[0] : 'transparent';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }
+              }}
             >
               {/* Step circle with icon */}
-              <div
-                className={`
-                  flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all z-10 relative
-                  ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-lg scale-110'
-                      : isCompleted || isPast
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-200 text-gray-500'
-                  }
-                `}
+              <Box
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  backgroundColor: isActive
+                    ? theme.colors.brand[5]
+                    : isCompleted || isPast
+                    ? theme.colors.green[5]
+                    : theme.colors.slate[3],
+                  color: isActive || isCompleted || isPast
+                    ? '#ffffff'
+                    : theme.colors.slate[6],
+                  transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                  transition: 'all 200ms ease',
+                  boxShadow: isActive 
+                    ? `0 2px 8px ${theme.colors.brand[3]}` 
+                    : isCompleted || isPast
+                    ? `0 1px 4px ${theme.colors.green[2]}`
+                    : 'none',
+                  border: isActive 
+                    ? `2px solid ${theme.colors.brand[6]}` 
+                    : 'none',
+                }}
               >
                 {isCompleted || isPast ? (
-                  <IconCheck size={20} strokeWidth={2.5} />
+                  <IconCheck size={20} strokeWidth={3} />
                 ) : (
                   <Icon size={20} />
                 )}
-              </div>
-              
+              </Box>
+
               {/* Step text */}
-              <div className="ml-4 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+              <Box ml="md" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" align="center" mb={4} wrap="nowrap">
                   <Text
                     size="sm"
-                    fw={isActive ? 600 : 500}
-                    c={isActive ? 'blue' : isCompleted || isPast ? 'green' : 'dimmed'}
-                    className="truncate"
+                    fw={isActive ? 600 : isCompleted || isPast ? 500 : 400}
+                    c={
+                      isActive
+                        ? theme.colors.brand[7]
+                        : isCompleted || isPast
+                        ? theme.colors.green[7]
+                        : theme.colors.slate[7]
+                    }
+                    style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      lineHeight: 1.4,
+                    }}
                   >
                     {step.title}
                   </Text>
-                  
+
                   {isActive && (
-                    <span className="flex-shrink-0 text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color="brand"
+                      radius="xl"
+                      style={{
+                        fontWeight: 600,
+                        fontSize: '10px',
+                        padding: '2px 8px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
                       Current
-                    </span>
+                    </Badge>
                   )}
-                </div>
-                
+                </Group>
+
                 {step.description && (
-                  <Text size="xs" c="dimmed" className="mt-0.5">
+                  <Text
+                    size="xs"
+                    c={
+                      isActive
+                        ? theme.colors.brand[6]
+                        : isCompleted || isPast
+                        ? theme.colors.slate[6]
+                        : theme.colors.slate[5]
+                    }
+                    style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      lineHeight: 1.4,
+                    }}
+                  >
                     {step.description}
                   </Text>
                 )}
-              </div>
-            </div>
-            
-            {/* Vertical line connector - positioned after content for proper alignment */}
-            {index < steps.length - 1 && (
-              <div
-                className={`absolute left-[32px] top-[56px] w-0.5 h-[calc(100%-56px)] transition-all ${
-                  isPast || isCompleted ? 'bg-green-500' : 'bg-gray-200'
-                }`}
+              </Box>
+            </Paper>
+
+            {/* Vertical line connector */}
+            {!isLast && (
+              <Box
+                style={{
+                  position: 'absolute',
+                  left: 30,
+                  top: 64,
+                  width: 2,
+                  height: 12,
+                  backgroundColor:
+                    isPast || isCompleted
+                      ? theme.colors.green[5]
+                      : theme.colors.slate[3],
+                  transition: 'background-color 200ms ease',
+                  borderRadius: '1px',
+                }}
               />
             )}
-          </div>
+          </Box>
         );
       })}
-    </div>
+    </Stack>
   );
 }
-

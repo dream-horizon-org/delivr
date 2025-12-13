@@ -8,36 +8,19 @@ import {
   Box,
   Progress,
   Skeleton,
-  Grid,
-  ThemeIcon,
-  RingProgress,
-  Divider,
-  Paper,
-  Title,
   useMantineTheme,
+  ThemeIcon,
+  Button,
 } from "@mantine/core";
 import {
   IconRocket,
-  IconDevices,
-  IconDownload,
-  IconAlertTriangle,
-  IconCalendar,
-  IconCheck,
-  IconTrendingUp,
   IconAlertCircle,
+  IconRefresh,
+  IconChevronRight,
 } from "@tabler/icons-react";
 import { useGetReleaseListForDeployment } from "./hooks/useGetReleaseListForDeployment";
 import { useParams, useSearchParams, useNavigate } from "@remix-run/react";
 import { ReleaseListResponse } from "./data/getReleaseListForDeployment";
-
-// Format file size
-const formatBytes = (bytes: number) => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-};
 
 // Format relative time
 const formatRelativeTime = (timestamp: number) => {
@@ -51,13 +34,6 @@ const formatRelativeTime = (timestamp: number) => {
   if (hours > 0) return `${hours}h ago`;
   if (minutes > 0) return `${minutes}m ago`;
   return "Just now";
-};
-
-// Calculate success rate
-const getSuccessRate = (installed: number, failed: number) => {
-  const total = installed + failed;
-  if (total === 0) return 100;
-  return Math.round((installed / total) * 100);
 };
 
 function ReleaseCard({
@@ -77,126 +53,95 @@ function ReleaseCard({
       radius="md"
       style={{
         cursor: "pointer",
-        transition: theme.other.transitions.normal,
-        background: isActive
-          ? `linear-gradient(135deg, rgba(${parseInt(theme.other.brand.primary.slice(1, 3), 16)}, ${parseInt(theme.other.brand.primary.slice(3, 5), 16)}, ${parseInt(theme.other.brand.primary.slice(5, 7), 16)}, 0.03) 0%, rgba(${parseInt(theme.other.brand.secondary.slice(1, 3), 16)}, ${parseInt(theme.other.brand.secondary.slice(3, 5), 16)}, ${parseInt(theme.other.brand.secondary.slice(5, 7), 16)}, 0.03) 100%)`
-          : theme.other.backgrounds.primary,
-        borderLeft: isActive ? `4px solid ${theme.other.brand.primary}` : `1px solid ${theme.other.borders.secondary}`,
+        transition: "all 0.15s ease",
+        background: "#ffffff",
+        borderColor: theme.colors.slate[2],
       }}
       styles={{
         root: {
           "&:hover": {
-            transform: "translateY(-2px)",
-            boxShadow: theme.other.shadows.lg,
-            borderColor: theme.other.brand.primary,
+            boxShadow: theme.shadows.sm,
+            borderColor: theme.colors.slate[3],
           },
         },
       }}
       onClick={onClick}
     >
-      <Group justify="space-between" wrap="nowrap">
-        <Group gap="md" style={{ flex: 1 }}>
+      <Group justify="space-between" align="center" wrap="nowrap" gap="lg">
+        {/* Left: Icon + Info */}
+        <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
           <Box
             style={{
-              width: theme.other.sizes.icon["4xl"],
-              height: theme.other.sizes.icon["4xl"],
-              borderRadius: theme.other.borderRadius.md,
+              width: 36,
+              height: 36,
+              borderRadius: theme.radius.sm,
               background: isActive
-                ? theme.other.brand.gradient
-                : `linear-gradient(135deg, ${theme.other.borders.secondary} 0%, ${theme.other.borders.light} 100%)`,
+                ? `linear-gradient(135deg, ${theme.colors.brand[4]} 0%, ${theme.colors.brand[5]} 100%)`
+                : theme.colors.slate[1],
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: isActive ? theme.other.shadows.md : "none",
               flexShrink: 0,
             }}
           >
-            <IconRocket size={theme.other.sizes.icon.xl} color={theme.other.text.white} />
+            <IconRocket size={18} color={isActive ? "white" : theme.colors.slate[4]} />
           </Box>
-          
-          <Box style={{ flex: 1, minWidth: 0 }}>
-            <Group gap="xs" wrap="nowrap">
-              <Text size="lg" fw={700} style={{ lineHeight: 1.2 }}>
+
+          <Box style={{ minWidth: 0 }}>
+            <Group gap={8} wrap="nowrap" align="center">
+              <Text size="sm" fw={600} c={theme.colors.slate[8]}>
                 {release.label}
               </Text>
-              {isActive ? (
-                <Badge
-                  variant="light"
-                  color="green"
-                  size="sm"
-                  leftSection={<IconCheck size={10} />}
-                >
-                  Active
-                </Badge>
-              ) : (
-                <Badge
-                  variant="light"
-                  color="gray"
-                  size="sm"
-                >
-                  Inactive
-                </Badge>
-              )}
+              <Badge
+                variant="light"
+                color={isActive ? "green" : "gray"}
+                size="xs"
+              >
+                {isActive ? "Active" : "Inactive"}
+              </Badge>
               {release.mandatory && (
-                <Badge
-                  variant="light"
-                  color="red"
-                  size="sm"
-                  leftSection={<IconAlertTriangle size={10} />}
-                >
+                <Badge variant="light" color="orange" size="xs">
                   Mandatory
                 </Badge>
               )}
-              {release.isBundlePatchingEnabled && (
-                <Badge
-                  variant="light"
-                  color="blue"
-                  size="sm"
-                >
-                  PatchBundle
-                </Badge>
-              )}
             </Group>
-            <Text size="xs" c="dimmed" mt={4}>
+            <Text size="xs" c={theme.colors.slate[5]} mt={2}>
               Target: {release.targetVersions} • {formatRelativeTime(release.releasedAt)}
             </Text>
           </Box>
         </Group>
 
-        {/* Right: Rollout Progress */}
-        <Group gap="md" wrap="nowrap">
-          <Box style={{ minWidth: 200 }}>
-            <Group justify="space-between" mb={6}>
-              <Text size="xs" c="dimmed" fw={theme.other.typography.fontWeight.semibold}>
+        {/* Right: Stats */}
+        <Group gap="lg" wrap="nowrap" align="center">
+          {/* Rollout */}
+          <Box style={{ width: 140 }}>
+            <Group justify="space-between" align="center" gap="xs" mb={4}>
+              <Text size="xs" c={theme.colors.slate[5]}>
                 Rollout
               </Text>
-              <Text size="sm" fw={theme.other.typography.fontWeight.bold} style={{ color: theme.other.brand.primary }}>
+              <Text size="xs" fw={600} c={theme.colors.brand[6]}>
                 {release.rollout}%
               </Text>
             </Group>
             <Progress
               value={release.rollout}
-              size="md"
+              size={6}
               radius="xl"
-              styles={{
-                root: {
-                  background: theme.other.borders.secondary,
-                },
-                section: {
-                  background: `linear-gradient(90deg, ${theme.other.brand.primary} 0%, ${theme.other.brand.secondary} 100%)`,
-                },
-              }}
+              color="brand"
             />
           </Box>
-          
-          <Box style={{ textAlign: "center", minWidth: 80 }}>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+
+          {/* Devices */}
+          <Box style={{ width: 60, textAlign: "center" }}>
+            <Text size="xs" c={theme.colors.slate[5]} mb={2}>
               Devices
             </Text>
-            <Text size="lg" fw={700} c="blue">
+            <Text size="sm" fw={600} c={theme.colors.slate[8]}>
               {release.activeDevices?.toLocaleString() || 0}
             </Text>
           </Box>
+
+          <IconChevronRight size={16} color={theme.colors.slate[3]} style={{ flexShrink: 0 }} />
         </Group>
       </Group>
     </Card>
@@ -219,67 +164,131 @@ export function ReleaseListForDeploymentTable() {
     refetch();
   }, [searchParams.get("deployment")]);
 
+  // Section Header
+  const SectionHeader = () => (
+    <Group justify="space-between" align="center" mb="md">
+      <Group gap="xs">
+        <Text size="sm" fw={600} c={theme.colors.slate[7]}>
+          Releases
+        </Text>
+        {data && data.length > 0 && (
+          <Badge size="sm" variant="light" color="gray" radius="sm">
+            {data.length}
+          </Badge>
+        )}
+      </Group>
+    </Group>
+  );
+
   if (isLoading || isFetching) {
     return (
-      <Stack gap="md" mt="xl">
-        {Array(3)
-          .fill(0)
-          .map((_, i) => (
-            <Skeleton key={i} height={80} radius="md" />
-          ))}
-      </Stack>
+      <Box>
+        <SectionHeader />
+        <Stack gap="sm">
+          {Array(3)
+            .fill(0)
+            .map((_, i) => (
+              <Skeleton key={i} height={76} radius="md" />
+            ))}
+        </Stack>
+      </Box>
     );
   }
 
   if (isError) {
     return (
-      <Card withBorder padding="xl" radius="md" mt="xl" style={{ textAlign: "center" }}>
-        <Stack gap="md" align="center">
-          <IconAlertCircle size={theme.other.sizes.avatar.md} color={theme.other.text.red} />
-          <Title order={3} c="red">
-            Something Went Wrong
-          </Title>
-          <Text c="dimmed">Unable to load releases. Please try again later.</Text>
-        </Stack>
-      </Card>
+      <Box>
+        <SectionHeader />
+        <Card
+          withBorder
+          padding="xl"
+          radius="md"
+          style={{
+            textAlign: "center",
+            backgroundColor: theme.colors.red[0],
+            borderColor: theme.colors.red[2],
+          }}
+        >
+          <Stack gap="md" align="center" py="md">
+            <ThemeIcon size="xl" radius="xl" color="red" variant="light">
+              <IconAlertCircle size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600} c={theme.colors.slate[8]} mb={4}>
+                Failed to Load Releases
+              </Text>
+              <Text size="sm" c={theme.colors.slate[6]}>
+                Unable to fetch releases for this deployment. Please try again.
+              </Text>
+            </Box>
+            <Button
+              variant="light"
+              color="red"
+              size="sm"
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => refetch()}
+            >
+              Retry
+            </Button>
+          </Stack>
+        </Card>
+      </Box>
     );
   }
 
   if (!data?.length) {
     return (
-      <Card withBorder padding="xl" radius="md" mt="xl" style={{ textAlign: "center" }}>
-        <Stack gap="md" align="center">
-          <IconRocket size={48} color="#ccc" />
-          <Title order={3} c="dimmed">
-            No Releases Yet
-          </Title>
-          <Text c="dimmed">
-            This deployment Key doesn't have any releases. Create your first release to get started!
-          </Text>
-        </Stack>
-      </Card>
+      <Box>
+        <SectionHeader />
+        <Card
+          withBorder
+          padding="xl"
+          radius="md"
+          style={{
+            textAlign: "center",
+            backgroundColor: theme.colors.slate[0],
+            borderColor: theme.colors.slate[2],
+          }}
+        >
+          <Stack gap="md" align="center" py="md">
+            <ThemeIcon size="xl" radius="xl" color="gray" variant="light">
+              <IconRocket size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600} c={theme.colors.slate[7]} mb={4}>
+                No Releases Yet
+              </Text>
+              <Text size="sm" c={theme.colors.slate[5]}>
+                This deployment doesn't have any releases. Create your first release to get started.
+              </Text>
+            </Box>
+          </Stack>
+        </Card>
+      </Box>
     );
   }
 
   // Sort releases by release time - latest first
   const sortedReleases = [...data].sort((a, b) => {
-    // Sort by releasedAt in descending order (latest first)
     return (b.releasedAt || 0) - (a.releasedAt || 0);
   });
 
   return (
-    <Stack gap="md" mt="xl">
-      {sortedReleases.map((release) => (
-        <ReleaseCard
-          key={release.id}
-          release={release}
-          onClick={() => {
-            navigate(
-              `/dashboard/${params.org}/${params.app}/${release.label}?deployment=${searchParams.get("deployment")}`
-            );
-          }}
-        />
-      ))}
-    </Stack>
+    <Box>
+      <SectionHeader />
+      <Stack gap="sm">
+        {sortedReleases.map((release) => (
+          <ReleaseCard
+            key={release.id}
+            release={release}
+            onClick={() => {
+              navigate(
+                `/dashboard/${params.org}/${params.app}/${release.label}?deployment=${searchParams.get("deployment")}`
+              );
+            }}
+          />
+        ))}
+      </Stack>
+    </Box>
   );
 }

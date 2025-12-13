@@ -3,12 +3,13 @@ import {
   Button,
   TextInput,
   Text,
+  Box,
+  useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconBuilding } from "@tabler/icons-react";
 import { useState } from "react";
 import { notifications } from "@mantine/notifications";
-import axios from "axios";
 
 type CreateOrgModalProps = {
   onSuccess: () => void;
@@ -16,6 +17,7 @@ type CreateOrgModalProps = {
 
 export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const theme = useMantineTheme();
 
   const form = useForm<{ orgName: string }>({
     mode: "controlled",
@@ -24,51 +26,45 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
     validateInputOnBlur: true,
     validate: {
       orgName: (value) => {
-        if (!value || value.length === 0) return "Organization name is required";
-        if (value.length < 3) return "Organization name must be at least 3 characters";
+        if (!value || value.length === 0) return "Project name is required";
+        if (value.length < 3) return "Project name must be at least 3 characters";
         return null;
       },
     },
   });
 
   const handleSubmit = async (values: { orgName: string }) => {
-    // Validate before submitting
     if (form.validate().hasErrors) {
       return;
     }
 
     setIsLoading(true);
     try {
-      // Create organization using the new tenant API
-      // Use a Remix form action instead of direct axios call
-      const formData = new FormData();
-      formData.append("displayName", values.orgName);
-      
       const response = await fetch("/api/v1/tenants", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ displayName: values.orgName }),
-        credentials: "include", // Important: includes cookies for authentication
+        credentials: "include",
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create organization");
+        throw new Error(errorData.error || "Failed to create project");
       }
 
       notifications.show({
         title: "Success",
-        message: "Organization created successfully!",
-        color: "green",
+        message: "Project created successfully!",
+        color: "teal",
       });
 
       onSuccess();
     } catch (error: any) {
       notifications.show({
         title: "Error",
-        message: error.message || "Failed to create organization",
+        message: error.message || "Failed to create project",
         color: "red",
       });
     } finally {
@@ -78,17 +74,17 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
 
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
-      <Stack gap="md">
+      <Stack gap="lg">
         <Text size="sm" c="dimmed">
-          Create a new organization to manage your apps and team members.
+          Create a new project to manage your apps and team members.
         </Text>
 
         <TextInput
-          label="Organization Name"
-          placeholder="My Company"
-          leftSection={<IconBuilding size={18} />}
+          label="Project Name"
+          placeholder="Enter project name"
+          leftSection={<IconBuilding size={18} stroke={1.5} />}
           required
-          withAsterisk
+          size="md"
           key={form.key("orgName")}
           {...form.getInputProps("orgName")}
           disabled={isLoading}
@@ -97,6 +93,7 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
         <Button
           type="submit"
           fullWidth
+          size="md"
           loading={isLoading}
           disabled={
             isLoading ||
@@ -104,10 +101,9 @@ export function CreateOrgModal({ onSuccess }: CreateOrgModalProps) {
             !form.values.orgName?.trim()
           }
         >
-          Create Organization
+          Create Project
         </Button>
       </Stack>
     </form>
   );
 }
-

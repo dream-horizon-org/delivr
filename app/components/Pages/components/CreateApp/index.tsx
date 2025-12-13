@@ -50,7 +50,7 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
 
   const onOrgChange = (value: string) => {
     if (!value?.length) {
-      setOrg({ value: "", error: "Organization is required" });
+      setOrg({ value: "", error: "Project is required" });
       return;
     }
 
@@ -96,9 +96,9 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
         <Skeleton visible={shouldShowLoader} mt={"md"}>
           <Autocomplete
             mt="md"
-            label="Select Organization"
+            label="Select Project"
             withAsterisk
-            placeholder="Choose an organization"
+            placeholder="Choose a project"
             onChange={onOrgChange}
             disabled={isLoading}
             value={org.value}
@@ -129,7 +129,7 @@ export function CreateAppForm({ onSuccess }: CreateAppFormProps = {}) {
             // Validate organization (only if not in org context)
             if (!isInOrgContext) {
               if (!org.value || org.value.trim().length === 0) {
-                setOrg({ value: org.value, error: "Organization is required" });
+                setOrg({ value: org.value, error: "Project is required" });
                 return;
               }
               

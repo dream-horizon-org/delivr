@@ -315,7 +315,8 @@ export interface RegressionSlotTimelineProps {
   targetReleaseDate: string;
 }
 
-export interface RegressionSlotCardProps {
+// This interface is deprecated - use the one below
+export interface RegressionSlotCardPropsOld {
   slot: RegressionSlot;
   index: number;
   onEdit: () => void;
@@ -382,7 +383,7 @@ export interface RegressionSlotCardProps {
   targetReleaseOffset: number;
   targetReleaseTime: string;
   kickoffTime: string;
-  disabled?: boolean; // Disable edit/delete actions (for post-kickoff edit mode)
+  allSlots?: RegressionSlot[]; // All slots for duplicate and chronological validation
 }
 
 // ============================================================================

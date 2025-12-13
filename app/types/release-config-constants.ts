@@ -37,6 +37,7 @@ export const BUILD_ENVIRONMENTS = {
   PRE_REGRESSION: 'PRE_REGRESSION',
   REGRESSION: 'REGRESSION',
   TESTFLIGHT: 'TESTFLIGHT',
+  AAB_BUILD: 'AAB_BUILD',
 } as const;
 
 export type BuildEnvironmentValue = typeof BUILD_ENVIRONMENTS[keyof typeof BUILD_ENVIRONMENTS];

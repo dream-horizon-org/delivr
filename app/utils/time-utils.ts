@@ -28,5 +28,101 @@ export function timeToMinutes(time: string | undefined): number {
   return hours * 60 + minutes;
 }
 
+/**
+ * Add hours to a time string
+ * 
+ * @param time - Time string in HH:MM format (e.g., '09:30')
+ * @param hoursToAdd - Number of hours to add (can be negative)
+ * @returns New time string in HH:MM format
+ * 
+ * @example
+ * addHoursToTime('09:30', 6) // returns '15:30'
+ * addHoursToTime('20:00', 6) // returns '02:00' (wraps to next day)
+ */
+export function addHoursToTime(time: string, hoursToAdd: number): string {
+  if (!time) return '00:00';
+  const [hours, minutes] = time.split(':').map(Number);
+  
+  if (isNaN(hours) || isNaN(minutes)) {
+    return '00:00';
+  }
+  
+  let newHours = hours + hoursToAdd;
+  // Handle day overflow (24-hour format)
+  if (newHours >= 24) {
+    newHours = newHours % 24;
+  } else if (newHours < 0) {
+    newHours = 24 + (newHours % 24);
+  }
+  
+  return `${newHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Normalize time string to HH:MM format (removes AM/PM)
+ * Exported so it can be used in components
+ */
+export function normalizeTime(time: string): string {
+  if (!time) return '00:00';
+  // Remove AM/PM and trim
+  let normalized = time.replace(/AM|PM/gi, '').trim();
+  
+  // If it has AM/PM, convert to 24-hour format
+  const isPM = /PM/i.test(time);
+  const isAM = /AM/i.test(time);
+  
+  if (isPM || isAM) {
+    const [hours, minutes = '00'] = normalized.split(':');
+    let hour24 = parseInt(hours, 10);
+    if (isPM && hour24 !== 12) hour24 += 12;
+    if (isAM && hour24 === 12) hour24 = 0;
+    normalized = `${hour24.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+  }
+  
+  // Ensure format is HH:MM
+  if (!normalized.includes(':')) {
+    return '00:00';
+  }
+  
+  return normalized;
+}
+
+/**
+ * Calculate next slot time (6 hours after the last slot)
+ * If no slots exist, returns default time
+ * 
+ * @param lastSlot - Last slot in the list (optional)
+ * @param defaultOffsetDays - Default days offset if no slots exist
+ * @param defaultTime - Default time if no slots exist
+ * @returns Object with offsetDays and time for the next slot
+ */
+export function calculateNextSlotTime(
+  lastSlot: { regressionSlotOffsetFromKickoff: number; time: string } | undefined,
+  defaultOffsetDays: number,
+  defaultTime: string
+): { offsetDays: number; time: string } {
+  if (!lastSlot) {
+    return { offsetDays: defaultOffsetDays, time: normalizeTime(defaultTime) };
+  }
+  
+  // Normalize the last slot time first
+  const normalizedLastTime = normalizeTime(lastSlot.time);
+  
+  // Add 6 hours to the last slot time
+  const nextTime = addHoursToTime(normalizedLastTime, 6);
+  
+  // If time wraps to next day (e.g., 20:00 + 6 = 02:00), increment day offset
+  const lastSlotMinutes = timeToMinutes(normalizedLastTime);
+  const nextSlotMinutes = timeToMinutes(nextTime);
+  
+  let nextOffsetDays = lastSlot.regressionSlotOffsetFromKickoff;
+  if (nextSlotMinutes < lastSlotMinutes) {
+    // Time wrapped to next day (e.g., 22:00 + 6 = 04:00)
+    nextOffsetDays += 1;
+  }
+  
+  return { offsetDays: nextOffsetDays, time: nextTime };
+}
+
 
 

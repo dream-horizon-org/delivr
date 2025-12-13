@@ -279,7 +279,7 @@ export interface ReleaseConfiguration {
   projectManagementConfig: ProjectManagementConfig;
 
   // Scheduling (Optional - for release train automation)
-  scheduling?: SchedulingConfig;
+  releaseSchedule?: SchedulingConfig;
 
   // Communication / Slack (field name matches backend POST/GET - with Config suffix)
   communicationConfig: CommunicationConfig;

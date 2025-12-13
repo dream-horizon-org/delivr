@@ -4,7 +4,7 @@
  */
 
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
-import { useLoaderData, useNavigate, useNavigation } from '@remix-run/react';
+import { useLoaderData, useNavigate, useNavigation, Link } from '@remix-run/react';
 import { useState, useEffect, useMemo } from 'react';
 import { apiGet, getApiErrorMessage } from '~/utils/api-client';
 import { ConfigurationWizard } from '~/components/ReleaseConfig/Wizard/ConfigurationWizard';
@@ -12,8 +12,26 @@ import { DraftReleaseDialog } from '~/components/ReleaseConfig/DraftReleaseDialo
 import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storage';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
-import { Loader, Center, Stack, Text } from '@mantine/core';
-import { ConfigurationLoadError } from '~/components/Releases/ConfigurationLoadError';
+import {
+  Box,
+  Center,
+  Stack,
+  Text,
+  ThemeIcon,
+  Button,
+  Skeleton,
+  Paper,
+  Breadcrumbs,
+  Anchor,
+  Group,
+  useMantineTheme,
+} from '@mantine/core';
+import {
+  IconSettings,
+  IconAlertCircle,
+  IconArrowLeft,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { transformFromBackend } from '~/.server/services/ReleaseConfig/release-config-payload';
 import { requireUserId } from '~/.server/services/Auth';
 
@@ -46,11 +64,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           }
         }
       );
-
+      
       if (result.data) {
-        // Transform API response to UI format
-        // API returns nested configs (testManagementConfig, commsConfig, projectManagementConfig)
-        // UI expects transformed format (testManagement, communication, projectManagement)
         const currentUserId = await requireUserId(request);
         existingConfig = await transformFromBackend(result.data, currentUserId) as ReleaseConfiguration;
         
@@ -59,7 +74,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           existingConfig = {
             ...existingConfig,
             tenantId: existingConfig.tenantId || org,
-            id: '', // Will be generated on save
+            id: '',
             name: `${existingConfig.name} (Copy)`,
             isDefault: false,
             status: 'DRAFT' as any,
@@ -103,15 +118,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     const config: ReleaseConfiguration = JSON.parse(configJson);
     
-    // TODO: Save configuration to server via API
-    // const result = await saveReleaseConfiguration(org, config);
-    
-    console.log('[Release Config] Saving configuration:', config);
-    console.log('[Release Config] ReturnTo:', returnTo);
-    
-    // For now, just simulate success
-    // In production, this would call the backend API
-    
     // Redirect based on returnTo parameter
     if (returnTo === 'create') {
       return redirect(`/dashboard/${org}/releases/create?returnTo=config`);
@@ -128,12 +134,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function ReleasesConfigurePage() {
+  const theme = useMantineTheme();
   const { organizationId, existingConfig, isEditMode, isCloneMode, forceNew, returnTo, fetchError } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();
-
-  
   
   // Show loading state during navigation
   const isLoading = navigation.state === 'loading';
@@ -177,29 +182,21 @@ export default function ReleasesConfigurePage() {
   
   // Check for draft on mount (ONLY for NEW configs, NOT in edit mode)
   useEffect(() => {
-    // Edit mode: Never check for drafts (separate flow)
-    if (isEditMode) {
-      return;
-    }
+    if (isEditMode) return;
     
-    // Force new: Skip draft dialog and start fresh (without deleting old draft)
-    // Old draft will remain accessible until user saves progress on new config
     if (forceNew) {
-      setShouldSkipDraft(true); // ✅ Set flag to skip draft loading in wizard
+      clearDraftConfig(organizationId);
       return;
     }
     
-    // New config mode: Check if there's a draft to resume
-      const draft = loadDraftConfig(organizationId);
-      if (draft && draft.name) {
-        setDraftConfig(draft);
-        setShowDraftDialog(true);
+    const draft = loadDraftConfig(organizationId);
+    if (draft && draft.name) {
+      setDraftConfig(draft);
+      setShowDraftDialog(true);
     }
   }, [organizationId, isEditMode, forceNew]);
   
   const handleSubmit = async (config: ReleaseConfiguration) => {
-    // The wizard already handles API submission directly
-    // Navigate based on returnTo parameter
     if (returnTo === 'create') {
       navigate(`/dashboard/${organizationId}/releases/create?returnTo=config`);
     } else {
@@ -208,7 +205,6 @@ export default function ReleasesConfigurePage() {
   };
   
   const handleCancel = () => {
-    // Navigate back to where user came from
     if (returnTo === 'create') {
       navigate(`/dashboard/${organizationId}/releases/create`);
     } else {
@@ -222,42 +218,104 @@ export default function ReleasesConfigurePage() {
   };
   
   const handleStartNew = () => {
-    // Delete the existing draft from localStorage
     clearDraftConfig(organizationId);
-    
     setUseDraft(false);
     setShouldSkipDraft(true); // ✅ Set flag BEFORE hiding dialog to prevent draft loading
     setShowDraftDialog(false);
-    // Reload page with ?new=true to ensure fresh start
     navigate(`/dashboard/${organizationId}/releases/configure?new=true`, { replace: true });
   };
   
   const handleCloseDraftDialog = () => {
-    // User clicked "Cancel" - navigate back to where they came from
-    if (returnTo === 'create') {
-      navigate(`/dashboard/${organizationId}/releases/create`);
-    } else {
-      navigate(`/dashboard/${organizationId}/releases/settings?tab=configurations`);
-    }
+    setShowDraftDialog(false);
+    setUseDraft(true);
   };
+
+  // Breadcrumb items
+  const breadcrumbItems = [
+    { title: 'Release Management', href: `/dashboard/${organizationId}/releases` },
+    { title: 'Configuration', href: `/dashboard/${organizationId}/releases/settings?tab=configurations` },
+    { title: isEditMode ? 'Edit' : isCloneMode ? 'Clone' : 'New', href: '#' },
+  ].map((item, index) => (
+    item.href === '#' ? (
+      <Text key={index} size="sm" c={theme.colors.slate[6]}>
+        {item.title}
+      </Text>
+    ) : (
+      <Anchor
+        key={index}
+        component={Link}
+        to={item.href}
+        size="sm"
+        c={theme.colors.slate[5]}
+      >
+        {item.title}
+      </Anchor>
+    )
+  ));
   
   // Show loading state
   if (isLoading) {
     return (
-      <Center className="min-h-screen bg-gray-50">
-        <Stack align="center" gap="md">
-          <Loader size="xl" />
-          <Text size="lg" c="dimmed">
-            {isEditMode ? 'Loading configuration...' : isCloneMode ? 'Cloning configuration...' : 'Loading...'}
-          </Text>
-        </Stack>
-      </Center>
+      <Box p={32}>
+        <Skeleton height={16} width={250} mb={24} />
+        <Group gap="lg">
+          <Box w={280}>
+            <Skeleton height={400} radius="md" />
+          </Box>
+          <Box style={{ flex: 1 }}>
+            <Skeleton height={48} width={300} mb={16} />
+            <Skeleton height={24} width={200} mb={32} />
+            <Stack gap="md">
+              <Skeleton height={56} />
+              <Skeleton height={100} />
+              <Skeleton height={56} />
+            </Stack>
+          </Box>
+        </Group>
+      </Box>
     );
   }
   
   // Show error if failed to load config in edit mode
   if (fetchError && (isEditMode || isCloneMode)) {
-    return <ConfigurationLoadError error={fetchError} organizationId={organizationId} />;
+    return (
+      <Box p={32}>
+        <Breadcrumbs mb={24}>{breadcrumbItems}</Breadcrumbs>
+        
+        <Center py={80}>
+          <Stack align="center" gap="lg" maw={450}>
+            <ThemeIcon size={80} radius="xl" variant="light" color="red">
+              <IconAlertCircle size={40} />
+            </ThemeIcon>
+            <Box ta="center">
+              <Text size="xl" fw={600} c={theme.colors.slate[8]} mb={8}>
+                Failed to Load Configuration
+              </Text>
+              <Text size="sm" c={theme.colors.slate[5]} mb={24}>
+                {fetchError}
+              </Text>
+            </Box>
+            <Group gap="md">
+              <Button
+                variant="default"
+                leftSection={<IconArrowLeft size={16} />}
+                component={Link}
+                to={`/dashboard/${organizationId}/releases/settings?tab=configurations`}
+              >
+                Back to Configurations
+              </Button>
+              <Button
+                color="brand"
+                leftSection={<IconRefresh size={16} />}
+                onClick={() => window.location.reload()}
+              >
+                Try Again
+              </Button>
+            </Group>
+          </Stack>
+        </Center>
+      </Box>
+    );
   }
   
   // Don't render wizard until draft decision is made
@@ -274,17 +332,16 @@ export default function ReleasesConfigurePage() {
   }
   
   return (
-    <ConfigurationWizard
-      key={`wizard-${shouldSkipDraft ? 'fresh' : 'draft'}`} // ✅ Force remount when switching modes
-      tenantId={organizationId}
-      onSubmit={handleSubmit}
-      onCancel={handleCancel}
-      availableIntegrations={availableIntegrations}
-      existingConfig={existingConfig}
-      isEditMode={isEditMode}
-      returnTo={returnTo}
-      skipDraftLoading={shouldSkipDraft} // ✅ Use state flag instead of forceNew to prevent race conditions
-    />
+    <Box>
+      <ConfigurationWizard
+        tenantId={organizationId}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        availableIntegrations={availableIntegrations}
+        existingConfig={existingConfig}
+        isEditMode={isEditMode}
+        returnTo={returnTo}
+      />
+    </Box>
   );
 }
-

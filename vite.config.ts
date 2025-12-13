@@ -26,6 +26,13 @@ export default defineConfig({
     ],
   },
   server: {
-    port: 3000,
+    port: parseInt(process.env.PORT ?? '3000', 10),
+  },
+  ssr: {
+    // Fix for @tabler/icons-react CommonJS module
+    noExternal: ['@tabler/icons-react'],
+  },
+  optimizeDeps: {
+    include: ['@tabler/icons-react'],
   },
 });

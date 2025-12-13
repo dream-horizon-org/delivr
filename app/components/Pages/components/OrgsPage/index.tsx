@@ -3,17 +3,27 @@ import {
   Text,
   Skeleton,
   Box,
-  Container,
   SimpleGrid,
   Stack,
   Center,
-  useMantineTheme,
-  Card,
-  Badge,
   Group,
   Modal,
+  Paper,
+  Badge,
+  Button,
+  ThemeIcon,
+  useMantineTheme,
 } from "@mantine/core";
-import { IconPlus, IconCode, IconRocket } from "@tabler/icons-react";
+import { 
+  IconPlus, 
+  IconBuildingSkyscraper,
+  IconChartBar,
+  IconCloud,
+  IconTerminal2,
+  IconGitBranch,
+  IconSparkles,
+  IconRefresh,
+} from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
 import { route } from "routes-gen";
 import { useGetOrgList } from "../OrgListNavbar/hooks/useGetOrgList";
@@ -25,6 +35,86 @@ import { CreateOrgModal } from "./components/CreateOrgModal";
 import { ACTION_EVENTS, actions } from "~/utils/event-emitter";
 import { DeleteModal, type DeleteModalData } from "~/components/Common/DeleteModal";
 
+// Consistent spacing values
+const HEADER_PY = 24;
+const HEADER_PX = 32;
+const CONTENT_PY = 32;
+const CONTENT_PX = 32;
+
+// Vibrant Feature Card
+function FeatureCard({ 
+  icon: Icon, 
+  title, 
+  description,
+  tag,
+  color,
+  gradient
+}: { 
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  tag: string;
+  color: string;
+  gradient: string;
+}) {
+  return (
+    <Paper
+      p="lg"
+      radius="md"
+      style={{
+        background: `linear-gradient(145deg, #fff 0%, ${gradient} 100%)`,
+        border: '1px solid rgba(0,0,0,0.06)',
+        transition: 'all 0.2s ease',
+      }}
+      styles={{
+        root: {
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 8px 24px -8px rgba(0,0,0,0.1)',
+          },
+        },
+      }}
+    >
+      <Group justify="space-between" mb="md" align="flex-start">
+        <Box
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+          }}
+        >
+          <Icon size={20} color="white" stroke={2} />
+        </Box>
+        <Badge 
+          size="xs" 
+          variant="light" 
+          color="gray"
+          bg="white"
+          radius="sm"
+          fw={600}
+          c="dimmed"
+          style={{ border: '1px solid rgba(0,0,0,0.06)' }}
+        >
+          {tag}
+        </Badge>
+      </Group>
+      
+      <Text fw={600} size="md" c="dark.9" mb={6}>
+        {title}
+      </Text>
+      
+      <Text size="sm" c="dimmed" lh={1.5}>
+        {description}
+      </Text>
+    </Paper>
+  );
+}
+
 export function OrgsPage() {
   const theme = useMantineTheme();
   const navigate = useNavigate();
@@ -32,119 +122,149 @@ export function OrgsPage() {
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
 
-  // Listen for refetch events
   useEffect(() => {
-    const handleRefetch = () => {
-      refetch();
-    };
-
+    const handleRefetch = () => refetch();
     actions.add(ACTION_EVENTS.REFETCH_ORGS, handleRefetch);
   }, [refetch]);
 
-  // Show intro page if no organizations exist
+  // Theme colors
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
+  const bgColor = theme.colors?.slate?.[0] || '#f8fafc';
+
+  // Show intro page if no projects exist
   if (!isLoading && !isError && (!data || data.length === 0)) {
     return <Intro />;
   }
 
+  // Loading State
   if (isLoading) {
     return (
-      <Container size="xl">
-        <Stack gap="xl" align="center">
-          <Box style={{ textAlign: "center", width: "100%", marginTop: theme.other.spacing["4xl"] }}>
-            <Skeleton height={48} width={300} mx="auto" mb="md" />
-            <Skeleton height={24} width={500} mx="auto" mb="lg" />
-            <Skeleton height={44} width={220} mx="auto" />
-          </Box>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="xl" style={{ width: "100%" }}>
-            {Array(6)
-              .fill(0)
-              .map((_, index) => (
-                <Skeleton key={index} height={280} radius="md" />
-              ))}
+      <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
+        {/* Header Skeleton */}
+        <Box 
+          style={{ 
+            borderBottom: `1px solid ${borderColor}`,
+            backgroundColor: 'white',
+          }} 
+          py={HEADER_PY} 
+          px={HEADER_PX}
+        >
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <Skeleton height={32} width={160} radius="sm" />
+              <Skeleton height={24} width={32} radius="sm" />
+            </Group>
+            <Skeleton height={36} width={160} radius="md" />
+          </Group>
+        </Box>
+        {/* Content Skeleton */}
+        <Box py={CONTENT_PY} px={CONTENT_PX}>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={20}>
+            {Array(8).fill(0).map((_, i) => (
+              <Skeleton key={i} height={160} radius="md" />
+            ))}
           </SimpleGrid>
-        </Stack>
-      </Container>
+        </Box>
+      </Box>
     );
   }
 
+  // Error State
   if (isError) {
     return (
-      <Container size="xl">
-        <Center style={{ minHeight: "400px" }}>
-          <Stack gap="md" align="center">
-            <Title order={2} c="gray.7">
-              Organizations
-            </Title>
-            <Text c="red" size="lg">
-              Something went wrong while loading organizations!
-            </Text>
+      <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
+        {/* Header */}
+        <Box 
+          style={{ 
+            borderBottom: `1px solid ${borderColor}`,
+            backgroundColor: 'white',
+          }} 
+          py={HEADER_PY} 
+          px={HEADER_PX}
+        >
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <Title order={2} c="dark.9" fw={700}>Projects</Title>
+            </Group>
+          </Group>
+        </Box>
+        {/* Error Content */}
+        <Center py={120}>
+          <Stack align="center" gap="lg">
+            <ThemeIcon size={64} radius="md" color="red" variant="light">
+              <IconBuildingSkyscraper size={32} />
+            </ThemeIcon>
+            <Stack gap={4} align="center">
+              <Text fw={600} size="lg" c="dark.9">Unable to load projects</Text>
+              <Text c="dimmed" size="sm">There was a problem connecting to the server.</Text>
+            </Stack>
+            <Button 
+              onClick={() => refetch()} 
+              variant="light"
+              leftSection={<IconRefresh size={16} />}
+            >
+              Try Again
+            </Button>
           </Stack>
         </Center>
-      </Container>
+      </Box>
     );
   }
 
+  // Success State
   return (
-    <Container size="xl" py="md">
-      <Stack gap="lg">
-        <Box style={{ marginTop: theme.other.spacing.xl, marginBottom: theme.other.spacing.md }}>
-          <Badge
-            size="lg"
-            radius="md"
-            variant="light"
-            mb="md"
-            style={{
-              backgroundColor: theme.other.brand.light,
-              color: theme.other.brand.primaryDark,
-              fontSize: theme.other.typography.fontSize.sm,
-              fontWeight: theme.other.typography.fontWeight.bold,
-              letterSpacing: theme.other.typography.letterSpacing.wide,
-              textTransform: "uppercase",
-            }}
-          >
-            Over The Air Updates
-          </Badge>
-          
-          <Group justify="space-between" align="center" mb="xs">
-            <Title 
-              order={3} 
-              fw={theme.other.typography.fontWeight.semibold}
-              c={theme.other.text.primary}
-            >
-              Organizations
-            </Title>
+    <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
+      {/* Header */}
+      <Box
+        style={{
+          borderBottom: `1px solid ${borderColor}`,
+          backgroundColor: 'white',
+        }}
+      >
+        <Box py={HEADER_PY} px={HEADER_PX}>
+          <Group justify="space-between" align="center">
+            <Group gap="md">
+              <Title order={2} c="dark.9" fw={700}>
+                Projects
+              </Title>
+              <Badge 
+                size="lg" 
+                variant="filled" 
+                color="dark" 
+                radius="sm"
+                fw={600}
+              >
+                {data?.length || 0}
+              </Badge>
+            </Group>
+            
             <CTAButton
-              leftSection={<IconPlus size={theme.other.sizes.icon.lg} />}
+              leftSection={<IconPlus size={16} />}
               onClick={() => setCreateOrgOpen(true)}
+              size="sm"
             >
-              Create Organization
+              New Project
             </CTAButton>
           </Group>
-          
-          <Text size="sm" c={theme.other.text.tertiary}>
-            Manage over-the-air updates for your applications
-          </Text>
         </Box>
+      </Box>
 
-        <Box>
+      {/* Main Content */}
+      <Box py={CONTENT_PY} px={CONTENT_PX}>
+        
+        {/* Organizations Grid */}
+        <Box mb={64}>
           <SimpleGrid 
-            cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} 
-            spacing="xl"
-            style={{ 
-              maxWidth: "1400px",
-              margin: "0 auto",
-            }}
+            cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4, xl: 5 }} 
+            spacing={20}
+            verticalSpacing={20}
           >
             {data?.map((org) => (
               <OrgCard
                 key={org.id}
                 org={org}
                 onNavigate={() => {
-                  navigate(
-                    route("/dashboard/:org/apps", {
-                      org: org.id,
-                    })
-                  );
+                  navigate(route("/dashboard/:org/apps", { org: org.id }));
                 }}
                 onDelete={() => {
                   setDeleteModalData({
@@ -158,268 +278,63 @@ export function OrgsPage() {
           </SimpleGrid>
         </Box>
 
-        {/* Coming Soon Section */}
-        <Box 
-          style={{ 
-            marginTop: theme.other.spacing["4xl"],
-            padding: theme.other.spacing.xl,
-            borderRadius: theme.other.borderRadius.lg,
-            background: theme.other.backgrounds.secondary,
-            border: `1px solid ${theme.other.borders.primary}`,
-          }}
-        >
-          <Badge
-            size="lg"
-            radius="md"
-            variant="gradient"
-            gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
-            mb="sm"
-            style={{
-              fontSize: theme.other.typography.fontSize.sm,
-              fontWeight: theme.other.typography.fontWeight.bold,
-              letterSpacing: theme.other.typography.letterSpacing.wide,
-              textTransform: "uppercase",
-            }}
-          >
-            Coming Soon
-          </Badge>
-          <Title 
-            order={3} 
-            fw={theme.other.typography.fontWeight.semibold}
-            mb="xs"
-            c={theme.other.text.primary}
-          >
-            New Features In Development
-          </Title>
-          <Text size="sm" c={theme.other.text.tertiary} mb="md">
-            Advanced build automation and release orchestration coming soon
-          </Text>
-
-          <SimpleGrid 
-            cols={{ base: 1, sm: 2 }} 
-            spacing="lg"
-          >
-            {/* Build Management Card */}
-            <Card
-              withBorder
-              padding={0}
-              radius="lg"
-              style={{
-                borderColor: theme.other.borders.brand,
-                backgroundColor: theme.other.backgrounds.primary,
-                overflow: "hidden",
-                position: "relative",
-                boxShadow: theme.other.shadows.md,
-              }}
-            >
-              <Box
-                style={{
-                  background: `linear-gradient(135deg, ${theme.other.brand.primary}33 0%, ${theme.other.brand.secondary}33 100%)`,
-                  padding: theme.other.spacing.lg,
-                  height: "120px",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Badge
-                  variant="filled"
-                  size="sm"
-                  radius="sm"
-                  style={{
-                    textTransform: "uppercase",
-                    fontSize: theme.other.typography.fontSize.xs,
-                    fontWeight: theme.other.typography.fontWeight.semibold,
-                    letterSpacing: theme.other.typography.letterSpacing.wide,
-                    backgroundColor: theme.other.brand.primary,
-                    color: theme.other.text.white,
-                  }}
-                >
-                  Coming Soon
-                </Badge>
-              </Box>
-
-              <Box
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: "-40px",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                <Box
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    borderRadius: theme.other.borderRadius.xl,
-                    background: theme.other.backgrounds.primary,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: `4px solid ${theme.other.backgrounds.primary}`,
-                    boxShadow: theme.other.shadows.lg,
-                  }}
-                >
-                  <Box
-                    style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: theme.other.borderRadius.lg,
-                      background: `${theme.other.brand.primary}22`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <IconCode 
-                      size={theme.other.sizes.icon["3xl"]} 
-                      color={theme.other.brand.primary}
-                      stroke={1.5}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-
-              <Stack gap="xs" style={{ padding: theme.other.spacing.lg, paddingTop: theme.other.spacing.md }}>
-                <Text
-                  ta="center"
-                  size="lg"
-                  fw={theme.other.typography.fontWeight.semibold}
-                  style={{
-                    color: theme.other.text.primary,
-                  }}
-                >
-                  Build Management
-                </Text>
-
-                <Text 
-                  ta="center" 
-                  size="sm" 
-                  c="dimmed"
-                  fw={theme.other.typography.fontWeight.medium}
-                  style={{ minHeight: "60px" }}
-                >
-                  Automate your build pipeline with integrated CI/CD workflows and version control
-                </Text>
-              </Stack>
-            </Card>
-
-            {/* Release Management Card */}
-            <Card
-              withBorder
-              padding={0}
-              radius="lg"
-              style={{
-                borderColor: theme.other.borders.brand,
-                backgroundColor: theme.other.backgrounds.primary,
-                overflow: "hidden",
-                position: "relative",
-                boxShadow: theme.other.shadows.md,
-              }}
-            >
-              <Box
-                style={{
-                  background: `linear-gradient(135deg, ${theme.other.brand.secondary}33 0%, ${theme.other.brand.tertiary}33 100%)`,
-                  padding: theme.other.spacing.lg,
-                  height: "120px",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Badge
-                  variant="filled"
-                  size="sm"
-                  radius="sm"
-                  style={{
-                    textTransform: "uppercase",
-                    fontSize: theme.other.typography.fontSize.xs,
-                    fontWeight: theme.other.typography.fontWeight.semibold,
-                    letterSpacing: theme.other.typography.letterSpacing.wide,
-                    backgroundColor: theme.other.brand.secondary,
-                    color: theme.other.text.white,
-                  }}
-                >
-                  Coming Soon
-                </Badge>
-              </Box>
-
-              <Box
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: "-40px",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                <Box
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    borderRadius: theme.other.borderRadius.xl,
-                    background: theme.other.backgrounds.primary,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: `4px solid ${theme.other.backgrounds.primary}`,
-                    boxShadow: theme.other.shadows.lg,
-                  }}
-                >
-                  <Box
-                    style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: theme.other.borderRadius.lg,
-                      background: `${theme.other.brand.secondary}22`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <IconRocket 
-                      size={theme.other.sizes.icon["3xl"]} 
-                      color={theme.other.brand.secondary}
-                      stroke={1.5}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-
-              <Stack gap="xs" style={{ padding: theme.other.spacing.lg, paddingTop: theme.other.spacing.md }}>
-                <Text
-                  ta="center"
-                  size="lg"
-                  fw={theme.other.typography.fontWeight.semibold}
-                  style={{
-                    color: theme.other.text.primary,
-                  }}
-                >
-                  Release Management
-                </Text>
-
-                <Text 
-                  ta="center" 
-                  size="sm" 
-                  c="dimmed"
-                  fw={theme.other.typography.fontWeight.medium}
-                  style={{ minHeight: "60px" }}
-                >
-                  Advanced release orchestration with staged rollouts and automated approvals
-                </Text>
-              </Stack>
-            </Card>
+        {/* Roadmap Section */}
+        <Box>
+          <Group mb="lg" align="center" gap="sm">
+             <IconSparkles size={18} color={theme.colors?.brand?.[5] || '#14b8a6'} />
+             <Title order={4} c="dark.8" fw={700}>
+              Platform Roadmap
+             </Title>
+             <Badge variant="light" color="brand" radius="sm" size="sm">COMING SOON</Badge>
+          </Group>
+          
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing={20}>
+            <FeatureCard
+              icon={IconTerminal2}
+              title="CLI Integration"
+              description="Deploy and manage releases directly from your CI pipeline."
+              tag="DEV TOOLS"
+              color="#0f172a"
+              gradient="#f8fafc"
+            />
+            <FeatureCard
+              icon={IconGitBranch}
+              title="Advanced Rollouts"
+              description="Percentage-based rollouts and staged releases."
+              tag="RELEASE"
+              color="#0d9488"
+              gradient="#f0fdfa"
+            />
+            <FeatureCard
+              icon={IconChartBar}
+              title="Crash Analytics"
+              description="Real-time stability monitoring and reporting."
+              tag="OBSERVABILITY"
+              color="#6366f1"
+              gradient="#eef2ff"
+            />
+            <FeatureCard
+              icon={IconCloud}
+              title="Multi-region"
+              description="Global edge caching for faster update delivery."
+              tag="INFRA"
+              color="#0ea5e9"
+              gradient="#f0f9ff"
+            />
           </SimpleGrid>
         </Box>
-      </Stack>
+      </Box>
 
-      {/* Create Organization Modal */}
+      {/* Create Project Modal */}
       <Modal
         opened={createOrgOpen}
         onClose={() => setCreateOrgOpen(false)}
-        title="Create Organization"
+        title={<Text fw={600} size="md">Create Project</Text>}
         centered
+        size="sm"
+        padding="lg"
+        radius="md"
+        overlayProps={{ backgroundOpacity: 0.2, blur: 2 }}
       >
         <CreateOrgModal
           onSuccess={() => {
@@ -429,16 +344,13 @@ export function OrgsPage() {
         />
       </Modal>
 
-      {/* Delete Organization Modal */}
+      {/* Delete Modal */}
       <DeleteModal
         opened={!!deleteModalData}
         onClose={() => setDeleteModalData(null)}
         data={deleteModalData}
-        onSuccess={() => {
-                      refetch();
-        }}
+        onSuccess={() => refetch()}
       />
-    </Container>
+    </Box>
   );
 }
-

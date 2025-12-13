@@ -1,7 +1,29 @@
 import { useState } from 'react';
-import { Modal, Badge, Button, Group, Divider, Loader } from '@mantine/core';
+import { 
+  Modal, 
+  Badge, 
+  Button, 
+  Group, 
+  Loader, 
+  Box, 
+  Text, 
+  Stack,
+  ThemeIcon,
+  Divider,
+  useMantineTheme,
+} from '@mantine/core';
+import { 
+  IconCheck, 
+  IconAlertTriangle, 
+  IconTrash, 
+  IconPencil,
+  IconX,
+  IconExternalLink,
+  IconCalendar,
+  IconUser,
+  IconRefresh,
+} from '@tabler/icons-react';
 import type { IntegrationDetails } from '~/types/integrations';
-import { IntegrationStatus } from '~/types/integrations';
 import { IntegrationIcon } from './IntegrationIcon';
 import { DISCONNECT_CONFIG, INTEGRATION_STATUS_VALUES } from '~/constants/integrations';
 import { ConfirmationModal } from '../Common/ConfirmationModal';
@@ -14,7 +36,7 @@ interface IntegrationDetailModalProps {
   integration: IntegrationDetails | null;
   opened: boolean;
   onClose: () => void;
-  onDisconnectComplete: () => void; // Callback after successful disconnect
+  onDisconnectComplete: () => void;
   onEdit?: (integrationId: string) => void;
   tenantId: string;
 }
@@ -27,31 +49,26 @@ export function IntegrationDetailModal({
   onEdit,
   tenantId
 }: IntegrationDetailModalProps) {
+  const theme = useMantineTheme();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
   
   if (!integration) return null;
 
+  const isConnected = integration.status === INTEGRATION_STATUS_VALUES.CONNECTED;
+
   const handleDisconnectClick = () => {
     const integrationId = integration?.id;
     if (!integrationId) return;
 
-    // Normalize integration ID to lowercase for matching with DISCONNECT_CONFIG
     const normalizedId = integrationId.toLowerCase();
-    
-    console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration ID:`, integrationId);
-    console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Normalized ID:`, normalizedId);
-    console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Available configs:`, Object.keys(DISCONNECT_CONFIG));
-
-    // Check if integration has disconnect config
     const config = DISCONNECT_CONFIG[normalizedId];
+    
     if (!config) {
-      console.error(`${DEBUG_LABELS.CONNECTION_PREFIX} No config found for integration ID:`, normalizedId);
       showWarningToast(INTEGRATION_MESSAGES.DISCONNECT_NOT_IMPLEMENTED(integration.name));
       return;
     }
 
-    // Show confirmation modal
     setShowConfirmDisconnect(true);
   };
 
@@ -60,7 +77,6 @@ export function IntegrationDetailModal({
 
     const integrationId = integration.id;
     const integrationName = integration.name;
-    // Normalize integration ID to lowercase for matching with DISCONNECT_CONFIG
     const normalizedId = integrationId.toLowerCase();
     const config = DISCONNECT_CONFIG[normalizedId];
 
@@ -69,29 +85,19 @@ export function IntegrationDetailModal({
     setIsDisconnecting(true);
 
     try {
-      // Get the endpoint URL
       const endpoint = config.endpoint(tenantId, integration.config);
-      console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Disconnecting from endpoint:`, endpoint);
-      console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} TenantId being used:`, tenantId);
-      console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Integration config:`, integration.config);
       
-      // For CI/CD integrations (Jenkins, GitHub Actions), pass integrationId in body
       const needsIntegrationIdInBody = ['jenkins', 'github_actions'].includes(normalizedId);
       const requestBody = needsIntegrationIdInBody && integration.config?.id
         ? { integrationId: integration.config.id }
         : undefined;
       
-      if (requestBody) {
-        console.log(`${DEBUG_LABELS.CONNECTION_PREFIX} Sending DELETE with body:`, requestBody);
-      }
-      
-      // Make DELETE request using API client
       await apiDelete(endpoint, requestBody);
 
       showSuccessToast(INTEGRATION_MESSAGES.DISCONNECT_SUCCESS(integrationName));
       setShowConfirmDisconnect(false);
       onClose();
-      onDisconnectComplete(); // Notify parent that disconnect is complete
+      onDisconnectComplete();
     } catch (error) {
       // Handle 404 errors gracefully - the integration doesn't exist in the backend
       // This can happen when tenant config is out of sync with the actual integrations table
@@ -116,345 +122,372 @@ export function IntegrationDetailModal({
 
   const formatDate = (date?: Date) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleString();
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
+  // Build config items to display
+  const getConfigItems = () => {
+    const items: { label: string; value: string | React.ReactNode }[] = [];
+    const config = integration.config;
+
+    if (!config) return items;
+
+    // GitHub/SCM
+    if (config.owner && config.repo) {
+      items.push({
+        label: 'Repository',
+        value: (
+          <Group gap={4}>
+            <Text size="sm" fw={500} ff="monospace">
+              {config.owner}/{config.repo}
+            </Text>
+            {config.repositoryUrl && (
+              <a 
+                href={config.repositoryUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <IconExternalLink size={14} color={theme.colors.brand[5]} />
+              </a>
+            )}
+          </Group>
+        ),
+      });
+    }
+
+    if (config.defaultBranch) {
+      items.push({ label: 'Default Branch', value: config.defaultBranch });
+    }
+
+    // Slack
+    if (config.workspaceName) {
+      items.push({ label: 'Workspace', value: config.workspaceName });
+    }
+
+    if (config.channels?.length > 0) {
+      items.push({
+        label: 'Channels',
+        value: (
+          <Group gap={4}>
+            {config.channels.slice(0, 3).map((channel: any) => (
+              <Badge key={channel.id} size="xs" variant="light" color="brand">
+                #{channel.name}
+              </Badge>
+            ))}
+            {config.channels.length > 3 && (
+              <Badge size="xs" variant="outline" color="gray">
+                +{config.channels.length - 3} more
+              </Badge>
+            )}
+          </Group>
+        ),
+      });
+    }
+
+    // Jenkins/CI
+    if (config.displayName) {
+      items.push({ label: 'Display Name', value: config.displayName });
+    }
+
+    if (config.hostUrl) {
+      items.push({
+        label: 'Host URL',
+        value: (
+          <a 
+            href={config.hostUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ color: theme.colors.brand[6], textDecoration: 'none' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {config.hostUrl}
+          </a>
+        ),
+      });
+    }
+
+    if (config.username) {
+      items.push({ label: 'Username', value: config.username });
+    }
+
+    // Jira
+    if (config.baseUrl) {
+      items.push({
+        label: 'Base URL',
+        value: (
+          <a 
+            href={config.baseUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ color: theme.colors.brand[6], textDecoration: 'none' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {config.baseUrl}
+          </a>
+        ),
+      });
+    }
+
+    if (config.email) {
+      items.push({ label: 'Email', value: config.email });
+    }
+
+    if (config.jiraType) {
+      items.push({
+        label: 'Jira Type',
+        value: <Badge size="xs" variant="light">{config.jiraType}</Badge>,
+      });
+    }
+
+    // App Distribution
+    if (config.appIdentifier) {
+      items.push({ 
+        label: 'App Identifier', 
+        value: <Text size="sm" ff="monospace">{config.appIdentifier}</Text>,
+      });
+    }
+
+    if (config.storeType) {
+      items.push({
+        label: 'Store',
+        value: (
+          <Badge size="sm" variant="light">
+            {config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
+          </Badge>
+        ),
+      });
+    }
+
+    if (config.platforms?.length > 0) {
+      items.push({
+        label: 'Platforms',
+        value: (
+          <Group gap={4}>
+            {config.platforms.map((platform: string) => (
+              <Badge key={platform} size="xs" variant="filled" color="brand">
+                {platform}
+              </Badge>
+            ))}
+          </Group>
+        ),
+      });
+    }
+
+    if (config.teamName) {
+      items.push({ label: 'Team Name', value: config.teamName });
+    }
+
+    // Verification status
+    if (config.verificationStatus) {
+      items.push({
+        label: 'Verification',
+        value: (
+          <Badge
+            size="sm"
+            color={config.verificationStatus === 'VALID' ? 'green' : 'yellow'}
+            leftSection={config.verificationStatus === 'VALID' ? <IconCheck size={10} /> : null}
+          >
+            {config.verificationStatus}
+          </Badge>
+        ),
+      });
+    }
+
+    return items;
+  };
+
+  const configItems = getConfigItems();
+
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      centered
-      title={
-        <div className="flex items-center gap-3">
-          <IntegrationIcon name={integration.icon} size={32} className="text-blue-600 dark:text-blue-400" />
-          <div>
-            <h2 className="text-xl font-semibold">{integration.name}</h2>
-            <Badge
-              size="sm"
-              color={integration.status === INTEGRATION_STATUS_VALUES.CONNECTED ? 'green' : 'red'}
+    <>
+      <Modal
+        opened={opened}
+        onClose={onClose}
+        centered
+        size="md"
+        radius="md"
+        title={
+          <Group gap="md">
+            <ThemeIcon 
+              size={44} 
+              radius="md" 
+              variant="light" 
+              color={isConnected ? 'brand' : 'red'}
             >
-              {integration.status === INTEGRATION_STATUS_VALUES.CONNECTED ? 'Connected' : 'Error'}
-            </Badge>
-          </div>
-        </div>
-      }
-      size="lg"
-    >
-      <div className="space-y-4">
-        {/* Description */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-1">Description</h3>
-          <p className="text-sm text-gray-600">{integration.description}</p>
-        </div>
+              <IntegrationIcon name={integration.icon} size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text size="lg" fw={600} c={theme.colors.slate[9]}>
+                {integration.name}
+              </Text>
+              <Badge
+                size="sm"
+                variant={isConnected ? 'light' : 'filled'}
+                color={isConnected ? 'green' : 'red'}
+                leftSection={isConnected ? <IconCheck size={10} /> : <IconAlertTriangle size={10} />}
+              >
+                {isConnected ? 'Connected' : 'Error'}
+              </Badge>
+            </Box>
+          </Group>
+        }
+      >
+        <Stack gap="lg">
+          {/* Description */}
+          {integration.description && (
+            <Text size="sm" c={theme.colors.slate[6]} lh={1.6}>
+              {integration.description}
+            </Text>
+          )}
 
-        <Divider />
+          {/* Configuration Details */}
+          {configItems.length > 0 && (
+            <Box
+              p="md"
+              style={{
+                backgroundColor: theme.colors.slate[0],
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.slate[2]}`,
+              }}
+            >
+              <Text size="xs" fw={600} c={theme.colors.slate[5]} mb="sm" tt="uppercase">
+                Configuration
+              </Text>
+              <Stack gap="sm">
+                {configItems.map((item, index) => (
+                  <Group key={index} justify="space-between" align="flex-start">
+                    <Text size="sm" c={theme.colors.slate[5]}>
+                      {item.label}
+                    </Text>
+                    <Box style={{ textAlign: 'right' }}>
+                      {typeof item.value === 'string' ? (
+                        <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+                          {item.value}
+                        </Text>
+                      ) : (
+                        item.value
+                      )}
+                    </Box>
+                  </Group>
+                ))}
+              </Stack>
+            </Box>
+          )}
 
-        {/* Connection Details */}
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Connection Details</h3>
-          <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
-            {integration.config?.owner && integration.config?.repo && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Repository:</span>
-                <span className="font-medium">
-                  {integration.config.owner}/{integration.config.repo}
-                </span>
-              </div>
-            )}
-            
-            {integration.config?.repositoryUrl && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">URL:</span>
-                <a
-                  href={integration.config.repositoryUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  View on GitHub
-                </a>
-              </div>
-            )}
+          {/* Connection Info */}
+          <Box
+            p="md"
+            style={{
+              backgroundColor: theme.colors.slate[0],
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.slate[2]}`,
+            }}
+          >
+            <Text size="xs" fw={600} c={theme.colors.slate[5]} mb="sm" tt="uppercase">
+              Connection Info
+            </Text>
+            <Stack gap="xs">
+              {integration.connectedAt && (
+                <Group justify="space-between">
+                  <Group gap="xs">
+                    <IconCalendar size={14} color={theme.colors.slate[5]} />
+                    <Text size="sm" c={theme.colors.slate[5]}>Connected</Text>
+                  </Group>
+                  <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+                    {formatDate(integration.connectedAt)}
+                  </Text>
+                </Group>
+              )}
+              {integration.connectedBy && (
+                <Group justify="space-between">
+                  <Group gap="xs">
+                    <IconUser size={14} color={theme.colors.slate[5]} />
+                    <Text size="sm" c={theme.colors.slate[5]}>Connected by</Text>
+                  </Group>
+                  <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+                    {integration.connectedBy}
+                  </Text>
+                </Group>
+              )}
+              {integration.lastSyncedAt && (
+                <Group justify="space-between">
+                  <Group gap="xs">
+                    <IconRefresh size={14} color={theme.colors.slate[5]} />
+                    <Text size="sm" c={theme.colors.slate[5]}>Last synced</Text>
+                  </Group>
+                  <Text size="sm" fw={500} c={theme.colors.slate[8]}>
+                    {formatDate(integration.lastSyncedAt)}
+                  </Text>
+                </Group>
+              )}
+            </Stack>
+          </Box>
 
-            {integration.config?.defaultBranch && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Default Branch:</span>
-                <span className="font-medium">{integration.config.defaultBranch}</span>
-              </div>
-            )}
-
-            {/* Slack-specific configuration */}
-            {integration.config?.workspaceName && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Workspace:</span>
-                <span className="font-medium">{integration.config.workspaceName}</span>
-              </div>
-            )}
-
-            {integration.config?.workspaceId && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Workspace ID:</span>
-                <span className="font-mono text-xs">{integration.config.workspaceId}</span>
-              </div>
-            )}
-
-            {integration.config?.botUserId && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Bot User ID:</span>
-                <span className="font-mono text-xs">{integration.config.botUserId}</span>
-              </div>
-            )}
-
-            {integration.config?.channels && integration.config.channels.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-gray-600">Channels ({integration.config.channelsCount || integration.config.channels.length}):</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {integration.config.channels.map((channel: any) => (
-                    <Badge key={channel.id} size="sm" variant="light" color="blue">
-                      #{channel.name}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Jenkins-specific configuration */}
-            {integration.config?.displayName && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Display Name:</span>
-                <span className="font-medium">{integration.config.displayName}</span>
-              </div>
-            )}
-
-            {integration.config?.hostUrl && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Host URL:</span>
-                <a
-                  href={integration.config.hostUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  {integration.config.hostUrl}
-                </a>
-              </div>
-            )}
-
-            {integration.config?.username && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Username:</span>
-                <span className="font-medium">{integration.config.username}</span>
-              </div>
-            )}
-
-            {/* Jira-specific configuration */}
-            {integration.config?.baseUrl && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Base URL:</span>
-                <a
-                  href={integration.config.baseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  {integration.config.baseUrl}
-                </a>
-              </div>
-            )}
-
-            {integration.config?.email && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Email:</span>
-                <span className="font-medium">{integration.config.email}</span>
-              </div>
-            )}
-
-            {integration.config?.jiraType && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Jira Type:</span>
-                <Badge size="sm" variant="light" color="blue">
-                  {integration.config.jiraType}
-                </Badge>
-              </div>
-            )}
-
-            {integration.config?.verificationStatus && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Status:</span>
-                <Badge
-                  size="sm"
-                  color={integration.config.verificationStatus === 'VALID' ? 'green' : 'yellow'}
-                >
-                  {integration.config.verificationStatus}
-                </Badge>
-              </div>
-            )}
-
-            {integration.config?.accountName && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Account:</span>
-                <span className="font-medium">{integration.config.accountName}</span>
-              </div>
-            )}
-
-            {/* App Distribution specific configuration */}
-            {integration.config?.appIdentifier && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">App Identifier:</span>
-                <span className="font-mono text-xs">{integration.config.appIdentifier}</span>
-              </div>
-            )}
-
-            {integration.config?.storeType && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Store Type:</span>
-                <Badge size="sm" variant="light">
-                  {integration.config.storeType === 'play_store' ? 'Play Store' : 'App Store'}
-                </Badge>
-              </div>
-            )}
-
-            {integration.config?.platforms && Array.isArray(integration.config.platforms) && (
-              <div className="flex flex-col gap-1">
-                <span className="text-gray-600">Platforms:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {integration.config.platforms.map((platform: string) => (
-                    <Badge key={platform} size="sm" variant="filled" color="blue">
-                      {platform}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {integration.config?.defaultTrack && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Default Track:</span>
-                <Badge size="sm" variant="light" color="cyan">
-                  {integration.config.defaultTrack}
-                </Badge>
-              </div>
-            )}
-
-            {integration.config?.defaultLocale && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Default Locale:</span>
-                <span className="font-medium">{integration.config.defaultLocale}</span>
-              </div>
-            )}
-
-            {integration.config?.teamName && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Team Name:</span>
-                <span className="font-medium">{integration.config.teamName}</span>
-              </div>
-            )}
-
-            {integration.config?.targetAppId && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Target App ID:</span>
-                <span className="font-mono text-xs">{integration.config.targetAppId}</span>
-              </div>
-            )}
-
-            {integration.connectedAt && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Connected At:</span>
-                <span className="font-medium">{formatDate(integration.connectedAt)}</span>
-              </div>
-            )}
-
-            {integration.connectedBy && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Connected By:</span>
-                <span className="font-medium">{integration.connectedBy}</span>
-              </div>
-            )}
-
-            {integration.lastSyncedAt && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Last Synced:</span>
-                <span className="font-medium">{formatDate(integration.lastSyncedAt)}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-
-        {/* Permissions */}
-        {integration.permissions && integration.permissions.length > 0 && (
-          <>
-            <Divider />
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Permissions Granted</h3>
-              <div className="flex flex-wrap gap-2">
+          {/* Permissions */}
+          {integration.permissions && integration.permissions.length > 0 && (
+            <Box>
+              <Text size="xs" fw={600} c={theme.colors.slate[5]} mb="xs" tt="uppercase">
+                Permissions Granted
+              </Text>
+              <Group gap="xs">
                 {integration.permissions.map((permission, index) => (
-                  <Badge key={index} variant="light" color="gray">
+                  <Badge key={index} variant="light" color="gray" size="sm">
                     {permission}
                   </Badge>
                 ))}
-              </div>
-            </div>
-          </>
-        )}
+              </Group>
+            </Box>
+          )}
 
-        {/* Webhook Status */}
-        {integration.webhookUrl && (
-          <>
-            <Divider />
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Webhook</h3>
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Status:</span>
-                  <Badge
-                    size="sm"
-                    color={integration.webhookStatus === 'active' ? 'green' : 'red'}
-                  >
-                    {integration.webhookStatus === 'active' ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">URL:</span>
-                  <span className="font-mono text-xs">{integration.webhookUrl}</span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+          <Divider />
 
-        {/* Actions */}
-        <Divider />
-        <Group justify="space-between">
-          <Button
-            variant="subtle"
-            color="red"
-            onClick={handleDisconnectClick}
-            disabled={isDisconnecting}
-            leftSection={isDisconnecting ? <Loader size="xs" /> : null}
-          >
-            {isDisconnecting ? 'Disconnecting...' : INTEGRATION_MODAL_LABELS.DISCONNECT}
-          </Button>
-          
-          <Group>
-            {onEdit && (
-              <Button
-                variant="filled"
-                color="blue"
-                onClick={() => {
-                  onEdit(integration.id);
-                  onClose();
-                }}
-              >
-                Edit Connection
-              </Button>
-            )}
-            <Button variant="light" onClick={onClose}>
-              Close
+          {/* Actions */}
+          <Group justify="space-between">
+            <Button
+              variant="subtle"
+              color="red"
+              size="sm"
+              leftSection={isDisconnecting ? <Loader size={14} /> : <IconTrash size={14} />}
+              onClick={handleDisconnectClick}
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting ? 'Disconnecting...' : INTEGRATION_MODAL_LABELS.DISCONNECT}
             </Button>
+            
+            <Group gap="sm">
+              {onEdit && (
+                <Button
+                  variant="light"
+                  color="brand"
+                  size="sm"
+                  leftSection={<IconPencil size={14} />}
+                  onClick={() => {
+                    onEdit(integration.id);
+                    onClose();
+                  }}
+                >
+                  Edit
+                </Button>
+              )}
+              <Button 
+                variant="default" 
+                size="sm"
+                leftSection={<IconX size={14} />}
+                onClick={onClose}
+              >
+                Close
+              </Button>
+            </Group>
           </Group>
-        </Group>
-      </div>
+        </Stack>
+      </Modal>
 
       {/* Confirmation Modal */}
       {integration && DISCONNECT_CONFIG[integration.id.toLowerCase()] && (
@@ -470,7 +503,6 @@ export function IntegrationDetailModal({
           isLoading={isDisconnecting}
         />
       )}
-    </Modal>
+    </>
   );
 }
-

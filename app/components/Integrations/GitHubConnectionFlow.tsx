@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { TextInput, Alert, PasswordInput, Select } from '@mantine/core';
-import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { TextInput, Alert, PasswordInput, Select, Stack, Box, Text, Anchor, List, ThemeIcon, useMantineTheme, Group } from '@mantine/core';
+import { IconCheck, IconAlertCircle, IconExternalLink, IconBrandGithub } from '@tabler/icons-react';
 import { useParams } from '@remix-run/react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { SCM_TYPES } from '~/constants/integrations';
-import { GITHUB_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
+import { GITHUB_LABELS, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
@@ -21,7 +21,7 @@ interface GitHubConnectionFormData {
   scmType: string;
   owner: string;
   repoName: string;
-  token: string; // Will be excluded from draft storage
+  token: string;
 }
 
 export function GitHubConnectionFlow({
@@ -30,38 +30,32 @@ export function GitHubConnectionFlow({
   isEditMode = false,
   existingData
 }: GitHubConnectionFlowProps) {
+  const theme = useMantineTheme();
   const { org } = useParams();
-  
-  // Ref to track if we're in the middle of verify/connect flow
   const isInFlowRef = useRef(false);
 
-  // Draft storage with auto-save
-  // In edit mode, prioritize existingData over draft
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<GitHubConnectionFormData>(
     {
       storageKey: generateStorageKey('github-scm', org || ''),
-      sensitiveFields: ['token'], // Never save token to draft
-      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      sensitiveFields: ['token'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.owner || data.repoName),
     },
     {
       scmType: existingData?.scmType || existingData?.providerType || SCM_TYPES.GITHUB,
       owner: existingData?.owner || '',
       repoName: existingData?.repo || existingData?.repoName || '',
-      token: '', // Never prefill tokens
+      token: '',
     },
     isEditMode ? {
       scmType: existingData?.scmType || existingData?.providerType || SCM_TYPES.GITHUB,
       owner: existingData?.owner || '',
       repoName: existingData?.repo || existingData?.repoName || '',
-      token: '', // Never prefill tokens
+      token: '',
     } : undefined
   );
 
-  // Extract form data
   const { scmType, owner, repoName, token } = formData;
 
-  // State for UI
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isVerified, setIsVerified] = useState(!!existingData?.isVerified || isEditMode);
@@ -75,7 +69,15 @@ export function GitHubConnectionFlow({
     }
   }, []);
 
-  // Check if owner or repo changed in edit mode
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
+
+  
   const hasOwnerOrRepoChanged = isEditMode && (
     owner !== (existingData?.owner || '') ||
     repoName !== (existingData?.repo || existingData?.repoName || '')
@@ -87,7 +89,7 @@ export function GitHubConnectionFlow({
       return;
     }
 
-    isInFlowRef.current = true; // Prevent auto-save during verify
+    isInFlowRef.current = true;
     setIsVerifying(true);
     setError(null);
 
@@ -121,7 +123,7 @@ export function GitHubConnectionFlow({
       setIsVerified(false);
     } finally {
       setIsVerifying(false);
-      isInFlowRef.current = false; // Re-enable auto-save
+      isInFlowRef.current = false;
     }
   };
 
@@ -131,21 +133,17 @@ export function GitHubConnectionFlow({
       return;
     }
 
-    // In edit mode, if owner or repo changed, we need token to verify
     if (isEditMode && hasOwnerOrRepoChanged && !token) {
-      setError('Access token is required when changing repository owner or name. Please verify first.');
-      setIsSaving(false);
+      setError('Access token is required when changing repository. Please verify first.');
       return;
     }
 
-    // In edit mode, if owner/repo changed but not verified yet, require verification
     if (isEditMode && hasOwnerOrRepoChanged && !isVerified) {
       setError('Please verify the connection before saving changes');
-      setIsSaving(false);
       return;
     }
 
-    isInFlowRef.current = true; // Prevent auto-save during save
+    isInFlowRef.current = true;
     setIsSaving(true);
     setError(null);
 
@@ -157,7 +155,6 @@ export function GitHubConnectionFlow({
         displayName: `${owner}/${repoName}`,
       };
 
-      // Only include accessToken if provided (required for create, optional for update)
       if (token) {
         // Encrypt the access token before sending
         const encryptedToken = await encrypt(token);
@@ -173,7 +170,6 @@ export function GitHubConnectionFlow({
       const endpoint = `/api/v1/tenants/${org}/integrations/scm`;
       
       if (isEditMode && existingData?.id) {
-        // Use PATCH for updates
         payload.integrationId = existingData.id;
         result = await apiPatch<{ integration: any }>(
           endpoint,
@@ -189,36 +185,34 @@ export function GitHubConnectionFlow({
       }
 
       if (result.success && result.data?.integration) {
-        // Mark save as successful to clear draft
         markSaveSuccessful();
         
-        // Pass the saved data back
         onConnect({
           scmType,
           owner,
           repoName,
-          token: token || '***', // Don't expose token
+          token: token || '***',
           repoUrl: `https://github.com/${owner}/${repoName}`,
           isVerified: true,
         });
       } else {
         setError('Failed to save integration');
-        isInFlowRef.current = false; // Re-enable auto-save on error
+        isInFlowRef.current = false;
       }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to save connection'));
-      isInFlowRef.current = false; // Re-enable auto-save on error
+      isInFlowRef.current = false;
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <Stack gap="md">
       {/* Draft Restored Alert */}
       {isDraftRestored && !isEditMode && (
-        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
-          Your previously entered data has been restored. Note: Sensitive credentials (like tokens) are never saved for security.
+        <Alert icon={<IconCheck size={16} />} color="brand" variant="light" radius="md" title="Draft Restored">
+          Your previously entered data has been restored. Note: Tokens are never saved for security.
         </Alert>
       )}
 
@@ -226,6 +220,8 @@ export function GitHubConnectionFlow({
         <Alert 
           icon={<IconAlertCircle size={16} />} 
           color="red" 
+          variant="light"
+          radius="md"
           title="Error"
           onClose={() => setError(null)}
           withCloseButton
@@ -235,14 +231,14 @@ export function GitHubConnectionFlow({
       )}
 
       {isVerified && !isEditMode && (
-        <ConnectionAlert color="green" title={GITHUB_LABELS.REPO_VERIFIED} icon={<span>✓</span>}>
-          Connection verified! Click &quot;Save & Connect&quot; to complete the setup.
+        <ConnectionAlert color="green" title={GITHUB_LABELS.REPO_VERIFIED}>
+          <Text size="sm">Connection verified! Click "Save & Connect" to complete the setup.</Text>
         </ConnectionAlert>
       )}
 
       {isEditMode && hasOwnerOrRepoChanged && !token && (
-        <ConnectionAlert color="yellow" title="Repository Changed" icon={<span>⚠</span>}>
-          You&apos;ve changed the repository owner or name. Please provide an access token to verify the new repository.
+        <ConnectionAlert color="yellow" title="Repository Changed">
+          <Text size="sm">You've changed the repository. Please provide an access token to verify.</Text>
         </ConnectionAlert>
       )}
 
@@ -253,9 +249,7 @@ export function GitHubConnectionFlow({
         value={scmType}
         onChange={(value) => {
           setFormData({ ...formData, scmType: value || SCM_TYPES.GITHUB });
-          if (isEditMode) {
-            setIsVerified(false);
-          }
+          if (isEditMode) setIsVerified(false);
         }}
         data={[
           { value: SCM_TYPES.GITHUB, label: 'GitHub' },
@@ -265,6 +259,7 @@ export function GitHubConnectionFlow({
         required
         disabled={!isEditMode && isVerified}
         description="Select your source control provider"
+        size="sm"
       />
 
       {/* Repository Owner */}
@@ -279,7 +274,8 @@ export function GitHubConnectionFlow({
         }}
         required
         disabled={!isEditMode && isVerified}
-        description="The GitHub organization or username that owns the repository"
+        description="The GitHub organization or username"
+        size="sm"
       />
 
       {/* Repository Name */}
@@ -294,7 +290,8 @@ export function GitHubConnectionFlow({
         }}
         required
         disabled={!isEditMode && isVerified}
-        description="The name of your repository (without the owner)"
+        description="The name of your repository"
+        size="sm"
       />
 
       {/* Personal Access Token */}
@@ -310,38 +307,40 @@ export function GitHubConnectionFlow({
         required={!isEditMode}
         disabled={!isEditMode && isVerified}
         description={
-          isEditMode ? (
-            <span>Only provide a new token if you want to update it</span>
-          ) : (
-            <span>
-              Create a token at{' '}
-              <a
-                href="https://github.com/settings/tokens"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                github.com/settings/tokens
-              </a>
-              {' '}with &apos;repo&apos; scope
-            </span>
-          )
+          isEditMode 
+            ? 'Only provide a new token if you want to update it'
+            : 'Create a token with "repo" scope'
         }
+        size="sm"
       />
 
       {/* Repository URL Preview */}
       {owner && repoName && (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-sm text-gray-600 mb-1">Repository URL:</p>
-          <a
-            href={`https://github.com/${owner}/${repoName}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-sm font-medium"
-          >
-            https://github.com/{owner}/{repoName}
-          </a>
-        </div>
+        <Box
+          p="sm"
+          style={{
+            backgroundColor: theme.colors.slate[0],
+            borderRadius: theme.radius.md,
+            border: `1px solid ${theme.colors.slate[2]}`,
+          }}
+        >
+          <Text size="xs" c={theme.colors.slate[5]} mb={4}>
+            Repository URL:
+          </Text>
+          <Group gap="xs">
+            <IconBrandGithub size={14} color={theme.colors.slate[6]} />
+            <Anchor
+              href={`https://github.com/${owner}/${repoName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              size="sm"
+              fw={500}
+              c="brand"
+            >
+              https://github.com/{owner}/{repoName}
+            </Anchor>
+          </Group>
+        </Box>
       )}
 
       {/* Action Buttons */}
@@ -353,7 +352,6 @@ export function GitHubConnectionFlow({
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isVerifying}
           isPrimaryDisabled={!owner || !repoName || !token || isVerifying}
-          primaryClassName="bg-gray-600 hover:bg-gray-700"
         />
       ) : isEditMode && hasOwnerOrRepoChanged && !token ? (
         <ActionButtons
@@ -363,7 +361,6 @@ export function GitHubConnectionFlow({
           cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
           isPrimaryLoading={isVerifying}
           isPrimaryDisabled={!owner || !repoName || !token || isVerifying}
-          primaryClassName="bg-gray-600 hover:bg-gray-700"
         />
       ) : (
         <ActionButtons
@@ -376,17 +373,33 @@ export function GitHubConnectionFlow({
         />
       )}
 
-      {/* Help Text */}
-      <div className="bg-blue-50 rounded-lg p-4 mt-4">
-        <h3 className="text-sm font-medium text-blue-900 mb-2">What you&apos;ll get:</h3>
-        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-          <li>Create and manage release branches</li>
-          <li>Trigger GitHub Actions workflows</li>
-          <li>Auto-generate release notes</li>
-          <li>Manage tags and releases</li>
-          <li>Real-time webhook updates</li>
-        </ul>
-      </div>
-    </div>
+      {/* Features List */}
+      <Box
+        p="md"
+        style={{
+          backgroundColor: theme.colors.brand[0],
+          borderRadius: theme.radius.md,
+          border: `1px solid ${theme.colors.brand[2]}`,
+        }}
+      >
+        <Text size="sm" fw={600} c={theme.colors.brand[8]} mb="sm">
+          What you'll get:
+        </Text>
+        <List
+          size="sm"
+          spacing="xs"
+          icon={
+            <ThemeIcon size={16} radius="xl" variant="light" color="brand">
+              <IconCheck size={10} />
+            </ThemeIcon>
+          }
+        >
+          <List.Item><Text size="sm" c={theme.colors.brand[7]}>Create and manage release branches</Text></List.Item>
+          <List.Item><Text size="sm" c={theme.colors.brand[7]}>Trigger GitHub Actions workflows</Text></List.Item>
+          <List.Item><Text size="sm" c={theme.colors.brand[7]}>Auto-generate release notes</Text></List.Item>
+          <List.Item><Text size="sm" c={theme.colors.brand[7]}>Manage tags and releases</Text></List.Item>
+        </List>
+      </Box>
+    </Stack>
   );
 }

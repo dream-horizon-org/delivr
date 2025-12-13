@@ -11,12 +11,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
   Stack,
-  Card,
+  Box,
   Group,
   Text,
   Button,
   Alert,
   Badge,
+  useMantineTheme,
+  ThemeIcon,
 } from '@mantine/core';
 import { IconPlus, IconInfoCircle, IconClock } from '@tabler/icons-react';
 import type { RegressionBuildSlotBackend } from '~/types/release-creation-backend';
@@ -29,6 +31,7 @@ import {
   combineDateAndTime,
 } from '~/utils/release-creation-converter';
 import { DEFAULT_REGRESSION_OFFSET_DAYS, DEFAULT_REGRESSION_SLOT_TIME } from '~/constants/release-creation';
+import { calculateNextSlotTime } from '~/utils/time-utils';
 
 interface RegressionSlotsManagerProps {
   regressionBuildSlots: RegressionBuildSlotBackend[];
@@ -61,6 +64,7 @@ export function RegressionSlotsManager({
   errors = {},
   disableExistingSlots = false,
 }: RegressionSlotsManagerProps) {
+  const theme = useMantineTheme();
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
   // Convert backend slots to config format for editing
@@ -68,7 +72,7 @@ export function RegressionSlotsManager({
     if (!kickOffDate || regressionBuildSlots.length === 0) {
       return [];
     }
-    const kickOffISO = combineDateAndTime(kickOffDate, kickOffTime);
+    const kickOffISO = combineDateAndTime(kickOffDate, kickOffTime || '00:00');
     return convertBackendSlotsToConfig(regressionBuildSlots, kickOffISO);
   }, [regressionBuildSlots, kickOffDate, kickOffTime]);
 
@@ -80,7 +84,6 @@ export function RegressionSlotsManager({
 
     const kickOff = new Date(kickOffDate);
     const targetRelease = new Date(targetReleaseDate);
-    console.log('targetReleaseOffset', kickOffDate, targetReleaseDate, daysBetween(kickOff, targetRelease));
     return daysBetween(kickOff, targetRelease);
   }, [kickOffDate, targetReleaseDate]);
 
@@ -93,12 +96,31 @@ export function RegressionSlotsManager({
       return; // Can't add slot without kickoff date
     }
 
+    // Calculate next slot time (6 hours after last slot, or default)
+    const lastSlot = configSlots.length > 0 ? configSlots[configSlots.length - 1] : undefined;
+    const nextSlot = calculateNextSlotTime(
+      lastSlot,
+      DEFAULT_REGRESSION_OFFSET_DAYS,
+      DEFAULT_REGRESSION_SLOT_TIME
+    );
+
+    // Ensure the new slot doesn't exceed target release date
+    // If calculated offset exceeds target, use target offset and adjust time if needed
+    let finalOffsetDays = Math.min(nextSlot.offsetDays, targetReleaseOffset);
+    let finalTime = nextSlot.time;
+    
+    // If we had to clamp the offset, make sure the time is still valid
+    if (nextSlot.offsetDays > targetReleaseOffset && targetReleaseOffset > 0) {
+      // Use the target release time or a time before it
+      finalTime = targetReleaseTimeForValidation || '23:59';
+    }
+
     // Create new slot in config format (offset-based)
     const newConfigSlot: RegressionSlot = {
       id: `slot-${Date.now()}`,
       name: `Slot ${configSlots.length + 1}`,
-      regressionSlotOffsetFromKickoff: DEFAULT_REGRESSION_OFFSET_DAYS,
-      time: DEFAULT_REGRESSION_SLOT_TIME,
+      regressionSlotOffsetFromKickoff: finalOffsetDays,
+      time: finalTime,
       config: {
         regressionBuilds: true,
         postReleaseNotes: false,
@@ -152,62 +174,70 @@ export function RegressionSlotsManager({
 
   if (!kickOffDate || !targetReleaseDate) {
     return (
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+      <Box
+        p="md"
+        style={{
+          border: `1px solid ${theme.colors.slate[2]}`,
+          borderRadius: theme.radius.md,
+        }}
+      >
+        <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" radius="md">
           <Text size="sm">
             Please set kickoff date and target release date first to configure regression slots.
           </Text>
         </Alert>
-      </Card>
+      </Box>
     );
   }
 
   return (
-    <Card shadow="sm" padding="md" radius="md" withBorder>
-      <Stack gap="md">
-        <Group justify="space-between" align="center">
-          <div>
-            <Group gap="sm">
-              <IconClock size={20} className="text-purple-600" />
-              <Text fw={600} size="sm">
+    <Box
+      p="md"
+      style={{
+        border: `1px solid ${theme.colors.slate[2]}`,
+        borderRadius: theme.radius.md,
+      }}
+    >
+      <Stack gap="lg">
+        <Group justify="space-between" align="flex-start">
+          <Box style={{ flex: 1 }}>
+            <Group gap="sm" mb={4}>
+              <ThemeIcon size={32} radius="md" variant="light" color="grape">
+                <IconClock size={18} />
+              </ThemeIcon>
+              <Text fw={600} size="lg">
                 Regression Build Slots
               </Text>
             </Group>
-            <Text size="xs" c="dimmed">
-              Schedule regression builds between kickoff and release
+            <Text size="sm" c={theme.colors.slate[5]} ml={42}>
+              Schedule regression builds between kickoff and release dates for testing.
             </Text>
-          </div>
+          </Box>
           <Button
-            leftSection={<IconPlus size={18} />}
+            leftSection={<IconPlus size={16} />}
             variant="light"
             size="sm"
             onClick={handleAddSlot}
-            className="bg-blue-50 hover:bg-blue-100"
+            color="brand"
           >
             Add Slot
           </Button>
         </Group>
 
-        {disableExistingSlots && regressionBuildSlots.length > 0 && (
-          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
-            <Text size="xs">Existing regression slots cannot be edited or deleted after kickoff. You can only add new slots.</Text>
-          </Alert>
-        )}
-
         {errors.regressionBuildSlots && (
-          <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light">
-            <Text size="xs">{errors.regressionBuildSlots}</Text>
+          <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light" radius="md">
+            <Text size="sm">{errors.regressionBuildSlots}</Text>
           </Alert>
         )}
 
         {regressionBuildSlots.length === 0 ? (
-          <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+          <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light" radius="md">
             <Text size="sm">
-              No regression slots configured. Click "Add Slot" to schedule builds.
+              No regression slots configured. Click "Add Slot" to schedule builds between kickoff and release.
             </Text>
           </Alert>
         ) : (
-          <Stack gap="sm">
+          <Stack gap="md">
             {configSlots.map((slot, index) => {
               // Calculate absolute date for display
               const slotBackend = regressionBuildSlots[index];
@@ -217,7 +247,7 @@ export function RegressionSlotsManager({
                 : 'Invalid date';
 
               return (
-                <div key={slot.id || `slot-${index}`}>
+                <Box key={`${slot.id || `slot-${index}`}-${slot.regressionSlotOffsetFromKickoff}-${slot.time}`}>
                   <RegressionSlotCard
                     slot={slot}
                     index={index}
@@ -229,15 +259,15 @@ export function RegressionSlotsManager({
                     targetReleaseOffset={targetReleaseOffset}
                     targetReleaseTime={targetReleaseTimeForValidation}
                     kickoffTime={kickoffTimeForValidation}
-                    disabled={disableExistingSlots}
+                    allSlots={configSlots}
                   />
-                </div>
+                </Box>
               );
             })}
           </Stack>
         )}
       </Stack>
-    </Card>
+    </Box>
   );
 }
 

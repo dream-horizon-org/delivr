@@ -223,10 +223,10 @@ export function validateConfiguration(
   // Note: Build pipelines are optional. Manual upload is supported as default.
   
   // Validate scheduling (optional - only validate if provided)
-  if (config.scheduling) {
-    const schedulingErrors = validateScheduling(config.scheduling);
+  if (config.releaseSchedule) {
+    const schedulingErrors = validateScheduling(config.releaseSchedule);
     if (schedulingErrors.length > 0) {
-      errors.scheduling = schedulingErrors;
+      errors.releaseSchedule = schedulingErrors;
     }
   }
   // Note: Scheduling is optional. If not provided, configuration can still be saved.

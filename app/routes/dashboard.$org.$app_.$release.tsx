@@ -5,19 +5,16 @@ import {
   Group,
   Stack,
   Text,
-  Title,
   Badge,
   Progress,
   RingProgress,
   Button,
-  Divider,
-  Paper,
   ThemeIcon,
   Avatar,
   Skeleton,
   ActionIcon,
-  Tooltip,
   useMantineTheme,
+  SimpleGrid,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -29,15 +26,14 @@ import {
   IconAlertCircle,
   IconCalendar,
   IconUser,
-  IconFileZip,
   IconRocket,
   IconRotate2,
   IconEdit,
   IconArrowUp,
   IconAlertTriangle,
+  IconChevronRight,
 } from "@tabler/icons-react";
-import { useNavigate, useParams, useSearchParams, useLoaderData } from "@remix-run/react";
-import { User } from "~/.server/services/Auth/Auth.interface";
+import { useNavigate, useParams, useSearchParams } from "@remix-run/react";
 import { authenticateLoaderRequest } from "~/utils/authenticate";
 import { useGetReleaseDataForDeployment } from "~/components/Pages/components/ReleaseDetailCard/hooks/useGetReleaseDataForDeployment";
 import { formatDate } from "~/utils/formatDate";
@@ -46,15 +42,6 @@ import { PromoteReleaseForm } from "~/components/Pages/components/PromoteRelease
 
 export const loader = authenticateLoaderRequest();
 
-// Format file size
-const formatBytes = (bytes: number) => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-};
-
 // Calculate success rate
 const getSuccessRate = (installed: number, failed: number = 0) => {
   const total = installed + failed;
@@ -62,12 +49,99 @@ const getSuccessRate = (installed: number, failed: number = 0) => {
   return Math.round((installed / total) * 100);
 };
 
+// Stat Card Component
+function StatCard({ 
+  icon: Icon, 
+  label, 
+  value, 
+  subtext, 
+  color 
+}: { 
+  icon: React.ElementType; 
+  label: string; 
+  value: string | number; 
+  subtext: string; 
+  color: string;
+}) {
+  const theme = useMantineTheme();
+  const colorShades = theme.colors[color] || theme.colors.gray;
+  
+  return (
+    <Box
+      p="md"
+      style={{
+        background: colorShades[0],
+        borderRadius: theme.radius.md,
+        border: `1px solid ${colorShades[2]}`,
+      }}
+    >
+      <Group gap="xs" mb="xs">
+        <ThemeIcon size="sm" variant="light" color={color} radius="sm">
+          <Icon size={14} />
+        </ThemeIcon>
+        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          {label}
+        </Text>
+      </Group>
+      <Text size="xl" fw={700} c={color}>
+        {value}
+      </Text>
+      <Text size="xs" c="dimmed" mt={4}>
+        {subtext}
+      </Text>
+    </Box>
+  );
+}
+
+// Metric Ring Component
+function MetricRing({ 
+  value, 
+  label, 
+  title, 
+  subtext, 
+  color 
+}: { 
+  value: number; 
+  label: string; 
+  title: string; 
+  subtext: string; 
+  color: string;
+}) {
+  return (
+    <Stack align="center" gap="sm">
+      <RingProgress
+        size={120}
+        thickness={10}
+        roundCaps
+        sections={[{ value, color }]}
+        label={
+          <Stack gap={0} align="center">
+            <Text size="lg" fw={700} c={color}>
+              {value}%
+            </Text>
+            <Text size="xs" c="dimmed">
+              {label}
+            </Text>
+          </Stack>
+        }
+      />
+      <Stack gap={2} align="center">
+        <Text size="sm" fw={500}>
+          {title}
+        </Text>
+        <Text size="xs" c="dimmed" ta="center">
+          {subtext}
+        </Text>
+      </Stack>
+    </Stack>
+  );
+}
+
 export default function ReleaseDetailPage() {
   const theme = useMantineTheme();
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const user = useLoaderData<User>();
 
   const { data, isError, isLoading, isFetching, refetch } =
     useGetReleaseDataForDeployment({
@@ -80,15 +154,22 @@ export default function ReleaseDetailPage() {
   if (isLoading || isFetching) {
     return (
       <Box>
-        <Skeleton height={40} width={200} mb="xl" />
+        <Group gap="sm" mb="lg">
+          <Skeleton height={36} width={36} radius="md" />
+          <Skeleton height={28} width={150} />
+        </Group>
         <Grid gutter="lg">
-          <Grid.Col span={8}>
-            <Skeleton height={400} radius="md" />
-          </Grid.Col>
-          <Grid.Col span={4}>
+          <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
-              <Skeleton height={180} radius="md" />
-              <Skeleton height={180} radius="md" />
+              <Skeleton height={140} radius="md" />
+              <Skeleton height={100} radius="md" />
+              <Skeleton height={200} radius="md" />
+            </Stack>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <Stack gap="md">
+              <Skeleton height={200} radius="md" />
+              <Skeleton height={160} radius="md" />
             </Stack>
           </Grid.Col>
         </Grid>
@@ -99,15 +180,21 @@ export default function ReleaseDetailPage() {
   if (isError || !data) {
     return (
       <Card withBorder padding="xl" radius="md" style={{ textAlign: "center" }}>
-        <Stack gap="md" align="center">
-          <IconAlertCircle size={theme.other.sizes.avatar.md} color={theme.other.text.red} />
-          <Title order={3} c="red">
-            Failed to Load Release
-          </Title>
-          <Text c="dimmed">Unable to load release details. Please try again later.</Text>
+        <Stack gap="md" align="center" py="xl">
+          <ThemeIcon size={60} radius="xl" color="red" variant="light">
+            <IconAlertCircle size={30} />
+          </ThemeIcon>
+          <Box>
+            <Text size="lg" fw={600} c={theme.colors.slate[8]} mb={4}>
+              Failed to Load Release
+            </Text>
+            <Text size="sm" c="dimmed">
+              Unable to load release details. Please try again later.
+            </Text>
+          </Box>
           <Button
             variant="light"
-            leftSection={<IconArrowLeft size={18} />}
+            leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate(-1)}
           >
             Go Back
@@ -126,426 +213,270 @@ export default function ReleaseDetailPage() {
   return (
     <Box>
       {/* Header */}
-      <Group justify="space-between" mb="xl">
-        <Group gap="md">
-          <ActionIcon
-            variant="subtle"
-            size="lg"
+      <Box mb="xl">
+        {/* Breadcrumb */}
+        <Group gap={6} mb={8}>
+          <Text
+            size="sm"
+            c={theme.colors.slate[5]}
+            style={{ cursor: "pointer" }}
             onClick={() => navigate(`/dashboard/${params.org}/${params.app}`)}
           >
-            <IconArrowLeft size={20} />
-          </ActionIcon>
-          <Box>
-            <Group gap="xs">
-              <Title order={2}>{data.label}</Title>
-              <Badge
-                variant="light"
-                color={data.status ? "green" : "gray"}
-                size="lg"
-                leftSection={data.status ? <IconCheck size={14} /> : <IconX size={14} />}
-              >
-                {data.status ? "Active" : "Inactive"}
-              </Badge>
-              {data.mandatory && (
-                <Badge
-                  variant="light"
-                  color="red"
-                  size="lg"
-                  leftSection={<IconAlertTriangle size={14} />}
-                >
-                  Mandatory
-                </Badge>
-              )}
-              {data.isBundlePatchingEnabled && (
-                <Badge
-                  variant="light"
-                  color="blue"
-                  size="lg"
-                >
-                  PatchBundle
-                </Badge>
-              )}
-            </Group>
-            <Text size="sm" c="dimmed" mt={4}>
-              {data.description || "No description provided"}
-            </Text>
-          </Box>
+            Releases
+          </Text>
+          <IconChevronRight size={14} color={theme.colors.slate[4]} />
+          <Text size="sm" fw={500} c={theme.colors.slate[7]}>
+            {data.label}
+          </Text>
         </Group>
 
-        <Group gap="sm">
-          <Button
-            leftSection={<IconEdit size={18} />}
-            variant="light"
-            onClick={() => setSearchParams((p) => { p.set("edit", "true"); return p; })}
-          >
-            Edit
-          </Button>
-          <Button
-            leftSection={<IconArrowUp size={theme.other.sizes.icon.lg} />}
-            variant="gradient"
-            gradient={{ from: theme.other.brand.primary, to: theme.other.brand.secondary, deg: 135 }}
-            onClick={() => setSearchParams((p) => { p.set("promote", "true"); return p; })}
-          >
-            Promote
-          </Button>
+        {/* Title Row */}
+        <Group justify="space-between" align="flex-start">
+          <Group gap="md" align="center">
+            <ActionIcon
+              variant="light"
+              size="lg"
+              radius="md"
+              color="gray"
+              onClick={() => navigate(`/dashboard/${params.org}/${params.app}`)}
+            >
+              <IconArrowLeft size={18} />
+            </ActionIcon>
+            <Box>
+              <Group gap="sm" align="center">
+                <Text size="xl" fw={700} c={theme.colors.slate[9]}>
+                  {data.label}
+                </Text>
+                <Badge
+                  variant="light"
+                  color={data.status ? "green" : "gray"}
+                  size="md"
+                  leftSection={data.status ? <IconCheck size={12} /> : <IconX size={12} />}
+                >
+                  {data.status ? "Active" : "Inactive"}
+                </Badge>
+                {data.mandatory && (
+                  <Badge
+                    variant="light"
+                    color="orange"
+                    size="md"
+                    leftSection={<IconAlertTriangle size={12} />}
+                  >
+                    Mandatory
+                  </Badge>
+                )}
+              </Group>
+              <Text size="sm" c="dimmed" mt={4} maw={500} lineClamp={2}>
+                {data.description || "No description provided"}
+              </Text>
+            </Box>
+          </Group>
+
+          <Group gap="sm">
+            <Button
+              leftSection={<IconEdit size={16} />}
+              variant="default"
+              size="sm"
+              onClick={() => setSearchParams((p) => { p.set("edit", "true"); return p; })}
+            >
+              Edit
+            </Button>
+            <Button
+              leftSection={<IconArrowUp size={16} />}
+              color="brand"
+              size="sm"
+              onClick={() => setSearchParams((p) => { p.set("promote", "true"); return p; })}
+            >
+              Promote
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </Box>
 
       <Grid gutter="lg">
         {/* Left Column - Main Stats */}
-        <Grid.Col span={8}>
-          <Stack gap="lg">
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Stack gap="md">
             {/* Overview Stats */}
-            <Card withBorder padding="lg" radius="md">
-              <Title order={4} mb="md">
+            <Card withBorder padding="md" radius="md">
+              <Text size="sm" fw={600} c={theme.colors.slate[7]} mb="md">
                 Overview
-              </Title>
-              <Grid gutter="md">
-                <Grid.Col span={3}>
-                  <Paper p="md" radius="md" style={{ background: theme.other.backgrounds.blue, border: `1px solid ${theme.other.text.blue}` }}>
-                    <Stack gap="xs">
-                      <Group gap="xs">
-                        <ThemeIcon size="md" variant="light" color="blue" radius="xl">
-                          <IconDevices size={theme.other.sizes.icon.lg} />
-                        </ThemeIcon>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          Active Devices
-                        </Text>
-                      </Group>
-                      <Text size="xl" fw={700} c="blue">
-                        {data.activeDevices?.toLocaleString() || 0}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        of {data.totalActive?.toLocaleString() || 0} total
-                      </Text>
-                    </Stack>
-                  </Paper>
-                </Grid.Col>
-
-                <Grid.Col span={3}>
-                  <Paper p="md" radius="md" style={{ background: theme.other.backgrounds.green, border: `1px solid ${theme.other.text.green}` }}>
-                    <Stack gap="xs">
-                      <Group gap="xs">
-                        <ThemeIcon size="md" variant="light" color="teal" radius="xl">
-                          <IconDownload size={theme.other.sizes.icon.lg} />
-                        </ThemeIcon>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          Downloads
-                        </Text>
-                      </Group>
-                      <Text size="xl" fw={700} c="teal">
-                        {data.downloaded?.toLocaleString() || 0}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        total downloads
-                      </Text>
-                    </Stack>
-                  </Paper>
-                </Grid.Col>
-
-                <Grid.Col span={3}>
-                  <Paper p="md" radius="md" style={{ background: theme.other.backgrounds.lightGreen, border: `1px solid ${theme.other.text.lightGreen}` }}>
-                    <Stack gap="xs">
-                      <Group gap="xs">
-                        <ThemeIcon size="md" variant="light" color="green" radius="xl">
-                          <IconCheck size={theme.other.sizes.icon.lg} />
-                        </ThemeIcon>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          Installed
-                        </Text>
-                      </Group>
-                      <Text size="xl" fw={700} c="green">
-                        {data.installed?.toLocaleString() || 0}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        successful installs
-                      </Text>
-                    </Stack>
-                  </Paper>
-                </Grid.Col>
-
-                <Grid.Col span={3}>
-                  <Paper p="md" radius="md" style={{ background: theme.other.backgrounds.pink, border: `1px solid ${theme.other.text.pink}` }}>
-                    <Stack gap="xs">
-                      <Group gap="xs">
-                        <ThemeIcon size="md" variant="light" color="red" radius="xl">
-                          <IconAlertCircle size={theme.other.sizes.icon.lg} />
-                        </ThemeIcon>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          Failed
-                        </Text>
-                      </Group>
-                      <Text size="xl" fw={700} c="red">
-                        {0}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        installation failures
-                      </Text>
-                    </Stack>
-                  </Paper>
-                </Grid.Col>
-              </Grid>
+              </Text>
+              <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+                <StatCard
+                  icon={IconDevices}
+                  label="Active Devices"
+                  value={data.activeDevices?.toLocaleString() || 0}
+                  subtext={`of ${data.totalActive?.toLocaleString() || 0} total`}
+                  color="blue"
+                />
+                <StatCard
+                  icon={IconDownload}
+                  label="Downloads"
+                  value={data.downloaded?.toLocaleString() || 0}
+                  subtext="total downloads"
+                  color="teal"
+                />
+                <StatCard
+                  icon={IconCheck}
+                  label="Installed"
+                  value={data.installed?.toLocaleString() || 0}
+                  subtext="successful installs"
+                  color="green"
+                />
+                <StatCard
+                  icon={IconAlertCircle}
+                  label="Failed"
+                  value={0}
+                  subtext="installation failures"
+                  color="red"
+                />
+              </SimpleGrid>
             </Card>
 
             {/* Rollout Progress */}
-            <Card withBorder padding="lg" radius="md">
-              <Group justify="space-between" mb="md">
-                <Title order={4}>Rollout Progress</Title>
-                <Group gap="xs">
-                  <Text size="sm" fw={theme.other.typography.fontWeight.semibold} c="dimmed">
-                    Target:
-                  </Text>
-                  <Text size="lg" fw={theme.other.typography.fontWeight.bold} style={{ color: theme.other.brand.primary }}>
+            <Card withBorder padding="md" radius="md">
+              <Group justify="space-between" mb="sm">
+                <Text size="sm" fw={600} c={theme.colors.slate[7]}>
+                  Rollout Progress
+                </Text>
+                <Group gap={6}>
+                  <Text size="sm" c="dimmed">Target:</Text>
+                  <Text size="sm" fw={700} c={theme.colors.brand[6]}>
                     {data.rollout}%
                   </Text>
                 </Group>
               </Group>
               <Progress
                 value={data.rollout}
-                size="xl"
+                size="lg"
                 radius="xl"
-                styles={{
-                  root: {
-                    background: theme.other.borders.secondary,
-                  },
-                  section: {
-                    background: `linear-gradient(90deg, ${theme.other.brand.primary} 0%, ${theme.other.brand.secondary} 100%)`,
-                  },
-                }}
+                color="brand"
               />
-              <Text size="xs" c="dimmed" mt="md">
+              <Text size="xs" c="dimmed" mt="sm">
                 This release is being rolled out to {data.rollout}% of your user base
               </Text>
             </Card>
 
             {/* Performance Metrics */}
-            <Card withBorder padding="lg" radius="md">
-              <Title order={4} mb="md">
+            <Card withBorder padding="md" radius="md">
+              <Text size="sm" fw={600} c={theme.colors.slate[7]} mb="lg">
                 Performance Metrics
-              </Title>
-              <Grid gutter="lg">
-                <Grid.Col span={4}>
-                  <Stack align="center" gap="md">
-                    <RingProgress
-                      size={180}
-                      thickness={16}
-                      sections={[{ value: adoptionPercentage, color: theme.other.text.green }]}
-                      label={
-                        <Stack gap={0} align="center">
-                          <Text size="xl" fw={700} c="teal">
-                            {adoptionPercentage}%
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            Adoption
-                          </Text>
-                        </Stack>
-                      }
-                    />
-                    <Stack gap={4} align="center">
-                      <Text size="sm" fw={500}>
-                        Active Adoption Rate
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {data.activeDevices?.toLocaleString()} of {data.totalActive?.toLocaleString()} devices
-                      </Text>
-                    </Stack>
-                  </Stack>
-                </Grid.Col>
-
-                <Grid.Col span={4}>
-                  <Stack align="center" gap="md">
-                    <RingProgress
-                      size={180}
-                      thickness={16}
-                      sections={[{ value: successRate, color: theme.other.text.lightGreen }]}
-                      label={
-                        <Stack gap={0} align="center">
-                          <Text size="xl" fw={700} c="green">
-                            {successRate}%
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            Success
-                          </Text>
-                        </Stack>
-                      }
-                    />
-                    <Stack gap={4} align="center">
-                      <Text size="sm" fw={500}>
-                        Installation Success
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {data.installed?.toLocaleString()} successful, {0} failed
-                      </Text>
-                    </Stack>
-                  </Stack>
-                </Grid.Col>
-
-                <Grid.Col span={4}>
-                  <Stack align="center" gap="md">
-                    <RingProgress
-                      size={180}
-                      thickness={16}
-                      sections={[{ value: rollbackPercentage, color: theme.other.text.pink }]}
-                      label={
-                        <Stack gap={0} align="center">
-                          <Text size="xl" fw={700} c="red">
-                            {rollbackPercentage}%
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            Rollback
-                          </Text>
-                        </Stack>
-                      }
-                    />
-                    <Stack gap={4} align="center">
-                      <Text size="sm" fw={500}>
-                        Rollback Rate
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {data.rollbacks?.toLocaleString()} rollbacks from {data.installed?.toLocaleString()} installs
-                      </Text>
-                    </Stack>
-                  </Stack>
-                </Grid.Col>
-              </Grid>
+              </Text>
+              <SimpleGrid cols={3} spacing="md">
+                <MetricRing
+                  value={adoptionPercentage}
+                  label="Adoption"
+                  title="Active Adoption Rate"
+                  subtext={`${data.activeDevices?.toLocaleString() || 0} of ${data.totalActive?.toLocaleString() || 0} devices`}
+                  color="teal"
+                />
+                <MetricRing
+                  value={successRate}
+                  label="Success"
+                  title="Installation Success"
+                  subtext={`${data.installed?.toLocaleString() || 0} successful, 0 failed`}
+                  color="green"
+                />
+                <MetricRing
+                  value={rollbackPercentage}
+                  label="Rollback"
+                  title="Rollback Rate"
+                  subtext={`${data.rollbacks?.toLocaleString() || 0} from ${data.installed?.toLocaleString() || 0} installs`}
+                  color="red"
+                />
+              </SimpleGrid>
             </Card>
           </Stack>
         </Grid.Col>
 
-        {/* Right Column - Metadata & Actions */}
-        <Grid.Col span={4}>
-          <Stack gap="lg">
-            {/* Release Info */}
-            <Card withBorder padding="lg" radius="md">
-              <Title order={4} mb="md">
-                Release Information
-              </Title>
+        {/* Right Column - Metadata */}
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Stack gap="md">
+            {/* Release Info Card */}
+            <Card withBorder padding="md" radius="md">
+              <Text size="sm" fw={600} c={theme.colors.slate[7]} mb="md">
+                Release Details
+              </Text>
+              
               <Stack gap="md">
-                <Box>
-                  <Group gap="xs" mb={4}>
-                    <IconRocket size={theme.other.sizes.icon.md} color={theme.other.brand.primary} />
-                    <Text size="sm" c="dimmed" fw={600}>
-                      Version
-                    </Text>
-                  </Group>
-                  <Text size="md" fw={500}>
+                <Group justify="space-between" align="center">
+                  <Text size="sm" c="dimmed">Version</Text>
+                  <Text size="sm" fw={600} c={theme.colors.slate[8]}>
                     {data.targetVersions}
                   </Text>
-                </Box>
+                </Group>
 
-                <Divider />
-
-                <Box>
-                  <Group gap="xs" mb={4}>
-                    <IconCalendar size={theme.other.sizes.icon.md} color={theme.other.brand.primary} />
-                    <Text size="sm" c="dimmed" fw={600}>
-                      Released At
-                    </Text>
-                  </Group>
-                  <Text size="md" fw={500}>
+                <Group justify="space-between" align="center">
+                  <Text size="sm" c="dimmed">Released</Text>
+                  <Text size="sm" fw={500} c={theme.colors.slate[7]}>
                     {formatDate(data.releasedAt)}
                   </Text>
-                </Box>
+                </Group>
 
-                <Divider />
-
-                <Box>
-                  <Group gap="xs" mb={4}>
-                    <IconUser size={theme.other.sizes.icon.md} color={theme.other.brand.primary} />
-                    <Text size="sm" c="dimmed" fw={600}>
-                      Released By
-                    </Text>
-                  </Group>
-                  <Group gap="xs">
+                <Group justify="space-between" align="center">
+                  <Text size="sm" c="dimmed">Author</Text>
+                  <Group gap={6}>
                     <Avatar
                       name={data.releasedBy}
                       color="initials"
-                      size="sm"
+                      size={24}
                       radius="xl"
                     />
-                    <Text size="sm" fw={500}>
+                    <Text size="sm" fw={500} c={theme.colors.slate[8]}>
                       {data.releasedBy}
                     </Text>
                   </Group>
-                </Box>
-
-                {false && (
-                  <>
-                    <Divider />
-                    <Box>
-                      <Group gap="xs" mb={4}>
-                        <IconFileZip size={theme.other.sizes.icon.md} color={theme.other.brand.primary} />
-                        <Text size="sm" c="dimmed" fw={600}>
-                          Package Size
-                        </Text>
-                      </Group>
-                      <Text size="md" fw={500}>
-                        N/A
-                      </Text>
-                    </Box>
-                  </>
-                )}
+                </Group>
 
                 {data.rollbacks > 0 && (
-                  <>
-                    <Divider />
-                    <Box>
-                      <Group gap="xs" mb={4}>
-                        <IconRotate2 size={theme.other.sizes.icon.md} color={theme.other.text.pink} />
-                        <Text size="sm" c="dimmed" fw={600}>
-                          Rollbacks
-                        </Text>
-                      </Group>
-                      <Badge variant="light" color="orange" size="lg">
-                        {data.rollbacks} rollbacks
-                      </Badge>
-                    </Box>
-                  </>
+                  <Group justify="space-between" align="center">
+                    <Text size="sm" c="dimmed">Rollbacks</Text>
+                    <Badge size="sm" variant="light" color="orange">
+                      {data.rollbacks}
+                    </Badge>
+                  </Group>
                 )}
               </Stack>
             </Card>
 
-            {/* Quick Stats */}
-            <Card withBorder padding="lg" radius="md">
-              <Title order={4} mb="md">
+            {/* Quick Stats Card */}
+            <Card withBorder padding="md" radius="md">
+              <Text size="sm" fw={600} c={theme.colors.slate[7]} mb="md">
                 Quick Stats
-              </Title>
+              </Text>
+
               <Stack gap="sm">
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
-                    Success Rate
-                  </Text>
-                  <Group gap="xs">
-                    <IconTrendingUp size={theme.other.sizes.icon.md} color={theme.other.text.lightGreen} />
-                    <Text size="sm" fw={700} c="green">
-                      {successRate}%
-                    </Text>
+                <Group justify="space-between" align="center">
+                  <Group gap={6}>
+                    <IconTrendingUp size={14} color={theme.colors.green[5]} />
+                    <Text size="sm" c="dimmed">Success Rate</Text>
                   </Group>
+                  <Text size="sm" fw={600} c={theme.colors.green[6]}>
+                    {successRate}%
+                  </Text>
                 </Group>
 
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
-                    Adoption
-                  </Text>
-                  <Text size="sm" fw={700} c="teal">
+                <Group justify="space-between" align="center">
+                  <Group gap={6}>
+                    <IconDevices size={14} color={theme.colors.teal[5]} />
+                    <Text size="sm" c="dimmed">Adoption</Text>
+                  </Group>
+                  <Text size="sm" fw={600} c={theme.colors.teal[6]}>
                     {adoptionPercentage}%
                   </Text>
                 </Group>
 
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
-                    Total Devices
-                  </Text>
-                  <Text size="sm" fw={700}>
+                <Group justify="space-between" align="center">
+                  <Text size="sm" c="dimmed">Total Devices</Text>
+                  <Text size="sm" fw={600} c={theme.colors.slate[8]}>
                     {data.totalActive?.toLocaleString() || 0}
                   </Text>
                 </Group>
 
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
-                    Method
-                  </Text>
-                  <Badge variant="light" size="sm">
+                <Group justify="space-between" align="center">
+                  <Text size="sm" c="dimmed">Method</Text>
+                  <Badge size="sm" variant="light" color="gray">
                     Manual
                   </Badge>
                 </Group>
@@ -561,4 +492,3 @@ export default function ReleaseDetailPage() {
     </Box>
   );
 }
-

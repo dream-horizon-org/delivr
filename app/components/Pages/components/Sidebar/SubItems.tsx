@@ -17,11 +17,14 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
   return (
     <Box
       style={{
-        paddingLeft: theme.other.spacing.xl,
-        marginTop: theme.other.spacing.xs,
+        marginLeft: 22,
+        marginTop: 6,
+        marginBottom: 4,
+        paddingLeft: 14,
+        borderLeft: `2px solid ${theme.colors.slate[2]}`,
       }}
     >
-      <Stack gap="xxs">
+      <Stack gap={4}>
         {subItems.map((subItem) => {
           let isSubItemActive = false;
 
@@ -38,6 +41,7 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
               !location.pathname.includes("/releases/setup") &&
               !location.pathname.includes("/releases/settings") &&
               !location.pathname.includes("/releases/configure") &&
+              !location.pathname.includes("/releases/workflows") &&
               location.pathname !== `/dashboard/${org.id}/releases`;
           }
           // For other routes (like settings, integrations), use startsWith

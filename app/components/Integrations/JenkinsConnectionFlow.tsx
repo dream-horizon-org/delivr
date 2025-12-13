@@ -11,9 +11,13 @@ import {
   PasswordInput,
   Switch,
   Stack,
-  Text
+  Text,
+  Box,
+  List,
+  ThemeIcon,
+  useMantineTheme,
 } from '@mantine/core';
-import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { IconCheck, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { apiPost, apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { BUILD_PROVIDERS } from '~/types/release-config-constants';
 import { JENKINS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constants/integration-ui';
@@ -27,7 +31,7 @@ interface JenkinsConnectionFlowProps {
   onCancel: () => void;
   isEditMode?: boolean;
   existingData?: {
-    id: string; // integrationId - required for updates
+    id: string;
     displayName?: string;
     hostUrl?: string;
     username?: string;
@@ -49,25 +53,22 @@ interface JenkinsConnectionFormData {
 }
 
 export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false, existingData }: JenkinsConnectionFlowProps) {
+  const theme = useMantineTheme();
   const params = useParams();
   const tenantId = params.org;
-
-  // Ref to track if we're in the middle of verify/connect flow
   const isInFlowRef = useRef(false);
 
-  // Draft storage with auto-save
   const { formData, setFormData, isDraftRestored, markSaveSuccessful } = useDraftStorage<JenkinsConnectionFormData>(
     {
       storageKey: generateStorageKey('jenkins-cicd', tenantId || ''),
-      sensitiveFields: ['apiToken'], // Never save token to draft
-      // Only save draft if NOT in verify/connect flow, NOT in edit mode, and has some data
+      sensitiveFields: ['apiToken'],
       shouldSaveDraft: (data) => !isInFlowRef.current && !isEditMode && !!(data.hostUrl || data.username || data.displayName),
     },
     {
       displayName: existingData?.displayName || '',
       hostUrl: existingData?.hostUrl || '',
       username: existingData?.username || '',
-      apiToken: '', // Never pre-populate sensitive data
+      apiToken: '',
       useCrumb: existingData?.providerConfig?.useCrumb ?? true,
       crumbPath: existingData?.providerConfig?.crumbPath || '/crumbIssuer/api/json'
     },
@@ -75,7 +76,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       displayName: existingData?.displayName || '',
       hostUrl: existingData?.hostUrl || '',
       username: existingData?.username || '',
-      apiToken: '', // Never pre-populate sensitive data
+      apiToken: '',
       useCrumb: existingData?.providerConfig?.useCrumb ?? true,
       crumbPath: existingData?.providerConfig?.crumbPath || '/crumbIssuer/api/json'
     } : undefined
@@ -93,12 +94,36 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       setError('Encryption is not configured. Please contact your system administrator.');
     }
   }, []);
+  
+  // Track touched fields for proper validation UX
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const markTouched = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  };
+
+  // Validation helper - only show error if field is touched or form was submitted
+  const getFieldError = (field: string, isEmpty: boolean, message: string) => {
+    if ((touched[field] || hasAttemptedSubmit) && isEmpty) {
+      return message;
+    }
+    return undefined;
+  };
 
   const handleVerify = async () => {
+    setHasAttemptedSubmit(true);
+    
+    // Check if form is valid before proceeding
+    if (!formData.hostUrl || !formData.username || !formData.apiToken) {
+      return;
+    }
+    
     setIsVerifying(true);
     setError(null);
     setVerificationResult(null);
     isInFlowRef.current = true; // Prevent draft save during verify
+    
 
     try {
       // Encrypt the API token before sending
@@ -138,14 +163,25 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       setError(getApiErrorMessage(err, 'Failed to verify Jenkins connection'));
     } finally {
       setIsVerifying(false);
-      isInFlowRef.current = false; // Re-enable draft save after verify
+      isInFlowRef.current = false;
     }
   };
 
   const handleConnect = async () => {
+    setHasAttemptedSubmit(true);
+    
+    // Validate required fields
+    if (!formData.hostUrl || !formData.username) {
+      return;
+    }
+    
+    if (!isEditMode && !formData.apiToken) {
+      return;
+    }
+    
     setIsConnecting(true);
     setError(null);
-    isInFlowRef.current = true; // Prevent draft save during connect
+    isInFlowRef.current = true;
 
     try {
       const payload: any = {
@@ -158,7 +194,6 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         }
       };
 
-      // Only include apiToken if it's provided (required for create, optional for update)
       if (formData.apiToken) {
         // Encrypt the API token before sending
         const encryptedApiToken = await encrypt(formData.apiToken);
@@ -170,7 +205,6 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         return;
       }
 
-      // For updates, include integrationId so service layer knows to use new backend path
       if (isEditMode && existingData?.id) {
         payload.integrationId = existingData.id;
       }
@@ -181,7 +215,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         : await apiPost(endpoint, payload);
 
       if (result.success) {
-        markSaveSuccessful(); // Clear draft on successful save
+        markSaveSuccessful();
         onConnect(result);
       } else {
         setError(`Failed to ${isEditMode ? 'update' : 'connect'} Jenkins integration`);
@@ -191,30 +225,30 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       setError(getApiErrorMessage(err, `Failed to ${action} Jenkins integration`));
     } finally {
       setIsConnecting(false);
-      isInFlowRef.current = false; // Re-enable draft save after connect
+      isInFlowRef.current = false;
     }
   };
 
-  // For edit mode, apiToken is optional. For create mode, it's required
   const isFormValid = formData.hostUrl && formData.username && (isEditMode || formData.apiToken);
 
   return (
     <Stack gap="md">
       {/* Draft Restored Alert */}
       {isDraftRestored && !isEditMode && (
-        <Alert icon={<IconCheck size={16} />} color="blue" title="Draft Restored">
-          Your previously entered data has been restored. Note: Sensitive credentials (like API tokens) are never saved for security.
+        <Alert icon={<IconCheck size={16} />} color="brand" variant="light" radius="md" title="Draft Restored">
+          Your previously entered data has been restored. Note: Tokens are never saved for security.
         </Alert>
       )}
 
       <ConnectionAlert 
-        color="blue" 
-        title={isEditMode ? `${INTEGRATION_MODAL_LABELS.EDIT} ${JENKINS_LABELS.JENKINS_DETAILS}` : JENKINS_LABELS.JENKINS_DETAILS} 
-        icon={<span>🔨</span>}
+        color="brand" 
+        title={isEditMode ? 'Edit Jenkins Connection' : JENKINS_LABELS.JENKINS_DETAILS}
       >
-        {isEditMode 
-          ? 'Update your Jenkins server connection details.'
-          : 'Connect your Jenkins server to trigger builds and track deployment pipelines.'}
+        <Text size="sm">
+          {isEditMode 
+            ? 'Update your Jenkins server connection details.'
+            : 'Connect your Jenkins server to trigger builds and track deployment pipelines.'}
+        </Text>
       </ConnectionAlert>
 
       <TextInput
@@ -222,6 +256,7 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         placeholder="My Jenkins Server"
         value={formData.displayName}
         onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+        size="sm"
       />
 
       <TextInput
@@ -230,7 +265,9 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         required
         value={formData.hostUrl}
         onChange={(e) => setFormData({ ...formData, hostUrl: e.target.value })}
-        error={!formData.hostUrl && 'Host URL is required'}
+        onBlur={() => markTouched('hostUrl')}
+        error={getFieldError('hostUrl', !formData.hostUrl, 'Host URL is required')}
+        size="sm"
       />
 
       <TextInput
@@ -239,7 +276,9 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         required
         value={formData.username}
         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-        error={!formData.username && 'Username is required'}
+        onBlur={() => markTouched('username')}
+        error={getFieldError('username', !formData.username, 'Username is required')}
+        size="sm"
       />
 
       <PasswordInput
@@ -248,15 +287,26 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         required={!isEditMode}
         value={formData.apiToken}
         onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
-        error={!isEditMode && !formData.apiToken && 'API Token is required'}
+        onBlur={() => markTouched('apiToken')}
+        error={!isEditMode ? getFieldError('apiToken', !formData.apiToken, 'API Token is required') : undefined}
         description={isEditMode ? "Only provide a new token if you want to update it" : undefined}
+        size="sm"
       />
 
-      <Stack gap="xs">
+      <Box
+        p="sm"
+        style={{
+          backgroundColor: theme.colors.slate[0],
+          borderRadius: theme.radius.md,
+          border: `1px solid ${theme.colors.slate[2]}`,
+        }}
+      >
         <Switch
           label="Use CSRF Protection (Recommended)"
           checked={formData.useCrumb}
           onChange={(e) => setFormData({ ...formData, useCrumb: e.currentTarget.checked })}
+          size="sm"
+          color="brand"
         />
         
         {formData.useCrumb && (
@@ -266,14 +316,17 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
             value={formData.crumbPath}
             onChange={(e) => setFormData({ ...formData, crumbPath: e.target.value })}
             size="xs"
+            mt="sm"
           />
         )}
-      </Stack>
+      </Box>
 
       {error && (
         <Alert 
           icon={<IconAlertCircle size={16} />} 
-          color="red" 
+          color="red"
+          variant="light"
+          radius="md"
           title="Error"
           onClose={() => setError(null)}
           withCloseButton
@@ -286,9 +339,8 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         <ConnectionAlert
           color={verificationResult.success ? 'green' : 'red'}
           title={verificationResult.success ? ALERT_MESSAGES.VERIFICATION_SUCCESS : ALERT_MESSAGES.VERIFICATION_FAILED}
-          icon={<span>{verificationResult.success ? '✅' : '❌'}</span>}
         >
-          {verificationResult.message}
+          <Text size="sm">{verificationResult.message}</Text>
         </ConnectionAlert>
       )}
 
@@ -302,7 +354,6 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
               cancelLabel={INTEGRATION_MODAL_LABELS.CANCEL}
               isPrimaryLoading={isVerifying}
               isPrimaryDisabled={!isFormValid || isVerifying || isConnecting}
-              primaryClassName="bg-gray-600 hover:bg-gray-700"
             />
           ) : (
             <ActionButtons
@@ -326,9 +377,26 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
         />
       )}
 
-      <Text size="xs" c="dimmed" className="mt-2">
-        <strong>{JENKINS_LABELS.HOW_TO_GET_TOKEN}</strong> {JENKINS_LABELS.INSTRUCTIONS.join(' → ')}
-      </Text>
+      {/* How to get token */}
+      <Box
+        p="md"
+        style={{
+          backgroundColor: theme.colors.slate[0],
+          borderRadius: theme.radius.md,
+          border: `1px solid ${theme.colors.slate[2]}`,
+        }}
+      >
+        <Text size="sm" fw={600} c={theme.colors.slate[8]} mb="sm">
+          {JENKINS_LABELS.HOW_TO_GET_TOKEN}
+        </Text>
+        <List size="sm" spacing="xs" type="ordered">
+          {JENKINS_LABELS.INSTRUCTIONS.map((instruction, idx) => (
+            <List.Item key={idx}>
+              <Text size="sm" c={theme.colors.slate[6]}>{instruction}</Text>
+            </List.Item>
+          ))}
+        </List>
+      </Box>
     </Stack>
   );
 }

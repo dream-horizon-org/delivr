@@ -1,27 +1,35 @@
 /**
- * Release Management Settings Page
- * Edit and manage Release Management configuration
- * 
- * Data Flow:
- * - Uses ConfigContext (React Query) for all data
- * - System metadata and tenant config: Cached via ConfigContext (with initialData from parent routes)
- * - Release configs: Cached via useReleaseConfigs hook in ConfigContext
- * - Fast tab switching: All data is cached, no refetching needed
- * - Cache invalidation: Automatically handled by ConfigContext
+ * Configurations Page
+ * Manage release configurations
  */
 
 import { json } from '@remix-run/node';
-import { useLoaderData, useSearchParams } from '@remix-run/react';
-import { useState, useEffect, useCallback } from 'react';
+import { useLoaderData, Link } from '@remix-run/react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
-import { SettingsHeader } from '~/components/ReleaseSettings/SettingsHeader';
-import { SettingsTabs, type SettingsTab } from '~/components/ReleaseSettings/SettingsTabs';
-import { IntegrationsTab } from '~/components/ReleaseSettings/IntegrationsTab';
+import {
+  Box,
+  Title,
+  Text,
+  Group,
+  Badge,
+  Skeleton,
+  Stack,
+  ThemeIcon,
+  Center,
+  Button,
+  Breadcrumbs,
+  Anchor,
+  useMantineTheme,
+} from '@mantine/core';
+import {
+  IconSettings,
+  IconArrowLeft,
+  IconAlertCircle,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { ConfigurationsTab } from '~/components/ReleaseSettings/ConfigurationsTab';
-import { CICDTab } from '~/components/ReleaseSettings/CICDTab';
-import { GeneralTab } from '~/components/ReleaseSettings/GeneralTab';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
@@ -30,68 +38,161 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
     throw new Response('Organization not found', { status: 404 });
   }
   
-  return json({ org, user});
+  return json({ org, user });
 });
 
-export default function ReleaseSettingsPage() {
+export default function ConfigurationsPage() {
+  const theme = useMantineTheme();
   const data = useLoaderData<typeof loader>();
   const { org } = data as any;
-  const { releaseConfigs, invalidateReleaseConfigs, isLoadingMetadata, isLoadingTenantConfig } = useConfig();
-  const [searchParams, setSearchParams] = useSearchParams();
   
-  // Get tab from URL params, default to 'integrations'
-  const tabFromUrl = searchParams.get('tab') as SettingsTab | null;
-  const [activeTab, setActiveTab] = useState<SettingsTab>(() => 
-    tabFromUrl || 'integrations'
-  );
+  const { 
+    releaseConfigs, 
+    invalidateReleaseConfigs, 
+    isLoadingMetadata, 
+    isLoadingTenantConfig,
+    isLoadingReleaseConfigs,
+    releaseConfigsError,
+    metadataError,
+    tenantConfigError,
+  } = useConfig();
   
-  // Sync activeTab with URL params (only when URL changes)
-  useEffect(() => {
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [tabFromUrl]); // ✅ Removed activeTab from deps to prevent extra re-renders
-  
-  // Update URL when tab changes
-  const handleTabChange = useCallback((tab: SettingsTab) => {
-    setActiveTab(tab);
-    setSearchParams({ tab }, { replace: true }); // ✅ Use replace to avoid navigation flicker
-  }, [setSearchParams]);
-  
+  const configError = releaseConfigsError || metadataError || tenantConfigError;
+  const isLoading = isLoadingMetadata || isLoadingTenantConfig || isLoadingReleaseConfigs;
+
+  // Breadcrumb items
+  const breadcrumbItems = [
+    { title: 'Release Management', href: `/dashboard/${org}/releases` },
+    { title: 'Configurations', href: '#' },
+  ].map((item, index) => (
+    item.href === '#' ? (
+      <Text key={index} size="sm" c={theme.colors.slate[6]}>
+        {item.title}
+      </Text>
+    ) : (
+      <Anchor
+        key={index}
+        component={Link}
+        to={item.href}
+        size="sm"
+        c={theme.colors.slate[5]}
+      >
+        {item.title}
+      </Anchor>
+    )
+  ));
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Box>
+        {/* Header Skeleton */}
+        <Box mb={32}>
+          <Skeleton height={16} width={200} mb={16} />
+          <Skeleton height={32} width={300} mb={8} />
+          <Skeleton height={20} width={400} />
+        </Box>
+
+        {/* Content Skeleton */}
+        <Stack gap="lg">
+          <Skeleton height={80} radius="md" />
+          <Group gap="md">
+            <Skeleton height={200} style={{ flex: 1 }} radius="md" />
+            <Skeleton height={200} style={{ flex: 1 }} radius="md" />
+            <Skeleton height={200} style={{ flex: 1 }} radius="md" />
+          </Group>
+        </Stack>
+      </Box>
+    );
+  }
+
+  // Error state
+  if (configError) {
+    return (
+      <Box>
+        {/* Header */}
+        <Box mb={32}>
+          <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
+          <Title order={2} fw={700} c={theme.colors.slate[9]} mb={4}>
+            Configurations
+          </Title>
+          <Text size="md" c={theme.colors.slate[5]}>
+            Manage your release configurations
+          </Text>
+        </Box>
+
+        <Center py={80}>
+          <Stack align="center" gap="md">
+            <ThemeIcon size={64} radius="xl" variant="light" color="red">
+              <IconAlertCircle size={32} />
+            </ThemeIcon>
+            <Text size="lg" fw={500} c={theme.colors.slate[7]}>
+              Failed to load configuration
+            </Text>
+            <Text size="sm" c={theme.colors.slate[5]} maw={400} ta="center">
+              {typeof configError === 'string' ? configError : 'An error occurred while loading the configuration. Please try again.'}
+            </Text>
+            <Button
+              variant="light"
+              color="brand"
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => invalidateReleaseConfigs()}
+            >
+              Try Again
+            </Button>
+          </Stack>
+        </Center>
+      </Box>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <SettingsHeader org={org} />
-      
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
+    <Box>
+      {/* Header Section */}
+      <Box mb={32}>
+        <Breadcrumbs mb={16}>{breadcrumbItems}</Breadcrumbs>
         
-        {/* Tab Content - Keep all tabs mounted to prevent flickering */}
-        {/* Hidden tabs remain in DOM but don't re-render on switch */}
-        <div className={activeTab === 'integrations' ? 'block' : 'hidden'}>
-          <IntegrationsTab
-            org={org}
-            isLoading={isLoadingMetadata || isLoadingTenantConfig}
-          />
-        </div>
-        
-        <div className={activeTab === 'configurations' ? 'block' : 'hidden'}>
-          <ConfigurationsTab
-            org={org}
-            releaseConfigs={releaseConfigs}
-            invalidateReleaseConfigs={invalidateReleaseConfigs}
-          />
-        </div>
-        
-        <div className={activeTab === 'cicd' ? 'block' : 'hidden'}>
-          <CICDTab org={org} />
-        </div>
-        
-        <div className={activeTab === 'general' ? 'block' : 'hidden'}>
-          <GeneralTab />
-        </div>
-      </div>
-    </div>
+        <Group justify="space-between" align="flex-start">
+          <Box>
+            <Group gap="md" mb={4}>
+              <Title order={2} fw={700} c={theme.colors.slate[9]}>
+                Configurations
+              </Title>
+              {releaseConfigs.length > 0 && (
+                <Badge 
+                  size="lg" 
+                  variant="light" 
+                  color="brand"
+                  leftSection={<IconSettings size={14} />}
+                >
+                  {releaseConfigs.length} configuration{releaseConfigs.length !== 1 ? 's' : ''}
+                </Badge>
+              )}
+            </Group>
+            <Text size="md" c={theme.colors.slate[5]} maw={600}>
+              Create and manage release configurations to standardize your release process.
+              Define versioning rules, approval workflows, and deployment strategies.
+            </Text>
+          </Box>
+          
+          <Button
+            component={Link}
+            to={`/dashboard/${org}/releases`}
+            variant="default"
+            leftSection={<IconArrowLeft size={16} />}
+          >
+            Back to Releases
+          </Button>
+        </Group>
+      </Box>
+
+      {/* Configurations Content */}
+      <ConfigurationsTab
+        org={org}
+        releaseConfigs={releaseConfigs}
+        invalidateReleaseConfigs={invalidateReleaseConfigs}
+        isLoading={isLoadingReleaseConfigs}
+      />
+    </Box>
   );
 }
-

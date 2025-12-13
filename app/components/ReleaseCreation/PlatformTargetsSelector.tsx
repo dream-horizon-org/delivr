@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo } from 'react';
 import {
-  Card,
+  Box,
   Stack,
   Group,
   Text,
@@ -17,6 +17,7 @@ import {
   TextInput,
   Badge,
   Alert,
+  useMantineTheme,
 } from '@mantine/core';
 import { IconTarget, IconInfoCircle } from '@tabler/icons-react';
 import type { PlatformTargetWithVersion } from '~/types/release-creation-backend';
@@ -74,6 +75,8 @@ export function PlatformTargetsSelector({
   errors = {},
   disabled = false,
 }: PlatformTargetsSelectorProps) {
+  const theme = useMantineTheme();
+  
   // Available targets from config (or all if no config)
   const availableTargets = useMemo(() => {
     if (config) {
@@ -162,15 +165,39 @@ export function PlatformTargetsSelector({
   // Validation: Check if at least 1 platform target is selected
   const hasMinimumSelection = platformTargets.length >= 1;
   const showMinimumError = !hasMinimumSelection && errors.platformTargets;
+  
+  // Get version error for a specific target
+  const getVersionError = (target: TargetPlatform): string | undefined => {
+    // Check for version-specific error
+    if (errors[`version-${target}`]) {
+      return errors[`version-${target}`];
+    }
+    // Check for platform target array errors
+    const ptIndex = platformTargets.findIndex(pt => pt.target === target);
+    if (ptIndex >= 0) {
+      if (errors[`platformTargets[${ptIndex}].version`]) {
+        return errors[`platformTargets[${ptIndex}].version`];
+      }
+      if (errors[`platformTargets[${ptIndex}]`]) {
+        return errors[`platformTargets[${ptIndex}]`];
+      }
+    }
+    return undefined;
+  };
 
   return (
-    <Card shadow="sm" padding="md" radius="md" withBorder>
+    <Box>
       <Stack gap="md">
-        <Group gap="sm">
-          <IconTarget size={20} className="text-blue-600" />
-          <Text fw={600} size="sm">
-            Platform Targets
-          </Text>
+        <Group gap="sm" mb="xs">
+          <IconTarget size={20} color={theme.colors.brand[6]} />
+          <Box style={{ flex: 1 }}>
+            <Text fw={600} size="sm" mb={4}>
+              Platform Targets
+            </Text>
+            <Text size="xs" c={theme.colors.slate[5]}>
+              Select the platforms and distribution targets for this release. At least one must be selected.
+            </Text>
+          </Box>
         </Group>
 
         {disabled && (
@@ -180,8 +207,8 @@ export function PlatformTargetsSelector({
         )}
 
         {showMinimumError && (
-          <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light">
-            <Text size="xs">{errors.platformTargets}</Text>
+          <Alert icon={<IconInfoCircle size={16} />} color="red" variant="light" radius="md">
+            <Text size="sm">{errors.platformTargets}</Text>
           </Alert>
         )}
 
@@ -194,45 +221,52 @@ export function PlatformTargetsSelector({
               platform as PlatformTargetWithVersion['platform'],
               target
             );
+            const versionError = getVersionError(target);
 
             return (
-              <Card
+              <Box
                 key={target}
-                padding="md"
-                withBorder
-                className={selected ? 'border-blue-300' : ''}
-                style={{ flex: '1 1 300px', minWidth: '300px' }}
+                p="md"
+                style={{
+                  flex: '1 1 300px',
+                  minWidth: '300px',
+                  border: `1px solid ${selected ? theme.colors.brand[3] : theme.colors.slate[2]}`,
+                  borderRadius: theme.radius.md,
+                  background: selected ? theme.colors.brand[0] : 'transparent',
+                }}
               >
                 <Stack gap="sm">
-                  <Group justify="space-between" align="center">
-                    <Checkbox
-                      label={label}
-                      checked={selected}
-                      onChange={(e) =>
-                        handleTargetToggle(target, e.currentTarget.checked)
-                      }
-                      disabled={disabled}
-                    />
-                  </Group>
+                  <Checkbox
+                    label={label}
+                    checked={selected}
+                    onChange={(e) =>
+                      handleTargetToggle(target, e.currentTarget.checked)
+                    }
+                    disabled={!selected && platformTargets.length === 0}
+                  />
 
                   {selected && (
                     <TextInput
                       label="Version"
-                      placeholder="e.g., v6.5.0 or 6.5.0"
+                      placeholder="e.g., v1.0.0 or 1.0.0"
                       value={version}
                       onChange={(e) => handleVersionChange(target, e.target.value)}
                       required
-                      error={errors[`version-${target}`]}
-                      disabled={disabled}
+                      withAsterisk
+                      error={versionError}
+                      description="Semantic version format (e.g., v1.0.0). This will be the version number for this platform."
+                      styles={{
+                        label: { fontWeight: 500, marginBottom: 6 },
+                      }}
                     />
                   )}
                 </Stack>
-              </Card>
+              </Box>
             );
           })}
         </Group>
       </Stack>
-    </Card>
+    </Box>
   );
 }
 

@@ -205,7 +205,7 @@ export function ReleaseReviewSummary({
               </div>
               <div>
                 <span className="font-medium">
-                  {config.scheduling?.regressionSlots?.length || 0}
+                  {config.releaseSchedule?.regressionSlots?.length || 0}
                 </span>{' '}
                 regression slots
               </div>

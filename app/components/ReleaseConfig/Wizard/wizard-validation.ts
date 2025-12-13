@@ -257,7 +257,8 @@ export const canProceedFromStep = (
       return !!config.targets && config.targets.length > 0;
       
     case STEP_INDEX.BUILD_UPLOAD:
-      return true
+      // Ensure user has explicitly selected an upload method
+      return config.hasManualBuildUpload !== undefined
       
     case STEP_INDEX.PIPELINES:
       // Use the validation helper function for workflows
@@ -281,11 +282,11 @@ export const canProceedFromStep = (
       
     case STEP_INDEX.SCHEDULING:
       // If user opted out of scheduling, allow proceed
-      if (!config.scheduling) {
+      if (!config.releaseSchedule) {
         return true;
       }
       // If user opted in, validate scheduling config
-      const schedulingErrors = validateScheduling(config.scheduling);
+      const schedulingErrors = validateScheduling(config.releaseSchedule);
       return schedulingErrors.length === 0;
       
     case STEP_INDEX.REVIEW:

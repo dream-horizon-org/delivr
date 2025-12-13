@@ -1,15 +1,20 @@
 import {
-  Card,
-  Text,
   ActionIcon,
   Badge,
-  Menu,
   Box,
   Group,
-  Stack,
-  useMantineTheme,
+  Menu,
+  Paper,
+  Text,
+  useMantineTheme
 } from "@mantine/core";
-import { IconTrash, IconDots, IconExternalLink, IconBuilding } from "@tabler/icons-react";
+import {
+  IconApps,
+  IconChevronRight,
+  IconDots,
+  IconExternalLink,
+  IconTrash,
+} from "@tabler/icons-react";
 
 type Organization = {
   id: string;
@@ -31,186 +36,164 @@ const getInitials = (name: string) => {
   return name.substring(0, 2).toUpperCase();
 };
 
+// Color themes for org cards based on name hash
+const getOrgTheme = (name: string) => {
+  const themes = [
+    { accent: '#0d9488', light: '#f0fdfa', bg: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)' }, // Teal
+    { accent: '#3b82f6', light: '#eff6ff', bg: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' }, // Blue
+    { accent: '#8b5cf6', light: '#f5f3ff', bg: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' }, // Violet
+    { accent: '#ec4899', light: '#fdf2f8', bg: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)' }, // Pink
+    { accent: '#f59e0b', light: '#fffbeb', bg: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)' }, // Amber
+    { accent: '#06b6d4', light: '#ecfeff', bg: 'linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)' }, // Cyan
+    { accent: '#10b981', light: '#ecfdf5', bg: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' }, // Emerald
+    { accent: '#6366f1', light: '#eef2ff', bg: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)' }, // Indigo
+  ];
+  
+  const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return themes[hash % themes.length];
+};
+
 export function OrgCard({ org, onNavigate, onDelete }: OrgCardProps) {
   const theme = useMantineTheme();
   const initials = getInitials(org.orgName);
+  const orgTheme = getOrgTheme(org.orgName);
+  
+  const borderColor = theme.colors?.slate?.[2] || '#e2e8f0';
   
   return (
-    <Card
-      withBorder
-      padding={0}
-      radius="lg"
+    <Paper
+      radius="md"
       style={{
         cursor: "pointer",
-        transition: theme.other.transitions.normal,
-        width: theme.other.sizes.card?.width || "300px",
-        borderColor: theme.other.borders.primary,
-        backgroundColor: theme.other.backgrounds.primary,
-        overflow: "hidden",
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        backgroundColor: '#fff',
+        border: `1px solid ${borderColor}`,
+        overflow: 'hidden',
       }}
       styles={{
         root: {
           "&:hover": {
-            borderColor: theme.other.brand.primary,
-            boxShadow: theme.other.shadows.lg,
-            transform: "translateY(-4px)",
+            borderColor: orgTheme.accent,
+            transform: 'translateY(-4px)',
+            boxShadow: `0 16px 32px -8px rgba(0, 0, 0, 0.12)`,
           },
         },
       }}
       onClick={onNavigate}
     >
-      {/* Header with gradient */}
+      {/* Gradient Header with Avatar */}
       <Box
         style={{
-          background: theme.other.brand.gradient,
-          padding: theme.other.spacing.lg,
-          position: "relative",
-          height: "120px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
+          background: orgTheme.bg,
+          padding: '20px',
+          position: 'relative',
         }}
       >
-        <Badge
-          variant="filled"
-          size="sm"
-          radius="sm"
-          style={{
-            textTransform: "uppercase",
-            fontSize: theme.other.typography.fontSize.xs,
-            fontWeight: theme.other.typography.fontWeight.semibold,
-            letterSpacing: theme.other.typography.letterSpacing.wide,
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
-            color: theme.other.text.white,
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          {org.isAdmin ? "Owner" : "Member"}
-        </Badge>
-        
-        {org.isAdmin && (
-          <Menu shadow="md" width={180} position="bottom-end">
-            <Menu.Target>
-              <ActionIcon
-                variant="subtle"
-                size="sm"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.2)",
-                  backdropFilter: "blur(10px)",
-                  color: theme.other.text.white,
-                }}
-              >
-                <IconDots size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item
-                leftSection={<IconExternalLink size={14} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNavigate();
-                }}
-              >
-                Open Organization
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item
-                color="red"
-                leftSection={<IconTrash size={14} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-              >
-                Delete Organization
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-        )}
-      </Box>
-
-      {/* Icon/Avatar - overlapping the header */}
-      <Box
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: "-40px",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <Box
-          style={{
-            width: "80px",
-            height: "80px",
-            borderRadius: theme.other.borderRadius.xl,
-            background: theme.other.backgrounds.primary,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: `4px solid ${theme.other.backgrounds.primary}`,
-            boxShadow: theme.other.shadows.lg,
-          }}
-        >
+        <Group justify="space-between" align="flex-start">
+          {/* Avatar */}
           <Box
             style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: theme.other.borderRadius.lg,
-              background: theme.other.brand.light,
+              width: 52,
+              height: 52,
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: 'white',
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              fontSize: '18px',
+              fontWeight: 700,
             }}
           >
-            <Text
-              size="xl"
-              fw={theme.other.typography.fontWeight.bold}
-              style={{
-                color: theme.other.brand.primaryDark,
-                fontSize: theme.other.typography.fontSize["2xl"],
-              }}
-            >
-              {initials}
-            </Text>
+            {initials}
           </Box>
-        </Box>
-      </Box>
 
+          {/* Context Menu */}
+          {org.isAdmin && (
+            <Menu shadow="md" width={180} position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  radius="sm"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ color: 'rgba(255,255,255,0.8)' }}
+                >
+                  <IconDots size={18} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconExternalLink size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate();
+                  }}
+                >
+                  Open Dashboard
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  Delete
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
+        </Group>
+      </Box>
+      
       {/* Content */}
-      <Stack gap="xs" style={{ padding: theme.other.spacing.lg, paddingTop: theme.other.spacing.md }}>
+      <Box p="lg">
         <Text
-          ta="center"
+          fw={600}
           size="lg"
-          fw={theme.other.typography.fontWeight.semibold}
-          lineClamp={2}
-          style={{
-            color: theme.other.text.primary,
-            minHeight: "56px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          c="dark.9"
+          mb={6}
+          lineClamp={1}
+          style={{ letterSpacing: '-0.01em' }}
         >
           {org.orgName}
         </Text>
-
-        <Group justify="center" gap="xs">
-          <Box
-            style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: theme.other.borderRadius.full,
-              backgroundColor: theme.other.brand.primary,
+        
+        <Group justify="space-between" align="center">
+          <Group gap="sm">
+            <Badge
+              size="sm"
+              variant="light"
+              radius="sm"
+              color={org.isAdmin ? "teal" : "gray"}
+              style={{ fontWeight: 600 }}
+            >
+              {org.isAdmin ? 'Owner' : 'Member'}
+            </Badge>
+            <Group gap={4} c="dimmed">
+              <IconApps size={14} />
+              <Text size="xs" fw={500}>Workspace</Text>
+            </Group>
+          </Group>
+          
+          <Box 
+            style={{ 
+              color: orgTheme.accent,
+              opacity: 0.6, 
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
             }}
-          />
-          <Text size="xs" c={theme.other.text.tertiary} fw={theme.other.typography.fontWeight.medium}>
-            {org.isAdmin ? "You own this" : "Member"}
-          </Text>
+          >
+            <IconChevronRight size={18} stroke={2.5} />
+          </Box>
         </Group>
-      </Stack>
-    </Card>
+      </Box>
+    </Paper>
   );
 }
-

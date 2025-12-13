@@ -1,9 +1,10 @@
-import { UnstyledButton, Group, Avatar, Text, rem, Menu } from "@mantine/core";
+import { UnstyledButton, Group, Avatar, Text, rem, Menu, Modal, Button, Stack, useMantineTheme } from "@mantine/core";
 import {
   IconChevronRight,
   IconLogout,
   IconSettings,
   IconTrash,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import classes from "./index.module.css";
 import { Form, useNavigate } from "@remix-run/react"; // Use Remix's Form for logout action
@@ -19,6 +20,8 @@ export type UserButtonProps = {
 export function UserButton({ user }: UserButtonProps) {
   const navigate = useNavigate();
   const [deleteModalData, setDeleteModalData] = useState<DeleteModalData | null>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const theme = useMantineTheme();
 
   return (
     <>
@@ -56,25 +59,12 @@ export function UserButton({ user }: UserButtonProps) {
           Delete Account
         </Menu.Item>
         <Menu.Divider />
-        <Menu.Item color="red">
-          <Form
-            method="post"
-            action="/logout"
-            style={{ display: "flex", alignItems: "center", gap: "8px" }}
-          >
-            <IconLogout size={14} /> {/* Render the icon directly here */}
-            <button
-              type="submit"
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                flex: 1,
-                textAlign: "left",
-              }}
-            >
-              Logout
-            </button>
-          </Form>
+        <Menu.Item 
+          color="red"
+          leftSection={<IconLogout style={{ width: rem(14), height: rem(14) }} />}
+          onClick={() => setLogoutModalOpen(true)}
+        >
+          Logout
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
@@ -100,6 +90,48 @@ export function UserButton({ user }: UserButtonProps) {
         navigate('/login');
       }}
     />
+
+    {/* Logout Confirmation Modal */}
+    <Modal
+      opened={logoutModalOpen}
+      onClose={() => setLogoutModalOpen(false)}
+      title={
+        <Group gap="sm">
+          <IconAlertCircle size={24} color={theme.colors.red[6]} />
+          <Text fw={600} size="lg">
+            Sign Out
+          </Text>
+        </Group>
+      }
+      centered
+      size="sm"
+      radius="md"
+      overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
+    >
+      <Stack gap="lg">
+        <Text size="sm" c="dimmed">
+          Are you sure you want to sign out? You'll need to sign in again to access your account.
+        </Text>
+
+        <Group justify="flex-end" gap="sm">
+          <Button
+            variant="default"
+            onClick={() => setLogoutModalOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Form method="post" action="/logout">
+            <Button
+              type="submit"
+              color="red"
+              leftSection={<IconLogout size={16} />}
+            >
+              Sign Out
+            </Button>
+          </Form>
+        </Group>
+      </Stack>
+    </Modal>
     </>
   );
 }

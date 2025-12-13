@@ -3,14 +3,14 @@
  * Displays a single release in a modern card format with gradient header
  */
 
-import { memo } from 'react';
+import { Badge, Box, Card, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { Link } from '@remix-run/react';
-import { Badge, Group, Stack, Card, Box, useMantineTheme, Text } from '@mantine/core';
-import { IconClock, IconTarget, IconFlag, IconSettings, IconRocket, IconCheck } from '@tabler/icons-react';
-import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
-import { formatReleaseDate, getReleaseTypeGradient, getReleaseActiveStatus, getActiveStatusColor } from '~/utils/release-utils';
+import { IconCheck, IconClock, IconFlag, IconRocket, IconSettings, IconTarget } from '@tabler/icons-react';
+import { memo } from 'react';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
+import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import type { ReleaseCardProps } from '~/types/release';
+import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient } from '~/utils/release-utils';
 
 /**
  * Release Card Component - Modern Full Width Design
@@ -20,6 +20,7 @@ export const ReleaseCard = memo(function ReleaseCard({
   org
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
+  console.log(theme)
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -59,9 +60,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                     {release.branch}
                   </Text>
                 ) : (
-                  <Text fw={600} size="lg" c="white" className="truncate">
+                <Text fw={600} size="lg" c="white" className="truncate">
                     No branch
-                  </Text>
+                </Text>
                 )}
                 {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
                   <Group gap="xs">
@@ -149,9 +150,9 @@ export const ReleaseCard = memo(function ReleaseCard({
                         {releaseConfig.releaseType}
                       </Badge>
                     )}
-                    {releaseConfig.scheduling?.regressionSlots && releaseConfig.scheduling.regressionSlots.length > 0 && (
+                    {releaseConfig.releaseSchedule?.regressionSlots && releaseConfig.releaseSchedule.regressionSlots.length > 0 && (
                       <Badge size="sm" variant="outline" color="green">
-                        {releaseConfig.scheduling.regressionSlots.length} Regression Slot{releaseConfig.scheduling.regressionSlots.length !== 1 ? 's' : ''}
+                        {releaseConfig.releaseSchedule.regressionSlots.length} Regression Slot{releaseConfig.releaseSchedule.regressionSlots.length !== 1 ? 's' : ''}
                       </Badge>
                     )}
                   </Group>
@@ -164,18 +165,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.kickOffDate && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.green,
+                      backgroundColor: '#f0fdf4',
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconFlag size={16} color={theme.other.text.green} />
+                      <IconFlag size={16} color="#10b981" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Kickoff
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c="dark">
                       {formatReleaseDate(release.kickOffDate)}
                     </Text>
                   </Box>
@@ -185,18 +186,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.targetReleaseDate && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.blue,
+                      backgroundColor: '#eff6ff',
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconTarget size={16} color={theme.other.brand.primary} />
+                      <IconTarget size={16} color="#3b82f6" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Target Date
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c="dark">
                       {formatReleaseDate(release.targetReleaseDate)}
                     </Text>
                   </Box>
@@ -206,18 +207,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.releaseDate && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.lightGreen,
+                      backgroundColor: '#ecfdf5',
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconRocket size={16} color={theme.other.text.green} />
+                      <IconRocket size={16} color="#10b981" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Released
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c="dark">
                       {formatReleaseDate(release.releaseDate)}
                     </Text>
                   </Box>
@@ -227,18 +228,18 @@ export const ReleaseCard = memo(function ReleaseCard({
                 {release.tasks && release.tasks.length > 0 && (
                   <Box
                     style={{
-                      backgroundColor: theme.other.backgrounds.active,
+                      backgroundColor: '#f0fdfa',
                       padding: '12px 16px',
-                      borderRadius: theme.other.borderRadius.md,
+                      borderRadius: theme.radius.md,
                     }}
                   >
                     <Group gap="xs" className="mb-1">
-                      <IconCheck size={16} color={theme.other.brand.primary} />
+                      <IconCheck size={16} color="#14b8a6" />
                       <Text size="xs" fw={600} c="dimmed" className="uppercase">
                         Tasks
                       </Text>
                     </Group>
-                    <Text size="sm" fw={600} c={theme.other.text.primary}>
+                    <Text size="sm" fw={600} c="dark">
                       {release.tasks.length} task{release.tasks.length !== 1 ? 's' : ''}
                     </Text>
                   </Box>
@@ -248,7 +249,7 @@ export const ReleaseCard = memo(function ReleaseCard({
               {/* Footer with Created Date */}
               <Group justify="space-between" className="pt-2 border-t border-gray-200">
                 <Group gap="xs">
-                  <IconClock size={14} color={theme.other.text.tertiary} />
+                  <IconClock size={14} color="#94a3b8" />
                   <Text size="xs" c="dimmed">
                     Created {formatReleaseDate(release.createdAt)}
                   </Text>
