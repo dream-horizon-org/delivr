@@ -1,12 +1,9 @@
 /**
  * Release Management Routes (Release Orchestration)
- * 
-  * Handles all release-related API endpoints by delegating to controllers.
- * Routes are minimal - routing only, no business logic.
+ *
  * Handles all release-related API endpoints by delegating to controllers.
  * Routes are minimal - routing only, no business logic.
  */
-
 import { Request, Response, Router } from "express";
 import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
@@ -24,6 +21,12 @@ import { BuildArtifactService } from "../../services/release/build/build-artifac
 import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
 import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
 import { HTTP_STATUS } from "../../constants/http";
+import {
+  hasReleaseCreationService,
+  hasManualUploadDependencies,
+  hasBuildCallbackDependencies,
+  StorageWithReleaseServices
+} from "../../types/release/storage-with-services.interface";
 
 // Multer configuration for file uploads (memory storage)
 const upload = multer({ 
@@ -47,30 +50,29 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const storage: storageTypes.Storage = config.storage;
   const router: Router = Router();
 
-  // Get services from storage (cast to access services)
-  const storageWithServices = storage as any;
-  
-  // Check if services are available
-  if (!storageWithServices.releaseCreationService) {
+  // Check if release services are available using type guard
+  const servicesInitialized = hasReleaseCreationService(storage);
+  if (!servicesInitialized) {
     console.warn('[Release Orchestration Routes] Release services not initialized on storage');
     return router;
   }
 
+  // TypeScript now knows storage has release services
+  const storageWithServices: StorageWithReleaseServices = storage;
+
   // Get CronJobService from factory
   const cronJobService = getCronJobService(storage);
-  if (!cronJobService) {
+  const cronJobServiceUnavailable = !cronJobService;
+  if (cronJobServiceUnavailable) {
     console.warn('[Release Orchestration Routes] CronJobService not available');
     return router;
   }
 
   // Create ManualUploadService (optional - may not be available in all environments)
   let manualUploadService: ManualUploadService | undefined;
-  const hasManualUploadDependencies = 
-    storageWithServices.releaseUploadsRepository &&
-    storageWithServices.releaseRepository &&
-    storageWithServices.platformMappingRepository;
+  const canCreateManualUploadService = hasManualUploadDependencies(storage);
   
-  if (hasManualUploadDependencies) {
+  if (canCreateManualUploadService) {
     const validationService = new UploadValidationService(
       storageWithServices.releaseRepository,
       storageWithServices.cronJobRepository,
@@ -103,13 +105,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Create BuildCallbackController with service
   let buildCallbackController: BuildCallbackController | undefined;
-  const hasBuildCallbackDependencies = 
-    storageWithServices.buildRepository &&
-    storageWithServices.releaseTaskRepository &&
-    storageWithServices.releaseRepository &&
-    storageWithServices.cronJobRepository;
+  const canCreateBuildCallback = hasBuildCallbackDependencies(storage);
   
-  if (hasBuildCallbackDependencies) {
+  if (canCreateBuildCallback) {
     const buildCallbackService = new BuildCallbackService(
       storageWithServices.buildRepository,
       storageWithServices.releaseTaskRepository,
@@ -459,7 +457,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
     tenantPermissions.requireOwner({ storage }),
     createBuildListArtifactsHandler(storage)
-  )
+  );
 
   return router;
 }

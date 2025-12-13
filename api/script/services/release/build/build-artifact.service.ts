@@ -1,8 +1,8 @@
-import type { Storage } from '../../../storage/storage';
 import { S3Storage } from '../../../storage/aws-storage';
+import type { Storage } from '../../../storage/storage';
 import { BuildRepository } from '~models/release/build.repository';
 import { buildArtifactS3Key, buildS3Uri, deriveStandardArtifactFilename, parseS3Uri } from '~utils/s3-path.utils';
-import { uploadToS3, inferContentType, generatePresignedGetUrl } from '~utils/s3-upload.utils';
+import { inferContentType } from '~utils/s3-upload.utils';
 import {
   BUILD_UPLOAD_STATUS,
   BUILD_TYPE,
@@ -44,23 +44,22 @@ import { STORE_TYPE_MAP } from '../../../constants/store';
  * This can be invoked directly by other services without going through HTTP.
  */
 export class BuildArtifactService {
-  private readonly storage: Storage;
+  private readonly s3Storage: S3Storage;
   private readonly buildRepository: BuildRepository;
   private readonly testflightVerificationService: TestFlightBuildVerificationService;
 
   constructor(storage: Storage) {
-    this.storage = storage;
     const isS3Storage = storage instanceof S3Storage;
     if (!isS3Storage) {
       throw new Error('BuildArtifactService requires S3Storage');
     }
-    const s3Storage = storage as S3Storage;
-    this.buildRepository = s3Storage.buildRepository;
+    this.s3Storage = storage;
+    this.buildRepository = this.s3Storage.buildRepository;
     this.testflightVerificationService = new TestFlightBuildVerificationService(
-      s3Storage.storeIntegrationController,
-      s3Storage.storeCredentialController,
-      s3Storage.releasePlatformTargetMappingRepository,
-      s3Storage.releaseRepository
+      this.s3Storage.storeIntegrationController,
+      this.s3Storage.storeCredentialController,
+      this.s3Storage.releasePlatformTargetMappingRepository,
+      this.s3Storage.releaseRepository
     );
   }
 
@@ -118,53 +117,18 @@ export class BuildArtifactService {
       BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
     );
 
-    // Step 4: Handle AAB internal track
+    // Step 4: Handle AAB internal track distribution
     const isAab = isAabFile(originalFilename);
     if (isAab) {
-      const hasProvidedBuildNumber = buildNumber !== null && buildNumber !== undefined;
-      
-      if (hasProvidedBuildNumber) {
-        // CI already uploaded to Play Store - generate link using packageName + buildNumber
-        const packageName = await this.getPlayStorePackageName(build.tenantId);
-        const internalTrackLink = generateInternalTrackLink(packageName, buildNumber);
-
-        await executeOperation(
-          () => this.buildRepository.updateInternalTrackInfo(
-            build.id,
-            internalTrackLink,
-            buildNumber
-          ),
-          BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
-          BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
-        );
-      } else {
-        // CI didn't upload to Play Store - upload it ourselves
-        const playStoreResult = await executeOperation(
-          () => uploadAabToPlayStoreInternal(
-            artifactBuffer,
-            build.artifactVersionName,
-            build.tenantId,
-            STORE_TYPE_MAP.PLAY_STORE,
-            build.platform,
-            build.releaseId
-          ),
-          BUILD_ARTIFACT_ERROR_CODE.STORE_DISTRIBUTION_FAILED,
-          BUILD_ARTIFACT_ERROR_MESSAGES.STORE_DISTRIBUTION_FAILED
-        );
-
-        const internalTrackLink = playStoreResult.versionSpecificUrl;
-        const versionCode = playStoreResult.versionCode?.toString() ?? null;
-
-        await executeOperation(
-          () => this.buildRepository.updateInternalTrackInfo(
-            build.id,
-            internalTrackLink,
-            versionCode
-          ),
-          BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
-          BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
-        );
-      }
+      await this.handleAabInternalTrack({
+        buildId: build.id,
+        tenantId: build.tenantId,
+        artifactBuffer,
+        artifactVersionName: build.artifactVersionName,
+        platform: build.platform,
+        releaseId: build.releaseId,
+        buildNumber
+      });
     }
 
     return {
@@ -215,19 +179,7 @@ export class BuildArtifactService {
 
     // Step 4: Upload buffer to S3
     await executeOperation(
-      async () => {
-        const isS3Storage = this.storage instanceof S3Storage;
-        if (isS3Storage) {
-          await (this.storage as S3Storage).uploadBufferToS3(s3Key, artifactBuffer, contentType);
-        } else {
-          await uploadToS3({
-            bucketName,
-            key: s3Key,
-            body: artifactBuffer,
-            contentType
-          });
-        }
-      },
+      () => this.s3Storage.uploadBufferToS3(s3Key, artifactBuffer, contentType),
       BUILD_ARTIFACT_ERROR_CODE.S3_UPLOAD_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.S3_UPLOAD_FAILED
     );
@@ -235,20 +187,10 @@ export class BuildArtifactService {
     // Step 5: Generate presigned download URL
     const s3Uri = buildS3Uri(bucketName, s3Key);
     const downloadUrl = await executeOperation(
-      async () => {
-        const isS3Storage = this.storage instanceof S3Storage;
-        if (isS3Storage) {
-          return (this.storage as S3Storage).getSignedObjectUrl(
-            s3Key,
-            BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
-          );
-        }
-        return generatePresignedGetUrl({
-          bucketName,
-          key: s3Key,
-          expiresSeconds: BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
-        });
-      },
+      () => this.s3Storage.getSignedObjectUrl(
+        s3Key,
+        BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
+      ),
       BUILD_ARTIFACT_ERROR_CODE.PRESIGNED_URL_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.PRESIGNED_URL_FAILED
     );
@@ -524,20 +466,10 @@ export class BuildArtifactService {
    */
   generatePresignedUrl = async (s3Uri: string, expiresSeconds?: number): Promise<string> => {
     const expires = expiresSeconds ?? BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS;
-    const { bucket, key } = parseS3Uri(s3Uri);
+    const { key } = parseS3Uri(s3Uri);
 
     return executeOperation(
-      async () => {
-        const isS3Storage = this.storage instanceof S3Storage;
-        if (isS3Storage) {
-          return (this.storage as S3Storage).getSignedObjectUrl(key, expires);
-        }
-        return generatePresignedGetUrl({
-          bucketName: bucket,
-          key,
-          expiresSeconds: expires
-        });
-      },
+      () => this.s3Storage.getSignedObjectUrl(key, expires),
       BUILD_ARTIFACT_ERROR_CODE.PRESIGNED_URL_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.PRESIGNED_URL_FAILED
     );
@@ -583,19 +515,7 @@ export class BuildArtifactService {
 
     // Step 2: Upload buffer to S3
     await executeOperation(
-      async () => {
-        const isS3Storage = this.storage instanceof S3Storage;
-        if (isS3Storage) {
-          await (this.storage as S3Storage).uploadBufferToS3(s3Key, artifactBuffer, contentType);
-        } else {
-          await uploadToS3({
-            bucketName,
-            key: s3Key,
-            body: artifactBuffer,
-            contentType
-          });
-        }
-      },
+      () => this.s3Storage.uploadBufferToS3(s3Key, artifactBuffer, contentType),
       BUILD_ARTIFACT_ERROR_CODE.S3_UPLOAD_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.S3_UPLOAD_FAILED
     );
@@ -603,25 +523,76 @@ export class BuildArtifactService {
     // Step 3: Generate presigned download URL
     const s3Uri = buildS3Uri(bucketName, s3Key);
     const downloadUrl = await executeOperation(
-      async () => {
-        const isS3Storage = this.storage instanceof S3Storage;
-        if (isS3Storage) {
-          return (this.storage as S3Storage).getSignedObjectUrl(
-            s3Key,
-            BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
-          );
-        }
-        return generatePresignedGetUrl({
-          bucketName,
-          key: s3Key,
-          expiresSeconds: BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
-        });
-      },
+      () => this.s3Storage.getSignedObjectUrl(
+        s3Key,
+        BUILD_ARTIFACT_DEFAULTS.PRESIGNED_URL_EXPIRES_SECONDS
+      ),
       BUILD_ARTIFACT_ERROR_CODE.PRESIGNED_URL_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.PRESIGNED_URL_FAILED
     );
 
     return { s3Uri, downloadUrl };
+  };
+
+  /**
+   * Handle AAB internal track distribution.
+   * Either generates link from provided buildNumber or uploads to Play Store.
+   *
+   * @param buildId - Build ID to update
+   * @param tenantId - Tenant ID for Play Store lookup
+   * @param artifactBuffer - The AAB file buffer (for uploading to Play Store)
+   * @param artifactVersionName - Version name for Play Store upload
+   * @param platform - Build platform
+   * @param releaseId - Release ID
+   * @param buildNumber - Optional build number (if CI already uploaded to Play Store)
+   */
+  private handleAabInternalTrack = async (params: {
+    buildId: string;
+    tenantId: string;
+    artifactBuffer: Buffer;
+    artifactVersionName: string;
+    platform: string;
+    releaseId: string;
+    buildNumber?: string | null;
+  }): Promise<void> => {
+    const { buildId, tenantId, artifactBuffer, artifactVersionName, platform, releaseId, buildNumber } = params;
+    
+    const hasProvidedBuildNumber = buildNumber !== null && buildNumber !== undefined;
+    
+    if (hasProvidedBuildNumber) {
+      // CI already uploaded to Play Store - generate link using packageName + buildNumber
+      const packageName = await this.getPlayStorePackageName(tenantId);
+      const internalTrackLink = generateInternalTrackLink(packageName, buildNumber);
+
+      await executeOperation(
+        () => this.buildRepository.updateInternalTrackInfo(buildId, internalTrackLink, buildNumber),
+        BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+        BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+      );
+    } else {
+      // CI didn't upload to Play Store - upload it ourselves
+      const playStoreResult = await executeOperation(
+        () => uploadAabToPlayStoreInternal(
+          artifactBuffer,
+          artifactVersionName,
+          tenantId,
+          STORE_TYPE_MAP.PLAY_STORE,
+          platform,
+          releaseId
+        ),
+        BUILD_ARTIFACT_ERROR_CODE.STORE_DISTRIBUTION_FAILED,
+        BUILD_ARTIFACT_ERROR_MESSAGES.STORE_DISTRIBUTION_FAILED
+      );
+
+      const internalTrackLink = playStoreResult.versionSpecificUrl;
+      const versionCode = playStoreResult.versionCode?.toString() ?? null;
+
+      await executeOperation(
+        () => this.buildRepository.updateInternalTrackInfo(buildId, internalTrackLink, versionCode),
+        BUILD_ARTIFACT_ERROR_CODE.DB_UPDATE_FAILED,
+        BUILD_ARTIFACT_ERROR_MESSAGES.DB_UPDATE_FAILED
+      );
+    }
   };
 
   /**
@@ -632,16 +603,7 @@ export class BuildArtifactService {
    * @throws BuildArtifactError if Play Store integration not found
    */
   private getPlayStorePackageName = async (tenantId: string): Promise<string> => {
-    const isS3Storage = this.storage instanceof S3Storage;
-    if (!isS3Storage) {
-      throw new BuildArtifactError(
-        BUILD_ARTIFACT_ERROR_CODE.PLAY_STORE_INTEGRATION_NOT_FOUND,
-        BUILD_ARTIFACT_ERROR_MESSAGES.PLAY_STORE_INTEGRATION_NOT_FOUND
-      );
-    }
-
-    const s3Storage = this.storage as S3Storage;
-    const integrations = await s3Storage.storeIntegrationController.findAll({
+    const integrations = await this.s3Storage.storeIntegrationController.findAll({
       tenantId,
       storeType: PlayStoreType.PLAY_STORE
     });
@@ -659,13 +621,9 @@ export class BuildArtifactService {
   };
 
   /**
-   * Get the S3 bucket name from storage or environment.
+   * Get the S3 bucket name from storage.
    */
   private getBucketName = (): string => {
-    const isS3Storage = this.storage instanceof S3Storage;
-    if (isS3Storage) {
-      return (this.storage as S3Storage).getS3BucketName();
-    }
-    return process.env.S3_BUCKETNAME ?? BUILD_ARTIFACT_DEFAULTS.BUCKET_NAME;
+    return this.s3Storage.getS3BucketName();
   };
 }

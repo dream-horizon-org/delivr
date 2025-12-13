@@ -1,3 +1,5 @@
+import type { WhereOptions } from 'sequelize';
+import type { Model } from 'sequelize';
 import type { BuildModelType, BuildAttributes } from './build.sequelize.model';
 import type {
   BuildPlatform,
@@ -62,7 +64,7 @@ export type UpdateBuildDto = {
 export class BuildRepository {
   constructor(private readonly model: BuildModelType) {}
 
-  private toPlainObject(instance: any): Build {
+  private toPlainObject(instance: Model<BuildAttributes>): Build {
     return instance.toJSON() as Build;
   }
 
@@ -112,7 +114,7 @@ export class BuildRepository {
       where: { releaseId },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -123,7 +125,7 @@ export class BuildRepository {
       where: { releaseId, platform },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -134,7 +136,7 @@ export class BuildRepository {
       where: { regressionId },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -156,7 +158,7 @@ export class BuildRepository {
       where: { taskId },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -190,7 +192,7 @@ export class BuildRepository {
       where: { workflowStatus },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -205,7 +207,7 @@ export class BuildRepository {
       where: { releaseId, workflowStatus },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -225,7 +227,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -239,7 +241,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -253,7 +255,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -267,7 +269,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -303,12 +305,13 @@ export class BuildRepository {
    * Reset failed builds to pending (for retry)
    */
   async resetFailedBuildsForTask(taskId: string, platforms?: BuildPlatform[]): Promise<number> {
-    const where: any = { 
+    const where: WhereOptions<BuildAttributes> = { 
       taskId,
       workflowStatus: 'FAILED'
     };
     
-    if (platforms && platforms.length > 0) {
+    const hasPlatformFilter = platforms && platforms.length > 0;
+    if (hasPlatformFilter) {
       where.platform = platforms;
     }
 
@@ -347,7 +350,7 @@ export class BuildRepository {
         testflightNumber: d.testflightNumber ?? null
       }))
     );
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -528,8 +531,8 @@ export class BuildRepository {
       buildUploadStatus
     } = params;
 
-    // Required filters
-    const where: Record<string, unknown> = {
+    // Build where clause with required and optional filters
+    const where: WhereOptions<BuildAttributes> = {
       tenantId,
       releaseId
     };
@@ -537,42 +540,42 @@ export class BuildRepository {
     // Optional filters - only add if provided
     const platformFilter = getTrimmedString(platform);
     if (platformFilter) {
-      where['platform'] = platformFilter;
+      where.platform = platformFilter as BuildPlatform;
     }
 
     const buildStageFilter = getTrimmedString(buildStage);
     if (buildStageFilter) {
-      where['buildStage'] = buildStageFilter;
+      where.buildStage = buildStageFilter as BuildStage;
     }
 
     const storeTypeFilter = getTrimmedString(storeType);
     if (storeTypeFilter) {
-      where['storeType'] = storeTypeFilter;
+      where.storeType = storeTypeFilter as StoreType;
     }
 
     const buildTypeFilter = getTrimmedString(buildType);
     if (buildTypeFilter) {
-      where['buildType'] = buildTypeFilter;
+      where.buildType = buildTypeFilter as BuildType;
     }
 
     const regressionIdFilter = getTrimmedString(regressionId);
     if (regressionIdFilter) {
-      where['regressionId'] = regressionIdFilter;
+      where.regressionId = regressionIdFilter;
     }
 
     const taskIdFilter = getTrimmedString(taskId);
     if (taskIdFilter) {
-      where['taskId'] = taskIdFilter;
+      where.taskId = taskIdFilter;
     }
 
     const workflowStatusFilter = getTrimmedString(workflowStatus);
     if (workflowStatusFilter) {
-      where['workflowStatus'] = workflowStatusFilter;
+      where.workflowStatus = workflowStatusFilter as WorkflowStatus;
     }
 
     const buildUploadStatusFilter = getTrimmedString(buildUploadStatus);
     if (buildUploadStatusFilter) {
-      where['buildUploadStatus'] = buildUploadStatusFilter;
+      where.buildUploadStatus = buildUploadStatusFilter as BuildUploadStatus;
     }
 
     const builds = await this.model.findAll({
@@ -580,6 +583,6 @@ export class BuildRepository {
       order: [['createdAt', 'DESC']]
     });
 
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 }

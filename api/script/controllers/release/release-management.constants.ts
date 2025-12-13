@@ -10,14 +10,19 @@ import { VALID_UPLOAD_STAGES } from '../../constants/upload-stage';
 
 /**
  * Error messages for release management operations
+ * 
+ * Convention:
+ * - Use camelCase for field names (e.g., releaseId, tenantId)
+ * - No trailing periods
+ * - Field validation: "[fieldName] is required"
  */
 export const RELEASE_MANAGEMENT_ERROR_MESSAGES = {
-  INVALID_FILE_EXTENSION: `Invalid file extension. Allowed extensions: ${ALLOWED_ARTIFACT_EXTENSIONS.join(', ')}`,
+  INVALID_FILE_EXTENSION: `Invalid file extension. Allowed: ${ALLOWED_ARTIFACT_EXTENSIONS.join(', ')}`,
   FILE_REQUIRED: 'Build artifact file is required',
-  RELEASE_ID_REQUIRED: 'Release ID is required',
-  STAGE_REQUIRED: `Stage is required (${VALID_UPLOAD_STAGES.join(', ')})`,
+  RELEASE_ID_REQUIRED: 'releaseId is required',
+  STAGE_REQUIRED: `stage is required (${VALID_UPLOAD_STAGES.join(', ')})`,
   INVALID_STAGE: `Invalid stage. Must be one of: ${VALID_UPLOAD_STAGES.join(', ')}`,
-  PLATFORM_REQUIRED: 'Platform is required',
+  PLATFORM_REQUIRED: 'platform is required',
   MANUAL_UPLOAD_SERVICE_NOT_CONFIGURED: 'Manual upload service not configured',
-  FAILED_TO_UPLOAD_BUILD: 'Failed to upload build',
+  FAILED_TO_UPLOAD_BUILD: 'Failed to upload build'
 } as const;

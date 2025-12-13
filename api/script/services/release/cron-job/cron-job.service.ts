@@ -31,6 +31,9 @@ import {
   createWorkflowPollingJobs,
   deleteWorkflowPollingJobs
 } from '~services/release/workflow-polling';
+import { createScopedLogger } from '~utils/logger.utils';
+
+const log = createScopedLogger('CronJobService');
 
 export class CronJobService {
   constructor(
@@ -75,7 +78,8 @@ export class CronJobService {
       try {
         await stateMachine.execute();
       } catch (error) {
-        console.error(`[CronJobService] Error executing state machine for release ${releaseId}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        log.error('Error executing state machine for release', { releaseId, error: errorMessage });
         // State Machine will handle retries and error states
         // Continue running to allow recovery
       }
@@ -91,7 +95,7 @@ export class CronJobService {
       cronStatus: CronStatus.RUNNING
     });
 
-    console.log(`[CronJobService] Cron job started for release ${releaseId}`);
+    log.info('Cron job started for release', { releaseId });
 
     // Create workflow polling Cronicle jobs (if Cronicle is available)
     await this.createWorkflowPollingJobsIfEnabled(releaseId);
@@ -116,7 +120,7 @@ export class CronJobService {
       throw new Error(`No cron job running for release ${releaseId}`);
     }
 
-    console.log(`[CronJobService] Cron job stopped for release ${releaseId}`);
+    log.info('Cron job stopped for release', { releaseId });
   }
 
   /**
@@ -204,7 +208,7 @@ export class CronJobService {
     // Start the cron job
     await this.startCronJob(releaseId);
 
-    console.log(`[CronJobService] Stage 2 triggered for release ${releaseId}`);
+    log.info('Stage 2 triggered for release', { releaseId });
 
     return {
       success: true,
@@ -266,7 +270,7 @@ export class CronJobService {
     // Start the cron job
     await this.startCronJob(releaseId);
 
-    console.log(`[CronJobService] Stage 3 triggered for release ${releaseId}`);
+    log.info('Stage 3 triggered for release', { releaseId });
 
     return {
       success: true,
@@ -296,7 +300,7 @@ export class CronJobService {
 
     // Check if already archived (idempotent)
     if (release.status === 'ARCHIVED') {
-      console.log(`[CronJobService] Release ${releaseId} already archived`);
+      log.info('Release already archived', { releaseId });
       return {
         success: true,
         data: {
@@ -314,7 +318,7 @@ export class CronJobService {
       lastUpdatedByAccountId: accountId
     });
 
-    console.log(`[CronJobService] Release ${releaseId} archived successfully`);
+    log.info('Release archived successfully', { releaseId });
 
     // Get and update cron job (if exists)
     const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
@@ -327,17 +331,18 @@ export class CronJobService {
           cronStatus: CronStatus.PAUSED,
           cronStoppedAt: new Date()
         });
-        console.log(`[CronJobService] Cron job ${cronJob.id} paused`);
+        log.info('Cron job paused', { cronJobId: cronJob.id });
         cronJobPaused = true;
       }
 
       // Stop cron job execution
       try {
         this.stopCronJob(releaseId);
-        console.log(`[CronJobService] Cron job scheduler stopped for release ${releaseId}`);
-      } catch {
+        log.info('Cron job scheduler stopped', { releaseId });
+      } catch (stopError) {
         // Cron job might not be running - that's OK
-        console.log(`[CronJobService] No running cron job to stop for release ${releaseId}`);
+        const errorMessage = stopError instanceof Error ? stopError.message : 'Unknown error';
+        log.warn('No running cron job to stop', { releaseId, error: errorMessage });
       }
     }
 
@@ -378,7 +383,7 @@ export class CronJobService {
   private async createWorkflowPollingJobsIfEnabled(releaseId: string): Promise<void> {
     const cronicleNotAvailable = !this.cronicleService;
     if (cronicleNotAvailable) {
-      console.log(`[CronJobService] Cronicle not available, skipping workflow polling job creation for release ${releaseId}`);
+      log.info('Cronicle not available, skipping workflow polling job creation', { releaseId });
       return;
     }
 
@@ -386,7 +391,7 @@ export class CronJobService {
     const release = await this.releaseRepo.findById(releaseId);
     const releaseNotFound = !release;
     if (releaseNotFound) {
-      console.warn(`[CronJobService] Release ${releaseId} not found, cannot create workflow polling jobs`);
+      log.warn('Release not found, cannot create workflow polling jobs', { releaseId });
       return;
     }
 
@@ -399,13 +404,17 @@ export class CronJobService {
 
       const jobsCreated = result.success;
       if (jobsCreated) {
-        console.log(`[CronJobService] Workflow polling jobs created for release ${releaseId}: pending=${result.pendingJobId}, running=${result.runningJobId}`);
+        log.info('Workflow polling jobs created', { 
+          releaseId, 
+          pendingJobId: result.pendingJobId, 
+          runningJobId: result.runningJobId 
+        });
       } else {
-        console.warn(`[CronJobService] Failed to create workflow polling jobs for release ${releaseId}: ${result.error}`);
+        log.warn('Failed to create workflow polling jobs', { releaseId, error: result.error });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[CronJobService] Error creating workflow polling jobs for release ${releaseId}:`, errorMessage);
+      log.error('Error creating workflow polling jobs', { releaseId, error: errorMessage });
       // Don't throw - workflow polling is optional, main cron job should continue
     }
   }
@@ -420,7 +429,7 @@ export class CronJobService {
   async deleteWorkflowPollingJobsIfEnabled(releaseId: string): Promise<void> {
     const cronicleNotAvailable = !this.cronicleService;
     if (cronicleNotAvailable) {
-      console.log(`[CronJobService] Cronicle not available, skipping workflow polling job deletion for release ${releaseId}`);
+      log.info('Cronicle not available, skipping workflow polling job deletion', { releaseId });
       return;
     }
 
@@ -430,15 +439,19 @@ export class CronJobService {
         cronicleService: this.cronicleService
       });
 
-      console.log(`[CronJobService] Workflow polling jobs deletion for release ${releaseId}: pending=${result.pendingDeleted}, running=${result.runningDeleted}`);
+      log.info('Workflow polling jobs deletion completed', { 
+        releaseId, 
+        pendingDeleted: result.pendingDeleted, 
+        runningDeleted: result.runningDeleted 
+      });
       
       const hasErrors = result.errors.length > 0;
       if (hasErrors) {
-        console.warn(`[CronJobService] Some workflow polling jobs could not be deleted:`, result.errors);
+        log.warn('Some workflow polling jobs could not be deleted', { errors: result.errors });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[CronJobService] Error deleting workflow polling jobs for release ${releaseId}:`, errorMessage);
+      log.error('Error deleting workflow polling jobs', { releaseId, error: errorMessage });
       // Don't throw - cleanup failures shouldn't block release completion
     }
   }

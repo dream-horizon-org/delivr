@@ -24,10 +24,15 @@ export const BUILD_ARTIFACT_ERROR_CODE = {
 /**
  * Error messages for build artifact operations
  * All messages include context about the build artifact domain
+ * 
+ * Convention:
+ * - Use camelCase for field names (e.g., ciRunId, buildId)
+ * - No trailing periods
+ * - Format: "[Context]: [specific error]" for contextual errors
  */
 export const BUILD_ARTIFACT_ERROR_MESSAGES = {
-  BUILD_NOT_FOUND: 'Build not found for provided ci_run_id',
-  BUILD_NOT_FOUND_BY_ID: 'Build not found for provided build_id',
+  BUILD_NOT_FOUND: 'Build not found for provided ciRunId',
+  BUILD_NOT_FOUND_BY_ID: 'Build not found for provided buildId',
   S3_UPLOAD_FAILED: 'Build upload failed: could not upload artifact to storage',
   PRESIGNED_URL_FAILED: 'Failed to generate presigned download URL',
   DB_CREATE_FAILED: 'Build upload failed: could not save build record',
@@ -35,9 +40,9 @@ export const BUILD_ARTIFACT_ERROR_MESSAGES = {
   DB_QUERY_FAILED: 'Failed to query build artifacts',
   STORE_DISTRIBUTION_FAILED: 'Failed to distribute AAB to internal track',
   TESTFLIGHT_VERIFICATION_FAILED: 'Failed to verify TestFlight build number',
-  TESTFLIGHT_NUMBER_INVALID: 'TestFlight build number verification failed: build not found in TestFlight',
+  TESTFLIGHT_NUMBER_INVALID: 'TestFlight verification failed: build not found in TestFlight',
   VERSION_EXTRACTION_FAILED: 'Failed to extract version information from AAB file',
-  PLAY_STORE_INTEGRATION_NOT_FOUND: 'Play Store integration not found for tenant. Please configure Play Store integration first.'
+  PLAY_STORE_INTEGRATION_NOT_FOUND: 'Play Store integration not found for tenant'
 } as const;
 
 /**

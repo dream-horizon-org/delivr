@@ -12,6 +12,7 @@ import type {
 } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, HEADERS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import { normalizePlatform, mergeWorkflowInputs } from '../utils/cicd.utils';
+import { getEnvNumber, ENV_DEFAULTS } from '~constants/env';
 
 export class JenkinsWorkflowService extends WorkflowService {
   /**
@@ -148,10 +149,11 @@ export class JenkinsWorkflowService extends WorkflowService {
     }
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
+    const timeoutMs = getEnvNumber('JENKINS_QUEUE_TIMEOUT_MS', ENV_DEFAULTS.JENKINS_QUEUE_TIMEOUT_MS);
     const req: JenkinsQueueStatusRequest = {
       queueUrl,
       authHeader: 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64'),
-      timeoutMs: Number(process.env.JENKINS_QUEUE_TIMEOUT_MS ?? process.env.JENKINS_PROBE_TIMEOUT_MS ?? 5000)
+      timeoutMs
     };
     const result = await provider.getQueueStatus(req);
     return result;
@@ -187,10 +189,11 @@ export class JenkinsWorkflowService extends WorkflowService {
     }
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.JENKINS) as JenkinsProviderContract;
+    const timeoutMs = getEnvNumber('JENKINS_BUILD_TIMEOUT_MS', ENV_DEFAULTS.JENKINS_BUILD_TIMEOUT_MS);
     const req: JenkinsBuildStatusRequest = {
       buildUrl,
       authHeader: 'Basic ' + Buffer.from(`${integration.username}:${integration.apiToken}`).toString('base64'),
-      timeoutMs: Number(process.env.JENKINS_BUILD_TIMEOUT_MS ?? process.env.JENKINS_PROBE_TIMEOUT_MS ?? 5000)
+      timeoutMs
     };
     const result = await provider.getBuildStatus(req);
     return result;

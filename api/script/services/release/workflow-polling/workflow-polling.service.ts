@@ -21,6 +21,9 @@ import type {
   WorkflowStatusCheckResult
 } from './workflow-polling.interface';
 import { WORKFLOW_POLLING_ERROR_MESSAGES } from './workflow-polling.constants';
+import { createScopedLogger } from '~utils/logger.utils';
+
+const log = createScopedLogger('WorkflowPolling');
 
 /**
  * Provider-specific status checker interface
@@ -199,9 +202,9 @@ export class WorkflowPollingService {
 
       if (result.updated) {
         updated++;
-        const hasTaskId = !!build.taskId;
+        const hasTaskId = build.taskId !== null && build.taskId !== undefined;
         if (hasTaskId) {
-          taskIdsWithChanges.add(build.taskId as string);
+          taskIdsWithChanges.add(build.taskId);
         }
       }
     }
@@ -213,10 +216,12 @@ export class WorkflowPollingService {
       callbacks++;
     }
 
-    console.log(
-      `[WorkflowPolling] Pending poll for release ${releaseId}: ` +
-      `processed=${pendingBuilds.length}, updated=${updated}, callbacks=${callbacks}`
-    );
+    log.info('Pending poll completed', {
+      releaseId,
+      processed: pendingBuilds.length,
+      updated,
+      callbacks
+    });
 
     return {
       releaseId,
@@ -251,9 +256,9 @@ export class WorkflowPollingService {
 
       if (result.updated) {
         updated++;
-        const hasTaskId = !!build.taskId;
+        const hasTaskId = build.taskId !== null && build.taskId !== undefined;
         if (hasTaskId) {
-          taskIdsWithChanges.add(build.taskId as string);
+          taskIdsWithChanges.add(build.taskId);
         }
       }
     }
@@ -265,10 +270,12 @@ export class WorkflowPollingService {
       callbacks++;
     }
 
-    console.log(
-      `[WorkflowPolling] Running poll for release ${releaseId}: ` +
-      `processed=${runningBuilds.length}, updated=${updated}, callbacks=${callbacks}`
-    );
+    log.info('Running poll completed', {
+      releaseId,
+      processed: runningBuilds.length,
+      updated,
+      callbacks
+    });
 
     return {
       releaseId,
@@ -290,8 +297,9 @@ export class WorkflowPollingService {
     const buildId = build.id;
     const previousStatus = build.workflowStatus ?? 'PENDING';
 
-    // Validate required fields
-    const missingQueueLocation = !build.queueLocation;
+    // Check for missing queueLocation
+    const queueLocation = build.queueLocation;
+    const missingQueueLocation = queueLocation === null || queueLocation === undefined;
     if (missingQueueLocation) {
       return {
         buildId,
@@ -302,7 +310,9 @@ export class WorkflowPollingService {
       };
     }
 
-    const missingCiRunType = !build.ciRunType;
+    // Check for missing ciRunType
+    const ciRunType = build.ciRunType;
+    const missingCiRunType = ciRunType === null || ciRunType === undefined;
     if (missingCiRunType) {
       return {
         buildId,
@@ -314,11 +324,11 @@ export class WorkflowPollingService {
     }
 
     try {
-      // Check queue status from CI/CD provider
+      // TypeScript knows queueLocation and ciRunType are defined
       const statusResult = await this.checkQueueStatus(
-        build.ciRunType as CiRunType,
+        ciRunType,
         tenantId,
-        build.queueLocation as string
+        queueLocation
       );
 
       // Handle status transitions
@@ -375,7 +385,7 @@ export class WorkflowPollingService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[WorkflowPolling] Error checking pending build ${buildId}:`, errorMessage);
+      log.error('Error checking pending build', { buildId, error: errorMessage });
       return {
         buildId,
         previousStatus,
@@ -397,8 +407,9 @@ export class WorkflowPollingService {
     const buildId = build.id;
     const previousStatus = build.workflowStatus ?? 'RUNNING';
 
-    // Validate required fields
-    const missingCiRunId = !build.ciRunId;
+    // Check for missing ciRunId
+    const ciRunId = build.ciRunId;
+    const missingCiRunId = ciRunId === null || ciRunId === undefined;
     if (missingCiRunId) {
       return {
         buildId,
@@ -409,7 +420,9 @@ export class WorkflowPollingService {
       };
     }
 
-    const missingCiRunType = !build.ciRunType;
+    // Check for missing ciRunType
+    const ciRunType = build.ciRunType;
+    const missingCiRunType = ciRunType === null || ciRunType === undefined;
     if (missingCiRunType) {
       return {
         buildId,
@@ -421,11 +434,11 @@ export class WorkflowPollingService {
     }
 
     try {
-      // Check build status from CI/CD provider
+      // TypeScript knows ciRunId and ciRunType are defined
       const statusResult = await this.checkBuildStatus(
-        build.ciRunType as CiRunType,
+        ciRunType,
         tenantId,
-        build.ciRunId as string
+        ciRunId
       );
 
       // Handle status transitions
@@ -476,7 +489,7 @@ export class WorkflowPollingService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[WorkflowPolling] Error checking running build ${buildId}:`, errorMessage);
+      log.error('Error checking running build', { buildId, error: errorMessage });
       return {
         buildId,
         previousStatus,

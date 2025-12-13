@@ -16,6 +16,7 @@ import { WorkflowPollingService } from '~services/release/workflow-polling';
 import { BuildCallbackService } from '~services/release/build-callback.service';
 import { HTTP_STATUS } from '../constants/http';
 import type { Storage } from '../storage/storage';
+import { hasBuildCallbackDependencies } from '../types/release/storage-with-services.interface';
 
 // ============================================================================
 // ROUTE FACTORY
@@ -30,17 +31,10 @@ import type { Storage } from '../storage/storage';
 export const createWorkflowPollingRoutes = (storage: Storage): Router => {
   const router = Router();
 
-  // Cast storage to access repositories (they're on S3Storage, not base Storage interface)
-  const storageWithRepos = storage as any;
+  // Check if required repositories are available using type guard
+  const hasRepos = hasBuildCallbackDependencies(storage);
+  const reposNotAvailable = !hasRepos;
 
-  // Check if required repositories are available
-  const hasRequiredRepos =
-    storageWithRepos.buildRepository &&
-    storageWithRepos.releaseTaskRepository &&
-    storageWithRepos.releaseRepository &&
-    storageWithRepos.cronJobRepository;
-
-  const reposNotAvailable = !hasRequiredRepos;
   if (reposNotAvailable) {
     console.warn('[Workflow Polling Routes] Required repositories not available, routes disabled');
     
@@ -60,16 +54,16 @@ export const createWorkflowPollingRoutes = (storage: Storage): Router => {
     return router;
   }
 
-  // Initialize services
+  // TypeScript now knows storage has the required repositories
   const callbackService = new BuildCallbackService(
-    storageWithRepos.buildRepository,
-    storageWithRepos.releaseTaskRepository,
-    storageWithRepos.releaseRepository,
-    storageWithRepos.cronJobRepository
+    storage.buildRepository,
+    storage.releaseTaskRepository,
+    storage.releaseRepository,
+    storage.cronJobRepository
   );
 
   const pollingService = new WorkflowPollingService(
-    storageWithRepos.buildRepository,
+    storage.buildRepository,
     callbackService
   );
   const controller = createWorkflowPollingController(pollingService);

@@ -18,8 +18,9 @@ import { isValidUploadStage } from '../../utils/upload-stage.utils';
 import { getStorage } from '../../storage/storage-instance';
 import { TestFlightBuildVerificationService } from '../../services/release/testflight-build-verification.service';
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
-import { PlatformName } from '../../models/release/release.interface';
+import { PlatformName, ReleasePlatformTargetMapping } from '../../models/release/release.interface';
 import { RELEASE_MANAGEMENT_ERROR_MESSAGES } from './release-management.constants';
+import { hasTestFlightVerificationDependencies } from '../../types/release/storage-with-services.interface';
 
 /**
  * Verify TestFlight Build and Stage for Task Consumption
@@ -92,31 +93,23 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Get repositories from storage
-    const storage = getStorage() as any;
-    const storeController = storage.storeIntegrationController;
-    const credentialController = storage.storeCredentialController;
-    const platformTargetMappingRepository = storage.releasePlatformTargetMappingRepository;
-    const releaseRepository = storage.releaseRepository;
-    const releaseUploadsRepository = storage.releaseUploadsRepository;
-
-    const controllersNotInitialized = !storeController || !credentialController || !platformTargetMappingRepository || !releaseRepository;
-    if (controllersNotInitialized) {
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-        success: RESPONSE_STATUS.FAILURE,
-        error: 'Required controllers or repositories not initialized',
-      });
-      return;
-    }
-
-    const releaseUploadsRepoNotInitialized = !releaseUploadsRepository;
-    if (releaseUploadsRepoNotInitialized) {
+    // Get repositories from storage using type guard
+    const storage = getStorage();
+    const dependenciesAvailable = hasTestFlightVerificationDependencies(storage);
+    if (!dependenciesAvailable) {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: RESPONSE_STATUS.FAILURE,
         error: TESTFLIGHT_BUILD_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_INITIALIZED,
       });
       return;
     }
+
+    // TypeScript now knows these exist
+    const storeController = storage.storeIntegrationController;
+    const credentialController = storage.storeCredentialController;
+    const platformTargetMappingRepository = storage.releasePlatformTargetMappingRepository;
+    const releaseRepository = storage.releaseRepository;
+    const releaseUploadsRepository = storage.releaseUploadsRepository;
 
     // Step 1: Verify build exists in App Store Connect
     const verificationService = new TestFlightBuildVerificationService(
@@ -187,7 +180,9 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
 
     // Step 3: Check platform status for response
     const platformMappings = await platformTargetMappingRepository.getByReleaseId(releaseId);
-    const requiredPlatforms = platformMappings.map((m: any) => m.platform as PlatformName);
+    const requiredPlatforms = platformMappings.map(
+      (m: ReleasePlatformTargetMapping) => m.platform as PlatformName
+    );
     const platformStatus = await releaseUploadsRepository.checkAllPlatformsReady(
       releaseId,
       uploadStage,

@@ -20,6 +20,7 @@ import { createStage3Tasks } from '~utils/task-creation';
 import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 import { deleteWorkflowPollingJobs } from '~services/release/workflow-polling';
+import { StorageWithReleaseServices } from '~types/release/storage-with-services.interface';
 
 export class PreReleaseState implements ICronJobState {
   constructor(public context: CronJobStateMachine) {}
@@ -338,7 +339,8 @@ export class PreReleaseState implements ICronJobState {
    */
   private async deleteWorkflowPollingJobs(releaseId: string): Promise<void> {
     const storage = this.context.getStorage();
-    const cronicleService = (storage as any).cronicleService;
+    const storageWithServices = storage as StorageWithReleaseServices;
+    const cronicleService = storageWithServices.cronicleService;
     
     const cronicleNotAvailable = !cronicleService;
     if (cronicleNotAvailable) {

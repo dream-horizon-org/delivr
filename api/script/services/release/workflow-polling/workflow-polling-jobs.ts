@@ -10,6 +10,10 @@ import {
   WORKFLOW_POLLING_CONFIG,
   CRONICLE_JOB_ID_PATTERNS
 } from './workflow-polling.constants';
+import { createScopedLogger } from '~utils/logger.utils';
+import { getEnvNumber, ENV_DEFAULTS } from '~constants/env';
+
+const log = createScopedLogger('WorkflowPollingJobs');
 
 // ============================================================================
 // TYPES
@@ -47,16 +51,10 @@ type DeleteJobsResult = {
 const WORKFLOW_POLLING_CATEGORY = 'Workflow Polling';
 
 const getPollingIntervalMinutes = (): number => {
-  const envValue = process.env[WORKFLOW_POLLING_CONFIG.POLL_INTERVAL_ENV_VAR];
-  const hasEnvValue = envValue !== undefined && envValue !== '';
-  if (hasEnvValue) {
-    const parsed = parseInt(envValue, 10);
-    const isValidNumber = !isNaN(parsed) && parsed > 0;
-    if (isValidNumber) {
-      return parsed;
-    }
-  }
-  return WORKFLOW_POLLING_CONFIG.DEFAULT_POLL_INTERVAL_MINUTES;
+  return getEnvNumber(
+    'WORKFLOW_POLL_INTERVAL_MINUTES',
+    ENV_DEFAULTS.WORKFLOW_POLL_INTERVAL_MINUTES
+  );
 };
 
 // ============================================================================
@@ -100,7 +98,7 @@ export const createWorkflowPollingJobs = async (
       notes: `Polls PENDING CI/CD builds for release ${releaseId}`
     });
 
-    console.log(`[WorkflowPollingJobs] Created pending poller job: ${pendingJobId}`);
+    log.info('Created pending poller job', { jobId: pendingJobId, releaseId });
 
     // Create running poller job
     await cronicleService.createJob({
@@ -120,7 +118,7 @@ export const createWorkflowPollingJobs = async (
       notes: `Polls RUNNING CI/CD builds for release ${releaseId}`
     });
 
-    console.log(`[WorkflowPollingJobs] Created running poller job: ${runningJobId}`);
+    log.info('Created running poller job', { jobId: runningJobId, releaseId });
 
     return {
       success: true,
@@ -129,13 +127,17 @@ export const createWorkflowPollingJobs = async (
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[WorkflowPollingJobs] Failed to create jobs for release ${releaseId}:`, errorMessage);
+    log.error('Failed to create jobs for release', { releaseId, error: errorMessage });
     
     // Try to clean up any partially created jobs
     try {
       await cronicleService.deleteJob(pendingJobId);
-    } catch {
-      // Ignore cleanup errors
+    } catch (cleanupError) {
+      const cleanupErrorMessage = cleanupError instanceof Error ? cleanupError.message : 'Unknown error';
+      log.warn('Non-fatal: Could not cleanup pending job during rollback', { 
+        jobId: pendingJobId, 
+        error: cleanupErrorMessage 
+      });
     }
     
     return {
@@ -172,11 +174,11 @@ export const deleteWorkflowPollingJobs = async (
   try {
     await cronicleService.deleteJob(pendingJobId);
     pendingDeleted = true;
-    console.log(`[WorkflowPollingJobs] Deleted pending poller job: ${pendingJobId}`);
+    log.info('Deleted pending poller job', { jobId: pendingJobId });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     // Job might not exist - that's OK
-    console.warn(`[WorkflowPollingJobs] Could not delete pending job ${pendingJobId}:`, errorMessage);
+    log.warn('Could not delete pending job', { jobId: pendingJobId, error: errorMessage });
     errors.push(`Pending job: ${errorMessage}`);
   }
 
@@ -184,11 +186,11 @@ export const deleteWorkflowPollingJobs = async (
   try {
     await cronicleService.deleteJob(runningJobId);
     runningDeleted = true;
-    console.log(`[WorkflowPollingJobs] Deleted running poller job: ${runningJobId}`);
+    log.info('Deleted running poller job', { jobId: runningJobId });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     // Job might not exist - that's OK
-    console.warn(`[WorkflowPollingJobs] Could not delete running job ${runningJobId}:`, errorMessage);
+    log.warn('Could not delete running job', { jobId: runningJobId, error: errorMessage });
     errors.push(`Running job: ${errorMessage}`);
   }
 
