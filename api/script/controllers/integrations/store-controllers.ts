@@ -1624,17 +1624,20 @@ const getGoogleAuthClientFromIntegration = async (
     throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.CREDENTIALS_NOT_FOUND);
   }
 
-  // Read existing credential payload (stored as plain text in encryptedPayload column)
+  // Read and decrypt existing credential payload
   let decryptedPayload: string;
   try {
     const buffer = existingCredential.encryptedPayload;
+    
+    // Decrypt using backend storage decryption (double-layer security)
     if (Buffer.isBuffer(buffer)) {
-      decryptedPayload = buffer.toString('utf-8');
+      decryptedPayload = decryptCredentials(buffer);
     } else {
-      decryptedPayload = String(buffer);
+      // Fallback: treat as string and try to decrypt
+      decryptedPayload = decryptFromStorage(String(buffer));
     }
   } catch (readError) {
-    throw new Error('Failed to read existing credentials');
+    throw new Error('Failed to decrypt existing credentials');
   }
 
   // Parse credential JSON
@@ -1767,15 +1770,22 @@ export const uploadAabToPlayStoreInternal = async (
   const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(PlatformTargetMappingModel as any);
 
   // First, verify that the release exists and belongs to the tenant
-  const release = await releaseRepo.findByReleaseId(releaseId, tenantId);
+  // Note: releaseId parameter from client is actually the database 'id' field
+  const release = await releaseRepo.findById(releaseId);
   const releaseNotFound = !release;
   if (releaseNotFound) {
     throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.RELEASE_NOT_FOUND);
   }
 
+  // Verify the release belongs to the specified tenant
+    const tenantMismatch = release.tenantId !== tenantId;
+    if (tenantMismatch) {
+      throw new Error(PLAY_STORE_UPLOAD_ERROR_MESSAGES.RELEASE_NOT_FOUND);
+    }
+
   // Query release_platforms_targets_mapping for releaseId, platform, and target
   const mapping = await platformTargetMappingRepo.getByReleasePlatformTarget(
-    releaseId,
+    release.id,  
     platformUpper,
     target
   );
