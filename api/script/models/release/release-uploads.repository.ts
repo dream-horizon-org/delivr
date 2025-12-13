@@ -23,6 +23,7 @@ export type CreateReleaseUploadDto = {
   platform: PlatformName;
   stage: UploadStage;
   artifactPath: string;
+  internalTrackLink?: string | null;
 };
 
 /**
@@ -30,6 +31,7 @@ export type CreateReleaseUploadDto = {
  */
 export type UpdateReleaseUploadDto = Partial<{
   artifactPath: string;
+  internalTrackLink: string | null;
   isUsed: boolean;
   usedByTaskId: string | null;
   usedByCycleId: string | null;
@@ -77,6 +79,7 @@ export class ReleaseUploadsRepository {
       platform: data.platform,
       stage: data.stage,
       artifactPath: data.artifactPath,
+      internalTrackLink: data.internalTrackLink ?? null,
       isUsed: false,
       usedByTaskId: null,
       usedByCycleId: null,
@@ -98,8 +101,11 @@ export class ReleaseUploadsRepository {
 
     const hasExisting = existing !== null;
     if (hasExisting) {
-      // Update existing
-      await this.update(existing.id, { artifactPath: data.artifactPath });
+      // Update existing (including internalTrackLink if provided)
+      await this.update(existing.id, {
+        artifactPath: data.artifactPath,
+        internalTrackLink: data.internalTrackLink ?? null,
+      });
       const updated = await this.findById(existing.id);
       return updated as ReleaseUpload;
     }

@@ -33,6 +33,7 @@ export type ReleaseUploadAttributes = {
   platform: PlatformName;
   stage: UploadStage;
   artifactPath: string;
+  internalTrackLink: string | null;
   isUsed: boolean;
   usedByTaskId: string | null;
   usedByCycleId: string | null;
@@ -45,7 +46,7 @@ export type ReleaseUploadAttributes = {
  */
 export type ReleaseUploadCreationAttributes = Optional<
   ReleaseUploadAttributes,
-  'id' | 'isUsed' | 'usedByTaskId' | 'usedByCycleId' | 'createdAt' | 'updatedAt'
+  'id' | 'internalTrackLink' | 'isUsed' | 'usedByTaskId' | 'usedByCycleId' | 'createdAt' | 'updatedAt'
 >;
 
 // ============================================================================
@@ -59,6 +60,7 @@ export class ReleaseUploadModel extends Model<ReleaseUploadAttributes, ReleaseUp
   declare platform: PlatformName;
   declare stage: UploadStage;
   declare artifactPath: string;
+  declare internalTrackLink: string | null;
   declare isUsed: boolean;
   declare usedByTaskId: string | null;
   declare usedByCycleId: string | null;
@@ -107,6 +109,11 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
         type: DataTypes.STRING(1024),
         allowNull: false,
         field: 'artifactPath',
+      },
+      internalTrackLink: {
+        type: DataTypes.STRING(1024),
+        allowNull: true,
+        field: 'internalTrackLink',
       },
       isUsed: {
         type: DataTypes.BOOLEAN,

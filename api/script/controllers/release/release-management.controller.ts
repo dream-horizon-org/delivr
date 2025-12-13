@@ -745,6 +745,7 @@ export class ReleaseManagementController {
           stage: result.stage,
           artifactPath: result.artifactPath,
           downloadUrl: result.downloadUrl,
+          internalTrackLink: result.internalTrackLink ?? null,
           uploadedPlatforms: result.uploadedPlatforms,
           missingPlatforms: result.missingPlatforms,
           allPlatformsReady: result.allPlatformsReady

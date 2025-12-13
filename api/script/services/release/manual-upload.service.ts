@@ -36,6 +36,7 @@ export type ManualUploadResult = {
   stage?: UploadStage;
   artifactPath?: string;
   downloadUrl?: string;
+  internalTrackLink?: string | null;
   uploadedPlatforms?: PlatformName[];
   missingPlatforms?: PlatformName[];
   allPlatformsReady?: boolean;
@@ -105,35 +106,51 @@ export class ManualUploadService {
       };
     }
 
-    // Step 3: Upload to S3 using BuildArtifactService
+    // Step 3: Get artifactVersionName from platform mapping
+    const platformMappings = await this.platformMappingRepo.getByReleaseId(releaseId);
+    const platformMapping = platformMappings.find(m => m.platform === platform);
+    const mappingNotFound = !platformMapping;
+    if (mappingNotFound) {
+      return {
+        success: false,
+        error: `Platform mapping not found for ${platform}`,
+      };
+    }
+    const artifactVersionName = platformMapping.version;
+
+    // Step 4: Upload to S3 (and Play Store for AAB) using BuildArtifactService
     let artifactPath: string;
     let downloadUrl: string;
+    let internalTrackLink: string | null = null;
     try {
       const uploadResult = await this.buildArtifactService.uploadStagingArtifact({
         tenantId: release.tenantId,
         releaseId,
         platform,
-        stage,
+        artifactVersionName,
         artifactBuffer: file,
         originalFilename,
       });
       artifactPath = uploadResult.s3Uri;
       downloadUrl = uploadResult.downloadUrl;
+      internalTrackLink = uploadResult.internalTrackLink;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'S3 upload failed';
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
       return {
         success: false,
-        error: `Failed to upload to S3: ${errorMessage}`,
+        error: `Failed to upload artifact: ${errorMessage}`,
       };
     }
 
-    // Step 4: Create/upsert entry in release_uploads table
+    // Step 5: Create/upsert entry in release_uploads table
+    // Only saved if all uploads (S3 + Play Store for AAB) succeed
     const uploadData: CreateReleaseUploadDto = {
       tenantId: release.tenantId,
       releaseId,
       platform,
       stage,
       artifactPath,
+      internalTrackLink,
     };
 
     const upload = await this.releaseUploadsRepo.upsert(uploadData);
@@ -143,7 +160,7 @@ export class ManualUploadService {
       `Release: ${releaseId}, Upload: ${upload.id}`
     );
 
-    // Step 5: Check platform status
+    // Step 6: Check platform status
     const requiredPlatforms = await this.getRequiredPlatforms(releaseId);
     const platformStatus = await this.releaseUploadsRepo.checkAllPlatformsReady(
       releaseId,
@@ -158,6 +175,7 @@ export class ManualUploadService {
       stage,
       artifactPath,
       downloadUrl,
+      internalTrackLink,
       uploadedPlatforms: platformStatus.uploadedPlatforms,
       missingPlatforms: platformStatus.missingPlatforms,
       allPlatformsReady: platformStatus.allReady,

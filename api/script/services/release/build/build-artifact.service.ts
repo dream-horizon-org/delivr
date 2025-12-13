@@ -37,6 +37,8 @@ import { executeOperation, isAabFile, generateInternalTrackLink } from './build-
 import { StoreType as PlayStoreType } from '../../../storage/integrations/store/store-types';
 import { StoreDistributionService } from './store-distribution.service';
 import { TestFlightBuildVerificationService } from '../testflight-build-verification.service';
+import { uploadAabToPlayStoreInternal } from '~controllers/integrations/store-controllers';
+import { STORE_TYPE_MAP } from '../../../constants/store';
 
 /**
  * Service for handling build artifact operations.
@@ -231,23 +233,24 @@ export class BuildArtifactService {
    * Upload artifact for staging (manual upload flow).
    * Does NOT create a build record - that happens when TaskExecutor consumes the upload.
    * 
-   * Path structure: {tenantId}/{releaseId}/{platform}/{stage}/{uploadId}.{ext}
+   * Path structure: {tenantId}/{releaseId}/{platform}/{artifactVersionName}/{uploadId}.{ext}
    * 
    * Steps:
    * 1. Generate unique upload ID
    * 2. Extract file extension from original filename
-   * 3. Generate S3 key using stage as version segment
+   * 3. Generate S3 key using artifactVersionName from platform mapping
    * 4. Upload buffer to S3
    * 5. Generate presigned download URL
+   * 6. If AAB file, upload to Play Store internal track
    * 
    * @param input - Staging upload input with originalFilename to preserve extension
-   * @returns S3 URI, uploadId, and presigned download URL
+   * @returns S3 URI, uploadId, presigned download URL, and internalTrackLink (for AAB)
    * @throws BuildArtifactError if upload fails
    */
   uploadStagingArtifact = async (
     input: UploadStagingArtifactInput
   ): Promise<UploadStagingArtifactResult> => {
-    const { tenantId, releaseId, platform, stage, artifactBuffer, originalFilename } = input;
+    const { tenantId, releaseId, platform, artifactVersionName, artifactBuffer, originalFilename } = input;
 
     // Step 1: Generate unique upload ID for this staging artifact
     const uploadId = shortid.generate();
@@ -255,10 +258,10 @@ export class BuildArtifactService {
     // Step 2: Extract file extension from original filename (preserves .ipa, .apk, .aab)
     const fileName = deriveStandardArtifactFilename(originalFilename, uploadId);
 
-    // Step 3: Generate S3 key using stage as the version segment for path organization
-    // Result: {tenantId}/{releaseId}/{platform}/{KICK_OFF}/{x7k9m2}.ipa
+    // Step 3: Generate S3 key using artifactVersionName from platform mapping
+    // Result: {tenantId}/{releaseId}/{platform}/{1.2.3}/{x7k9m2}.ipa
     const s3Key = buildArtifactS3Key(
-      { tenantId, releaseId, platform, artifactVersionName: stage },
+      { tenantId, releaseId, platform, artifactVersionName },
       fileName
     );
 
@@ -305,7 +308,26 @@ export class BuildArtifactService {
       BUILD_ARTIFACT_ERROR_MESSAGES.PRESIGNED_URL_FAILED
     );
 
-    return { s3Uri, uploadId, downloadUrl };
+    // Step 6: If AAB file, upload to Play Store internal track
+    let internalTrackLink: string | null = null;
+    const isAab = isAabFile(originalFilename);
+    if (isAab) {
+      const playStoreResult = await executeOperation(
+        () => uploadAabToPlayStoreInternal(
+          artifactBuffer,
+          artifactVersionName,
+          tenantId,
+          STORE_TYPE_MAP.PLAY_STORE,
+          platform,
+          releaseId
+        ),
+        BUILD_ARTIFACT_ERROR_CODE.STORE_DISTRIBUTION_FAILED,
+        BUILD_ARTIFACT_ERROR_MESSAGES.STORE_DISTRIBUTION_FAILED
+      );
+      internalTrackLink = playStoreResult.versionSpecificUrl;
+    }
+
+    return { s3Uri, uploadId, downloadUrl, internalTrackLink };
   };
 
   /**

@@ -196,7 +196,7 @@ export type UploadStagingArtifactInput = {
   tenantId: string;
   releaseId: string;
   platform: string;
-  stage: string;  // KICK_OFF | REGRESSION | PRE_RELEASE
+  artifactVersionName: string;  // Version from release_platform_target_mapping
   artifactBuffer: Buffer;
   originalFilename: string;  // Required to preserve file extension (.ipa, .apk, .aab)
 };
@@ -208,4 +208,5 @@ export type UploadStagingArtifactResult = {
   s3Uri: string;      // Full S3 URI for storage in release_uploads table
   uploadId: string;   // Generated ID for tracking/debugging
   downloadUrl: string; // Presigned URL for immediate download
+  internalTrackLink: string | null;  // Play Store internal track link (for AAB files only)
 };
