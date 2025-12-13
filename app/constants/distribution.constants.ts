@@ -7,12 +7,12 @@
 
 import type {
   BuildUploadStatus,
-  DistributionReleaseStatus,
   Platform,
   SubmissionHistoryEventType,
   SubmissionStatus,
   WarningSeverity,
 } from '~/types/distribution.types';
+import { DistributionStatus } from '~/types/distribution.types';
 
 // ============================================================================
 // ROLLOUT PERCENTAGES
@@ -32,13 +32,18 @@ export const ROLLOUT_COMPLETE_PERCENT = 100;
 // ============================================================================
 
 /**
- * Release Status Labels
+ * Distribution Status Labels
+ * 
+ * Maps distribution status enum values to human-readable labels
  */
-export const RELEASE_STATUS_LABELS: Record<DistributionReleaseStatus, string> = {
-  PRE_RELEASE: 'Pre-Release',
-  READY_FOR_SUBMISSION: 'Ready to Submit',
+export const DISTRIBUTION_STATUS_LABELS: Record<DistributionStatus, string> = {
+  PENDING: 'Pending',
+  PARTIALLY_RELEASED: 'Partially Released',
   COMPLETED: 'Completed',
 } as const;
+
+// Legacy name for backward compatibility
+export const RELEASE_STATUS_LABELS = DISTRIBUTION_STATUS_LABELS;
 
 /**
  * Submission Status Labels
@@ -74,13 +79,20 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 // ============================================================================
 
 /**
- * Release Status Colors (for badges)
+ * Distribution Status Colors (for badges)
+ * 
+ * PENDING: Gray - Not yet submitted to any store
+ * PARTIALLY_RELEASED: Blue - Some platforms released, others pending
+ * COMPLETED: Green - All platforms fully released (100%)
  */
-export const RELEASE_STATUS_COLORS: Record<DistributionReleaseStatus, string> = {
-  PRE_RELEASE: 'blue',
-  READY_FOR_SUBMISSION: 'cyan',
+export const DISTRIBUTION_STATUS_COLORS: Record<DistributionStatus, string> = {
+  PENDING: 'gray',
+  PARTIALLY_RELEASED: 'blue',
   COMPLETED: 'green',
 } as const;
+
+// Legacy name for backward compatibility
+export const RELEASE_STATUS_COLORS = DISTRIBUTION_STATUS_COLORS;
 
 /**
  * Submission Status Colors (for badges)

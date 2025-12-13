@@ -65,10 +65,9 @@ import type {
   HaltSeverity,
   IOSSubmitOptions,
   Release,
-  Submission,
-  SubmissionHistoryResponse,
+  Submission, SubmissionHistoryResponse
 } from '~/types/distribution.types';
-import { DistributionReleaseStatus, Platform, SubmissionStatus } from '~/types/distribution.types';
+import { DistributionStatus, Platform, SubmissionStatus } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -83,7 +82,7 @@ import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/au
 
 type LoaderData = {
   release: Release & {
-    releaseStatus: DistributionReleaseStatus;
+    releaseStatus: DistributionStatus;
     branch: string;
     targetReleaseDate?: string;
   };
@@ -111,13 +110,13 @@ function isValidHaltSeverity(value: string): value is HaltSeverity {
  * 
  * Logic:
  * - COMPLETED: All submissions are LIVE with 100% exposure
- * - READY_FOR_SUBMISSION: Has submissions (actively distributing)
- * - PRE_RELEASE: No submissions yet
+ * - PARTIALLY_RELEASED: Has submissions (actively distributing)
+ * - PENDING: No submissions yet
  */
-function getDistributionStatus(submissions: Submission[]): DistributionReleaseStatus {
+function getDistributionStatus(submissions: Submission[]): DistributionStatus {
   // No submissions yet
   if (submissions.length === 0) {
-    return DistributionReleaseStatus.PRE_RELEASE;
+    return DistributionStatus.PENDING;
   }
   
   // Check if all submissions are fully rolled out
@@ -126,11 +125,11 @@ function getDistributionStatus(submissions: Submission[]): DistributionReleaseSt
   );
   
   if (allCompleted) {
-    return DistributionReleaseStatus.COMPLETED;
+    return DistributionStatus.COMPLETED;
   }
   
   // Has submissions but not all completed = actively distributing
-  return DistributionReleaseStatus.READY_FOR_SUBMISSION;
+  return DistributionStatus.PARTIALLY_RELEASED;
 }
 
 // ============================================================================
@@ -375,8 +374,10 @@ export default function DistributionManagementPage() {
     setHistoryData(null);
 
     try {
-      const response = await DistributionService.getSubmissionHistory(submission.id);
-      setHistoryData(response.data);
+      // Use fetch to call the API route (server-side code not allowed in client callbacks)
+      const response = await fetch(`/api/v1/submissions/${submission.id}/history`);
+      const result: SubmissionHistoryResponse = await response.json();
+      setHistoryData(result.data);
     } catch (error) {
       console.error('Failed to fetch submission history:', error);
       setHistoryData({ submissionId: submission.id, events: [], pagination: { total: 0, limit: 50, offset: 0, hasMore: false } });
@@ -416,8 +417,8 @@ export default function DistributionManagementPage() {
           <div>
             <Group gap="sm" mb="xs">
               <Title order={2}>Distribution Management</Title>
-              <Badge color={RELEASE_STATUS_COLORS[data.release.releaseStatus]} variant="light" size="lg">
-                {RELEASE_STATUS_LABELS[data.release.releaseStatus]}
+              <Badge color={RELEASE_STATUS_COLORS[data.release.releaseStatus as DistributionStatus]} variant="light" size="lg">
+                {RELEASE_STATUS_LABELS[data.release.releaseStatus as DistributionStatus]}
               </Badge>
             </Group>
             <Group gap="md">

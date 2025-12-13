@@ -13,6 +13,7 @@ import type {
   ApprovalResponse,
   BuildResponse,
   BuildsResponse,
+  DistributionsResponse,
   DistributionStatusResponse,
   ExtraCommitsResponse,
   HaltRolloutRequest,
@@ -31,12 +32,13 @@ import type {
   UpdateRolloutRequest,
   UploadAABResponse,
   VerifyTestFlightRequest,
-  VerifyTestFlightResponse,
+  VerifyTestFlightResponse
 } from '~/types/distribution.types';
 
 class Distribution {
   private __client = axios.create({
-    baseURL: getBackendBaseURL(),
+    // In HYBRID_MODE or MOCK_MODE, Distribution APIs go to mock server
+    baseURL: getBackendBaseURL('/api/v1/distributions'),
     timeout: 10000,
   });
 
@@ -150,12 +152,19 @@ class Distribution {
   // =======================
 
   /**
-   * List all active distributions across all releases
-   * Aggregates release + submission data
+   * List all active distributions across all releases (paginated)
+   * Aggregates release + submission data from distribution, android_submissions, and ios_submissions tables
+   * 
+   * @param page - Page number (1-indexed)
+   * @param pageSize - Number of items per page
+   * @returns Paginated list of distributions with their submissions
    */
-  async listDistributions() {
-    return this.__client.get<{ success: boolean; data: { distributions: unknown[] }; error?: { message: string } }>(
-      '/api/v1/distributions'
+  async listDistributions(page: number = 1, pageSize: number = 10) {
+    return this.__client.get<DistributionsResponse>(
+      '/api/v1/distributions',
+      {
+        params: { page, pageSize },
+      }
     );
   }
 

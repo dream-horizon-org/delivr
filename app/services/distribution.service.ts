@@ -18,6 +18,22 @@ import { apiGet, apiPost } from '~/utils/api-client';
 
 export class DistributionService {
   /**
+   * List all distributions (paginated)
+   * Returns distributions with their submissions
+   * 
+   * @param page - Page number (1-indexed)
+   * @param pageSize - Number of items per page
+   */
+  static async listDistributions(
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<ApiResponse<any>> {
+    return apiGet<any>(
+      `/api/v1/distributions?page=${page}&pageSize=${pageSize}`
+    );
+  }
+
+  /**
    * Submit release builds to stores (main entry point)
    */
   static async submitToStores(
@@ -93,11 +109,12 @@ export class DistributionService {
   static isReleaseComplete(
     distributionStatus: DistributionStatusResponse
   ): boolean {
-    if (!distributionStatus.data?.platforms) {
+    const statusData = distributionStatus.data;
+    if (!statusData?.platforms) {
       return false;
     }
     
-    const platformStatuses = Object.values(distributionStatus.data.platforms);
+    const platformStatuses = Object.values(statusData.platforms);
     return platformStatuses.every(
       (p) =>
         p?.submitted &&
@@ -123,16 +140,17 @@ export class DistributionService {
   static getOverallProgress(
     distributionStatus: DistributionStatusResponse
   ): number {
-    if (!distributionStatus.data?.platforms) {
+    const statusData = distributionStatus.data;
+    if (!statusData?.platforms) {
       return 0;
     }
     
-    const platformStatuses = Object.values(distributionStatus.data.platforms);
+    const platformStatuses = Object.values(statusData.platforms);
     if (platformStatuses.length === 0) {
       return 0;
     }
 
-    const totalProgress = platformStatuses.reduce((sum, p) => {
+    const totalProgress = platformStatuses.reduce((sum: number, p) => {
       if (!p?.submitted) return sum;
       if (p.status === SubmissionStatus.LIVE && p.exposurePercent === 100) return sum + 100;
       if (p.status === SubmissionStatus.LIVE || p.status === SubmissionStatus.APPROVED)

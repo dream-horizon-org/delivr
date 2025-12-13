@@ -24,11 +24,26 @@ export enum Platform {
 // Platform values as array for validation
 export const PLATFORM_VALUES = [Platform.ANDROID, Platform.IOS] as const;
 
-export enum DistributionReleaseStatus {
-  PRE_RELEASE = 'PRE_RELEASE',
-  READY_FOR_SUBMISSION = 'READY_FOR_SUBMISSION',
+/**
+ * Distribution Status Enum
+ * 
+ * PENDING: Distribution created after pre-release, not yet submitted to stores
+ * PARTIALLY_RELEASED: Some platforms released (e.g., only Android out of Android+iOS)
+ * COMPLETED: All target platforms fully released (100% rollout)
+ * 
+ * Status is derived from submissions:
+ * - PENDING: No submissions OR all submissions not yet LIVE
+ * - PARTIALLY_RELEASED: Some platforms LIVE at 100%, but not all
+ * - COMPLETED: All platforms LIVE at 100%
+ */
+export enum DistributionStatus {
+  PENDING = 'PENDING',
+  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',
   COMPLETED = 'COMPLETED',
 }
+
+// Legacy name for backward compatibility
+export const DistributionReleaseStatus = DistributionStatus;
 
 export enum SubmissionStatus {
   IN_REVIEW = 'IN_REVIEW',
@@ -310,7 +325,7 @@ export type Release = EntityTimestamps & {
   id: string;
   version: string;
   platforms: Platform[];
-  status: DistributionReleaseStatus;
+  status: DistributionStatus;
 };
 
 /**
@@ -352,12 +367,13 @@ export type PlatformSubmissionState = {
 };
 
 /**
- * Distribution Status - Overall status for a release
+ * Distribution Status Data - Overall status for a release
+ * (Renamed to avoid conflict with DistributionStatus enum)
  */
-export type DistributionStatus = {
+export type DistributionStatusData = {
   releaseId: string;
   releaseVersion: string;
-  releaseStatus: DistributionReleaseStatus;
+  releaseStatus: DistributionStatus;
   
   // Per-platform status
   platforms: {
@@ -597,7 +613,7 @@ export type SubmitToStoreResponse = APISuccessResponse<{
   releaseId: string;
   submissionIds: string[];
   submissions: SubmissionSummary[];
-  releaseStatus: DistributionReleaseStatus;
+  releaseStatus: DistributionStatus;
 }>;
 
 /** Platform submission result (for partial responses) */
@@ -624,12 +640,12 @@ export type PartialSubmitResponse = APISuccessResponse<{
   releaseId: string;
   submissionIds: string[];
   submissions: PlatformSubmissionResult[];
-  releaseStatus: DistributionReleaseStatus;
+  releaseStatus: DistributionStatus;
   warnings: PlatformWarning[];
 }>;
 
 /** Distribution Status Response */
-export type DistributionStatusResponse = APISuccessResponse<DistributionStatus>;
+export type DistributionStatusResponse = APISuccessResponse<DistributionStatusData>;
 
 /** Submissions Response */
 export type SubmissionsResponse = APISuccessResponse<{
@@ -647,7 +663,7 @@ export type RolloutUpdateResponse = APISuccessResponse<{
   exposurePercent: number;
   updatedAt: string;
   autoPromotedToReleased: boolean;
-  releaseStatus?: DistributionReleaseStatus;
+  releaseStatus?: DistributionStatus;
 }>;
 
 /** PM Status Response */
@@ -721,3 +737,82 @@ export type SubmitToStoresActionResponse = {
   success?: boolean;
   error?: { message: string };
 };
+
+// ============================================================================
+// DISTRIBUTIONS LIST TYPES - For paginated distributions endpoint
+// ============================================================================
+
+/**
+ * Submission within a distribution
+ * Represents a platform-specific submission (from android_submissions or ios_submissions table)
+ */
+export interface SubmissionInDistribution {
+  id: string;
+  platform: Platform;
+  details: {
+    track?: string;
+    buildNumber?: string;
+    packageName?: string;  // Android-specific
+    versionCode?: string;  // Android-specific
+    bundleId?: string;     // iOS-specific
+    buildVersion?: string; // iOS-specific
+    [key: string]: unknown; // Other platform-specific details
+  };
+  status: SubmissionStatus; // Just "status" - context is clear within submissions array
+  exposurePercent: number; // Rollout percentage (0-100)
+  submittedAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Distribution Entry
+ * Represents a single distribution with its associated submissions
+ * Returned from GET /api/v1/distributions
+ */
+export interface DistributionEntry {
+  id: string; // Distribution ID (from distribution table)
+  releaseId: string;
+  version: string;
+  branch: string;
+  status: DistributionStatus; // PENDING, PARTIALLY_RELEASED, or COMPLETED
+  platforms: Platform[]; // Platforms this release targets (from release configuration)
+  submissions: SubmissionInDistribution[]; // Array of platform submissions (actual submitted platforms)
+  submittedAt: string | null;
+  lastUpdated: string;
+}
+
+/**
+ * Pagination Metadata
+ * Standard pagination response structure
+ */
+export interface PaginationMeta {
+  page: number;        // Current page (1-indexed)
+  pageSize: number;    // Items per page
+  totalPages: number;  // Total number of pages
+  totalItems: number;  // Total number of items
+  hasMore: boolean;    // Whether there are more pages
+}
+
+/**
+ * Distribution Stats
+ * Aggregated statistics calculated from ALL distributions (not just current page)
+ */
+export interface DistributionStats {
+  total: number;
+  rollingOut: number;
+  inReview: number;
+  released: number;
+}
+
+/**
+ * Distributions List Response
+ * Complete response from GET /api/v1/distributions
+ */
+export interface DistributionsListResponse {
+  distributions: DistributionEntry[];
+  stats: DistributionStats;
+  pagination: PaginationMeta;
+}
+
+/** API Success wrapper for distributions list */
+export type DistributionsResponse = APISuccessResponse<DistributionsListResponse>;

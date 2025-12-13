@@ -7,11 +7,13 @@
  */
 
 import {
-  ActionIcon,
   Badge,
+  Button,
   Card,
   Container,
   Group,
+  Loader,
+  Pagination,
   Paper,
   Progress,
   SimpleGrid,
@@ -20,47 +22,44 @@ import {
   Text,
   ThemeIcon,
   Title,
-  Tooltip,
+  Tooltip
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
-import { Link, useLoaderData } from '@remix-run/react';
+import { Link, useLoaderData, useNavigation } from '@remix-run/react';
 import {
+  IconAlertCircle,
   IconBrandAndroid,
   IconBrandApple,
   IconCheck,
   IconClock,
-  IconExternalLink,
+  IconEye,
+  IconList,
   IconPlayerPause,
-  IconRocket,
-  IconX,
+  IconProgress,
+  IconRefresh,
+  IconSend,
+  IconX
 } from '@tabler/icons-react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
-import { Platform, DistributionReleaseStatus, SubmissionStatus } from '~/types/distribution.types';
+import {
+  DistributionStatus,
+  Platform,
+  SubmissionStatus,
+  type DistributionEntry,
+  type DistributionStats,
+  type PaginationMeta,
+  type SubmissionInDistribution,
+} from '~/types/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 
-// Types - should match API response
-interface PlatformStatus {
-  platform: Platform;
-  status: string;
-  exposurePercent: number;
-  submissionId?: string;
-}
-
-interface DistributionEntry {
-  releaseId: string;
-  version: string;
-  branch: string;
-  status: string;
-  platforms: PlatformStatus[];
-  submittedAt: string | null;
-  lastUpdated: string;
-}
-
+// Types imported from central types file - single source of truth
 interface LoaderData {
   org: string;
   distributions: DistributionEntry[];
+  stats: DistributionStats;
+  pagination: PaginationMeta;
   error?: string;
 }
 
@@ -72,22 +71,43 @@ export const loader = authenticateLoaderRequest(
       throw new Response('Organization not found', { status: 404 });
     }
 
+    // Extract pagination params from URL
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
+
     try {
-      // Fetch from API (mock or real backend based on config)
-      const response = await DistributionService.listDistributions();
+      // Fetch from API with pagination params
+      // Backend returns paginated response with distributions + submissions + stats
+      const response = await DistributionService.listDistributions(page, pageSize);
       
-      // Type assertion - API response is validated by backend
-      const distributions = response.data.data.distributions as DistributionEntry[];
+      // Extract distributions, stats, and pagination from response
+      const { distributions, stats, pagination } = response.data.data;
       
       return json<LoaderData>({
         org,
-        distributions,
+        distributions: distributions as DistributionEntry[],
+        stats: stats as DistributionStats,
+        pagination: pagination as PaginationMeta,
       });
     } catch (error) {
       console.error('[Distributions] Failed to fetch:', error);
       return json<LoaderData>({
         org,
         distributions: [],
+        stats: {
+          total: 0,
+          rollingOut: 0,
+          inReview: 0,
+          released: 0,
+        },
+        pagination: {
+          page: 1,
+          pageSize: 10,
+          totalPages: 0,
+          totalItems: 0,
+          hasMore: false,
+        },
         error: 'Failed to fetch distributions',
       });
     }
@@ -96,32 +116,35 @@ export const loader = authenticateLoaderRequest(
 
 // Helper functions - derived from API data, not hardcoded
 function getStatusColor(status: string): string {
+  // Distribution-level statuses (from distribution table)
+  if (status === DistributionStatus.PENDING) return 'gray';
+  if (status === DistributionStatus.PARTIALLY_RELEASED) return 'blue';
+  if (status === DistributionStatus.COMPLETED) return 'green';
+  
+  // Submission-level statuses (from android_submissions/ios_submissions tables)
   const colors: Record<string, string> = {
-    PENDING: 'gray',
     IN_REVIEW: 'yellow',
-    IN_PROGRESS: 'blue',
     APPROVED: 'cyan',
     LIVE: 'green',
     REJECTED: 'red',
     HALTED: 'orange',
-    PRE_RELEASE: 'gray',
-    READY_FOR_SUBMISSION: 'cyan',
-    COMPLETED: 'green',
   };
   return colors[status] ?? 'gray';
 }
 
 function getStatusIcon(status: string) {
+  // Distribution-level statuses
+  if (status === DistributionStatus.COMPLETED) return <IconCheck size={14} />;
+  if (status === DistributionStatus.PARTIALLY_RELEASED) return <IconProgress size={14} />;
+  if (status === DistributionStatus.PENDING) return <IconClock size={14} />;
+  
+  // Submission-level statuses
   switch (status) {
-    case 'COMPLETED':
     case 'LIVE':
       return <IconCheck size={14} />;
     case 'APPROVED':
-      return <IconRocket size={14} />;
+      return <IconCheck size={14} />;
     case 'IN_REVIEW':
-    case 'PENDING':
-    case 'PRE_RELEASE':
-    case 'READY_FOR_SUBMISSION':
       return <IconClock size={14} />;
     case 'REJECTED':
       return <IconX size={14} />;
@@ -134,9 +157,9 @@ function getStatusIcon(status: string) {
 
 function getPlatformIcon(platform: Platform) {
   return platform === Platform.ANDROID ? (
-    <IconBrandAndroid size={16} />
+    <IconBrandAndroid size={24} stroke={2} />
   ) : (
-    <IconBrandApple size={16} />
+    <IconBrandApple size={24} stroke={2} />
   );
 }
 
@@ -150,48 +173,73 @@ function formatDate(dateString: string | null): string {
   });
 }
 
+function formatRelativeTime(dateString: string): string {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  
+  // Fallback to absolute date for older items
+  return formatDate(dateString);
+}
+
 function formatStatus(status: string): string {
   return status.replace(/_/g, ' ');
 }
 
 // Components
-function DistributionStats({ distributions }: { distributions: DistributionEntry[] }) {
-  const stats = {
-    total: distributions.length,
-    rollingOut: distributions.filter(d => 
-      d.status === DistributionReleaseStatus.READY_FOR_SUBMISSION || d.platforms.some(p => p.status === SubmissionStatus.LIVE && p.exposurePercent < ROLLOUT_COMPLETE_PERCENT)
-    ).length,
-    inReview: distributions.filter(d => 
-      d.status === DistributionReleaseStatus.READY_FOR_SUBMISSION ||
-      d.platforms.some(p => p.status === SubmissionStatus.IN_REVIEW)
-    ).length,
-    released: distributions.filter(d => d.status === DistributionReleaseStatus.COMPLETED).length,
-  };
-
+function DistributionStatsCards({ stats }: { stats: DistributionStats }) {
   return (
     <SimpleGrid cols={{ base: 2, sm: 4 }} mb="lg">
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Text size="sm" c="dimmed">Total Distributions</Text>
-        <Text size="xl" fw={700}>{stats.total}</Text>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group justify="space-between" mb="xs">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Total Distributions</Text>
+          <ThemeIcon size="sm" variant="light" color="gray" radius="md">
+            <IconList size={16} />
+          </ThemeIcon>
+        </Group>
+        <Text size="32" fw={700} lh={1}>{stats.total}</Text>
       </Card>
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Text size="sm" c="dimmed">Rolling Out</Text>
-        <Text size="xl" fw={700} c="indigo">{stats.rollingOut}</Text>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group justify="space-between" mb="xs">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Rolling Out</Text>
+          <ThemeIcon size="sm" variant="light" color="blue" radius="md">
+            <IconProgress size={16} />
+          </ThemeIcon>
+        </Group>
+        <Text size="32" fw={700} c="blue" lh={1}>{stats.rollingOut}</Text>
       </Card>
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Text size="sm" c="dimmed">In Review</Text>
-        <Text size="xl" fw={700} c="blue">{stats.inReview}</Text>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group justify="space-between" mb="xs">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>In Review</Text>
+          <ThemeIcon size="sm" variant="light" color="orange" radius="md">
+            <IconClock size={16} />
+          </ThemeIcon>
+        </Group>
+        <Text size="32" fw={700} c="orange" lh={1}>{stats.inReview}</Text>
       </Card>
-      <Card shadow="sm" padding="md" radius="md" withBorder>
-        <Text size="sm" c="dimmed">Released</Text>
-        <Text size="xl" fw={700} c="green">{stats.released}</Text>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group justify="space-between" mb="xs">
+          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Released</Text>
+          <ThemeIcon size="sm" variant="light" color="green" radius="md">
+            <IconCheck size={16} />
+          </ThemeIcon>
+        </Group>
+        <Text size="32" fw={700} c="green" lh={1}>{stats.released}</Text>
       </Card>
     </SimpleGrid>
   );
 }
 
-function PlatformStatusBadge({ platformStatus }: { platformStatus: PlatformStatus }) {
-  const { platform, status, exposurePercent } = platformStatus;
+function SubmissionStatusBadge({ submission }: { submission: SubmissionInDistribution }) {
+  const { platform, status, exposurePercent } = submission;
   const isRollingOut = status === SubmissionStatus.LIVE && exposurePercent < ROLLOUT_COMPLETE_PERCENT;
 
   return (
@@ -219,54 +267,141 @@ function PlatformStatusBadge({ platformStatus }: { platformStatus: PlatformStatu
 function DistributionRow({ distribution, org }: { distribution: DistributionEntry; org: string }) {
   return (
     <Table.Tr>
+      {/* Version */}
+      <Table.Td>
+        <Badge 
+          variant="light" 
+          color="dark" 
+          size="lg"
+          radius="sm"
+          className="font-mono"
+        >
+          {distribution.version}
+        </Badge>
+      </Table.Td>
+      
+      {/* Branch */}
+      <Table.Td>
+        <Text size="sm" c="dimmed">{distribution.branch}</Text>
+      </Table.Td>
+      
+      {/* Platforms */}
       <Table.Td>
         <Group gap="sm">
-          <ThemeIcon size="md" variant="light" color="grape">
-            <IconRocket size={16} />
-          </ThemeIcon>
-          <div>
-            <Text fw={500} className="font-mono">{distribution.version}</Text>
-            <Text size="xs" c="dimmed">{distribution.branch}</Text>
-          </div>
+          {distribution.platforms.map((platform) => {
+            const submission = distribution.submissions.find(s => s.platform === platform);
+            const platformName = platform === Platform.ANDROID ? 'Android' : 'iOS';
+            
+            // Platform color is based on the platform, not status
+            const platformColor = platform === Platform.ANDROID ? 'green' : 'blue';
+            
+            if (submission) {
+              // Platform has been submitted - show with full color
+              const statusIndicator = submission.exposurePercent > 0 
+                ? `${formatStatus(submission.status)} (${submission.exposurePercent}%)`
+                : formatStatus(submission.status);
+              
+              return (
+                <Tooltip 
+                  key={platform} 
+                  label={`${platformName}: ${statusIndicator}`}
+                  withArrow
+                  position="top"
+                >
+                  <Badge
+                    variant="light"
+                    color={platformColor}
+                    size="xl"
+                    radius="sm"
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: '10px 14px'
+                    }}
+                  >
+                    {getPlatformIcon(platform)}
+                  </Badge>
+                </Tooltip>
+              );
+            } else {
+              // Platform is targeted but not submitted yet - show faded
+              return (
+                <Tooltip 
+                  key={platform} 
+                  label={`${platformName}: Not Submitted`}
+                  withArrow
+                  position="top"
+                >
+                  <Badge
+                    variant="outline"
+                    color={platformColor}
+                    size="xl"
+                    radius="sm"
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: '10px 14px',
+                      opacity: 0.4
+                    }}
+                  >
+                    {getPlatformIcon(platform)}
+                  </Badge>
+                </Tooltip>
+              );
+            }
+          })}
         </Group>
       </Table.Td>
+      
+      {/* Status */}
       <Table.Td>
         <Badge 
           color={getStatusColor(distribution.status)} 
-          variant="light" 
-          leftSection={getStatusIcon(distribution.status)}
+          variant="dot"
+          size="lg"
+          radius="sm"
         >
           {formatStatus(distribution.status)}
         </Badge>
       </Table.Td>
+      
+      {/* Last Updated */}
       <Table.Td>
-        {distribution.platforms.length > 0 ? (
-          <Stack gap="xs">
-            {distribution.platforms.map((p) => (
-              <PlatformStatusBadge key={p.platform} platformStatus={p} />
-            ))}
-          </Stack>
-        ) : (
-          <Text size="sm" c="dimmed">No submissions yet</Text>
-        )}
+        <Group gap={6}>
+          <IconClock size={14} color="gray" />
+          <Text size="sm" fw={500}>{formatRelativeTime(distribution.lastUpdated)}</Text>
+        </Group>
       </Table.Td>
+      
+      {/* Actions */}
       <Table.Td>
-        <Text size="sm">{formatDate(distribution.submittedAt)}</Text>
-      </Table.Td>
-      <Table.Td>
-        <Text size="sm">{formatDate(distribution.lastUpdated)}</Text>
-      </Table.Td>
-      <Table.Td>
-        <Tooltip label="Open Distribution Management">
-          <ActionIcon
-            component={Link}
-            to={`/dashboard/${org}/distributions/${distribution.releaseId}`}
-            variant="light"
-            color="grape"
-          >
-            <IconExternalLink size={16} />
-          </ActionIcon>
-        </Tooltip>
+        <Group gap="xs">
+          {distribution.status === DistributionStatus.PENDING ? (
+            <Button
+              component={Link}
+              to={`/dashboard/${org}/distributions/${distribution.releaseId}`}
+              variant="filled"
+              color="blue"
+              size="sm"
+              radius="sm"
+              w={100}
+              leftSection={<IconSend size={16} />}
+            >
+              Submit
+            </Button>
+          ) : (
+            <Button
+              component={Link}
+              to={`/dashboard/${org}/distributions/${distribution.releaseId}`}
+              variant="outline"
+              color="blue"
+              size="sm"
+              radius="sm"
+              w={100}
+              leftSection={<IconEye size={16} />}
+            >
+              View
+            </Button>
+          )}
+        </Group>
       </Table.Td>
     </Table.Tr>
   );
@@ -277,12 +412,12 @@ function EmptyDistributions() {
     <Paper shadow="sm" p="xl" radius="md" withBorder>
       <Stack align="center" gap="md">
         <ThemeIcon size={60} variant="light" color="gray" radius="xl">
-          <IconRocket size={30} />
+          <IconList size={30} />
         </ThemeIcon>
         <Text size="lg" fw={500}>No Active Distributions</Text>
         <Text size="sm" c="dimmed" ta="center" maw={400}>
-          When you submit a release for distribution, it will appear here.
-          You can track rollout progress and manage store submissions.
+          Distributions appear here automatically when a release completes the pre-release phase.
+          You can then track rollout progress and manage store submissions.
         </Text>
       </Stack>
     </Paper>
@@ -290,7 +425,10 @@ function EmptyDistributions() {
 }
 
 export default function DistributionsListPage() {
-  const { org, distributions, error } = useLoaderData<LoaderData>();
+  const { org, distributions, stats, pagination, error } = useLoaderData<LoaderData>();
+  const navigation = useNavigation();
+  
+  const isLoading = navigation.state === 'loading';
 
   return (
     <Container size="xl" className="py-8">
@@ -303,50 +441,106 @@ export default function DistributionsListPage() {
               Manage store submissions and rollouts across all releases
             </Text>
           </div>
-          <ThemeIcon size={48} variant="light" color="grape" radius="md">
-            <IconRocket size={28} />
-          </ThemeIcon>
+          {isLoading && <Loader size="sm" color="blue" />}
         </Group>
       </Paper>
 
       {/* Error State */}
       {error && (
-        <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6" bg="red.0">
-          <Text c="red">{error}</Text>
+        <Paper 
+          p="md" 
+          radius="md" 
+          withBorder 
+          className="mb-6"
+          style={{ 
+            backgroundColor: 'var(--mantine-color-red-0)',
+            borderColor: 'var(--mantine-color-red-3)'
+          }}
+        >
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <Group gap="sm" align="center" wrap="nowrap">
+              <ThemeIcon color="red" size="lg" radius="sm" variant="light">
+                <IconAlertCircle size={20} />
+              </ThemeIcon>
+              <Text size="sm" fw={500} c="red.9">{error}</Text>
+            </Group>
+            <Button 
+              size="sm" 
+              variant="filled" 
+              color="red" 
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => window.location.reload()}
+              style={{ flexShrink: 0 }}
+            >
+              Retry
+            </Button>
+          </Group>
+        </Paper>
+      )}
+
+      {/* Loading State */}
+      {isLoading && distributions.length === 0 && (
+        <Paper shadow="sm" p="xl" radius="md" withBorder>
+          <Stack align="center" gap="md">
+            <Loader size="lg" color="blue" />
+            <Text size="lg" fw={500}>Loading distributions...</Text>
+            <Text size="sm" c="dimmed">Please wait while we fetch your data</Text>
+          </Stack>
         </Paper>
       )}
 
       {/* Stats */}
-      {distributions.length > 0 && <DistributionStats distributions={distributions} />}
+      {!isLoading && distributions.length > 0 && <DistributionStatsCards stats={stats} />}
 
       {/* Distributions Table */}
-      {distributions.length === 0 ? (
+      {!isLoading && distributions.length === 0 && !error ? (
         <EmptyDistributions />
-      ) : (
-        <Paper shadow="sm" radius="md" withBorder>
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Release</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Platforms</Table.Th>
-                <Table.Th>Submitted</Table.Th>
-                <Table.Th>Last Updated</Table.Th>
-                <Table.Th w={60}></Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {distributions.map((distribution) => (
-                <DistributionRow
-                  key={distribution.releaseId}
-                  distribution={distribution}
-                  org={org}
-                />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Paper>
-      )}
+      ) : !isLoading && distributions.length > 0 ? (
+        <>
+          <Paper shadow="sm" radius="md" withBorder>
+            <Table striped highlightOnHover verticalSpacing="md" horizontalSpacing="lg">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th><Text size="sm" fw={600} tt="uppercase">Version</Text></Table.Th>
+                  <Table.Th><Text size="sm" fw={600} tt="uppercase">Branch</Text></Table.Th>
+                  <Table.Th><Text size="sm" fw={600} tt="uppercase">Platforms</Text></Table.Th>
+                  <Table.Th><Text size="sm" fw={600} tt="uppercase">Status</Text></Table.Th>
+                  <Table.Th><Text size="sm" fw={600} tt="uppercase">Last Updated</Text></Table.Th>
+                  <Table.Th w={150}><Text size="sm" fw={600} tt="uppercase">Actions</Text></Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {distributions.map((distribution) => (
+                  <DistributionRow
+                    key={distribution.releaseId}
+                    distribution={distribution}
+                    org={org}
+                  />
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Paper>
+          
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <Group justify="center" mt="xl">
+              <Pagination 
+                total={pagination.totalPages} 
+                value={pagination.page} 
+                onChange={(newPage) => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('page', String(newPage));
+                  window.location.href = url.toString();
+                }}
+                color="blue"
+              />
+              <Text size="sm" c="dimmed">
+                Showing {(pagination.page - 1) * pagination.pageSize + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.totalItems)} of {pagination.totalItems}
+              </Text>
+            </Group>
+          )}
+        </>
+      ) : null}
     </Container>
   );
 }

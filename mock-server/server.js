@@ -960,12 +960,21 @@ server.get('/api/v1/submissions/:submissionId/history', (req, res) => {
 });
 
 /**
- * GET /api/v1/distributions
- * List all active distributions across all releases
- * This aggregates release + submission data
+ * GET /api/v1/distributions?page=1&pageSize=10
+ * List all active distributions across all releases (PAGINATED)
+ * Returns distributions with submissions array
+ * 
+ * Backend structure:
+ * - distribution table: id, status, releaseId, releaseVersion
+ * - android_submissions table: id, distributionId, submissionStatus, exposurePercent, details
+ * - ios_submissions table: id, distributionId, submissionStatus, exposurePercent, details
  */
 server.get('/api/v1/distributions', (req, res) => {
   const db = router.db;
+  
+  // Extract pagination params
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = parseInt(req.query.pageSize) || 10;
   
   // Get all releases that have submissions or are in distribution-relevant status
   const releases = db.get('releases').value() || [];
@@ -979,53 +988,135 @@ server.get('/api/v1/distributions', (req, res) => {
   }, {});
   
   // Build distribution entries
-  const distributions = releases
+  // Backend creates a distribution entry AFTER pre-release is completed
+  const allDistributions = releases
     .filter(release => {
-      // Include releases that have submissions OR are in PRE_RELEASE/BUILDS_SUBMITTED status
+      // Include releases with distribution-relevant statuses
+      // Backend spec: PENDING, PARTIALLY_RELEASED, COMPLETED
+      const isDistributionRelevant = [
+        'PENDING', // Created after pre-release, not yet submitted
+        'PARTIALLY_RELEASED', // Some platforms released
+        'COMPLETED', // All platforms fully released
+      ].includes(release.status);
+      
+      // Also include releases that have submissions (backward compatibility)
       const hasSubmissions = submissionsByRelease[release.id]?.length > 0;
-      const isDistributionRelevant = ['PRE_RELEASE', 'BUILDS_SUBMITTED', 'RELEASED', 'HALTED'].includes(release.status);
-      return hasSubmissions || isDistributionRelevant;
+      
+      return isDistributionRelevant || hasSubmissions;
     })
     .map(release => {
       const releaseSubmissions = submissionsByRelease[release.id] || [];
       
-      // Build platform status from submissions
-      const platforms = releaseSubmissions.map(sub => ({
+      /**
+       * Build submissions array (as per user's spec)
+       * Each submission has: id, platform, details, status, exposurePercent
+       * Note: Just "status", not "submissionStatus" - context is already clear
+       */
+      const submissions = releaseSubmissions.map(sub => ({
+        id: sub.id,
         platform: sub.platform,
-        status: sub.submissionStatus,
+        details: {
+          track: sub.track || 'production',
+          buildNumber: sub.buildNumber || '123',
+          buildId: sub.buildId,
+          // Platform-specific details
+          ...(sub.platform === 'ANDROID' ? {
+            packageName: 'com.example.app',
+            versionCode: sub.buildNumber,
+          } : {
+            bundleId: 'com.example.app',
+            buildVersion: sub.buildNumber,
+          }),
+        },
+        status: sub.submissionStatus, // Just "status" in API response
         exposurePercent: sub.exposurePercent,
-        submissionId: sub.id,
+        submittedAt: sub.submittedAt || new Date().toISOString(),
+        updatedAt: sub.updatedAt || new Date().toISOString(),
       }));
       
-      // Calculate overall status
+      /**
+       * Calculate distribution status (Backend logic):
+       * - PENDING: No submissions OR all submissions not yet LIVE
+       * - PARTIALLY_RELEASED: Some platforms LIVE at 100%, but not all
+       * - COMPLETED: All platforms LIVE at 100%
+       */
       let status = release.status;
-      if (releaseSubmissions.length > 0) {
-        if (releaseSubmissions.every(s => s.submissionStatus === 'RELEASED')) {
-          status = 'RELEASED';
-        } else if (releaseSubmissions.some(s => s.submissionStatus === 'APPROVED_RELEASED')) {
-          status = 'ROLLING_OUT';
-        } else if (releaseSubmissions.some(s => s.submissionStatus === 'BUILD_SUBMITTED')) {
-          status = 'IN_REVIEW';
-        } else if (releaseSubmissions.some(s => s.submissionStatus === 'REJECTED')) {
-          status = 'REJECTED';
+      
+      if (submissions.length > 0) {
+        // Count LIVE submissions at 100% rollout
+        const liveCount = submissions.filter(s => 
+          s.status === 'LIVE' && s.exposurePercent === 100
+        ).length;
+        
+        const totalSubmissions = submissions.length;
+        
+        if (liveCount === totalSubmissions && totalSubmissions > 0) {
+          // All platforms fully released
+          status = 'COMPLETED';
+        } else if (liveCount > 0) {
+          // Some platforms released, others pending/in progress
+          status = 'PARTIALLY_RELEASED';
+        } else {
+          // No platforms released yet
+          status = 'PENDING';
         }
+      } else if (!['PENDING', 'PARTIALLY_RELEASED', 'COMPLETED'].includes(status)) {
+        // Default to PENDING if no submissions and status is not already a distribution status
+        status = 'PENDING';
       }
       
+      // Extract version from platformTargetMappings for new format, fallback to release.version
+      const version = release.platformTargetMappings?.[0]?.version || release.version || 'N/A';
+      
+      // Extract platforms from platformTargetMappings
+      const platforms = release.platformTargetMappings?.map(ptm => ptm.platform) || [];
+      
       return {
+        id: `dist_${release.id.substring(0, 8)}`, // Distribution ID
         releaseId: release.id,
-        version: release.version,
-        branch: release.branch || `release/${release.version}`,
+        version,
+        branch: release.branch || `release/${version}`,
         status,
-        platforms,
-        submittedAt: releaseSubmissions[0]?.submittedAt || null,
-        lastUpdated: release.updatedAt,
+        platforms, // Array of platforms (ANDROID, IOS) that this release targets
+        submissions, // Array of submissions (as per user's spec)
+        submittedAt: submissions[0]?.submittedAt || null,
+        lastUpdated: release.updatedAt || new Date().toISOString(),
       };
     });
+  
+  // Calculate stats from ALL distributions (not just current page)
+  const stats = {
+    total: allDistributions.length,
+    rollingOut: allDistributions.filter(d => 
+      d.status === 'PARTIALLY_RELEASED' || 
+      d.submissions.some(s => s.status === 'LIVE' && s.exposurePercent < 100)
+    ).length,
+    inReview: allDistributions.filter(d => 
+      d.status === 'PENDING' ||
+      d.submissions.some(s => s.status === 'IN_REVIEW')
+    ).length,
+    released: allDistributions.filter(d => d.status === 'COMPLETED').length,
+  };
+  
+  // Pagination
+  const totalItems = allDistributions.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const distributions = allDistributions.slice(start, end);
   
   res.json({
     success: true,
     data: {
       distributions,
+      stats, // ✅ Send aggregated stats for ALL distributions
+      pagination: {
+        page,
+        pageSize,
+        totalPages,
+        totalItems,
+        hasMore: page < totalPages,
+      },
     },
   });
 });
