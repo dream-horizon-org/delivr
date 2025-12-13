@@ -59,7 +59,9 @@ export class BuildArtifactService {
     this.storeDistributionService = new StoreDistributionService();
     this.testflightVerificationService = new TestFlightBuildVerificationService(
       s3Storage.storeIntegrationController,
-      s3Storage.storeCredentialController
+      s3Storage.storeCredentialController,
+      s3Storage.releasePlatformTargetMappingRepository,
+      s3Storage.releaseRepository
     );
   }
 
@@ -412,10 +414,8 @@ export class BuildArtifactService {
       () => this.testflightVerificationService.verifyBuild({
         releaseId,
         tenantId,
-        request: {
-          testflightBuildNumber: testflightNumber,
-          versionName
-        }
+        testflightBuildNumber: testflightNumber,
+        versionName
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
@@ -511,10 +511,8 @@ export class BuildArtifactService {
       () => this.testflightVerificationService.verifyBuild({
         releaseId: build.releaseId,
         tenantId: build.tenantId,
-        request: {
-          testflightBuildNumber: testflightNumber,
-          versionName: build.artifactVersionName
-        }
+        testflightBuildNumber: testflightNumber,
+        versionName: build.artifactVersionName
       }),
       BUILD_ARTIFACT_ERROR_CODE.TESTFLIGHT_VERIFICATION_FAILED,
       BUILD_ARTIFACT_ERROR_MESSAGES.TESTFLIGHT_VERIFICATION_FAILED
