@@ -30,34 +30,23 @@ export const TASK_STATUS_COLORS = {
 // ============================================================================
 
 export const TASK_TYPE_LABELS = {
-  // Stage 1: Kickoff
-  PRE_KICK_OFF_REMINDER: 'Pre Kickoff Reminder',
+  // Stage 1: Kickoff (4 tasks)
   FORK_BRANCH: 'Fork Branch',
   CREATE_PROJECT_MANAGEMENT_TICKET: 'Create Project Management Ticket',
   CREATE_TEST_SUITE: 'Create Test Suite',
   TRIGGER_PRE_REGRESSION_BUILDS: 'Trigger Pre-Regression Builds',
   
-  // Stage 2: Regression
+  // Stage 2: Regression (4 tasks)
   RESET_TEST_SUITE: 'Reset Test Suite',
   CREATE_RC_TAG: 'Create RC Tag',
   CREATE_RELEASE_NOTES: 'Create Release Notes',
   TRIGGER_REGRESSION_BUILDS: 'Trigger Regression Builds',
-  TRIGGER_AUTOMATION_RUNS: 'Trigger Automation Runs',
-  AUTOMATION_RUNS: 'Automation Runs',
-  SEND_REGRESSION_BUILD_MESSAGE: 'Send Regression Build Message',
   
-  // Stage 3: Post-Regression
-  PRE_RELEASE_CHERRY_PICKS_REMINDER: 'Pre-Release Cherry Picks Reminder',
-  CREATE_RELEASE_TAG: 'Create Release Tag',
-  CREATE_FINAL_RELEASE_NOTES: 'Create Final Release Notes',
+  // Stage 3: Post-Regression (4 tasks)
   TRIGGER_TEST_FLIGHT_BUILD: 'Trigger TestFlight Build',
   CREATE_AAB_BUILD: 'Create AAB Build',
-  SEND_POST_REGRESSION_MESSAGE: 'Send Post-Regression Message',
-  CHECK_PROJECT_RELEASE_APPROVAL: 'Check Project Release Approval',
-  COMPLETE_POST_REGRESSION: 'Complete Post-Regression',
-  
-  // Manual API
-  SUBMIT_TO_TARGET: 'Submit to Target',
+  CREATE_RELEASE_TAG: 'Create Release Tag',
+  CREATE_FINAL_RELEASE_NOTES: 'Create Final Release Notes',
 } as const;
 
 // ============================================================================

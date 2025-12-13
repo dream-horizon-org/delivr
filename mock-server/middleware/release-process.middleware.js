@@ -370,17 +370,41 @@ function createReleaseProcessMiddleware(router) {
     // BUILD APIs
     // ============================================================================
 
-    // POST /api/v1/tenants/:tenantId/releases/:releaseId/builds/upload
-    if (method === 'POST' && path.includes('/builds/upload')) {
-      const { platform, stage } = body;
-      const file = req.file || body.file;
-
-      if (!file || !platform || !stage) {
+    // POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+    // Backend route structure: stage and platform are path parameters
+    // Stage can be: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' (TaskStage)
+    // Frontend sends: 'PRE_REGRESSION' | 'REGRESSION' | 'PRE_RELEASE' (BuildUploadStage)
+    // BFF route handles the mapping, so mock server receives TaskStage values
+    if (method === 'POST' && path.includes('/stages/') && path.includes('/builds/')) {
+      // Extract stage and platform from path
+      // Path format: /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+      const stageMatch = path.match(/\/stages\/([^/]+)\/builds\/([^/]+)/);
+      if (!stageMatch) {
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields: file, platform, stage',
+          error: 'Invalid route format. Expected: /stages/:stage/builds/:platform',
         });
       }
+
+      const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION'
+      const platform = stageMatch[2]; // Platform: 'ANDROID' | 'IOS' | 'WEB'
+
+      // Extract file from form data (backend expects 'artifact' field, but BFF receives 'file')
+      const file = req.file || (body && body.file) || (body && body.artifact);
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required field: file (artifact)',
+        });
+      }
+
+      // Map TaskStage back to BuildUploadStage for storage (for consistency with existing data)
+      const buildUploadStage = 
+        stage === 'KICKOFF' ? 'PRE_REGRESSION' :
+        stage === 'REGRESSION' ? 'REGRESSION' :
+        stage === 'POST_REGRESSION' ? 'PRE_RELEASE' :
+        stage; // Fallback
 
       const buildId = `build_${Date.now()}`;
       const buildData = {
@@ -388,8 +412,8 @@ function createReleaseProcessMiddleware(router) {
         tenantId,
         releaseId,
         platform,
-        stage,
-        artifactPath: `s3://bucket/releases/${releaseId}/${platform}/${file.name}`,
+        stage: buildUploadStage, // Store as BuildUploadStage for consistency
+        artifactPath: `s3://bucket/releases/${releaseId}/${platform}/${file.name || file.originalname || 'build'}`,
         isUsed: false,
         createdAt: new Date().toISOString(),
       };
@@ -413,7 +437,7 @@ function createReleaseProcessMiddleware(router) {
           ciRunId: null,
           buildUploadStatus: 'UPLOADED',
           buildType: 'MANUAL',
-          buildStage: stage === 'PRE_REGRESSION' ? 'KICK_OFF' : stage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
+          buildStage: buildUploadStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildUploadStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
           queueLocation: null,
           workflowStatus: null,
           ciRunType: null,

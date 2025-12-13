@@ -24,7 +24,7 @@ import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { apiGet } from '~/utils/api-client';
 import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution.types';
 import { ApproverRole } from '~/types/distribution.types';
-import { transformTaskToPMStatus } from '~/utils/post-regression-transformers';
+import { PMApprovalStatus } from '~/components/distribution';
 import { TaskCard } from './TaskCard';
 
 interface PostRegressionStageProps {
@@ -41,7 +41,6 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
   
   // Modal states
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [approvalTaskId, setApprovalTaskId] = useState<string | null>(null);
   
   // Extra commits and PM status
   const [extraCommits, setExtraCommits] = useState<ExtraCommitsResponse['data'] | null>(null);
@@ -113,14 +112,13 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
     const allTasksCompleted = postRegressionTasks.length > 0 && 
       postRegressionTasks.every((t: Task) => t.taskStatus === TaskStatus.COMPLETED);
     
-    // Also check approval status
-    const approvalTask = tasks.find(
-      (t: Task) => t.taskType === TaskType.CHECK_PROJECT_RELEASE_APPROVAL
-    );
-    const approvalReady = approvalTask?.taskStatus === TaskStatus.COMPLETED;
+    // Check PM approval separately (if PM integration exists)
+    const pmApprovalReady = pmStatus 
+      ? pmStatus.approved === true 
+      : true; // If no PM integration, no approval needed
     
-    return allTasksCompleted && approvalReady;
-  }, [tasks]);
+    return allTasksCompleted && pmApprovalReady;
+  }, [tasks, pmStatus]);
 
   const handleRetry = useCallback(
     async (taskId: string) => {
@@ -142,8 +140,6 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
 
   const handleApprove = useCallback(
     async (comments?: string) => {
-      if (!approvalTaskId) return;
-      
       try {
         // Call manual approval API
         const response = await fetch(`/api/v1/releases/${releaseId}/approve`, {
@@ -158,14 +154,18 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
         
         showSuccessToast({ message: 'Release approved successfully' });
         setShowApprovalDialog(false);
-        setApprovalTaskId(null);
+        // Refetch PM status to update approval state
+        const pmStatusResult = await apiGet<PMStatusResponse>(`/api/v1/releases/${releaseId}/pm-status`);
+        if (pmStatusResult.success && pmStatusResult.data) {
+          setPmStatus(pmStatusResult.data.data);
+        }
         await refetch();
       } catch (error) {
         const errorMessage = getApiErrorMessage(error, 'Failed to approve release');
         showErrorToast({ message: errorMessage });
       }
     },
-    [approvalTaskId, releaseId, refetch]
+    [releaseId, refetch]
   );
 
   const handleCompletePostRegression = useCallback(async () => {
@@ -222,13 +222,6 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
     { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },
   ];
 
-  // Find approval task for PM status
-  const approvalTask = tasks.find(
-    (t: Task) => t.taskType === TaskType.CHECK_PROJECT_RELEASE_APPROVAL
-  );
-  const pmStatusFromTask = approvalTask ? transformTaskToPMStatus(approvalTask) : undefined;
-  const displayPmStatus = pmStatus || pmStatusFromTask;
-
   return (
     <Stack gap="lg" className={className}>
       {/* Extra Commits Warning - above tasks */}
@@ -269,16 +262,6 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
                 releaseId={releaseId}
                 onRetry={handleRetry}
                 onViewDetails={handleViewDetails}
-                // Enhanced props for post-regression
-                pmStatus={task.taskType === TaskType.CHECK_PROJECT_RELEASE_APPROVAL ? displayPmStatus : undefined}
-                onApproveRequested={
-                  task.taskType === TaskType.CHECK_PROJECT_RELEASE_APPROVAL
-                    ? () => {
-                        setApprovalTaskId(task.id);
-                        setShowApprovalDialog(true);
-                      }
-                    : undefined
-                }
               />
             ))}
           </Stack>
@@ -291,6 +274,42 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
         <Alert color="gray" variant="light">
           {POST_REGRESSION_LABELS.NO_TASKS || 'No tasks available'}
         </Alert>
+      )}
+
+      {/* PM Approval Section - Separate action, not a task */}
+      {pmStatus && (
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group justify="space-between" align="center">
+              <div>
+                <Text fw={600} size="lg" mb="xs">
+                  Project Management Approval
+                </Text>
+                <Text size="sm" c="dimmed">
+                  {pmStatus.approved 
+                    ? 'All tickets approved. Ready to proceed.'
+                    : 'Waiting for project management approval.'}
+                </Text>
+              </div>
+              {!pmStatus.approved && (
+                <Button
+                  onClick={() => {
+                    setShowApprovalDialog(true);
+                  }}
+                >
+                  Request Approval
+                </Button>
+              )}
+            </Group>
+            <PMApprovalStatus
+              pmStatus={pmStatus}
+              isApproving={false}
+              onApproveRequested={() => {
+                setShowApprovalDialog(true);
+              }}
+            />
+          </Stack>
+        </Card>
       )}
 
       {/* Promotion Card - Complete Post-Regression */}
@@ -322,12 +341,11 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
       <ManualApprovalDialog
         opened={showApprovalDialog}
         releaseId={releaseId}
-        approverRole={displayPmStatus?.approver || ApproverRole.RELEASE_LEAD}
+        approverRole={pmStatus?.approver || ApproverRole.RELEASE_LEAD}
         isApproving={false}
         onApprove={handleApprove}
         onClose={() => {
           setShowApprovalDialog(false);
-          setApprovalTaskId(null);
         }}
       />
     </Stack>

@@ -31,11 +31,9 @@ import {
   getTaskStatusLabel,
   getTaskTypeLabel,
 } from '~/constants/release-process-ui';
-import { PMApprovalStatus } from '~/components/distribution';
 import { useRelease } from '~/hooks/useRelease';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus, TaskType, BuildUploadStage, Platform } from '~/types/release-process-enums';
-import type { PMStatusResponse } from '~/types/distribution.types';
 import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 
 interface TaskCardProps {
@@ -45,9 +43,6 @@ interface TaskCardProps {
   onRetry?: (taskId: string) => void;
   onViewDetails?: (task: Task) => void;
   className?: string;
-  // Enhanced props for post-regression
-  pmStatus?: PMStatusResponse['data'];
-  onApproveRequested?: () => void;
 }
 
 function getTaskStatusIcon(status: TaskStatus) {
@@ -105,8 +100,6 @@ export function TaskCard({
   onRetry,
   onViewDetails,
   className,
-  pmStatus,
-  onApproveRequested,
 }: TaskCardProps) {
   const statusColor = getTaskStatusColor(task.taskStatus);
   const statusLabel = getTaskStatusLabel(task.taskStatus);
@@ -435,21 +428,6 @@ export function TaskCard({
                   ) : null}
                 </Stack>
               )}
-
-              {/* PM Approval Status - For CHECK_PROJECT_RELEASE_APPROVAL task */}
-              {task.taskType === TaskType.CHECK_PROJECT_RELEASE_APPROVAL && pmStatus && (
-                <Stack gap="xs">
-                  <Text size="xs" c="dimmed" fw={500}>
-                    Approval Status
-                  </Text>
-                  <PMApprovalStatus
-                    pmStatus={pmStatus}
-                    isApproving={false}
-                    onApproveRequested={onApproveRequested}
-                  />
-                </Stack>
-              )}
-
 
               {/* Task Metadata */}
               {task.externalData && Object.keys(task.externalData).length > 0 && (

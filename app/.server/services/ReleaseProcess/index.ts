@@ -28,6 +28,7 @@ import type {
   SendNotificationResponse,
 } from '~/types/release-process.types';
 import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-enums';
+import { mapBuildUploadStageToTaskStage } from '~/utils/build-upload-mapper';
 
 /**
  * Determine the base URL for Release Process APIs
@@ -107,7 +108,10 @@ class ReleaseProcess {
   // ======================
 
   /**
-   * Upload manual build
+   * Upload manual build - Matches backend contract
+   * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+   * 
+   * Maps BuildUploadStage to TaskStage and uses backend route structure
    */
   async uploadBuild(
     tenantId: string,
@@ -116,13 +120,14 @@ class ReleaseProcess {
     platform: Platform,
     stage: BuildUploadStage
   ) {
+    // Map BuildUploadStage to TaskStage for backend
+    const backendStage = mapBuildUploadStageToTaskStage(stage);
+    
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('platform', platform);
-    formData.append('stage', stage);
+    formData.append('artifact', file); // Backend expects 'artifact' field
 
     return this.__client.post<FormData, AxiosResponse<BuildUploadResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/upload`,
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
       formData,
       {
         headers: {
@@ -230,8 +235,6 @@ class ReleaseProcess {
    * Get activity logs - Matches backend contract API #23
    */
   async getActivityLogs(tenantId: string, releaseId: string) {
-    return 
-
     return this.__client.get<null, AxiosResponse<ActivityLogsResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/activity-logs`
     );

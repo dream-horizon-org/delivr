@@ -206,6 +206,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
 
 /**
  * Upload manual build
+ * Uses BFF route: POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+ * BFF route handles mapping BuildUploadStage to TaskStage and renaming 'file' to 'artifact'
  */
 export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
@@ -220,14 +222,14 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
         throw new Error('tenantId and releaseId are required');
       }
 
+      // Create form data with only the file (stage and platform are in path)
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('platform', platform);
-      formData.append('stage', stage);
 
-      // Use fetch directly for FormData (apiPost doesn't handle FormData well)
+      // Use BFF route with stage and platform in path
+      // BFF route will map BuildUploadStage to TaskStage and forward to backend
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/upload`,
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/${platform}`,
         {
           method: 'POST',
           body: formData,

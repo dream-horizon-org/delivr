@@ -77,7 +77,7 @@ export const RELEASE_PROCESS_API_PATTERNS = [
   '/api/v1/tenants/*/releases/*/tasks',               // Get Stage Tasks (API #2) - with ?stage= query param
   '/api/v1/tenants/*/releases/*/tasks/*/retry',      // Retry Task (API #8)
   '/api/v1/tenants/*/releases/*/builds',            // Get All Builds (API #14)
-  '/api/v1/tenants/*/releases/*/builds/upload',      // Upload Build (API #15)
+  '/api/v1/tenants/*/releases/*/stages/*/builds/*',  // Upload Build (API #15) - Backend route: /stages/:stage/builds/:platform
   '/api/v1/tenants/*/releases/*/builds/*',           // Delete Build (API #16)
   '/api/v1/tenants/*/releases/*/test-management-run-status',  // Test Management Status (API #17)
   '/api/v1/tenants/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
