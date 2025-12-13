@@ -14,6 +14,8 @@ import type { StoreIntegrationController, StoreCredentialController } from '../.
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
 import { decrypt } from '../../utils/encryption.utils';
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
+import type { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
+import { PlatformName, TargetName } from '../../models/release/release.interface';
 
 // ============================================================================
 // TYPES (inline - no external file needed)
@@ -22,10 +24,8 @@ import { generateAppStoreConnectJWT } from '../../controllers/integrations/store
 type VerifyBuildParams = {
   releaseId: string;
   tenantId: string;
-  request: {
-    testflightBuildNumber: string;
-    versionName: string;
-  };
+  testflightBuildNumber: string;
+  versionName: string;
 };
 
 type VerifyBuildResult = {
@@ -58,18 +58,33 @@ type Credentials = {
 export class TestFlightBuildVerificationService {
   constructor(
     private readonly storeIntegrationController: StoreIntegrationController,
-    private readonly storeCredentialController: StoreCredentialController
+    private readonly storeCredentialController: StoreCredentialController,
+    private readonly platformTargetMappingRepository: ReleasePlatformTargetMappingRepository
   ) {}
 
   /**
    * Check if a TestFlight build exists in App Store Connect
    * with matching build number and version.
+   * 
+   * Verification Steps:
+   * 1. Verify version matches release table (iOS App Store version)
+   * 2. Get App Store Connect credentials
+   * 3. Lookup build in App Store Connect
+   * 4. Verify version matches in App Store Connect
    */
-  async verifyBuild(params: VerifyBuildParams): Promise<VerifyBuildResult> {
-    const { tenantId, request } = params;
-    const { testflightBuildNumber, versionName } = request;
+   async verifyBuild(params: VerifyBuildParams): Promise<VerifyBuildResult> {
+    const { releaseId, tenantId, testflightBuildNumber, versionName } = params;
 
-    // Get App Store Connect credentials for tenant
+    // STEP 1: Verify version matches iOS App Store version in release table
+    const versionCheckResult = await this.verifyVersionMatchesRelease(releaseId, versionName);
+    if (!versionCheckResult.success) {
+      return {
+        success: false,
+        error: versionCheckResult.error!,
+      };
+    }
+
+    // STEP 2: Get App Store Connect credentials for tenant
     const credentialsResult = await this.getCredentials(tenantId);
     if (!credentialsResult.success) {
       return {
@@ -79,7 +94,7 @@ export class TestFlightBuildVerificationService {
     }
     const credentials = credentialsResult.credentials!;
 
-    // Look up build in App Store Connect
+    // STEP 3: Look up build in App Store Connect
     const buildLookup = await this.lookupBuild(credentials, testflightBuildNumber);
 
     if (!buildLookup.found) {
@@ -89,14 +104,14 @@ export class TestFlightBuildVerificationService {
       };
     }
 
-    // Check version matches
+    // STEP 4: Check version matches in App Store Connect
     const actualVersion = buildLookup.version;
     if (actualVersion && actualVersion !== versionName) {
       return {
         success: false,
         error: {
           code: 'VERSION_MISMATCH',
-          message: `Version mismatch: expected ${versionName}, found ${actualVersion}`,
+          message: `Version mismatch with App Store Connect: expected ${versionName}, found ${actualVersion}`,
         },
       };
     }
@@ -117,6 +132,47 @@ export class TestFlightBuildVerificationService {
   // ============================================================================
   // PRIVATE HELPERS
   // ============================================================================
+
+  /**
+   * Verify that the provided version matches the iOS App Store version
+   * in the release_platforms_targets_mapping table
+   */
+  private async verifyVersionMatchesRelease(
+    releaseId: string,
+    versionName: string
+  ): Promise<{
+    success: boolean;
+    error?: { code: string; message: string };
+  }> {
+    const iosMapping = await this.platformTargetMappingRepository.getByReleasePlatformTarget(
+      releaseId,
+      PlatformName.IOS,
+      TargetName.APP_STORE
+    );
+
+    if (!iosMapping) {
+      return {
+        success: false,
+        error: {
+          code: 'IOS_RELEASE_NOT_FOUND',
+          message: `No iOS App Store configuration found for release ${releaseId}. Please ensure the release includes iOS platform.`,
+        },
+      };
+    }
+
+    const expectedVersion = iosMapping.version;
+    if (expectedVersion !== versionName) {
+      return {
+        success: false,
+        error: {
+          code: 'VERSION_MISMATCH_WITH_RELEASE',
+          message: `Version mismatch with release configuration: expected ${expectedVersion}, provided ${versionName}`,
+        },
+      };
+    }
+
+    return { success: true };
+  }
 
   private async getCredentials(tenantId: string): Promise<{
     success: boolean;

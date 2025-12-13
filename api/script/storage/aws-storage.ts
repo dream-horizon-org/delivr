@@ -679,6 +679,7 @@ export class S3Storage implements storage.Storage {
     public releaseConfigService!: ReleaseConfigService;
     public releaseScheduleService!: ReleaseScheduleService;
     public cronicleService: CronicleService | null = null;
+    public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseVersionService!: ReleaseVersionService;
@@ -925,7 +926,7 @@ export class S3Storage implements storage.Storage {
           
           // Initialize Release Management Services
           const releaseRepo = new ReleaseRepository(this.sequelize.models.Release);
-          const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(
+          this.releasePlatformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(
             this.sequelize.models.PlatformTargetMapping
           );
           const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
@@ -936,13 +937,13 @@ export class S3Storage implements storage.Storage {
           
           // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
           this.releaseVersionService = new ReleaseVersionService(
-            platformTargetMappingRepo
+            this.releasePlatformTargetMappingRepository
           );
           console.log("Release Version Service initialized");
           
           this.releaseCreationService = new ReleaseCreationService(
             releaseRepo,
-            platformTargetMappingRepo,
+            this.releasePlatformTargetMappingRepository,
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
@@ -954,7 +955,7 @@ export class S3Storage implements storage.Storage {
           
           this.releaseRetrievalService = new ReleaseRetrievalService(
             releaseRepo,
-            platformTargetMappingRepo,
+            this.releasePlatformTargetMappingRepository,
             cronJobRepo,
             releaseTaskRepo
           );
@@ -980,7 +981,7 @@ export class S3Storage implements storage.Storage {
           this.releaseUpdateService = new ReleaseUpdateService(
             releaseRepo,
             cronJobRepo,
-            platformTargetMappingRepo,
+            this.releasePlatformTargetMappingRepository,
             null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");

@@ -432,7 +432,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/builds/verify-testflight",
+    "/tenants/:tenantId/builds/verify-testflight",
     tenantPermissions.requireOwner({ storage }),
     verifyTestFlightBuild
   );
