@@ -79,7 +79,7 @@ export class BuildArtifactService {
    * @throws BuildArtifactError if any step fails
    */
   uploadArtifactForCiBuild = async (input: UploadBuildArtifactInput): Promise<UploadBuildArtifactResult> => {
-    const { ciRunId, artifactBuffer, originalFilename, buildNumber } = input;
+    const { ciRunId, artifactBuffer, originalFilename, artifactVersion, buildNumber } = input;
 
     // Step 1: Find build by ciRunId
     const build = await executeOperation(
@@ -101,7 +101,7 @@ export class BuildArtifactService {
       tenantId: build.tenantId,
       releaseId: build.releaseId,
       platform: build.platform,
-      artifactVersionName: build.artifactVersionName,
+      artifactVersionName: artifactVersion,
       buildId: build.id,
       artifactBuffer,
       originalFilename
@@ -124,7 +124,7 @@ export class BuildArtifactService {
         buildId: build.id,
         tenantId: build.tenantId,
         artifactBuffer,
-        artifactVersionName: build.artifactVersionName,
+        artifactVersionName: artifactVersion,
         platform: build.platform,
         releaseId: build.releaseId,
         buildNumber

@@ -27,6 +27,7 @@ import {
   getUploadStageForTaskType,
   checkAndConsumeManualBuilds,
   processAwaitingManualBuildTasks,
+  type PlatformVersionMapping,
 } from '../../script/utils/awaiting-manual-build.utils';
 
 // ============================================================================
@@ -54,7 +55,7 @@ type MockUpload = {
   id: string;
   releaseId: string;
   platform: PlatformName;
-  stage: 'PRE_REGRESSION' | 'REGRESSION' | 'PRE_RELEASE';
+  stage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
   artifactPath: string;
   isUsed: boolean;
   usedByTaskId: string | null;
@@ -230,6 +231,14 @@ function log(message: string) {
   console.log(`[SimTest] ${message}`);
 }
 
+/**
+ * Helper to convert platforms array to platformVersionMappings
+ * Uses a default test version for all platforms
+ */
+function toPlatformVersionMappings(platforms: PlatformName[], version = '1.0.0'): PlatformVersionMapping[] {
+  return platforms.map(platform => ({ platform, version }));
+}
+
 // ============================================================================
 // TEST SUITE
 // ============================================================================
@@ -261,7 +270,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({
         releaseId: release.id,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://builds/android-pre-reg.apk',
       });
       
@@ -269,12 +278,12 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({
         releaseId: release.id,
         platform: PlatformName.IOS,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://builds/ios-pre-reg.ipa',
       });
       
       // Verify uploads exist
-      const uploads = await uploadsRepo.findUnused(release.id, 'PRE_REGRESSION');
+      const uploads = await uploadsRepo.findUnused(release.id, 'KICK_OFF');
       expect(uploads).toHaveLength(2);
       
       // Step 3: Kickoff date arrives, cron starts, task is set to AWAITING_CALLBACK
@@ -290,6 +299,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
           taskType: task.taskType,
           cycleId: null,
           platforms,
+          platformVersionMappings: toPlatformVersionMappings(platforms),
         },
         uploadsRepo as any,
         taskRepo as any
@@ -329,12 +339,12 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({
         releaseId: release.id,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://builds/android.apk',
       });
       
       let result = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms },
+        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -349,12 +359,12 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({
         releaseId: release.id,
         platform: PlatformName.IOS,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://builds/ios.ipa',
       });
       
       result = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms },
+        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -391,7 +401,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'REGRESSION', artifactPath: 's3://cycle1/ios.ipa' });
       
       const result1 = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: task1.id, taskType: task1.taskType, cycleId: cycle1.id, platforms },
+        { releaseId: release.id, taskId: task1.id, taskType: task1.taskType, cycleId: cycle1.id, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -418,7 +428,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'REGRESSION', artifactPath: 's3://cycle2/ios.ipa' });
       
       const result2 = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: task2.id, taskType: task2.taskType, cycleId: cycle2.id, platforms },
+        { releaseId: release.id, taskId: task2.id, taskType: task2.taskType, cycleId: cycle2.id, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -456,7 +466,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       
       // Check iOS task (should complete)
       const iosResult = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: iosTask.id, taskType: iosTask.taskType, cycleId: null, platforms: [PlatformName.IOS] },
+        { releaseId: release.id, taskId: iosTask.id, taskType: iosTask.taskType, cycleId: null, platforms: [PlatformName.IOS], platformVersionMappings: toPlatformVersionMappings([PlatformName.IOS]) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -465,7 +475,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       
       // Check Android task (should NOT complete - no upload yet)
       const androidResult1 = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: androidTask.id, taskType: androidTask.taskType, cycleId: null, platforms: [PlatformName.ANDROID] },
+        { releaseId: release.id, taskId: androidTask.id, taskType: androidTask.taskType, cycleId: null, platforms: [PlatformName.ANDROID], platformVersionMappings: toPlatformVersionMappings([PlatformName.ANDROID]) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -478,7 +488,7 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       
       // Check Android task again (should complete now)
       const androidResult2 = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: androidTask.id, taskType: androidTask.taskType, cycleId: null, platforms: [PlatformName.ANDROID] },
+        { releaseId: release.id, taskId: androidTask.id, taskType: androidTask.taskType, cycleId: null, platforms: [PlatformName.ANDROID], platformVersionMappings: toPlatformVersionMappings([PlatformName.ANDROID]) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -503,12 +513,12 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const upload1 = await uploadsRepo.upsert({
         releaseId: release.id,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://wrong/build.apk',
       });
       
       // Verify
-      let uploads = await uploadsRepo.findUnused(release.id, 'PRE_REGRESSION');
+      let uploads = await uploadsRepo.findUnused(release.id, 'KICK_OFF');
       expect(uploads).toHaveLength(1);
       expect(uploads[0].artifactPath).toBe('s3://wrong/build.apk');
       
@@ -517,12 +527,12 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const upload2 = await uploadsRepo.upsert({
         releaseId: release.id,
         platform: PlatformName.ANDROID,
-        stage: 'PRE_REGRESSION',
+        stage: 'KICK_OFF',
         artifactPath: 's3://correct/build.apk',
       });
       
       // Verify replacement (same ID, updated path)
-      uploads = await uploadsRepo.findUnused(release.id, 'PRE_REGRESSION');
+      uploads = await uploadsRepo.findUnused(release.id, 'KICK_OFF');
       expect(uploads).toHaveLength(1);
       expect(uploads[0].artifactPath).toBe('s3://correct/build.apk');
       
@@ -545,27 +555,29 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       const taskRepo = createMockTaskRepo();
       
       // Create multiple waiting tasks
+      // Note: AWAITING_MANUAL_BUILD = waiting for user uploads (manual mode)
+      //       AWAITING_CALLBACK = waiting for CI/CD pipeline callback
       const tasks = [
-        { id: 'task-1', taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS, taskStatus: TaskStatus.AWAITING_CALLBACK },
-        { id: 'task-2', taskType: TaskType.FORK_BRANCH, taskStatus: TaskStatus.AWAITING_CALLBACK }, // Not a build task
+        { id: 'task-1', taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS, taskStatus: TaskStatus.AWAITING_MANUAL_BUILD },
+        { id: 'task-2', taskType: TaskType.FORK_BRANCH, taskStatus: TaskStatus.AWAITING_MANUAL_BUILD }, // Not a build task
         { id: 'task-3', taskType: TaskType.TRIGGER_REGRESSION_BUILDS, taskStatus: TaskStatus.PENDING }, // Not waiting
       ];
       
       // Upload for all stages
-      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'PRE_REGRESSION', artifactPath: 's3://pre-reg/android.apk' });
-      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'PRE_REGRESSION', artifactPath: 's3://pre-reg/ios.ipa' });
+      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'KICK_OFF', artifactPath: 's3://pre-reg/android.apk' });
+      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'KICK_OFF', artifactPath: 's3://pre-reg/ios.ipa' });
       
       // Process batch
       const results = await processAwaitingManualBuildTasks(
         release.id,
         tasks,
         true,
-        platforms,
+        toPlatformVersionMappings(platforms),
         uploadsRepo as any,
         taskRepo as any
       );
       
-      // Should only process task-1 (AWAITING_CALLBACK + build task)
+      // Should only process task-1 (AWAITING_MANUAL_BUILD + build task type)
       expect(results.size).toBe(1);
       expect(results.has('task-1')).toBe(true);
       expect(results.get('task-1')?.consumed).toBe(true);
@@ -592,10 +604,10 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       task.taskStatus = TaskStatus.AWAITING_CALLBACK;
       
       // Upload Android only
-      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'PRE_REGRESSION', artifactPath: 's3://android.apk' });
+      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'KICK_OFF', artifactPath: 's3://android.apk' });
       
       const result = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms },
+        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
         taskRepo as any
       );
@@ -624,12 +636,12 @@ describe('Phase 18: Manual Build Upload - Simulation', () => {
       task.taskStatus = TaskStatus.AWAITING_CALLBACK;
       
       // Upload all three
-      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'PRE_REGRESSION', artifactPath: 's3://android.apk' });
-      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'PRE_REGRESSION', artifactPath: 's3://ios.ipa' });
-      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.WEB, stage: 'PRE_REGRESSION', artifactPath: 's3://web.zip' });
+      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.ANDROID, stage: 'KICK_OFF', artifactPath: 's3://android.apk' });
+      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.IOS, stage: 'KICK_OFF', artifactPath: 's3://ios.ipa' });
+      await uploadsRepo.upsert({ releaseId: release.id, platform: PlatformName.WEB, stage: 'KICK_OFF', artifactPath: 's3://web.zip' });
       
       const result = await checkAndConsumeManualBuilds(
-        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms },
+        { releaseId: release.id, taskId: task.id, taskType: task.taskType, cycleId: null, platforms, platformVersionMappings: toPlatformVersionMappings(platforms) },
         uploadsRepo as any,
         taskRepo as any
       );

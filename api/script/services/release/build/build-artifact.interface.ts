@@ -36,6 +36,8 @@ export type UploadBuildArtifactInput = {
   ciRunId: string;
   artifactBuffer: Buffer;
   originalFilename: string;
+  /** Artifact version name (e.g., "1.2.3") for S3 path organization */
+  artifactVersion: string;
   /** Optional: Build number / versionCode from Play Store (for AAB builds) */
   buildNumber?: string | null;
 };

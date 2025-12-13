@@ -28,6 +28,16 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
         return;
       }
 
+      const artifactVersion = getTrimmedString(req.body.artifactVersion);
+
+      const artifactVersionInvalid = !artifactVersion;
+      if (artifactVersionInvalid) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('artifactVersion', 'artifactVersion is required')
+        );
+        return;
+      }
+
       const artifactFile = getFileWithField(req, 'artifact');
       const fileMissing = !artifactFile || !artifactFile.buffer || !artifactFile.originalname;
       if (fileMissing) {
@@ -44,6 +54,7 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
       const buildArtifactService = new BuildArtifactService(storage);
       const result = await buildArtifactService.uploadArtifactForCiBuild({
         ciRunId,
+        artifactVersion,
         artifactBuffer: artifactFile.buffer,
         originalFilename: artifactFile.originalname,
         buildNumber: buildNumber ?? undefined

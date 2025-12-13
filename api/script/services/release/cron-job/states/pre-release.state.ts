@@ -158,8 +158,8 @@ export class PreReleaseState implements ICronJobState {
         const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
         
         if (releaseUploadsRepo) {
-          // Get release platforms
-          const platforms = await this.getReleasePlatforms(release);
+          // Get platform version mappings (includes version for each platform)
+          const platformVersionMappings = await this.context.getPlatformVersionMappings(release.id);
           
           // Get build repository for creating build records
           const buildRepo = this.context.getBuildRepo?.();
@@ -168,7 +168,7 @@ export class PreReleaseState implements ICronJobState {
             releaseId,
             existingStage3Tasks,
             true,
-            platforms,
+            platformVersionMappings,
             releaseUploadsRepo,
             releaseTaskRepo,
             buildRepo
@@ -371,29 +371,6 @@ export class PreReleaseState implements ICronJobState {
   // Private Helper Methods
   // ========================================================================
 
-  /**
-   * Get release platforms from platform mappings
-   */
-  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
-    // Try to get from storage if available
-    const storageInstance = this.context.getStorage();
-    if (hasSequelize(storageInstance)) {
-      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
-      if (platformMappingRepo) {
-        const mappings = await platformMappingRepo.getByReleaseId(release.id);
-        if (mappings && mappings.length > 0) {
-          // Map to PlatformName enum values
-          const platforms = mappings
-            .map(m => m.platform as unknown as PlatformName)
-            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
-          return platforms;
-        }
-      }
-    }
-    
-    // No platform mappings found - this is a configuration error
-    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
-  }
 }
 
 
