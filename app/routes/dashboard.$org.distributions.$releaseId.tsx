@@ -57,6 +57,7 @@ import {
   PLATFORM_LABELS,
   RELEASE_STATUS_COLORS,
   RELEASE_STATUS_LABELS,
+  ROLLOUT_COMPLETE_PERCENT,
   SUBMISSION_STATUS_COLORS
 } from '~/constants/distribution.constants';
 import type {
@@ -67,7 +68,7 @@ import type {
   Submission,
   SubmissionHistoryResponse,
 } from '~/types/distribution.types';
-import { Platform, ReleaseStatus, SubmissionStatus } from '~/types/distribution.types';
+import { DistributionReleaseStatus, Platform, SubmissionStatus } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -82,7 +83,7 @@ import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/au
 
 type LoaderData = {
   release: Release & {
-    releaseStatus: ReleaseStatus;
+    releaseStatus: DistributionReleaseStatus;
     branch: string;
     targetReleaseDate?: string;
   };
@@ -96,6 +97,40 @@ type LoaderData = {
 
 function isValidHaltSeverity(value: string): value is HaltSeverity {
   return ['CRITICAL', 'HIGH', 'MEDIUM'].includes(value);
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Derive distribution status from submissions
+ * 
+ * @param submissions - List of submissions
+ * @returns Distribution release status
+ * 
+ * Logic:
+ * - COMPLETED: All submissions are LIVE with 100% exposure
+ * - READY_FOR_SUBMISSION: Has submissions (actively distributing)
+ * - PRE_RELEASE: No submissions yet
+ */
+function getDistributionStatus(submissions: Submission[]): DistributionReleaseStatus {
+  // No submissions yet
+  if (submissions.length === 0) {
+    return DistributionReleaseStatus.PRE_RELEASE;
+  }
+  
+  // Check if all submissions are fully rolled out
+  const allCompleted = submissions.every(
+    s => s.submissionStatus === SubmissionStatus.LIVE && s.exposurePercent === ROLLOUT_COMPLETE_PERCENT
+  );
+  
+  if (allCompleted) {
+    return DistributionReleaseStatus.COMPLETED;
+  }
+  
+  // Has submissions but not all completed = actively distributing
+  return DistributionReleaseStatus.READY_FOR_SUBMISSION;
 }
 
 // ============================================================================
@@ -129,22 +164,29 @@ export const loader = authenticateLoaderRequest(
 
       // Extract platforms from platformTargetMappings
       const platforms = Array.from(new Set(
-        release.platformTargetMappings?.map((pt: any) => pt.platform as Platform) ?? []
+        release.platformTargetMappings?.map((pt: { platform: string }) => pt.platform as Platform) ?? []
       ));
+
+      // Extract submissions
+      const submissions = submissionsResponse.data.data.submissions;
+      
+      // Determine distribution status based on submissions
+      // TODO: Backend should provide this status in the release object
+      const distributionStatus = getDistributionStatus(submissions);
 
       return json<LoaderData>({
         release: {
           id: release.id,
           version: release.releaseId, // Use releaseId as version
           platforms,
-          status: release.status as ReleaseStatus,
-          releaseStatus: release.status as ReleaseStatus,
+          status: distributionStatus,
+          releaseStatus: distributionStatus,
           branch: release.branch ?? '',
           ...(release.targetReleaseDate && { targetReleaseDate: release.targetReleaseDate }),
           createdAt: release.createdAt ?? new Date().toISOString(),
           updatedAt: release.updatedAt ?? new Date().toISOString(),
         },
-        submissions: submissionsResponse.data.data.submissions,
+        submissions,
         org,
       });
     } catch (error) {

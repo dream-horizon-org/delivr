@@ -20,7 +20,7 @@ import type {
   Build,
   EventState,
   PMApprovalStatus,
-  ReleaseStatus,
+  DistributionReleaseStatus,
   RolloutAction,
   RolloutEventState,
   SubmissionHistoryEventType,
@@ -278,7 +278,7 @@ export function getRolloutPercentageDisplay(newState: EventState): string {
 // ============================================================================
 
 /** Status to color mapping for release status */
-export function getReleaseStatusColor(status: ReleaseStatus): string {
+export function getReleaseStatusColor(status: DistributionReleaseStatus): string {
   return RELEASE_STATUS_COLORS[status];
 }
 

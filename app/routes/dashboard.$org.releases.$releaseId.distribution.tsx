@@ -27,13 +27,14 @@ import { usePreRelease } from '~/hooks/usePreRelease';
 import type {
   AndroidSubmitOptions,
   BuildsResponse,
+  BuildsSummary,
   DistributionStatusResponse,
   ExtraCommitsResponse,
   IOSSubmitOptions,
   PMStatusResponse,
-  SubmissionsResponse,
+  SubmissionsResponse
 } from '~/types/distribution.types';
-import { Platform, ReleaseStatus } from '~/types/distribution.types';
+import { DistributionReleaseStatus, Platform } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -242,7 +243,7 @@ export default function DistributionPage() {
 
   const preRelease = usePreRelease({
     builds: data.builds.data.builds,
-    summary: data.builds.data.summary,
+    summary: data.builds.data.summary as BuildsSummary,
     pmStatus: data.pmStatus.data,
     extraCommits: data.extraCommits.data,
   });
@@ -253,7 +254,7 @@ export default function DistributionPage() {
   });
 
   const currentStatus = data.distributionStatus.data.releaseStatus;
-  const isPreRelease = currentStatus === ReleaseStatus.PRE_RELEASE;
+  const isPreRelease = currentStatus === DistributionReleaseStatus.PRE_RELEASE;
 
   // Determine which tab to show:
   // 1. If URL has ?tab=distribution and we're past pre-release, show distribution

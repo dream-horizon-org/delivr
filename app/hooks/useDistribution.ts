@@ -8,14 +8,12 @@
  * - Dialog visibility
  */
 
-import { useMemo, useState, useCallback } from 'react';
-import type { 
+import { useCallback, useMemo, useState } from 'react';
+import type {
   DistributionStatus,
-  Submission,
-  SubmissionStatus,
-  ReleaseStatus,
+  Submission
 } from '~/types/distribution.types';
-import { Platform, SubmissionStatus as SubmissionStatusEnum, ReleaseStatus as ReleaseStatusEnum } from '~/types/distribution.types';
+import { DistributionReleaseStatus, Platform, SubmissionStatus as SubmissionStatusEnum } from '~/types/distribution.types';
 
 // ============================================================================
 // TYPES
@@ -28,7 +26,7 @@ type UseDistributionParams = {
 
 type UseDistributionReturn = {
   // Status
-  releaseStatus: ReleaseStatus;
+  releaseStatus: DistributionReleaseStatus;
   isComplete: boolean;
   isDistributing: boolean;
   isFailed: boolean;
@@ -85,8 +83,8 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
 
   // Status flags
   const isDistributing = 
-    releaseStatus === ReleaseStatusEnum.READY_FOR_SUBMISSION ||
-    releaseStatus === ReleaseStatusEnum.COMPLETED;
+    releaseStatus === DistributionReleaseStatus.READY_FOR_SUBMISSION ||
+    releaseStatus === DistributionReleaseStatus.COMPLETED;
   const isFailed = false; // FAILED status removed - handled at submission level
   const isHalted = false; // HALTED status removed - handled at submission level
 
@@ -113,7 +111,7 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
   // Actions availability
   const canSubmitToStores = useMemo(() => {
     // Can only submit in PRE_RELEASE status
-    return releaseStatus === ReleaseStatusEnum.PRE_RELEASE;
+    return releaseStatus === DistributionReleaseStatus.PRE_RELEASE;
   }, [releaseStatus]);
 
   const canRetryAndroid = useMemo(() => {

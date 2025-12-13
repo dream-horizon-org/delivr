@@ -5,7 +5,7 @@
  */
 
 import type { Release } from '~/types/distribution.types';
-import { ReleaseStatus } from '~/types/distribution.types';
+import { DistributionReleaseStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPatch } from '~/utils/api-client';
 
@@ -20,12 +20,12 @@ type ReleaseTimeline = {
 };
 
 type UpdateReleaseStatusRequest = {
-  status: ReleaseStatus;
+  status: DistributionReleaseStatus;
 };
 
 type UpdateReleaseStatusResponse = {
   releaseId: string;
-  status: ReleaseStatus;
+  status: DistributionReleaseStatus;
   updatedAt: string;
 };
 
@@ -68,32 +68,32 @@ export class ReleaseService {
   /**
    * Check if release is in Pre-Release stage
    */
-  static isInPreRelease(status: ReleaseStatus): boolean {
-    return status === ReleaseStatus.PRE_RELEASE;
+  static isInPreRelease(status: DistributionReleaseStatus): boolean {
+    return status === DistributionReleaseStatus.PRE_RELEASE;
   }
 
   /**
    * Check if release is ready for submission
    */
-  static isReadyForSubmission(status: ReleaseStatus): boolean {
-    return status === ReleaseStatus.READY_FOR_SUBMISSION;
+  static isReadyForSubmission(status: DistributionReleaseStatus): boolean {
+    return status === DistributionReleaseStatus.READY_FOR_SUBMISSION;
   }
 
   /**
    * Check if release is completed
    */
-  static isCompleted(status: ReleaseStatus): boolean {
-    return status === ReleaseStatus.COMPLETED;
+  static isCompleted(status: DistributionReleaseStatus): boolean {
+    return status === DistributionReleaseStatus.COMPLETED;
   }
 
   /**
    * Get human-readable release status
    */
-  static getStatusLabel(status: ReleaseStatus): string {
-    const labels: Record<ReleaseStatus, string> = {
-      [ReleaseStatus.PRE_RELEASE]: 'Pre-Release',
-      [ReleaseStatus.READY_FOR_SUBMISSION]: 'Ready to Submit',
-      [ReleaseStatus.COMPLETED]: 'Completed',
+  static getStatusLabel(status: DistributionReleaseStatus): string {
+    const labels: Record<DistributionReleaseStatus, string> = {
+      [DistributionReleaseStatus.PRE_RELEASE]: 'Pre-Release',
+      [DistributionReleaseStatus.READY_FOR_SUBMISSION]: 'Ready to Submit',
+      [DistributionReleaseStatus.COMPLETED]: 'Completed',
     };
     return labels[status] || status;
   }
@@ -101,11 +101,11 @@ export class ReleaseService {
   /**
    * Get status color for UI
    */
-  static getStatusColor(status: ReleaseStatus): string {
-    const colors: Record<ReleaseStatus, string> = {
-      [ReleaseStatus.PRE_RELEASE]: 'gray',
-      [ReleaseStatus.READY_FOR_SUBMISSION]: 'cyan',
-      [ReleaseStatus.COMPLETED]: 'green',
+  static getStatusColor(status: DistributionReleaseStatus): string {
+    const colors: Record<DistributionReleaseStatus, string> = {
+      [DistributionReleaseStatus.PRE_RELEASE]: 'gray',
+      [DistributionReleaseStatus.READY_FOR_SUBMISSION]: 'cyan',
+      [DistributionReleaseStatus.COMPLETED]: 'green',
     };
     return colors[status] || 'gray';
   }

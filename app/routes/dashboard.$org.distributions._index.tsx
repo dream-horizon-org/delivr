@@ -37,7 +37,7 @@ import {
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
-import { Platform, ReleaseStatus, SubmissionStatus } from '~/types/distribution.types';
+import { Platform, DistributionReleaseStatus, SubmissionStatus } from '~/types/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 
 // Types - should match API response
@@ -159,13 +159,13 @@ function DistributionStats({ distributions }: { distributions: DistributionEntry
   const stats = {
     total: distributions.length,
     rollingOut: distributions.filter(d => 
-      d.status === ReleaseStatus.READY_FOR_SUBMISSION || d.platforms.some(p => p.status === SubmissionStatus.LIVE && p.exposurePercent < ROLLOUT_COMPLETE_PERCENT)
+      d.status === DistributionReleaseStatus.READY_FOR_SUBMISSION || d.platforms.some(p => p.status === SubmissionStatus.LIVE && p.exposurePercent < ROLLOUT_COMPLETE_PERCENT)
     ).length,
     inReview: distributions.filter(d => 
-      d.status === ReleaseStatus.READY_FOR_SUBMISSION ||
+      d.status === DistributionReleaseStatus.READY_FOR_SUBMISSION ||
       d.platforms.some(p => p.status === SubmissionStatus.IN_REVIEW)
     ).length,
-    released: distributions.filter(d => d.status === ReleaseStatus.COMPLETED).length,
+    released: distributions.filter(d => d.status === DistributionReleaseStatus.COMPLETED).length,
   };
 
   return (

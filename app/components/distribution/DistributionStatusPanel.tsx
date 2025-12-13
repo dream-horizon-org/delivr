@@ -15,20 +15,20 @@ import {
   RELEASE_STATUS_LABELS,
   ROLLOUT_COMPLETE_PERCENT,
 } from '~/constants/distribution.constants';
-import { Platform, ReleaseStatus } from '~/types/distribution.types';
+import { Platform, DistributionReleaseStatus } from '~/types/distribution.types';
 import type { DistributionStatusPanelProps } from './distribution.types';
 
 // ============================================================================
 // LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
-function getStatusIcon(status: ReleaseStatus) {
+function getStatusIcon(status: DistributionReleaseStatus) {
   switch (status) {
-    case ReleaseStatus.COMPLETED:
+    case DistributionReleaseStatus.COMPLETED:
       return <IconCheck size={20} />;
-    case ReleaseStatus.READY_FOR_SUBMISSION:
+    case DistributionReleaseStatus.READY_FOR_SUBMISSION:
       return <IconRocket size={20} />;
-    case ReleaseStatus.PRE_RELEASE:
+    case DistributionReleaseStatus.PRE_RELEASE:
       return <IconClock size={20} />;
     default:
       return <IconClock size={20} />;
@@ -83,7 +83,7 @@ function PlatformProgressItem({
 
 type OverallProgressProps = {
   progress: number;
-  status: ReleaseStatus;
+  status: DistributionReleaseStatus;
 };
 
 function OverallProgress({ progress, status }: OverallProgressProps) {

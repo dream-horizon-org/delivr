@@ -3,8 +3,8 @@
  * Transform task data to formats expected by Pre-Release components
  */
 
-import { ApproverRole } from '~/types/distribution.types';
 import type { PMStatusResponse } from '~/types/distribution.types';
+import { ApproverRole } from '~/types/distribution.types';
 import type { Task } from '~/types/release-process.types';
 
 /**
@@ -14,21 +14,30 @@ import type { Task } from '~/types/release-process.types';
 export function transformTaskToPMStatus(task: Task): PMStatusResponse['data'] {
   const externalData = task.externalData || {};
   
-  return {
+  // Build base response
+  const response: PMStatusResponse['data'] = {
     approved: externalData.approved === true,
     hasPmIntegration: !!externalData.ticketId,
-    pmTicket: externalData.ticketId
-      ? {
-          id: externalData.ticketId as string,
-          title: (externalData.ticketTitle as string) || 'Release Ticket',
-          status: (externalData.ticketStatus as string) || 'UNKNOWN',
-          url: (externalData.ticketUrl as string) || '',
-          lastUpdated: task.updatedAt || task.createdAt,
-        }
-      : null,
     approver: (externalData.approver as ApproverRole) || ApproverRole.RELEASE_LEAD,
-    approvedAt: (externalData.approvedAt as string) || null,
     requiresManualApproval: !externalData.ticketId,
   };
+  
+  // Add pmTicket only if ticketId exists
+  if (externalData.ticketId) {
+    response.pmTicket = {
+      id: externalData.ticketId as string,
+      title: (externalData.ticketTitle as string) || 'Release Ticket',
+      status: (externalData.ticketStatus as string) || 'UNKNOWN',
+      url: (externalData.ticketUrl as string) || '',
+      lastUpdated: task.updatedAt || task.createdAt,
+    };
+  }
+  
+  // Add approvedAt only if it exists
+  if (externalData.approvedAt) {
+    response.approvedAt = externalData.approvedAt as string;
+  }
+  
+  return response;
 }
 

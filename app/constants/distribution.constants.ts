@@ -7,8 +7,8 @@
 
 import type {
   BuildUploadStatus,
+  DistributionReleaseStatus,
   Platform,
-  ReleaseStatus,
   SubmissionHistoryEventType,
   SubmissionStatus,
   WarningSeverity,
@@ -34,7 +34,7 @@ export const ROLLOUT_COMPLETE_PERCENT = 100;
 /**
  * Release Status Labels
  */
-export const RELEASE_STATUS_LABELS: Record<ReleaseStatus, string> = {
+export const RELEASE_STATUS_LABELS: Record<DistributionReleaseStatus, string> = {
   PRE_RELEASE: 'Pre-Release',
   READY_FOR_SUBMISSION: 'Ready to Submit',
   COMPLETED: 'Completed',
@@ -76,7 +76,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 /**
  * Release Status Colors (for badges)
  */
-export const RELEASE_STATUS_COLORS: Record<ReleaseStatus, string> = {
+export const RELEASE_STATUS_COLORS: Record<DistributionReleaseStatus, string> = {
   PRE_RELEASE: 'blue',
   READY_FOR_SUBMISSION: 'cyan',
   COMPLETED: 'green',

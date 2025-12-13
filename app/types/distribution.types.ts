@@ -24,7 +24,7 @@ export enum Platform {
 // Platform values as array for validation
 export const PLATFORM_VALUES = [Platform.ANDROID, Platform.IOS] as const;
 
-export enum ReleaseStatus {
+export enum DistributionReleaseStatus {
   PRE_RELEASE = 'PRE_RELEASE',
   READY_FOR_SUBMISSION = 'READY_FOR_SUBMISSION',
   COMPLETED = 'COMPLETED',
@@ -310,7 +310,7 @@ export type Release = EntityTimestamps & {
   id: string;
   version: string;
   platforms: Platform[];
-  status: ReleaseStatus;
+  status: DistributionReleaseStatus;
 };
 
 /**
@@ -357,7 +357,7 @@ export type PlatformSubmissionState = {
 export type DistributionStatus = {
   releaseId: string;
   releaseVersion: string;
-  releaseStatus: ReleaseStatus;
+  releaseStatus: DistributionReleaseStatus;
   
   // Per-platform status
   platforms: {
@@ -597,7 +597,7 @@ export type SubmitToStoreResponse = APISuccessResponse<{
   releaseId: string;
   submissionIds: string[];
   submissions: SubmissionSummary[];
-  releaseStatus: ReleaseStatus;
+  releaseStatus: DistributionReleaseStatus;
 }>;
 
 /** Platform submission result (for partial responses) */
@@ -624,7 +624,7 @@ export type PartialSubmitResponse = APISuccessResponse<{
   releaseId: string;
   submissionIds: string[];
   submissions: PlatformSubmissionResult[];
-  releaseStatus: ReleaseStatus;
+  releaseStatus: DistributionReleaseStatus;
   warnings: PlatformWarning[];
 }>;
 
@@ -647,7 +647,7 @@ export type RolloutUpdateResponse = APISuccessResponse<{
   exposurePercent: number;
   updatedAt: string;
   autoPromotedToReleased: boolean;
-  releaseStatus?: ReleaseStatus;
+  releaseStatus?: DistributionReleaseStatus;
 }>;
 
 /** PM Status Response */
