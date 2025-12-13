@@ -679,6 +679,7 @@ export class S3Storage implements storage.Storage {
     public releaseConfigService!: ReleaseConfigService;
     public releaseScheduleService!: ReleaseScheduleService;
     public cronicleService: CronicleService | null = null;
+    public releaseRepository!: ReleaseRepository;  // Release repository
     public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
@@ -925,7 +926,7 @@ export class S3Storage implements storage.Storage {
           console.log("Release Config Service initialized");
           
           // Initialize Release Management Services
-          const releaseRepo = new ReleaseRepository(this.sequelize.models.Release);
+          this.releaseRepository = new ReleaseRepository(this.sequelize.models.Release);
           this.releasePlatformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(
             this.sequelize.models.PlatformTargetMapping
           );
@@ -942,7 +943,7 @@ export class S3Storage implements storage.Storage {
           console.log("Release Version Service initialized");
           
           this.releaseCreationService = new ReleaseCreationService(
-            releaseRepo,
+            this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
             cronJobRepo,
             releaseTaskRepo,
@@ -954,7 +955,7 @@ export class S3Storage implements storage.Storage {
           console.log("Release Creation Service initialized");
           
           this.releaseRetrievalService = new ReleaseRetrievalService(
-            releaseRepo,
+            this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
             cronJobRepo,
             releaseTaskRepo
@@ -979,7 +980,7 @@ export class S3Storage implements storage.Storage {
           console.log("Release Status Service initialized");
           
           this.releaseUpdateService = new ReleaseUpdateService(
-            releaseRepo,
+            this.releaseRepository,
             cronJobRepo,
             this.releasePlatformTargetMappingRepository,
             null as any // CronJobService - TODO: instantiate properly

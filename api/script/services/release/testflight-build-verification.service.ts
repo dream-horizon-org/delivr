@@ -12,9 +12,10 @@ import {
 } from '../../constants/testflight-build';
 import type { StoreIntegrationController, StoreCredentialController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
-import { decrypt } from '../../utils/encryption.utils';
+import { decrypt } from '../../utils/encryption';
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
 import type { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
+import type { ReleaseRepository } from '../../models/release/release.repository';
 import { PlatformName, TargetName } from '../../models/release/release.interface';
 
 // ============================================================================
@@ -59,7 +60,8 @@ export class TestFlightBuildVerificationService {
   constructor(
     private readonly storeIntegrationController: StoreIntegrationController,
     private readonly storeCredentialController: StoreCredentialController,
-    private readonly platformTargetMappingRepository: ReleasePlatformTargetMappingRepository
+    private readonly platformTargetMappingRepository: ReleasePlatformTargetMappingRepository,
+    private readonly releaseRepository: ReleaseRepository
   ) {}
 
   /**
@@ -67,16 +69,17 @@ export class TestFlightBuildVerificationService {
    * with matching build number and version.
    * 
    * Verification Steps:
-   * 1. Verify version matches release table (iOS App Store version)
-   * 2. Get App Store Connect credentials
-   * 3. Lookup build in App Store Connect
-   * 4. Verify version matches in App Store Connect
+   * 1. Verify release exists and belongs to tenant
+   * 2. Verify version matches release table (iOS App Store version)
+   * 3. Get App Store Connect credentials
+   * 4. Lookup build in App Store Connect
+   * 5. Verify version matches in App Store Connect
    */
    async verifyBuild(params: VerifyBuildParams): Promise<VerifyBuildResult> {
     const { releaseId, tenantId, testflightBuildNumber, versionName } = params;
 
-    // STEP 1: Verify version matches iOS App Store version in release table
-    const versionCheckResult = await this.verifyVersionMatchesRelease(releaseId, versionName);
+    // STEP 1: Verify release exists and belongs to tenant
+    const versionCheckResult = await this.verifyVersionMatchesRelease(releaseId, tenantId, versionName);
     if (!versionCheckResult.success) {
       return {
         success: false,
@@ -136,14 +139,46 @@ export class TestFlightBuildVerificationService {
   /**
    * Verify that the provided version matches the iOS App Store version
    * in the release_platforms_targets_mapping table
+   * 
+   * Steps:
+   * 1. Check if release exists in releases table
+   * 2. Verify release belongs to the specified tenant
+   * 3. Check if release has iOS App Store configuration
+   * 4. Verify version matches
    */
   private async verifyVersionMatchesRelease(
     releaseId: string,
+    tenantId: string,
     versionName: string
   ): Promise<{
     success: boolean;
     error?: { code: string; message: string };
   }> {
+    // Check if release exists
+    const release = await this.releaseRepository.findById(releaseId);
+    
+    if (!release) {
+      return {
+        success: false,
+        error: {
+          code: 'RELEASE_NOT_FOUND',
+          message: `Release ${releaseId} not found`,
+        },
+      };
+    }
+
+    // Verify release belongs to the specified tenant
+    if (release.tenantId !== tenantId) {
+      return {
+        success: false,
+        error: {
+          code: 'RELEASE_TENANT_MISMATCH',
+          message: `Release ${releaseId} does not belong to tenant ${tenantId}`,
+        },
+      };
+    }
+
+    // Check if release has iOS App Store configuration
     const iosMapping = await this.platformTargetMappingRepository.getByReleasePlatformTarget(
       releaseId,
       PlatformName.IOS,
@@ -155,11 +190,12 @@ export class TestFlightBuildVerificationService {
         success: false,
         error: {
           code: 'IOS_RELEASE_NOT_FOUND',
-          message: `No iOS App Store configuration found for release ${releaseId}. Please ensure the release includes iOS platform.`,
+          message: `No iOS App Store configuration found for release ${releaseId}`,
         },
       };
     }
 
+    // Verify version matches
     const expectedVersion = iosMapping.version;
     if (expectedVersion !== versionName) {
       return {

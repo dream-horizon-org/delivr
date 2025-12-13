@@ -54,8 +54,9 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     const storeController = storage.storeIntegrationController;
     const credentialController = storage.storeCredentialController;
     const platformTargetMappingRepository = storage.releasePlatformTargetMappingRepository;
+    const releaseRepository = storage.releaseRepository;
 
-    if (!storeController || !credentialController || !platformTargetMappingRepository) {
+    if (!storeController || !credentialController || !platformTargetMappingRepository || !releaseRepository) {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: RESPONSE_STATUS.FAILURE,
         error: 'Required controllers or repositories not initialized',
@@ -67,7 +68,8 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     const service = new TestFlightBuildVerificationService(
       storeController,
       credentialController,
-      platformTargetMappingRepository
+      platformTargetMappingRepository,
+      releaseRepository
     );
     const result = await service.verifyBuild({
       releaseId,
@@ -87,9 +89,13 @@ export const verifyTestFlightBuild = async (req: Request, res: Response): Promis
     let httpStatus: number;
 
     switch (errorCode) {
+      case 'RELEASE_NOT_FOUND':
       case 'TESTFLIGHT_BUILD_NOT_FOUND':
       case 'IOS_RELEASE_NOT_FOUND':
         httpStatus = HTTP_STATUS.NOT_FOUND;
+        break;
+      case 'RELEASE_TENANT_MISMATCH':
+        httpStatus = HTTP_STATUS.FORBIDDEN;
         break;
       case 'VERSION_MISMATCH':
       case 'VERSION_MISMATCH_WITH_RELEASE':
