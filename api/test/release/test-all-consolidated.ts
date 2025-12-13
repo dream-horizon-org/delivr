@@ -94,7 +94,7 @@ import { startCronJob, stopCronJob } from '../../script/services/release/cron-jo
 // NOTE: Old executor imports removed - executors replaced by State Machine
 // import { executeKickoffCronJob } from '../../script/routes/release/kickoff-cron-job';
 // import { executeRegressionCronJob } from '../../script/routes/release/regression-cron-job';
-// import { executePostRegressionCronJob } from '../../script/routes/release/post-regression-cron-job';
+// import { executePreReleaseCronJob } from '../../script/routes/release/pre-release-cron-job';
 import { createTaskExecutorForTests } from '../../test-helpers/release/task-executor-factory';
 import { setupTestIntegrations, cleanupTestIntegrations } from '../../test-helpers/release/setup-test-integrations';
 import { createTestStorage } from '../../test-helpers/release/test-storage';
@@ -1422,7 +1422,7 @@ async function runChunk12Stage3CompleteTests(sequelize: Sequelize) {
       stage3Status: StageStatus.IN_PROGRESS
     });
 
-    // Execute post-regression cron job
+    // Execute pre-release cron job
     // Execute Stage 3 - let state machine naturally create and execute tasks
     // Mocks will handle all service calls, so tasks will complete successfully
     let stage3Complete = false;
@@ -1507,7 +1507,7 @@ async function runChunk12_5ManualStage3Tests(sequelize: Sequelize) {
     await executeStateMachine(release.id, storage);
     await sleep(500);
 
-    const stage3Tasks = await releaseTaskRepo.findByReleaseIdAndStage(release.id, TaskStage.POST_REGRESSION);
+    const stage3Tasks = await releaseTaskRepo.findByReleaseIdAndStage(release.id, TaskStage.PRE_RELEASE);
     recordTestResult('Chunk 12.5', 'Manual Trigger Works', stage3Tasks.length > 0, Date.now() - start1);
 
   } catch (error) {
@@ -1535,7 +1535,7 @@ async function runChunk12_5ManualStage3Tests(sequelize: Sequelize) {
       hasIOSPlatform: true
     });
 
-    const tasks1 = await releaseTaskRepo.findByReleaseIdAndStage(release2.id, TaskStage.POST_REGRESSION);
+    const tasks1 = await releaseTaskRepo.findByReleaseIdAndStage(release2.id, TaskStage.PRE_RELEASE);
     const notCreated = !tasks1.some(t => t.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD);
     recordTestResult('Chunk 12.5', 'TestFlight: Config False', notCreated, Date.now() - start2);
 
@@ -1557,7 +1557,7 @@ async function runChunk12_5ManualStage3Tests(sequelize: Sequelize) {
       hasIOSPlatform: true
     });
 
-    const tasks2 = await releaseTaskRepo.findByReleaseIdAndStage(release3.id, TaskStage.POST_REGRESSION);
+    const tasks2 = await releaseTaskRepo.findByReleaseIdAndStage(release3.id, TaskStage.PRE_RELEASE);
     const created = tasks2.some(t => t.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD);
     recordTestResult('Chunk 12.5', 'TestFlight: Config True', created, Date.now() - start2);
 

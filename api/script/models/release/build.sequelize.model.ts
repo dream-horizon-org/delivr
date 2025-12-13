@@ -7,27 +7,24 @@
  */
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
-
-// Platform types
-export type PlatformName = 'ANDROID' | 'IOS' | 'WEB';
-
-// Store types (expanded from original target)
-export type StoreType = 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB';
-
-// Build upload status
-export type BuildUploadStatus = 'PENDING' | 'UPLOADED' | 'FAILED';
-
-// Build type (manual vs CI/CD)
-export type BuildType = 'MANUAL' | 'CI_CD';
-
-// Build stage in release lifecycle
-export type BuildStage = 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
-
-// CI/CD workflow status (tracks async CI/CD job)
-export type WorkflowStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-
-// CI/CD provider types
-export type CIRunType = 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI';
+import type {
+  BuildPlatform,
+  BuildStage,
+  StoreType,
+  BuildType,
+  BuildUploadStatus,
+  WorkflowStatus,
+  CiRunType
+} from '~types/release-management/builds';
+import {
+  BUILD_PLATFORMS,
+  BUILD_STAGES,
+  STORE_TYPES,
+  BUILD_TYPES,
+  BUILD_UPLOAD_STATUSES,
+  WORKFLOW_STATUSES,
+  CI_RUN_TYPES
+} from '~types/release-management/builds';
 
 export type BuildAttributes = {
   id: string;
@@ -38,7 +35,7 @@ export type BuildAttributes = {
   artifactVersionName: string | null;
   artifactPath: string | null;
   releaseId: string;
-  platform: PlatformName;
+  platform: BuildPlatform;
   storeType: StoreType | null;
   regressionId: string | null;
   ciRunId: string | null;
@@ -47,7 +44,7 @@ export type BuildAttributes = {
   buildStage: BuildStage;
   queueLocation: string | null;
   workflowStatus: WorkflowStatus | null;
-  ciRunType: CIRunType | null;
+  ciRunType: CiRunType | null;
   taskId: string | null;
   internalTrackLink: string | null;
   testflightNumber: string | null;
@@ -117,13 +114,13 @@ export const createBuildModel = (
         comment: 'FK to releases table'
       },
       platform: {
-        type: DataTypes.ENUM('ANDROID', 'IOS', 'WEB'),
+        type: DataTypes.ENUM(...BUILD_PLATFORMS),
         allowNull: false,
         field: 'platform',
         comment: 'Platform type'
       },
       storeType: {
-        type: DataTypes.ENUM('APP_STORE', 'PLAY_STORE', 'TESTFLIGHT', 'MICROSOFT_STORE', 'FIREBASE', 'WEB'),
+        type: DataTypes.ENUM(...STORE_TYPES),
         allowNull: true,
         field: 'storeType',
         comment: 'Store provider type'
@@ -145,20 +142,20 @@ export const createBuildModel = (
         comment: 'CI/CD run/job ID from the provider'
       },
       buildUploadStatus: {
-        type: DataTypes.ENUM('PENDING', 'UPLOADED', 'FAILED'),
+        type: DataTypes.ENUM(...BUILD_UPLOAD_STATUSES),
         allowNull: false,
         field: 'buildUploadStatus',
         defaultValue: 'PENDING',
         comment: 'Build upload status'
       },
       buildType: {
-        type: DataTypes.ENUM('MANUAL', 'CI_CD'),
+        type: DataTypes.ENUM(...BUILD_TYPES),
         allowNull: false,
         field: 'buildType',
         comment: 'Build type - manual upload or CI/CD triggered'
       },
       buildStage: {
-        type: DataTypes.ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE'),
+        type: DataTypes.ENUM(...BUILD_STAGES),
         allowNull: false,
         field: 'buildStage',
         comment: 'Build stage in release lifecycle'
@@ -170,13 +167,13 @@ export const createBuildModel = (
         comment: 'Queue location for CI/CD job'
       },
       workflowStatus: {
-        type: DataTypes.ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED'),
+        type: DataTypes.ENUM(...WORKFLOW_STATUSES),
         allowNull: true,
         field: 'workflowStatus',
         comment: 'CI/CD workflow status - used for AWAITING_CALLBACK pattern'
       },
       ciRunType: {
-        type: DataTypes.ENUM('JENKINS', 'GITHUB_ACTIONS', 'CIRCLE_CI', 'GITLAB_CI'),
+        type: DataTypes.ENUM(...CI_RUN_TYPES),
         allowNull: true,
         field: 'ciRunType',
         comment: 'CI/CD provider type'

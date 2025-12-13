@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS builds (
+  id VARCHAR(255) PRIMARY KEY,
+  tenantId VARCHAR(255) NOT NULL,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  buildNumber VARCHAR(255) NULL,
+  artifactVersionName VARCHAR(255) NOT NULL,
+  artifactPath VARCHAR(255) NULL,
+  releaseId VARCHAR(255) NOT NULL,
+  platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL COMMENT 'Platform type',
+  storeType ENUM('APP_STORE', 'PLAY_STORE', 'TESTFLIGHT', 'MICROSOFT_STORE', 'FIREBASE', 'WEB') NULL COMMENT 'Store provider type',
+  regressionId VARCHAR(255) NULL,
+  ciRunId VARCHAR(255) NULL,
+  buildUploadStatus ENUM('PENDING', 'UPLOADED', 'FAILED') NOT NULL COMMENT 'Build upload status',
+  buildType ENUM('MANUAL', 'CI_CD') NOT NULL COMMENT 'Build type',
+  buildStage ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE') NOT NULL COMMENT 'Build stage in release lifecycle',
+  queueLocation VARCHAR(255) NULL COMMENT 'Queue location',
+  workflowStatus ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED') NULL COMMENT 'Queue status',
+  ciRunType ENUM('JENKINS', 'GITHUB_ACTIONS', 'CIRCLE_CI', 'GITLAB_CI') NULL COMMENT 'CI/CD provider type',
+  taskId VARCHAR(255) NULL COMMENT 'reference from task table',
+  internalTrackLink VARCHAR(255) NULL COMMENT 'Play Store Internal Track Link',
+  testflightNumber VARCHAR(255) NULL COMMENT 'Test flight build number'
+)

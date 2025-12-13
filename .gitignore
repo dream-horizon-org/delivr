@@ -110,3 +110,4 @@ __queuestorage__
 .vscode/
 
 **/docs/**/*.md
+**/docs/**/*.json

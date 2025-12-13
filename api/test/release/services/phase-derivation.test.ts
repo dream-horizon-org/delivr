@@ -235,7 +235,7 @@ describe('Phase Derivation - Phase 16', () => {
       expect(phase).toBe('REGRESSION_AWAITING_NEXT_CYCLE');
     });
 
-    it('should return AWAITING_POST_REGRESSION when stage2 COMPLETED and stage3 PENDING', () => {
+    it('should return AWAITING_PRE_RELEASE when stage2 COMPLETED and stage3 PENDING', () => {
       const phase = derivePhase({
         releaseStatus: 'IN_PROGRESS',
         stage1Status: 'COMPLETED',
@@ -245,10 +245,10 @@ describe('Phase Derivation - Phase 16', () => {
         cronStatus: 'PAUSED',
         pauseType: 'AWAITING_STAGE_TRIGGER'
       });
-      expect(phase).toBe('AWAITING_POST_REGRESSION');
+      expect(phase).toBe('AWAITING_PRE_RELEASE');
     });
 
-    it('should return POST_REGRESSION when stage3 IN_PROGRESS', () => {
+    it('should return PRE_RELEASE when stage3 IN_PROGRESS', () => {
       const phase = derivePhase({
         releaseStatus: 'IN_PROGRESS',
         stage1Status: 'COMPLETED',
@@ -258,7 +258,7 @@ describe('Phase Derivation - Phase 16', () => {
         cronStatus: 'RUNNING',
         pauseType: 'NONE'
       });
-      expect(phase).toBe('POST_REGRESSION');
+      expect(phase).toBe('PRE_RELEASE');
     });
 
     it('should return AWAITING_SUBMISSION when stage3 COMPLETED and stage4 PENDING', () => {

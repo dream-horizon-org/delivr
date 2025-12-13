@@ -26,17 +26,7 @@ export { createTargetModel } from './target.sequelize.model';
 export type { TargetAttributes, TargetModelType } from './target.sequelize.model';
 
 export { createBuildModel } from './build.sequelize.model';
-export type { 
-  BuildAttributes, 
-  BuildModelType, 
-  PlatformName, 
-  StoreType,
-  BuildUploadStatus,
-  BuildType,
-  BuildStage,
-  WorkflowStatus,
-  CIRunType
-} from './build.sequelize.model';
+export type { BuildAttributes, BuildModelType } from './build.sequelize.model';
 
 export { createRegressionCycleModel } from './regression-cycle.sequelize.model';
 export type { RegressionCycleAttributes, RegressionCycleModelType } from './regression-cycle.sequelize.model';

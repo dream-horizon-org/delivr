@@ -52,7 +52,6 @@ import {
   createPlatformTargetMappingModel,
   createPlatformModel,
   createTargetModel,
-  createBuildModel,
   createRegressionCycleModel,
   createReleaseUploadModel,
   ReleaseRepository,
@@ -82,6 +81,7 @@ import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
 import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
+import { createBuildModel, BuildRepository } from "../models/release";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -692,6 +692,7 @@ export class S3Storage implements storage.Storage {
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public commIntegrationService!: CommIntegrationService;
     public commConfigService!: CommConfigService;// Communication config service
+    public buildRepository!: BuildRepository;
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -986,6 +987,11 @@ export class S3Storage implements storage.Storage {
             null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
+          
+          // Initialize Build repository (for artifact listings/uploads)
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
           
           // return this.sequelize.sync();
         })
@@ -2771,5 +2777,32 @@ export class S3Storage implements storage.Storage {
       }
   
       return null;
+    }
+
+    // ============================================================================
+    // Public helpers for S3 reuse
+    // ============================================================================
+    public async uploadBufferToS3(key: string, buffer: Buffer, contentType?: string): Promise<void> {
+      const finalContentType = contentType && contentType.trim().length > 0 ? contentType : 'application/octet-stream';
+      await this.s3
+        .putObject({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: buffer,
+          ContentType: finalContentType
+        })
+        .promise();
+    }
+
+    public getS3BucketName(): string {
+      return this.bucketName;
+    }
+
+    public async getSignedObjectUrl(key: string, expiresSeconds: number = 3600): Promise<string> {
+      return this.s3.getSignedUrlPromise('getObject', {
+        Bucket: this.bucketName,
+        Key: key,
+        Expires: expiresSeconds
+      });
     }
   }

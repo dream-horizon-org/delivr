@@ -24,6 +24,9 @@ import type {
 } from '~types/release';
 import { validateCreateReleaseRequest, validateUpdateReleaseRequest } from './release-validation';
 import type { Platform } from '~types/integrations/project-management';
+import { RELEASE_MANAGEMENT_ERROR_MESSAGES } from './release-management.constants';
+import { isValidUploadStage } from '../../utils/upload-stage.utils';
+import { isValidArtifactExtension } from '../../services/release/build/build-artifact.utils';
 
 export class ReleaseManagementController {
   private creationService: ReleaseCreationService;
@@ -283,7 +286,7 @@ export class ReleaseManagementController {
   /**
    * Get tasks for a release
    * Query params:
-   * - stage: Optional stage filter (KICKOFF, REGRESSION, POST_REGRESSION)
+   * - stage: Optional stage filter (KICKOFF, REGRESSION, PRE_RELEASE)
    */
   getTasks = async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -639,31 +642,31 @@ export class ReleaseManagementController {
       if (!releaseId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Release ID is required'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.RELEASE_ID_REQUIRED
         });
       }
 
       if (!stage) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Stage is required (KICK_OFF, REGRESSION, PRE_RELEASE)'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.STAGE_REQUIRED
         });
       }
 
       if (!platform) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Platform is required'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.PLATFORM_REQUIRED
         });
       }
 
       // Validate stage is valid
-      const validStages = ['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'];
       const upperStage = stage.toUpperCase();
-      if (!validStages.includes(upperStage)) {
+      const stageIsInvalid = !isValidUploadStage(upperStage);
+      if (stageIsInvalid) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: `Invalid stage: ${stage}. Must be one of: ${validStages.join(', ')}`
+          error: `Invalid stage: ${stage}. ${RELEASE_MANAGEMENT_ERROR_MESSAGES.INVALID_STAGE}`
         });
       }
 
@@ -683,7 +686,7 @@ export class ReleaseManagementController {
       if (serviceNotAvailable) {
         return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
           success: false,
-          error: 'Manual upload service not configured'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.MANUAL_UPLOAD_SERVICE_NOT_CONFIGURED
         });
       }
 
@@ -693,7 +696,26 @@ export class ReleaseManagementController {
       if (fileNotProvided) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          error: 'Build artifact file is required'
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.FILE_REQUIRED
+        });
+      }
+
+      // Extract original filename from multer and validate extension
+      const originalFilename = file.originalname as string | undefined;
+      const filenameNotProvided = !originalFilename;
+      if (filenameNotProvided) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.FILE_REQUIRED
+        });
+      }
+
+      // Validate file extension (.ipa, .apk, .aab only)
+      const hasValidExtension = isValidArtifactExtension(originalFilename);
+      if (!hasValidExtension) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: RELEASE_MANAGEMENT_ERROR_MESSAGES.INVALID_FILE_EXTENSION
         });
       }
 
@@ -705,7 +727,8 @@ export class ReleaseManagementController {
         releaseId,
         uploadStage,
         upperPlatform,
-        file.buffer
+        file.buffer,
+        originalFilename
       );
 
       if (!result.success) {
@@ -721,7 +744,8 @@ export class ReleaseManagementController {
           uploadId: result.uploadId,
           platform: result.platform,
           stage: result.stage,
-          artifactPath: result.artifactPath,
+          downloadUrl: result.downloadUrl,
+          internalTrackLink: result.internalTrackLink ?? null,
           uploadedPlatforms: result.uploadedPlatforms,
           missingPlatforms: result.missingPlatforms,
           allPlatformsReady: result.allPlatformsReady
@@ -732,7 +756,7 @@ export class ReleaseManagementController {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
-        error: 'Failed to upload build',
+        error: RELEASE_MANAGEMENT_ERROR_MESSAGES.FAILED_TO_UPLOAD_BUILD,
         message: errorMessage
       });
     }

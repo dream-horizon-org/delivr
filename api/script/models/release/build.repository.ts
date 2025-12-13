@@ -1,14 +1,16 @@
-import type { 
-  BuildModelType, 
-  BuildAttributes, 
-  PlatformName, 
+import type { WhereOptions } from 'sequelize';
+import type { Model } from 'sequelize';
+import type { BuildModelType, BuildAttributes } from './build.sequelize.model';
+import type {
+  BuildPlatform,
   StoreType,
   BuildUploadStatus,
   BuildType,
   BuildStage,
   WorkflowStatus,
-  CIRunType
-} from './build.sequelize.model';
+  CiRunType
+} from '~types/release-management/builds';
+import { getTrimmedString } from '~utils/string.utils';
 
 /**
  * Build database record type
@@ -22,7 +24,7 @@ export type CreateBuildDto = {
   id: string;
   tenantId: string;
   releaseId: string;
-  platform: PlatformName;
+  platform: BuildPlatform;
   buildType: BuildType;
   buildStage: BuildStage;
   buildNumber?: string | null;
@@ -34,7 +36,7 @@ export type CreateBuildDto = {
   buildUploadStatus?: BuildUploadStatus;
   queueLocation?: string | null;
   workflowStatus?: WorkflowStatus | null;
-  ciRunType?: CIRunType | null;
+  ciRunType?: CiRunType | null;
   taskId?: string | null;
   internalTrackLink?: string | null;
   testflightNumber?: string | null;
@@ -53,7 +55,7 @@ export type UpdateBuildDto = {
   buildUploadStatus?: BuildUploadStatus;
   queueLocation?: string | null;
   workflowStatus?: WorkflowStatus | null;
-  ciRunType?: CIRunType | null;
+  ciRunType?: CiRunType | null;
   taskId?: string | null;
   internalTrackLink?: string | null;
   testflightNumber?: string | null;
@@ -62,7 +64,7 @@ export type UpdateBuildDto = {
 export class BuildRepository {
   constructor(private readonly model: BuildModelType) {}
 
-  private toPlainObject(instance: any): Build {
+  private toPlainObject(instance: Model<BuildAttributes>): Build {
     return instance.toJSON() as Build;
   }
 
@@ -112,18 +114,18 @@ export class BuildRepository {
       where: { releaseId },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
    * Find builds for a release and platform
    */
-  async findByReleaseAndPlatform(releaseId: string, platform: PlatformName): Promise<Build[]> {
+  async findByReleaseAndPlatform(releaseId: string, platform: BuildPlatform): Promise<Build[]> {
     const builds = await this.model.findAll({
       where: { releaseId, platform },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -134,13 +136,13 @@ export class BuildRepository {
       where: { regressionId },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
    * Find build for a regression cycle and platform
    */
-  async findByRegressionAndPlatform(regressionId: string, platform: PlatformName): Promise<Build | null> {
+  async findByRegressionAndPlatform(regressionId: string, platform: BuildPlatform): Promise<Build | null> {
     const build = await this.model.findOne({
       where: { regressionId, platform }
     });
@@ -156,13 +158,13 @@ export class BuildRepository {
       where: { taskId },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
    * Find build for a task and platform
    */
-  async findByTaskAndPlatform(taskId: string, platform: PlatformName): Promise<Build | null> {
+  async findByTaskAndPlatform(taskId: string, platform: BuildPlatform): Promise<Build | null> {
     const build = await this.model.findOne({
       where: { taskId, platform }
     });
@@ -190,7 +192,42 @@ export class BuildRepository {
       where: { workflowStatus },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find builds for a release with a specific workflow status.
+   * Used by workflow polling service to find PENDING or RUNNING builds.
+   */
+  async findByReleaseAndWorkflowStatus(
+    releaseId: string,
+    workflowStatus: WorkflowStatus
+  ): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { releaseId, workflowStatus },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b) => this.toPlainObject(b));
+  }
+
+  /**
+   * Find CI/CD builds for a release with a specific workflow status.
+   * Filters to only buildType = 'CI_CD' (excludes MANUAL uploads).
+   * Used by workflow polling service.
+   */
+  async findCiCdBuildsByReleaseAndWorkflowStatus(
+    releaseId: string,
+    workflowStatus: WorkflowStatus
+  ): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { 
+        releaseId, 
+        workflowStatus,
+        buildType: 'CI_CD'
+      },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -204,7 +241,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -218,7 +255,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -232,7 +269,7 @@ export class BuildRepository {
       },
       order: [['createdAt', 'ASC']]
     });
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -267,13 +304,14 @@ export class BuildRepository {
   /**
    * Reset failed builds to pending (for retry)
    */
-  async resetFailedBuildsForTask(taskId: string, platforms?: PlatformName[]): Promise<number> {
-    const where: any = { 
+  async resetFailedBuildsForTask(taskId: string, platforms?: BuildPlatform[]): Promise<number> {
+    const where: WhereOptions<BuildAttributes> = { 
       taskId,
       workflowStatus: 'FAILED'
     };
     
-    if (platforms && platforms.length > 0) {
+    const hasPlatformFilter = platforms && platforms.length > 0;
+    if (hasPlatformFilter) {
       where.platform = platforms;
     }
 
@@ -312,7 +350,7 @@ export class BuildRepository {
         testflightNumber: d.testflightNumber ?? null
       }))
     );
-    return builds.map((b: any) => this.toPlainObject(b));
+    return builds.map((b) => this.toPlainObject(b));
   }
 
   /**
@@ -420,5 +458,131 @@ export class BuildRepository {
     if (hasAnyRunning) return 'RUNNING';
     
     return 'PENDING';
+  }
+
+  // ============================================================================
+  // Methods migrated from models/build/build.repository.ts
+  // ============================================================================
+
+  /**
+   * Find build by CI run ID.
+   * Used by BuildArtifactService for CI/CD artifact uploads.
+   */
+  async findByCiRunId(ciRunId: string): Promise<Build | null> {
+    const build = await this.model.findOne({
+      where: { ciRunId }
+    });
+    if (!build) return null;
+    return this.toPlainObject(build);
+  }
+
+  /**
+   * Update internal track info (Play Store).
+   * Sets internalTrackLink and buildNumber together.
+   */
+  async updateInternalTrackInfo(
+    id: string,
+    internalTrackLink: string,
+    buildNumber: string
+  ): Promise<void> {
+    await this.model.update(
+      { internalTrackLink, buildNumber },
+      { where: { id } }
+    );
+  }
+
+  /**
+   * Update TestFlight build number.
+   */
+  async updateTestflightNumber(id: string, testflightNumber: string): Promise<void> {
+    await this.model.update(
+      { testflightNumber },
+      { where: { id } }
+    );
+  }
+
+  /**
+   * Find builds with complex filtering.
+   * All filters except tenantId and releaseId are optional.
+   * Used by BuildArtifactService to list builds with various filter combinations.
+   */
+  async findBuilds(params: {
+    tenantId: string;
+    releaseId: string;
+    platform?: string | null;
+    buildStage?: string | null;
+    storeType?: string | null;
+    buildType?: string | null;
+    regressionId?: string | null;
+    taskId?: string | null;
+    workflowStatus?: string | null;
+    buildUploadStatus?: string | null;
+  }): Promise<Build[]> {
+    const {
+      tenantId,
+      releaseId,
+      platform,
+      buildStage,
+      storeType,
+      buildType,
+      regressionId,
+      taskId,
+      workflowStatus,
+      buildUploadStatus
+    } = params;
+
+    // Build where clause with required and optional filters
+    const where: WhereOptions<BuildAttributes> = {
+      tenantId,
+      releaseId
+    };
+
+    // Optional filters - only add if provided
+    const platformFilter = getTrimmedString(platform);
+    if (platformFilter) {
+      where.platform = platformFilter as BuildPlatform;
+    }
+
+    const buildStageFilter = getTrimmedString(buildStage);
+    if (buildStageFilter) {
+      where.buildStage = buildStageFilter as BuildStage;
+    }
+
+    const storeTypeFilter = getTrimmedString(storeType);
+    if (storeTypeFilter) {
+      where.storeType = storeTypeFilter as StoreType;
+    }
+
+    const buildTypeFilter = getTrimmedString(buildType);
+    if (buildTypeFilter) {
+      where.buildType = buildTypeFilter as BuildType;
+    }
+
+    const regressionIdFilter = getTrimmedString(regressionId);
+    if (regressionIdFilter) {
+      where.regressionId = regressionIdFilter;
+    }
+
+    const taskIdFilter = getTrimmedString(taskId);
+    if (taskIdFilter) {
+      where.taskId = taskIdFilter;
+    }
+
+    const workflowStatusFilter = getTrimmedString(workflowStatus);
+    if (workflowStatusFilter) {
+      where.workflowStatus = workflowStatusFilter as WorkflowStatus;
+    }
+
+    const buildUploadStatusFilter = getTrimmedString(buildUploadStatus);
+    if (buildUploadStatusFilter) {
+      where.buildUploadStatus = buildUploadStatusFilter as BuildUploadStatus;
+    }
+
+    const builds = await this.model.findAll({
+      where,
+      order: [['createdAt', 'DESC']]
+    });
+
+    return builds.map((b) => this.toPlainObject(b));
   }
 }

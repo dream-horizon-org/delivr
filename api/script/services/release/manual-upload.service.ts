@@ -6,7 +6,7 @@
  * Flow:
  * 1. User uploads artifact via API
  * 2. Validate upload is allowed (using UploadValidationService)
- * 3. Upload to S3 and get artifact path
+ * 3. Upload to S3 using BuildArtifactService and get artifact path
  * 4. Create/upsert entry in release_uploads table
  * 5. Return status (including whether all platforms are ready)
  * 
@@ -16,13 +16,13 @@
  * Reference: docs/MANUAL_BUILD_UPLOAD_FLOW.md
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import { ReleaseUploadsRepository, CreateReleaseUploadDto } from '../../models/release/release-uploads.repository';
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
 import { ReleaseRepository } from '../../models/release/release.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import { PlatformName } from '../../models/release/release.interface';
 import { UploadValidationService } from './upload-validation.service';
+import { BuildArtifactService } from './build/build-artifact.service';
 
 // ============================================================================
 // TYPES
@@ -34,7 +34,8 @@ export type ManualUploadResult = {
   uploadId?: string;
   platform?: PlatformName;
   stage?: UploadStage;
-  artifactPath?: string;
+  downloadUrl?: string;
+  internalTrackLink?: string | null;
   uploadedPlatforms?: PlatformName[];
   missingPlatforms?: PlatformName[];
   allPlatformsReady?: boolean;
@@ -47,23 +48,10 @@ export type UploadStatusResult = {
     platform: PlatformName;
     hasUpload: boolean;
     uploadId?: string;
-    artifactPath?: string;
     uploadedAt?: Date;
   }>;
   allPlatformsReady: boolean;
   missingPlatforms: PlatformName[];
-};
-
-// ============================================================================
-// CICD SERVICE INTERFACE (for S3 upload)
-// ============================================================================
-
-export type CICDServiceInterface = {
-  uploadBuildToS3(
-    file: Buffer,
-    platform: PlatformName,
-    metadata: { releaseId: string; tenantId: string; stage: UploadStage }
-  ): Promise<string>;
 };
 
 // ============================================================================
@@ -76,7 +64,7 @@ export class ManualUploadService {
     private readonly releaseRepo: ReleaseRepository,
     private readonly platformMappingRepo: ReleasePlatformTargetMappingRepository,
     private readonly validationService: UploadValidationService,
-    private readonly cicdService: CICDServiceInterface
+    private readonly buildArtifactService: BuildArtifactService
   ) {}
 
   /**
@@ -86,13 +74,15 @@ export class ManualUploadService {
    * @param stage Stage the upload is for (KICK_OFF, REGRESSION, PRE_RELEASE)
    * @param platform Platform being uploaded
    * @param file File buffer to upload
+   * @param originalFilename Original filename to preserve extension (.ipa, .apk, .aab)
    * @returns Result with upload status
    */
   async handleUpload(
     releaseId: string,
     stage: UploadStage,
     platform: PlatformName,
-    file: Buffer
+    file: Buffer,
+    originalFilename: string
   ): Promise<ManualUploadResult> {
     // Step 1: Validate upload is allowed
     const validation = await this.validationService.validateUpload(releaseId, stage, platform);
@@ -114,29 +104,51 @@ export class ManualUploadService {
       };
     }
 
-    // Step 3: Upload to S3
-    let artifactPath: string;
-    try {
-      artifactPath = await this.cicdService.uploadBuildToS3(file, platform, {
-        releaseId,
-        tenantId: release.tenantId,
-        stage,
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'S3 upload failed';
+    // Step 3: Get artifactVersionName from platform mapping
+    const platformMappings = await this.platformMappingRepo.getByReleaseId(releaseId);
+    const platformMapping = platformMappings.find(m => m.platform === platform);
+    const mappingNotFound = !platformMapping;
+    if (mappingNotFound) {
       return {
         success: false,
-        error: `Failed to upload to S3: ${errorMessage}`,
+        error: `Platform mapping not found for ${platform}`,
+      };
+    }
+    const artifactVersionName = platformMapping.version;
+
+    // Step 4: Upload to S3 (and Play Store for AAB) using BuildArtifactService
+    let artifactPath: string;
+    let downloadUrl: string;
+    let internalTrackLink: string | null = null;
+    try {
+      const uploadResult = await this.buildArtifactService.uploadStagingArtifact({
+        tenantId: release.tenantId,
+        releaseId,
+        platform,
+        artifactVersionName,
+        artifactBuffer: file,
+        originalFilename,
+      });
+      artifactPath = uploadResult.s3Uri;
+      downloadUrl = uploadResult.downloadUrl;
+      internalTrackLink = uploadResult.internalTrackLink;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      return {
+        success: false,
+        error: `Failed to upload artifact: ${errorMessage}`,
       };
     }
 
-    // Step 4: Create/upsert entry in release_uploads table
+    // Step 5: Create/upsert entry in release_uploads table
+    // Only saved if all uploads (S3 + Play Store for AAB) succeed
     const uploadData: CreateReleaseUploadDto = {
       tenantId: release.tenantId,
       releaseId,
       platform,
       stage,
       artifactPath,
+      internalTrackLink,
     };
 
     const upload = await this.releaseUploadsRepo.upsert(uploadData);
@@ -146,7 +158,7 @@ export class ManualUploadService {
       `Release: ${releaseId}, Upload: ${upload.id}`
     );
 
-    // Step 5: Check platform status
+    // Step 6: Check platform status
     const requiredPlatforms = await this.getRequiredPlatforms(releaseId);
     const platformStatus = await this.releaseUploadsRepo.checkAllPlatformsReady(
       releaseId,
@@ -159,7 +171,8 @@ export class ManualUploadService {
       uploadId: upload.id,
       platform,
       stage,
-      artifactPath,
+      downloadUrl,
+      internalTrackLink,
       uploadedPlatforms: platformStatus.uploadedPlatforms,
       missingPlatforms: platformStatus.missingPlatforms,
       allPlatformsReady: platformStatus.allReady,
@@ -180,7 +193,6 @@ export class ManualUploadService {
         platform,
         hasUpload,
         uploadId: upload?.id,
-        artifactPath: upload?.artifactPath,
         uploadedAt: upload?.createdAt,
       };
     });
@@ -221,7 +233,6 @@ export class ManualUploadService {
       uploadId: upload.id,
       platform: upload.platform,
       stage: upload.stage,
-      artifactPath: upload.artifactPath,
     };
   }
 

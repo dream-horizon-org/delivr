@@ -10,7 +10,7 @@ export const normalizePlatform = (platform: unknown): string | undefined => {
   return trimmed.toLowerCase();
 };
 
-import { WorkflowType } from '~types/integrations/ci-cd/workflow.interface';
+import { WorkflowType, WorkflowParameter } from '~types/integrations/ci-cd/workflow.interface';
 
 export const normalizeWorkflowType = (value: unknown): WorkflowType | undefined => {
   const isString = typeof value === 'string';
@@ -98,13 +98,53 @@ export const normalizeJenkinsParamType = (rawClass: string, choices?: string[]):
   return 'string';
 };
 
-export const extractDefaultsFromWorkflow = (parameters: any): Record<string, any> => {
-  if (!Array.isArray(parameters)) return {};
-  const out: Record<string, any> = {};
-  for (const p of parameters) {
-    if (p && p.name) out[p.name] = p.defaultValue;
+export const extractDefaultsFromWorkflow = (parameters: WorkflowParameter[] | null | undefined): Record<string, unknown> => {
+  const isNotArray = !Array.isArray(parameters);
+  if (isNotArray) return {};
+
+  const defaults: Record<string, unknown> = {};
+
+  for (const param of parameters) {
+    const hasValidName = param && typeof param.name === 'string';
+    if (hasValidName) {
+      defaults[param.name] = param.defaultValue;
+    }
   }
-  return out;
+
+  return defaults;
+};
+
+/**
+ * Merge workflow parameter defaults with job parameter overrides.
+ * Only processes keys defined in workflow parameters (ignores extra keys from overrides).
+ *
+ * @param workflowParameters - Workflow parameter definitions from the database
+ * @param jobParameterOverrides - User-provided overrides for workflow parameters
+ * @param transform - Optional function to transform values (e.g., String for Jenkins form params)
+ * @returns Merged parameters with overrides applied
+ */
+export const mergeWorkflowInputs = <T = unknown>(
+  workflowParameters: WorkflowParameter[] | null | undefined,
+  jobParameterOverrides: Record<string, unknown> | undefined,
+  transform?: (value: unknown) => T
+): Record<string, T> => {
+  const defaults = extractDefaultsFromWorkflow(workflowParameters);
+  const overrides = jobParameterOverrides ?? {};
+  const result: Record<string, T> = {};
+
+  const workflowParameterKeys = Object.keys(defaults);
+
+  for (const key of workflowParameterKeys) {
+    // Use override if defined (not null/undefined), otherwise fall back to default
+    const value = overrides[key] ?? defaults[key];
+
+    const isValueDefined = value !== undefined && value !== null;
+    if (isValueDefined) {
+      result[key] = transform ? transform(value) : (value as T);
+    }
+  }
+
+  return result;
 };
 
 export const ensureTrailingSlash = (u: string): string => {
@@ -238,10 +278,37 @@ export const parseGitHubRunUrl = (url: string): { owner: string; repo: string; r
   }
 };
 
-export const mapGitHubRunStatus = (status: string, conclusion?: string): 'pending' | 'running' | 'completed' => {
+/**
+ * Map GitHub Actions run status to normalized status.
+ * 
+ * GitHub API returns:
+ * - status: 'queued' | 'in_progress' | 'completed' | 'waiting' | 'requested'
+ * - conclusion: 'success' | 'failure' | 'cancelled' | 'timed_out' | 'action_required' | 'neutral' | 'skipped' | 'stale' | null
+ * 
+ * @param status - GitHub run status
+ * @param conclusion - GitHub run conclusion (only set when status is 'completed')
+ * @returns Normalized status: 'pending' | 'running' | 'completed' | 'failed'
+ */
+export const mapGitHubRunStatus = (
+  status: string, 
+  conclusion?: string | null
+): 'pending' | 'running' | 'completed' | 'failed' => {
   const s = (status || '').toLowerCase();
-  if (s === 'queued' || s === 'waiting' || s === 'requested') return 'pending';
-  if (s === 'in_progress') return 'running';
+  
+  // Queued states
+  const isQueued = s === 'queued' || s === 'waiting' || s === 'requested';
+  if (isQueued) return 'pending';
+  
+  // Running state
+  const isRunning = s === 'in_progress';
+  if (isRunning) return 'running';
+  
+  // Completed - check conclusion for success/failure
+  const c = (conclusion || '').toLowerCase();
+  const isFailure = c === 'failure' || c === 'cancelled' || c === 'timed_out';
+  if (isFailure) return 'failed';
+  
+  // Success or neutral/skipped outcomes
   return 'completed';
 };
 

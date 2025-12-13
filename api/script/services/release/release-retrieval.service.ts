@@ -94,12 +94,12 @@ export function derivePhase(input: DerivePhaseInput): Phase {
 
   // Between Stage 2 and 3
   if (stage2Status === 'COMPLETED' && stage3Status === 'PENDING') {
-    return 'AWAITING_POST_REGRESSION';
+    return 'AWAITING_PRE_RELEASE';
   }
 
-  // Stage 3 (Post-Regression)
+  // Stage 3 (Pre-Release)
   if (stage3Status === 'IN_PROGRESS') {
-    return 'POST_REGRESSION';
+    return 'PRE_RELEASE';
   }
 
   // Between Stage 3 and 4

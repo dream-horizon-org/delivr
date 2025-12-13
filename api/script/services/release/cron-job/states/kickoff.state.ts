@@ -14,7 +14,7 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import type { CronJobStateMachine } from '../cron-job-state-machine';
-import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
+import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName, type Release } from '~models/release/release.interface';
 import { getOrderedTasks, canExecuteTask, getTaskBlockReason, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { hasSequelize } from '~types/release/api-types';
@@ -102,8 +102,8 @@ export class KickoffState implements ICronJobState {
         const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
         
         if (releaseUploadsRepo) {
-          // Get release platforms
-          const platforms = await this.getReleasePlatforms(release);
+          // Get platform version mappings (includes version for each platform)
+          const platformVersionMappings = await this.context.getPlatformVersionMappings(release.id);
           
           // Get build repository for creating build records
           const buildRepo = this.context.getBuildRepo?.();
@@ -112,7 +112,7 @@ export class KickoffState implements ICronJobState {
             releaseId,
             tasks,
             true,
-            platforms,
+            platformVersionMappings,
             releaseUploadsRepo,
             releaseTaskRepo,
             buildRepo
@@ -369,29 +369,6 @@ export class KickoffState implements ICronJobState {
   // Private Helper Methods
   // ========================================================================
 
-  /**
-   * Get release platforms from platform mappings
-   */
-  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
-    // Try to get from storage if available
-    const storageInstance = this.context.getStorage();
-    if (hasSequelize(storageInstance)) {
-      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
-      if (platformMappingRepo) {
-        const mappings = await platformMappingRepo.getByReleaseId(release.id);
-        if (mappings && mappings.length > 0) {
-          // Map to PlatformName enum values (mappings.platform is compatible with PlatformName)
-          const platforms = mappings
-            .map(m => m.platform as unknown as PlatformName)
-            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
-          return platforms;
-        }
-      }
-    }
-    
-    // No platform mappings found - this is a configuration error
-    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
-  }
 
   /**
    * Check if it's time to execute a specific task type
@@ -400,7 +377,7 @@ export class KickoffState implements ICronJobState {
    * - PRE_KICK_OFF_REMINDER: Only at kickoff reminder time
    * - FORK_BRANCH: Only at branch fork time
    */
-  private isTimeToExecuteTask(taskType: string, release: import('~models/release/release.interface').Release, _config: OptionalTaskConfig): boolean {
+  private isTimeToExecuteTask(taskType: string, release: Release, _config: OptionalTaskConfig): boolean {
     // Import time check functions
     const { isKickOffReminderTime, isBranchForkTime } = require('~utils/time-utils');
     const { TaskType } = require('~models/release/release.interface');

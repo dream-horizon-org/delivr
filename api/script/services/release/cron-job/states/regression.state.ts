@@ -21,7 +21,7 @@ import { checkIntegrationAvailability } from '~utils/integration-availability.ut
 import { isRegressionSlotTime } from '~utils/time-utils';
 import { createRegressionCycleWithTasks } from '~utils/regression-cycle-creation';
 import { getOrderedTasks, canExecuteTask, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
-import { PostRegressionState } from './post-regression.state';
+import { PreReleaseState } from './pre-release.state';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class RegressionState implements ICronJobState {
@@ -247,8 +247,8 @@ export class RegressionState implements ICronJobState {
         const releaseUploadsRepo = this.context.getReleaseUploadsRepo?.();
         
         if (releaseUploadsRepo) {
-          // Get release platforms
-          const platforms = await this.getReleasePlatforms(release);
+          // Get platform version mappings (includes version for each platform)
+          const platformVersionMappings = await this.context.getPlatformVersionMappings(release.id);
           
           // Add cycleId to tasks for proper linking
           const tasksWithCycle = cycleTasks.map(t => ({
@@ -263,7 +263,7 @@ export class RegressionState implements ICronJobState {
             releaseId,
             tasksWithCycle,
             true,
-            platforms,
+            platformVersionMappings,
             releaseUploadsRepo,
             releaseTaskRepo,
             buildRepo
@@ -431,13 +431,13 @@ export class RegressionState implements ICronJobState {
       console.log(`[RegressionState] ✅ Transitioned: Stage 2 → Stage 3 (automatic)`);
       
       // Set next state
-      this.context.setState(new PostRegressionState(this.context));
+      this.context.setState(new PreReleaseState(this.context));
       
-      // Start Stage 3 cron (State Machine will handle PostRegressionState execution)
+      // Start Stage 3 cron (State Machine will handle PreReleaseState execution)
       startCronJob(releaseId, async () => {
         await this.context.execute();
       });
-      console.log(`[RegressionState] Started post-regression cron job for release ${releaseId}`);
+      console.log(`[RegressionState] Started pre-release cron job for release ${releaseId}`);
     } else {
       console.log(`[RegressionState] Stage 2 complete. Waiting for manual Stage 3 trigger (autoTransitionToStage3 = false)`);
       
@@ -455,28 +455,5 @@ export class RegressionState implements ICronJobState {
   // Private Helper Methods
   // ========================================================================
 
-  /**
-   * Get release platforms from platform mappings
-   */
-  private async getReleasePlatforms(release: import('~models/release/release.interface').Release): Promise<PlatformName[]> {
-    // Try to get from storage if available
-    const storageInstance = this.context.getStorage();
-    if (hasSequelize(storageInstance)) {
-      const platformMappingRepo = this.context.getPlatformMappingRepo?.();
-      if (platformMappingRepo) {
-        const mappings = await platformMappingRepo.getByReleaseId(release.id);
-        if (mappings && mappings.length > 0) {
-          // Map to PlatformName enum values
-          const platforms = mappings
-            .map(m => m.platform as unknown as PlatformName)
-            .filter((p): p is PlatformName => Object.values(PlatformName).includes(p));
-          return platforms;
-        }
-      }
-    }
-    
-    // No platform mappings found - this is a configuration error
-    throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
-  }
 }
 

@@ -1,10 +1,9 @@
 /**
  * Release Management Routes (Release Orchestration)
- * 
+ *
  * Handles all release-related API endpoints by delegating to controllers.
  * Routes are minimal - routing only, no business logic.
  */
-
 import { Request, Response, Router } from "express";
 import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
@@ -18,7 +17,17 @@ import { getCronJobService } from "../../services/release/cron-job/cron-job-serv
 import { BuildCallbackService } from "../../services/release/build-callback.service";
 import { ManualUploadService } from "../../services/release/manual-upload.service";
 import { UploadValidationService } from "../../services/release/upload-validation.service";
+import { BuildArtifactService } from "../../services/release/build/build-artifact.service";
+import { createBuildListArtifactsHandler } from "~controllers/release-management/builds/list-artifacts.controller";
+import { createCiTestflightVerifyHandler } from "~controllers/release-management/builds/testflight-ci-verify.controller";
+import { createCiArtifactUploadHandler } from "~controllers/release-management/builds/ci-artifact-upload.controller";
 import { HTTP_STATUS } from "../../constants/http";
+import {
+  hasReleaseCreationService,
+  hasManualUploadDependencies,
+  hasBuildCallbackDependencies,
+  StorageWithReleaseServices
+} from "../../types/release/storage-with-services.interface";
 
 // Multer configuration for file uploads (memory storage)
 const upload = multer({ 
@@ -42,31 +51,29 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const storage: storageTypes.Storage = config.storage;
   const router: Router = Router();
 
-  // Get services from storage (cast to access services)
-  const storageWithServices = storage as any;
-  
-  // Check if services are available
-  if (!storageWithServices.releaseCreationService) {
+  // Check if release services are available using type guard
+  const servicesInitialized = hasReleaseCreationService(storage);
+  if (!servicesInitialized) {
     console.warn('[Release Orchestration Routes] Release services not initialized on storage');
     return router;
   }
 
+  // TypeScript now knows storage has release services
+  const storageWithServices: StorageWithReleaseServices = storage;
+
   // Get CronJobService from factory
   const cronJobService = getCronJobService(storage);
-  if (!cronJobService) {
+  const cronJobServiceUnavailable = !cronJobService;
+  if (cronJobServiceUnavailable) {
     console.warn('[Release Orchestration Routes] CronJobService not available');
     return router;
   }
 
   // Create ManualUploadService (optional - may not be available in all environments)
   let manualUploadService: ManualUploadService | undefined;
-  const hasManualUploadDependencies = 
-    storageWithServices.releaseUploadsRepository &&
-    storageWithServices.releaseRepository &&
-    storageWithServices.platformMappingRepository &&
-    storageWithServices.cicdService;
+  const canCreateManualUploadService = hasManualUploadDependencies(storage);
   
-  if (hasManualUploadDependencies) {
+  if (canCreateManualUploadService) {
     const validationService = new UploadValidationService(
       storageWithServices.releaseRepository,
       storageWithServices.cronJobRepository,
@@ -74,12 +81,16 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
       storageWithServices.regressionCycleRepository,
       storageWithServices.platformMappingRepository
     );
+    
+    // Create BuildArtifactService for S3 uploads
+    const buildArtifactService = new BuildArtifactService(storage);
+    
     manualUploadService = new ManualUploadService(
       storageWithServices.releaseUploadsRepository,
       storageWithServices.releaseRepository,
       storageWithServices.platformMappingRepository,
       validationService,
-      storageWithServices.cicdService
+      buildArtifactService
     );
   }
 
@@ -95,13 +106,9 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
 
   // Create BuildCallbackController with service
   let buildCallbackController: BuildCallbackController | undefined;
-  const hasBuildCallbackDependencies = 
-    storageWithServices.buildRepository &&
-    storageWithServices.releaseTaskRepository &&
-    storageWithServices.releaseRepository &&
-    storageWithServices.cronJobRepository;
+  const canCreateBuildCallback = hasBuildCallbackDependencies(storage);
   
-  if (hasBuildCallbackDependencies) {
+  if (canCreateBuildCallback) {
     const buildCallbackService = new BuildCallbackService(
       storageWithServices.buildRepository,
       storageWithServices.releaseTaskRepository,
@@ -316,7 +323,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
    * - Creates/updates entry in release_uploads staging table
    * - Returns upload status (all platforms ready or not)
    */
-  router.post(
+  router.put(
     "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform",
     tenantPermissions.requireOwner({ storage }),
     upload.single('artifact'),
@@ -432,9 +439,35 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   router.post(
-    "/tenants/:tenantId/builds/verify-testflight",
+    "/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight",
     tenantPermissions.requireOwner({ storage }),
     verifyTestFlightBuild
+  );
+
+  // CI/CD TestFlight verification
+  // POST /builds/ci/testflight/verify
+  // ciRunId is passed in request body (supports URLs with special characters)
+  router.post(
+    "/builds/ci/testflight/verify",
+    tenantPermissions.allowAll({ storage }),
+    createCiTestflightVerifyHandler(storage)
+  );
+
+  // CI/CD Artifact Upload
+  // POST /builds/ci/artifact
+  // Body: multipart/form-data with ciRunId, artifactVersion, artifact file, optional buildNumber
+  router.post(
+    "/builds/ci/artifact",
+    tenantPermissions.allowAll({ storage }),
+    upload.single('artifact'),
+    createCiArtifactUploadHandler(storage)
+  );
+
+  // Get build artifacts
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/builds/artifacts",
+    tenantPermissions.requireOwner({ storage }),
+    createBuildListArtifactsHandler(storage)
   );
 
   return router;

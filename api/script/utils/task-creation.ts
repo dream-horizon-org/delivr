@@ -254,14 +254,14 @@ export interface CreateStage3TasksOptions {
 }
 
 /**
- * Create Stage 3 (Post-Regression) tasks
+ * Create Stage 3 (Pre-Release) tasks
  * 
  * Tasks (6 tasks):
  * 1. PRE_RELEASE_CHERRY_PICKS_REMINDER (always required - first task)
  * 2. CREATE_RELEASE_TAG (always required)
  * 3. CREATE_FINAL_RELEASE_NOTES (always required - renamed from CREATE_GITHUB_RELEASE)
  * 4. TRIGGER_TEST_FLIGHT_BUILD (optional - only if hasIOSPlatform === true)
- * 5. SEND_POST_REGRESSION_MESSAGE (always required - 2nd last task)
+ * 5. SEND_PRE_RELEASE_MESSAGE (always required - 2nd last task)
  * 6. CHECK_PROJECT_RELEASE_APPROVAL (always required - last task, only if hasProjectManagementIntegration === true, renamed from ADD_L6_APPROVAL_CHECK)
  */
 export async function createStage3Tasks(
@@ -273,7 +273,7 @@ export async function createStage3Tasks(
   // Check if tasks already exist at the start (race condition prevention)
   // With locks disabled, we have a single instance, but rapid successive calls can still happen
   // Check for specific required base task types, not just count
-  const existingTasksAtStart = await releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.POST_REGRESSION);
+  const existingTasksAtStart = await releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.PRE_RELEASE);
   const existingTaskTypes = existingTasksAtStart.map(t => t.taskType);
   
   // Required base task types (always present)
@@ -281,7 +281,7 @@ export async function createStage3Tasks(
     TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER,
     TaskType.CREATE_RELEASE_TAG,
     TaskType.CREATE_FINAL_RELEASE_NOTES,
-    TaskType.SEND_POST_REGRESSION_MESSAGE
+    TaskType.SEND_PRE_RELEASE_MESSAGE
   ];
   
   // Check if all required base tasks exist
@@ -299,7 +299,7 @@ export async function createStage3Tasks(
     id: uuidv4(),
     releaseId,
     taskType: TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER,
-    stage: TaskStage.POST_REGRESSION,
+    stage: TaskStage.PRE_RELEASE,
     accountId,
     taskId: `pre-release-cherry-picks-reminder-${releaseId}-${uuidv4()}`
   });
@@ -309,7 +309,7 @@ export async function createStage3Tasks(
     id: uuidv4(),
     releaseId,
     taskType: TaskType.CREATE_RELEASE_TAG,
-    stage: TaskStage.POST_REGRESSION,
+    stage: TaskStage.PRE_RELEASE,
     accountId,
     taskId: `create-release-tag-${releaseId}-${uuidv4()}`
   });
@@ -319,7 +319,7 @@ export async function createStage3Tasks(
     id: uuidv4(),
     releaseId,
     taskType: TaskType.CREATE_FINAL_RELEASE_NOTES,
-    stage: TaskStage.POST_REGRESSION,
+    stage: TaskStage.PRE_RELEASE,
     accountId,
     taskId: `create-final-release-notes-${releaseId}-${uuidv4()}`
   });
@@ -333,20 +333,20 @@ export async function createStage3Tasks(
       id: uuidv4(),
       releaseId,
       taskType: TaskType.TRIGGER_TEST_FLIGHT_BUILD,
-      stage: TaskStage.POST_REGRESSION,
+      stage: TaskStage.PRE_RELEASE,
       accountId,
       taskId: `test-flight-build-${releaseId}-${uuidv4()}`
     });
   }
 
-  // 5. SEND_POST_REGRESSION_MESSAGE (always required - 2nd last task)
+  // 5. SEND_PRE_RELEASE_MESSAGE (always required - 2nd last task)
   tasksToCreate.push({
     id: uuidv4(),
     releaseId,
-    taskType: TaskType.SEND_POST_REGRESSION_MESSAGE,
-    stage: TaskStage.POST_REGRESSION,
+    taskType: TaskType.SEND_PRE_RELEASE_MESSAGE,
+    stage: TaskStage.PRE_RELEASE,
     accountId,
-    taskId: `send-post-regression-message-${releaseId}-${uuidv4()}`
+    taskId: `send-pre-release-message-${releaseId}-${uuidv4()}`
   });
 
   // 6. CHECK_PROJECT_RELEASE_APPROVAL (always required - last task, only if hasProjectManagementIntegration === true, renamed from ADD_L6_APPROVAL_CHECK)
@@ -355,7 +355,7 @@ export async function createStage3Tasks(
       id: uuidv4(),
       releaseId,
       taskType: TaskType.CHECK_PROJECT_RELEASE_APPROVAL,
-      stage: TaskStage.POST_REGRESSION,
+      stage: TaskStage.PRE_RELEASE,
       accountId,
       taskId: `check-project-release-approval-${releaseId}-${uuidv4()}`
     });

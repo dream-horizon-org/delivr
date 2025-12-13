@@ -298,8 +298,8 @@ describe('State Classes - Manual Build Handling Import', () => {
     expect(fileContent).toContain('awaiting-manual-build.utils');
   });
 
-  it('PostRegressionState should import processAwaitingManualBuildTasks', () => {
-    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/post-regression.state.ts');
+  it('PreReleaseState should import processAwaitingManualBuildTasks', () => {
+    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/pre-release.state.ts');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     
     expect(fileContent).toContain('processAwaitingManualBuildTasks');
@@ -334,8 +334,8 @@ describe('State Classes - Correct Method Usage (Bug Prevention)', () => {
     expect(fileContent).not.toContain('platformMappingRepo.findByReleaseId');
   });
 
-  it('PostRegressionState should use getByReleaseId, not findByReleaseId', () => {
-    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/post-regression.state.ts');
+  it('PreReleaseState should use getByReleaseId, not findByReleaseId', () => {
+    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/pre-release.state.ts');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     
     expect(fileContent).toContain('getByReleaseId');
@@ -367,8 +367,8 @@ describe('State Classes - getReleasePlatforms Helper Exists', () => {
     expect(fileContent).toContain('private async getReleasePlatforms');
   });
 
-  it('PostRegressionState should have getReleasePlatforms method', () => {
-    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/post-regression.state.ts');
+  it('PreReleaseState should have getReleasePlatforms method', () => {
+    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/pre-release.state.ts');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     
     expect(fileContent).toContain('getReleasePlatforms');
@@ -400,8 +400,8 @@ describe('State Classes - Manual Build Check Integration', () => {
     expect(fileContent).toContain('getReleaseUploadsRepo');
   });
 
-  it('PostRegressionState should check hasManualBuildUpload flag', () => {
-    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/post-regression.state.ts');
+  it('PreReleaseState should check hasManualBuildUpload flag', () => {
+    const filePath = path.join(__dirname, '../../../script/services/release/cron-job/states/pre-release.state.ts');
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     
     expect(fileContent).toContain('hasManualBuildUpload');

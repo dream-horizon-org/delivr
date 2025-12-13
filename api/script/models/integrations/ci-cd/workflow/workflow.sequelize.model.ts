@@ -1,6 +1,6 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
-import type { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd';
+import { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd';
 
 export const createCICDWorkflowModel = (sequelize: Sequelize) => {
   class CICDWorkflowModel
@@ -38,7 +38,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
         onUpdate: 'CASCADE'
       },
       providerType: {
-        type: DataTypes.ENUM('JENKINS','GITHUB_ACTIONS','CIRCLE_CI','GITLAB_CI'),
+        type: DataTypes.ENUM(...Object.values(CICDProviderType)),
         allowNull: false
       },
       integrationId: {
@@ -67,7 +67,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
         comment: 'Normalized lowercase platform identifier'
       },
       workflowType: {
-        type: DataTypes.ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','CUSTOM'),
+        type: DataTypes.ENUM(...Object.values(WorkflowType)),
         allowNull: false,
         defaultValue: 'CUSTOM'
       },

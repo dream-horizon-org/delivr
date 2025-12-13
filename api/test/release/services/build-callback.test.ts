@@ -23,12 +23,7 @@ import {
   PauseType
 } from '../../../script/models/release/release.interface';
 
-import type {
-  PlatformName,
-  BuildType,
-  BuildUploadStatus,
-  WorkflowStatus
-} from '../../../script/models/release/build.sequelize.model';
+import type { BuildPlatform } from '../../../script/types/release-management/builds';
 
 // ============================================================================
 // ACTUAL IMPLEMENTATIONS
@@ -303,13 +298,13 @@ describe('Build Callback & Retry Tests (TDD)', () => {
     
     // Helper to create mock repositories for manual upload tests
     const createManualUploadMocks = (options: {
-      existingBuilds?: Array<{ platform: PlatformName; buildUploadStatus: string }>;
-      requiredPlatforms?: PlatformName[];
+      existingBuilds?: Array<{ platform: BuildPlatform; buildUploadStatus: string }>;
+      requiredPlatforms?: BuildPlatform[];
       releaseStatus?: ReleaseStatus;
     } = {}) => {
       const {
         existingBuilds = [],
-        requiredPlatforms = ['ANDROID', 'IOS'] as PlatformName[],
+        requiredPlatforms = ['ANDROID', 'IOS'] as BuildPlatform[],
         releaseStatus = ReleaseStatus.PAUSED
       } = options;
 

@@ -1074,7 +1074,7 @@ describe('Archive Release Feature', () => {
       expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
     });
 
-    it('should stop executing tasks in PostRegressionState when release is archived', async () => {
+    it('should stop executing tasks in PreReleaseState when release is archived', async () => {
       // Create archived release
       const release = await createTestRelease(releaseRepo, {
         tenantId: testTenantId,
@@ -1112,7 +1112,7 @@ describe('Archive Release Feature', () => {
       await createTestTask(releaseTaskRepo, {
         releaseId: testReleaseId,
         taskType: TaskType.CREATE_RELEASE_TAG,
-        stage: TaskStage.POST_REGRESSION,
+        stage: TaskStage.PRE_RELEASE,
         taskStatus: TaskStatus.PENDING
       });
 

@@ -9,13 +9,13 @@
  * 
  * States can call: context.getCronJobRepo(), context.getReleaseId(), etc.
  * 
- * Status: ✅ Fully implemented with all 3 states (Kickoff, Regression, Post-Regression)
+ * Status: ✅ Fully implemented with all 3 states (Kickoff, Regression, Pre-Release)
  */
 
 import { ICronJobState } from './states/cron-job-state.interface';
 import { KickoffState } from './states/kickoff.state';
 import { RegressionState } from './states/regression.state';
-import { PostRegressionState } from './states/post-regression.state';
+import { PreReleaseState } from './states/pre-release.state';
 import { CronJobRepository } from '~models/release/cron-job.repository';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
@@ -25,7 +25,8 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { BuildRepository } from '~models/release/build.repository';
 import { TaskExecutor } from '~services/release/task-executor/task-executor';
 import { Storage } from '~storage/storage';
-import { StageStatus, CronStatus, ReleaseStatus } from '~models/release/release.interface';
+import { StageStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
+import type { PlatformVersionMapping } from '~utils/awaiting-manual-build.utils';
 import { stopCronJob } from './cron-scheduler';
 
 export class CronJobStateMachine {
@@ -165,8 +166,8 @@ export class CronJobStateMachine {
 
         // No slots - proceed with normal Stage 3 transition logic
         if (cronJob.autoTransitionToStage3) {
-          this.currentState = new PostRegressionState(this);
-          console.log(`[StateMachine] Initialized with PostRegressionState (starting from PENDING)`);
+          this.currentState = new PreReleaseState(this);
+          console.log(`[StateMachine] Initialized with PreReleaseState (starting from PENDING)`);
         } else {
           // Auto-transition disabled - waiting for manual trigger
           console.log(
@@ -204,8 +205,8 @@ export class CronJobStateMachine {
       this.currentState = new RegressionState(this);
       console.log(`[StateMachine] Initialized with RegressionState for release ${this.releaseId}`);
     } else if (cronJob.stage3Status === StageStatus.IN_PROGRESS) {
-      this.currentState = new PostRegressionState(this);
-      console.log(`[StateMachine] Initialized with PostRegressionState for release ${this.releaseId}`);
+      this.currentState = new PreReleaseState(this);
+      console.log(`[StateMachine] Initialized with PreReleaseState for release ${this.releaseId}`);
     }
   }
 
@@ -363,6 +364,41 @@ export class CronJobStateMachine {
    */
   getPlatformMappingRepo(): ReleasePlatformTargetMappingRepository | undefined {
     return this.platformMappingRepo;
+  }
+
+  /**
+   * Get platform version mappings from release_platform_target_mapping table.
+   * Returns platform + version for each mapping (used for build artifact versioning).
+   * 
+   * This is a convenience method that states can use instead of duplicating this logic.
+   * 
+   * @param releaseId - The release ID to get mappings for
+   * @returns Array of platform version mappings
+   * @throws Error if platform mapping repository is not available or no mappings found
+   */
+  async getPlatformVersionMappings(releaseId: string): Promise<PlatformVersionMapping[]> {
+    const repoNotAvailable = !this.platformMappingRepo;
+    
+    if (repoNotAvailable) {
+      throw new Error('Platform mapping repository not available');
+    }
+    
+    const mappings = await this.platformMappingRepo.getByReleaseId(releaseId);
+    const noMappingsFound = !mappings || mappings.length === 0;
+    
+    if (noMappingsFound) {
+      throw new Error('Platform mappings not found for release. Release must have at least one platform configured.');
+    }
+    
+    // Convert to PlatformVersionMapping format
+    const platformVersionMappings: PlatformVersionMapping[] = mappings
+      .map(m => ({
+        platform: m.platform as unknown as PlatformName,
+        version: m.version
+      }))
+      .filter((m): m is PlatformVersionMapping => Object.values(PlatformName).includes(m.platform));
+    
+    return platformVersionMappings;
   }
 }
 

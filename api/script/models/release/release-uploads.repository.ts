@@ -22,14 +22,18 @@ export type CreateReleaseUploadDto = {
   releaseId: string;
   platform: PlatformName;
   stage: UploadStage;
-  artifactPath: string;
+  artifactPath?: string | null;
+  internalTrackLink?: string | null;
+  testflightNumber?: string | null;
 };
 
 /**
  * Data for updating an upload
  */
 export type UpdateReleaseUploadDto = Partial<{
-  artifactPath: string;
+  artifactPath: string | null;
+  internalTrackLink: string | null;
+  testflightNumber: string | null;
   isUsed: boolean;
   usedByTaskId: string | null;
   usedByCycleId: string | null;
@@ -76,7 +80,9 @@ export class ReleaseUploadsRepository {
       releaseId: data.releaseId,
       platform: data.platform,
       stage: data.stage,
-      artifactPath: data.artifactPath,
+      artifactPath: data.artifactPath ?? null,
+      internalTrackLink: data.internalTrackLink ?? null,
+      testflightNumber: data.testflightNumber ?? null,
       isUsed: false,
       usedByTaskId: null,
       usedByCycleId: null,
@@ -85,7 +91,7 @@ export class ReleaseUploadsRepository {
   }
 
   /**
-   * Upsert: Create or update an existing unused upload for the same platform+stage
+   * Upsert: Create or update an existing unused upload for the same platform+buildStage
    * This allows replacing an upload before it's consumed
    */
   async upsert(data: CreateReleaseUploadDto): Promise<ReleaseUpload> {
@@ -98,8 +104,12 @@ export class ReleaseUploadsRepository {
 
     const hasExisting = existing !== null;
     if (hasExisting) {
-      // Update existing
-      await this.update(existing.id, { artifactPath: data.artifactPath });
+      // Update existing (including internalTrackLink and testflightNumber if provided)
+      await this.update(existing.id, {
+        artifactPath: data.artifactPath ?? null,
+        internalTrackLink: data.internalTrackLink ?? null,
+        testflightNumber: data.testflightNumber ?? null,
+      });
       const updated = await this.findById(existing.id);
       return updated as ReleaseUpload;
     }
@@ -281,22 +291,22 @@ export class ReleaseUploadsRepository {
   // ============================================================================
 
   /**
-   * Check if all platforms have unused uploads for a stage
+   * Check if all platforms have unused uploads for a buildStage
    * @param releaseId Release ID
-   * @param stage Stage to check
+   * @param buildStage Build stage to check (KICK_OFF, REGRESSION, PRE_RELEASE)
    * @param requiredPlatforms List of platforms that need uploads
    * @returns Object with ready status and missing platforms
    */
   async checkAllPlatformsReady(
     releaseId: string,
-    stage: UploadStage,
+    buildStage: UploadStage,
     requiredPlatforms: PlatformName[]
   ): Promise<{
     allReady: boolean;
     uploadedPlatforms: PlatformName[];
     missingPlatforms: PlatformName[];
   }> {
-    const uploads = await this.findUnused(releaseId, stage);
+    const uploads = await this.findUnused(releaseId, buildStage);
     const uploadedPlatforms = uploads.map(u => u.platform);
     const missingPlatforms = requiredPlatforms.filter(p => !uploadedPlatforms.includes(p));
 

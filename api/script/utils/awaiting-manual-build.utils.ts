@@ -2,7 +2,7 @@
  * Awaiting Manual Build Handler Utility
  * 
  * Handles tasks that are waiting for manual build uploads.
- * Called by cron states (Kickoff, Regression, PostRegression) to check
+ * Called by cron states (Kickoff, Regression, PreRelease) to check
  * if manual uploads are available and ready to be consumed.
  * 
  * Flow:
@@ -24,6 +24,15 @@ import { v4 as uuidv4 } from 'uuid';
 // TYPES
 // ============================================================================
 
+/**
+ * Simplified mapping with just platform and version for build creation.
+ * Extracted from ReleasePlatformTargetMapping to avoid full dependency.
+ */
+export type PlatformVersionMapping = {
+  platform: PlatformName;
+  version: string;
+};
+
 export type ManualBuildCheckResult = {
   checked: boolean;
   allReady: boolean;
@@ -38,6 +47,7 @@ export type ManualBuildCheckContext = {
   taskType: TaskType;
   cycleId: string | null;
   platforms: PlatformName[];
+  platformVersionMappings: PlatformVersionMapping[];
 };
 
 // ============================================================================
@@ -124,7 +134,7 @@ export const checkAndConsumeManualBuilds = async (
   releaseTaskRepo: ReleaseTaskRepository,
   buildRepo?: BuildRepository
 ): Promise<ManualBuildCheckResult> => {
-  const { releaseId, taskId, taskType, cycleId, platforms } = context;
+  const { releaseId, taskId, taskType, cycleId, platforms, platformVersionMappings } = context;
   
   // Get upload stage for this task type
   const stage = getUploadStageForTaskType(taskType);
@@ -198,6 +208,17 @@ export const checkAndConsumeManualBuilds = async (
       const buildId = uuidv4();
       const uploadFileName = upload.artifactPath.split('/').pop() ?? upload.artifactPath;
       
+      // Get version from platform mappings (each platform can have different version)
+      // Note: platformMapping should always exist since uploadsToConsume is filtered to only include platforms from platformVersionMappings
+      const platformMapping = platformVersionMappings.find(m => m.platform === upload.platform);
+      
+      const mappingNotFound = !platformMapping;
+      if (mappingNotFound) {
+        console.warn(`[ManualBuildHandler] No version mapping found for platform ${upload.platform}, skipping build creation`);
+        continue;
+      }
+      
+      const artifactVersionName = platformMapping.version;
 
       const buildData: CreateBuildDto = {
         id: buildId,
@@ -207,7 +228,7 @@ export const checkAndConsumeManualBuilds = async (
         buildType: 'MANUAL',
         buildStage: stage,
         buildNumber: uploadFileName,
-        artifactVersionName: 'manual-upload',
+        artifactVersionName,
         artifactPath: upload.artifactPath,
         storeType: upload.platform === 'IOS' ? 'APP_STORE' : 'PLAY_STORE',
         regressionId: cycleId ?? null,
@@ -219,7 +240,7 @@ export const checkAndConsumeManualBuilds = async (
       };
       
       await buildRepo.create(buildData);
-      console.log(`[ManualBuildHandler] Created build record for ${upload.platform}: ${uploadFileName}`);
+      console.log(`[ManualBuildHandler] Created build record for ${upload.platform}: ${uploadFileName} (version: ${artifactVersionName})`);
     }
   }
 
@@ -251,7 +272,7 @@ export const checkAndConsumeManualBuilds = async (
  * @param releaseId - Release ID
  * @param tasks - All tasks for the stage
  * @param hasManualBuildUpload - Whether release has manual upload enabled
- * @param platforms - Release platforms
+ * @param platformVersionMappings - Platform to version mappings (from release_platform_target_mapping)
  * @param releaseUploadsRepo - Repository for release_uploads table
  * @param releaseTaskRepo - Repository for release_tasks table
  * @param buildRepo - Repository for builds table (for creating build records)
@@ -261,12 +282,15 @@ export const processAwaitingManualBuildTasks = async (
   releaseId: string,
   tasks: Array<{ id: string; taskType: TaskType; taskStatus: TaskStatus; cycleId?: string | null }>,
   hasManualBuildUpload: boolean,
-  platforms: PlatformName[],
+  platformVersionMappings: PlatformVersionMapping[],
   releaseUploadsRepo: ReleaseUploadsRepository,
   releaseTaskRepo: ReleaseTaskRepository,
   buildRepo?: BuildRepository
 ): Promise<Map<string, ManualBuildCheckResult>> => {
   const results = new Map<string, ManualBuildCheckResult>();
+
+  // Extract platform names from mappings for filtering
+  const platforms = platformVersionMappings.map(m => m.platform);
 
   // Find tasks waiting for manual builds
   const waitingTasks = tasks.filter(task => 
@@ -290,6 +314,7 @@ export const processAwaitingManualBuildTasks = async (
         taskType: task.taskType,
         cycleId: task.cycleId ?? null,
         platforms,
+        platformVersionMappings,
       },
       releaseUploadsRepo,
       releaseTaskRepo,

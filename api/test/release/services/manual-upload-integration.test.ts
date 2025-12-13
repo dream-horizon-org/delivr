@@ -806,7 +806,7 @@ describeIfDb('AWAITING_MANUAL_BUILD Status - Integration Tests (TDD)', () => {
       // Insert with AWAITING_MANUAL_BUILD status
       await sequelize.query(`
         INSERT INTO release_tasks (id, releaseId, taskType, taskStatus, stage, createdAt, updatedAt)
-        VALUES (?, ?, 'TRIGGER_TEST_FLIGHT_BUILD', 'AWAITING_MANUAL_BUILD', 'POST_REGRESSION', NOW(), NOW())
+        VALUES (?, ?, 'TRIGGER_TEST_FLIGHT_BUILD', 'AWAITING_MANUAL_BUILD', 'PRE_RELEASE', NOW(), NOW())
       `, {
         replacements: [taskId, testReleaseId]
       });

@@ -1,7 +1,7 @@
 /**
  * Cron Job State Interface
  * 
- * Defines the contract that all state classes (Kickoff, Regression, PostRegression) must implement.
+ * Defines the contract that all state classes (Kickoff, Regression, PreRelease) must implement.
  * 
  * This is the core of State Pattern:
  * - Each state implements these 4 methods
@@ -25,7 +25,7 @@ export interface ICronJobState {
    * - Execute cycle tasks
    * - Mark cycles as DONE
    * 
-   * For Stage 3 (Post-Regression):
+   * For Stage 3 (Pre-Release):
    * - Create Stage 3 tasks if needed
    * - Execute tasks
    */

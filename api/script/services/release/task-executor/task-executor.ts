@@ -199,7 +199,7 @@ export class TaskExecutor {
       return [null, {}];
     }
 
-    // Category A: These 6 tasks return SINGLE STRING VALUE
+    // Category A: These 7 tasks return SINGLE STRING VALUE
     // Store in BOTH externalId and externalData
     const categoryATasks: TaskType[] = [
       TaskType.CREATE_PROJECT_MANAGEMENT_TICKET,
@@ -208,6 +208,7 @@ export class TaskExecutor {
       TaskType.TRIGGER_REGRESSION_BUILDS,
       TaskType.TRIGGER_AUTOMATION_RUNS,
       TaskType.TRIGGER_TEST_FLIGHT_BUILD,
+      TaskType.CREATE_AAB_BUILD,
     ];
 
     if (categoryATasks.includes(taskType)) {
@@ -440,7 +441,7 @@ export class TaskExecutor {
       case TaskType.SEND_REGRESSION_BUILD_MESSAGE:
         return await this.executeSendRegressionBuildMessage(context);
 
-      // Stage 3 (Post-Regression) tasks
+      // Stage 3 (Pre-Release) tasks
       case TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER:
         return await this.executePreReleaseCherryPicksReminder(context);
 
@@ -450,8 +451,11 @@ export class TaskExecutor {
       case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
         return await this.executeTestFlightBuild(context);
 
-      case TaskType.SEND_POST_REGRESSION_MESSAGE:
-        return await this.executeSendPostRegressionMessage(context);
+      case TaskType.CREATE_AAB_BUILD:
+        return await this.executeCreateAABBuild(context);
+
+      case TaskType.SEND_PRE_RELEASE_MESSAGE:
+        return await this.executeSendPreReleaseMessage(context);
 
       case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
         return await this.executeCheckProjectReleaseApproval(context);
@@ -758,12 +762,13 @@ export class TaskExecutor {
 
           // Create build record from manual upload
           const buildId = uuidv4();
+          const versionName = mapping.version ?? getReleaseVersion(release);
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
               tenantId: tenantId,
               buildNumber: uploadFileName,
-              artifactVersionName: mapping.version ?? getReleaseVersion(release),
+              artifactVersionName: versionName,
               artifactPath: upload.artifactPath,
               releaseId: context.releaseId,
               platform: platformName,
@@ -825,12 +830,13 @@ export class TaskExecutor {
 
       const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
+      const versionName = mapping.version ?? getReleaseVersion(release);
 
       await BuildModel.create({
         id: buildId,
         tenantId: tenantId,
         buildNumber: buildNumber,
-        artifactVersionName: mapping.version ?? getReleaseVersion(release),
+        artifactVersionName: versionName,
         artifactPath: result.queueLocation,
         releaseId: context.releaseId,
         platform: platformName,
@@ -1126,12 +1132,13 @@ export class TaskExecutor {
 
           // Create build record from manual upload
           const buildId = uuidv4();
+          const versionName = mapping.version ?? getReleaseVersion(release);
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
               tenantId: tenantId,
               buildNumber: uploadFileName,
-              artifactVersionName: mapping.version ?? getReleaseVersion(release),
+              artifactVersionName: versionName,
               artifactPath: upload.artifactPath,
               releaseId: context.releaseId,
               platform: platformName,
@@ -1194,12 +1201,13 @@ export class TaskExecutor {
 
       const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
+      const versionName = mapping.version ?? getReleaseVersion(release);
 
       await BuildModel.create({
         id: buildId,
         tenantId: tenantId,
         buildNumber: buildNumber,
-        artifactVersionName: mapping.version ?? getReleaseVersion(release),
+        artifactVersionName: versionName,
         artifactPath: result.queueLocation,
         releaseId: context.releaseId,
         platform: platformName,
@@ -1566,18 +1574,18 @@ export class TaskExecutor {
   /**
    * Execute TRIGGER_TEST_FLIGHT_BUILD task (Category A)
    * 
-   * Creates TestFlight build (only if iOS platform exists).
+   * Two modes:
+   * 1. Manual Mode (hasManualBuildUpload=true): Checks release_uploads table for IOS build
+   * 2. CI/CD Mode (hasManualBuildUpload=false): Triggers CI/CD pipeline
+   * 
    * Returns: Simple string (e.g., 'testflight-123')
+   *          or 'AWAITING_MANUAL_BUILD' if waiting for uploads
    */
   private async executeTestFlightBuild(
     context: TaskExecutionContext
   ): Promise<string> {
-    const { release, tenantId } = context;
+    const { release, tenantId, task } = context;
 
-    // Get release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
-    
     // Verify iOS platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings || [];
     const hasIOS = platformMappings.some(m => m.platform === 'IOS');
@@ -1588,6 +1596,77 @@ export class TaskExecutor {
 
     // Get iOS mapping for version
     const iosMapping = platformMappings.find(m => m.platform === 'IOS');
+
+    // ========================================================================
+    // MANUAL MODE: Check release_uploads table for IOS build
+    // ========================================================================
+    if (release.hasManualBuildUpload) {
+      console.log(`[TaskExecutor] Manual mode for PRE_RELEASE (TestFlight): checking uploads for IOS`);
+      
+      if (!this.releaseUploadsRepo) {
+        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
+      }
+
+      // Check if IOS has upload ready
+      const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
+        context.releaseId,
+        'PRE_RELEASE',
+        ['IOS' as PlatformName]
+      );
+
+      console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (TestFlight): allReady=${readiness.allReady}`);
+
+      if (!readiness.allReady) {
+        // Set task to AWAITING_CALLBACK and return special marker
+        await this.releaseTaskRepo.update(task.id, {
+          taskStatus: TaskStatus.AWAITING_CALLBACK
+        });
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual TestFlight build`);
+        return 'AWAITING_MANUAL_BUILD';
+      }
+
+      // IOS ready - consume upload and create build record
+      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'PRE_RELEASE');
+      const BuildModel = this.sequelize.models.Build;
+      
+      const iosUpload = uploads.find(u => u.platform === 'IOS');
+      if (iosUpload && BuildModel) {
+        // Mark upload as used
+        await this.releaseUploadsRepo.markAsUsed(iosUpload.id, task.id, null);
+        
+        // Extract filename from artifactPath for display
+        const uploadFileName = iosUpload.artifactPath.split('/').pop() ?? iosUpload.artifactPath;
+
+        // Create build record from manual upload
+        const buildId = uuidv4();
+        const versionName = getReleaseVersion(release);
+        await BuildModel.create({
+          id: buildId,
+          tenantId: tenantId,
+          buildNumber: uploadFileName,
+          artifactVersionName: versionName,
+          artifactPath: iosUpload.artifactPath,
+          releaseId: context.releaseId,
+          platform: 'IOS',
+          storeType: 'TESTFLIGHT',
+          regressionId: null,
+          buildUploadStatus: 'UPLOADED',
+          buildType: 'MANUAL',
+          buildStage: 'PRE_RELEASE',
+          queueLocation: null,
+          workflowStatus: null
+        });
+
+        console.log(`[TaskExecutor] Consumed manual upload for IOS (TestFlight): ${uploadFileName}`);
+        return uploadFileName;
+      }
+    }
+
+    // ========================================================================
+    // CI/CD MODE: Trigger CI/CD pipeline
+    // ========================================================================
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const workflowId = releaseConfig.ciConfigId;
 
     // CI/CD workflow must be configured if this task exists
     if (!workflowId) {
@@ -1615,17 +1694,139 @@ export class TaskExecutor {
   }
 
   /**
-   * Execute SEND_POST_REGRESSION_MESSAGE task
+   * Execute CREATE_AAB_BUILD task (Category A)
    * 
-   * Sends post-regression notification (approval request message).
+   * Two modes:
+   * 1. Manual Mode (hasManualBuildUpload=true): Checks release_uploads table for ANDROID build
+   * 2. CI/CD Mode (hasManualBuildUpload=false): Triggers CI/CD pipeline
+   * 
+   * Returns: Simple string (e.g., 'aab-1.5.0-123')
+   *          or 'AWAITING_MANUAL_BUILD' if waiting for uploads
+   */
+  private async executeCreateAABBuild(
+    context: TaskExecutionContext
+  ): Promise<string> {
+    const { release, tenantId, task } = context;
+
+    // Verify ANDROID platform exists using platformTargetMappings
+    const platformMappings = context.platformTargetMappings || [];
+    const hasAndroid = platformMappings.some(m => m.platform === 'ANDROID');
+
+    if (!hasAndroid) {
+      throw new Error('CREATE_AAB_BUILD task requires ANDROID platform, but no ANDROID platform found');
+    }
+
+    // Get ANDROID mapping for version
+    const androidMapping = platformMappings.find(m => m.platform === 'ANDROID');
+
+    // ========================================================================
+    // MANUAL MODE: Check release_uploads table for ANDROID build
+    // ========================================================================
+    if (release.hasManualBuildUpload) {
+      console.log(`[TaskExecutor] Manual mode for PRE_RELEASE (AAB): checking uploads for ANDROID`);
+      
+      if (!this.releaseUploadsRepo) {
+        throw new Error(RELEASE_ERROR_MESSAGES.RELEASE_UPLOADS_REPO_NOT_AVAILABLE);
+      }
+
+      // Check if ANDROID has upload ready
+      const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
+        context.releaseId,
+        'PRE_RELEASE',
+        ['ANDROID' as PlatformName]
+      );
+
+      console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (AAB): allReady=${readiness.allReady}`);
+
+      if (!readiness.allReady) {
+        // Set task to AWAITING_CALLBACK and return special marker
+        await this.releaseTaskRepo.update(task.id, {
+          taskStatus: TaskStatus.AWAITING_CALLBACK
+        });
+        console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for manual AAB build`);
+        return 'AWAITING_MANUAL_BUILD';
+      }
+
+      // ANDROID ready - consume upload and create build record
+      const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'PRE_RELEASE');
+      const BuildModel = this.sequelize.models.Build;
+      
+      const androidUpload = uploads.find(u => u.platform === 'ANDROID');
+      if (androidUpload && BuildModel) {
+        // Mark upload as used
+        await this.releaseUploadsRepo.markAsUsed(androidUpload.id, task.id, null);
+        
+        // Extract filename from artifactPath for display
+        const uploadFileName = androidUpload.artifactPath.split('/').pop() ?? androidUpload.artifactPath;
+
+        // Create build record from manual upload
+        const buildId = uuidv4();
+        const versionName = getReleaseVersion(release);
+        await BuildModel.create({
+          id: buildId,
+          tenantId: tenantId,
+          buildNumber: uploadFileName,
+          artifactVersionName: versionName,
+          artifactPath: androidUpload.artifactPath,
+          releaseId: context.releaseId,
+          platform: 'ANDROID',
+          storeType: 'PLAY_STORE',
+          regressionId: null,
+          buildUploadStatus: 'UPLOADED',
+          buildType: 'MANUAL',
+          buildStage: 'PRE_RELEASE',
+          queueLocation: null,
+          workflowStatus: null
+        });
+
+        console.log(`[TaskExecutor] Consumed manual upload for ANDROID (AAB): ${uploadFileName}`);
+        return uploadFileName;
+      }
+    }
+
+    // ========================================================================
+    // CI/CD MODE: Trigger CI/CD pipeline
+    // ========================================================================
+    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
+    const workflowId = releaseConfig.ciConfigId;
+
+    // CI/CD workflow must be configured if this task exists
+    if (!workflowId) {
+      throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
+    }
+
+    // Get the appropriate workflow service
+    const workflowService = await this.getWorkflowService(workflowId);
+
+    // Create AAB build for Android platform
+    const result = await workflowService.trigger(tenantId, {
+      workflowId: workflowId,
+      workflowType: WorkflowType.AAB_BUILD,
+      platform: 'ANDROID',
+      jobParameters: {
+        platform: 'ANDROID',
+        version: androidMapping?.version || getReleaseVersion(release),
+        branch: release.branch || `release/v${getReleaseVersion(release)}`,
+        buildType: 'aab'
+      }
+    });
+
+    // Category A: Return raw string
+    return result.queueLocation || `aab-${Date.now()}`;
+  }
+
+  /**
+   * Execute SEND_PRE_RELEASE_MESSAGE task
+   * 
+   * Sends pre-release notification (approval request message).
    */
   /**
-   * Execute SEND_POST_REGRESSION_MESSAGE task (Category B)
+   * Execute SEND_PRE_RELEASE_MESSAGE task (Category B)
    * 
-   * Sends post-regression notification.
+   * Sends pre-release notification.
    * Returns: Object with message details
    */
-  private async executeSendPostRegressionMessage(
+  private async executeSendPreReleaseMessage(
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
@@ -1637,16 +1838,16 @@ export class TaskExecutor {
 
     // If comms not configured, mark task as SKIPPED (not FAILED)
     if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] SEND_POST_REGRESSION_MESSAGE: comms not configured, marking as SKIPPED`);
+      console.log(`[TaskExecutor] SEND_PRE_RELEASE_MESSAGE: comms not configured, marking as SKIPPED`);
       await this.releaseTaskRepo.update(task.id, {
         taskStatus: TaskStatus.SKIPPED
       });
       return { skipped: true, reason: 'comms_not_configured' };
     }
 
-    // TODO: Define Task enum value for post-regression message in messaging.interface.ts
+    // TODO: Define Task enum value for pre-release message in messaging.interface.ts
     // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] SEND_POST_REGRESSION_MESSAGE: messaging not implemented, marking as SKIPPED`);
+    console.log(`[TaskExecutor] SEND_PRE_RELEASE_MESSAGE: messaging not implemented, marking as SKIPPED`);
     await this.releaseTaskRepo.update(task.id, {
       taskStatus: TaskStatus.SKIPPED
     });
