@@ -159,9 +159,20 @@ export const parseGitHubWorkflowUrl = (url: string): { owner: string; repo: stri
     if (parts.length >= 5 && parts[2] === 'blob') {
       const owner = parts[0];
       const repo = parts[1];
-      const ref = parts[3];
-      const path = parts.slice(4).join('/');
-      return { owner, repo, path, ref };
+      // Find where the path starts (usually .github/workflows/...)
+      // The ref is everything between 'blob' and the path start
+      const githubIndex = parts.indexOf('.github');
+      if (githubIndex > 3) {
+        // Branch name contains slashes (e.g., feat/frontend_integration_changes)
+        const ref = parts.slice(3, githubIndex).join('/');
+        const path = parts.slice(githubIndex).join('/');
+        return { owner, repo, path, ref };
+      } else if (parts.length >= 5) {
+        // Simple branch name (no slashes)
+        const ref = parts[3];
+        const path = parts.slice(4).join('/');
+        return { owner, repo, path, ref };
+      }
     }
     const idx = parts.indexOf('workflows');
     if (parts.length >= 4 && parts[2] === 'actions' && idx > -1) {

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { HTTP_STATUS, RESPONSE_STATUS } from "~constants/http";
-import { ERROR_MESSAGES } from "../constants";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
 import { getStorage } from "../../../../storage/storage-instance";
 import { normalizePlatform } from "../../../../services/integrations/ci-cd/utils/cicd.utils";
 import { formatErrorMessage } from "~utils/error.utils";
@@ -16,6 +16,11 @@ const getCICDIntegrationRepository = () => {
 const getWorkflowRepository = () => {
   const storage = getStorage();
   return (storage as any).cicdWorkflowRepository;
+};
+
+const getConfigRepository = () => {
+  const storage = getStorage();
+  return (storage as any).cicdConfigRepository;
 };
 
 export const createWorkflow = async (req: Request, res: Response): Promise<any> => {
@@ -130,19 +135,39 @@ export const updateWorkflow = async (req: Request, res: Response): Promise<any> 
 
 /**
  * Delete a workflow by id.
+ * 
+ * Validates that the workflow is not referenced by any CI/CD config before deletion.
+ * If referenced, returns 400 with WORKFLOW_IN_USE_BY_CONFIG error.
  */
 export const deleteWorkflow = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
-  const id = req.params.workflowId;
+  const workflowId = req.params.workflowId;
   try {
     const wfRepository = getWorkflowRepository();
-    const existing = await wfRepository.findById(id);
+    const configRepository = getConfigRepository();
+
+    const existing = await wfRepository.findById(workflowId);
     const notFound = !existing || existing.tenantId !== tenantId;
     if (notFound) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.WORKFLOW_NOT_FOUND });
     }
-    await wfRepository.delete(id);
-    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, message: 'Workflow deleted' });
+
+    // Check if workflow is referenced by any config
+    const configs = await configRepository.findByTenant(tenantId);
+    const isWorkflowReferenced = configs.some((config: { workflowIds: string[] }) => {
+      const workflowIds = Array.isArray(config.workflowIds) ? config.workflowIds : [];
+      return workflowIds.includes(workflowId);
+    });
+
+    if (isWorkflowReferenced) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        success: RESPONSE_STATUS.FAILURE, 
+        error: ERROR_MESSAGES.WORKFLOW_IN_USE_BY_CONFIG 
+      });
+    }
+
+    await wfRepository.delete(workflowId);
+    return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS, message: SUCCESS_MESSAGES.WORKFLOW_DELETED });
   } catch (e: unknown) {
     const message = formatErrorMessage(e, ERROR_MESSAGES.WORKFLOW_DELETE_FAILED);
     return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: RESPONSE_STATUS.FAILURE, error: message });

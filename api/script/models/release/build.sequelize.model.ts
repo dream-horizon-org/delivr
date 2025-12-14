@@ -206,27 +206,17 @@ export const createBuildModel = (
       timestamps: true,
       underscored: false,
       indexes: [
-        { fields: ['tenantId'] },
-        { fields: ['releaseId'] },
-        { fields: ['platform'] },
-        { fields: ['storeType'] },
-        { fields: ['regressionId'] },
-        { fields: ['taskId'] },
-        { fields: ['workflowStatus'] },
-        { fields: ['buildStage'] },
-        { 
-          fields: ['regressionId', 'platform'], 
-          name: 'idx_builds_regression_platform'
-        },
-        {
-          fields: ['taskId', 'platform'],
-          name: 'idx_builds_task_platform'
-        },
-        {
-          fields: ['taskId', 'queueLocation'],
-          unique: true,
-          name: 'idx_builds_task_queue_unique'
-        }
+        // Based on actual repository query patterns (verified from build.repository.ts):
+        // - findByReleaseId, findByReleaseAndPlatform, findCiCdBuildsByReleaseAndWorkflowStatus
+        { fields: ['releaseId'], name: 'idx_builds_release' },
+        // - findByRegressionId, findByRegressionAndPlatform
+        { fields: ['regressionId'], name: 'idx_builds_regression' },
+        // - findByTaskId, findByTaskAndPlatform, findPendingByTaskId, findFailedByTaskId
+        { fields: ['taskId'], name: 'idx_builds_task' },
+        // - findByCiRunId (callback lookup)
+        { fields: ['ciRunId'], name: 'idx_builds_ci_run_id' },
+        // - findByTaskAndQueueLocation (unique callback identifier)
+        { fields: ['taskId', 'queueLocation'], unique: true, name: 'idx_builds_task_queue_unique' }
       ]
     }
   ) as BuildModelType;

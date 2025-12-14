@@ -74,9 +74,12 @@ export const updateIntegrationById = async (req: Request, res: Response): Promis
 /**
  * Delete a CI/CD integration by id.
  *
+ * Validates that no workflows reference this integration before deletion.
+ * If workflows exist, returns 400 with INTEGRATION_HAS_WORKFLOWS error.
+ *
  * @param req Express request (expects params.tenantId, params.integrationId)
  * @param res Express response
- * @returns 200 on success or 404 if not found/mismatched tenant
+ * @returns 200 on success, 400 if workflows exist, or 404 if not found/mismatched tenant
  */
 export const deleteIntegrationById = async (req: Request, res: Response): Promise<any> => {
   const tenantId = req.params.tenantId;
@@ -84,11 +87,24 @@ export const deleteIntegrationById = async (req: Request, res: Response): Promis
   try {
     const storage = getStorage();
     const repo = (storage as any).cicdIntegrationRepository as CICDIntegrationRepository;
+    const workflowRepo = (storage as any).cicdWorkflowRepository;
+
     const existing = await repo.findById(integrationId);
     const notFoundOrMismatch = !existing || existing.tenantId !== tenantId;
     if (notFoundOrMismatch) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({ success: RESPONSE_STATUS.FAILURE, error: ERROR_MESSAGES.INTEGRATION_NOT_FOUND });
     }
+
+    // Check if any workflows reference this integration
+    const workflows = await workflowRepo.findAll({ integrationId });
+    const hasWorkflows = workflows.length > 0;
+    if (hasWorkflows) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ 
+        success: RESPONSE_STATUS.FAILURE, 
+        error: ERROR_MESSAGES.INTEGRATION_HAS_WORKFLOWS 
+      });
+    }
+
     await repo.delete(integrationId);
     return res.status(HTTP_STATUS.OK).json({ success: RESPONSE_STATUS.SUCCESS });
   } catch (e: unknown) {
