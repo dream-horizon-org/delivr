@@ -36,7 +36,7 @@ export interface Task {
   externalId: string | null;               // External system ID (e.g., Jira ticket ID)
   externalData: Record<string, unknown> | null; // Maps to backend's `metadata` and `output`
   builds?: BuildInfo[];                    // Builds associated with this task (for Kickoff/Regression/Post-Regression)
-  branch: string | null;
+  branch?: string | null;                  // Branch name (optional, only for branch-related tasks)
   createdAt: string;                       // ISO 8601
   updatedAt: string;                       // ISO 8601
 }

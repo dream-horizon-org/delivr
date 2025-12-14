@@ -4,7 +4,7 @@
  */
 
 import { RELEASE_TYPE, RELEASE_STATUS, TASK_STATUS, MANTINE_COLORS, RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 /**
  * Format date for display in release cards

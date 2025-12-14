@@ -60,9 +60,9 @@ export default function ReleaseDetailsPage() {
     }
   }, [currentStage]);
 
-  // Console log for current stage tasks (single console.log as requested)
+  // Debug logging for development only
   useEffect(() => {
-    if (!release || !selectedStage) return;
+    if (process.env.NODE_ENV !== 'development' || !release || !selectedStage) return;
 
     let stageData;
     if (selectedStage === TaskStage.KICKOFF) {
@@ -74,7 +74,7 @@ export default function ReleaseDetailsPage() {
     }
 
     if (stageData?.tasks) {
-      console.log(`[Release Process] Current Stage: ${selectedStage} | Release: ${release.branch || releaseId} | Tasks:`, stageData.tasks.map((t: any) => ({
+      console.log(`[Release Process] Current Stage: ${selectedStage} | Release: ${release.branch || releaseId} | Tasks:`, stageData.tasks.map((t) => ({
         id: t.id,
         taskType: t.taskType,
         taskStatus: t.taskStatus,

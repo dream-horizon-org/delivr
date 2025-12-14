@@ -12,7 +12,7 @@
 import { useQuery, useQueryClient } from 'react-query';
 import { useEffect, useMemo } from 'react';
 import { apiGet } from '~/utils/api-client';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { getReleaseActiveStatus } from '~/utils/release-utils';
 import { RELEASE_ACTIVE_STATUS } from '~/constants/release-ui';
 

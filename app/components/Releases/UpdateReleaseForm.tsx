@@ -13,7 +13,7 @@ import { RELEASE_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
 import type { UpdateReleaseState, UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { convertUpdateStateToBackendRequest, extractDateAndTime } from '~/utils/release-creation-converter';
 import { RELEASE_TYPES } from '~/types/release-config-constants';
 import { DateTimeInput } from '~/components/ReleaseCreation/DateTimeInput';

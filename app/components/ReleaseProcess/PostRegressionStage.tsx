@@ -4,30 +4,21 @@
  * Similar to KickoffStage but with enhanced TaskCards for build, approval, and promotion tasks
  */
 
-import { Alert, Button, Card, Group, Select, Stack, Text } from '@mantine/core';
-import { IconRocket } from '@tabler/icons-react';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Stack } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExtraCommitsWarning } from '~/components/distribution';
-import { ManualApprovalDialog } from '~/components/distribution';
-import {
-  ERROR_MESSAGES,
-  POST_REGRESSION_LABELS,
-  TASK_STATUS_LABELS,
-} from '~/constants/release-process-ui';
-import { DIALOG_TITLES } from '~/constants/distribution.constants';
-import { usePostRegressionStage, useCompletePostRegression } from '~/hooks/useReleaseProcess';
+import { usePostRegressionStage } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
-import { filterAndSortTasks } from '~/utils/task-filtering';
 import type { Task } from '~/types/release-process.types';
-import { TaskStatus, TaskType } from '~/types/release-process-enums';
-import { getApiErrorMessage } from '~/utils/api-client';
-import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { TaskStatus } from '~/types/release-process-enums';
+import { validateStageProps } from '~/utils/prop-validation';
 import { apiGet } from '~/utils/api-client';
+import { handleStageError } from '~/utils/stage-error-handling';
 import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution.types';
-import { ApproverRole } from '~/types/distribution.types';
-import { PMApprovalStatus } from '~/components/distribution';
-import { TaskCard } from './TaskCard';
+import { StageErrorBoundary } from './shared/StageErrorBoundary';
+import { PostRegressionTasksList } from './stages/PostRegressionTasksList';
+import { PostRegressionApprovalSection } from './stages/PostRegressionApprovalSection';
+import { PostRegressionPromotionCard } from './stages/PostRegressionPromotionCard';
 
 interface PostRegressionStageProps {
   tenantId: string;
@@ -36,12 +27,13 @@ interface PostRegressionStageProps {
 }
 
 export function PostRegressionStage({ tenantId, releaseId, className }: PostRegressionStageProps) {
+  // Validate required props
+  validateStageProps({ tenantId, releaseId }, 'PostRegressionStage');
+
   const { data, isLoading, error, refetch } = usePostRegressionStage(tenantId, releaseId);
-  const completeMutation = useCompletePostRegression(tenantId, releaseId);
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   
   // Use shared task handlers
-  const { handleRetry, handleViewDetails } = useTaskHandlers({
+  const { handleRetry } = useTaskHandlers({
     tenantId,
     releaseId,
     refetch,
@@ -73,6 +65,11 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
         }
       } catch (error) {
         // Error handled silently - components will show default state
+        // Use handleStageError with showToast: false for optional data
+        handleStageError(error, 'fetch extra commits and PM status', {
+          showToast: false,
+          logError: true,
+        });
       } finally {
         setIsLoadingExtraData(false);
       }
@@ -85,11 +82,6 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
 
   // Extract tasks from data
   const tasks = data?.tasks || [];
-
-  // Sort and filter tasks by status
-  const filteredTasks = useMemo(() => {
-    return filterAndSortTasks(tasks, statusFilter);
-  }, [tasks, statusFilter]);
 
   // Calculate promotion readiness - all POST_REGRESSION tasks must be completed
   const canPromote = useMemo(() => {
@@ -110,93 +102,20 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
   }, [tasks, pmStatus]);
 
 
-  const handleApprove = useCallback(
-    async (comments?: string) => {
-      try {
-        // Call manual approval API
-        const response = await fetch(`/api/v1/releases/${releaseId}/approve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ comments }),
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to approve release');
-        }
-        
-        showSuccessToast({ message: 'Release approved successfully' });
-        setShowApprovalDialog(false);
-        // Refetch PM status to update approval state
-        const pmStatusResult = await apiGet<PMStatusResponse>(`/api/v1/releases/${releaseId}/pm-status`);
-        if (pmStatusResult.success && pmStatusResult.data) {
-          setPmStatus(pmStatusResult.data.data);
-        }
-        await refetch();
-      } catch (error) {
-        const errorMessage = getApiErrorMessage(error, 'Failed to approve release');
-        showErrorToast({ message: errorMessage });
-      }
-    },
-    [releaseId, refetch]
-  );
-
-  const handleCompletePostRegression = useCallback(async () => {
-    try {
-      await completeMutation.mutateAsync();
-      showSuccessToast({ message: 'Post-regression stage completed successfully' });
-      await refetch();
-      // Navigate to distribution or next stage
-    } catch (error) {
-      const errorMessage = getApiErrorMessage(error, 'Failed to complete post-regression stage');
-      showErrorToast({ message: errorMessage });
-    }
-  }, [completeMutation, refetch]);
 
   const handleAcknowledgeExtraCommits = useCallback(() => {
     // Acknowledge extra commits (client-side only for now)
     // TODO: Implement acknowledgment API call when available
   }, []);
 
-  if (isLoading) {
-    return (
-      <Stack gap="md" className={className}>
-        <Text c="dimmed">Loading post-regression stage...</Text>
-      </Stack>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert color="red" icon={<IconInfoCircle size={16} />} title="Error">
-        {getApiErrorMessage(error, ERROR_MESSAGES.FAILED_TO_LOAD_STAGE)}
-      </Alert>
-    );
-  }
-
-  if (!data) {
-    return (
-      <Alert color="yellow" icon={<IconInfoCircle size={16} />} title="No Data">
-        No post-regression stage data available
-      </Alert>
-    );
-  }
-
-  const hasTasks = tasks && tasks.length > 0;
-
-  // Status filter options
-  const statusOptions = [
-    { value: '', label: 'All Statuses' },
-    { value: TaskStatus.PENDING, label: TASK_STATUS_LABELS.PENDING },
-    { value: TaskStatus.IN_PROGRESS, label: TASK_STATUS_LABELS.IN_PROGRESS },
-    { value: TaskStatus.AWAITING_CALLBACK, label: TASK_STATUS_LABELS.AWAITING_CALLBACK },
-    { value: TaskStatus.AWAITING_MANUAL_BUILD, label: TASK_STATUS_LABELS.AWAITING_MANUAL_BUILD },
-    { value: TaskStatus.COMPLETED, label: TASK_STATUS_LABELS.COMPLETED },
-    { value: TaskStatus.FAILED, label: TASK_STATUS_LABELS.FAILED },
-    { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },
-  ];
-
   return (
-    <Stack gap="lg" className={className}>
+    <StageErrorBoundary
+      isLoading={isLoading}
+      error={error}
+      data={data}
+      stageName="post-regression stage"
+    >
+      <Stack gap="lg" className={className}>
       {/* Extra Commits Warning - above tasks */}
       {extraCommits?.hasExtraCommits && (
         <ExtraCommitsWarning
@@ -206,122 +125,33 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
         />
       )}
 
-      {/* Tasks Header with Filter */}
-      {hasTasks && (
-        <Group justify="space-between" align="center">
-          <Text fw={600} size="lg">
-            Tasks
-          </Text>
-          <Select
-            placeholder="Filter by status"
-            data={statusOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            clearable
-            style={{ width: '200px' }}
-          />
-        </Group>
-      )}
-
-      {/* Tasks - Full width, stacked */}
-      {hasTasks ? (
-        filteredTasks.length > 0 ? (
-          <Stack gap="md">
-            {filteredTasks.map((task: Task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                tenantId={tenantId}
-                releaseId={releaseId}
-                onRetry={handleRetry}
-                onViewDetails={handleViewDetails}
-              />
-            ))}
-          </Stack>
-        ) : (
-          <Alert color="gray" variant="light">
-            No tasks match the selected filter
-          </Alert>
-        )
-      ) : (
-        <Alert color="gray" variant="light">
-          {POST_REGRESSION_LABELS.NO_TASKS || 'No tasks available'}
-        </Alert>
-      )}
-
-      {/* PM Approval Section - Separate action, not a task */}
-      {pmStatus && (
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
-          <Stack gap="md">
-            <Group justify="space-between" align="center">
-              <div>
-                <Text fw={600} size="lg" mb="xs">
-                  Project Management Approval
-                </Text>
-                <Text size="sm" c="dimmed">
-                  {pmStatus.approved 
-                    ? 'All tickets approved. Ready to proceed.'
-                    : 'Waiting for project management approval.'}
-                </Text>
-              </div>
-              {!pmStatus.approved && (
-                <Button
-                  onClick={() => {
-                    setShowApprovalDialog(true);
-                  }}
-                >
-                  Request Approval
-                </Button>
-              )}
-            </Group>
-            <PMApprovalStatus
-              pmStatus={pmStatus}
-              isApproving={false}
-              onApproveRequested={() => {
-                setShowApprovalDialog(true);
-              }}
-            />
-          </Stack>
-        </Card>
-      )}
-
-      {/* Promotion Card - Complete Post-Regression */}
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Group justify="space-between">
-          <div>
-            <Text fw={600} size="lg" mb="xs">
-              Ready for Distribution?
-            </Text>
-            <Text size="sm" c="dimmed">
-              {canPromote
-                ? 'All requirements met. You can proceed to distribution.'
-                : 'Complete all tasks first.'}
-            </Text>
-          </div>
-          <Button
-            size="lg"
-            disabled={!canPromote}
-            onClick={handleCompletePostRegression}
-            leftSection={<IconRocket size={18} />}
-            loading={completeMutation.isLoading}
-          >
-            Complete Post-Regression
-          </Button>
-        </Group>
-      </Card>
-
-      {/* Modals */}
-      <ManualApprovalDialog
-        opened={showApprovalDialog}
+      {/* Tasks List */}
+      <PostRegressionTasksList
+        tasks={tasks}
+        tenantId={tenantId}
         releaseId={releaseId}
-        approverRole={pmStatus?.approver || ApproverRole.RELEASE_LEAD}
-        isApproving={false}
-        onApprove={handleApprove}
-        onClose={() => {
-          setShowApprovalDialog(false);
-        }}
+        onRetry={handleRetry}
       />
-    </Stack>
+
+      {/* PM Approval Section */}
+      <PostRegressionApprovalSection
+        releaseId={releaseId}
+        pmStatus={pmStatus}
+        showApprovalDialog={showApprovalDialog}
+        onShowApprovalDialog={setShowApprovalDialog}
+        onPmStatusUpdate={setPmStatus}
+        onRefetch={refetch}
+      />
+
+      {/* Promotion Card */}
+      <PostRegressionPromotionCard
+        tenantId={tenantId}
+        releaseId={releaseId}
+        canPromote={canPromote}
+        onComplete={refetch}
+      />
+      </Stack>
+    </StageErrorBoundary>
   );
 }
 

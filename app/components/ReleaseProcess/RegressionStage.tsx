@@ -5,7 +5,6 @@
  */
 
 import {
-  Alert,
   Button,
   Card,
   Group,
@@ -13,11 +12,8 @@ import {
   Text,
   Anchor,
 } from '@mantine/core';
-import { IconCheck, IconInfoCircle, IconRocket, IconX } from '@tabler/icons-react';
+import { IconCheck, IconRocket, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
-import {
-  ERROR_MESSAGES,
-} from '~/constants/release-process-ui';
 import {
   useRegressionStage,
   useApproveRegression,
@@ -25,9 +21,10 @@ import {
   useCherryPickStatus,
 } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
-import type { Task } from '~/types/release-process.types';
-import { getApiErrorMessage } from '~/utils/api-client';
+import { validateStageProps } from '~/utils/prop-validation';
+import { handleStageError } from '~/utils/stage-error-handling';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { RegressionCyclesList } from './RegressionCyclesList';
 
 interface RegressionStageProps {
@@ -37,6 +34,9 @@ interface RegressionStageProps {
 }
 
 export function RegressionStage({ tenantId, releaseId, className }: RegressionStageProps) {
+  // Validate required props
+  validateStageProps({ tenantId, releaseId }, 'RegressionStage');
+
   const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId);
   const approveMutation = useApproveRegression(tenantId, releaseId);
 
@@ -45,7 +45,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   const cherryPickStatus = useCherryPickStatus(tenantId, releaseId);
 
   // Use shared task handlers
-  const { handleRetry, handleViewDetails } = useTaskHandlers({
+  const { handleRetry } = useTaskHandlers({
     tenantId,
     releaseId,
     refetch,
@@ -76,8 +76,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
       showSuccessToast({ message: 'Regression stage approved successfully' });
       await refetch();
     } catch (error) {
-      const errorMessage = getApiErrorMessage(error, 'Failed to approve regression stage');
-      showErrorToast({ message: errorMessage });
+      handleStageError(error, 'approve regression stage');
     }
   }, [approvalStatus, approveMutation, refetch]);
 
@@ -89,32 +88,14 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   // Get approval requirements status
   const approvalRequirements = approvalStatus?.approvalRequirements;
 
-  if (isLoading) {
-    return (
-      <Stack gap="md" className={className}>
-        <Text c="dimmed">Loading regression stage...</Text>
-      </Stack>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert color="red" icon={<IconInfoCircle size={16} />} title="Error">
-        {getApiErrorMessage(error, ERROR_MESSAGES.FAILED_TO_LOAD_STAGE)}
-      </Alert>
-    );
-  }
-
-  if (!data) {
-    return (
-      <Alert color="yellow" icon={<IconInfoCircle size={16} />} title="No Data">
-        No regression stage data available
-      </Alert>
-    );
-  }
-
   return (
-    <Stack gap="lg" className={className}>
+    <StageErrorBoundary
+      isLoading={isLoading}
+      error={error}
+      data={data}
+      stageName="regression stage"
+    >
+      <Stack gap="lg" className={className}>
       {/* Regression Cycles List */}
       <RegressionCyclesList
         cycles={cycles}
@@ -125,7 +106,6 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
         tenantId={tenantId}
         releaseId={releaseId}
         onRetryTask={handleRetry}
-        onViewTaskDetails={handleViewDetails}
       />
 
       {/* Approval Section */}
@@ -240,7 +220,8 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
           </Stack>
         </Card>
       )}
-    </Stack>
+      </Stack>
+    </StageErrorBoundary>
   );
 }
 

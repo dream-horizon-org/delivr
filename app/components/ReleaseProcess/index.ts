@@ -19,4 +19,5 @@ export { ReleaseProcessActionsSidebar } from './ReleaseProcessActionsSidebar';
 export { ReleaseProcessHeader } from './ReleaseProcessHeader';
 export { ReleaseProcessSidebar } from './ReleaseProcessSidebar';
 export { TaskCard } from './TaskCard';
+export * from './task-details';
 

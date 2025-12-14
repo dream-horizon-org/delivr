@@ -101,12 +101,95 @@ const Platform = {
   IOS: 'IOS',
 };
 
+// Helper function to generate task-specific externalData based on taskType
+function generateTaskExternalData(taskType, status, options = {}) {
+  if (status !== TaskStatus.COMPLETED) {
+    return status === TaskStatus.FAILED ? { error: `Failed ${taskType}` } : null;
+  }
+
+  const branch = options.branch || `release/v1.0.0`;
+  const releaseId = options.releaseId || 'release-123';
+  const cycleIndex = options.cycleIndex || 1;
+  const platforms = options.platforms || ['ANDROID', 'IOS'];
+
+  switch (taskType) {
+    case TaskType.FORK_BRANCH:
+      return {
+        branchName: branch,
+        branchUrl: `https://github.com/org/repo/tree/${branch}`,
+      };
+
+    case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
+      return {
+        projectManagement: {
+          platforms: platforms.map(platform => ({
+            platform: platform,
+            ticketUrl: `https://company.atlassian.net/browse/JIRA-${releaseId.slice(0, 8).toUpperCase()}-${platform}`,
+          })),
+        },
+      };
+
+    case TaskType.CREATE_TEST_SUITE:
+      return {
+        testManagement: {
+          platforms: platforms.map(platform => ({
+            platform: platform,
+            runId: `RUN-${platform}-001`,
+            runUrl: `https://testmanagement.company.com/runs/RUN-${platform}-001`,
+          })),
+        },
+      };
+
+    case TaskType.RESET_TEST_SUITE:
+      return {
+        testManagement: {
+          platforms: platforms.map(platform => ({
+            platform: platform,
+            runId: `RUN-${platform}-00${cycleIndex + 1}`,
+            runUrl: `https://testmanagement.company.com/runs/RUN-${platform}-00${cycleIndex + 1}`,
+          })),
+        },
+      };
+
+    case TaskType.CREATE_RC_TAG:
+      return {
+        tagName: `v1.0.0-RC${cycleIndex}`,
+        tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0-RC${cycleIndex}`,
+      };
+
+    case TaskType.CREATE_RELEASE_NOTES:
+      return {
+        notesUrl: `https://docs.company.com/releases/v1.0.0-rc${cycleIndex}`,
+      };
+
+    case TaskType.CREATE_RELEASE_TAG:
+      return {
+        tagName: `v1.0.0`,
+        tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0`,
+      };
+
+    case TaskType.CREATE_FINAL_RELEASE_NOTES:
+      return {
+        notesUrl: `https://docs.company.com/releases/v1.0.0`,
+      };
+
+    default:
+      return null;
+  }
+}
+
 // Helper functions for creating entities
 function createTask(releaseId, taskType, stage, status, options = {}) {
   const taskId = `task_${releaseId.slice(0, 8)}_${taskType.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const now = new Date().toISOString();
   const createdAt = options.createdAt || now;
   const updatedAt = options.updatedAt || now;
+  
+  // Generate externalData based on task type and status
+  const externalData = generateTaskExternalData(taskType, status, {
+    ...options,
+    releaseId: releaseId,
+  });
   
   return {
     id: taskId,
@@ -123,9 +206,9 @@ function createTask(releaseId, taskType, stage, status, options = {}) {
     isReleaseKickOffTask: stage === TaskStage.KICKOFF,
     isRegressionSubTasks: stage === TaskStage.REGRESSION,
     identifier: null,
-    externalId: options.externalId || null,
-    externalData: options.externalData || {},
-    branch: options.branch || null,
+    externalId: options.externalId || (taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET ? `JIRA-${releaseId.slice(0, 8).toUpperCase()}` : taskType === TaskType.CREATE_TEST_SUITE ? `TEST-SUITE-${releaseId.slice(0, 8).toUpperCase()}` : null),
+    externalData: externalData,
+    branch: options.branch || (taskType === TaskType.FORK_BRANCH && status === TaskStatus.COMPLETED ? `release/v1.0.0` : null),
     createdAt: createdAt,
     updatedAt: updatedAt,
   };
@@ -1702,6 +1785,8 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
       tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.KICKOFF, TaskStatus[status], {
         createdAt,
         updatedAt,
+        branch: config.branch || null,
+        platforms: config.platforms || ['ANDROID', 'IOS'],
       }));
     });
   }
@@ -1724,11 +1809,9 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
       const taskOptions = {
         createdAt,
         updatedAt,
+        branch: config.branch || null,
+        platforms: config.platforms || ['ANDROID', 'IOS'],
       };
-      
-      if (status === 'FAILED') {
-        taskOptions.externalData = { error: `Failed ${taskType}` };
-      }
       
       tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.KICKOFF, TaskStatus[status], taskOptions));
     });
@@ -1761,11 +1844,9 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
           createdAt,
           updatedAt,
           regressionId: cycle.id,
+          cycleIndex: cycleIdx + 1,
+          platforms: config.platforms || ['ANDROID', 'IOS'],
         };
-        
-        if (status === 'FAILED') {
-          taskOptions.externalData = { error: `Failed ${taskType}` };
-        }
         
         tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.REGRESSION, TaskStatus[status], taskOptions));
       });
@@ -1796,6 +1877,8 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
           createdAt,
           updatedAt,
           regressionId: cycle.id,
+          cycleIndex: cycles.indexOf(cycle) + 1,
+          platforms: config.platforms || ['ANDROID', 'IOS'],
         }));
       });
     });
@@ -1828,11 +1911,8 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
       const taskOptions = {
         createdAt,
         updatedAt,
+        branch: config.branch || null,
       };
-      
-      if (status === 'FAILED') {
-        taskOptions.externalData = { error: `Failed ${taskType}` };
-      }
       
       tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.POST_REGRESSION, TaskStatus[status], taskOptions));
     });

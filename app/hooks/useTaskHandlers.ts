@@ -5,7 +5,6 @@
 
 import { useCallback } from 'react';
 import { useRetryTask } from './useReleaseProcess';
-import type { Task } from '~/types/release-process.types';
 import { ERROR_MESSAGES } from '~/constants/release-process-ui';
 import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
@@ -33,11 +32,6 @@ export function useTaskHandlers({ tenantId, releaseId, refetch }: UseTaskHandler
     [retryMutation, refetch]
   );
 
-  const handleViewDetails = useCallback((task: Task) => {
-    // TODO: Open task details modal
-    // For now, this is a placeholder
-  }, []);
-
-  return { handleRetry, handleViewDetails };
+  return { handleRetry };
 }
 

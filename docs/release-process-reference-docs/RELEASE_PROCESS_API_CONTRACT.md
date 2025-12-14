@@ -14,12 +14,14 @@ API contract for the release process that starts after a release is created. The
 
 ### Example:
 ```typescript
-// ✅ CORRECT - Using primary key
-const response = await apiGet(`/api/v1/tenants/${tenantId}/releases/${release.id}/tasks`);
+// ✅ CORRECT - Using primary key with query parameter
+const response = await apiGet(`/api/v1/tenants/${tenantId}/releases/${release.id}/tasks?stage=KICKOFF`);
 
 // ❌ WRONG - Using user-facing identifier
-const response = await apiGet(`/api/v1/tenants/${tenantId}/releases/${release.releaseId}/tasks`);
+const response = await apiGet(`/api/v1/tenants/${tenantId}/releases/${release.releaseId}/tasks?stage=KICKOFF`);
 ```
+
+**Note:** Stage APIs use query parameter pattern: `/tasks?stage={stage}` (not `/stages/{stage}`)
 
 **All API endpoints expect `release.id` (the primary key UUID) in the `{releaseId}` path parameter.**
 
@@ -30,29 +32,23 @@ const response = await apiGet(`/api/v1/tenants/${tenantId}/releases/${release.re
 ### Task
 ```typescript
 interface Task {
-  taskId: string;
+  id: string;                              // Primary key (UUID)
+  taskId: string;                          // Unique task identifier
   taskType: TaskType;
-  taskStage: TaskStage;
-  status: TaskStatus;
-  metadata: TaskMetadata;
-  output?: TaskOutput;
-  builds?: BuildInfo[]; // Builds associated with this task (for Kickoff/Regression/Post-Regression build tasks)
-  createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
-}
-```
-
-### TaskMetadata
-```typescript
-interface TaskMetadata {
-  [key: string]: any; // Flexible metadata per task type
-}
-```
-
-### TaskOutput
-```typescript
-interface TaskOutput {
-  [key: string]: any; // Task-specific output data
+  stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION';
+  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'AWAITING_MANUAL_BUILD' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+  taskConclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
+  accountId: string | null;
+  regressionId: string | null;             // FK to regression cycle (if regression task)
+  isReleaseKickOffTask: boolean;
+  isRegressionSubTasks: boolean;
+  identifier: string | null;
+  externalId: string | null;               // External system ID (e.g., Jira ticket ID)
+  externalData: Record<string, unknown> | null; // Flexible metadata per task type (maps to backend's metadata and output)
+  branch: string | null;
+  builds?: BuildInfo[];                    // Builds associated with this task (for Kickoff/Regression/Post-Regression build tasks)
+  createdAt: string;                       // ISO 8601
+  updatedAt: string;                       // ISO 8601
 }
 ```
 
@@ -214,39 +210,9 @@ interface BuildInfo {
 
 **Response:**
 ```typescript
-interface ReleaseDetailsResponse {
-  releaseId: string;
-  branch: string;
-  baseBranch: string;
-  releaseType: string;
-  status: ReleaseStatus; // Backend status enum
-  currentActiveStage: TaskStage | null;
-  currentRegressionSlot?: {
-    slotId: string;
-    slotIndex: number;
-    status: string;
-  };
-  kickOffDate: string; // ISO 8601
-  targetReleaseDate: string; // ISO 8601
-  releaseDate?: string; // ISO 8601
-  platformTargets: Array<{
-    platform: string;
-    version: string;
-  }>;
-  tasks: Task[]; // All tasks across all stages
-  builds?: Array<{
-    buildId: string;
-    platform: string;
-    stage: TaskStage;
-    status: string;
-  }>; // All builds for this release
-  regressionSlots?: Array<{
-    slotId: string;
-    slotIndex: number;
-    status: string;
-  }>; // All regression slots
-  createdAt: string;
-  updatedAt: string;
+interface GetReleaseDetailsResponse {
+  success: true;
+  release: ReleaseDetails;  // See Common Types above
 }
 ```
 
@@ -254,63 +220,58 @@ interface ReleaseDetailsResponse {
 
 ## Stage-Specific APIs
 
-### 2. Get Pre-Kickoff Stage Tasks
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/pre-kickoff`
+### 2. Get Stage Tasks
+**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/tasks?stage={stage}`
+
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
+
+**Query Parameters:**
+- `stage` (string, required): Stage filter: `KICKOFF`, `REGRESSION`, or `POST_REGRESSION`
 
 **Response:**
-```typescript
-interface StageTasksResponse {
-  stage: TaskStage.PRE_KICKOFF;
-  releaseId: string;
-  tasks: Task[];
-  stageStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-}
-```
 
-### 3. Get Kickoff Stage Tasks
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/kickoff`
+#### For KICKOFF and POST_REGRESSION stages:
 
-**Response:**
 ```typescript
 interface StageTasksResponse {
   success: true;
-  stage: TaskStage.KICKOFF;
-  releaseId: string;
-  tasks: Task[];
+  stage: 'KICKOFF' | 'POST_REGRESSION';
+  releaseId: string;                    // Release UUID (from path param)
+  tasks: Task[];                        // See Common Types
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 }
 ```
 
-**Expected Tasks:**
+**Expected Tasks for KICKOFF:**
 - `PRE_KICK_OFF_REMINDER`
 - `FORK_BRANCH`
 - `CREATE_PROJECT_MANAGEMENT_TICKET`
 - `CREATE_TEST_SUITE`
 - `TRIGGER_PRE_REGRESSION_BUILDS`
 
-**Build Information:**
+**Build Information for KICKOFF:**
 - Tasks with `taskType: TRIGGER_PRE_REGRESSION_BUILDS` will include `builds: BuildInfo[]` when builds are available
 - Each `BuildInfo` contains `artifactPath` for download links
 - Builds are grouped by platform (ANDROID, IOS, WEB)
 
-### 4. Get Regression Stage Tasks
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/regression`
+#### For REGRESSION stage (includes additional fields):
 
-**Response:**
 ```typescript
 interface RegressionStageTasksResponse {
   success: true;
-  stage: TaskStage.REGRESSION;
-  releaseId: string;
-  tasks: Task[];
+  stage: 'REGRESSION';
+  releaseId: string;                    // Release UUID (from path param)
+  tasks: Task[];                        // See Common Types
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   
   // Regression-specific fields
   cycles: RegressionCycle[];
   currentCycle: RegressionCycle | null;
   approvalStatus: ApprovalStatus;
-  availableBuilds: BuildInfo[];
-  upcomingSlot: RegressionSlot[] | null;
+  availableBuilds: BuildInfo[];           // See Common Types
+  upcomingSlot: RegressionSlot[] | null;  // See Common Types
 }
 
 interface RegressionCycle {
@@ -338,6 +299,108 @@ interface RegressionSlot {
 }
 ```
 
+### PlatformTargetMapping
+```typescript
+interface PlatformTargetMapping {
+  id: string;
+  releaseId: string;
+  platform: 'ANDROID' | 'IOS' | 'WEB';
+  target: 'PLAY_STORE' | 'APP_STORE' | 'WEB';
+  version: string;                         // e.g., "v6.5.0"
+  projectManagementRunId: string | null;   // Jira ticket ID
+  testManagementRunId: string | null;      // Test run ID
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### CronJob
+```typescript
+interface CronJob {
+  id: string;
+  stage1Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage2Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage4Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
+  cronConfig: Record<string, unknown>;
+  upcomingRegressions: RegressionSlot[] | null;
+  cronCreatedAt: string;
+  cronStoppedAt: string | null;
+  cronCreatedByAccountId: string;
+  autoTransitionToStage2: boolean;
+  autoTransitionToStage3: boolean;
+  stageData: Record<string, unknown> | null;
+}
+```
+
+### Phase
+```typescript
+type Phase =
+  | 'NOT_STARTED'                    // Release created, not started
+  | 'KICKOFF'                        // Stage 1 running
+  | 'AWAITING_REGRESSION'            // Stage 1 complete, waiting for Stage 2 trigger
+  | 'REGRESSION'                     // Stage 2 running (current cycle active)
+  | 'REGRESSION_AWAITING_NEXT_CYCLE' // Between regression cycles
+  | 'AWAITING_POST_REGRESSION'       // Stage 2 complete, waiting for Stage 3 trigger
+  | 'POST_REGRESSION'                // Stage 3 running
+  | 'AWAITING_SUBMISSION'            // Stage 3 complete, waiting for Stage 4 trigger
+  | 'SUBMISSION'                     // Stage 4 running, release IN_PROGRESS
+  | 'SUBMITTED_PENDING_APPROVAL'     // Stage 4 running, release SUBMITTED
+  | 'COMPLETED'                      // All stages complete
+  | 'PAUSED_BY_USER'                 // User paused release
+  | 'PAUSED_BY_FAILURE'              // Task failure paused release
+  | 'ARCHIVED';                      // Release cancelled
+```
+
+### ReleaseDetails
+```typescript
+interface ReleaseDetails {
+  // Primary identification
+  id: string;                              // Primary key (UUID)
+  releaseId: string;                       // User-facing release identifier (e.g., "REL-001")
+  releaseConfigId: string | null;          // FK to release configuration
+  tenantId: string;                        // Tenant UUID
+  
+  // Release metadata
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
+  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
+  releasePhase: Phase;                     // Detailed phase (see Phase type above)
+  
+  // Branch information
+  branch: string | null;                   // Release branch name (e.g., "release/v1.0.0")
+  baseBranch: string | null;               // Base branch forked from (e.g., "master")
+  baseReleaseId: string | null;            // Parent release ID (for hotfixes)
+  
+  // Dates (ISO 8601 format)
+  kickOffReminderDate: string | null;
+  kickOffDate: string | null;
+  targetReleaseDate: string | null;
+  releaseDate: string | null;              // Actual release date (populated when COMPLETED)
+  
+  // Platform targets
+  platformTargetMappings: PlatformTargetMapping[];  // See above
+  
+  // Configuration
+  hasManualBuildUpload: boolean;
+  
+  // Ownership
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  lastUpdatedByAccountId: string;
+  
+  // Timestamps
+  createdAt: string;                       // ISO 8601
+  updatedAt: string;                       // ISO 8601
+  
+  // Related data
+  cronJob?: CronJob;                       // See above
+  tasks?: Task[];                          // See above
+}
+```
+
 **Expected Tasks:**
 - `RESET_TEST_SUITE` (only for subsequent slots)
 - `CREATE_RC_TAG`
@@ -347,84 +410,40 @@ interface RegressionSlot {
 - `AUTOMATION_RUNS`
 - `SEND_REGRESSION_BUILD_MESSAGE`
 
-**Build Information:**
+**Expected Tasks for REGRESSION:**
+- `RESET_TEST_SUITE` (only for subsequent slots)
+- `CREATE_RC_TAG`
+- `CREATE_RELEASE_NOTES`
+- `TRIGGER_REGRESSION_BUILDS`
+- `TRIGGER_AUTOMATION_RUNS`
+- `AUTOMATION_RUNS`
+- `SEND_REGRESSION_BUILD_MESSAGE`
+
+**Build Information for REGRESSION:**
 - Tasks with `taskType: TRIGGER_REGRESSION_BUILDS` will include `builds: BuildInfo[]` when builds are available
 - Each `BuildInfo` contains `artifactPath` for download links
 - Builds are grouped by platform (ANDROID, IOS, WEB)
 
-### 5. Get Post-Regression (Pre-Release) Stage Tasks
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/post-regression`
+**Expected Tasks for POST_REGRESSION:**
 
-**Response:**
-```typescript
-interface StageTasksResponse {
-  success: true;
-  stage: TaskStage.POST_REGRESSION;
-  releaseId: string;
-  tasks: Task[];
-  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
-}
-```
-
-**Expected Tasks:**
 - `PRE_RELEASE_CHERRY_PICKS_REMINDER`
-- `TEST_FLIGHT_BUILD`
+- `TRIGGER_TEST_FLIGHT_BUILD`
+- `CREATE_AAB_BUILD`
 - `CREATE_RELEASE_TAG`
 - `CREATE_FINAL_RELEASE_NOTES`
 - `SEND_POST_REGRESSION_MESSAGE`
-- `ADD_L6_APPROVAL_CHECK`
+- `CHECK_PROJECT_RELEASE_APPROVAL`
 
-**Build Information:**
+**Build Information for POST_REGRESSION:**
 - **For Completed Tasks**: Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` or `CREATE_AAB_BUILD` that have `taskStatus: 'COMPLETED'` **MUST** include `builds: BuildInfo[]` array with consumed builds from the `builds` table where `taskId === task.id`
 - Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` (iOS) will include `builds: BuildInfo[]` when builds are available
   - Each iOS `BuildInfo` contains `testflightNumber` for TestFlight link generation (required for completed tasks)
-  - `storeType` will be `'TESTFLIGHT'`
   - `platform` will be `'IOS'`
 - Tasks with `taskType: CREATE_AAB_BUILD` (Android) will include `builds: BuildInfo[]` when builds are available
   - Each Android `BuildInfo` contains `internalTrackLink` for Play Store Internal Track link (required for completed tasks)
-  - `storeType` will be `'PLAY_STORE'`
   - `platform` will be `'ANDROID'`
 - Builds are grouped by platform for display
 - **Data Source**: `task.builds` contains consumed builds from `builds` table where `taskId === task.id` (NOT from staging table)
-
-### 6. Get Release Submission Stage Tasks
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/release-submission`
-
-**Response:**
-```typescript
-interface ReleaseSubmissionStageResponse {
-  stage: TaskStage.RELEASE_SUBMISSION;
-  releaseId: string;
-  tasks: Task[];
-  stageStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  availableBuilds: Array<{
-    buildId: string;
-    platform: 'IOS' | 'ANDROID';
-    version: string;
-    buildNumber: string;
-    createdAt: string;
-  }>;
-}
-```
-
-### 7. Get Release Stage Tasks
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/release`
-
-**Response:**
-```typescript
-interface ReleaseStageResponse {
-  stage: TaskStage.RELEASE;
-  releaseId: string;
-  tasks: Task[];
-  stageStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  distributionStatus: Array<{
-    platform: 'IOS' | 'ANDROID' | 'WEB';
-    status: 'SUBMITTED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'RELEASED';
-    submittedAt?: string;
-    releasedAt?: string;
-  }>;
-}
-```
 
 ---
 
@@ -480,91 +499,30 @@ interface RetryTaskResponse {
 
 ---
 
-### 9. Pause Release
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/pause`
+### 11. Approve Regression
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release`
 
-**Request:**
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release UUID (user-facing identifier, e.g., "REL-001")
+
+**Request Body:**
 ```typescript
-interface PauseReleaseRequest {
-  reason?: string;
-  pausedBy: string;
+interface ApproveRegressionStageRequest {
+  approvedBy: string;                   // Account ID of approver (required)
+  comments?: string;                    // Optional approval comments
+  forceApprove?: boolean;               // Override requirements (not recommended)
 }
 ```
 
 **Response:**
 ```typescript
-interface PauseReleaseResponse {
-  success: boolean;
-  message: string;
-  releaseId: string;
-  status: ReleaseStatus.PAUSED;
-  pausedAt: string;
-  pausedBy: string;
-}
-```
-
-### 10. Resume Release
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/resume`
-
-**Request:**
-```typescript
-interface ResumeReleaseRequest {
-  resumedBy: string;
-}
-```
-
-**Response:**
-```typescript
-interface ResumeReleaseResponse {
-  success: boolean;
-  message: string;
-  releaseId: string;
-  status: ReleaseStatus; // Previous status
-  resumedAt: string;
-  resumedBy: string;
-}
-```
-
-### 11. Trigger Pre-Release
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/post-regression/trigger`
-
-**Request:**
-```typescript
-interface TriggerPreReleaseRequest {
-  // Empty body or optional parameters
-}
-```
-
-**Response:**
-```typescript
-interface TriggerPreReleaseResponse {
-  success: boolean;
-  message: string;
-  stage: TaskStage.POST_REGRESSION;
-  tasks: Task[];
-}
-```
-
-### 12. Approve Regression
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/regression/approve`
-
-**Request:**
-```typescript
-interface ApproveRegressionRequest {
-  approvedBy: string; // Account ID of approver (required)
-  comments?: string; // Optional approval comments
-  forceApprove?: boolean; // Override requirements (not recommended)
-}
-```
-
-**Response:**
-```typescript
-interface ApproveRegressionResponse {
+interface ApproveRegressionStageResponse {
   success: true;
-  message: string; // "Regression stage approved and Post-Regression stage triggered successfully"
-  releaseId: string; // Release UUID
-  approvedAt: string; // ISO 8601 timestamp
-  approvedBy: string; // Account ID of approver
+  message: string;                      // "Regression stage approved and Post-Regression stage triggered successfully"
+  releaseId: string;                    // Release UUID
+  approvedAt: string;                   // ISO 8601 timestamp
+  approvedBy: string;                   // Account ID of approver
   nextStage: 'POST_REGRESSION';
 }
 ```
@@ -603,6 +561,52 @@ Before approval can proceed, the following requirements must be met (unless `for
 
 ---
 
+### 12. Abandon Regression Cycle
+
+> ⚠️ **DEPRIORITIZED** - This API has been deprioritized for initial release.
+
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/regression-cycles/{cycleId}/abandon`
+
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release UUID (primary key in DB)
+- `cycleId` (string, required): Regression Cycle UUID
+
+**Request Body:**
+```typescript
+interface AbandonRegressionCycleRequest {
+  abandonedBy: string;                  // Account ID of person abandoning
+  reason: string;                       // Required reason for abandoning
+}
+```
+
+**Response:**
+```typescript
+interface AbandonRegressionCycleResponse {
+  success: true;
+  message: string;
+  cycleId: string;
+  abandonedAt: string;                  // ISO 8601
+  abandonedBy: string;
+  reason: string;
+}
+```
+
+**Behavior:**
+
+1. Validates cycle exists and belongs to the release
+2. Validates cycle is in a state that can be abandoned (`IN_PROGRESS` or `NOT_STARTED`)
+3. Updates cycle status to `ABANDONED`
+4. Records abandonment metadata (reason, timestamp, who)
+
+**Notes:**
+
+- The `ABANDONED` status already exists in DB enum (`RegressionCycleStatus`)
+- Abandoning a cycle does NOT automatically start the next cycle
+- User must manually trigger the next slot or approve regression stage
+
+---
+
 ### 13. Trigger Pre-Release Completion
 **POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/post-regression/complete`
 
@@ -619,9 +623,11 @@ interface CompletePreReleaseRequest {
 **Response:**
 ```typescript
 interface CompletePreReleaseResponse {
-  success: boolean;
+  success: true;
   message: string;
-  nextStage: TaskStage.RELEASE;
+  releaseId: string;
+  completedAt: string;                  // ISO 8601
+  nextStage: 'RELEASE_SUBMISSION';
 }
 ```
 
@@ -689,136 +695,144 @@ interface ReleaseSubmissionStatusResponse {
 }
 ```
 
-### 16. Get Regression Slots
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/regression-slots`
+### 14. Get All Builds
 
-**Response:**
-```typescript
-interface RegressionSlotsResponse {
-  releaseId: string;
-  slots: Array<{
-    slotId: string;
-    slotIndex: number;
-    status: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'FAILED';
-    tag?: string;
-    commitId?: string;
-  }>;
-  currentSlotIndex: number;
-  approvalStatus: boolean;
-}
-```
+> 🚧 **IN PROGRESS** - @Devansh is working on this.
 
-### 17. Approve Regression Slot
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/regression-slots/{slotId}/approve`
-
-**Request:**
-```typescript
-interface ApproveRegressionSlotRequest {
-  approvedBy: string;
-  comments?: string;
-  forceApprove?: boolean; // Override requirements
-}
-```
-
-**Response:**
-```typescript
-interface ApproveRegressionSlotResponse {
-  success: boolean;
-  message: string;
-  slotId: string;
-  approvedAt: string;
-  approvedBy: string;
-  nextStage?: TaskStage;
-}
-```
-
-### 18. Get Builds
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/builds`
 
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release UUID (primary key in DB)
+
 **Query Parameters:**
-- `stage?: TaskStage`
-- `platform?: 'IOS' | 'ANDROID' | 'WEB'`
-- `status?: string`
+- `stage` (string, optional): Filter by build stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE`
+- `platform` (string, optional): Filter by platform: `IOS`, `ANDROID`, or `WEB`
+- `status` (string, optional): Filter by upload status: `PENDING`, `UPLOADED`, or `FAILED`
 
 **Response:**
 ```typescript
-interface BuildsResponse {
+interface GetBuildsResponse {
+  success: true;
   releaseId: string;
-  builds: Array<{
-    buildId: string;
-    platform: 'IOS' | 'ANDROID' | 'WEB';
-    stage: TaskStage;
-    buildEnvironment: 'TESTFLIGHT' | 'PR' | 'REGRESSION' | 'RELEASE';
-    status: 'PENDING' | 'TRIGGERED' | 'IN_PROGRESS' | 'WAITING' | 'SUCCESS' | 'FAILED';
-    info: {
-      queueId?: string;
-      jobId?: string;
-      artifactLink?: string;
-      buildNumber?: string;
-    };
-  }>;
+  builds: BuildInfo[];                  // See Common Types
   total: number;
 }
 ```
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/release/promote`
 
-**Request:**
-```typescript
-interface PromoteBuildRequest {
-  buildId: string;
-  platform: 'IOS' | 'ANDROID';
-  promotedBy: string; // User ID or email
-}
-```
-
-**Response:**
-```typescript
-interface PromoteBuildResponse {
-  success: boolean;
-  message: string;
-  buildId: string;
-  platform: string;
-  promotedAt: string;
-  promotedBy: string;
-}
-```
+**Notes:**
+- Returns all builds associated with the release
+- Individual build details come from task metadata in stage APIs
+- This API is for overview/aggregation across all stages
 
 ---
 
 ## Build Management APIs
 
 ### 19. Upload Manual Build
-**PUT** `/tenants/{tenantId}/releases/{releaseId}/stages/{stage}/builds/{platform}`
 
-**Path Parameters:**
-- `tenantId` (string, required): Tenant UUID
-- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
-- `stage` (string, required): Release stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE`
-- `platform` (string, required): Platform: `IOS`, `ANDROID`, or `WEB`
+Upload a build artifact manually for a specific platform during a release stage.
+
+**PUT** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/{stage}/builds/{platform}`
 
 **Description:**
+
 Used when `hasManualBuildUpload = true` on a release. This endpoint allows users to manually upload build artifacts instead of relying on CI/CD pipelines.
 
-**Request:**
-- Content-Type: `multipart/form-data`
-- Form Field: `artifact` (File, required) - Build artifact file (max 500MB)
+**Flow:**
+1. Validates upload is allowed (hasManualBuildUpload, correct stage, platform configured)
+2. Uploads artifact to S3 storage
+3. Creates/updates entry in `release_uploads` staging table
+4. Returns upload status including whether all platforms are ready
 
-**Response (200 OK):**
-```typescript
-interface BuildUploadResponse {
-  success: true;
-  data: {
-    uploadId: string;                      // UUID of the created upload record
-    platform: string;                      // Platform that was uploaded
-    stage: string;                         // Stage the upload is for
-    downloadUrl: string;                   // S3 download URL for the artifact
-    internalTrackLink: string | null;      // Internal track link (Android AAB only)
-    uploadedPlatforms: string[];            // List of platforms with uploads for this stage
-    missingPlatforms: string[];            // List of platforms still pending upload
-    allPlatformsReady: boolean;            // `true` if all required platforms have been uploaded
-  };
+**Authentication:**
+- **Required**: Yes
+- **Permission**: Tenant Owner
+
+**Path Parameters:**
+
+| Parameter   | Type   | Required | Description |
+|-------------|--------|----------|-------------|
+| `tenantId`  | string | Yes      | Unique tenant identifier |
+| `releaseId` | string | Yes      | Unique release identifier (UUID) |
+| `stage`     | string | Yes      | Release stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE` |
+| `platform`  | string | Yes      | Platform: `IOS`, `ANDROID`, or `WEB` |
+
+**Request:**
+
+#### Content-Type
+
+```
+multipart/form-data
+```
+
+#### Form Fields
+
+| Field      | Type | Required | Description |
+|------------|------|----------|-------------|
+| `artifact` | File | Yes      | Build artifact file (max 500MB) |
+
+#### cURL Example
+
+```bash
+curl -X PUT \
+  'https://api.example.com/release-management/tenants/{tenantId}/releases/{releaseId}/stages/KICK_OFF/builds/IOS' \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'artifact=@/path/to/build.ipa'
+```
+
+**Response:**
+
+#### Success Response (200 OK)
+
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "uuid-v4-upload-id",
+    "platform": "IOS",
+    "stage": "KICK_OFF",
+    "downloadUrl": "https://s3.amazonaws.com/bucket/path/to/artifact.ipa",
+    "internalTrackLink": null,
+    "uploadedPlatforms": ["IOS"],
+    "missingPlatforms": ["ANDROID", "WEB"],
+    "allPlatformsReady": false
+  }
 }
 ```
+
+#### Success Response - All Platforms Ready (200 OK)
+
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "uuid-v4-upload-id",
+    "platform": "ANDROID",
+    "stage": "KICK_OFF",
+    "downloadUrl": "https://s3.amazonaws.com/bucket/path/to/artifact.apk",
+    "internalTrackLink": "https://play.google.com/apps/internaltest/...",
+    "uploadedPlatforms": ["IOS", "ANDROID", "WEB"],
+    "missingPlatforms": [],
+    "allPlatformsReady": true
+  }
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Operation success status |
+| `data.uploadId` | string | UUID of the created upload record |
+| `data.platform` | string | Platform that was uploaded (`IOS`, `ANDROID`, `WEB`) |
+| `data.stage` | string | Stage the upload is for |
+| `data.downloadUrl` | string | S3 download URL for the artifact |
+| `data.internalTrackLink` | string \| null | Internal track link (Android AAB only) |
+| `data.uploadedPlatforms` | string[] | List of platforms with uploads for this stage |
+| `data.missingPlatforms` | string[] | List of platforms still pending upload |
+| `data.allPlatformsReady` | boolean | `true` if all required platforms have been uploaded |
 
 **Notes:**
 - Maximum file size: **500MB**
@@ -950,46 +964,182 @@ interface BuildUploadResponse {
 ---
 
 ### 20. Verify TestFlight Build
-**POST** `/tenants/{tenantId}/releases/{releaseId}/stages/{stage}/builds/ios/verify-testflight`
 
-**Path Parameters:**
-- `tenantId` (string, required): Tenant UUID
-- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
-- `stage` (string, required): Release stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE`
+Verify that an iOS build exists in Apple TestFlight and stage it for task consumption.
+
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/{stage}/builds/ios/verify-testflight`
 
 **Description:**
-Verifies an iOS build exists in TestFlight via App Store Connect API and **stages the verified build** in the `release_uploads` staging table.
+
+Verifies an iOS build exists in TestFlight via App Store Connect API and **stages the verified build** in the `release_uploads` staging table. This endpoint serves two purposes:
+
+1. **Verification**: Confirms the build exists in TestFlight with matching build number and version
+2. **Staging**: Creates an entry in the `release_uploads` staging table (NOT directly in `builds` table)
+
+**Important Flow:**
+- This endpoint stores in the **staging table** (`release_uploads`), NOT the `builds` table
+- The actual `builds` table entry is created later when the task (e.g., `TRIGGER_TEST_FLIGHT_BUILD`) executes
+- Task consumption happens when the cron job runs and processes pending tasks
+
+This is used for manual TestFlight uploads where the user uploads their build to TestFlight outside of CI/CD and then verifies it through this endpoint.
+
+**Authentication:**
+- **Required**: Yes
+- **Permission**: Tenant Owner
+
+**Path Parameters:**
+
+| Parameter   | Type   | Required | Description |
+|-------------|--------|----------|-------------|
+| `tenantId`  | string | Yes      | Unique tenant identifier |
+| `releaseId` | string | Yes      | Unique release identifier (UUID) |
+| `stage`     | string | Yes      | Release stage: `KICK_OFF`, `REGRESSION`, or `PRE_RELEASE` |
 
 **Request:**
-- Content-Type: `application/json`
-- Body:
-```typescript
+
+#### Content-Type
+
+```
+application/json
+```
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `testflightBuildNumber` | string | Yes | The build number to verify in TestFlight |
+| `versionName` | string | Yes | The version string to match (e.g., "1.2.3") |
+
+#### Example Request
+
+```json
 {
-  testflightBuildNumber: string;  // The build number to verify in TestFlight
-  versionName: string;            // The version string to match (e.g., "1.2.3")
+  "testflightBuildNumber": "12345",
+  "versionName": "1.2.3"
 }
 ```
 
-**Response (200 OK):**
-```typescript
-interface VerifyTestFlightResponse {
-  success: true;
-  data: {
-    uploadId: string;                      // Unique ID of the staging entry
-    releaseId: string;                     // UUID of the associated release
-    platform: 'IOS';                       // Always IOS for TestFlight builds
-    stage: string;                         // Release stage
-    testflightNumber: string;               // The verified TestFlight build number
-    versionName: string;                    // Version string of the build
-    verified: boolean;                      // Always `true` on success
-    isUsed: boolean;                        // `false` until task consumes this entry
-    uploadedPlatforms: string[];            // Platforms with uploads staged for this stage
-    missingPlatforms: string[];             // Platforms still pending upload
-    allPlatformsReady: boolean;            // `true` if all required platforms have been staged
-    createdAt: string;                      // ISO 8601 timestamp
-  };
+#### cURL Example
+
+```bash
+curl -X POST \
+  'https://api.example.com/release-management/tenants/{tenantId}/releases/{releaseId}/stages/PRE_RELEASE/builds/ios/verify-testflight' \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "testflightBuildNumber": "12345",
+    "versionName": "1.2.3"
+  }'
+```
+
+**Response:**
+
+#### Success Response (200 OK)
+
+Upon successful verification, a staging entry is created in the `release_uploads` table:
+
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "staging-uuid-123",
+    "releaseId": "550e8400-e29b-41d4-a716-446655440000",
+    "platform": "IOS",
+    "stage": "PRE_RELEASE",
+    "testflightNumber": "12345",
+    "versionName": "1.2.3",
+    "verified": true,
+    "isUsed": false,
+    "uploadedPlatforms": ["IOS"],
+    "missingPlatforms": ["ANDROID"],
+    "allPlatformsReady": false,
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  }
 }
 ```
+
+#### Success Response - All Platforms Ready (200 OK)
+
+```json
+{
+  "success": true,
+  "data": {
+    "uploadId": "staging-uuid-123",
+    "releaseId": "550e8400-e29b-41d4-a716-446655440000",
+    "platform": "IOS",
+    "stage": "PRE_RELEASE",
+    "testflightNumber": "12345",
+    "versionName": "1.2.3",
+    "verified": true,
+    "isUsed": false,
+    "uploadedPlatforms": ["IOS", "ANDROID"],
+    "missingPlatforms": [],
+    "allPlatformsReady": true,
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+#### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Operation success status |
+| `data.uploadId` | string | Unique ID of the staging entry in `release_uploads` |
+| `data.releaseId` | string | UUID of the associated release |
+| `data.platform` | string | Always `IOS` for TestFlight builds |
+| `data.stage` | string | Release stage (`KICK_OFF`, `REGRESSION`, `PRE_RELEASE`) |
+| `data.testflightNumber` | string | The verified TestFlight build number |
+| `data.versionName` | string | Version string of the build |
+| `data.verified` | boolean | Always `true` on success (TestFlight verification passed) |
+| `data.isUsed` | boolean | `false` until task consumes this entry |
+| `data.uploadedPlatforms` | string[] | Platforms with uploads staged for this stage |
+| `data.missingPlatforms` | string[] | Platforms still pending upload |
+| `data.allPlatformsReady` | boolean | `true` if all required platforms have been staged |
+| `data.createdAt` | string | ISO 8601 timestamp when staging entry was created |
+
+### Staging Table Entry Created
+
+When verification succeeds, a record is created in the `release_uploads` **staging table**:
+
+| Column | Value |
+|--------|-------|
+| `id` | Auto-generated staging UUID |
+| `tenantId` | From path parameter |
+| `releaseId` | From path parameter |
+| `platform` | `IOS` |
+| `stage` | From path parameter (`KICK_OFF`, `REGRESSION`, `PRE_RELEASE`) |
+| `artifactPath` | `null` (artifact is in TestFlight, not S3) |
+| `testflightNumber` | `testflightBuildNumber` from request |
+| `versionName` | `versionName` from request |
+| `isUsed` | `false` (until task consumes it) |
+| `usedByTaskId` | `null` (set when task consumes) |
+| `usedByCycleId` | `null` (set for regression cycles) |
+
+### When Task Consumes the Staging Entry
+
+When the task (e.g., `TRIGGER_TEST_FLIGHT_BUILD`) executes:
+
+1. **Checks staging table** for unused entries (`isUsed = false`)
+2. **If found**: Marks staging entry as used, creates `builds` table entry
+3. **If missing**: Sets task to `AWAITING_MANUAL_BUILD`, sends Slack notification
+
+**Builds table entry created by task:**
+
+| Column | Value |
+|--------|-------|
+| `id` | New build UUID |
+| `tenantId` | From staging entry |
+| `releaseId` | From staging entry |
+| `platform` | `IOS` |
+| `storeType` | `TESTFLIGHT` |
+| `buildStage` | From staging entry |
+| `buildType` | `MANUAL` |
+| `buildUploadStatus` | `UPLOADED` |
+| `testflightNumber` | From staging entry |
+| `artifactPath` | `null` |
+| `ciRunId` | `null` |
+| `taskId` | ID of the consuming task |
 
 **Notes:**
 - Requires a valid App Store Connect integration configured for the tenant
@@ -1127,7 +1277,7 @@ interface VerifyTestFlightResponse {
 ---
 
 ### 21. List Build Artifacts
-**GET** `/tenants/{tenantId}/releases/{releaseId}/builds/artifacts`
+**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/builds/artifacts`
 
 **Path Parameters:**
 - `tenantId` (string, required): Tenant UUID
@@ -1189,7 +1339,7 @@ interface ListBuildArtifactsResponse {
 ---
 
 ### 22. Delete Build Artifact
-**DELETE** `/tenants/{tenantId}/releases/{releaseId}/builds/artifacts/{uploadId}`
+**DELETE** `/api/v1/tenants/{tenantId}/releases/{releaseId}/builds/artifacts/{uploadId}`
 
 **Path Parameters:**
 - `tenantId` (string, required): Tenant UUID
@@ -1249,85 +1399,81 @@ interface DeleteBuildArtifactResponse {
 ## Status APIs
 
 ### 23. Get Test Management Status
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/test-management/status`
-
-**Response:**
-```typescript
-interface TestManagementStatusResponse {
-  releaseId: string;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  testSuiteId?: string;
-  testRunId?: string;
-  testResults?: {
-    total: number;
-    passed: number;
-    failed: number;
-    skipped: number;
-  };
-  lastUpdated: string;
-}
-```
-
-**Query Parameters:**
-- `platform?: 'IOS' | 'ANDROID'`
-- `slotId?: string`
-
-**Response:**
-```typescript
-interface TestManagementStatusResponse {
-  releaseId: string;
-  slotId?: string;
-  platform?: string;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  testSuiteId?: string;
-  testRunId?: string;
-  testResults?: {
-    total: number;
-    passed: number;
-    failed: number;
-    skipped: number;
-    archived: number;
-    thresholdPassed: boolean; // NEW
-  };
-  runLink?: string;
-  lastUpdated: string;
-}
-```
+**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/test-management-run-status`
 
 ### 24. Get Project Management Status
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/project-management/status`
 
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Tenant UUID |
+| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | No | Filter by platform: `IOS`, `ANDROID`, `WEB`. If not provided, returns all platforms |
+
 **Response:**
+
+**Status Code:** `200 OK`
+
+#### Single Platform (when `platform` query param provided):
+
 ```typescript
-interface ProjectManagementStatusResponse {
+interface GetProjectManagementStatusResponse {
+  success: true;
   releaseId: string;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  ticketId?: string;
-  ticketUrl?: string;
-  ticketStatus?: string;
-  lastUpdated: string;
+  projectManagementConfigId: string;
+  platform: string;
+  target: string;
+  version: string;
+  hasTicket: boolean;
+  ticketKey: string | null;
+  currentStatus?: string;
+  completedStatus?: string;
+  isCompleted?: boolean;
+  message: string;
+  error?: string;
 }
 ```
 
-**Response:**
+#### All Platforms (when no `platform` query param):
+
 ```typescript
-interface ProjectManagementStatusResponse {
+interface GetProjectManagementStatusAllPlatformsResponse {
+  success: true;
   releaseId: string;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  tickets: Array<{
-    platform?: string;
-    ticketId: string;
-    ticketUrl: string;
-    ticketStatus: string;
-    isDone: boolean; // NEW - guardrail check
-  }>;
-  allTicketsDone: boolean; // NEW - for guardrail
-  lastUpdated: string;
+  projectManagementConfigId: string;
+  platforms: ProjectManagementStatusResult[];
 }
+
+type ProjectManagementStatusResult = {
+  platform: string;
+  target: string;
+  version: string;
+  hasTicket: boolean;
+  ticketKey: string | null;
+  currentStatus?: string;
+  completedStatus?: string;
+  isCompleted?: boolean;
+  message: string;
+  error?: string;
+};
 ```
 
 ### 25. Get Cherry Pick Status
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/check-cherry-pick-status`
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Tenant UUID |
+| `releaseId` | string | Yes | Release UUID (user-facing identifier, e.g., "REL-001") |
 
 **Response:**
 ```typescript
@@ -1348,46 +1494,92 @@ interface CherryPickStatusResponse {
 
 ---
 
-## Communication APIs
+## Notification APIs
 
-### 26. Get Communication Info
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/communications`
+### 26. Get Release Notifications
+**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/notifications`
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Tenant UUID |
+| `releaseId` | string | Yes | Release UUID (primary key in DB) |
 
 **Response:**
+
+**Status Code:** `200 OK`
+
 ```typescript
-interface CommunicationsResponse {
+interface NotificationsResponse {
+  success: true;
   releaseId: string;
-  messages: Array<{
-    messageId: string;
-    messageType: MessageTypeEnum;
-    channel: string; // Slack channel, email, etc.
-    status: 'PENDING' | 'SENT' | 'FAILED';
-    sentAt?: string;
-    content?: string;
-  }>;
+  notifications: ReleaseNotification[];
 }
+
+type ReleaseNotification = {
+  id: number;
+  tenantId: number;
+  releaseId: number;
+  notificationType: NotificationType;
+  isSystemGenerated: boolean;
+  createdByUserId: number | null;
+  taskId: string | null;
+  delivery: Record<string, MessageResponse>;  // Map<channelId, MessageResponse>
+  createdAt: string;
+};
+
+// NotificationType enum - values TBD based on notification_type DB enum
+type NotificationType = string;
+
+// MessageResponse - raw response from MessagingService.sendMessage()
+type MessageResponse = {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+  // ... other provider-specific fields
+};
 ```
 
-### 27. Post Slack Message
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/communications/slack`
+---
 
-**Request:**
+### 27. Send Release Notification
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/notify`
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Tenant UUID |
+| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+
+**Request Body:**
+
 ```typescript
-interface PostSlackMessageRequest {
+interface NotificationRequest {
   messageType: MessageTypeEnum;
-  channel?: string; // Optional, uses default if not provided
-  customMessage?: string; // Optional, overrides default template
 }
+
+// MessageTypeEnum - values based on notification_type DB enum
+type MessageTypeEnum = 
+  | 'RELEASE_KICKOFF'
+  | 'REGRESSION_SLOT_REMINDER'
+  | 'REGRESSION_COMPLETE'
+  | 'PRE_RELEASE_CHERRY_PICKS_REMINDER'
+  | 'RELEASE_APPROVED'
+  | 'RELEASE_SUBMITTED'
+  // ... other notification types
+  ;
 ```
 
 **Response:**
+
+**Status Code:** `201 Created`
+
 ```typescript
-interface PostSlackMessageResponse {
-  success: boolean;
-  messageId: string;
-  messageType: MessageTypeEnum;
-  channel: string;
-  sentAt: string;
+interface SendNotificationResponse {
+  success: true;
+  notification: ReleaseNotification;  // Single notification record created
 }
 ```
 
@@ -1396,30 +1588,134 @@ interface PostSlackMessageResponse {
 ## Update APIs
 
 ### 28. Update What's New
+
+> 🚧 **IN PROGRESS** - @Mohit is working on this. Contract details to be finalized.
+
 **PUT** `/api/v1/tenants/{tenantId}/releases/{releaseId}/whats-new`
+
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
+
+**Purpose:**
+
+Updates the "What's New" content for a release (release notes).
+
+---
+
+## Activity & Logs
+
+### 28. Get Activity Logs
+**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/activity-logs`
+
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Tenant UUID |
+| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+
+**Query Parameters:**
+- `limit?: number` (default: 50)
+- `offset?: number` (default: 0)
+- `stage?: TaskStage`
+- `taskType?: TaskType`
+
+**Response:**
+
+**Status Code:** `200 OK`
+
+```typescript
+interface ActivityLogsResponse {
+  success: true;
+  releaseId: string;
+  activityLogs: ActivityLog[];
+}
+
+type ActivityLog = {
+  id: string;
+  releaseId: string;
+  type: string;                          // Type of activity/change
+  previousValue: Record<string, any> | null;  // Previous value before change
+  newValue: Record<string, any> | null;       // New value after change
+  updatedAt: string;
+  updatedBy: string;                     // Account ID who made the change
+};
+```
+
+---
+
+## Release Management APIs
+
+### 29. Pause Release
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/pause`
+
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
 
 **Request:**
 ```typescript
-interface UpdateWhatsNewRequest {
-  whatsNew: string;
-  platform?: 'IOS' | 'ANDROID'; // Optional, if platform-specific
-  updatedBy: string;
+interface PauseReleaseRequest {
+  reason?: string;
+  pausedBy: string;
 }
 ```
 
 **Response:**
 ```typescript
-interface UpdateWhatsNewResponse {
+interface PauseReleaseResponse {
   success: boolean;
   message: string;
-  whatsNew: string;
-  updatedAt: string;
-  updatedBy: string;
+  releaseId: string;
+  status: ReleaseStatus.PAUSED;
+  pausedAt: string;
+  pausedBy: string;
 }
 ```
 
-### 29. Change Release Pilot
+---
+
+### 30. Resume Release
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/resume`
+
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
+
+**Request:**
+```typescript
+interface ResumeReleaseRequest {
+  resumedBy: string;
+}
+```
+
+**Response:**
+```typescript
+interface ResumeReleaseResponse {
+  success: boolean;
+  message: string;
+  releaseId: string;
+  status: ReleaseStatus; // Previous status
+  resumedAt: string;
+  resumedBy: string;
+}
+```
+
+**Notes:**
+- Resume can be done using the pause API by setting appropriate status, but this separate endpoint provides clearer semantics
+- Resuming a release restores it to its previous status before it was paused
+
+---
+
+### 31. Change Release Pilot
 **PUT** `/api/v1/tenants/{tenantId}/releases/{releaseId}/pilot`
+
+> ⚠️ **BACKEND PENDING** - This API will be added to the backend later.
+
+**Path Parameters:**
+- `tenantId` (string, required): Tenant UUID
+- `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
 
 **Request:**
 ```typescript
@@ -1439,38 +1735,6 @@ interface ChangePilotResponse {
   newPilotId: string;
   changedAt: string;
   changedBy: string;
-}
-```
-
----
-
-## Activity & Logs
-
-### 30. Fetch Activity Log
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/activity`
-
-**Query Parameters:**
-- `limit?: number` (default: 50)
-- `offset?: number` (default: 0)
-- `stage?: TaskStage`
-- `taskType?: TaskType`
-
-**Response:**
-```typescript
-interface ActivityLogResponse {
-  releaseId: string;
-  activities: Array<{
-    activityId: string;
-    timestamp: string;
-    stage: TaskStage;
-    taskType?: TaskType;
-    action: string;
-    performedBy: string;
-    details?: Record<string, any>;
-  }>;
-  total: number;
-  limit: number;
-  offset: number;
 }
 ```
 

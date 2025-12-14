@@ -30,14 +30,22 @@ import {
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus, TaskType } from '~/types/release-process-enums';
 import { BuildTaskDetails } from './BuildTaskDetails';
-import { RegularTaskDetails } from './RegularTaskDetails';
+import {
+  ForkBranchTaskDetails,
+  ProjectManagementTaskDetails,
+  CreateTestSuiteTaskDetails,
+  ResetTestSuiteTaskDetails,
+  CreateRcTagTaskDetails,
+  CreateReleaseNotesTaskDetails,
+  CreateReleaseTagTaskDetails,
+  CreateFinalReleaseNotesTaskDetails,
+} from './task-details';
 
 interface TaskCardProps {
   task: Task;
   tenantId?: string;
   releaseId?: string;
   onRetry?: (taskId: string) => void;
-  onViewDetails?: (task: Task) => void;
   className?: string;
 }
 
@@ -113,7 +121,6 @@ export function TaskCard({
   tenantId,
   releaseId,
   onRetry,
-  onViewDetails,
   className,
 }: TaskCardProps) {
   const statusColor = getTaskStatusColor(task.taskStatus);
@@ -129,11 +136,40 @@ export function TaskCard({
     task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ||
     task.taskType === TaskType.CREATE_AAB_BUILD;
 
-  const handleUploadComplete = () => {
-    if (onViewDetails) {
-      onViewDetails(task);
+  // Get the appropriate task detail component based on task type
+  function renderTaskDetails() {
+    if (isBuildTask) {
+      return (
+        <BuildTaskDetails
+          task={task}
+          tenantId={tenantId}
+          releaseId={releaseId}
+        />
+      );
     }
-  };
+
+    switch (task.taskType) {
+      case TaskType.FORK_BRANCH:
+        return <ForkBranchTaskDetails task={task} />;
+      case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
+        return <ProjectManagementTaskDetails task={task} />;
+      case TaskType.CREATE_TEST_SUITE:
+        return <CreateTestSuiteTaskDetails task={task} />;
+      case TaskType.RESET_TEST_SUITE:
+        return <ResetTestSuiteTaskDetails task={task} />;
+      case TaskType.CREATE_RC_TAG:
+        return <CreateRcTagTaskDetails task={task} />;
+      case TaskType.CREATE_RELEASE_NOTES:
+        return <CreateReleaseNotesTaskDetails task={task} />;
+      case TaskType.CREATE_RELEASE_TAG:
+        return <CreateReleaseTagTaskDetails task={task} />;
+      case TaskType.CREATE_FINAL_RELEASE_NOTES:
+        return <CreateFinalReleaseNotesTaskDetails task={task} />;
+      default:
+        // Fallback for any unknown task types
+        return null;
+    }
+  }
 
   return (
     <Paper
@@ -221,16 +257,7 @@ export function TaskCard({
           {/* Expanded Content */}
           <Accordion.Panel>
             <Stack gap="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
-              {isBuildTask ? (
-                <BuildTaskDetails
-                  task={task}
-                  tenantId={tenantId}
-                  releaseId={releaseId}
-                  onUploadComplete={handleUploadComplete}
-                />
-              ) : (
-                <RegularTaskDetails task={task} />
-              )}
+              {renderTaskDetails()}
             </Stack>
           </Accordion.Panel>
         </Accordion.Item>

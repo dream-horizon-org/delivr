@@ -33,7 +33,6 @@ interface RegressionCycleCardProps {
   tenantId: string;
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
-  onViewTaskDetails?: (task: Task) => void;
   isExpanded?: boolean; // For past cycles - whether to show expanded by default
   className?: string;
 }
@@ -45,7 +44,6 @@ export function RegressionCycleCard({
   tenantId,
   releaseId,
   onRetryTask,
-  onViewTaskDetails,
   isExpanded = false,
   className,
 }: RegressionCycleCardProps) {
@@ -164,7 +162,6 @@ export function RegressionCycleCard({
                 tenantId={tenantId}
                 releaseId={releaseId}
                 onRetry={onRetryTask}
-                onViewDetails={onViewTaskDetails}
               />
             ))}
           </Stack>

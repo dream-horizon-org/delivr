@@ -208,11 +208,12 @@ class ReleaseProcess {
   // ======================
 
   /**
-   * Approve regression stage - Matches backend contract API #10
+   * Approve regression stage - Matches backend contract API #11
+   * Backend endpoint: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
    */
   async approveRegressionStage(tenantId: string, releaseId: string, request: ApproveRegressionStageRequest) {
     return this.__client.post<ApproveRegressionStageRequest, AxiosResponse<ApproveRegressionStageResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/regression/approve`,
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-pre-release`,
       request
     );
   }

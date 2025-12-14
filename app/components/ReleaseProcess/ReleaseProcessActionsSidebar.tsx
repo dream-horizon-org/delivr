@@ -14,7 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import {
   BUTTON_LABELS,
@@ -22,6 +22,7 @@ import {
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { useActivityLogs, useSendNotification } from '~/hooks/useReleaseProcess';
 import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import type { MessageTypeEnum, ActivityLog } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
@@ -78,7 +79,7 @@ export function ReleaseProcessActionsSidebar({
       setEditModalOpened(false);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to update release');
-      console.error('[ReleaseProcessActionsSidebar] Update error:', errorMessage, error);
+      // Error is already handled by toast notification in calling code
       throw new Error(errorMessage);
     }
   };
@@ -128,10 +129,10 @@ export function ReleaseProcessActionsSidebar({
   };
 
   // Handle send notification (Slack message)
-  const handleSendNotification = async (messageType: string) => {
+  const handleSendNotification = async (messageType: MessageTypeEnum) => {
     try {
       await sendNotificationMutation.mutateAsync({
-        messageType: messageType as any,
+        messageType,
       });
       showSuccessToast({ message: 'Notification sent successfully' });
       setSlackMessageModalOpened(false);
@@ -218,22 +219,19 @@ export function ReleaseProcessActionsSidebar({
             <Text c="dimmed">Loading activity logs...</Text>
           ) : activityLogs?.activityLogs && activityLogs.activityLogs.length > 0 ? (
             <Stack gap="sm">
-              {activityLogs.activityLogs.map((log: any) => (
+              {activityLogs.activityLogs.map((log: ActivityLog) => (
                 <Paper key={log.id} p="sm" withBorder>
                   <Group justify="space-between" mb="xs">
                     <Text size="sm" fw={500}>
-                      {log.action}
+                      {log.type}
                     </Text>
                     <Text size="xs" c="dimmed">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.updatedAt).toLocaleString()}
                     </Text>
                   </Group>
-                  <Text size="xs" c="dimmed">
-                    Stage: {log.stage} • Task: {log.taskType || 'N/A'}
-                  </Text>
-                  {log.performedBy && (
+                  {log.updatedBy && (
                     <Text size="xs" c="dimmed" mt="xs">
-                      By: {log.performedBy}
+                      By: {log.updatedBy}
                     </Text>
                   )}
                 </Paper>
@@ -259,13 +257,13 @@ export function ReleaseProcessActionsSidebar({
           <Group>
             <Button
               variant="outline"
-              onClick={() => handleSendNotification('REGRESSION_BUILD_READY')}
+              onClick={() => handleSendNotification('REGRESSION_COMPLETE' as MessageTypeEnum)}
             >
               Regression Build Ready
             </Button>
             <Button
               variant="outline"
-              onClick={() => handleSendNotification('POST_REGRESSION_BUILD_READY')}
+              onClick={() => handleSendNotification('RELEASE_APPROVED' as MessageTypeEnum)}
             >
               Post-Regression Build Ready
             </Button>

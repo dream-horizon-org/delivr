@@ -119,21 +119,224 @@ function getBuildsForTask(task, db, releaseId) {
 
 /**
  * Map old task structure to new Task interface (backend contract)
+ * Populates externalData with task-specific structure based on taskType
  */
 function mapTaskToBackendContract(task, db = null, releaseId = null) {
-  // Extract metadata from old structure and put in externalData
-  const externalData = {};
-  if (task.branchUrl) externalData.branchUrl = task.branchUrl;
-  if (task.commitId) externalData.commitId = task.commitId;
-  if (task.ticketId) externalData.ticketId = task.ticketId;
-  if (task.ticketUrl) externalData.ticketUrl = task.ticketUrl;
-  if (task.testSuiteId) externalData.testSuiteId = task.testSuiteId;
-  if (task.testRunId) externalData.testRunId = task.testRunId;
-  if (task.runLink) externalData.runLink = task.runLink;
-  if (task.tag) externalData.tag = task.tag;
-  if (task.notesUrl) externalData.notesUrl = task.notesUrl;
-  if (task.error) externalData.error = task.error;
-  // Note: task.builds is no longer moved to externalData - it's now a direct property
+  // Build externalData based on task type
+  // First, check if externalData already exists with new structure (from generator)
+  let externalData = null;
+  
+  // If externalData already exists and has the expected structure, use it
+  if (task.externalData && typeof task.externalData === 'object' && Object.keys(task.externalData).length > 0) {
+    // Check if it's already in the new format (has expected keys for this task type)
+    const hasNewStructure = 
+      (task.taskType === 'FORK_BRANCH' && (task.externalData.branchName || task.externalData.branchUrl)) ||
+      (task.taskType === 'CREATE_PROJECT_MANAGEMENT_TICKET' && task.externalData.projectManagement) ||
+      (task.taskType === 'CREATE_TEST_SUITE' && task.externalData.testManagement) ||
+      (task.taskType === 'RESET_TEST_SUITE' && task.externalData.testManagement) ||
+      (task.taskType === 'CREATE_RC_TAG' && (task.externalData.tagName || task.externalData.tagUrl)) ||
+      (task.taskType === 'CREATE_RELEASE_NOTES' && task.externalData.notesUrl) ||
+      (task.taskType === 'CREATE_RELEASE_TAG' && (task.externalData.tagName || task.externalData.tagUrl)) ||
+      (task.taskType === 'CREATE_FINAL_RELEASE_NOTES' && task.externalData.notesUrl);
+    
+    if (hasNewStructure) {
+      externalData = task.externalData;
+    }
+  }
+  
+  // If no new structure found, build from old fields or generate default for COMPLETED tasks
+  if (!externalData) {
+    switch (task.taskType) {
+      case 'FORK_BRANCH':
+        if (task.branch || task.branchUrl || task.externalData?.branchName || task.externalData?.branchUrl) {
+          externalData = {
+            branchName: task.externalData?.branchName || task.branch || task.branchName || null,
+            branchUrl: task.externalData?.branchUrl || task.branchUrl || (task.branch ? `https://github.com/org/repo/tree/${task.branch}` : null),
+          };
+        } else if (task.taskStatus === 'COMPLETED' && task.branch) {
+          // Generate default for COMPLETED tasks even if no explicit data
+          externalData = {
+            branchName: task.branch,
+            branchUrl: `https://github.com/org/repo/tree/${task.branch}`,
+          };
+        }
+        break;
+
+      case 'CREATE_PROJECT_MANAGEMENT_TICKET':
+        // Support both old flat structure and new organized structure
+        if (task.ticketUrl || task.platformTickets) {
+          const platforms = task.platformTickets || [];
+          if (task.ticketUrl && !platforms.length) {
+            // Single ticket - create platform entry if we have platform info
+            platforms.push({
+              platform: task.platform || 'ANDROID',
+              ticketUrl: task.ticketUrl,
+            });
+          }
+          if (platforms.length > 0) {
+            externalData = {
+              projectManagement: {
+                platforms: platforms.map(pt => ({
+                  platform: pt.platform || pt.platformName,
+                  ticketUrl: pt.ticketUrl || pt.url,
+                })),
+              },
+            };
+          }
+        } else if (task.taskStatus === 'COMPLETED' && task.externalId) {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            projectManagement: {
+              platforms: [
+                { platform: 'ANDROID', ticketUrl: `https://company.atlassian.net/browse/${task.externalId}-ANDROID` },
+                { platform: 'IOS', ticketUrl: `https://company.atlassian.net/browse/${task.externalId}-IOS` },
+              ],
+            },
+          };
+        }
+        break;
+
+      case 'CREATE_TEST_SUITE':
+        if (task.testSuiteUrl || task.testRunId || task.runLink) {
+          const platforms = task.platformRuns || [];
+          if (task.runLink && !platforms.length) {
+            // Single run - create platform entry
+            platforms.push({
+              platform: task.platform || 'ANDROID',
+              runId: task.testRunId || task.runId || 'RUN-001',
+              runUrl: task.runLink || task.runUrl,
+            });
+          }
+          externalData = {
+            testManagement: {
+              platforms: platforms.map(pr => ({
+                platform: pr.platform || pr.platformName,
+                runId: pr.runId || pr.testRunId,
+                runUrl: pr.runUrl || pr.runLink,
+              })),
+            },
+          };
+        } else if (task.taskStatus === 'COMPLETED' && task.externalId) {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            testManagement: {
+              platforms: [
+                { platform: 'ANDROID', runId: 'RUN-ANDROID-001', runUrl: `https://testmanagement.company.com/runs/RUN-ANDROID-001` },
+                { platform: 'IOS', runId: 'RUN-IOS-001', runUrl: `https://testmanagement.company.com/runs/RUN-IOS-001` },
+              ],
+            },
+          };
+        }
+        break;
+
+      case 'RESET_TEST_SUITE':
+        if (task.testSuiteUrl || task.testRunId || task.runLink) {
+          const platforms = task.platformRuns || [];
+          if (task.runLink && !platforms.length) {
+            platforms.push({
+              platform: task.platform || 'ANDROID',
+              runId: task.testRunId || task.runId || 'RUN-002',
+              runUrl: task.runLink || task.runUrl,
+            });
+          }
+          externalData = {
+            testManagement: {
+              platforms: platforms.map(pr => ({
+                platform: pr.platform || pr.platformName,
+                runId: pr.runId || pr.testRunId,
+                runUrl: pr.runUrl || pr.runLink,
+              })),
+            },
+          };
+        } else if (task.taskStatus === 'COMPLETED' && task.externalId) {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            testManagement: {
+              platforms: [
+                { platform: 'ANDROID', runId: 'RUN-ANDROID-002', runUrl: `https://testmanagement.company.com/runs/RUN-ANDROID-002` },
+                { platform: 'IOS', runId: 'RUN-IOS-002', runUrl: `https://testmanagement.company.com/runs/RUN-IOS-002` },
+              ],
+            },
+          };
+        }
+        break;
+
+      case 'CREATE_RC_TAG':
+        if (task.tag || task.tagUrl || task.tagName) {
+          externalData = {
+            tagName: task.tagName || task.tag || 'v1.0.0-RC1',
+            tagUrl: task.tagUrl || (task.tag ? `https://github.com/org/repo/releases/tag/${task.tag}` : null),
+          };
+        } else if (task.taskStatus === 'COMPLETED') {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            tagName: 'v1.0.0-RC1',
+            tagUrl: 'https://github.com/org/repo/releases/tag/v1.0.0-RC1',
+          };
+        }
+        break;
+
+      case 'CREATE_RELEASE_NOTES':
+        if (task.notesUrl) {
+          externalData = {
+            notesUrl: task.notesUrl,
+          };
+        } else if (task.taskStatus === 'COMPLETED') {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            notesUrl: 'https://docs.company.com/releases/v1.0.0-rc1',
+          };
+        }
+        break;
+
+      case 'CREATE_RELEASE_TAG':
+        if (task.tag || task.tagUrl || task.tagName) {
+          externalData = {
+            tagName: task.tagName || task.tag || 'v1.0.0',
+            tagUrl: task.tagUrl || (task.tag ? `https://github.com/org/repo/releases/tag/${task.tag}` : null),
+          };
+        } else if (task.taskStatus === 'COMPLETED') {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            tagName: 'v1.0.0',
+            tagUrl: 'https://github.com/org/repo/releases/tag/v1.0.0',
+          };
+        }
+        break;
+
+      case 'CREATE_FINAL_RELEASE_NOTES':
+        if (task.notesUrl) {
+          externalData = {
+            notesUrl: task.notesUrl,
+          };
+        } else if (task.taskStatus === 'COMPLETED') {
+          // Generate default for COMPLETED tasks
+          externalData = {
+            notesUrl: 'https://docs.company.com/releases/v1.0.0',
+          };
+        }
+        break;
+
+      default:
+        // For other task types or error cases, preserve existing externalData or use legacy structure
+        if (task.externalData) {
+          externalData = task.externalData;
+        } else {
+          const legacyData = {};
+          if (task.branchUrl) legacyData.branchUrl = task.branchUrl;
+          if (task.commitId) legacyData.commitId = task.commitId;
+          if (task.ticketUrl) legacyData.ticketUrl = task.ticketUrl;
+          if (task.runLink) legacyData.runLink = task.runLink;
+          if (task.tag) legacyData.tag = task.tag;
+          if (task.notesUrl) legacyData.notesUrl = task.notesUrl;
+          if (task.error) legacyData.error = task.error;
+          if (Object.keys(legacyData).length > 0) {
+            externalData = legacyData;
+          }
+        }
+        break;
+    }
+  }
 
   // Get builds for this task if db and releaseId are provided
   const builds = db && releaseId ? getBuildsForTask(task, db, releaseId) : undefined;
@@ -151,7 +354,7 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
     isRegressionSubTasks: task.isRegressionSubTasks || false,
     identifier: task.identifier || null,
     externalId: task.externalId || task.ticketId || task.testSuiteId || null,
-    externalData: Object.keys(externalData).length > 0 ? externalData : null,
+    externalData: externalData && Object.keys(externalData).length > 0 ? externalData : null,
     builds: builds, // Include builds array if available
     branch: task.branch || null,
     createdAt: task.createdAt,
@@ -884,8 +1087,9 @@ function createReleaseProcessMiddleware(router) {
     // APPROVAL APIs
     // ============================================================================
 
-    // POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/regression/approve
-    if (method === 'POST' && path.includes('/stages/regression/approve')) {
+    // POST /api/v1/tenants/:tenantId/releases/:releaseId/trigger-pre-release
+    // Also handle legacy path: /api/v1/tenants/:tenantId/releases/:releaseId/stages/regression/approve
+    if (method === 'POST' && (path.includes('/trigger-pre-release') || path.includes('/stages/regression/approve'))) {
       const release = db.get('releases').find({ id: releaseId }).value();
 
       if (!release) {

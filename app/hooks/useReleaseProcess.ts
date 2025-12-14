@@ -455,7 +455,7 @@ export function useCherryPickStatus(tenantId?: string, releaseId?: string) {
 
 /**
  * Approve regression stage
- * Backend contract: POST /stages/regression/approve with ApproveRegressionStageRequest
+ * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
  */
 export function useApproveRegression(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
@@ -466,16 +466,14 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
         throw new Error('tenantId and releaseId are required');
       }
 
-      const result = await apiPost<ApproveRegressionStageResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/regression/approve`,
+      const response = await apiPost<ApproveRegressionStageResponse>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-pre-release`,
         request
       );
-
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to approve regression stage');
+      if (!response.success || !response.data) {
+        throw new Error('Failed to approve regression stage');
       }
-
-      return result.data;
+      return response.data;
     },
     {
       onSuccess: () => {

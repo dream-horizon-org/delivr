@@ -3,7 +3,7 @@
  * Types for actual release instances matching old UI structure
  */
 
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 export type ReleaseType = 'PLANNED' | 'HOTFIX' | 'MAJOR';
 

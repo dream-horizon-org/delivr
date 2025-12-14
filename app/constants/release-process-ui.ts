@@ -5,6 +5,8 @@
  * NO HARDCODED STRINGS IN COMPONENTS - USE THIS FILE!
  */
 
+import { TaskStatus } from '~/types/release-process-enums';
+
 // ============================================================================
 // Task Status Labels
 // ============================================================================
@@ -397,5 +399,48 @@ export function getPhaseLabel(phase: string): string {
  */
 export function getPhaseColor(phase: string): string {
   return PHASE_COLORS[phase as keyof typeof PHASE_COLORS] || 'gray';
+}
+
+// ============================================================================
+// Build Upload Constants
+// ============================================================================
+
+/**
+ * Maximum file size for build uploads (in bytes)
+ */
+export const BUILD_UPLOAD_CONSTANTS = {
+  MAX_FILE_SIZE_BYTES: 500 * 1024 * 1024, // 500 MB
+  MAX_FILE_SIZE_MB: 500,
+  ALLOWED_EXTENSIONS: {
+    ANDROID: ['.aab', '.apk'],
+    IOS: ['.ipa'],
+    WEB: ['.zip', '.tar.gz'],
+  },
+} as const;
+
+// ============================================================================
+// Status Filter Options
+// ============================================================================
+
+/**
+ * Status filter options for task filtering in stage components
+ * Used in KickoffStage, PostRegressionStage, and other stage components
+ */
+export const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: TaskStatus.PENDING, label: TASK_STATUS_LABELS.PENDING },
+  { value: TaskStatus.IN_PROGRESS, label: TASK_STATUS_LABELS.IN_PROGRESS },
+  { value: TaskStatus.AWAITING_CALLBACK, label: TASK_STATUS_LABELS.AWAITING_CALLBACK },
+  { value: TaskStatus.AWAITING_MANUAL_BUILD, label: TASK_STATUS_LABELS.AWAITING_MANUAL_BUILD },
+  { value: TaskStatus.COMPLETED, label: TASK_STATUS_LABELS.COMPLETED },
+  { value: TaskStatus.FAILED, label: TASK_STATUS_LABELS.FAILED },
+  { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },
+] as const;
+
+/**
+ * Get status filter options (helper function for consistency)
+ */
+export function getStatusFilterOptions() {
+  return STATUS_FILTER_OPTIONS;
 }
 

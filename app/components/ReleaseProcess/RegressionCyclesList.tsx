@@ -37,7 +37,6 @@ interface RegressionCyclesListProps {
   tenantId: string;
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
-  onViewTaskDetails?: (task: Task) => void;
   className?: string;
 }
 
@@ -50,7 +49,6 @@ export function RegressionCyclesList({
   tenantId,
   releaseId,
   onRetryTask,
-  onViewTaskDetails,
   className,
 }: RegressionCyclesListProps) {
   const { release } = useRelease(tenantId, releaseId);
@@ -164,7 +162,6 @@ export function RegressionCyclesList({
             tenantId={tenantId}
             releaseId={releaseId}
             onRetryTask={onRetryTask}
-            onViewTaskDetails={onViewTaskDetails}
           />
         </Stack>
       )}
@@ -257,7 +254,6 @@ export function RegressionCyclesList({
                 tenantId={tenantId}
                 releaseId={releaseId}
                 onRetryTask={onRetryTask}
-                onViewTaskDetails={onViewTaskDetails}
                 isExpanded={false}
               />
             ))}

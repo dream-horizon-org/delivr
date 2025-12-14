@@ -1,8 +1,11 @@
 # Client API Contract
 
+> ⚠️ **DEPRECATED** - This document has been merged into `RELEASE_PROCESS_API_CONTRACT.md`.  
+> Please use `RELEASE_PROCESS_API_CONTRACT.md` as the authoritative API contract.
+
 **Version:** 1.0.0  
 **Last Updated:** 2025-12-11  
-**Status:** Draft
+**Status:** Deprecated - Merged into RELEASE_PROCESS_API_CONTRACT.md
 
 ---
 
@@ -40,7 +43,7 @@ interface Task {
   taskId: string;                          // Unique task identifier
   taskType: TaskType;
   stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION';
-  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'AWAITING_MANUAL_BUILD' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
   taskConclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
   accountId: string | null;
   regressionId: string | null;             // FK to regression cycle (if regression task)
@@ -312,7 +315,7 @@ interface BuildInfo {
 ### Endpoint
 
 ```
-POST /api/v1/tenants/{tenantId}/releases/{releaseId}/tasks/{taskId}/retry
+POST /tenants/{tenantId}/releases/{releaseId}/tasks/{taskId}/retry
 ```
 
 ### Path Parameters
@@ -320,7 +323,7 @@ POST /api/v1/tenants/{tenantId}/releases/{releaseId}/tasks/{taskId}/retry
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | Yes | Tenant UUID |
-| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+| `releaseId` | string | Yes | Release UUID (user-facing identifier, e.g., "REL-001") |
 | `taskId` | string | Yes | Task UUID (primary key from release_tasks table) |
 
 ### Request Body
@@ -334,19 +337,38 @@ Empty body (no parameters required)
 ```typescript
 interface RetryTaskResponse {
   success: true;
-  message: string;                      // e.g., "Task queued for retry"
-  task: Task;                           // See Shared Interfaces - updated task with status = PENDING
+  message: string;                      // "Task retry initiated. Cron will re-execute on next tick."
+  data: {
+    taskId: string;                     // Task UUID
+    releaseId: string;                  // Release UUID (user-facing identifier)
+    previousStatus: string;             // Previous task status (should be "FAILED")
+    newStatus: string;                  // New task status (should be "PENDING")
+  };
 }
 ```
 
 ### Behavior
 
-1. Validates task exists and belongs to the specified release
-2. Validates task status is `FAILED` (only failed tasks can be retried)
-3. Validates release status is not `ARCHIVED`
-4. Resets task status from `FAILED` → `PENDING`
-5. Clears `taskConclusion` and error data in `externalData`
-6. Task will be automatically re-executed by the cron job in the next execution cycle
+1. **Authentication**: Requires valid user/account ID
+2. **Validation**:
+   - Validates task exists (returns 404 if not found)
+   - Validates task status is `FAILED` (only failed tasks can be retried)
+3. **Task Reset**:
+   - Resets task status from `FAILED` → `PENDING`
+   - Task will be automatically re-executed by the cron job on the next tick (LAZY approach)
+4. **Release Resume** (if needed):
+   - If release status is `PAUSED`, automatically resumes it to `IN_PROGRESS`
+   - This allows the cron to continue execution
+5. **Build Task Handling**:
+   - For build-related tasks (`TRIGGER_PRE_REGRESSION_BUILDS`, `TRIGGER_REGRESSION_BUILDS`, `CREATE_AAB_BUILD`):
+     - Also resets any associated failed build entries to `PENDING`
+     - This ensures TaskExecutor knows which platforms to re-trigger
+
+### Notes
+
+- **LAZY Execution**: Task is NOT executed immediately. It's queued by resetting status to `PENDING`, and the cron job will pick it up on the next execution cycle.
+- **Automatic Resume**: If the release was paused due to task failure, retry automatically resumes the release.
+- **Build Task Special Handling**: For build tasks, the system also resets failed build records to ensure proper re-execution.
 
 ---
 
@@ -355,7 +377,7 @@ interface RetryTaskResponse {
 ### Endpoint
 
 ```
-POST /api/v1/tenants/{tenantId}/releases/{releaseId}/stages/regression/approve
+POST /tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
 ```
 
 ### Path Parameters
@@ -363,13 +385,13 @@ POST /api/v1/tenants/{tenantId}/releases/{releaseId}/stages/regression/approve
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | Yes | Tenant UUID |
-| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+| `releaseId` | string | Yes | Release UUID (user-facing identifier, e.g., "REL-001") |
 
 ### Request Body
 
 ```typescript
 interface ApproveRegressionStageRequest {
-  approvedBy: string;                   // Account ID of approver
+  approvedBy: string;                   // Account ID of approver (required)
   comments?: string;                    // Optional approval comments
   forceApprove?: boolean;               // Override requirements (not recommended)
 }
@@ -382,10 +404,10 @@ interface ApproveRegressionStageRequest {
 ```typescript
 interface ApproveRegressionStageResponse {
   success: true;
-  message: string;
-  releaseId: string;
-  approvedAt: string;                   // ISO 8601
-  approvedBy: string;
+  message: string;                      // "Regression stage approved and Post-Regression stage triggered successfully"
+  releaseId: string;                    // Release UUID
+  approvedAt: string;                   // ISO 8601 timestamp
+  approvedBy: string;                   // Account ID of approver
   nextStage: 'POST_REGRESSION';
 }
 ```
@@ -394,26 +416,33 @@ interface ApproveRegressionStageResponse {
 
 Before approval can proceed, the following requirements must be met (unless `forceApprove: true`):
 
-1. **Active cycle must be completed** - No regression cycle with status `IN_PROGRESS` or `NOT_STARTED`
-2. **No new cherry picks** - Cherry pick status must be OK (no divergence from latest tag)
-3. **Test management passed** - Test run threshold must be met (if test management integration configured)
-4. **All regression builds completed** - All required platform builds must be complete
+1. **No active cycles** - No regression cycle with status `IN_PROGRESS` or `NOT_STARTED`
+2. **No upcoming slots** - No scheduled regression slots remain
+3. **Cherry pick status OK** - No new cherry picks found (branch matches latest tag)
+4. **Stage 2 COMPLETED** - Regression stage must be marked as `COMPLETED`
+
+**Note:** Test management status is checked separately via the approval status API (API #2) but not enforced by this endpoint.
 
 ### Behavior
 
-1. Validates release exists and belongs to tenant
-2. Validates Stage 2 (Regression) is `COMPLETED` or all cycles are done
-3. Validates approval requirements are met (or `forceApprove: true`)
-4. Records approval metadata (approvedBy, comments, timestamp)
-5. **Automatically triggers POST_REGRESSION stage** (Stage 3)
-6. Returns confirmation with next stage information
+1. Validates `approvedBy` field is provided (400 if missing)
+2. Validates release exists and belongs to tenant (404/403 if not)
+3. **Validates approval requirements** (400 if any fail, unless `forceApprove: true`):
+   - Checks cherry pick status via `ReleaseStatusService.cherryPickAvailable()`
+   - Checks cycles completed (no active cycles + no upcoming slots)
+4. Validates Stage 2 is `COMPLETED` (400 if not)
+5. Updates cron job: `autoTransitionToStage3 = true`, `stage3Status = IN_PROGRESS`
+6. Starts the cron job to begin Stage 3 execution
+7. Logs activity (approval metadata) - **TODO: Implement ActivityLogService**
+8. Returns confirmation with approval metadata and next stage
 
 ### Notes
 
+- This endpoint serves dual purpose: **Approve Regression** + **Trigger Stage 3**
 - Approval is at the **regression stage level**, not individual cycle level
-- Release pilot can approve before the next scheduled slot starts
-- Approving automatically triggers Stage 3 - no separate trigger API needed
-- Use `forceApprove` sparingly (for exceptional cases only)
+- Approving automatically triggers Stage 3 (Post-Regression) - no separate trigger needed
+- Use `forceApprove: true` sparingly (for exceptional cases only)
+- Activity logging is planned but not yet implemented
 
 ---
 
@@ -627,7 +656,7 @@ Deletes a build record and associated artifacts from storage.
 ### Endpoint
 
 ```
-GET /api/v1/tenants/{tenantId}/releases/{releaseId}/test-management-run-status
+GET /tenants/{tenantId}/releases/{releaseId}/test-management-run-status
 ```
 
 ### Path Parameters
@@ -635,7 +664,7 @@ GET /api/v1/tenants/{tenantId}/releases/{releaseId}/test-management-run-status
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | Yes | Tenant UUID |
-| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+| `releaseId` | string | Yes | Release UUID (user-facing identifier, e.g., "REL-001") |
 
 ### Query Parameters
 
@@ -666,13 +695,15 @@ interface GetTestManagementStatusResponse {
     passed?: number;
     failed?: number;
     untested?: number;
-    skipped?: number;
     blocked?: number;
     inProgress?: number;
     passPercentage?: number;
     threshold?: number;
     thresholdPassed?: boolean;
   };
+  readyForApproval?: boolean;           // Extra: status === COMPLETED && thresholdPassed
+  message: string;                      // Extra: Descriptive message
+  error?: string;                       // Extra: Error message if fetch failed
 }
 ```
 
@@ -699,13 +730,15 @@ type TestManagementStatusResult = {
     passed?: number;
     failed?: number;
     untested?: number;
-    skipped?: number;
     blocked?: number;
     inProgress?: number;
     passPercentage?: number;
     threshold?: number;
     thresholdPassed?: boolean;
   };
+  readyForApproval?: boolean;
+  message: string;
+  error?: string;
 };
 ```
 
@@ -787,7 +820,7 @@ type ProjectManagementStatusResult = {
 ### Endpoint
 
 ```
-GET /api/v1/tenants/{tenantId}/releases/{releaseId}/check-cherry-pick-status
+GET /tenants/{tenantId}/releases/{releaseId}/check-cherry-pick-status
 ```
 
 ### Path Parameters
@@ -795,7 +828,7 @@ GET /api/v1/tenants/{tenantId}/releases/{releaseId}/check-cherry-pick-status
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | Yes | Tenant UUID |
-| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+| `releaseId` | string | Yes | Release UUID (user-facing identifier, e.g., "REL-001") |
 
 ### Response
 
@@ -805,10 +838,18 @@ GET /api/v1/tenants/{tenantId}/releases/{releaseId}/check-cherry-pick-status
 interface CherryPickStatusResponse {
   success: true;
   releaseId: string;
-  latestReleaseTag: string;
-  commitIdsMatch: boolean;  // Whether branch head commit == tag commit
+  cherryPickAvailable: boolean;  // true = cherry picks exist, false = commits match
 }
 ```
+
+### Notes
+
+- `cherryPickAvailable: true` means the branch has diverged from the **latest regression cycle tag** (cherry picks exist)
+- `cherryPickAvailable: false` means the branch HEAD matches the latest regression cycle tag (no cherry picks)
+- Uses `SCMService` to compare:
+  - Branch: `releases.branch`
+  - Tag: `regression_cycles.cycleTag` (where `isLatest = true`)
+- Returns 400 if release doesn't have SCM integration configured or no regression cycles exist
 
 ---
 

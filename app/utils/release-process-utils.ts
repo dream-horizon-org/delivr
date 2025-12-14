@@ -3,7 +3,7 @@
  * Helper functions for determining release phase and stage
  */
 
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { Phase, TaskStage as TaskStageEnum } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
 
