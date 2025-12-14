@@ -4,7 +4,7 @@
  * Shared test utilities for State Pattern tests
  */
 
-import { TaskStage, StageStatus, TaskStatus, CronStatus } from '../../script/models/release/release.interface';
+import { TaskStage, StageStatus, TaskStatus, CronStatus, PauseType } from '../../script/models/release/release.interface';
 import { Sequelize } from 'sequelize';
 
 export const mockReleaseId = 'release-123';
@@ -16,6 +16,7 @@ type MockCronJobOptions = {
   stage2Status?: StageStatus;
   stage3Status?: StageStatus;
   cronStatus?: CronStatus;
+  pauseType?: PauseType;
   autoTransitionToStage2?: boolean;
   autoTransitionToStage3?: boolean;
   upcomingRegressions?: any;
@@ -25,6 +26,7 @@ export const createMockCronJob = (options: MockCronJobOptions = {}) => ({
   id: mockCronJobId,
   releaseId: mockReleaseId,
   cronStatus: options.cronStatus ?? CronStatus.RUNNING,
+  pauseType: options.pauseType ?? PauseType.NONE,
   stage1Status: options.stage1Status ?? StageStatus.PENDING,
   stage2Status: options.stage2Status ?? StageStatus.PENDING,
   stage3Status: options.stage3Status ?? StageStatus.PENDING,

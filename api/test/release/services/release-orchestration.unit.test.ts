@@ -70,7 +70,8 @@ import {
   CronStatus, 
   TaskStatus, 
   TaskType,
-  RegressionCycleStatus 
+  RegressionCycleStatus,
+  PauseType 
 } from '../../../script/models/release/release.interface';
 import { stopCronJob, startCronJob } from '../../../script/services/release/cron-job/cron-scheduler';
 import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
@@ -406,17 +407,18 @@ describe('Release Orchestration - Unit Tests', () => {
         const state = new KickoffState(stateMachine);
         await state.transitionToNext();
 
-        // Verify: Stage 1 marked COMPLETED, cron PAUSED, but Stage 2 NOT started
+        // Verify: Stage 1 marked COMPLETED, pauseType set to AWAITING_STAGE_TRIGGER
+        // Note: Scheduler keeps running, state machine will skip execution
         expect(mockDeps.mockCronJobDTO.update).toHaveBeenCalledWith(
           mockCronJobId,
           expect.objectContaining({
             stage1Status: StageStatus.COMPLETED,
-            cronStatus: CronStatus.PAUSED
+            pauseType: PauseType.AWAITING_STAGE_TRIGGER
           })
         );
 
-        // Verify: Cron stopped (not started)
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // Verify: Cron NOT stopped (scheduler keeps running, state machine skips)
+        expect(stopCronJob).not.toHaveBeenCalled();
       });
     });
   });
@@ -872,11 +874,13 @@ describe('Release Orchestration - Unit Tests', () => {
         await stateMachine.initialize();
         await stateMachine.execute();
 
-        // Verify: Stage 2 marked COMPLETED, but Stage 3 NOT started
+        // Verify: Stage 2 marked COMPLETED, pauseType set to AWAITING_STAGE_TRIGGER
+        // Note: Scheduler keeps running, state machine will skip execution
         expect(mockDeps.mockCronJobDTO.update).toHaveBeenCalledWith(
           mockCronJobId,
           expect.objectContaining({
             stage2Status: StageStatus.COMPLETED,
+            pauseType: PauseType.AWAITING_STAGE_TRIGGER
           })
         );
         expect(mockDeps.mockCronJobDTO.update).not.toHaveBeenCalledWith(
@@ -886,8 +890,8 @@ describe('Release Orchestration - Unit Tests', () => {
           })
         );
 
-        // Verify: Cron job stopped (wait for manual trigger)
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // Verify: Cron NOT stopped (scheduler keeps running, state machine skips)
+        expect(stopCronJob).not.toHaveBeenCalled();
       });
     });
 

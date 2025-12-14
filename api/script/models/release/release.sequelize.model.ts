@@ -19,6 +19,7 @@ export type ReleaseAttributes = {
   kickOffReminderDate: Date | null; // When to send kickoff reminder
   kickOffDate: Date | null; // When to start kickoff stage
   targetReleaseDate: Date | null; // Target/planned release date
+  delayReason: string | null; // Reason for extending targetReleaseDate
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
   createdByAccountId: string; // Account ID who created release
@@ -122,6 +123,12 @@ export const createReleaseModel = (
         allowNull: true,
         field: 'targetReleaseDate',
         comment: 'Target/planned release date'
+      },
+      delayReason: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        field: 'delayReason',
+        comment: 'Reason for extending targetReleaseDate'
       },
       releaseDate: {
         type: DataTypes.DATE,

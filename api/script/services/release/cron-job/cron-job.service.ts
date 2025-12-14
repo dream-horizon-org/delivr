@@ -26,13 +26,12 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
 import { getTaskExecutor } from '~services/release/task-executor/task-executor-factory';
 import { startCronJob, stopCronJob, isCronJobRunning } from './cron-scheduler';
-import { StageStatus, CronStatus, CronJob } from '~models/release/release.interface';
+import { StageStatus, CronStatus, CronJob, PauseType } from '~models/release/release.interface';
 import {
   createWorkflowPollingJobs,
   deleteWorkflowPollingJobs
 } from '~services/release/workflow-polling';
 import { createScopedLogger } from '~utils/logger.utils';
-
 const log = createScopedLogger('CronJobService');
 
 export class CronJobService {
@@ -57,8 +56,6 @@ export class CronJobService {
    * @returns The updated CronJob record
    */
   async startCronJob(releaseId: string): Promise<CronJob> {
-    this.validateReleaseId(releaseId);
-
     // Check if cron job is already running
     if (isCronJobRunning(releaseId)) {
       throw new Error(`Cron job is already running for release ${releaseId}`);
@@ -112,8 +109,6 @@ export class CronJobService {
    * Stop cron job for a release
    */
   stopCronJob(releaseId: string): void {
-    this.validateReleaseId(releaseId);
-
     const stopped = stopCronJob(releaseId);
 
     if (!stopped) {
@@ -127,7 +122,6 @@ export class CronJobService {
    * Check if cron job is running for a release
    */
   isCronJobRunning(releaseId: string): boolean {
-    this.validateReleaseId(releaseId);
     return isCronJobRunning(releaseId);
   }
 
@@ -164,8 +158,6 @@ export class CronJobService {
    * - Stage 2 must be PENDING
    */
   async triggerStage2(releaseId: string, tenantId: string): Promise<TriggerStageResult> {
-    this.validateReleaseId(releaseId);
-
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
@@ -199,10 +191,12 @@ export class CronJobService {
     }
 
     // Update cron job and start Stage 2
+    // Clear pauseType to allow state machine to resume execution
     await this.cronJobRepo.update(cronJob.id, {
       autoTransitionToStage2: true,
       stage2Status: StageStatus.IN_PROGRESS,
-      cronStatus: CronStatus.RUNNING
+      cronStatus: CronStatus.RUNNING,
+      pauseType: PauseType.NONE  // Clear AWAITING_STAGE_TRIGGER
     });
 
     // Start the cron job
@@ -227,8 +221,6 @@ export class CronJobService {
    * - Stage 3 must be PENDING
    */
   async triggerStage3(releaseId: string, tenantId: string): Promise<TriggerStageResult> {
-    this.validateReleaseId(releaseId);
-
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
@@ -262,9 +254,11 @@ export class CronJobService {
     }
 
     // Update cron job and start Stage 3
+    // Clear pauseType to allow state machine to resume execution
     await this.cronJobRepo.update(cronJob.id, {
       autoTransitionToStage3: true,
-      stage3Status: StageStatus.IN_PROGRESS
+      stage3Status: StageStatus.IN_PROGRESS,
+      pauseType: PauseType.NONE  // Clear AWAITING_STAGE_TRIGGER
     });
 
     // Start the cron job
@@ -290,8 +284,6 @@ export class CronJobService {
    * - Stops cron job scheduler
    */
   async archiveRelease(releaseId: string, accountId: string): Promise<ArchiveReleaseResult> {
-    this.validateReleaseId(releaseId);
-
     // Get release
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
@@ -362,12 +354,133 @@ export class CronJobService {
   }
 
   /**
-   * Validate release ID
+   * Pause a release (user-requested)
+   * 
+   * Sets pauseType to USER_REQUESTED. Scheduler keeps running but
+   * state machine will skip execution until resumed.
+   * 
+   * Only allowed for:
+   * - Active releases (not ARCHIVED or COMPLETED)
+   * - Releases owned by the tenant
    */
-  private validateReleaseId(releaseId: string): void {
-    if (!releaseId || typeof releaseId !== 'string') {
-      throw new Error('Release ID is required and must be a string');
+  async pauseRelease(releaseId: string, tenantId: string): Promise<PauseReleaseResult> {
+    // Verify release exists and belongs to tenant
+    const release = await this.releaseRepo.findById(releaseId);
+    if (!release) {
+      return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
     }
+    if (release.tenantId !== tenantId) {
+      return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
+    }
+
+    // Cannot pause archived or completed releases
+    if (release.status === 'ARCHIVED') {
+      return { success: false, error: 'Cannot pause an archived release', statusCode: 400 };
+    }
+    if (release.status === 'COMPLETED') {
+      return { success: false, error: 'Cannot pause a completed release', statusCode: 400 };
+    }
+
+    // Get cron job
+    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    if (!cronJob) {
+      return { success: false, error: `Cron job not found for release: ${releaseId}`, statusCode: 404 };
+    }
+
+    // Check if already paused (idempotent)
+    if (cronJob.pauseType === PauseType.USER_REQUESTED) {
+      console.log(`[CronJobService] Release ${releaseId} already paused by user`);
+      return {
+        success: true,
+        data: {
+          releaseId,
+          pauseType: PauseType.USER_REQUESTED,
+          alreadyPaused: true
+        }
+      };
+    }
+
+    // Update pauseType to USER_REQUESTED
+    // Note: Scheduler keeps running, state machine will skip execution
+    await this.cronJobRepo.update(cronJob.id, {
+      pauseType: PauseType.USER_REQUESTED
+    });
+
+    console.log(`[CronJobService] Release ${releaseId} paused by user (pauseType = USER_REQUESTED)`);
+
+    return {
+      success: true,
+      data: {
+        releaseId,
+        pauseType: PauseType.USER_REQUESTED,
+        alreadyPaused: false
+      }
+    };
+  }
+
+  /**
+   * Resume a user-paused release
+   *
+   * Sets pauseType back to NONE. Only allowed for releases
+   * that were paused by the user (pauseType = USER_REQUESTED).
+   *
+   * Cannot resume:
+   * - TASK_FAILURE paused releases (requires retry/fix)
+   * - AWAITING_STAGE_TRIGGER paused releases (requires stage trigger API - "awaiting stage approval")
+   */
+  async resumeRelease(releaseId: string, tenantId: string): Promise<ResumeReleaseResult> {
+    // Verify release exists and belongs to tenant
+    const release = await this.releaseRepo.findById(releaseId);
+    if (!release) {
+      return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
+    }
+    if (release.tenantId !== tenantId) {
+      return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
+    }
+
+    // Get cron job
+    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    if (!cronJob) {
+      return { success: false, error: `Cron job not found for release: ${releaseId}`, statusCode: 404 };
+    }
+
+    // Can only resume USER_REQUESTED paused releases
+    if (cronJob.pauseType !== PauseType.USER_REQUESTED) {
+      if (cronJob.pauseType === PauseType.TASK_FAILURE) {
+        return {
+          success: false,
+          error: 'Cannot resume release paused due to TASK_FAILURE. Use retry API to resolve failed task.',
+          statusCode: 400
+        };
+      }
+      if (cronJob.pauseType === PauseType.AWAITING_STAGE_TRIGGER) {
+        return {
+          success: false,
+          error: 'Cannot resume release awaiting stage approval. Use the stage trigger API to proceed to the next stage.',
+          statusCode: 400
+        };
+      }
+      return {
+        success: false,
+        error: `Release is not paused by user. Current pauseType: ${cronJob.pauseType}`,
+        statusCode: 400
+      };
+    }
+
+    // Update pauseType to NONE
+    await this.cronJobRepo.update(cronJob.id, {
+      pauseType: PauseType.NONE
+    });
+
+    console.log(`[CronJobService] Release ${releaseId} resumed (pauseType = NONE)`);
+
+    return {
+      success: true,
+      data: {
+        releaseId,
+        pauseType: PauseType.NONE
+      }
+    };
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -377,7 +490,7 @@ export class CronJobService {
   /**
    * Create workflow polling Cronicle jobs for a release.
    * Only creates if Cronicle service is available.
-   * 
+   *
    * @param releaseId - The release to create jobs for
    */
   private async createWorkflowPollingJobsIfEnabled(releaseId: string): Promise<void> {
@@ -404,10 +517,10 @@ export class CronJobService {
 
       const jobsCreated = result.success;
       if (jobsCreated) {
-        log.info('Workflow polling jobs created', { 
-          releaseId, 
-          pendingJobId: result.pendingJobId, 
-          runningJobId: result.runningJobId 
+        log.info('Workflow polling jobs created', {
+          releaseId,
+          pendingJobId: result.pendingJobId,
+          runningJobId: result.runningJobId
         });
       } else {
         log.warn('Failed to create workflow polling jobs', { releaseId, error: result.error });
@@ -423,7 +536,7 @@ export class CronJobService {
    * Delete workflow polling Cronicle jobs for a release.
    * Only deletes if Cronicle service is available.
    * Called when release is COMPLETED or ARCHIVED.
-   * 
+   *
    * @param releaseId - The release to delete jobs for
    */
   async deleteWorkflowPollingJobsIfEnabled(releaseId: string): Promise<void> {
@@ -439,12 +552,12 @@ export class CronJobService {
         cronicleService: this.cronicleService
       });
 
-      log.info('Workflow polling jobs deletion completed', { 
-        releaseId, 
-        pendingDeleted: result.pendingDeleted, 
-        runningDeleted: result.runningDeleted 
+      log.info('Workflow polling jobs deletion completed', {
+        releaseId,
+        pendingDeleted: result.pendingDeleted,
+        runningDeleted: result.runningDeleted
       });
-      
+
       const hasErrors = result.errors.length > 0;
       if (hasErrors) {
         log.warn('Some workflow polling jobs could not be deleted', { errors: result.errors });
@@ -479,6 +592,31 @@ export type ArchiveReleaseResult = {
     alreadyArchived: boolean;
     cronJobPaused?: boolean;
     archivedAt: string;
+  };
+} | {
+  success: false;
+  error: string;
+  statusCode: number;
+};
+
+export type PauseReleaseResult = {
+  success: true;
+  data: {
+    releaseId: string;
+    pauseType: string;
+    alreadyPaused: boolean;
+  };
+} | {
+  success: false;
+  error: string;
+  statusCode: number;
+};
+
+export type ResumeReleaseResult = {
+  success: true;
+  data: {
+    releaseId: string;
+    pauseType: string;
   };
 } | {
   success: false;

@@ -237,6 +237,7 @@ export interface UpdateReleaseRequestBody {
   kickOffReminderDate?: string;
   kickOffDate?: string;
   targetReleaseDate?: string;
+  delayReason?: string;  // Required when extending targetReleaseDate
   releaseDate?: string;
   hasManualBuildUpload?: boolean;
   createdByAccountId?: string;

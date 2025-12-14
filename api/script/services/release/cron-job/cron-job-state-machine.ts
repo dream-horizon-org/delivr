@@ -25,7 +25,7 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { BuildRepository } from '~models/release/build.repository';
 import { TaskExecutor } from '~services/release/task-executor/task-executor';
 import { Storage } from '~storage/storage';
-import { StageStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
+import { StageStatus, CronStatus, ReleaseStatus, PauseType, PlatformName } from '~models/release/release.interface';
 import type { PlatformVersionMapping } from '~utils/awaiting-manual-build.utils';
 import { stopCronJob } from './cron-scheduler';
 
@@ -237,6 +237,14 @@ export class CronJobStateMachine {
       const { stopCronJob } = await import('./cron-scheduler');
       stopCronJob(this.releaseId);
       return; // Early exit
+    }
+
+    // ✅ PAUSE CHECK: Skip execution if release is paused (any reason)
+    // Scheduler keeps running but we don't process - state machine will check again on next tick
+    const cronJob = await this.cronJobRepo.findByReleaseId(this.releaseId);
+    if (cronJob && cronJob.pauseType && cronJob.pauseType !== PauseType.NONE) {
+      console.log(`[StateMachine] Release ${this.releaseId} paused (${cronJob.pauseType}). Skipping execution.`);
+      return; // Early exit - wait for resume/trigger
     }
 
     if (!this.currentState) {

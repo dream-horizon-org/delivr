@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS releases (
   kickOffReminderDate DATETIME COMMENT 'When to send kickoff reminder',
   kickOffDate DATETIME COMMENT 'When to start kickoff stage',
   targetReleaseDate DATETIME COMMENT 'Target/planned release date',
+  delayReason VARCHAR(500) COMMENT 'Reason for extending targetReleaseDate',
   releaseDate DATETIME COMMENT 'Actual release date when completed',
   hasManualBuildUpload BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether manual build upload is enabled',
   createdByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who created release',

@@ -244,33 +244,21 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   );
 
   // ============================================================================
-  // CRON JOB CONTROL
+  // RELEASE PAUSE/RESUME
   // ============================================================================
   
-  // Pause cron job
+  // Pause release (user-requested)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/cron/pause",
+    "/tenants/:tenantId/releases/:releaseId/pause",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.pauseCronJob
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Cron job pause endpoint coming soon"
-      });
-    }
+    controller.pauseRelease
   );
 
-  // Resume cron job
+  // Resume release (user-paused)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/cron/resume",
+    "/tenants/:tenantId/releases/:releaseId/resume",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.resumeCronJob
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Cron job resume endpoint coming soon"
-      });
-    }
+    controller.resumeRelease
   );
 
   // NOTE: Regression slot management (add/delete) is now handled through updateRelease API
