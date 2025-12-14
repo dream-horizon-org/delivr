@@ -17,12 +17,10 @@ import {
   NumberInput,
   Paper,
   Progress,
-  Select,
   Stack,
   Text,
   Textarea,
   ThemeIcon,
-  Timeline,
   Title
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -33,11 +31,7 @@ import {
   IconArrowLeft,
   IconBrandAndroid,
   IconBrandApple,
-  IconCheck,
-  IconClock,
   IconPlayerPause,
-  IconPlayerPlay,
-  IconRefresh,
   IconRotateClockwise,
   IconX
 } from '@tabler/icons-react';
@@ -46,9 +40,9 @@ import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
 import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
-import { RetrySubmissionDialog } from '~/components/distribution/RetrySubmissionDialog';
+import { ReSubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
+import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution.constants';
 import {
-  HaltSeverity,
   Platform,
   SubmissionStatus,
   type Submission,
@@ -149,10 +143,9 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
 
   const formData = await request.formData();
   const reason = formData.get('reason') as string;
-  const severity = formData.get('severity') as HaltSeverity;
 
   try {
-    await RolloutService.haltRollout(submissionId, { reason, severity });
+    await RolloutService.haltRollout(submissionId, { reason });
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to halt rollout' }, { status: 500 });
@@ -160,10 +153,23 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
 };
 
 export const action = authenticateActionRequest({
-  updateRollout,
-  pauseRollout,
-  resumeRollout,
-  haltRollout,
+  POST: async (args) => {
+    const formData = await args.request.formData();
+    const action = formData.get('_action');
+    
+    switch (action) {
+      case 'updateRollout':
+        return updateRollout(args);
+      case 'pauseRollout':
+        return pauseRollout(args);
+      case 'resumeRollout':
+        return resumeRollout(args);
+      case 'haltRollout':
+        return haltRollout(args);
+      default:
+        return json({ error: 'Invalid action' }, { status: 400 });
+    }
+  },
 });
 
 // Helper functions
@@ -304,16 +310,15 @@ function HaltDialog({
   submissionId: string;
 }) {
   const [reason, setReason] = useState('');
-  const [severity, setSeverity] = useState<HaltSeverity>(HaltSeverity.HIGH);
   const fetcher = useFetcher();
 
   const handleSubmit = useCallback(() => {
     fetcher.submit(
-      { _action: 'haltRollout', reason, severity },
+      { _action: 'haltRollout', reason },
       { method: 'post' }
     );
     onClose();
-  }, [reason, severity, fetcher, onClose]);
+  }, [reason, fetcher, onClose]);
 
   return (
     <Modal opened={opened} onClose={onClose} title="Emergency Halt" size="md" centered>
@@ -322,17 +327,6 @@ function HaltDialog({
           This will immediately halt the rollout. Users who already have the update will keep it,
           but no new users will receive it.
         </Alert>
-
-        <Select
-          label="Severity"
-          value={severity}
-          onChange={(val) => setSeverity(val as HaltSeverity)}
-          data={[
-            { value: HaltSeverity.CRITICAL, label: 'Critical' },
-            { value: HaltSeverity.HIGH, label: 'High' },
-            { value: HaltSeverity.MEDIUM, label: 'Medium' },
-          ]}
-        />
 
         <Textarea
           label="Reason"
@@ -475,13 +469,12 @@ export default function SubmissionDetailPage() {
         submissionId={submission.id}
       />
 
-      {/* Retry Dialog */}
-      <RetrySubmissionDialog
+      {/* Resubmission Dialog */}
+      <ReSubmissionDialog
         opened={retryDialogOpened}
         onClose={closeRetryDialog}
-        submissionId={submission.id}
-        platform={submission.platform}
-        currentReleaseNotes={submission.releaseNotes || ''}
+        distributionId={submission.distributionId}
+        previousSubmission={submission}
       />
 
       {/* Cancel Dialog */}
@@ -490,6 +483,7 @@ export default function SubmissionDetailPage() {
         onClose={closeCancelDialog}
         submissionId={submission.id}
         platform={submission.platform === Platform.ANDROID ? 'Android' : 'iOS'}
+        version={submission.versionName}
         currentStatus={SUBMISSION_STATUS_LABELS[submission.status as SubmissionStatus]}
       />
     </Container>

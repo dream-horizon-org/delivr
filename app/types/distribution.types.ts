@@ -468,15 +468,12 @@ export type UpdateRolloutRequest = {
 
 /** Pause Rollout Request */
 export type PauseRolloutRequest = {
-  submissionId: string;
   reason?: string;
 };
 
 /** Halt Rollout Request */
 export type HaltRolloutRequest = {
-  submissionId: string;
   reason: string;
-  severity: HaltSeverity;
 };
 
 /** Upload AAB Request (for manual mode) */

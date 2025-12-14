@@ -69,21 +69,21 @@ export class ReleaseService {
    * Check if release is in Pre-Release stage
    */
   static isInPreRelease(status: DistributionStatus): boolean {
-    return status === DistributionStatus.PRE_RELEASE;
+    return status === DistributionStatus.PENDING;
   }
 
   /**
    * Check if release is ready for submission
    */
   static isReadyForSubmission(status: DistributionStatus): boolean {
-    return status === DistributionStatus.READY_FOR_SUBMISSION;
+    return status === DistributionStatus.PARTIALLY_SUBMITTED;
   }
 
   /**
    * Check if release is completed
    */
   static isCompleted(status: DistributionStatus): boolean {
-    return status === DistributionStatus.COMPLETED;
+    return status === DistributionStatus.RELEASED;
   }
 
   /**
@@ -91,9 +91,11 @@ export class ReleaseService {
    */
   static getStatusLabel(status: DistributionStatus): string {
     const labels: Record<DistributionStatus, string> = {
-      [DistributionStatus.PRE_RELEASE]: 'Pre-Release',
-      [DistributionStatus.READY_FOR_SUBMISSION]: 'Ready to Submit',
-      [DistributionStatus.COMPLETED]: 'Completed',
+      [DistributionStatus.PENDING]: 'Pending',
+      [DistributionStatus.PARTIALLY_SUBMITTED]: 'Partially Submitted',
+      [DistributionStatus.SUBMITTED]: 'Submitted',
+      [DistributionStatus.PARTIALLY_RELEASED]: 'Partially Released',
+      [DistributionStatus.RELEASED]: 'Released',
     };
     return labels[status] || status;
   }
@@ -103,9 +105,11 @@ export class ReleaseService {
    */
   static getStatusColor(status: DistributionStatus): string {
     const colors: Record<DistributionStatus, string> = {
-      [DistributionStatus.PRE_RELEASE]: 'gray',
-      [DistributionStatus.READY_FOR_SUBMISSION]: 'cyan',
-      [DistributionStatus.COMPLETED]: 'green',
+      [DistributionStatus.PENDING]: 'gray',
+      [DistributionStatus.PARTIALLY_SUBMITTED]: 'blue',
+      [DistributionStatus.SUBMITTED]: 'cyan',
+      [DistributionStatus.PARTIALLY_RELEASED]: 'yellow',
+      [DistributionStatus.RELEASED]: 'green',
     };
     return colors[status] || 'gray';
   }
