@@ -375,13 +375,17 @@ interface StageTasksResponse {
 - `ADD_L6_APPROVAL_CHECK`
 
 **Build Information:**
+- **For Completed Tasks**: Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` or `CREATE_AAB_BUILD` that have `taskStatus: 'COMPLETED'` **MUST** include `builds: BuildInfo[]` array with consumed builds from the `builds` table where `taskId === task.id`
 - Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` (iOS) will include `builds: BuildInfo[]` when builds are available
-  - Each iOS `BuildInfo` contains `testflightNumber` for TestFlight link generation
+  - Each iOS `BuildInfo` contains `testflightNumber` for TestFlight link generation (required for completed tasks)
   - `storeType` will be `'TESTFLIGHT'`
+  - `platform` will be `'IOS'`
 - Tasks with `taskType: CREATE_AAB_BUILD` (Android) will include `builds: BuildInfo[]` when builds are available
-  - Each Android `BuildInfo` contains `internalTrackLink` for Play Store Internal Track link
+  - Each Android `BuildInfo` contains `internalTrackLink` for Play Store Internal Track link (required for completed tasks)
   - `storeType` will be `'PLAY_STORE'`
+  - `platform` will be `'ANDROID'`
 - Builds are grouped by platform for display
+- **Data Source**: `task.builds` contains consumed builds from `builds` table where `taskId === task.id` (NOT from staging table)
 
 ### 6. Get Release Submission Stage Tasks
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/release-submission`

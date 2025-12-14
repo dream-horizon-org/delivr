@@ -188,7 +188,7 @@ function BuildItem({
           {isPostRegression && (
             <Stack gap="xs">
               {/* iOS TestFlight Link */}
-              {build.platform === Platform.IOS && build.storeType === 'TESTFLIGHT' && build.testflightNumber && (
+              {build.platform === Platform.IOS && build.testflightNumber && (
                 <Group gap="xs">
                   <IconBrandApple size={14} />
                   <Anchor 
@@ -201,9 +201,15 @@ function BuildItem({
                   </Anchor>
                 </Group>
               )}
+              {/* Show warning if TestFlight build is missing testflightNumber */}
+              {build.platform === Platform.IOS && !build.testflightNumber && taskStatus === TaskStatus.COMPLETED && (
+                <Text size="xs" c="red">
+                  TestFlight build number missing
+                </Text>
+              )}
               
               {/* Android Internal Track Link */}
-              {build.platform === Platform.ANDROID && build.storeType === 'PLAY_STORE' && build.internalTrackLink && (
+              {build.platform === Platform.ANDROID && build.internalTrackLink && (
                 <Group gap="xs">
                   <IconExternalLink size={14} />
                   <Anchor 
@@ -215,6 +221,12 @@ function BuildItem({
                     Play Store Internal Track
                   </Anchor>
                 </Group>
+              )}
+              {/* Show warning if AAB build is missing internalTrackLink */}
+              {build.platform === Platform.ANDROID && !build.internalTrackLink && taskStatus === TaskStatus.COMPLETED && (
+                <Text size="xs" c="red">
+                  Play Store link missing
+                </Text>
               )}
             </Stack>
           )}

@@ -45,3 +45,4 @@ const sendNotification: AuthenticatedActionFunction = async ({ params, request, 
 
 export const action = authenticateActionRequest({ POST: sendNotification });
 
+

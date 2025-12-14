@@ -173,3 +173,4 @@ export function RegularTaskDetails({ task }: RegularTaskDetailsProps) {
   );
 }
 
+

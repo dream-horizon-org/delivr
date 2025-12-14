@@ -49,8 +49,8 @@ export function BuildArtifactsList({
                   </Anchor>
                 ) : (
                   <Text size="xs" c="dimmed">
-                    {artifact.storeType === 'TESTFLIGHT' 
-                      ? `TestFlight Build #${artifact.buildNumber || 'N/A'}` 
+                    {artifact.platform === 'IOS' && !artifact.downloadUrl && artifact.buildNumber
+                      ? `TestFlight Build #${artifact.buildNumber}`
                       : 'No download available'}
                   </Text>
                 )}

@@ -198,6 +198,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
           Object.values(TaskStage).forEach((stage) => {
             queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stage));
           });
+          // Invalidate releases list to reflect task status changes
+          queryClient.invalidateQueries(['releases', tenantId]);
         }
       },
     }
@@ -334,7 +336,9 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
               stageToInvalidate = TaskStage.POST_REGRESSION;
               break;
             default:
-              return;
+              // Defensive: invalidate REGRESSION stage as fallback if unexpected stage value
+              console.warn(`[useVerifyTestFlight] Unexpected stage: ${variables.stage}, defaulting to REGRESSION`);
+              stageToInvalidate = TaskStage.REGRESSION;
           }
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
         }
@@ -476,7 +480,11 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
     {
       onSuccess: () => {
         if (tenantId && releaseId) {
+          // Invalidate both REGRESSION (current) and POST_REGRESSION (next stage that gets triggered)
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.REGRESSION));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.POST_REGRESSION));
+          // Invalidate releases list to reflect stage transition
+          queryClient.invalidateQueries(['releases', tenantId]);
         }
       },
     }
@@ -510,6 +518,8 @@ export function useCompletePostRegression(tenantId?: string, releaseId?: string)
       onSuccess: () => {
         if (tenantId && releaseId) {
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.POST_REGRESSION));
+          // Invalidate releases list to reflect stage completion
+          queryClient.invalidateQueries(['releases', tenantId]);
         }
       },
     }

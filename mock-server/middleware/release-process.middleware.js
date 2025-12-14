@@ -69,17 +69,15 @@ function getBuildsForTask(task, db, releaseId) {
     return undefined;
   }
 
-  // Get builds from both builds table (consumed) and buildUploadsStaging (unconsumed)
+  // Only get consumed builds from builds table
+  // Staging builds belong in stage.availableBuilds (for Regression stage only)
+  // task.builds should only contain consumed builds where taskId === task.id
   const consumedBuilds = db.get('builds')
     .filter({ releaseId, taskId: task.id })
     .value() || [];
-  
-  const stagingBuilds = db.get('buildUploadsStaging')
-    .filter({ releaseId, stage: buildStage, isUsed: false })
-    .value() || [];
 
-  // Combine and map to BuildInfo structure
-  const allBuilds = [...consumedBuilds, ...stagingBuilds];
+  // Only use consumed builds (not staging builds)
+  const allBuilds = consumedBuilds;
   
   if (allBuilds.length === 0) {
     return undefined;
@@ -89,15 +87,9 @@ function getBuildsForTask(task, db, releaseId) {
     // Determine platform from build
     const platform = build.platform || 'ANDROID';
     
-    // For Post-Regression tasks, set storeType based on platform
-    let storeType = build.storeType || null;
-    if (taskStage === 'POST_REGRESSION') {
-      if (platform === 'IOS') {
-        storeType = 'TESTFLIGHT';
-      } else if (platform === 'ANDROID') {
-        storeType = 'PLAY_STORE';
-      }
-    }
+    // Keep storeType from build data (backend may or may not send it)
+    // Frontend doesn't depend on it anymore - uses platform + testflightNumber/internalTrackLink instead
+    const storeType = build.storeType || null;
 
     return {
       id: build.id,

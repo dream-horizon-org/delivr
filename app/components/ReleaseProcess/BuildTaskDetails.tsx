@@ -46,6 +46,10 @@ export function BuildTaskDetails({
   }, [task.taskType]);
 
   // Extract builds from task.builds or task.externalData?.builds
+  // Note: For completed Post-Regression tasks, task.builds MUST be populated by backend
+  // - TestFlight tasks: builds[0].testflightNumber must be present
+  // - AAB tasks: builds[0].internalTrackLink must be present
+  // - Data source: consumed builds from builds table where taskId === task.id
   const taskBuilds: BuildInfo[] = useMemo(() => {
     if (task.builds && Array.isArray(task.builds)) {
       return task.builds;

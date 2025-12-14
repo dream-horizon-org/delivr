@@ -334,7 +334,9 @@ export function ManualBuildUploadWidget({
                       </Anchor>
                     ) : (
                       <Text size="xs" c="dimmed">
-                        {artifact.storeType === 'TESTFLIGHT' ? `TestFlight Build #${artifact.buildNumber || 'N/A'}` : 'No download available'}
+                        {artifact.platform === 'IOS' && !artifact.downloadUrl && artifact.buildNumber 
+                          ? `TestFlight Build #${artifact.buildNumber}` 
+                          : 'No download available'}
                       </Text>
                     )}
                   </div>

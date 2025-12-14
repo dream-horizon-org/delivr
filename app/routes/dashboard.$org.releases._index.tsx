@@ -13,12 +13,21 @@
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
+import { useMemo } from 'react';
 import { useReleases } from '~/hooks/useReleases';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { PageError } from '~/components/Common/PageError';
 import { ReleasesListHeader } from '~/components/Releases/ReleasesListHeader';
+import { ReleasesFilter } from '~/components/Releases/ReleasesFilter';
 import { ReleasesTabs } from '~/components/Releases/ReleasesTabs';
 import { RELEASE_TABS } from '~/constants/release-tabs';
+import {
+  BUILD_MODE_FILTERS,
+  STAGE_FILTERS,
+  STAGE_FILTER_TO_PHASES,
+  type BuildModeFilter,
+  type StageFilter,
+} from '~/constants/release-filters';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { listReleases } from '~/.server/services/ReleaseManagement';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
@@ -89,6 +98,10 @@ export default function ReleasesListPage() {
   const { org, initialReleases } = useLoaderData<ReleasesListLoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || RELEASE_TABS.UPCOMING;
+  
+  // Get filter values from URL params
+  const buildMode = (searchParams.get('buildMode') || BUILD_MODE_FILTERS.ALL) as BuildModeFilter;
+  const stage = (searchParams.get('stage') || STAGE_FILTERS.ALL) as StageFilter;
 
   // Use React Query with initialData from server-side loader
   const {
@@ -105,10 +118,71 @@ export default function ReleasesListPage() {
     },
   });
 
+  // Filter function
+  const filterReleases = useMemo(() => {
+    return (releases: BackendReleaseResponse[]): BackendReleaseResponse[] => {
+      return releases.filter((release) => {
+        // Filter by build mode
+        if (buildMode !== BUILD_MODE_FILTERS.ALL) {
+          const isManual = release.hasManualBuildUpload;
+          if (buildMode === BUILD_MODE_FILTERS.MANUAL && !isManual) {
+            return false;
+          }
+          if (buildMode === BUILD_MODE_FILTERS.CI_CD && isManual) {
+            return false;
+          }
+        }
+
+        // Filter by stage
+        if (stage !== STAGE_FILTERS.ALL) {
+          const allowedPhases = STAGE_FILTER_TO_PHASES[stage];
+          const releasePhase = release.releasePhase;
+          
+          if (!releasePhase) {
+            return false; // No phase means not started, exclude unless ALL
+          }
+          
+          if (allowedPhases.length > 0 && !allowedPhases.includes(releasePhase)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    };
+  }, [buildMode, stage]);
+
+  // Apply filters to releases
+  const filteredUpcoming = useMemo(() => filterReleases(upcoming), [upcoming, filterReleases]);
+  const filteredActive = useMemo(() => filterReleases(active), [active, filterReleases]);
+  const filteredCompleted = useMemo(() => filterReleases(completed), [completed, filterReleases]);
+
   const handleTabChange = (value: string | null) => {
     if (value) {
-      setSearchParams({ tab: value });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', value);
+      setSearchParams(newParams);
     }
+  };
+
+  const handleBuildModeChange = (value: BuildModeFilter) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === BUILD_MODE_FILTERS.ALL) {
+      newParams.delete('buildMode');
+    } else {
+      newParams.set('buildMode', value);
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleStageChange = (value: StageFilter) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === STAGE_FILTERS.ALL) {
+      newParams.delete('stage');
+    } else {
+      newParams.set('stage', value);
+    }
+    setSearchParams(newParams);
   };
 
   // Only show loader if we don't have initialData and are actually loading
@@ -124,14 +198,22 @@ export default function ReleasesListPage() {
       )}
 
       {!shouldShowLoader && (
-        <ReleasesTabs
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          upcoming={upcoming}
-          active={active}
-          completed={completed}
-          org={org}
-        />
+        <>
+          <ReleasesFilter
+            buildMode={buildMode}
+            stage={stage}
+            onBuildModeChange={handleBuildModeChange}
+            onStageChange={handleStageChange}
+          />
+          <ReleasesTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            upcoming={filteredUpcoming}
+            active={filteredActive}
+            completed={filteredCompleted}
+            org={org}
+          />
+        </>
       )}
     </Container>
   );
