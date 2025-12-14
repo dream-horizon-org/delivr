@@ -298,15 +298,6 @@ class ReleaseProcess {
     );
   }
 
-  /**
-   * Delete build artifact - Matches backend contract
-   * DELETE /tenants/:tenantId/releases/:releaseId/builds/artifacts/:uploadId
-   */
-  async deleteBuildArtifact(tenantId: string, releaseId: string, uploadId: string) {
-    return this.__client.delete<null, AxiosResponse<{ success: boolean; message: string }>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts/${uploadId}`
-    );
-  }
 
   /**
    * Verify TestFlight build - Matches backend contract

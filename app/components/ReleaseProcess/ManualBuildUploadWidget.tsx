@@ -6,7 +6,7 @@
  */
 
 import { Alert, Anchor, Box, Button, Card, Group, Select, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { IconAlertCircle, IconBrandApple, IconCheck, IconFile, IconTrash, IconUpload, IconX } from '@tabler/icons-react';
+import { IconAlertCircle, IconBrandApple, IconCheck, IconFile, IconUpload, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BUILD_UPLOAD_LABELS,
@@ -14,8 +14,7 @@ import {
   ERROR_MESSAGES,
   SUCCESS_MESSAGES,
 } from '~/constants/release-process-ui';
-import { BuildsService } from '~/services/builds.service';
-import { useBuildArtifacts, useDeleteBuildArtifact, useManualBuildUpload } from '~/hooks/useReleaseProcess';
+import { useBuildArtifacts, useManualBuildUpload, useVerifyTestFlight } from '~/hooks/useReleaseProcess';
 import { useRelease } from '~/hooks/useRelease';
 import type { BuildUploadStage, Platform } from '~/types/release-process-enums';
 import { TaskType } from '~/types/release-process-enums';
@@ -119,7 +118,7 @@ export function ManualBuildUploadWidget({
   const [isVerifying, setIsVerifying] = useState(false);
 
   const uploadMutation = useManualBuildUpload(tenantId, releaseId);
-  const deleteMutation = useDeleteBuildArtifact(tenantId, releaseId);
+  const verifyTestFlightMutation = useVerifyTestFlight(tenantId, releaseId);
 
   // Map BuildUploadStage to backend stage format for filtering
   const backendStage = useMemo(() => {
@@ -248,8 +247,8 @@ export function ManualBuildUploadWidget({
     setValidationError(null);
 
     try {
-      await BuildsService.verifyTestFlight(releaseId, {
-        releaseId,
+      await verifyTestFlightMutation.mutateAsync({
+        stage,
         testflightBuildNumber: testflightBuildNumber.trim(),
         versionName: versionName.trim(),
       });
@@ -267,7 +266,7 @@ export function ManualBuildUploadWidget({
     } finally {
       setIsVerifying(false);
     }
-  }, [testflightBuildNumber, versionName, releaseId, onUploadComplete]);
+  }, [testflightBuildNumber, versionName, stage, verifyTestFlightMutation, refetchArtifacts, onUploadComplete]);
 
   const handleClear = useCallback(() => {
     setSelectedFile(null);
@@ -276,19 +275,6 @@ export function ManualBuildUploadWidget({
       fileInputRef.current.value = '';
     }
   }, []);
-
-  // Handle artifact deletion
-  const handleDeleteArtifact = useCallback(async (uploadId: string) => {
-    try {
-      await deleteMutation.mutateAsync({ uploadId });
-      showSuccessToast({ message: 'Artifact deleted successfully' });
-      await refetchArtifacts();
-      onUploadComplete?.();
-    } catch (error) {
-      const errorMessage = getApiErrorMessage(error, 'Failed to delete artifact');
-      showErrorToast({ message: errorMessage });
-    }
-  }, [deleteMutation, refetchArtifacts, onUploadComplete]);
 
   const isUploading = uploadMutation.isLoading;
   const isLoading = isUploading || isVerifying;
@@ -353,22 +339,6 @@ export function ManualBuildUploadWidget({
                     )}
                   </div>
                 </Group>
-                <Tooltip label="Delete artifact">
-                  <Button
-                    variant="subtle"
-                    color="red"
-                    size="xs"
-                    leftSection={<IconTrash size={14} />}
-                    onClick={() => {
-                      // Extract uploadId from artifact - may need to use id or a different field
-                      // Based on API contract, we need uploadId which might be in artifact.id or a separate field
-                      handleDeleteArtifact(artifact.id);
-                    }}
-                    loading={deleteMutation.isLoading}
-                  >
-                    Delete
-                  </Button>
-                </Tooltip>
               </Group>
             ))}
           </Stack>

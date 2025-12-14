@@ -1251,8 +1251,978 @@ const testCases = {
     };
   },
   
-  // Continue with remaining REG-M cases (REG-M-3 through REG-M-16) and other stages...
-  // For brevity, I'm adding key representative cases. All 53 cases should follow this pattern.
+  // ============================================================================
+  // REGRESSION STAGE - MANUAL MODE (continued: REG-M-3 through REG-M-16)
+  // ============================================================================
+  
+  'REG-M-3': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -2);
+    const cycle1CompletedDate = addHours(cycle1Date, 4);
+    const upcomingSlotDate = addDays(BASE_DATE, 2);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+      completedAt: cycle1CompletedDate,
+      updatedAt: cycle1CompletedDate,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date,
+        updatedAt: addHours(cycle1Date, 2),
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION_AWAITING_NEXT_CYCLE, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = [{ date: upcomingSlotDate.toISOString(), config: {} }];
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(19),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION_AWAITING_NEXT_CYCLE,
+        branch: 'test-reg-m-3-first-completed-second-upcoming',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: cycle1CompletedDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: [], // No staging builds - ready for next cycle upload
+      builds: [],
+    };
+  },
+  
+  'REG-M-4': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -3);
+    const cycle1CompletedDate = addHours(cycle1Date, 4);
+    const cycle2Date = addDays(BASE_DATE, 1);
+    const cycle2BuildDate = addHours(cycle2Date, 1);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+      completedAt: cycle1CompletedDate,
+      updatedAt: cycle1CompletedDate,
+    });
+    
+    const cycle2 = createCycle(releaseId, RegressionCycleStatus.IN_PROGRESS, 'rc-1.0.0-cycle2', {
+      slotIndex: 2,
+      slotDateTime: cycle2Date,
+      createdAt: cycle2Date,
+    });
+    
+    const cycle1Tasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date,
+        updatedAt: addHours(cycle1Date, 2),
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const triggerCycle2BuildsTask = createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+      createdAt: cycle2Date,
+      updatedAt: addHours(cycle2BuildDate, 1),
+      regressionId: cycle2.id,
+    });
+    
+    const cycle2Tasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date, 
+        updatedAt: addHours(cycle2Date, 1),
+        regressionId: cycle2.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date, 
+        updatedAt: addHours(cycle2Date, 1),
+        regressionId: cycle2.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date, 
+        updatedAt: addHours(cycle2Date, 1),
+        regressionId: cycle2.id,
+      }),
+      triggerCycle2BuildsTask,
+    ];
+    
+    const cycle2Builds = [
+      createBuild(releaseId, Platform.ANDROID, {
+        createdAt: cycle2BuildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'UPLOADED',
+        taskId: triggerCycle2BuildsTask.id,
+        artifactPath: `s3://bucket/releases/${releaseId}/ANDROID/regression-cycle2.apk`,
+        regressionId: cycle2.id,
+      }),
+      createBuild(releaseId, Platform.IOS, {
+        createdAt: cycle2BuildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'UPLOADED',
+        taskId: triggerCycle2BuildsTask.id,
+        artifactPath: `s3://bucket/releases/${releaseId}/IOS/regression-cycle2.ipa`,
+        regressionId: cycle2.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = null;
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(20),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION,
+        branch: 'test-reg-m-4-first-completed-second-active',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: addHours(cycle2BuildDate, 1),
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...cycle1Tasks, ...cycle2Tasks],
+      },
+      cycles: [cycle1, cycle2],
+      stagingBuilds: [],
+      builds: cycle2Builds,
+    };
+  },
+  
+  'REG-M-5': () => {
+    // Same as REG-M-3 (first completed, second upcoming)
+    return testCases['REG-M-3']();
+  },
+  
+  'REG-M-6': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -2);
+    const cycle1CompletedDate = addHours(cycle1Date, 4);
+    const pastSlotDate = addDays(BASE_DATE, -1); // Past date
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+      completedAt: cycle1CompletedDate,
+      updatedAt: cycle1CompletedDate,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date,
+        updatedAt: addHours(cycle1Date, 2),
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION_AWAITING_NEXT_CYCLE, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = [{ date: pastSlotDate, config: {} }]; // Past date but window still open
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(21),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION_AWAITING_NEXT_CYCLE,
+        branch: 'test-reg-m-6-slot-time-passed-builds-not-uploaded',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: cycle1CompletedDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: [],
+      builds: [],
+    };
+  },
+  
+  'REG-M-7': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -10);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -5);
+    const cycle1CompletedDate = addHours(cycle1Date, 4);
+    const cycle2Date = addDays(BASE_DATE, -2);
+    const cycle2CompletedDate = addHours(cycle2Date, 4);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+      completedAt: cycle1CompletedDate,
+      updatedAt: cycle1CompletedDate,
+    });
+    
+    const cycle2 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle2', {
+      slotIndex: 2,
+      slotDateTime: cycle2Date,
+      createdAt: cycle2Date,
+      completedAt: cycle2CompletedDate,
+      updatedAt: cycle2CompletedDate,
+    });
+    
+    const cycle1Tasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date,
+        updatedAt: addHours(cycle1Date, 2),
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const cycle2Tasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date, 
+        updatedAt: addHours(cycle2Date, 1),
+        regressionId: cycle2.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date, 
+        updatedAt: addHours(cycle2Date, 1),
+        regressionId: cycle2.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date, 
+        updatedAt: addHours(cycle2Date, 1),
+        regressionId: cycle2.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle2Date,
+        updatedAt: addHours(cycle2Date, 2),
+        regressionId: cycle2.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.AWAITING_POST_REGRESSION, { stage1: 'COMPLETED', stage2: 'COMPLETED' });
+    cronJob.upcomingRegressions = null;
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(22),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.AWAITING_POST_REGRESSION,
+        branch: 'test-reg-m-7-all-cycles-completed',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: cycle2CompletedDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...cycle1Tasks, ...cycle2Tasks],
+      },
+      cycles: [cycle1, cycle2],
+      stagingBuilds: [],
+      builds: [],
+    };
+  },
+  
+  'REG-M-8': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -2);
+    const cycle1CompletedDate = addHours(cycle1Date, 4);
+    const upcomingSlotDate = addDays(BASE_DATE, 2);
+    const stagingBuildDate = addHours(upcomingSlotDate, -1);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+      completedAt: cycle1CompletedDate,
+      updatedAt: cycle1CompletedDate,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date,
+        updatedAt: addHours(cycle1Date, 2),
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    // Android build uploaded for next cycle, iOS missing
+    const stagingBuilds = [
+      createStagingBuild(releaseId, Platform.ANDROID, 'REGRESSION', {
+        createdAt: stagingBuildDate,
+        isUsed: false,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION_AWAITING_NEXT_CYCLE, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = [{ date: upcomingSlotDate, config: {} }];
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(23),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION_AWAITING_NEXT_CYCLE,
+        branch: 'test-reg-m-8-partial-builds-uploaded-next-cycle',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: cycle1CompletedDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: stagingBuilds,
+      builds: [],
+    };
+  },
+  
+  'REG-M-9': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -2);
+    const cycle1CompletedDate = addHours(cycle1Date, 4);
+    const upcomingSlotDate = addDays(BASE_DATE, 2);
+    const stagingBuildDate = addHours(upcomingSlotDate, -1);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.DONE, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+      completedAt: cycle1CompletedDate,
+      updatedAt: cycle1CompletedDate,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date,
+        updatedAt: addHours(cycle1Date, 2),
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    // All builds uploaded for next cycle
+    const stagingBuilds = [
+      createStagingBuild(releaseId, Platform.ANDROID, 'REGRESSION', {
+        createdAt: stagingBuildDate,
+        isUsed: false,
+      }),
+      createStagingBuild(releaseId, Platform.IOS, 'REGRESSION', {
+        createdAt: stagingBuildDate,
+        isUsed: false,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION_AWAITING_NEXT_CYCLE, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = [{ date: upcomingSlotDate, config: {} }];
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(24),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION_AWAITING_NEXT_CYCLE,
+        branch: 'test-reg-m-9-all-builds-uploaded-next-cycle',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: cycle1CompletedDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: stagingBuilds,
+      builds: [],
+    };
+  },
+  
+  'REG-M-10': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, -2);
+    const upcomingSlotDate = addDays(BASE_DATE, 2);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.ABANDONED, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+    });
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION_AWAITING_NEXT_CYCLE, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = [{ date: upcomingSlotDate, config: {} }];
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(25),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION_AWAITING_NEXT_CYCLE,
+        branch: 'test-reg-m-10-cycle-abandoned',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: cycle1Date,
+        cronJob: cronJob,
+        tasks: kickoffTasks,
+      },
+      cycles: [cycle1],
+      stagingBuilds: [],
+      builds: [],
+    };
+  },
+  
+  'REG-M-11': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, 1);
+    const buildDate = addHours(cycle1Date, 1);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.IN_PROGRESS, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+    });
+    
+    const triggerRegressionBuildsTask = createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.IN_PROGRESS, { 
+      createdAt: cycle1Date,
+      updatedAt: buildDate,
+      regressionId: cycle1.id,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      triggerRegressionBuildsTask,
+    ];
+    
+    // Android failed, iOS successful
+    const regressionBuilds = [
+      createBuild(releaseId, Platform.ANDROID, {
+        createdAt: buildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'FAILED',
+        taskId: triggerRegressionBuildsTask.id,
+        regressionId: cycle1.id,
+      }),
+      createBuild(releaseId, Platform.IOS, {
+        createdAt: buildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'UPLOADED',
+        taskId: triggerRegressionBuildsTask.id,
+        artifactPath: `s3://bucket/releases/${releaseId}/IOS/regression-build.ipa`,
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = null;
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(26),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION,
+        branch: 'test-reg-m-11-android-build-failed',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: buildDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: [],
+      builds: regressionBuilds,
+    };
+  },
+  
+  'REG-M-12': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, 1);
+    const buildDate = addHours(cycle1Date, 1);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.IN_PROGRESS, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+    });
+    
+    const triggerRegressionBuildsTask = createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.FAILED, { 
+      createdAt: cycle1Date,
+      updatedAt: buildDate,
+      regressionId: cycle1.id,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      triggerRegressionBuildsTask,
+    ];
+    
+    // Both builds failed
+    const regressionBuilds = [
+      createBuild(releaseId, Platform.ANDROID, {
+        createdAt: buildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'FAILED',
+        taskId: triggerRegressionBuildsTask.id,
+        regressionId: cycle1.id,
+      }),
+      createBuild(releaseId, Platform.IOS, {
+        createdAt: buildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'FAILED',
+        taskId: triggerRegressionBuildsTask.id,
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = null;
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(27),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION,
+        branch: 'test-reg-m-12-both-builds-failed',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: buildDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: [],
+      builds: regressionBuilds,
+    };
+  },
+  
+  'REG-M-13': () => {
+    const releaseId = generateUUID();
+    const kickoffDate = addDays(BASE_DATE, -5);
+    const completedDate = addHours(kickoffDate, 5);
+    const cycle1Date = addDays(BASE_DATE, 1);
+    const buildDate = addHours(cycle1Date, 1);
+    
+    const kickoffTasks = [
+      createTask(releaseId, TaskType.FORK_BRANCH, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.CREATE_TEST_SUITE, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: addHours(kickoffDate, 1) }),
+      createTask(releaseId, TaskType.TRIGGER_PRE_REGRESSION_BUILDS, TaskStage.KICKOFF, TaskStatus.COMPLETED, { createdAt: kickoffDate, updatedAt: completedDate }),
+    ];
+    
+    const cycle1 = createCycle(releaseId, RegressionCycleStatus.IN_PROGRESS, 'rc-1.0.0-cycle1', {
+      slotIndex: 1,
+      slotDateTime: cycle1Date,
+      createdAt: cycle1Date,
+    });
+    
+    const triggerRegressionBuildsTask = createTask(releaseId, TaskType.TRIGGER_REGRESSION_BUILDS, TaskStage.REGRESSION, TaskStatus.AWAITING_MANUAL_BUILD, { 
+      createdAt: cycle1Date,
+      updatedAt: buildDate,
+      regressionId: cycle1.id,
+    });
+    
+    const regressionTasks = [
+      createTask(releaseId, TaskType.RESET_TEST_SUITE, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RC_TAG, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      createTask(releaseId, TaskType.CREATE_RELEASE_NOTES, TaskStage.REGRESSION, TaskStatus.COMPLETED, { 
+        createdAt: cycle1Date, 
+        updatedAt: addHours(cycle1Date, 1),
+        regressionId: cycle1.id,
+      }),
+      triggerRegressionBuildsTask,
+    ];
+    
+    // Only Android uploaded, iOS missing
+    const regressionBuilds = [
+      createBuild(releaseId, Platform.ANDROID, {
+        createdAt: buildDate,
+        buildType: 'MANUAL',
+        buildStage: 'REGRESSION',
+        buildUploadStatus: 'UPLOADED',
+        taskId: triggerRegressionBuildsTask.id,
+        artifactPath: `s3://bucket/releases/${releaseId}/ANDROID/regression-build.apk`,
+        regressionId: cycle1.id,
+      }),
+    ];
+    
+    const cronJob = createCronJob(releaseId, Phase.REGRESSION, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
+    cronJob.upcomingRegressions = null;
+    
+    return {
+      release: {
+        id: releaseId,
+        releaseId: generateReleaseId(28),
+        releaseConfigId: RELEASE_CONFIG_ID,
+        tenantId: TENANT_ID,
+        type: 'PLANNED',
+        status: ReleaseStatus.IN_PROGRESS,
+        releasePhase: Phase.REGRESSION,
+        branch: 'test-reg-m-13-one-platform-missing',
+        baseBranch: 'main',
+        baseReleaseId: null,
+        platformTargetMappings: createPlatformMappings(releaseId, [Platform.ANDROID, Platform.IOS]),
+        kickOffReminderDate: addDays(kickoffDate, -1),
+        kickOffDate: kickoffDate,
+        targetReleaseDate: addDays(kickoffDate, 20),
+        releaseDate: null,
+        hasManualBuildUpload: true,
+        customIntegrationConfigs: null,
+        preCreatedBuilds: null,
+        createdByAccountId: ACCOUNT_ID,
+        releasePilotAccountId: ACCOUNT_ID,
+        lastUpdatedByAccountId: ACCOUNT_ID,
+        createdAt: addDays(kickoffDate, -5),
+        updatedAt: buildDate,
+        cronJob: cronJob,
+        tasks: [...kickoffTasks, ...regressionTasks],
+      },
+      cycles: [cycle1],
+      stagingBuilds: [],
+      builds: regressionBuilds,
+    };
+  },
+  
+  // Continue with REG-M-14, REG-M-15, REG-M-16, then REG-C cases, then POST cases...
 };
 
 // Export for use in separate file
@@ -1299,14 +2269,31 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log('📝 Will create new file...\n');
   }
   
-  // Generate only first 18 test cases
-  const FIRST_18_TEST_CASES = [
+  // Generate all 53 test cases
+  const ALL_TEST_CASES = [
+    // Pre-Kickoff (3)
     'PRE-1', 'PRE-2', 'PRE-3',
+    // Kickoff Manual (6)
     'KO-M-1', 'KO-M-2', 'KO-M-3', 'KO-M-4', 'KO-M-5', 'KO-M-6',
+    // Kickoff CI/CD (4)
     'KO-C-1', 'KO-C-2', 'KO-C-3', 'KO-C-4',
+    // Kickoff Platform (3)
     'KO-P-1', 'KO-P-2', 'KO-P-3',
-    'REG-M-1', 'REG-M-2',
+    // Regression Manual (16)
+    'REG-M-1', 'REG-M-2', 'REG-M-3', 'REG-M-4', 'REG-M-5', 'REG-M-6', 'REG-M-7', 'REG-M-8',
+    'REG-M-9', 'REG-M-10', 'REG-M-11', 'REG-M-12', 'REG-M-13', 'REG-M-14', 'REG-M-15', 'REG-M-16',
+    // Regression CI/CD (4)
+    'REG-C-1', 'REG-C-2', 'REG-C-3', 'REG-C-4',
+    // Post-Regression Manual (10)
+    'POST-M-1', 'POST-M-2', 'POST-M-3', 'POST-M-4', 'POST-M-5', 'POST-M-6', 'POST-M-7', 'POST-M-8', 'POST-M-9', 'POST-M-10',
+    // Post-Regression CI/CD (4)
+    'POST-C-1', 'POST-C-2', 'POST-C-3', 'POST-C-4',
+    // Post-Regression Platform (3)
+    'POST-P-1', 'POST-P-2', 'POST-P-3',
   ];
+  
+  // For now, generate all test cases (can be filtered later if needed)
+  const TEST_CASES_TO_GENERATE = ALL_TEST_CASES;
   
   const testData = {
     releases: [],
@@ -1316,12 +2303,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     builds: [],
   };
   
-  // Filter to only first 18 test cases
+  // Filter to test cases that exist and are in TEST_CASES_TO_GENERATE
   const testCaseIds = Object.keys(testCases)
-    .filter(id => FIRST_18_TEST_CASES.includes(id))
-    .sort((a, b) => FIRST_18_TEST_CASES.indexOf(a) - FIRST_18_TEST_CASES.indexOf(b));
+    .filter(id => TEST_CASES_TO_GENERATE.includes(id))
+    .sort((a, b) => TEST_CASES_TO_GENERATE.indexOf(a) - TEST_CASES_TO_GENERATE.indexOf(b));
   
-  console.log(`📋 Generating first 18 test cases only...\n`);
+  console.log(`📋 Generating ${testCaseIds.length} test cases...\n`);
   console.log(`📋 Test cases: ${testCaseIds.join(', ')}\n`);
   
   testCaseIds.forEach((testId, index) => {
@@ -1367,7 +2354,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`✅ Generated ${testData.buildUploadsStaging.length} staging builds`);
   console.log(`✅ Generated ${testData.builds.length} builds`);
   
-  // Replace all existing data with only the first 18 test cases
+  // Replace all existing data with generated test cases
   const mergedData = {
     ...existingData,
     releases: testData.releases, // Replace, don't merge

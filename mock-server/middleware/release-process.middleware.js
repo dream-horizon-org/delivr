@@ -745,66 +745,7 @@ function createReleaseProcessMiddleware(router) {
       });
     }
 
-    // DELETE /api/v1/tenants/:tenantId/releases/:releaseId/builds/artifacts/:uploadId
-    if (method === 'DELETE' && path.includes('/builds/artifacts/')) {
-      const uploadId = path.split('/builds/artifacts/')[1];
-      
-      // Try to find in builds table first (consumed artifacts)
-      let artifact = db.get('builds').find({ id: uploadId }).value();
-      
-      if (artifact) {
-        // Check if already consumed by task
-        if (artifact.taskId) {
-          return res.status(400).json({
-            success: false,
-            error: 'Cannot delete artifact that is already consumed by a task',
-          });
-        }
-        
-        db.get('builds').remove({ id: uploadId }).write();
-        return res.json({
-          success: true,
-          message: 'Build artifact deleted successfully',
-        });
-      }
-
-      // Try staging table (unconsumed uploads)
-      artifact = db.get('buildUploadsStaging').find({ id: uploadId }).value();
-      
-      if (!artifact) {
-        return res.status(404).json({
-          success: false,
-          error: 'Build artifact not found',
-        });
-      }
-
-      db.get('buildUploadsStaging').remove({ id: uploadId }).write();
-
-      return res.json({
-        success: true,
-        message: 'Build artifact deleted successfully',
-      });
-    }
-
-    // DELETE /api/v1/tenants/:tenantId/releases/:releaseId/builds/:buildId
-    if (method === 'DELETE' && path.includes('/builds/')) {
-      const buildId = path.split('/builds/')[1];
-      const build = db.get('buildUploadsStaging').find({ id: buildId }).value();
-
-      if (!build) {
-        return res.status(404).json({
-          success: false,
-          error: 'Build not found',
-        });
-      }
-
-      db.get('buildUploadsStaging').remove({ id: buildId }).write();
-
-      return res.json({
-        success: true,
-        message: 'Build deleted successfully',
-      });
-    }
+    // DELETE endpoints removed - delete functionality not supported
 
     // ============================================================================
     // STATUS CHECK APIs - Updated to match backend contract

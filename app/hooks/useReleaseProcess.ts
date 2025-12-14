@@ -688,41 +688,4 @@ export function useBuildArtifacts(
   );
 }
 
-/**
- * Delete build artifact
- * Backend contract: DELETE /tenants/:tenantId/releases/:releaseId/builds/artifacts/:uploadId
- */
-export function useDeleteBuildArtifact(tenantId?: string, releaseId?: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation<
-    { success: boolean; message: string },
-    Error,
-    { uploadId: string }
-  >(
-    async ({ uploadId }) => {
-      if (!tenantId || !releaseId) {
-        throw new Error('tenantId and releaseId are required');
-      }
-
-      const result = await apiDelete<{ success: boolean; message: string }>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts/${uploadId}`
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete artifact');
-      }
-
-      return result.data || { success: true, message: 'Artifact deleted successfully' };
-    },
-    {
-      onSuccess: () => {
-        // Invalidate artifacts query
-        queryClient.invalidateQueries(['release-process', 'artifacts', tenantId, releaseId]);
-        // Also invalidate stage queries that might show artifacts
-        queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
-      },
-    }
-  );
-}
 
