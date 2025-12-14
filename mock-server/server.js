@@ -529,6 +529,94 @@ server.get('/api/v1/releases/:releaseId/builds/:buildId', (req, res) => {
 });
 
 /**
+ * GET /api/v1/releases/:releaseId/distribution
+ * Get full distribution with all submissions (used in release process)
+ */
+server.get('/api/v1/releases/:releaseId/distribution', (req, res) => {
+  const { releaseId } = req.params;
+  const db = router.db;
+  
+  const release = db.get('releases').find({ id: releaseId }).value();
+  if (!release) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'RELEASE_NOT_FOUND', message: 'Release not found' },
+    });
+  }
+  
+  // Get all submissions for this release (current + historical)
+  const allSubmissions = db.get('submissions').filter({ releaseId }).value() || [];
+  const distributionId = `dist_${releaseId.substring(0, 8)}`;
+  
+  // Build complete submissions array with artifacts
+  const submissions = allSubmissions.map(sub => ({
+    id: sub.id,
+    distributionId,
+    platform: sub.platform,
+    storeType: sub.platform === 'ANDROID' ? 'PLAY_STORE' : 'APP_STORE',
+    status: sub.submissionStatus,
+    version: release.version,
+    ...(sub.platform === 'ANDROID' && {
+      versionCode: sub.versionCode || 270,
+      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
+      inAppPriority: sub.inAppPriority || 0,
+    }),
+    ...(sub.platform === 'IOS' && {
+      releaseType: 'AUTOMATIC',
+      phasedRelease: sub.phasedRelease !== undefined ? sub.phasedRelease : true,
+      resetRating: sub.resetRating || false,
+      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
+    }),
+    releaseNotes: sub.releaseNotes || 'Bug fixes and improvements',
+    submittedAt: sub.submittedAt || null,
+    submittedBy: sub.submittedBy || null,
+    statusUpdatedAt: sub.statusUpdatedAt || sub.updatedAt || new Date().toISOString(),
+    createdAt: sub.createdAt || new Date().toISOString(),
+    updatedAt: sub.updatedAt || new Date().toISOString(),
+    artifact: sub.platform === 'ANDROID' ? {
+      buildUrl: `https://s3.amazonaws.com/builds/${sub.buildId}.aab`,
+      ...(sub.internalTestingLink && { internalTestingLink: sub.internalTestingLink }),
+    } : {
+      testflightBuildNumber: sub.testflightBuildNumber || 56789,
+    },
+  }));
+  
+  // Determine distribution status
+  const platforms = ['ANDROID', 'IOS'].filter(p => submissions.some(s => s.platform === p));
+  const latestSubmissions = platforms.map(platform => 
+    submissions.filter(s => s.platform === platform).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0]
+  ).filter(Boolean);
+  
+  let status = 'PENDING';
+  if (latestSubmissions.every(s => s.status === 'LIVE' && s.rolloutPercent === 100)) {
+    status = 'RELEASED';
+  } else if (latestSubmissions.some(s => s.status === 'LIVE')) {
+    status = 'PARTIALLY_RELEASED';
+  } else if (latestSubmissions.every(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
+    status = 'SUBMITTED';
+  } else if (latestSubmissions.some(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
+    status = 'PARTIALLY_SUBMITTED';
+  }
+  
+  res.json({
+    success: true,
+    data: {
+      id: distributionId,
+      releaseId,
+      version: release.version,
+      branch: release.branch || `release/${release.version}`,
+      status,
+      platforms,
+      createdAt: release.createdAt || new Date().toISOString(),
+      updatedAt: release.updatedAt || new Date().toISOString(),
+      submissions,
+    },
+  });
+});
+
+/**
  * GET /api/v1/releases/:releaseId/distribution/status
  * Get distribution status (with optional platform filter)
  */
@@ -553,7 +641,7 @@ server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
       submitted: true,
       submissionId: androidSubmission.id,
       status: androidSubmission.submissionStatus,
-      exposurePercent: androidSubmission.exposurePercent,
+      rolloutPercent: androidSubmission.rolloutPercent || androidSubmission.exposurePercent || 0,
       canRetry: androidSubmission.submissionStatus === 'REJECTED',
       error: null,
     };
@@ -564,7 +652,7 @@ server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
       submitted: true,
       submissionId: iosSubmission.id,
       status: iosSubmission.submissionStatus,
-      exposurePercent: iosSubmission.exposurePercent,
+      rolloutPercent: iosSubmission.rolloutPercent || iosSubmission.exposurePercent || 0,
       canRetry: iosSubmission.submissionStatus === 'REJECTED',
       error: null,
     };
@@ -574,7 +662,7 @@ server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
   const platformCount = Object.keys(platforms).length;
   const totalProgress = Object.values(platforms).reduce((sum, p) => {
     if (p.status === 'RELEASED') return sum + 100;
-    if (p.status === 'APPROVED_RELEASED') return sum + p.exposurePercent;
+    if (p.status === 'LIVE') return sum + (p.rolloutPercent || p.exposurePercent || 0);
     if (p.status === 'BUILD_SUBMITTED') return sum + 10;
     return sum;
   }, 0);
@@ -643,7 +731,8 @@ server.post('/api/v1/releases/:releaseId/distribute', (req, res) => {
       versionName: android.versionName || '1.0.0',
       versionCode: android.versionCode || '100',
       submissionStatus: 'BUILD_SUBMITTED',
-      exposurePercent: android.initialRolloutPercent || 10,
+      rolloutPercent: android.initialRolloutPercent || 10,
+      exposurePercent: android.initialRolloutPercent || 10, // Legacy
       track: android.track || 'PRODUCTION',
       releaseNotes: android.releaseNotes || '',
       submittedAt: now,
@@ -665,7 +754,8 @@ server.post('/api/v1/releases/:releaseId/distribute', (req, res) => {
       versionName: ios.versionName || '1.0.0',
       versionCode: ios.versionCode || '100',
       submissionStatus: 'BUILD_SUBMITTED',
-      exposurePercent: 0,
+      rolloutPercent: 0,
+      exposurePercent: 0, // Legacy
       track: 'PRODUCTION',
       releaseNotes: ios.releaseNotes || '',
       submittedAt: now,
@@ -733,24 +823,78 @@ server.get('/api/v1/submissions/:submissionId', (req, res) => {
   }
 });
 
+// REMOVED: POST /api/v1/submissions/:submissionId/retry
+// Replaced by: POST /api/v1/distributions/:distributionId/submissions (resubmission)
+
 /**
- * POST /api/v1/submissions/:submissionId/retry
- * Retry failed submission
+ * PUT /api/v1/submissions/:submissionId/submit
+ * Submit existing PENDING submission to store (first-time submission)
  */
-server.post('/api/v1/submissions/:submissionId/retry', (req, res) => {
+server.put('/api/v1/submissions/:submissionId/submit', (req, res) => {
   const { submissionId } = req.params;
   const db = router.db;
   
   const submission = db.get('submissions').find({ id: submissionId });
+  const submissionData = submission.value();
+  
+  if (!submissionData) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'SUBMISSION_NOT_FOUND', message: 'Submission not found' },
+    });
+  }
+  
+  if (submissionData.submissionStatus !== 'PENDING') {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_STATUS', message: 'Can only submit PENDING submissions' },
+    });
+  }
+  
+  const now = new Date().toISOString();
+  const updates = {
+    ...req.body,
+    submissionStatus: 'IN_REVIEW',
+    submittedAt: now,
+    submittedBy: 'prince@dream11.com',
+    statusUpdatedAt: now,
+    updatedAt: now,
+  };
+  
+  submission.assign(updates).write();
+  
+  res.json({
+    success: true,
+    data: submission.value(),
+  });
+});
+
+/**
+ * PATCH /api/v1/submissions/:submissionId/cancel
+ * Cancel an in-review submission
+ */
+server.patch('/api/v1/submissions/:submissionId/cancel', (req, res) => {
+  const { submissionId } = req.params;
+  const { reason } = req.body;
+  const db = router.db;
+  
+  const submission = db.get('submissions').find({ id: submissionId });
   if (submission.value()) {
+    const statusUpdatedAt = new Date().toISOString();
     submission.assign({ 
-      submissionStatus: 'BUILD_SUBMITTED',
-      updatedAt: new Date().toISOString(),
+      submissionStatus: 'CANCELLED',
+      cancelReason: reason || null,
+      statusUpdatedAt,
+      updatedAt: statusUpdatedAt,
     }).write();
     
     res.json({
       success: true,
-      data: submission.value(),
+      data: {
+        id: submissionId,
+        status: 'CANCELLED',
+        statusUpdatedAt,
+      },
     });
   } else {
     res.status(404).json({
@@ -766,26 +910,26 @@ server.post('/api/v1/submissions/:submissionId/retry', (req, res) => {
  */
 server.patch('/api/v1/submissions/:submissionId/rollout', (req, res) => {
   const { submissionId } = req.params;
-  const { exposurePercent } = req.body;
+  const { rolloutPercent } = req.body;
   const db = router.db;
   
   const submission = db.get('submissions').find({ id: submissionId });
   if (submission.value()) {
-    const previousPercent = submission.value().exposurePercent;
+    const statusUpdatedAt = new Date().toISOString();
     submission.assign({ 
-      exposurePercent,
-      submissionStatus: exposurePercent >= 100 ? 'RELEASED' : 'APPROVED_RELEASED',
-      availableActions: exposurePercent >= 100 ? [] : ['UPDATE_ROLLOUT', 'PAUSE', 'HALT'],
-      updatedAt: new Date().toISOString(),
+      rolloutPercent,
+      exposurePercent: rolloutPercent, // Legacy field
+      submissionStatus: rolloutPercent >= 100 ? 'LIVE' : 'LIVE',
+      statusUpdatedAt,
+      updatedAt: statusUpdatedAt,
     }).write();
     
     res.json({
       success: true,
       data: {
-        submissionId,
-        previousExposurePercent: previousPercent,
-        newExposurePercent: exposurePercent,
-        status: submission.value().submissionStatus,
+        id: submissionId,
+        rolloutPercent,
+        statusUpdatedAt,
       },
     });
   } else {
@@ -797,27 +941,28 @@ server.patch('/api/v1/submissions/:submissionId/rollout', (req, res) => {
 });
 
 /**
- * POST /api/v1/submissions/:submissionId/rollout/pause
- * Pause rollout
+ * PATCH /api/v1/submissions/:submissionId/rollout/pause
+ * Pause rollout (iOS only, phased release)
  */
-server.post('/api/v1/submissions/:submissionId/rollout/pause', (req, res) => {
+server.patch('/api/v1/submissions/:submissionId/rollout/pause', (req, res) => {
   const { submissionId } = req.params;
   const db = router.db;
   
   const submission = db.get('submissions').find({ id: submissionId });
   if (submission.value()) {
+    const statusUpdatedAt = new Date().toISOString();
     submission.assign({ 
       submissionStatus: 'PAUSED',
-      availableActions: ['RESUME', 'HALT'],
-      updatedAt: new Date().toISOString(),
+      statusUpdatedAt,
+      updatedAt: statusUpdatedAt,
     }).write();
     
     res.json({
       success: true,
       data: {
-        submissionId,
+        id: submissionId,
         status: 'PAUSED',
-        pausedAt: new Date().toISOString(),
+        statusUpdatedAt,
       },
     });
   } else {
@@ -829,27 +974,28 @@ server.post('/api/v1/submissions/:submissionId/rollout/pause', (req, res) => {
 });
 
 /**
- * POST /api/v1/submissions/:submissionId/rollout/resume
- * Resume rollout
+ * PATCH /api/v1/submissions/:submissionId/rollout/resume
+ * Resume rollout (iOS only, phased release)
  */
-server.post('/api/v1/submissions/:submissionId/rollout/resume', (req, res) => {
+server.patch('/api/v1/submissions/:submissionId/rollout/resume', (req, res) => {
   const { submissionId } = req.params;
   const db = router.db;
   
   const submission = db.get('submissions').find({ id: submissionId });
   if (submission.value()) {
+    const statusUpdatedAt = new Date().toISOString();
     submission.assign({ 
-      submissionStatus: 'APPROVED_RELEASED',
-      availableActions: ['UPDATE_ROLLOUT', 'PAUSE', 'HALT'],
-      updatedAt: new Date().toISOString(),
+      submissionStatus: 'LIVE',
+      statusUpdatedAt,
+      updatedAt: statusUpdatedAt,
     }).write();
     
     res.json({
       success: true,
       data: {
-        submissionId,
-        status: 'APPROVED_RELEASED',
-        resumedAt: new Date().toISOString(),
+        id: submissionId,
+        status: 'LIVE',
+        statusUpdatedAt,
       },
     });
   } else {
@@ -861,32 +1007,31 @@ server.post('/api/v1/submissions/:submissionId/rollout/resume', (req, res) => {
 });
 
 /**
- * POST /api/v1/submissions/:submissionId/rollout/halt
- * Emergency halt
+ * PATCH /api/v1/submissions/:submissionId/rollout/halt
+ * Emergency halt (no resubmission, must create new release)
  */
-server.post('/api/v1/submissions/:submissionId/rollout/halt', (req, res) => {
+server.patch('/api/v1/submissions/:submissionId/rollout/halt', (req, res) => {
   const { submissionId } = req.params;
-  const { reason, severity } = req.body;
+  const { reason } = req.body;
   const db = router.db;
   
   const submission = db.get('submissions').find({ id: submissionId });
   if (submission.value()) {
+    const statusUpdatedAt = new Date().toISOString();
     submission.assign({ 
       submissionStatus: 'HALTED',
       haltReason: reason,
-      haltSeverity: severity || 'HIGH',
       availableActions: [],
-      updatedAt: new Date().toISOString(),
+      statusUpdatedAt,
+      updatedAt: statusUpdatedAt,
     }).write();
     
     res.json({
       success: true,
       data: {
-        submissionId,
+        id: submissionId,
         status: 'HALTED',
-        haltedAt: new Date().toISOString(),
-        reason,
-        severity,
+        statusUpdatedAt,
       },
     });
   } else {
@@ -897,67 +1042,11 @@ server.post('/api/v1/submissions/:submissionId/rollout/halt', (req, res) => {
   }
 });
 
-/**
- * GET /api/v1/submissions/:submissionId/status
- * Poll submission status (lightweight)
- */
-server.get('/api/v1/submissions/:submissionId/status', (req, res) => {
-  const { submissionId } = req.params;
-  const db = router.db;
-  
-  const submission = db.get('submissions')
-    .find({ id: submissionId })
-    .value();
-  
-  if (submission) {
-    res.json({
-      success: true,
-      data: {
-        submissionId,
-        submissionStatus: submission.submissionStatus,
-        exposurePercent: submission.exposurePercent,
-        updatedAt: submission.updatedAt,
-      },
-    });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: {
-        code: 'SUBMISSION_NOT_FOUND',
-        message: 'Submission not found',
-      },
-    });
-  }
-});
+// REMOVED: GET /api/v1/submissions/:submissionId/status
+// Use GET /api/v1/submissions/:submissionId or GET /api/v1/distributions/:distributionId instead
 
-/**
- * GET /api/v1/submissions/:submissionId/history
- * Get submission history
- */
-server.get('/api/v1/submissions/:submissionId/history', (req, res) => {
-  const { submissionId } = req.params;
-  
-  res.json({
-    success: true,
-    data: {
-      submissionId,
-      events: [
-        {
-          id: 'event_1',
-          eventType: 'SUBMITTED',
-          newState: { status: 'BUILD_SUBMITTED' },
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      pagination: {
-        total: 1,
-        limit: 50,
-        offset: 0,
-        hasMore: false,
-      },
-    },
-  });
-});
+// REMOVED: GET /api/v1/submissions/:submissionId/history
+// History feature not in API spec
 
 /**
  * GET /api/v1/distributions?page=1&pageSize=10
@@ -966,8 +1055,8 @@ server.get('/api/v1/submissions/:submissionId/history', (req, res) => {
  * 
  * Backend structure:
  * - distribution table: id, status, releaseId, releaseVersion
- * - android_submissions table: id, distributionId, submissionStatus, exposurePercent, details
- * - ios_submissions table: id, distributionId, submissionStatus, exposurePercent, details
+ * - android_submissions table: id, distributionId, submissionStatus, rolloutPercent, details
+ * - ios_submissions table: id, distributionId, submissionStatus, rolloutPercent, details
  */
 server.get('/api/v1/distributions', (req, res) => {
   const db = router.db;
@@ -1009,7 +1098,7 @@ server.get('/api/v1/distributions', (req, res) => {
       
       /**
        * Build submissions array (as per user's spec)
-       * Each submission has: id, platform, details, status, exposurePercent
+       * Each submission has: id, platform, details, status, rolloutPercent
        * Note: Just "status", not "submissionStatus" - context is already clear
        */
       const submissions = releaseSubmissions.map(sub => ({
@@ -1029,7 +1118,7 @@ server.get('/api/v1/distributions', (req, res) => {
           }),
         },
         status: sub.submissionStatus, // Just "status" in API response
-        exposurePercent: sub.exposurePercent,
+        rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
         submittedAt: sub.submittedAt || new Date().toISOString(),
         updatedAt: sub.updatedAt || new Date().toISOString(),
       }));
@@ -1045,7 +1134,7 @@ server.get('/api/v1/distributions', (req, res) => {
       if (submissions.length > 0) {
         // Count LIVE submissions at 100% rollout
         const liveCount = submissions.filter(s => 
-          s.status === 'LIVE' && s.exposurePercent === 100
+          s.status === 'LIVE' && (s.rolloutPercent || s.exposurePercent) === 100
         ).length;
         
         const totalSubmissions = submissions.length;
@@ -1114,7 +1203,7 @@ server.get('/api/v1/distributions', (req, res) => {
     total: allDistributions.length,
     rollingOut: allDistributions.filter(d => 
       d.status === 'PARTIALLY_RELEASED' || 
-      d.submissions.some(s => s.status === 'LIVE' && s.exposurePercent < 100)
+      d.submissions.some(s => s.status === 'LIVE' && (s.rolloutPercent || s.exposurePercent) < 100)
     ).length,
     inReview: allDistributions.filter(d => 
       d.status === 'PENDING' ||
@@ -1143,6 +1232,168 @@ server.get('/api/v1/distributions', (req, res) => {
         hasMore: page < totalPages,
       },
     },
+  });
+});
+
+/**
+ * GET /api/v1/distributions/:distributionId
+ * Get full distribution details with all submissions (current + historical)
+ */
+server.get('/api/v1/distributions/:distributionId', (req, res) => {
+  const { distributionId } = req.params;
+  const db = router.db;
+  
+  // Extract releaseId from distributionId (format: dist_releaseIdPrefix)
+  const releaseIdPrefix = distributionId.replace('dist_', '');
+  const release = db.get('releases').find(r => r.id.startsWith(releaseIdPrefix)).value();
+  
+  if (!release) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'DISTRIBUTION_NOT_FOUND', message: 'Distribution not found' },
+    });
+  }
+  
+  // Get all submissions for this release (current + historical)
+  const allSubmissions = db.get('submissions').filter({ releaseId: release.id }).value() || [];
+  
+  // Build complete submissions array with artifacts
+  const submissions = allSubmissions.map(sub => ({
+    id: sub.id,
+    distributionId,
+    platform: sub.platform,
+    storeType: sub.platform === 'ANDROID' ? 'PLAY_STORE' : 'APP_STORE',
+    status: sub.submissionStatus,
+    version: release.version,
+    ...(sub.platform === 'ANDROID' && {
+      versionCode: sub.versionCode || 270,
+      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
+      inAppPriority: sub.inAppPriority || 0,
+    }),
+    ...(sub.platform === 'IOS' && {
+      releaseType: 'AUTOMATIC',
+      phasedRelease: sub.phasedRelease !== undefined ? sub.phasedRelease : true,
+      resetRating: sub.resetRating || false,
+      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
+    }),
+    releaseNotes: sub.releaseNotes || 'Bug fixes and improvements',
+    submittedAt: sub.submittedAt || null,
+    submittedBy: sub.submittedBy || null,
+    statusUpdatedAt: sub.statusUpdatedAt || sub.updatedAt || new Date().toISOString(),
+    createdAt: sub.createdAt || new Date().toISOString(),
+    updatedAt: sub.updatedAt || new Date().toISOString(),
+    artifact: sub.platform === 'ANDROID' ? {
+      buildUrl: `https://s3.amazonaws.com/builds/${sub.buildId}.aab`,
+      ...(sub.internalTestingLink && { internalTestingLink: sub.internalTestingLink }),
+    } : {
+      testflightBuildNumber: sub.testflightBuildNumber || 56789,
+    },
+  }));
+  
+  // Determine distribution status
+  const platforms = ['ANDROID', 'IOS'].filter(p => submissions.some(s => s.platform === p));
+  const latestSubmissions = platforms.map(platform => 
+    submissions.filter(s => s.platform === platform).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0]
+  );
+  
+  let status = 'PENDING';
+  if (latestSubmissions.every(s => s.status === 'LIVE' && s.rolloutPercent === 100)) {
+    status = 'RELEASED';
+  } else if (latestSubmissions.some(s => s.status === 'LIVE')) {
+    status = 'PARTIALLY_RELEASED';
+  } else if (latestSubmissions.every(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
+    status = 'SUBMITTED';
+  } else if (latestSubmissions.some(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
+    status = 'PARTIALLY_SUBMITTED';
+  }
+  
+  res.json({
+    success: true,
+    data: {
+      id: distributionId,
+      releaseId: release.id,
+      version: release.version,
+      branch: release.branch || `release/${release.version}`,
+      status,
+      platforms,
+      createdAt: release.createdAt || new Date().toISOString(),
+      updatedAt: release.updatedAt || new Date().toISOString(),
+      submissions,
+    },
+  });
+});
+
+/**
+ * POST /api/v1/distributions/:distributionId/submissions
+ * Create new submission (resubmission after rejection/cancellation)
+ */
+server.post('/api/v1/distributions/:distributionId/submissions', (req, res) => {
+  const { distributionId } = req.params;
+  const { platform, version, versionCode, rolloutPercent, inAppPriority, phasedRelease, resetRating, releaseNotes, testflightBuildNumber } = req.body;
+  const db = router.db;
+  
+  // Extract releaseId from distributionId
+  const releaseIdPrefix = distributionId.replace('dist_', '');
+  const release = db.get('releases').find(r => r.id.startsWith(releaseIdPrefix)).value();
+  
+  if (!release) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'DISTRIBUTION_NOT_FOUND', message: 'Distribution not found' },
+    });
+  }
+  
+  const now = new Date().toISOString();
+  const newSubmission = {
+    id: `sub_new_${Date.now()}`,
+    releaseId: release.id,
+    distributionId,
+    platform,
+    storeType: platform === 'ANDROID' ? 'PLAY_STORE' : 'APP_STORE',
+    submissionStatus: 'IN_REVIEW',
+    version,
+    ...(platform === 'ANDROID' && {
+      versionCode: versionCode || parseInt(version.replace(/\./g, '')),
+      rolloutPercent: rolloutPercent || 5,
+      inAppPriority: inAppPriority !== undefined ? inAppPriority : 0,
+    }),
+    ...(platform === 'IOS' && {
+      releaseType: 'AUTOMATIC',
+      phasedRelease: phasedRelease !== undefined ? phasedRelease : true,
+      resetRating: resetRating || false,
+      rolloutPercent: 0,
+      testflightBuildNumber,
+    }),
+    releaseNotes: releaseNotes || '',
+    submittedAt: now,
+    submittedBy: 'prince@dream11.com',
+    statusUpdatedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    buildId: `build_${Date.now()}`,
+  };
+  
+  // Add to database
+  db.get('submissions').push(newSubmission).write();
+  
+  // Prepare response
+  const response = {
+    ...newSubmission,
+    status: newSubmission.submissionStatus,
+    artifact: platform === 'ANDROID' ? {
+      buildUrl: `https://s3.amazonaws.com/builds/${newSubmission.buildId}.aab`,
+    } : {
+      testflightBuildNumber: newSubmission.testflightBuildNumber,
+    },
+  };
+  
+  delete response.submissionStatus;
+  
+  res.json({
+    success: true,
+    data: response,
   });
 });
 
