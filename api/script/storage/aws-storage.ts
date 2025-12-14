@@ -58,7 +58,8 @@ import {
   ReleasePlatformTargetMappingRepository,
   CronJobRepository,
   ReleaseTaskRepository,
-  StateHistoryRepository
+  StateHistoryRepository,
+  ReleaseUploadsRepository
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
@@ -681,6 +682,8 @@ export class S3Storage implements storage.Storage {
     public cronicleService: CronicleService | null = null;
     public releaseRepository!: ReleaseRepository;  // Release repository
     public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
+    public releaseUploadsRepository!: ReleaseUploadsRepository;  // Manual build uploads repository
+    public platformMappingRepository!: ReleasePlatformTargetMappingRepository;  // Alias for releasePlatformTargetMappingRepository
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseVersionService!: ReleaseVersionService;
@@ -931,6 +934,16 @@ export class S3Storage implements storage.Storage {
           this.releasePlatformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(
             this.sequelize.models.PlatformTargetMapping
           );
+          // Alias for type guard compatibility
+          this.platformMappingRepository = this.releasePlatformTargetMappingRepository;
+          
+          // Initialize Release Uploads Repository (for manual build uploads)
+          this.releaseUploadsRepository = new ReleaseUploadsRepository(
+            this.sequelize,
+            this.sequelize.models.ReleaseUpload as typeof import("../models/release/release-uploads.sequelize.model").ReleaseUploadModel
+          );
+          console.log("Release Uploads Repository initialized");
+          
           const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
           const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
           const stateHistoryRepo = new StateHistoryRepository(
