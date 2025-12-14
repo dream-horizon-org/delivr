@@ -1303,7 +1303,7 @@ const testCases = {
     ];
     
     const cronJob = createCronJob(releaseId, Phase.REGRESSION_AWAITING_NEXT_CYCLE, { stage1: 'COMPLETED', stage2: 'IN_PROGRESS' });
-    cronJob.upcomingRegressions = [{ date: upcomingSlotDate.toISOString(), config: {} }];
+    cronJob.upcomingRegressions = [{ date: upcomingSlotDate, config: {} }];
     
     return {
       release: {
