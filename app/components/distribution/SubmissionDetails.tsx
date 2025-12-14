@@ -30,7 +30,7 @@ export function SubmissionDetails({
 
       <Group gap="xs">
         <Text size="sm" c="dimmed">Exposure:</Text>
-        <Text size="sm" fw={500}>{submission.exposurePercent}%</Text>
+        <Text size="sm" fw={500}>{submission.rolloutPercent}%</Text>
       </Group>
 
       {submission.submittedAt && (

@@ -2,17 +2,18 @@
  * HaltRolloutDialog - Emergency halt confirmation dialog
  * 
  * Features:
- * - Severity selection (Critical, High, Medium)
  * - Required reason field
  * - Clear warning about consequences
+ * 
+ * Note: Severity field removed per API spec (only reason required)
  */
 
 import {
   Alert,
   Button,
   Group,
+  List,
   Modal,
-  Radio,
   Stack,
   Text,
   Textarea,
@@ -22,54 +23,45 @@ import { IconAlertOctagon, IconAlertTriangle } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
   BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
   DIALOG_TITLES,
-  HALT_SEVERITY_LEVELS,
+  DIALOG_UI,
   PLATFORM_LABELS,
 } from '~/constants/distribution.constants';
-import { HaltSeverity } from '~/types/distribution.types';
 import type { HaltRolloutDialogProps } from './distribution.types';
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
-export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
-  const { 
-    opened, 
-    submissionId,
-    platform,
-    isHalting,
-    onHalt, 
-    onClose,
-  } = props;
-
+export function HaltRolloutDialog({
+  opened,
+  submissionId,
+  platform,
+  isHalting,
+  onHalt,
+  onClose,
+}: HaltRolloutDialogProps) {
   const [reason, setReason] = useState('');
-  const [severity, setSeverity] = useState<HaltSeverity>(HaltSeverity.HIGH);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const platformLabel = PLATFORM_LABELS[platform];
 
   const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
-  }, []);
-
-  const handleSeverityChange = useCallback((value: string | null) => {
-    if (value && (value === HaltSeverity.CRITICAL || value === HaltSeverity.HIGH || value === HaltSeverity.MEDIUM)) {
-      setSeverity(value as HaltSeverity);
+    if (validationError) {
+      setValidationError(null);
     }
-  }, []);
+  }, [validationError]);
 
   const handleHalt = useCallback(() => {
     if (!reason.trim()) {
-      setValidationError('Please provide a reason for halting the rollout.');
+      setValidationError(DIALOG_UI.HALT.REASON_REQUIRED);
       return;
     }
 
     setValidationError(null);
-    onHalt(reason.trim(), severity);
-  }, [reason, severity, onHalt]);
+    onHalt(reason.trim());
+  }, [reason, onHalt]);
 
   const handleClose = useCallback(() => {
     setReason('');
-    setSeverity(HaltSeverity.HIGH);
     setValidationError(null);
     onClose();
   }, [onClose]);
@@ -81,7 +73,7 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
       title={
         <Group gap="sm">
           <ThemeIcon color="red" variant="light" size="lg">
-            <IconAlertOctagon size={20} />
+            <IconAlertOctagon size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
           <Text fw={600}>{DIALOG_TITLES.HALT_ROLLOUT}</Text>
         </Group>
@@ -92,76 +84,43 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
       <Stack gap="md">
         {/* Warning Alert */}
         <Alert 
-          icon={<IconAlertTriangle size={16} />} 
+          icon={<IconAlertTriangle size={DIALOG_ICON_SIZES.ALERT} />} 
           color="red" 
           variant="light"
         >
           <Stack gap="xs">
-            <Text size="sm" fw={500}>Emergency Halt - Irreversible Action</Text>
-            <Text size="sm">
-              Halting the rollout will immediately stop all new installations and updates 
-              for {PLATFORM_LABELS[platform]}. Users who already have this version will 
-              not be affected. This action cannot be undone - you will need to submit 
-              a new version to replace this release.
-            </Text>
+            <Text size="sm" fw={500}>{DIALOG_UI.HALT.WARNING_TITLE}</Text>
+            <Text size="sm">{DIALOG_UI.HALT.WARNING_MESSAGE}</Text>
           </Stack>
         </Alert>
 
-        {/* Severity Selection */}
+        {/* Platform Info */}
         <div>
-          <Text fw={500} size="sm" mb="sm">Severity Level</Text>
-          <Radio.Group
-            value={severity}
-            onChange={handleSeverityChange}
-          >
-            <Stack gap="sm">
-              {HALT_SEVERITY_LEVELS.map((level) => (
-                <Radio
-                  key={level.value}
-                  value={level.value}
-                  label={
-                    <Group gap="xs">
-                      <Text size="sm" fw={500} c={level.color}>{level.label}</Text>
-                      <Text size="xs" c="dimmed">
-                        {level.value === HaltSeverity.CRITICAL && '- App crashes, data loss, security issue'}
-                        {level.value === HaltSeverity.HIGH && '- Major bug affecting core functionality'}
-                        {level.value === HaltSeverity.MEDIUM && '- Significant issue but not critical'}
-                      </Text>
-                    </Group>
-                  }
-                  disabled={isHalting}
-                />
-              ))}
-            </Stack>
-          </Radio.Group>
+          <Text size="sm" c="dimmed">Platform</Text>
+          <Text size="sm" fw={500}>{platformLabel}</Text>
         </div>
 
         {/* Reason Field */}
         <Textarea
-          label="Reason for Halt"
-          description="Describe the issue that requires halting this rollout"
-          placeholder="e.g., Critical crash affecting login flow for users on Android 12+"
+          label={DIALOG_UI.HALT.REASON_LABEL}
+          placeholder={DIALOG_UI.HALT.REASON_PLACEHOLDER}
           value={reason}
           onChange={handleReasonChange}
-          error={validationError}
           minRows={3}
           required
+          error={validationError}
           disabled={isHalting}
         />
 
-        {/* Submission Info */}
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <Group gap="xs">
-            <Text size="xs" c="dimmed">Submission ID:</Text>
-            <Text size="xs" ff="monospace">{submissionId}</Text>
-          </Group>
+        {/* Consequences */}
+        <div>
+          <Text size="sm" fw={500} mb="xs">{DIALOG_UI.HALT.CONSEQUENCE_TITLE}</Text>
+          <List size="sm" spacing="xs">
+            {DIALOG_UI.HALT.CONSEQUENCE_ITEMS.map((item, index) => (
+              <List.Item key={index}>{item}</List.Item>
+            ))}
+          </List>
         </div>
-
-        {/* Acknowledgment Text */}
-        <Text size="xs" c="dimmed" fs="italic">
-          By halting this rollout, you acknowledge that this is an emergency action 
-          and a hotfix release will be required to resume distribution.
-        </Text>
 
         {/* Action Buttons */}
         <Group justify="flex-end" mt="md">
@@ -172,14 +131,13 @@ export function HaltRolloutDialog(props: HaltRolloutDialogProps) {
           >
             {BUTTON_LABELS.CANCEL}
           </Button>
-          
-          <Button
-            color="red"
+          <Button 
+            color="red" 
             onClick={handleHalt}
             loading={isHalting}
-            leftSection={<IconAlertOctagon size={16} />}
+            leftSection={<IconAlertOctagon size={DIALOG_ICON_SIZES.ACTION} />}
           >
-            Halt Rollout
+            {BUTTON_LABELS.HALT_ROLLOUT}
           </Button>
         </Group>
       </Stack>

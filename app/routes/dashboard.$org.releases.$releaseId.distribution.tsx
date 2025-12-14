@@ -34,7 +34,7 @@ import type {
   PMStatusResponse,
   SubmissionsResponse
 } from '~/types/distribution.types';
-import { DistributionReleaseStatus, Platform } from '~/types/distribution.types';
+import { DistributionStatus, Platform } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -254,7 +254,7 @@ export default function DistributionPage() {
   });
 
   const currentStatus = data.distributionStatus.data.releaseStatus;
-  const isPreRelease = currentStatus === DistributionReleaseStatus.PRE_RELEASE;
+  const isPreRelease = currentStatus === DistributionStatus.PENDING;
 
   // Determine which tab to show:
   // 1. If URL has ?tab=distribution and we're past pre-release, show distribution
@@ -303,8 +303,8 @@ export default function DistributionPage() {
   // Derived state: Check if Android has an active rollout (0-100%)
   const hasAndroidActiveRollout = 
     data.distributionStatus.data.platforms.android?.submitted === true &&
-    data.distributionStatus.data.platforms.android?.exposurePercent > 0 &&
-    data.distributionStatus.data.platforms.android?.exposurePercent < ROLLOUT_COMPLETE_PERCENT;
+    data.distributionStatus.data.platforms.android?.rolloutPercent > 0 &&
+    data.distributionStatus.data.platforms.android?.rolloutPercent < ROLLOUT_COMPLETE_PERCENT;
 
   return (
     <Container size="xl" className="py-8">
@@ -394,7 +394,8 @@ export default function DistributionPage() {
       >
         <SubmitToStoresForm
           releaseId={data.releaseId}
-          availablePlatforms={distribution.availablePlatforms}
+          distributionId={data.distributionStatus.data.distributionId}
+          submissions={data.submissions.data.submissions}
           hasAndroidActiveRollout={hasAndroidActiveRollout}
           onSubmitComplete={handleSubmitComplete}
           onClose={distribution.closeSubmitDialog}

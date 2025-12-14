@@ -12,7 +12,9 @@ import {
   Badge,
   Button,
   Card,
+  Divider,
   Group,
+  Paper,
   Slider,
   Stack,
   Text,
@@ -24,13 +26,22 @@ import {
   IconPlayerPlay,
   IconTrendingUp,
 } from '@tabler/icons-react';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   BUTTON_LABELS,
   MAX_ROLLOUT_PERCENTAGE,
   ROLLOUT_COMPLETE_PERCENT,
+  ROLLOUT_CONTROLS_ICON_SIZES,
+  ROLLOUT_CONTROLS_UI,
 } from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
+import { getPlatformRolloutLabel, getRolloutStatus } from '~/utils/distribution-ui.utils';
+import {
+  getPlatformRules,
+  getRolloutControlType,
+  getPlatformRolloutDescription,
+  getIOSPhasedReleaseDay,
+} from '~/utils/platform-rules';
 import { ActionButton } from './ActionButton';
 import { PresetButtons } from './PresetButtons';
 import { RolloutProgressBar } from './RolloutProgressBar';
@@ -47,6 +58,7 @@ export function RolloutControls({
   currentPercentage,
   status,
   platform,
+  phasedRelease,
   availableActions,
   isLoading,
   onUpdateRollout,
@@ -55,6 +67,17 @@ export function RolloutControls({
   onHalt,
   className,
 }: RolloutControlsProps) {
+  // Get platform-specific rules
+  const platformRules = useMemo(
+    () => getPlatformRules(platform, phasedRelease),
+    [platform, phasedRelease]
+  );
+
+  const controlType = useMemo(
+    () => getRolloutControlType(platform, phasedRelease),
+    [platform, phasedRelease]
+  );
+
   const {
     targetPercentage,
     hasChanges,
@@ -76,6 +99,40 @@ export function RolloutControls({
     isComplete,
   } = deriveActionAvailability(availableActions, status, platform, currentPercentage);
 
+  // Memoized derived values
+  const platformLabel = useMemo(() => getPlatformRolloutLabel(platform), [platform]);
+  
+  const platformDescription = useMemo(
+    () => getPlatformRolloutDescription(platform, phasedRelease),
+    [platform, phasedRelease]
+  );
+
+  const iosPhasedDay = useMemo(
+    () => platform === Platform.IOS && phasedRelease
+      ? getIOSPhasedReleaseDay(currentPercentage)
+      : null,
+    [platform, phasedRelease, currentPercentage]
+  );
+  
+  const rolloutStatus = useMemo(
+    () => getRolloutStatus(currentPercentage, isComplete, canResume, ROLLOUT_COMPLETE_PERCENT),
+    [currentPercentage, isComplete, canResume]
+  );
+
+  const sliderMarks = useMemo(
+    () => [
+      { value: currentPercentage, label: ROLLOUT_CONTROLS_UI.CURRENT_MARK },
+      { value: MAX_ROLLOUT_PERCENTAGE, label: ROLLOUT_CONTROLS_UI.COMPLETE_MARK },
+    ],
+    [currentPercentage]
+  );
+
+  const updateButtonLabel = useMemo(
+    () => ROLLOUT_CONTROLS_UI.UPDATE_BUTTON(targetPercentage),
+    [targetPercentage]
+  );
+
+  // Handlers
   const handleUpdateClick = useCallback(() => {
     if (onUpdateRollout && hasChanges) {
       onUpdateRollout(targetPercentage);
@@ -83,12 +140,11 @@ export function RolloutControls({
     }
   }, [onUpdateRollout, hasChanges, targetPercentage, resetChanges]);
 
-  // Get rollout status for progress bar
-  const getRolloutStatus = () => {
-    if (isComplete || currentPercentage === ROLLOUT_COMPLETE_PERCENT) return 'complete';
-    if (canResume) return 'paused';
-    return 'active';
-  };
+  const handleCompleteEarly = useCallback(() => {
+    if (onUpdateRollout) {
+      onUpdateRollout(100);
+    }
+  }, [onUpdateRollout]);
 
   return (
     <Card 
@@ -101,13 +157,13 @@ export function RolloutControls({
     >
       {/* Header */}
       <Group justify="space-between" mb="md">
-        <Text fw={600}>Rollout Controls</Text>
+        <Text fw={600}>{ROLLOUT_CONTROLS_UI.TITLE}</Text>
         <Badge 
           color={supportsRollout ? 'blue' : 'gray'} 
           variant="light"
           size="sm"
         >
-          {platform === Platform.ANDROID ? 'Staged Rollout' : 'Phased Release'}
+          {platformLabel}
         </Badge>
       </Group>
 
@@ -116,27 +172,27 @@ export function RolloutControls({
         <RolloutProgressBar
           percentage={currentPercentage}
           {...(hasChanges && { targetPercentage })}
-          status={getRolloutStatus()}
+          status={rolloutStatus}
           showLabel
           size="md"
         />
 
-        {/* Rollout Slider (Android only) */}
-        {supportsRollout && canUpdate && !isComplete && (
+        {/* Android Slider - Decimal support */}
+        {controlType === 'slider' && canUpdate && !isComplete && (
           <div>
-            <Text size="sm" fw={500} mb="xs">Adjust Rollout</Text>
+            <Text size="sm" fw={500} mb="xs">
+              {ROLLOUT_CONTROLS_UI.ADJUST_LABEL}
+            </Text>
             
             <Slider
               value={targetPercentage}
               onChange={handleSliderChange}
               min={currentPercentage}
               max={MAX_ROLLOUT_PERCENTAGE}
-              step={1}
+              step={platformRules.sliderStep}
               disabled={isLoading}
-              marks={[
-                { value: currentPercentage, label: 'Current' },
-                { value: 100, label: '100%' },
-              ]}
+              marks={sliderMarks}
+              precision={platformRules.allowsDecimals ? 1 : 0}
             />
 
             <Group justify="space-between" mt="md">
@@ -155,15 +211,17 @@ export function RolloutControls({
                     onClick={resetChanges}
                     disabled={isLoading}
                   >
-                    Cancel
+                    {BUTTON_LABELS.CANCEL}
                   </Button>
                   <Button
                     size="xs"
-                    leftSection={<IconTrendingUp size={14} />}
+                    leftSection={
+                      <IconTrendingUp size={ROLLOUT_CONTROLS_ICON_SIZES.UPDATE_BUTTON} />
+                    }
                     onClick={handleUpdateClick}
                     loading={isLoading}
                   >
-                    Update to {targetPercentage}%
+                    {updateButtonLabel}
                   </Button>
                 </Group>
               )}
@@ -171,22 +229,57 @@ export function RolloutControls({
           </div>
         )}
 
-        {/* iOS phased release note */}
-        {!supportsRollout && (
-          <Text size="sm" c="dimmed">
-            iOS phased release is managed automatically by Apple over 7 days.
-          </Text>
+        {/* iOS Phased Release - Complete Early (100% only) */}
+        {controlType === 'complete-early' && canUpdate && !isComplete && (
+          <div>
+            <Group justify="space-between" mb="xs">
+              <div>
+                <Text size="sm" fw={500}>
+                  iOS Phased Release
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Day {iosPhasedDay} of 7-day automatic rollout
+                </Text>
+              </div>
+              <Button
+                size="sm"
+                leftSection={<IconCheck size={16} />}
+                onClick={handleCompleteEarly}
+                loading={isLoading}
+                disabled={isLoading}
+              >
+                Complete Early (100%)
+              </Button>
+            </Group>
+            <Text size="xs" c="dimmed">
+              {platformDescription}
+            </Text>
+          </div>
+        )}
+
+        {/* iOS Manual Release - Read-only */}
+        {controlType === 'readonly' && (
+          <div>
+            <Text size="sm" fw={500} mb="xs">
+              iOS Manual Release
+            </Text>
+            <Text size="xs" c="dimmed">
+              {platformDescription}
+            </Text>
+          </div>
         )}
 
         {/* Action Buttons */}
         {!isComplete && (
           <>
-            <div className="border-t pt-4 mt-2" />
+            <Divider mt="sm" />
             
             <Group gap="sm">
               {canPause && (
                 <ActionButton
-                  icon={<IconPlayerPause size={16} />}
+                  icon={
+                    <IconPlayerPause size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
+                  }
                   label={BUTTON_LABELS.PAUSE}
                   color="yellow"
                   onClick={onPause}
@@ -198,7 +291,9 @@ export function RolloutControls({
 
               {canResume && (
                 <ActionButton
-                  icon={<IconPlayerPlay size={16} />}
+                  icon={
+                    <IconPlayerPlay size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
+                  }
                   label={BUTTON_LABELS.RESUME}
                   color="green"
                   onClick={onResume}
@@ -210,7 +305,9 @@ export function RolloutControls({
 
               {canHalt && (
                 <ActionButton
-                  icon={<IconAlertOctagon size={16} />}
+                  icon={
+                    <IconAlertOctagon size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
+                  }
                   label={BUTTON_LABELS.HALT}
                   color="red"
                   onClick={onHalt}
@@ -224,14 +321,25 @@ export function RolloutControls({
 
         {/* Complete State */}
         {isComplete && (
-          <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+          <Paper
+            p="md"
+            radius="md"
+            withBorder
+            style={{
+              backgroundColor: 'var(--mantine-color-green-0)',
+              borderColor: 'var(--mantine-color-green-3)',
+            }}
+          >
             <Group gap="sm">
-              <IconCheck size={16} className="text-green-600" />
+              <IconCheck
+                size={ROLLOUT_CONTROLS_ICON_SIZES.COMPLETE_BADGE}
+                color="var(--mantine-color-green-7)"
+              />
               <Text size="sm" c="green.7">
-                Rollout complete - 100% of users can now access this version.
+                {ROLLOUT_CONTROLS_UI.COMPLETE_MESSAGE}
               </Text>
             </Group>
-          </div>
+          </Paper>
         )}
       </Stack>
     </Card>

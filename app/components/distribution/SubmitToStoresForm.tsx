@@ -19,13 +19,19 @@ import {
   Textarea,
 } from '@mantine/core';
 import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   BUTTON_LABELS,
   DISTRIBUTION_UI_LABELS,
+  ERROR_MESSAGES,
+  FORM_ICON_SIZES,
+  SUCCESS_MESSAGES,
+  WARNING_MESSAGES,
 } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { AndroidOptions } from './AndroidOptions';
+import { ArtifactDisplay } from './ArtifactDisplay';
+import { BuildUploadSelector } from './BuildUploadSelector';
 import type { SubmitToStoresFormProps } from './distribution.types';
 import { IOSOptions } from './IOSOptions';
 import { PlatformCheckbox } from './PlatformCheckbox';
@@ -37,12 +43,38 @@ import { useFormState } from './useFormState';
 
 export function SubmitToStoresForm({
   releaseId,
-  availablePlatforms,
+  distributionId,
+  submissions,
   hasAndroidActiveRollout,
   onSubmitComplete,
   onClose,
   className,
+  isFirstSubmission,
+  androidArtifact,
+  iosArtifact,
+  isResubmission,
 }: SubmitToStoresFormProps) {
+
+  // Extract PENDING submissions and available platforms
+  const pendingSubmissions = useMemo(
+    () => submissions.filter(s => s.status === SubmissionStatus.PENDING),
+    [submissions]
+  );
+  
+  const availablePlatforms = useMemo(
+    () => pendingSubmissions.map(s => s.platform),
+    [pendingSubmissions]
+  );
+  
+  const androidSubmission = useMemo(
+    () => pendingSubmissions.find(s => s.platform === Platform.ANDROID),
+    [pendingSubmissions]
+  );
+  
+  const iosSubmission = useMemo(
+    () => pendingSubmissions.find(s => s.platform === Platform.IOS),
+    [pendingSubmissions]
+  );
 
   const {
     formState,
@@ -54,11 +86,22 @@ export function SubmitToStoresForm({
     submitSuccess,
   } = useFormState(availablePlatforms);
 
+  // Track uploaded build IDs for resubmission
+  const [androidBuildId, setAndroidBuildId] = useState<string | null>(null);
+  const [iosBuildId, setIosBuildId] = useState<string | null>(null);
+
   const hasAndroid = availablePlatforms.includes(Platform.ANDROID);
   const hasIOS = availablePlatforms.includes(Platform.IOS);
   const androidSelected = formState.selectedPlatforms.includes(Platform.ANDROID);
   const iosSelected = formState.selectedPlatforms.includes(Platform.IOS);
-  const canSubmit = formState.selectedPlatforms.length > 0;
+  
+  // For resubmission, require build IDs
+  const canSubmit = formState.selectedPlatforms.length > 0 && (
+    !isResubmission || (
+      (!androidSelected || androidBuildId !== null) &&
+      (!iosSelected || iosBuildId !== null)
+    )
+  );
 
   // Platform toggle handlers
   const handleToggleAndroid = useCallback(() => {
@@ -74,31 +117,105 @@ export function SubmitToStoresForm({
     updateField('releaseNotes', event.currentTarget.value);
   }, [updateField]);
 
-  // Handle submission
-  const handleSubmit = useCallback(() => {
-    const formData = new FormData();
-    formData.append('_action', 'submit-to-stores');
-    formData.append('platforms', JSON.stringify(formState.selectedPlatforms));
+  // Android option handlers - NO INLINE FUNCTIONS
+  const handleAndroidTrackChange = useCallback((value: string) => {
+    updateField('androidTrack', value);
+  }, [updateField]);
 
-    if (androidSelected) {
-      formData.append('android', JSON.stringify({
-        track: formState.androidTrack,
-        rolloutPercentage: formState.androidRollout,
-        priority: formState.androidPriority,  // Per API Spec: 0-5
-        releaseNotes: formState.releaseNotes,
-      }));
+  const handleAndroidRolloutChange = useCallback((value: number) => {
+    updateField('androidRollout', value);
+  }, [updateField]);
+
+  const handleAndroidPriorityChange = useCallback((value: number) => {
+    updateField('androidPriority', value);
+  }, [updateField]);
+
+  // iOS option handlers - NO INLINE FUNCTIONS
+  const handleIOSReleaseTypeChange = useCallback((value: string) => {
+    updateField('iosReleaseType', value);
+  }, [updateField]);
+
+  const handleIOSPhasedReleaseChange = useCallback((value: boolean) => {
+    updateField('iosPhasedRelease', value);
+  }, [updateField]);
+
+  // Handle submission - Submit per platform separately
+  const handleSubmit = useCallback(async () => {
+    const errors: string[] = [];
+    const succeeded: Platform[] = [];
+    
+    // Submit Android (if selected)
+    if (androidSelected && androidSubmission) {
+      try {
+        const androidPayload = {
+          rolloutPercent: formState.androidRollout,
+          inAppPriority: formState.androidPriority,
+          releaseNotes: formState.releaseNotes,
+        };
+        
+        await fetcher.submit(
+          JSON.stringify(androidPayload),
+          {
+            method: 'PUT',
+            action: `/api/v1/submissions/${androidSubmission.id}/submit`,
+            encType: 'application/json',
+          }
+        );
+        
+        succeeded.push(Platform.ANDROID);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`Android: ${errorMessage}`);
+      }
     }
-
-    if (iosSelected) {
-      formData.append('ios', JSON.stringify({
-        releaseType: formState.iosReleaseType,
-        phasedRelease: formState.iosPhasedRelease,
-        releaseNotes: formState.releaseNotes,
-      }));
+    
+    // Submit iOS (if selected)
+    if (iosSelected && iosSubmission) {
+      try {
+        const iosPayload = {
+          phasedRelease: formState.iosPhasedRelease,
+          resetRating: false, // Default value if not in form state
+          releaseNotes: formState.releaseNotes,
+        };
+        
+        await fetcher.submit(
+          JSON.stringify(iosPayload),
+          {
+            method: 'PUT',
+            action: `/api/v1/submissions/${iosSubmission.id}/submit`,
+            encType: 'application/json',
+          }
+        );
+        
+        succeeded.push(Platform.IOS);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        errors.push(`iOS: ${errorMessage}`);
+      }
     }
-
-    fetcher.submit(formData, { method: 'post' });
-  }, [formState, androidSelected, iosSelected, fetcher]);
+    
+    // Handle results
+    if (succeeded.length > 0 && errors.length === 0) {
+      // Full success
+      if (onSubmitComplete) {
+        onSubmitComplete();
+      }
+    } else if (succeeded.length > 0 && errors.length > 0) {
+      // Partial success - show warning
+      console.warn(`Partial submit: ${succeeded.join(', ')} succeeded. Errors: ${errors.join('; ')}`);
+    } else if (errors.length > 0) {
+      // Complete failure
+      console.error(`Submit failed: ${errors.join('; ')}`);
+    }
+  }, [
+    formState,
+    androidSelected,
+    iosSelected,
+    androidSubmission,
+    iosSubmission,
+    fetcher,
+    onSubmitComplete,
+  ]);
 
   // Handle success
   if (submitSuccess && onSubmitComplete) {
@@ -110,13 +227,12 @@ export function SubmitToStoresForm({
       {/* Active Rollout Warning */}
       {hasAndroidActiveRollout && (
         <Alert 
-          icon={<IconAlertCircle size={16} />} 
+          icon={<IconAlertCircle size={FORM_ICON_SIZES.ALERT} />} 
           color="orange" 
           variant="light"
         >
           <Text size="sm">
-            A previous release has an active rollout on Play Store. 
-            Submitting a new version will replace it.
+            {WARNING_MESSAGES.ACTIVE_ANDROID_ROLLOUT}
           </Text>
         </Alert>
       )}
@@ -124,9 +240,9 @@ export function SubmitToStoresForm({
       {/* Error Alert */}
       {submitError && (
         <Alert 
-          icon={<IconAlertCircle size={16} />} 
+          icon={<IconAlertCircle size={FORM_ICON_SIZES.ALERT} />} 
           color="red" 
-          title="Submission Failed"
+          title={ERROR_MESSAGES.SUBMISSION_FAILED_TITLE}
           variant="light"
         >
           {submitError}
@@ -137,10 +253,10 @@ export function SubmitToStoresForm({
       {submitSuccess && (
         <Alert 
           color="green" 
-          title="Submission Successful"
+          title={SUCCESS_MESSAGES.SUBMISSION_SUCCESSFUL_TITLE}
           variant="light"
         >
-          Your release has been submitted to the selected stores!
+          {SUCCESS_MESSAGES.SUBMISSION_SUCCESSFUL_MESSAGE}
         </Alert>
       )}
 
@@ -169,6 +285,42 @@ export function SubmitToStoresForm({
             </Stack>
           </div>
 
+          {/* Artifact Display (First Submission) or Build Upload (Resubmission) */}
+          {isFirstSubmission && androidSelected && androidArtifact && (
+            <ArtifactDisplay
+              platform={Platform.ANDROID}
+              artifactName={androidArtifact.name}
+              artifactSize={androidArtifact.size}
+              internalTestingLink={androidArtifact.internalTestingLink}
+            />
+          )}
+
+          {isFirstSubmission && iosSelected && iosArtifact && (
+            <ArtifactDisplay
+              platform={Platform.IOS}
+              buildNumber={iosArtifact.buildNumber}
+              testflightLink={iosArtifact.testflightLink}
+            />
+          )}
+
+          {isResubmission && androidSelected && (
+            <BuildUploadSelector
+              platform={Platform.ANDROID}
+              releaseId={releaseId}
+              onBuildReady={setAndroidBuildId}
+              disabled={isSubmitting}
+            />
+          )}
+
+          {isResubmission && iosSelected && (
+            <BuildUploadSelector
+              platform={Platform.IOS}
+              releaseId={releaseId}
+              onBuildReady={setIosBuildId}
+              disabled={isSubmitting}
+            />
+          )}
+
           <Divider />
 
           {/* Platform-specific Options */}
@@ -177,9 +329,9 @@ export function SubmitToStoresForm({
               track={formState.androidTrack}
               rollout={formState.androidRollout}
               priority={formState.androidPriority}
-              onTrackChange={(v) => updateField('androidTrack', v)}
-              onRolloutChange={(v) => updateField('androidRollout', v)}
-              onPriorityChange={(v) => updateField('androidPriority', v)}
+              onTrackChange={handleAndroidTrackChange}
+              onRolloutChange={handleAndroidRolloutChange}
+              onPriorityChange={handleAndroidPriorityChange}
               disabled={isSubmitting}
             />
           )}
@@ -188,8 +340,8 @@ export function SubmitToStoresForm({
             <IOSOptions
               releaseType={formState.iosReleaseType}
               phasedRelease={formState.iosPhasedRelease}
-              onReleaseTypeChange={(v) => updateField('iosReleaseType', v)}
-              onPhasedReleaseChange={(v) => updateField('iosPhasedRelease', v)}
+              onReleaseTypeChange={handleIOSReleaseTypeChange}
+              onPhasedReleaseChange={handleIOSPhasedReleaseChange}
               disabled={isSubmitting}
             />
           )}
@@ -226,7 +378,7 @@ export function SubmitToStoresForm({
               onClick={handleSubmit}
               disabled={!canSubmit}
               loading={isSubmitting}
-              leftSection={<IconRocket size={16} />}
+              leftSection={<IconRocket size={FORM_ICON_SIZES.BUTTON} />}
             >
               {BUTTON_LABELS.SUBMIT}
             </Button>

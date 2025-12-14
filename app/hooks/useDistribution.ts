@@ -10,23 +10,23 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type {
-  DistributionStatus,
+  DistributionStatusData,
   Submission
 } from '~/types/distribution.types';
-import { DistributionReleaseStatus, Platform, SubmissionStatus as SubmissionStatusEnum } from '~/types/distribution.types';
+import { DistributionStatus, Platform, SubmissionStatus as SubmissionStatusEnum } from '~/types/distribution.types';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 type UseDistributionParams = {
-  distributionStatus: DistributionStatus;
+  distributionStatus: DistributionStatusData;
   submissions: Submission[];
 };
 
 type UseDistributionReturn = {
   // Status
-  releaseStatus: DistributionReleaseStatus;
+  releaseStatus: DistributionStatus;
   isComplete: boolean;
   isDistributing: boolean;
   isFailed: boolean;
@@ -83,8 +83,10 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
 
   // Status flags
   const isDistributing = 
-    releaseStatus === DistributionReleaseStatus.READY_FOR_SUBMISSION ||
-    releaseStatus === DistributionReleaseStatus.COMPLETED;
+    releaseStatus === DistributionStatus.PARTIALLY_SUBMITTED ||
+    releaseStatus === DistributionStatus.SUBMITTED ||
+    releaseStatus === DistributionStatus.PARTIALLY_RELEASED ||
+    releaseStatus === DistributionStatus.RELEASED;
   const isFailed = false; // FAILED status removed - handled at submission level
   const isHalted = false; // HALTED status removed - handled at submission level
 
@@ -105,13 +107,13 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
   const hasRejections = androidRejected || iosRejected;
 
   // Rollout percentages
-  const androidRolloutPercent = androidSubmission?.exposurePercent ?? 0;
-  const iosRolloutPercent = iosSubmission?.exposurePercent ?? 0;
+  const androidRolloutPercent = androidSubmission?.rolloutPercent ?? 0;
+  const iosRolloutPercent = iosSubmission?.rolloutPercent ?? 0;
 
   // Actions availability
   const canSubmitToStores = useMemo(() => {
-    // Can only submit in PRE_RELEASE status
-    return releaseStatus === DistributionReleaseStatus.PRE_RELEASE;
+    // Can only submit when distribution is pending (not yet started)
+    return releaseStatus === DistributionStatus.PENDING;
   }, [releaseStatus]);
 
   const canRetryAndroid = useMemo(() => {

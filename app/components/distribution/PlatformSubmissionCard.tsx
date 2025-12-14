@@ -13,6 +13,7 @@ import {
   IconClock,
   IconExternalLink,
   IconEye,
+  IconPlayerPause,
   IconRefresh,
   IconX,
 } from '@tabler/icons-react';
@@ -40,8 +41,11 @@ function getStatusIcon(status: SubmissionStatus | null) {
     case SubmissionStatus.LIVE:
     case SubmissionStatus.APPROVED:
       return <IconCheck size={14} />;
+    case SubmissionStatus.PAUSED:
+      return <IconPlayerPause size={14} />;
     case SubmissionStatus.REJECTED:
     case SubmissionStatus.HALTED:
+    case SubmissionStatus.CANCELLED:
       return <IconX size={14} />;
     default:
       return <IconClock size={14} />;

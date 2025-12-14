@@ -155,7 +155,7 @@ export type ExposureControlConflictError = {
     platform: Platform;
     currentRelease: {
       version: string;
-      exposurePercent: number;
+      rolloutPercent: number;
       status: string;
     };
     resolution: {

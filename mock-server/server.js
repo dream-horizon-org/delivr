@@ -1071,6 +1071,30 @@ server.get('/api/v1/distributions', (req, res) => {
       // Extract platforms from platformTargetMappings
       const platforms = release.platformTargetMappings?.map(ptm => ptm.platform) || [];
       
+      // Get builds for this release (for artifact display)
+      const builds = db.get('builds').filter({ releaseId: release.id }).value() || [];
+      const androidBuild = builds.find(b => b.platform === 'ANDROID');
+      const iosBuild = builds.find(b => b.platform === 'IOS');
+      
+      // Build artifacts object for first submission (PENDING with no submissions)
+      const artifacts = (status === 'PENDING' && submissions.length === 0) ? {
+        ...(androidBuild && {
+          android: {
+            name: androidBuild.artifactPath ? androidBuild.artifactPath.split('/').pop() : `app-release-${version}.aab`,
+            size: androidBuild.size || '45.2 MB',
+            buildId: androidBuild.id,
+            internalTestingLink: androidBuild.internalTrackLink || `https://play.google.com/apps/internaltest/${release.id}`,
+          }
+        }),
+        ...(iosBuild && {
+          ios: {
+            buildNumber: iosBuild.testflightNumber || iosBuild.buildNumber || '250',
+            buildId: iosBuild.id,
+            testflightLink: iosBuild.testflightLink || `https://testflight.apple.com/join/${release.id}`,
+          }
+        }),
+      } : undefined;
+      
       return {
         id: `dist_${release.id.substring(0, 8)}`, // Distribution ID
         releaseId: release.id,
@@ -1081,6 +1105,7 @@ server.get('/api/v1/distributions', (req, res) => {
         submissions, // Array of submissions (as per user's spec)
         submittedAt: submissions[0]?.submittedAt || null,
         lastUpdated: release.updatedAt || new Date().toISOString(),
+        artifacts, // Pre-release artifact info (for first submission only)
       };
     });
   

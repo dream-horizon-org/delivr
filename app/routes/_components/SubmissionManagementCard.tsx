@@ -21,10 +21,10 @@ export type SubmissionManagementCardProps = {
 export function SubmissionManagementCard(props: SubmissionManagementCardProps) {
   const { submission, onPause, onResume, onHalt, onRetry, onViewHistory } = props;
 
-  const isPaused = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === 0;
+  const isPaused = submission.submissionStatus === SubmissionStatus.LIVE && submission.rolloutPercent === 0;
   const isRejected = submission.submissionStatus === SubmissionStatus.REJECTED;
   const isInReview = submission.submissionStatus === SubmissionStatus.IN_REVIEW;
-  const isComplete = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === ROLLOUT_COMPLETE_PERCENT;
+  const isComplete = submission.submissionStatus === SubmissionStatus.LIVE && submission.rolloutPercent === ROLLOUT_COMPLETE_PERCENT;
   const showPauseResume = !isInReview && !isRejected && !isComplete;
   const showEmergencyHalt = !isComplete;
 

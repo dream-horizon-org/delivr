@@ -5,7 +5,7 @@
 import { useCallback } from 'react';
 import { Checkbox, Group, Paper, Select, Stack, Text } from '@mantine/core';
 import { IconBrandApple } from '@tabler/icons-react';
-import { DISTRIBUTION_UI_LABELS, IOS_RELEASE_TYPES } from '~/constants/distribution.constants';
+import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES, IOS_RELEASE_TYPES } from '~/constants/distribution.constants';
 
 type IOSOptionsProps = {
   releaseType: string;
@@ -36,7 +36,7 @@ export function IOSOptions({
   return (
     <Paper p="md" withBorder radius="md" bg="blue.0">
       <Group gap="xs" mb="md">
-        <IconBrandApple size={18} className="text-blue-600" />
+        <IconBrandApple size={FORM_ICON_SIZES.INPUT} className="text-blue-600" />
         <Text fw={500} size="sm">{DISTRIBUTION_UI_LABELS.IOS_OPTIONS}</Text>
       </Group>
       

@@ -1,7 +1,10 @@
 /**
- * Remix API Route: Submit to Stores (Main Distribution Entry Point)
+ * Remix API Route: Distribution for Release Process
+ * GET  /api/v1/releases/:releaseId/distribution - Get complete distribution details for release
  * POST /api/v1/releases/:releaseId/distribute - Submit release builds to Play Store and/or App Store
- * GET  /api/v1/releases/:releaseId/distribute - Get distribution status for release
+ * 
+ * Note: GET returns complete distribution object with all submissions and artifacts
+ * Reference: DISTRIBUTION_API_SPEC.md lines 154-343
  */
 
 import type { LoaderFunctionArgs } from '@remix-run/node';
@@ -26,7 +29,8 @@ import {
 } from '~/utils/authenticate';
 
 /**
- * GET - Get distribution status for a release
+ * GET - Get complete distribution details for release
+ * Returns full distribution object with all submissions and artifacts
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
@@ -37,11 +41,11 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      const response = await DistributionService.getDistributionStatus(releaseId);
+      const response = await DistributionService.getReleaseDistribution(releaseId);
       return json(response.data);
     } catch (error) {
       logApiError(LOG_CONTEXT.DISTRIBUTION_STATUS_API, error);
-      return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_FETCH_DISTRIBUTION_STATUS);
+      return handleAxiosError(error, ERROR_MESSAGES.FAILED_TO_FETCH_DISTRIBUTION);
     }
   }
 );

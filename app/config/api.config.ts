@@ -47,6 +47,9 @@ export const API_CONFIG = {
  */
 export const DISTRIBUTION_API_PATTERNS = [
   '/api/v1/distributions',
+  '/api/v1/distributions/*',
+  '/api/v1/distributions/*/submit',
+  '/api/v1/releases/*/distribution',
   '/api/v1/releases/*/builds',
   '/api/v1/releases/*/builds/*',
   '/api/v1/releases/*/builds/upload-aab',

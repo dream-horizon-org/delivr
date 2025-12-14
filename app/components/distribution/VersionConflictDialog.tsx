@@ -7,8 +7,13 @@
 
 import { Button, Group, Modal, Radio, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { useState } from 'react';
-import { PLATFORM_LABELS } from '~/constants/distribution.constants';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DIALOG_UI,
+  PLATFORM_LABELS,
+} from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
 
 // Per API Spec - VERSION_EXISTS error details
@@ -35,6 +40,20 @@ export type VersionConflictDialogProps = {
   isLoading?: boolean;
 };
 
+// Status emoji mapping
+const STATUS_EMOJI = {
+  LIVE: '🟢',
+  IN_REVIEW: '🟡',
+  DRAFT: '📝',
+} as const;
+
+// Status label mapping
+const STATUS_LABELS = {
+  LIVE: 'Live',
+  IN_REVIEW: 'In Review',
+  DRAFT: 'Draft',
+} as const;
+
 export function VersionConflictDialog({
   opened,
   onClose,
@@ -44,32 +63,56 @@ export function VersionConflictDialog({
 }: VersionConflictDialogProps) {
   const [selectedAction, setSelectedAction] = useState<string>('');
 
-  if (!conflict) return null;
+  const platformLabel = useMemo(
+    () => (conflict ? PLATFORM_LABELS[conflict.platform] : ''),
+    [conflict]
+  );
 
-  const availableOptions = conflict.resolution.options.filter((option) => {
-    // Handle conditional availability (e.g., DELETE_DRAFT only if status is DRAFT)
-    if (option.availableIf) {
-      if (option.availableIf.includes('DRAFT') && conflict.existingStatus !== 'DRAFT') { // DRAFT is special status not in enum
-        return false;
+  const statusDisplay = useMemo(() => {
+    if (!conflict) return '';
+    const emoji = STATUS_EMOJI[conflict.existingStatus];
+    const label = STATUS_LABELS[conflict.existingStatus];
+    return `${emoji} ${label}`;
+  }, [conflict]);
+
+  const availableOptions = useMemo(() => {
+    if (!conflict) return [];
+    return conflict.resolution.options.filter((option) => {
+      // Handle conditional availability (e.g., DELETE_DRAFT only if status is DRAFT)
+      if (option.availableIf) {
+        if (option.availableIf.includes('DRAFT') && conflict.existingStatus !== 'DRAFT') {
+          return false;
+        }
       }
-    }
-    return true;
-  });
+      return true;
+    });
+  }, [conflict]);
 
-  const handleSubmit = () => {
+  const handleActionChange = useCallback((value: string) => {
+    setSelectedAction(value);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
     if (selectedAction) {
       onResolve(selectedAction);
     }
-  };
+  }, [selectedAction, onResolve]);
+
+  const handleClose = useCallback(() => {
+    setSelectedAction('');
+    onClose();
+  }, [onClose]);
+
+  if (!conflict) return null;
 
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={handleClose}
       title={
         <Group gap="sm">
           <ThemeIcon color="orange" variant="light" size="lg">
-            <IconAlertTriangle size={20} />
+            <IconAlertTriangle size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
           <Text fw={600}>{conflict.resolution.title}</Text>
         </Group>
@@ -79,21 +122,23 @@ export function VersionConflictDialog({
       <Stack gap="md">
         <Text size="sm" c="dimmed">
           Version <strong>{conflict.version}</strong> already exists in{' '}
-          {PLATFORM_LABELS[conflict.platform]} store.
+          {platformLabel} store.
         </Text>
 
-        <Text size="sm">
-          Current status:{' '}
-          <strong>
-            {conflict.existingStatus === 'LIVE' && '🟢 Live'}
-            {conflict.existingStatus === 'IN_REVIEW' && '🟡 In Review'}
-            {conflict.existingStatus === 'DRAFT' && '📝 Draft'}
-          </strong>
+        <Text size="sm" c="dimmed">
+          {DIALOG_UI.VERSION_CONFLICT.DESCRIPTION}
         </Text>
+
+        <div>
+          <Text size="sm" fw={600} mb={4}>
+            Current Status
+          </Text>
+          <Text size="sm">{statusDisplay}</Text>
+        </div>
 
         <Radio.Group
           value={selectedAction}
-          onChange={setSelectedAction}
+          onChange={handleActionChange}
           label="Choose how to resolve this conflict:"
         >
           <Stack gap="sm" mt="xs">
@@ -111,21 +156,23 @@ export function VersionConflictDialog({
                     )}
                   </Group>
                 }
+                disabled={isLoading}
               />
             ))}
           </Stack>
         </Radio.Group>
 
         <Group justify="flex-end" mt="md">
-          <Button variant="subtle" onClick={onClose} disabled={isLoading}>
-            Cancel
+          <Button variant="subtle" onClick={handleClose} disabled={isLoading}>
+            {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!selectedAction}
             loading={isLoading}
+            color="blue"
           >
-            Continue
+            {BUTTON_LABELS.PROCEED}
           </Button>
         </Group>
       </Stack>

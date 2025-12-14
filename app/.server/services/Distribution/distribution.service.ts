@@ -10,11 +10,14 @@
 import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import type {
+  APISuccessResponse,
   ApprovalResponse,
   BuildResponse,
   BuildsResponse,
+  CreateResubmissionRequest,
   DistributionsResponse,
   DistributionStatusResponse,
+  DistributionWithSubmissions,
   ExtraCommitsResponse,
   HaltRolloutRequest,
   ManualApprovalRequest,
@@ -22,11 +25,10 @@ import type {
   Platform,
   PMStatusResponse,
   ReleaseStoresResponse,
-  RetrySubmissionRequest,
   RolloutUpdateResponse,
-  SubmissionHistoryResponse,
   SubmissionResponse,
   SubmissionsResponse,
+  SubmitSubmissionRequest,
   SubmitToStoreRequest,
   SubmitToStoreResponse,
   UpdateRolloutRequest,
@@ -159,21 +161,44 @@ class Distribution {
    * @param pageSize - Number of items per page
    * @returns Paginated list of distributions with their submissions
    */
-  async listDistributions(page: number = 1, pageSize: number = 10) {
+  async listDistributions(
+    page: number = 1,
+    pageSize: number = 10,
+    status?: string,
+    platform?: string
+  ) {
+    const params: Record<string, string | number> = { page, pageSize };
+    if (status) {
+      params.status = status;
+    }
+    if (platform) {
+      params.platform = platform;
+    }
+
     return this.__client.get<DistributionsResponse>(
       '/api/v1/distributions',
-      {
-        params: { page, pageSize },
-      }
+      { params }
     );
   }
 
   /**
    * Submit release builds to stores (main entry point)
+   * Used from Release Process Step (when distributionId not yet known)
    */
   async submitToStores(releaseId: string, request: SubmitToStoreRequest) {
     return this.__client.post<SubmitToStoreRequest, AxiosResponse<SubmitToStoreResponse>>(
       `/api/v1/releases/${releaseId}/distribute`,
+      request
+    );
+  }
+
+  /**
+   * Submit distribution to stores by distributionId
+   * Used from Distribution Management Page (when distributionId is known)
+   */
+  async submitToStoresByDistributionId(distributionId: string, request: SubmitToStoreRequest) {
+    return this.__client.put<SubmitToStoreRequest, AxiosResponse<SubmitToStoreResponse>>(
+      `/api/v1/distributions/${distributionId}/submit`,
       request
     );
   }
@@ -209,6 +234,62 @@ class Distribution {
   }
 
   /**
+   * Get distribution details by distributionId
+   * Returns full distribution object with all submissions and artifacts
+   */
+  async getDistribution(distributionId: string) {
+    return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
+      `/api/v1/distributions/${distributionId}`
+    );
+  }
+
+  /**
+   * Get distribution details by releaseId (for release process distribution step)
+   * Returns full distribution object with all submissions and artifacts
+   */
+  async getReleaseDistribution(releaseId: string) {
+    return this.__client.get<null, AxiosResponse<SubmissionResponse>>(
+      `/api/v1/releases/${releaseId}/distribution`
+    );
+  }
+
+  /**
+   * Submit an existing PENDING submission (first-time submission)
+   * Updates submission details and changes status from PENDING to IN_REVIEW
+   */
+  async submitSubmission(submissionId: string, request: SubmitSubmissionRequest) {
+    return this.__client.put<SubmitSubmissionRequest, AxiosResponse<SubmissionResponse>>(
+      `/api/v1/submissions/${submissionId}/submit`,
+      request
+    );
+  }
+
+  /**
+   * Create a new submission (resubmission after rejection or cancellation)
+   * Creates completely new submission with new artifact
+   * For Android: Handles multipart/form-data with AAB upload
+   * For iOS: Handles application/json with TestFlight build number
+   */
+  async createResubmission(
+    distributionId: string,
+    request: CreateResubmissionRequest | FormData
+  ) {
+    return this.__client.post<
+      CreateResubmissionRequest | FormData,
+      AxiosResponse<SubmissionResponse>
+    >(
+      `/api/v1/distributions/${distributionId}/submissions`,
+      request,
+      {
+        headers:
+          request instanceof FormData
+            ? { 'Content-Type': 'multipart/form-data' }
+            : { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  /**
    * Poll submission status (lightweight)
    */
   async pollSubmissionStatus(submissionId: string) {
@@ -218,12 +299,29 @@ class Distribution {
   }
 
   /**
-   * Retry a failed submission
+   * Retry a failed submission (creates NEW submission ID)
    */
-  async retrySubmission(submissionId: string, request?: RetrySubmissionRequest) {
-    return this.__client.post<RetrySubmissionRequest | undefined, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}/retry`,
-      request
+  /**
+   * Cancel a submission (IN_REVIEW, APPROVED, etc.)
+   */
+  async cancelSubmission(submissionId: string, request: { reason?: string }) {
+    return this.__client.delete<{ reason: string }, SubmissionResponse>(
+      `/api/v1/submissions/${submissionId}/cancel`,
+      { data: request }
+    );
+  }
+
+  /**
+   * Edit existing submission (stage-dependent fields only)
+   */
+  async editSubmission(submissionId: string, updates: Partial<{
+    releaseNotes: string;
+    rolloutPercent: number;
+    releaseType: string;
+  }>) {
+    return this.__client.patch<typeof updates, SubmissionResponse>(
+      `/api/v1/submissions/${submissionId}`,
+      updates
     );
   }
 
@@ -270,16 +368,6 @@ class Distribution {
     );
   }
 
-  /**
-   * Get submission history
-   */
-  async getSubmissionHistory(submissionId: string, limit?: number, offset?: number) {
-    const params = { limit, offset };
-    return this.__client.get<null, SubmissionHistoryResponse>(
-      `/api/v1/submissions/${submissionId}/history`,
-      { params }
-    );
-  }
 }
 
 export const DistributionService = new Distribution();

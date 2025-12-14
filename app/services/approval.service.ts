@@ -10,7 +10,7 @@ import type {
   Platform,
   PMApprovalStatus,
 } from '~/types/distribution.types';
-import { DistributionReleaseStatus } from '~/types/distribution.types';
+import { DistributionStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPost } from '~/utils/api-client';
 import { BuildsService } from './builds.service';
@@ -72,7 +72,7 @@ export class ApprovalService {
    */
   static async getBlockingIssues(
     releaseId: string,
-    currentReleaseStatus: DistributionReleaseStatus,
+    currentReleaseStatus: DistributionStatus,
     platforms: Platform[]
   ): Promise<BlockingIssue[]> {
     const issues: BlockingIssue[] = [];
@@ -100,7 +100,7 @@ export class ApprovalService {
     }
 
     // 2. Check PM approval (if not already approved)
-    if (currentReleaseStatus === DistributionReleaseStatus.PRE_RELEASE) {
+    if (currentReleaseStatus === DistributionStatus.PENDING) {
       const pmStatusResponse = await this.getPMStatus(releaseId);
       const pmStatus = pmStatusResponse.data;
       
@@ -183,7 +183,7 @@ export class ApprovalService {
    */
   static async canPromoteToDistribution(
     releaseId: string,
-    currentReleaseStatus: DistributionReleaseStatus,
+    currentReleaseStatus: DistributionStatus,
     platforms: Platform[]
   ): Promise<{ canProceed: boolean; blockingReason: string | null }> {
     const blockingIssues = await this.getBlockingIssues(

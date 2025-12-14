@@ -37,20 +37,22 @@ export const PLATFORM_VALUES = [Platform.ANDROID, Platform.IOS] as const;
  * - COMPLETED: All platforms LIVE at 100%
  */
 export enum DistributionStatus {
-  PENDING = 'PENDING',
-  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',
-  COMPLETED = 'COMPLETED',
+  PENDING = 'PENDING',                          // No submissions yet
+  PARTIALLY_SUBMITTED = 'PARTIALLY_SUBMITTED',  // Some platforms submitted
+  SUBMITTED = 'SUBMITTED',                      // All platforms submitted
+  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',    // Some platforms live
+  RELEASED = 'RELEASED',                        // All platforms 100% live
 }
 
-// Legacy name for backward compatibility
-export const DistributionReleaseStatus = DistributionStatus;
-
 export enum SubmissionStatus {
+  PENDING = 'PENDING',      // Submission created, not yet submitted to store
   IN_REVIEW = 'IN_REVIEW',
   APPROVED = 'APPROVED',
   LIVE = 'LIVE',
+  PAUSED = 'PAUSED',        // iOS only: Phased rollout paused
   REJECTED = 'REJECTED',
   HALTED = 'HALTED',
+  CANCELLED = 'CANCELLED',
 }
 
 export enum BuildUploadStatus {
@@ -121,19 +123,6 @@ export enum SubmissionAction {
   PAUSE = 'PAUSE',
   RESUME = 'RESUME',
   HALT = 'HALT',
-}
-
-/** Submission history event types */
-export enum SubmissionHistoryEventType {
-  SUBMITTED = 'SUBMITTED',
-  STATUS_CHANGED = 'STATUS_CHANGED',
-  ROLLOUT_UPDATED = 'ROLLOUT_UPDATED',
-  ROLLOUT_PAUSED = 'ROLLOUT_PAUSED',
-  ROLLOUT_RESUMED = 'ROLLOUT_RESUMED',
-  ROLLOUT_HALTED = 'ROLLOUT_HALTED',
-  REJECTED = 'REJECTED',
-  APPROVED = 'APPROVED',
-  RETRY_ATTEMPTED = 'RETRY_ATTEMPTED',
 }
 
 // ============================================================================
@@ -287,6 +276,7 @@ export type BuildsSummary = {
 export type Submission = EntityTimestamps & VersionInfo & {
   id: string;
   releaseId: string;
+  distributionId: string;
   buildId: string;
   
   // Platform info
@@ -295,7 +285,8 @@ export type Submission = EntityTimestamps & VersionInfo & {
   
   // Status
   submissionStatus: SubmissionStatus;
-  exposurePercent: number;
+  status: SubmissionStatus; // Alias for compatibility
+  rolloutPercent: number;
   
   // Store identifiers
   externalSubmissionId: string | null;
@@ -304,6 +295,20 @@ export type Submission = EntityTimestamps & VersionInfo & {
   
   // Submission metadata
   releaseNotes: string | null;
+  
+  // Android-specific fields
+  inAppPriority?: number | null; // 0-5, Android only
+  
+  // iOS-specific fields
+  phasedRelease?: boolean | null; // iOS only: true = phased (7-day), false = manual
+  resetRating?: boolean | null;    // iOS only: reset ratings on update
+  
+  // Artifact information
+  artifact?: {
+    buildUrl?: string;
+    internalTestingLink?: string;
+    testflightBuildNumber?: number;
+  } | null;
   
   // Timestamps
   submittedAt: string | null;
@@ -361,7 +366,7 @@ export type PlatformSubmissionState = {
   submitted: boolean;
   submissionId: string | null;
   status: SubmissionStatus | null;
-  exposurePercent: number;
+  rolloutPercent: number;
   canRetry: boolean;
   error: ErrorInfo | null;
 };
@@ -372,6 +377,7 @@ export type PlatformSubmissionState = {
  */
 export type DistributionStatusData = {
   releaseId: string;
+  distributionId: string;
   releaseVersion: string;
   releaseStatus: DistributionStatus;
   
@@ -388,58 +394,6 @@ export type DistributionStatusData = {
   // Timeline
   startedAt: string | null;
   completedAt: string | null;
-};
-
-// ============================================================================
-// EVENT TYPES - For submission history
-// ============================================================================
-
-// Note: SubmissionHistoryEventType is now an enum, defined earlier in this file
-  
-/** Rollout state change */
-export type RolloutEventState = {
-  percentage: number;
-};
-
-/** Status change state */
-export type StatusEventState = {
-  status: SubmissionStatus;
-  exposurePercent?: number;
-};
-
-/** Rejection state */
-export type RejectionEventState = {
-  reason: string;
-  guideline?: string;
-};
-
-/** Union of all possible event states */
-export type EventState = 
-  | RolloutEventState 
-  | StatusEventState 
-  | RejectionEventState 
-  | { message: string }
-  | null;
-  
-/** Event metadata */
-export type EventMetadata = {
-  triggeredBy?: EventTrigger;
-  storeResponse?: string;
-  duration?: number;
-};
-
-/**
- * Submission History Event
- */
-export type SubmissionHistoryEvent = {
-    id: string;
-  eventType: SubmissionHistoryEventType;
-  previousState?: EventState;
-  newState: EventState;
-  actor?: Actor;
-  reason?: string;
-  metadata?: EventMetadata;
-  timestamp: string;
 };
 
 // ============================================================================
@@ -469,24 +423,47 @@ export type SubmitToStoreRequest = {
   ios?: IOSSubmitOptions;
 };
 
-/** Metadata updates for retry */
-export type SubmissionMetadataUpdates = {
-    releaseNotes?: string;
-    shortDescription?: string;
-    fullDescription?: string;
-    keywords?: string[];
-  };
+/** Submit Submission Request (First-time submission - updates PENDING submission) */
+export type SubmitSubmissionRequest = {
+  // Android-specific fields
+  rolloutPercent?: number;       // Float 0-100 (supports decimals)
+  inAppPriority?: number;         // 0-5
   
-/** Retry Submission Request */
-export type RetrySubmissionRequest = {
-  submissionId: string;
-  updates?: SubmissionMetadataUpdates;
-  newBuildId?: string;
+  // iOS-specific fields
+  phasedRelease?: boolean;
+  resetRating?: boolean;
+  
+  // Common fields
+  releaseNotes?: string;
 };
 
+/** Create Resubmission Request (Android) - Creates new submission after rejection/cancellation */
+export type AndroidResubmissionRequest = {
+  platform: Platform.ANDROID;
+  version: string;                // e.g., "2.7.1"
+  versionCode?: number;           // Optional - extracted from AAB if not provided
+  aabFile: File;                  // Multipart file upload
+  rolloutPercent: number;         // Float 0-100 (supports decimals)
+  inAppPriority: number;          // 0-5
+  releaseNotes: string;
+};
+
+/** Create Resubmission Request (iOS) - Creates new submission after rejection/cancellation */
+export type IOSResubmissionRequest = {
+  platform: Platform.IOS;
+  version: string;                // e.g., "2.7.1"
+  testflightBuildNumber: number;
+  phasedRelease: boolean;
+  resetRating: boolean;
+  releaseNotes: string;
+};
+
+/** Union type for resubmission requests */
+export type CreateResubmissionRequest = AndroidResubmissionRequest | IOSResubmissionRequest;
+
 /** Update Rollout Request */
-export type UpdateRolloutRequest = Pick<Submission, 'exposurePercent'> & {
-  submissionId: string;
+export type UpdateRolloutRequest = {
+  rolloutPercent: number;
 };
 
 /** Pause Rollout Request */
@@ -599,7 +576,7 @@ export type SubmissionSummary = Pick<Submission,
   | 'submissionStatus' 
   | 'versionName' 
   | 'versionCode'
-  | 'exposurePercent'
+  | 'rolloutPercent'
   | 'createdAt'
 > & {
   buildId: string;
@@ -657,13 +634,9 @@ export type SubmissionResponse = APISuccessResponse<Submission>;
 
 /** Rollout Update Response */
 export type RolloutUpdateResponse = APISuccessResponse<{
-  submissionId: string;
-  previousPercentage: number;
-  newPercentage: number;
-  exposurePercent: number;
-  updatedAt: string;
-  autoPromotedToReleased: boolean;
-  releaseStatus?: DistributionStatus;
+  id: string;
+  rolloutPercent: number;
+  statusUpdatedAt: string;
 }>;
 
 /** PM Status Response */
@@ -671,13 +644,6 @@ export type PMStatusResponse = APISuccessResponse<PMApprovalStatus>;
 
 /** Extra Commits Response */
 export type ExtraCommitsResponse = APISuccessResponse<ExtraCommitsData>;
-
-/** Submission History Response */
-export type SubmissionHistoryResponse = APISuccessResponse<{
-  submissionId: string;
-  events: SubmissionHistoryEvent[];
-  pagination: PaginationInfo;
-}>;
 
 /** Approver info (subset of Actor with specific role) */
 export type Approver = Omit<Actor, 'role'> & {
@@ -749,6 +715,7 @@ export type SubmitToStoresActionResponse = {
 export interface SubmissionInDistribution {
   id: string;
   platform: Platform;
+  storeType?: string; // 'PLAY_STORE' | 'APP_STORE'
   details: {
     track?: string;
     buildNumber?: string;
@@ -759,15 +726,32 @@ export interface SubmissionInDistribution {
     [key: string]: unknown; // Other platform-specific details
   };
   status: SubmissionStatus; // Just "status" - context is clear within submissions array
-  exposurePercent: number; // Rollout percentage (0-100)
+  rolloutPercent: number; // Rollout percentage (0-100)
   submittedAt?: string;
   updatedAt?: string;
 }
 
 /**
+ * Distribution with full submissions
+ * Returned from GET /api/v1/distributions/:distributionId
+ * Contains complete distribution object with ALL submissions (current + historical)
+ */
+export interface DistributionWithSubmissions {
+  id: string;
+  releaseId: string;
+  version: string;
+  branch: string;
+  status: DistributionStatus;
+  platforms: Platform[];
+  createdAt: string;
+  updatedAt: string;
+  submissions: Submission[]; // Full submission objects with all details
+}
+
+/**
  * Distribution Entry
  * Represents a single distribution with its associated submissions
- * Returned from GET /api/v1/distributions
+ * Returned from GET /api/v1/distributions (list endpoint)
  */
 export interface DistributionEntry {
   id: string; // Distribution ID (from distribution table)
@@ -779,6 +763,20 @@ export interface DistributionEntry {
   submissions: SubmissionInDistribution[]; // Array of platform submissions (actual submitted platforms)
   submittedAt: string | null;
   lastUpdated: string;
+  // Pre-release artifacts (for first submission)
+  artifacts?: {
+    android?: {
+      name: string;
+      size: string;
+      buildId: string;
+      internalTestingLink?: string;
+    };
+    ios?: {
+      buildNumber: string;
+      buildId: string;
+      testflightLink?: string;
+    };
+  };
 }
 
 /**

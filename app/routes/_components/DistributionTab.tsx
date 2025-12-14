@@ -34,7 +34,7 @@ export function DistributionTab({
   const showManagementButton = distribution.hasSubmissions;
   const showSubmitButton = distribution.canSubmitToStores && distribution.availablePlatforms.length > 0;
   const isAllPlatformsComplete = distribution.submissions.every(
-    (s) => s.submissionStatus === SubmissionStatus.LIVE && s.exposurePercent === ROLLOUT_COMPLETE_PERCENT
+    (s) => s.submissionStatus === SubmissionStatus.LIVE && s.rolloutPercent === ROLLOUT_COMPLETE_PERCENT
   );
   const completedAt = distribution.submissions.reduce((latest, s) => {
     const releasedAt = s.releasedAt;
@@ -61,7 +61,7 @@ export function DistributionTab({
             </div>
             <Button
               component={Link}
-              to={`/dashboard/${org}/distributions/${releaseId}`}
+              to={`/dashboard/${org}/distributions/${distributionStatusData.distributionId}`}
               variant="light"
               leftSection={<IconExternalLink size={16} />}
             >
@@ -89,7 +89,7 @@ export function DistributionTab({
                   key={submission.id}
                   submission={submission}
                   org={org}
-                  releaseId={releaseId}
+                  distributionId={submission.distributionId}
                 />
               ))}
             </div>
@@ -101,7 +101,7 @@ export function DistributionTab({
                 platforms={distribution.submissions.map((s) => ({
                   platform: s.platform,
                   versionName: s.versionName,
-                  exposurePercent: s.exposurePercent,
+                  rolloutPercent: s.rolloutPercent,
                   submittedAt: s.submittedAt,
                   releasedAt: s.releasedAt,
                 }))}

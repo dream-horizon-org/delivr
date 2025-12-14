@@ -10,12 +10,11 @@ import type {
   PauseRolloutRequest,
   RolloutUpdateResponse,
   Submission,
-  SubmissionHistoryResponse,
   UpdateRolloutRequest,
 } from '~/types/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
-import { apiGet, apiPatch, apiPost } from '~/utils/api-client';
+import { apiPatch, apiPost } from '~/utils/api-client';
 
 export class RolloutService {
   /**
@@ -66,24 +65,6 @@ export class RolloutService {
     );
   }
 
-  /**
-   * Get submission history
-   */
-  static async getSubmissionHistory(
-    submissionId: string,
-    limit?: number,
-    offset?: number
-  ): Promise<ApiResponse<SubmissionHistoryResponse>> {
-    const params = new URLSearchParams();
-    if (limit !== undefined) params.append('limit', limit.toString());
-    if (offset !== undefined) params.append('offset', offset.toString());
-
-    const queryString = params.toString() ? `?${params.toString()}` : '';
-
-    return apiGet<SubmissionHistoryResponse>(
-      `/api/v1/submissions/${submissionId}/history${queryString}`
-    );
-  }
 
   /**
    * Get suggested next rollout percentage
@@ -106,7 +87,7 @@ export class RolloutService {
   ): Promise<ApiResponse<RolloutUpdateResponse> | null> {
     const nextPercentage = this.getSuggestedNextPercentage(currentPercentage);
     if (nextPercentage) {
-      return this.updateRollout(submissionId, { submissionId, exposurePercent: nextPercentage });
+      return this.updateRollout(submissionId, { rolloutPercent: nextPercentage });
     }
     return null;
   }
@@ -115,7 +96,7 @@ export class RolloutService {
    * Complete rollout (set to 100%)
    */
   static async completeRollout(submissionId: string): Promise<ApiResponse<RolloutUpdateResponse>> {
-    return this.updateRollout(submissionId, { submissionId, exposurePercent: 100 });
+    return this.updateRollout(submissionId, { rolloutPercent: 100 });
   }
 
   /**
@@ -128,7 +109,7 @@ export class RolloutService {
       submission.platform === Platform.ANDROID && // Only Android supports manual rollout
       (submission.submissionStatus === SubmissionStatus.LIVE || 
        submission.submissionStatus === SubmissionStatus.APPROVED) &&
-      submission.exposurePercent < 100
+      submission.rolloutPercent < 100
     );
   }
 

@@ -1,9 +1,12 @@
 /**
  * Remix API Route: Rollout Control
+ * 
  * PATCH /api/v1/submissions/:submissionId/rollout        - Update rollout percentage
- * POST  /api/v1/submissions/:submissionId/rollout/pause  - Pause rollout
- * POST  /api/v1/submissions/:submissionId/rollout/resume - Resume rollout
- * POST  /api/v1/submissions/:submissionId/rollout/halt   - Emergency halt
+ * PATCH /api/v1/submissions/:submissionId/rollout/pause  - Pause rollout (iOS only)
+ * PATCH /api/v1/submissions/:submissionId/rollout/resume - Resume rollout (iOS only)
+ * PATCH /api/v1/submissions/:submissionId/rollout/halt   - Emergency halt
+ * 
+ * Reference: DISTRIBUTION_API_SPEC.md lines 827-1193
  */
 
 import { json } from '@remix-run/node';
@@ -25,6 +28,11 @@ import {
 
 /**
  * PATCH - Update rollout percentage
+ * 
+ * Platform-specific rules:
+ * - Android: Any value 0-100 (supports decimals)
+ * - iOS Phased: Only 100 (to complete early)
+ * - iOS Manual: Not allowed (always 100%)
  */
 const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -35,13 +43,17 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 
   try {
     const body = await request.json();
-    const { percentage } = body;
+    const { rolloutPercent } = body;
 
-    if (!isValidPercentage(percentage)) {
-      return createValidationError(ERROR_MESSAGES.PERCENTAGE_REQUIRED);
+    if (
+      typeof rolloutPercent !== 'number' ||
+      rolloutPercent < VALIDATION.MIN_PERCENTAGE ||
+      rolloutPercent > VALIDATION.MAX_PERCENTAGE
+    ) {
+      return createValidationError(ERROR_MESSAGES.PERCENTAGE_OUT_OF_RANGE);
     }
 
-    const requestData = { submissionId, exposurePercent: percentage };
+    const requestData = { rolloutPercent };
     const response = await DistributionService.updateRollout(submissionId, requestData);
 
     return json(response.data);
@@ -52,7 +64,10 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 };
 
 /**
- * POST - Pause rollout
+ * PATCH - Pause rollout (iOS phased release only)
+ * 
+ * Request body:
+ * - reason: string (required)
  */
 const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -65,7 +80,11 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
     const body = await request.json();
     const { reason } = body;
 
-    const requestData = { submissionId, reason };
+    if (!reason || typeof reason !== 'string') {
+      return createValidationError(ERROR_MESSAGES.REASON_REQUIRED);
+    }
+
+    const requestData = { reason };
     const response = await DistributionService.pauseRollout(submissionId, requestData);
 
     return json(response.data);
@@ -76,7 +95,9 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 };
 
 /**
- * POST - Resume rollout
+ * PATCH - Resume rollout (iOS phased release only)
+ * 
+ * No request body required.
  */
 const resumeRollout: AuthenticatedActionFunction = async ({ params, user }) => {
   const { submissionId } = params;
@@ -95,7 +116,12 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, user }) => {
 };
 
 /**
- * POST - Emergency halt
+ * PATCH - Emergency halt rollout
+ * 
+ * Request body:
+ * - reason: string (required)
+ * 
+ * Note: Severity field was removed from spec. Only reason is required.
  */
 const haltRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -106,13 +132,13 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
 
   try {
     const body = await request.json();
-    const { reason, severity } = body;
+    const { reason } = body;
 
-    if (!reason) {
+    if (!reason || typeof reason !== 'string') {
       return createValidationError(ERROR_MESSAGES.REASON_REQUIRED);
     }
 
-    const requestData = { submissionId, reason, severity };
+    const requestData = { reason };
     const response = await DistributionService.haltRollout(submissionId, requestData);
 
     return json(response.data);
@@ -136,15 +162,20 @@ function routeRolloutAction(request: Request): 'pause' | 'resume' | 'halt' | nul
   return null;
 }
 
+/**
+ * Route handler that dispatches to appropriate sub-action
+ */
+const handlePatchRequest: AuthenticatedActionFunction = async (args) => {
+  const actionType = routeRolloutAction(args.request);
+
+  if (actionType === 'pause') return pauseRollout(args);
+  if (actionType === 'resume') return resumeRollout(args);
+  if (actionType === 'halt') return haltRollout(args);
+
+  // Base rollout update (no sub-action)
+  return updateRollout(args);
+};
+
 export const action = authenticateActionRequest({
-  PATCH: updateRollout,
-  POST: (args: any) => {
-    const actionType = routeRolloutAction(args.request);
-
-    if (actionType === 'pause') return pauseRollout(args);
-    if (actionType === 'resume') return resumeRollout(args);
-    if (actionType === 'halt') return haltRollout(args);
-
-    return createValidationError(ERROR_MESSAGES.INVALID_ENDPOINT);
-  },
+  PATCH: handlePatchRequest,
 });

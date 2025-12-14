@@ -12,6 +12,7 @@ import type {
   BuildStrategy,
   BuildUploadStatus,
   DistributionStatus,
+  DistributionStatusData,
   ExtraCommitsData,
   HaltSeverity,
   Platform,
@@ -19,7 +20,7 @@ import type {
   RejectionDetails,
   RolloutAction,
   Submission,
-  SubmissionHistoryEvent,
+  SubmissionInDistribution,
   SubmissionStatus,
 } from '~/types/distribution.types';
 
@@ -171,7 +172,7 @@ export type BuildSummaryState = {
 // ============================================================================
 
 export type DistributionStatusPanelProps = BaseProps & WithLoading & {
-  status: DistributionStatus;
+  status: DistributionStatusData;
 };
 
 export type PlatformSubmissionCardProps = BaseProps & WithPlatform & {
@@ -186,23 +187,30 @@ export type PlatformSubmissionCardProps = BaseProps & WithPlatform & {
 // ============================================================================
 
 export type SubmitToStoresFormProps = BaseProps & Closeable & WithReleaseId & {
-  availablePlatforms: Platform[];
+  distributionId: string; // Required - needed for API calls
+  submissions: Submission[] | SubmissionInDistribution[]; // Required - to get submission IDs for per-platform submit
   hasAndroidActiveRollout?: boolean;
   isSubmitting?: boolean;
   onSubmitComplete?: () => void;
+  // First submission (promotion from pre-release)
+  isFirstSubmission?: boolean;
+  androidArtifact?: {
+    name: string;
+    size: string;
+    internalTestingLink?: string;
+  };
+  iosArtifact?: {
+    buildNumber: string;
+    testflightLink?: string;
+  };
+  // Resubmission (after rejection/cancellation)
+  isResubmission?: boolean;
 };
 
 export type SubmissionCardProps = BaseProps & {
   submission: Submission;
   compact?: boolean;
   onClick?: () => void;
-};
-
-export type SubmissionHistoryPanelProps = BaseProps & {
-  events: SubmissionHistoryEvent[];
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  onLoadMore?: () => void;
 };
 
 // ============================================================================
@@ -227,6 +235,7 @@ export type RolloutControlsProps = BaseProps & WithSubmissionId & WithPlatform &
   currentPercentage: number;
   status: SubmissionStatus;
   availableActions: AvailableAction<RolloutAction>[];
+  phasedRelease?: boolean; // For iOS: true = phased (7-day), false = manual (immediate 100%)
   onUpdateRollout?: (percentage: number) => void;
   onPause?: () => void;
   onResume?: () => void;
@@ -235,7 +244,7 @@ export type RolloutControlsProps = BaseProps & WithSubmissionId & WithPlatform &
 
 export type HaltRolloutDialogProps = DialogState & RequiredClose & WithSubmissionId & WithPlatform & {
   isHalting?: boolean;
-  onHalt: (reason: string, severity: HaltSeverity) => void;
+  onHalt: (reason: string) => void;
 };
 
 // ============================================================================

@@ -5,11 +5,11 @@
 
 import { Badge, Group, Text, Title } from '@mantine/core';
 import { RELEASE_STATUS_COLORS, RELEASE_STATUS_LABELS } from '~/constants/distribution.constants';
-import type { DistributionReleaseStatus } from '~/types/distribution.types';
+import type { DistributionStatus } from '~/types/distribution.types';
 
 export type DistributionPageHeaderProps = {
   releaseId: string;
-  currentStatus: DistributionReleaseStatus;
+  currentStatus: DistributionStatus;
 };
 
 export function DistributionPageHeader({ releaseId, currentStatus }: DistributionPageHeaderProps) {

@@ -14,7 +14,7 @@ import { formatRelativeTime } from './distribution.utils';
 export type PlatformReleaseInfo = {
   platform: Platform;
   versionName: string;
-  exposurePercent: number;
+  rolloutPercent: number;
   storeLink?: string;
   submittedAt: string | null;
   releasedAt: string | null;
@@ -85,7 +85,7 @@ export function ReleaseCompleteView({
                   <Badge color="green" variant="filled" size="lg">
                     <Group gap={4}>
                       <IconCheck size={14} />
-                      {platform.exposurePercent}%
+                      {platform.rolloutPercent}%
                     </Group>
                   </Badge>
 

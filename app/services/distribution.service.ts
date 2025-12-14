@@ -6,7 +6,7 @@
 
 import type {
   DistributionStatusResponse,
-  RetrySubmissionRequest,
+  DistributionsResponse,
   Submission,
   SubmissionsResponse,
   SubmitToStoreRequest,
@@ -27,8 +27,8 @@ export class DistributionService {
   static async listDistributions(
     page: number = 1,
     pageSize: number = 10
-  ): Promise<ApiResponse<any>> {
-    return apiGet<any>(
+  ): Promise<ApiResponse<DistributionsResponse>> {
+    return apiGet<DistributionsResponse>(
       `/api/v1/distributions?page=${page}&pageSize=${pageSize}`
     );
   }
@@ -90,18 +90,6 @@ export class DistributionService {
     );
   }
 
-  /**
-   * Retry a failed submission
-   */
-  static async retrySubmission(
-    submissionId: string,
-    request?: RetrySubmissionRequest
-  ): Promise<ApiResponse<Submission>> {
-    return apiPost<Submission>(
-      `/api/v1/submissions/${submissionId}`,
-      request
-    );
-  }
 
   /**
    * Check if release is complete (all platforms at 100%)
@@ -119,7 +107,7 @@ export class DistributionService {
       (p) =>
         p?.submitted &&
         p.status === SubmissionStatus.LIVE &&
-        p.exposurePercent >= 100
+        p.rolloutPercent >= 100
     );
   }
 
@@ -152,9 +140,9 @@ export class DistributionService {
 
     const totalProgress = platformStatuses.reduce((sum: number, p) => {
       if (!p?.submitted) return sum;
-      if (p.status === SubmissionStatus.LIVE && p.exposurePercent === 100) return sum + 100;
+      if (p.status === SubmissionStatus.LIVE && p.rolloutPercent === 100) return sum + 100;
       if (p.status === SubmissionStatus.LIVE || p.status === SubmissionStatus.APPROVED)
-        return sum + p.exposurePercent;
+        return sum + p.rolloutPercent;
       if (p.status === SubmissionStatus.IN_REVIEW) return sum + 10; // Arbitrary small progress
       return sum;
     }, 0);

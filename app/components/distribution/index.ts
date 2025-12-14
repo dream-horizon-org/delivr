@@ -27,7 +27,6 @@ export { ResumeRolloutDialog } from './ResumeRolloutDialog';
 export { RolloutControls } from './RolloutControls';
 export { RolloutProgressBar } from './RolloutProgressBar';
 export { SubmissionCard } from './SubmissionCard';
-export { SubmissionHistoryPanel } from './SubmissionHistoryPanel';
 export { SubmissionStatusCard } from './SubmissionStatusCard';
 export { SubmitToStoresForm } from './SubmitToStoresForm';
 
@@ -57,14 +56,11 @@ export {
   deriveBuildState,
   // Date formatting
   formatDate,
-  formatDateTime, getEventColor,
-  getEventLabel, getReleaseStatusColor,
+  formatDateTime, getReleaseStatusColor,
   // Display helpers
   getRolloutDisplayStatus,
-  getRolloutPercentageDisplay, getRolloutStatusColor,
-  getRolloutStatusLabel,
-  // Type guards
-  isRolloutState
+  getRolloutStatusColor,
+  getRolloutStatusLabel
 } from './distribution.utils';
 
 // ============================================================================
@@ -76,7 +72,7 @@ export type {
 
   // Distribution
   DistributionStatusPanelProps, ExtraCommitsWarningProps, HaltRolloutDialogProps, ManualApprovalDialogProps, PlatformSubmissionCardProps, PMApprovalStatusProps, PreReleaseStageProps, RejectionDetailsCardProps, RolloutControlsProps, RolloutProgressBarProps, SubmissionCardProps,
-  SubmissionHistoryPanelProps, SubmitToStoresFormProps, UploadAABFormProps,
+  SubmitToStoresFormProps, UploadAABFormProps,
   VerifyTestFlightFormProps
 } from './distribution.types';
 
@@ -86,7 +82,7 @@ export type { VersionConflictDetails, VersionConflictDialogProps } from './Versi
 
 // Rejection Recovery Types
 export type { RejectedSubmissionViewProps } from './RejectedSubmissionView';
-export type { ReSubmissionDialogProps, ReSubmissionFormData } from './ReSubmissionDialog';
+export type { ReSubmissionDialogProps } from './ReSubmissionDialog';
 
 // Rollout Dialog Types
 export type { PauseRolloutDialogProps } from './PauseRolloutDialog';

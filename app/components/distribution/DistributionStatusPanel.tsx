@@ -15,21 +15,23 @@ import {
   RELEASE_STATUS_LABELS,
   ROLLOUT_COMPLETE_PERCENT,
 } from '~/constants/distribution.constants';
-import { Platform, DistributionReleaseStatus } from '~/types/distribution.types';
+import { Platform, DistributionStatus } from '~/types/distribution.types';
 import type { DistributionStatusPanelProps } from './distribution.types';
 
 // ============================================================================
 // LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
-function getStatusIcon(status: DistributionReleaseStatus) {
+function getStatusIcon(status: DistributionStatus) {
   switch (status) {
-    case DistributionReleaseStatus.COMPLETED:
-      return <IconCheck size={20} />;
-    case DistributionReleaseStatus.READY_FOR_SUBMISSION:
-      return <IconRocket size={20} />;
-    case DistributionReleaseStatus.PRE_RELEASE:
+    case DistributionStatus.PENDING:
       return <IconClock size={20} />;
+    case DistributionStatus.PARTIALLY_SUBMITTED:
+    case DistributionStatus.SUBMITTED:
+    case DistributionStatus.PARTIALLY_RELEASED:
+      return <IconRocket size={20} />;
+    case DistributionStatus.RELEASED:
+      return <IconCheck size={20} />;
     default:
       return <IconClock size={20} />;
   }
@@ -83,7 +85,7 @@ function PlatformProgressItem({
 
 type OverallProgressProps = {
   progress: number;
-  status: DistributionReleaseStatus;
+  status: DistributionStatus;
 };
 
 function OverallProgress({ progress, status }: OverallProgressProps) {
@@ -190,7 +192,7 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
                 platform={Platform.ANDROID}
                 submitted={platforms.android.submitted}
                 status={platforms.android.status}
-                percentage={platforms.android.exposurePercent}
+                percentage={platforms.android.rolloutPercent}
               />
             )}
             {platforms.ios && (
@@ -198,7 +200,7 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
                 platform={Platform.IOS}
                 submitted={platforms.ios.submitted}
                 status={platforms.ios.status}
-                percentage={platforms.ios.exposurePercent}
+                percentage={platforms.ios.rolloutPercent}
               />
             )}
           </Stack>

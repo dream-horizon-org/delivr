@@ -8,8 +8,6 @@
 import {
   BUILD_UPLOAD_STATUS_COLORS,
   BUILD_UPLOAD_STATUS_LABELS,
-  EVENT_COLORS,
-  EVENT_LABELS,
   RELEASE_STATUS_COLORS,
   ROLLOUT_COMPLETE_PERCENT,
   ROLLOUT_STATUS_COLORS,
@@ -18,16 +16,13 @@ import {
 import type {
   AvailableAction,
   Build,
-  EventState,
   PMApprovalStatus,
-  DistributionReleaseStatus,
   RolloutAction,
-  RolloutEventState,
-  SubmissionHistoryEventType,
 } from '~/types/distribution.types';
 import {
   BuildStrategy,
   BuildUploadStatus,
+  DistributionStatus,
   Platform,
   SubmissionAction,
   SubmissionStatus,
@@ -42,17 +37,6 @@ import type {
 // TYPE GUARDS
 // ============================================================================
 
-/**
- * Type guard to check if EventState is a RolloutEventState
- */
-export function isRolloutState(value: EventState): value is RolloutEventState {
-  return (
-    value !== null &&
-    typeof value === 'object' &&
-    'percentage' in value &&
-    typeof value.percentage === 'number'
-  );
-}
 
 // ============================================================================
 // PLATFORM UTILITIES
@@ -79,7 +63,8 @@ export function isIOSPlatform(platform: Platform): boolean {
 /**
  * Format ISO date string to locale date
  */
-export function formatDate(isoString: string): string {
+export function formatDate(isoString: string | null | undefined): string {
+  if (!isoString) return '-';
   return new Date(isoString).toLocaleDateString();
 }
 
@@ -232,7 +217,7 @@ export function deriveActionAvailability(
   const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason;
 
   const supportsRollout = isAndroidPlatform(platform);
-  const isPaused = status === SubmissionStatus.IN_REVIEW;
+  const isPaused = status === SubmissionStatus.PAUSED;
   const isComplete = status === SubmissionStatus.LIVE && currentPercentage === ROLLOUT_COMPLETE_PERCENT;
 
   return {
@@ -259,26 +244,17 @@ export function getRolloutDisplayStatus(
 ): 'active' | 'paused' | 'halted' | 'complete' {
   if (percentage === ROLLOUT_COMPLETE_PERCENT) return 'complete';
   if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) return 'halted';
-  if (status === SubmissionStatus.IN_REVIEW) return 'paused';
+  if (status === SubmissionStatus.PAUSED) return 'paused';
   return 'active';
 }
 
-/**
- * Get rollout percentage display string from event state
- */
-export function getRolloutPercentageDisplay(newState: EventState): string {
-  if (isRolloutState(newState)) {
-    return `${newState.percentage}%`;
-  }
-  return newState ? String(newState) : 'N/A';
-}
 
 // ============================================================================
 // STATUS COLOR/LABEL UTILITIES
 // ============================================================================
 
 /** Status to color mapping for release status */
-export function getReleaseStatusColor(status: DistributionReleaseStatus): string {
+export function getReleaseStatusColor(status: DistributionStatus): string {
   return RELEASE_STATUS_COLORS[status];
 }
 
@@ -290,18 +266,4 @@ export function getRolloutStatusColor(status: 'active' | 'paused' | 'halted' | '
 /** Status to label mapping for rollout status */
 export function getRolloutStatusLabel(status: 'active' | 'paused' | 'halted' | 'complete'): string {
   return ROLLOUT_STATUS_LABELS[status];
-}
-
-// ============================================================================
-// EVENT HISTORY UTILITIES
-// ============================================================================
-
-/** Event type to color mapping */
-export function getEventColor(eventType: SubmissionHistoryEventType): string {
-  return EVENT_COLORS[eventType];
-}
-
-/** Event type to label mapping */
-export function getEventLabel(eventType: SubmissionHistoryEventType): string {
-  return EVENT_LABELS[eventType];
 }

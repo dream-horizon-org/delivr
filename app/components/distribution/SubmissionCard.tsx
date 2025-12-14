@@ -15,9 +15,13 @@ import {
   IconCheck,
   IconChevronRight,
   IconClock,
+  IconPlayerPause,
   IconX,
 } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import {
+  DISTRIBUTION_UI_LABELS,
+  FORM_ICON_SIZES,
   PLATFORM_LABELS,
   SUBMISSION_STATUS_COLORS,
   SUBMISSION_STATUS_LABELS,
@@ -28,17 +32,37 @@ import type { SubmissionCardProps } from './distribution.types';
 import { getRolloutDisplayStatus } from './distribution.utils';
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const ICON_SIZES = {
+  PLATFORM: 18,
+  STATUS: 14,
+  CHEVRON: 16,
+} as const;
+
+const TIMELINE_LABEL_WIDTH = 70;
+
+const STORE_NAMES = {
+  [Platform.ANDROID]: 'Play Store',
+  [Platform.IOS]: 'App Store',
+} as const;
+
+// ============================================================================
 // LOCAL HELPER - Returns JSX (must stay in component file)
 // ============================================================================
 
 function getSubmissionStatusIcon(status: SubmissionStatus) {
   if (status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED) {
-    return <IconCheck size={14} />;
+    return <IconCheck size={ICON_SIZES.STATUS} />;
   }
-  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) {
-    return <IconX size={14} />;
+  if (status === SubmissionStatus.PAUSED) {
+    return <IconPlayerPause size={ICON_SIZES.STATUS} />;
   }
-  return <IconClock size={14} />;
+  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED || status === SubmissionStatus.CANCELLED) {
+    return <IconX size={ICON_SIZES.STATUS} />;
+  }
+  return <IconClock size={ICON_SIZES.STATUS} />;
 }
 
 // ============================================================================
@@ -59,7 +83,11 @@ function PlatformIcon({ platform }: PlatformIconProps) {
       variant="light" 
       color={isAndroid ? 'green' : 'blue'}
     >
-      {isAndroid ? <IconBrandAndroid size={18} /> : <IconBrandApple size={18} />}
+      {isAndroid ? (
+        <IconBrandAndroid size={ICON_SIZES.PLATFORM} />
+      ) : (
+        <IconBrandApple size={ICON_SIZES.PLATFORM} />
+      )}
     </ThemeIcon>
   );
 }
@@ -75,19 +103,25 @@ function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
     <Stack gap={4}>
       {submittedAt && (
         <Group gap="xs">
-          <Text size="xs" c="dimmed" w={70}>Submitted:</Text>
+          <Text size="xs" c="dimmed" w={TIMELINE_LABEL_WIDTH}>
+            {DISTRIBUTION_UI_LABELS.TIMELINE_SUBMITTED}
+          </Text>
           <Text size="xs">{new Date(submittedAt).toLocaleDateString()}</Text>
         </Group>
       )}
       {approvedAt && (
         <Group gap="xs">
-          <Text size="xs" c="dimmed" w={70}>Approved:</Text>
+          <Text size="xs" c="dimmed" w={TIMELINE_LABEL_WIDTH}>
+            {DISTRIBUTION_UI_LABELS.TIMELINE_APPROVED}
+          </Text>
           <Text size="xs">{new Date(approvedAt).toLocaleDateString()}</Text>
         </Group>
       )}
       {releasedAt && (
         <Group gap="xs">
-          <Text size="xs" c="dimmed" w={70}>Released:</Text>
+          <Text size="xs" c="dimmed" w={TIMELINE_LABEL_WIDTH}>
+            {DISTRIBUTION_UI_LABELS.TIMELINE_RELEASED}
+          </Text>
           <Text size="xs">{new Date(releasedAt).toLocaleDateString()}</Text>
         </Group>
       )}
@@ -113,19 +147,24 @@ export function SubmissionCard(props: SubmissionCardProps) {
     versionName,
     versionCode,
     track,
-    exposurePercent,
+    rolloutPercent,
     rejectionReason,
   } = submission;
 
   const isRejected = submissionStatus === SubmissionStatus.REJECTED;
-  const storeName = platform === Platform.ANDROID ? 'Play Store' : 'App Store';
+  const storeName = STORE_NAMES[platform];
+  const rolloutStatus = useMemo(
+    () => getRolloutDisplayStatus(rolloutPercent, submissionStatus),
+    [rolloutPercent, submissionStatus]
+  );
 
   const CardWrapper = onClick ? UnstyledButton : 'div';
+  const cardWrapperClass = `w-full ${onClick ? 'hover:bg-gray-50 transition-colors' : ''}`;
 
   return (
     <CardWrapper 
       onClick={onClick}
-      className={`w-full ${onClick ? 'hover:bg-gray-50 transition-colors' : ''}`}
+      className={cardWrapperClass}
     >
       <Card 
         shadow="sm" 
@@ -162,7 +201,7 @@ export function SubmissionCard(props: SubmissionCardProps) {
             </Badge>
             
             {onClick && (
-              <IconChevronRight size={16} className="text-gray-400" />
+              <IconChevronRight size={ICON_SIZES.CHEVRON} className="text-gray-400" />
             )}
           </Group>
         </Group>
@@ -170,24 +209,24 @@ export function SubmissionCard(props: SubmissionCardProps) {
         {/* Version Info */}
         <Group gap="lg" mb={compact ? 'sm' : 'md'}>
           <div>
-            <Text size="xs" c="dimmed">Version</Text>
+            <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.VERSION_LABEL}</Text>
             <Text size="sm" fw={500}>{versionName}</Text>
           </div>
           <div>
-            <Text size="xs" c="dimmed">Build</Text>
+            <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.BUILD_LABEL}</Text>
             <Text size="sm" fw={500}>{versionCode}</Text>
           </div>
           <div>
-            <Text size="xs" c="dimmed">Exposure</Text>
-            <Text size="sm" fw={500}>{exposurePercent}%</Text>
+            <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.EXPOSURE_LABEL}</Text>
+            <Text size="sm" fw={500}>{rolloutPercent}%</Text>
           </div>
         </Group>
 
         {/* Rollout Progress (if not compact) */}
         {!compact && (
           <RolloutProgressBar
-            percentage={exposurePercent}
-            status={getRolloutDisplayStatus(exposurePercent, submissionStatus)}
+            percentage={rolloutPercent}
+            status={rolloutStatus}
             showLabel={false}
             size="sm"
           />
@@ -197,7 +236,7 @@ export function SubmissionCard(props: SubmissionCardProps) {
         {isRejected && rejectionReason && (
           <div className={`${compact ? 'mt-2' : 'mt-3'} p-2 bg-red-50 rounded border border-red-200`}>
             <Text size="xs" c="red.7" lineClamp={compact ? 1 : 2}>
-              <Text span fw={500}>Rejection:</Text> {rejectionReason}
+              <Text span fw={500}>{DISTRIBUTION_UI_LABELS.REJECTION_LABEL}:</Text> {rejectionReason}
             </Text>
           </div>
         )}

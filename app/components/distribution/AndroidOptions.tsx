@@ -9,6 +9,7 @@ import {
   ANDROID_PRIORITIES,
   ANDROID_TRACKS,
   DISTRIBUTION_UI_LABELS,
+  FORM_ICON_SIZES,
   ROLLOUT_PRESETS
 } from '~/constants/distribution.constants';
 
@@ -46,7 +47,7 @@ export function AndroidOptions({
   return (
     <Paper p="md" withBorder radius="md" bg="green.0">
       <Group gap="xs" mb="md">
-        <IconBrandAndroid size={18} className="text-green-600" />
+        <IconBrandAndroid size={FORM_ICON_SIZES.INPUT} className="text-green-600" />
         <Text fw={500} size="sm">{DISTRIBUTION_UI_LABELS.ANDROID_OPTIONS}</Text>
       </Group>
       

@@ -8,7 +8,6 @@
 import type {
   BuildUploadStatus,
   Platform,
-  SubmissionHistoryEventType,
   SubmissionStatus,
   WarningSeverity,
 } from '~/types/distribution.types';
@@ -38,8 +37,10 @@ export const ROLLOUT_COMPLETE_PERCENT = 100;
  */
 export const DISTRIBUTION_STATUS_LABELS: Record<DistributionStatus, string> = {
   PENDING: 'Pending',
+  PARTIALLY_SUBMITTED: 'Partially Submitted',
+  SUBMITTED: 'Submitted',
   PARTIALLY_RELEASED: 'Partially Released',
-  COMPLETED: 'Completed',
+  RELEASED: 'Released',
 } as const;
 
 // Legacy name for backward compatibility
@@ -49,11 +50,14 @@ export const RELEASE_STATUS_LABELS = DISTRIBUTION_STATUS_LABELS;
  * Submission Status Labels
  */
 export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  PENDING: 'Pending',
   IN_REVIEW: 'In Review',
   APPROVED: 'Approved',
   LIVE: 'Live',
+  PAUSED: 'Paused',
   REJECTED: 'Rejected',
   HALTED: 'Halted',
+  CANCELLED: 'Cancelled',
 } as const;
 
 /**
@@ -87,8 +91,10 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
  */
 export const DISTRIBUTION_STATUS_COLORS: Record<DistributionStatus, string> = {
   PENDING: 'gray',
-  PARTIALLY_RELEASED: 'blue',
-  COMPLETED: 'green',
+  PARTIALLY_SUBMITTED: 'cyan',
+  SUBMITTED: 'blue',
+  PARTIALLY_RELEASED: 'violet',
+  RELEASED: 'green',
 } as const;
 
 // Legacy name for backward compatibility
@@ -98,11 +104,14 @@ export const RELEASE_STATUS_COLORS = DISTRIBUTION_STATUS_COLORS;
  * Submission Status Colors (for badges)
  */
 export const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, string> = {
+  PENDING: 'gray',
   IN_REVIEW: 'yellow',
   APPROVED: 'green',
   LIVE: 'green',
+  PAUSED: 'orange',
   REJECTED: 'red',
   HALTED: 'red',
+  CANCELLED: 'gray',
 } as const;
 
 /**
@@ -110,11 +119,14 @@ export const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, string> = {
  * Note: Different from badge colors - progress bars use blue for active/in-progress state
  */
 export const SUBMISSION_PROGRESS_COLORS: Record<SubmissionStatus, string> = {
+  PENDING: 'gray',
   IN_REVIEW: 'blue',
   APPROVED: 'green',
   LIVE: 'green',
+  PAUSED: 'orange',
   REJECTED: 'red',
   HALTED: 'red',
+  CANCELLED: 'gray',
 } as const;
 
 /**
@@ -304,7 +316,9 @@ export const DISTRIBUTION_UI_LABELS = {
   PROCEED_ANYWAY: 'Proceed Anyway',
   
   // Build Details Labels
-  VERSION_LABEL: 'Version:',
+  VERSION_LABEL: 'Version',
+  BUILD_LABEL: 'Build',
+  EXPOSURE_LABEL: 'Exposure',
   BUILT_VIA_LABEL: 'Built via:',
   TESTFLIGHT_LABEL: 'TestFlight:',
   INTERNAL_TESTING_LINK: 'Internal Testing Link',
@@ -314,10 +328,50 @@ export const DISTRIBUTION_UI_LABELS = {
   BUILD_QUEUED: 'Build queued, waiting to start...',
   BUILD_IN_PROGRESS: 'Build in progress...',
   
+  // Timeline Labels
+  TIMELINE_SUBMITTED: 'Submitted:',
+  TIMELINE_APPROVED: 'Approved:',
+  TIMELINE_RELEASED: 'Released:',
+  
+  // Rejection Label
+  REJECTION_LABEL: 'Rejection',
+  
   // Empty State Messages
   NO_BUILD_UPLOADED: (platform: string) => `No ${platform} build uploaded yet.`,
   WAITING_FOR_CICD: (platform: string) => `Waiting for CI/CD to build ${platform}...`,
   CI_BUILD_AUTO_START: 'CI build will start automatically',
+  
+  // Build Upload Selector Labels
+  UPLOAD_NEW_BUILD: (platform: string) => `Upload New ${platform} Build`,
+  UPLOAD_AAB_FILE: 'Upload AAB file',
+  PROVIDE_TESTFLIGHT_BUILD: 'Provide TestFlight build number',
+  DIRECT_TO_PRODUCTION: 'Direct to Production',
+  DIRECT_TO_PRODUCTION_DESC: 'This build will be submitted directly to the Production track (no internal testing).',
+  SELECT_AAB_FILE: 'Select AAB File',
+  AAB_FILE_PLACEHOLDER: 'Click to select .aab file',
+  SELECTED_FILE: 'Selected',
+  TESTFLIGHT_BUILD_DESC: 'Enter the build number from TestFlight that you want to submit to App Store.',
+  TESTFLIGHT_BUILD_PLACEHOLDER: 'e.g., 251',
+  
+  // Error Messages
+  ERROR_TITLE: 'Error',
+  UPLOAD_FAILED: 'Upload failed',
+  VERIFICATION_FAILED: 'Verification failed',
+  NETWORK_ERROR: 'Network error. Please try again.',
+  
+  // Artifact Display Labels
+  ARTIFACT_TITLE: (platform: string) => `${platform} Artifact`,
+  FROM_PRERELEASE: 'From Pre-release Testing',
+  PROMOTING_TO_PRODUCTION: 'Promoting to Production',
+  ARTIFACT_TESTED_DESC: 'This artifact has been tested and will be promoted to the Production track.',
+  SIZE_LABEL: 'Size',
+  AAB_BADGE: 'AAB',
+  TESTFLIGHT_BADGE: 'TestFlight',
+  INTERNAL_TESTING: 'Internal Testing',
+  TESTFLIGHT_TESTING: 'TestFlight Testing',
+  TEST_BUILD_BEFORE_PROMOTION: 'Test this build before promotion →',
+  TESTFLIGHT_BUILD: (buildNumber: string) => `TestFlight Build ${buildNumber}`,
+  READY_FOR_APPSTORE: 'Ready for App Store submission',
 } as const;
 
 // ============================================================================
@@ -332,6 +386,8 @@ export const SUCCESS_MESSAGES = {
   TESTFLIGHT_VERIFIED: 'iOS TestFlight build verified successfully',
   RELEASE_APPROVED: 'Release approved successfully',
   SUBMITTED_TO_STORES: 'Submitted to stores successfully',
+  SUBMISSION_SUCCESSFUL_TITLE: 'Submission Successful',
+  SUBMISSION_SUCCESSFUL_MESSAGE: 'Your release has been submitted to the selected stores!',
   ROLLOUT_UPDATED: 'Rollout percentage updated',
   ROLLOUT_PAUSED: 'Rollout paused successfully',
   ROLLOUT_RESUMED: 'Rollout resumed successfully',
@@ -352,6 +408,7 @@ export const ERROR_MESSAGES = {
   BUILDS_NOT_READY: 'Builds not ready. Please complete all builds first.',
   PM_APPROVAL_REQUIRED: 'PM approval required before submission.',
   TESTFLIGHT_PROCESSING: 'TestFlight build is still processing. Please wait.',
+  SUBMISSION_FAILED_TITLE: 'Submission Failed',
 } as const;
 
 /**
@@ -362,6 +419,7 @@ export const WARNING_MESSAGES = {
   NO_SLACK_CONFIGURED: 'No Slack integration configured. Please share testing links manually.',
   PARTIAL_SUBMISSION: 'Only some platforms were submitted successfully.',
   ACTIVE_ROLLOUT: 'Previous release has an active rollout. This may affect distribution.',
+  ACTIVE_ANDROID_ROLLOUT: 'A previous release has an active rollout on Play Store. Submitting a new version will replace it.',
 } as const;
 
 // ============================================================================
@@ -376,6 +434,9 @@ export const DIALOG_TITLES = {
   VERIFY_TESTFLIGHT: 'Verify TestFlight Build',
   SUBMIT_TO_STORES: 'Submit to Stores',
   RETRY_SUBMISSION: 'Retry Submission',
+  RESUBMIT: 'Resubmit to', // For resubmission after rejection/cancellation
+  CANCEL_SUBMISSION: 'Cancel Submission',
+  FIX_METADATA: 'Fix Metadata -',
   VERSION_CONFLICT: 'Version Conflict',
   EXPOSURE_CONTROL_CONFLICT: 'Active Rollout Detected',
   PM_APPROVAL: 'Approve Release',
@@ -394,9 +455,12 @@ export const DIALOG_TITLES = {
  */
 export const BUTTON_LABELS = {
   UPLOAD: 'Upload',
+  UPLOAD_AAB: 'Upload AAB',
   VERIFY: 'Verify',
+  VERIFY_AND_USE: 'Verify & Use Build',
   SUBMIT: 'Submit',
   RETRY: 'Retry',
+  RESUBMIT: 'Re-submit to Store',
   APPROVE: 'Approve',
   PAUSE: 'Pause',
   RESUME: 'Resume',
@@ -409,6 +473,213 @@ export const BUTTON_LABELS = {
   SUBMIT_TO_APP_STORE: 'Submit to App Store',
   SUBMIT_TO_BOTH_STORES: 'Submit to Both Stores',
   UPDATE_ROLLOUT: 'Update Rollout',
+  KEEP_SUBMISSION: 'Keep Submission',
+  PROCEED_NEW_VERSION: 'Proceed with New Version (Replace Old)',
+  HALT_ROLLOUT: 'Halt Rollout',
+  PAUSE_ROLLOUT: 'Pause Rollout',
+  RESUME_ROLLOUT: 'Resume Rollout',
+} as const;
+
+// ============================================================================
+// DIALOG COMPONENTS CONSTANTS
+// ============================================================================
+
+/** Dialog Icon Sizes */
+export const DIALOG_ICON_SIZES = {
+  TITLE: 20,
+  ALERT: 16,
+  ACTION: 18,
+} as const;
+
+/** Dialog UI Text - Comprehensive text for all dialog components */
+export const DIALOG_UI = {
+  // Halt Rollout Dialog
+  HALT: {
+    WARNING_TITLE: 'Emergency Halt - Irreversible Action',
+    WARNING_MESSAGE: 'Halting will immediately stop the rollout and require a new hotfix release. This action cannot be undone.',
+    SEVERITY_LABEL: 'Severity Level',
+    REASON_LABEL: 'Reason for halting',
+    REASON_PLACEHOLDER: 'e.g., Critical bug found, security vulnerability',
+    REASON_REQUIRED: 'Please provide a reason for halting the rollout.',
+    CONSEQUENCE_TITLE: 'What happens after halt:',
+    CONSEQUENCE_ITEMS: [
+      'Current rollout stops immediately',
+      'Users on this version remain (no rollback)',
+      'New users will not receive this version',
+      'A hotfix release will be required',
+    ],
+  },
+  
+  // Pause Rollout Dialog
+  PAUSE: {
+    CONFIRMATION: (platform: string, percentage: number) => 
+      `Pause the ${platform} rollout at ${percentage}%?`,
+    DESCRIPTION: 'The rollout will stop at the current percentage. New users will not receive this update until resumed.',
+    REASON_LABEL: 'Reason (optional)',
+    REASON_PLACEHOLDER: 'Why are you pausing the rollout?',
+  },
+  
+  // Resume Rollout Dialog
+  RESUME: {
+    CONFIRMATION: (platform: string, percentage: number) => 
+      `Resume the ${platform} rollout from ${percentage}%?`,
+    DESCRIPTION: 'The rollout will continue from where it was paused. You can increase the percentage after resuming.',
+    PAUSED_REASON_LABEL: 'Paused reason',
+    NOTE: 'The rollout will resume at the same percentage where it was paused.',
+  },
+  
+  // Manual Approval Dialog
+  MANUAL_APPROVAL: {
+    WARNING_TITLE: 'Manual Approval Required',
+    WARNING_MESSAGE: (roleLabel: string) =>
+      `No PM integration is configured. As a ${roleLabel}, you are authorizing this release to proceed to distribution.`,
+    RELEASE_ID_LABEL: 'Release ID',
+    COMMENTS_LABEL: 'Approval Comments (optional)',
+    COMMENTS_PLACEHOLDER: 'Add any notes about this approval...',
+    ACKNOWLEDGMENT: 'I acknowledge that I am approving this release for distribution.',
+  },
+  
+  // Cancel Submission Dialog
+  CANCEL_SUBMISSION: {
+    CONFIRMATION: (platform: string, version: string) =>
+      `Are you sure you want to cancel your ${platform} submission (version ${version})?`,
+    DESCRIPTION: 'This action will stop the submission process.',
+    REASON_LABEL: 'Reason for cancellation (Optional)',
+    REASON_PLACEHOLDER: 'e.g., Found a critical bug, need to update details',
+  },
+  
+  // Retry Submission Dialog
+  RETRY_SUBMISSION: {
+    DESCRIPTION: (platform: string, version: string) =>
+      `Your ${platform} submission (version ${version}) was rejected. You can retry the submission, optionally providing updated release notes or a new build.`,
+    BUILD_SELECTOR_NOTE: '(Build selection/upload UI will go here for new AAB/TestFlight)',
+    RELEASE_NOTES_LABEL: 'Release Notes (Optional)',
+    RELEASE_NOTES_PLACEHOLDER: 'Enter updated release notes for this submission',
+  },
+  
+  // Version Conflict Dialog
+  VERSION_CONFLICT: {
+    DESCRIPTION: 'This usually happens when a new version is submitted while an older one is still in review or live. Please choose how you\'d like to proceed.',
+  },
+  
+  // Exposure Control Dialog
+  EXPOSURE_CONTROL: {
+    CURRENT_RELEASE_INFO: (platform: string, version: string, rolloutPercent: number) =>
+      `${platform} release v${version} is currently at ${rolloutPercent}% rollout.`,
+    IMPACT_LABEL: 'Impact:',
+    ACTION_PROMPT: 'Choose how to proceed:',
+    DESCRIPTION: 'Control the percentage of users who will receive this update.',
+    PERCENTAGE_LABEL: 'Rollout Percentage',
+  },
+  
+  // Resubmission Dialog
+  RESUBMISSION: {
+    SHORT_DESC_LABEL: 'Short Description',
+    SHORT_DESC_PLACEHOLDER: 'Brief description of your app',
+    SHORT_DESC_LIMIT_ANDROID: 'Max 80 characters',
+    SHORT_DESC_LIMIT_IOS: 'Max 170 characters',
+    FULL_DESC_LABEL: 'Full Description',
+    FULL_DESC_PLACEHOLDER: 'Detailed description of your app',
+    RELEASE_NOTES_LABEL: 'Release Notes (What\'s New)',
+    RELEASE_NOTES_PLACEHOLDER: 'What\'s new in this version...',
+    KEYWORDS_LABEL: 'Keywords',
+    KEYWORDS_PLACEHOLDER: 'Comma-separated keywords',
+    KEYWORDS_DESC: 'Keywords for app store search',
+  },
+} as const;
+
+// ============================================================================
+// FORM COMPONENTS
+// ============================================================================
+
+/** Icon sizes for form components */
+export const FORM_ICON_SIZES = {
+  ALERT: 16,
+  BUTTON: 16,
+  INPUT: 18,
+  CHECKBOX: 20,
+  SMALL: 16,
+} as const;
+
+/** Resubmission Form Limits */
+export const RESUBMISSION_FORM_LIMITS = {
+  SHORT_DESCRIPTION: {
+    ANDROID: 80,
+    IOS: 170,
+  },
+  TEXTAREA_ROWS: {
+    FULL_DESCRIPTION: 4,
+    RELEASE_NOTES: 3,
+  },
+} as const;
+
+// ============================================================================
+// DISTRIBUTIONS LIST PAGE
+// ============================================================================
+
+/**
+ * Distributions List Page - UI Text
+ */
+export const DISTRIBUTIONS_LIST_UI = {
+  PAGE_TITLE: 'Distributions',
+  PAGE_SUBTITLE: 'Manage store submissions and rollouts across all releases',
+  EMPTY_TITLE: 'No Active Distributions',
+  EMPTY_MESSAGE: 'Distributions appear here automatically when a release completes the pre-release phase. You can then track rollout progress and manage store submissions.',
+  LOADING_TITLE: 'Loading distributions...',
+  LOADING_MESSAGE: 'Please wait while we fetch your data',
+  ERROR_PREFIX: 'Error:',
+  RETRY_BUTTON: 'Retry',
+  SUBMIT_BUTTON: 'Submit',
+  VIEW_BUTTON: 'View',
+  MANAGE_BUTTON: 'Manage',
+  MODAL_TITLE: 'Submit to App Stores',
+  TABLE_HEADERS: {
+    VERSION: 'Version',
+    BRANCH: 'Branch',
+    PLATFORMS: 'Platforms',
+    STATUS: 'Status',
+    LAST_UPDATED: 'Last Updated',
+    ACTIONS: 'Actions',
+  },
+  STATS_TITLES: {
+    TOTAL: 'Total Distributions',
+    ROLLING_OUT: 'Rolling Out',
+    IN_REVIEW: 'In Review',
+    RELEASED: 'Released',
+  },
+  PAGINATION_TEXT: (start: number, end: number, total: number) => 
+    `Showing ${start}-${end} of ${total}`,
+  PLATFORM_TOOLTIP: {
+    NOT_SUBMITTED: (platform: string) => `${platform}: Not Submitted`,
+    SUBMITTED: (platform: string, status: string, exposure?: number) => 
+      exposure !== undefined && exposure > 0
+        ? `${platform}: ${status} (${exposure}%)`
+        : `${platform}: ${status}`,
+  },
+} as const;
+
+/**
+ * Distributions List Page - Icon Sizes
+ */
+export const DISTRIBUTIONS_LIST_ICON_SIZES = {
+  EMPTY_STATE_LARGE: 60,
+  EMPTY_STATE_INNER: 30,
+  PLATFORM_BADGE: 24,
+  STATUS_ICON: 14,
+  ACTION_BUTTON: 16,
+  STATS_CARD: 16,
+  CLOCK_ICON: 14,
+  ALERT_ICON: 20,
+} as const;
+
+/**
+ * Distributions List Page - Layout Sizes
+ */
+export const DISTRIBUTIONS_LIST_LAYOUT = {
+  EMPTY_TEXT_MAX_WIDTH: 400,
+  ACTION_BUTTON_WIDTH: 100,
+  PLATFORM_BADGE_PADDING: '10px 14px',
+  ACTIONS_COLUMN_WIDTH: 150,
 } as const;
 
 // ============================================================================
@@ -495,32 +766,85 @@ export const ROLLOUT_STATUS_LABELS = {
 } as const;
 
 // ============================================================================
-// EVENT HISTORY COLORS & LABELS
+// DISTRIBUTION MANAGEMENT PAGE
 // ============================================================================
 
-/** Event type to color mapping */
-export const EVENT_COLORS: Record<SubmissionHistoryEventType, string> = {
-  SUBMITTED: 'blue',
-  APPROVED: 'green',
-  ROLLOUT_RESUMED: 'green',
-  REJECTED: 'red',
-  ROLLOUT_HALTED: 'red',
-  ROLLOUT_PAUSED: 'yellow',
-  ROLLOUT_UPDATED: 'cyan',
-  RETRY_ATTEMPTED: 'orange',
-  STATUS_CHANGED: 'gray',
+/** UI text for distribution management page */
+export const DISTRIBUTION_MANAGEMENT_UI = {
+  PAGE_TITLE: 'Distribution Management',
+  PAGE_SUBTITLE: (version: string) => `Manage submissions and rollouts for ${version}`,
+  OVERVIEW_TITLE: 'Distribution Details',
+  RELEASE_VERSION: (version: string) => `Release ${version}`,
+  PLATFORM_SUBMISSIONS_TITLE: 'Platform Submissions',
+  PLATFORM_SUBMISSIONS_SUBTITLE: 'Track and manage submissions for each platform',
+  ROLLOUT_PROGRESS_LABEL: 'Rollout Progress',
+  NO_SUBMISSIONS_TITLE: 'No Submissions Yet',
+  NO_SUBMISSIONS_MESSAGE: "This distribution hasn't been submitted to any stores yet. Click \"Submit to Stores\" to begin the distribution process.",
+  ERROR_TITLE: 'Failed to Load Distribution',
+  ERROR_NOT_FOUND: 'Distribution not found',
+  
+  LABELS: {
+    BRANCH: 'Branch',
+    LAST_UPDATED: 'Last Updated',
+    SUBMITTED_AT: 'Submitted At',
+    SUBMITTED: 'Submitted',
+    UPDATED: 'Updated',
+  },
+  
+  BUTTONS: {
+    BACK: 'Back',
+    BACK_TO_DISTRIBUTIONS: 'Back to Distributions',
+    SUBMIT_TO_STORES: 'Submit to Stores',
+    VIEW_DETAILS: 'View Details & Manage',
+  },
 } as const;
 
-/** Event type to label mapping */
-export const EVENT_LABELS: Record<SubmissionHistoryEventType, string> = {
-  SUBMITTED: 'Submitted',
-  STATUS_CHANGED: 'Status Changed',
-  ROLLOUT_UPDATED: 'Rollout Updated',
-  ROLLOUT_PAUSED: 'Rollout Paused',
-  ROLLOUT_RESUMED: 'Rollout Resumed',
-  ROLLOUT_HALTED: 'Rollout Halted',
-  REJECTED: 'Rejected',
-  APPROVED: 'Approved',
-  RETRY_ATTEMPTED: 'Retry Attempted',
+/** Icon sizes for distribution management page */
+export const DISTRIBUTION_MANAGEMENT_ICON_SIZES = {
+  DETAIL: 20,
+  PLATFORM: 28,
+  EMPTY_STATE: 30,
+  ERROR_STATE: 30,
+  BACK_BUTTON: 16,
+} as const;
+
+// ============================================================================
+// ROLLOUT CONTROLS
+// ============================================================================
+
+/** Rollout Controls - UI Text */
+export const ROLLOUT_CONTROLS_UI = {
+  TITLE: 'Rollout Controls',
+  ADJUST_LABEL: 'Adjust Rollout',
+  CURRENT_MARK: 'Current',
+  COMPLETE_MARK: '100%',
+  UPDATE_BUTTON: (percentage: number) => `Update to ${percentage}%`,
+  PHASED_RELEASE_LABEL: 'Phased Release',
+  STAGED_ROLLOUT_LABEL: 'Staged Rollout',
+  IOS_PHASED_NOTE: 'iOS phased release is managed automatically by Apple over 7 days.',
+  COMPLETE_MESSAGE: 'Rollout complete - 100% of users can now access this version.',
+} as const;
+
+/** Rollout Controls - Icon Sizes */
+export const ROLLOUT_CONTROLS_ICON_SIZES = {
+  UPDATE_BUTTON: 14,
+  ACTION_BUTTON: 16,
+  COMPLETE_BADGE: 16,
+} as const;
+
+/** Rollout Controls - Layout */
+export const ROLLOUT_CONTROLS_LAYOUT = {
+  DIVIDER_MARGIN_TOP: 'sm',
+  DIVIDER_PADDING_TOP: 'md',
+} as const;
+
+/** Layout constants for distribution management page */
+export const DISTRIBUTION_MANAGEMENT_LAYOUT = {
+  PROGRESS_BAR_HEIGHT: 8,
+  PROGRESS_BAR_RADIUS: 4,
+  EMPTY_STATE_SIZE: 60,
+  ERROR_STATE_SIZE: 60,
+  CARD_MIN_WIDTH: 300,
+  EMPTY_TEXT_MAX_WIDTH: 400,
 } as const;
 

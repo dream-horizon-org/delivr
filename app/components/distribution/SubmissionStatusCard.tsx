@@ -22,6 +22,7 @@ import {
   IconCheck,
   IconClock,
   IconExternalLink,
+  IconPlayerPause,
   IconX,
 } from '@tabler/icons-react';
 import {
@@ -41,7 +42,7 @@ import { Platform, SubmissionStatus } from '~/types/distribution.types';
 type SubmissionStatusCardProps = {
   submission: Submission;
   org: string;
-  releaseId: string;
+  distributionId: string;
   compact?: boolean;
   className?: string;
 };
@@ -53,6 +54,9 @@ type SubmissionStatusCardProps = {
 function getSubmissionStatusIcon(status: SubmissionStatus) {
   if (status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED) {
     return <IconCheck size={14} />;
+  }
+  if (status === SubmissionStatus.PAUSED) {
+    return <IconPlayerPause size={14} />;
   }
   if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) {
     return <IconX size={14} />;
@@ -83,7 +87,7 @@ function PlatformIcon({ platform }: PlatformIconProps) {
 // ============================================================================
 
 export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
-  const { submission, org, releaseId, compact = false, className } = props;
+  const { submission, org, distributionId, compact = false, className } = props;
 
   const {
     platform,
@@ -91,7 +95,7 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
     versionName,
     versionCode,
     track,
-    exposurePercent,
+    rolloutPercent,
     submittedAt,
     approvedAt,
   } = submission;
@@ -154,15 +158,15 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
                 Rollout Progress
               </Text>
               <Text size="xs" fw={600}>
-                {exposurePercent}%
+                {rolloutPercent}%
               </Text>
             </Group>
             <Progress
-              value={exposurePercent}
+              value={rolloutPercent}
               color={SUBMISSION_PROGRESS_COLORS[submissionStatus]}
               size="md"
               radius="md"
-              animated={exposurePercent < ROLLOUT_COMPLETE_PERCENT}
+              animated={rolloutPercent < ROLLOUT_COMPLETE_PERCENT}
             />
           </div>
         )}
@@ -202,10 +206,10 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
           {submissionStatus === SubmissionStatus.APPROVED &&
             'Approved by store. Use Distribution Management to start rollout.'}
           {submissionStatus === SubmissionStatus.LIVE &&
-            exposurePercent < ROLLOUT_COMPLETE_PERCENT &&
+            rolloutPercent < ROLLOUT_COMPLETE_PERCENT &&
             'Rolling out. Use Distribution Management to update percentage.'}
           {submissionStatus === SubmissionStatus.LIVE &&
-            exposurePercent === ROLLOUT_COMPLETE_PERCENT &&
+            rolloutPercent === ROLLOUT_COMPLETE_PERCENT &&
             'Live to 100% of users!'}
           {submissionStatus === SubmissionStatus.HALTED &&
             'Rollout halted. Check Distribution Management for details.'}
@@ -215,7 +219,7 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
         {submissionStatus !== SubmissionStatus.IN_REVIEW && (
           <Button
             component={Link}
-            to={`/dashboard/${org}/distributions/${releaseId}`}
+            to={`/dashboard/${org}/distributions/${distributionId}`}
             variant="subtle"
             size="sm"
             rightSection={<IconExternalLink size={14} />}

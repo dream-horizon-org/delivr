@@ -15,7 +15,7 @@ function distributionMiddleware(req, res, next) {
   const { method, path, body } = req;
   
   // ============================================================================
-  // SUBMIT TO STORES
+  // SUBMIT TO STORES (Release Process Entry)
   // ============================================================================
   
   if (method === 'POST' && path.includes('/distribute')) {
@@ -120,42 +120,119 @@ function distributionMiddleware(req, res, next) {
     }
     
     // Success case
+    const { platforms, android, ios } = body;
+    const submissions = [];
+    
+    // Build response array based on requested platforms
+    if (platforms.includes('ANDROID')) {
+      submissions.push({
+        id: `sub_android_${Date.now()}`,
+        platform: 'ANDROID',
+        storeType: 'PLAY_STORE',
+        status: 'IN_REVIEW',
+        buildId: 'build_android_1',
+        version: '2.5.0',
+        track: android?.track || 'PRODUCTION',
+        exposurePercent: android?.exposurePercent || 5,
+        priority: android?.priority || 0,
+        releaseNotes: android?.releaseNotes || '',
+        submittedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    if (platforms.includes('IOS')) {
+      submissions.push({
+        id: `sub_ios_${Date.now()}`,
+        platform: 'IOS',
+        storeType: 'APP_STORE',
+        status: 'IN_REVIEW',
+        buildId: 'build_ios_1',
+        version: '2.5.0',
+        exposurePercent: 0,
+        phasedRelease: ios?.phasedRelease || true,
+        releaseType: ios?.releaseType || 'AFTER_APPROVAL',
+        releaseNotes: ios?.releaseNotes || '',
+        submittedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
     return res.status(201).json({
       success: true,
       data: {
+        distributionId: `dist_${releaseId}`,
         releaseId,
-        submissionIds: ['sub_new_android', 'sub_new_ios'],
-        submissions: [
-          {
-            id: 'sub_new_android',
-            platform: 'ANDROID',
-            storeType: 'PLAY_STORE',
-            status: 'BUILD_SUBMITTED',
-            buildId: 'build_android_1',
-            versionName: '2.5.0',
-            versionCode: '250',
-            externalSubmissionId: 'edit_new_123',
-            track: 'PRODUCTION',
-            exposurePercent: 1,
-            submittedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: 'sub_new_ios',
-            platform: 'IOS',
-            storeType: 'APP_STORE',
-            status: 'BUILD_SUBMITTED',
-            buildId: 'build_ios_1',
-            versionName: '2.5.0',
-            versionCode: '250',
-            externalSubmissionId: 'sub_new_456',
-            track: null,
-            exposurePercent: 0,
-            submittedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          },
-        ],
-        releaseStatus: 'BUILDS_SUBMITTED',
+        submissions,
+      },
+    });
+  }
+  
+  // ============================================================================
+  // SUBMIT TO STORES BY DISTRIBUTION ID (Distribution Management Entry)
+  // ============================================================================
+  
+  if (method === 'PUT' && path.includes('/distributions/') && path.includes('/submit')) {
+    const distributionId = extractDistributionId(path);
+    
+    // Scenario: Version conflict (409)
+    if (distributionId === 'dist_version_conflict') {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'VERSION_EXISTS',
+          message: 'This version already exists in the store',
+          category: 'CONFLICT',
+          httpStatus: 409,
+        },
+      });
+    }
+    
+    // Success case
+    const { platforms, android, ios } = body;
+    const submissions = [];
+    
+    // Build response array based on requested platforms
+    if (platforms.includes('ANDROID')) {
+      submissions.push({
+        id: `sub_android_${Date.now()}`,
+        platform: 'ANDROID',
+        storeType: 'PLAY_STORE',
+        status: 'IN_REVIEW',
+        buildId: 'build_android_1',
+        version: '2.5.0',
+        track: android?.track || 'PRODUCTION',
+        exposurePercent: android?.exposurePercent || 5,
+        priority: android?.priority || 0,
+        releaseNotes: android?.releaseNotes || '',
+        submittedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    if (platforms.includes('IOS')) {
+      submissions.push({
+        id: `sub_ios_${Date.now()}`,
+        platform: 'IOS',
+        storeType: 'APP_STORE',
+        status: 'IN_REVIEW',
+        buildId: 'build_ios_1',
+        version: '2.5.0',
+        exposurePercent: 0,
+        phasedRelease: ios?.phasedRelease || true,
+        releaseType: ios?.releaseType || 'AFTER_APPROVAL',
+        releaseNotes: ios?.releaseNotes || '',
+        submittedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        distributionId,
+        releaseId: distributionId.replace('dist_', ''),
+        submissions,
       },
     });
   }
@@ -262,15 +339,108 @@ function distributionMiddleware(req, res, next) {
   
   if (method === 'POST' && path.includes('/retry')) {
     const submissionId = extractSubmissionId(path);
+    const { releaseNotes, android, ios } = body;
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: `${submissionId}_retry_${Date.now()}`,
+        platform: submissionId.includes('android') ? 'ANDROID' : 'IOS',
+        storeType: submissionId.includes('android') ? 'PLAY_STORE' : 'APP_STORE',
+        status: 'IN_REVIEW',
+        buildId: 'build_retry_1',
+        version: '2.5.0',
+        releaseNotes: releaseNotes || 'Updated submission',
+        exposurePercent: android?.exposurePercent || 0,
+        submittedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        message: 'Submission retried successfully',
+      },
+    });
+  }
+  
+  // ============================================================================
+  // CANCEL SUBMISSION
+  // ============================================================================
+  
+  if (method === 'DELETE' && path.includes('/cancel')) {
+    const submissionId = extractSubmissionId(path);
+    const { reason } = body;
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: submissionId,
+        platform: submissionId.includes('android') ? 'ANDROID' : 'IOS',
+        status: 'CANCELLED',
+        cancelledAt: new Date().toISOString(),
+        cancelReason: reason || 'User cancelled submission',
+        message: 'Submission cancelled successfully',
+      },
+    });
+  }
+  
+  // ============================================================================
+  // EDIT SUBMISSION
+  // ============================================================================
+  
+  if (method === 'PATCH' && path.includes('/submissions/') && !path.includes('/rollout')) {
+    const submissionId = extractSubmissionId(path);
+    const updates = body;
+    
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: submissionId,
+        platform: submissionId.includes('android') ? 'ANDROID' : 'IOS',
+        ...updates,
+        updatedAt: new Date().toISOString(),
+        message: 'Submission updated successfully',
+      },
+    });
+  }
+  
+  // ============================================================================
+  // SUBMISSION HISTORY
+  // ============================================================================
+  
+  if (method === 'GET' && path.includes('/history')) {
+    const submissionId = extractSubmissionId(path);
     
     return res.status(200).json({
       success: true,
       data: {
         submissionId,
-        status: 'BUILD_SUBMITTED',
-        retryCount: 1,
-        submittedAt: new Date().toISOString(),
-        message: 'Submission retried successfully',
+        events: [
+          {
+            id: 'evt_1',
+            eventType: 'SUBMITTED',
+            newState: { status: 'IN_REVIEW' },
+            actor: { id: 'user_1', name: 'John Doe', role: 'DEVELOPER' },
+            timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: 'evt_2',
+            eventType: 'STATUS_CHANGED',
+            previousState: { status: 'IN_REVIEW' },
+            newState: { status: 'APPROVED' },
+            timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: 'evt_3',
+            eventType: 'ROLLOUT_UPDATED',
+            previousState: { exposurePercent: 5 },
+            newState: { exposurePercent: 25 },
+            actor: { id: 'user_1', name: 'John Doe', role: 'DEVELOPER' },
+            timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+          },
+        ],
+        pagination: {
+          total: 3,
+          limit: 10,
+          offset: 0,
+          hasMore: false,
+        },
       },
     });
   }
@@ -484,6 +654,11 @@ function extractReleaseId(path) {
 
 function extractSubmissionId(path) {
   const match = path.match(/submissions\/([^/]+)/);
+  return match ? match[1] : null;
+}
+
+function extractDistributionId(path) {
+  const match = path.match(/distributions\/([^/]+)/);
   return match ? match[1] : null;
 }
 

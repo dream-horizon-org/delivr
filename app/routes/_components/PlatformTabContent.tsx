@@ -41,7 +41,7 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
   const isAndroid = platform === Platform.ANDROID;
   const showRolloutControls = submission && isAndroid && (
     submission.submissionStatus === SubmissionStatus.APPROVED ||
-    (submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent < ROLLOUT_COMPLETE_PERCENT)
+    (submission.submissionStatus === SubmissionStatus.LIVE && submission.rolloutPercent < ROLLOUT_COMPLETE_PERCENT)
   );
   const showRejectedView = submission?.submissionStatus === SubmissionStatus.REJECTED && submission.rejectionReason;
 
@@ -103,7 +103,8 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
           <RolloutControls
             submissionId={submission.id}
             platform={submission.platform}
-            currentPercentage={submission.exposurePercent}
+            phasedRelease={submission.phasedRelease}
+            currentPercentage={submission.rolloutPercent}
             status={submission.submissionStatus}
             availableActions={submission.availableActions.filter(
               (action) => action.action !== SubmissionAction.RETRY
