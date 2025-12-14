@@ -1,13 +1,13 @@
 /**
- * PostRegressionStage Component
- * Displays post-regression stage with tasks
+ * PreReleaseStage Component
+ * Displays pre-release stage with tasks
  * Similar to KickoffStage but with enhanced TaskCards for build, approval, and promotion tasks
  */
 
 import { Stack } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExtraCommitsWarning } from '~/components/distribution';
-import { usePostRegressionStage } from '~/hooks/useReleaseProcess';
+import { usePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus } from '~/types/release-process-enums';
@@ -16,21 +16,21 @@ import { apiGet } from '~/utils/api-client';
 import { handleStageError } from '~/utils/stage-error-handling';
 import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution.types';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
-import { PostRegressionTasksList } from './stages/PostRegressionTasksList';
+import { PreReleaseTasksList } from './stages/PreReleaseTasksList';
 import { PostRegressionApprovalSection } from './stages/PostRegressionApprovalSection';
 import { PostRegressionPromotionCard } from './stages/PostRegressionPromotionCard';
 
-interface PostRegressionStageProps {
+interface PreReleaseStageProps {
   tenantId: string;
   releaseId: string;
   className?: string;
 }
 
-export function PostRegressionStage({ tenantId, releaseId, className }: PostRegressionStageProps) {
+export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseStageProps) {
   // Validate required props
-  validateStageProps({ tenantId, releaseId }, 'PostRegressionStage');
+  validateStageProps({ tenantId, releaseId }, 'PreReleaseStage');
 
-  const { data, isLoading, error, refetch } = usePostRegressionStage(tenantId, releaseId);
+  const { data, isLoading, error, refetch } = usePreReleaseStage(tenantId, releaseId);
   
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
@@ -80,18 +80,19 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
     }
   }, [releaseId]);
 
-  // Extract tasks from data
+  // Extract tasks and uploadedBuilds from data
   const tasks = data?.tasks || [];
+  const uploadedBuilds = data?.uploadedBuilds || [];
 
-  // Calculate promotion readiness - all POST_REGRESSION tasks must be completed
+  // Calculate promotion readiness - all PRE_RELEASE tasks must be completed
   const canPromote = useMemo(() => {
-    const postRegressionTasks = tasks.filter(
-      (t: Task) => t.stage === 'POST_REGRESSION'
+    const preReleaseTasks = tasks.filter(
+      (t: Task) => t.stage === 'PRE_RELEASE'
     );
     
-    // All post-regression tasks must be completed
-    const allTasksCompleted = postRegressionTasks.length > 0 && 
-      postRegressionTasks.every((t: Task) => t.taskStatus === TaskStatus.COMPLETED);
+    // All pre-release tasks must be completed
+    const allTasksCompleted = preReleaseTasks.length > 0 && 
+      preReleaseTasks.every((t: Task) => t.taskStatus === TaskStatus.COMPLETED);
     
     // Check PM approval separately (if PM integration exists)
     const pmApprovalReady = pmStatus 
@@ -113,7 +114,7 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
       isLoading={isLoading}
       error={error}
       data={data}
-      stageName="post-regression stage"
+      stageName="pre-release stage"
     >
       <Stack gap="lg" className={className}>
       {/* Extra Commits Warning - above tasks */}
@@ -126,11 +127,12 @@ export function PostRegressionStage({ tenantId, releaseId, className }: PostRegr
       )}
 
       {/* Tasks List */}
-      <PostRegressionTasksList
+      <PreReleaseTasksList
         tasks={tasks}
         tenantId={tenantId}
         releaseId={releaseId}
         onRetry={handleRetry}
+        uploadedBuilds={uploadedBuilds}
       />
 
       {/* PM Approval Section */}

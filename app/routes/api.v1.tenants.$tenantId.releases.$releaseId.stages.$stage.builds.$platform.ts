@@ -13,7 +13,7 @@
  *   - file: File (multipart/form-data)
  * 
  * Backend expects:
- *   - stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' (TaskStage)
+ *   - stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' (TaskStage)
  *   - platform: 'ANDROID' | 'IOS' | 'WEB' (Platform)
  *   - artifact: File (multipart/form-data)
  */

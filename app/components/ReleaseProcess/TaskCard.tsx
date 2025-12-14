@@ -27,7 +27,7 @@ import {
   getTaskStatusLabel,
   getTaskTypeLabel,
 } from '~/constants/release-process-ui';
-import type { Task } from '~/types/release-process.types';
+import type { Task, BuildInfo } from '~/types/release-process.types';
 import { TaskStatus, TaskType } from '~/types/release-process-enums';
 import { BuildTaskDetails } from './BuildTaskDetails';
 import {
@@ -47,6 +47,7 @@ interface TaskCardProps {
   releaseId?: string;
   onRetry?: (taskId: string) => void;
   className?: string;
+  uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds
 }
 
 function getTaskStatusIcon(status: TaskStatus) {
@@ -122,6 +123,7 @@ export function TaskCard({
   releaseId,
   onRetry,
   className,
+  uploadedBuilds = [],
 }: TaskCardProps) {
   const statusColor = getTaskStatusColor(task.taskStatus);
   const statusLabel = getTaskStatusLabel(task.taskStatus);
@@ -144,6 +146,7 @@ export function TaskCard({
           task={task}
           tenantId={tenantId}
           releaseId={releaseId}
+          uploadedBuilds={uploadedBuilds}
         />
       );
     }

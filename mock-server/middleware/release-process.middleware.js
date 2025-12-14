@@ -61,7 +61,7 @@ function getBuildsForTask(task, db, releaseId) {
     buildStage = 'PRE_REGRESSION';
   } else if (taskStage === 'REGRESSION') {
     buildStage = 'REGRESSION';
-  } else if (taskStage === 'POST_REGRESSION') {
+  } else if (taskStage === 'PRE_RELEASE') {
     buildStage = 'PRE_RELEASE';
   }
 
@@ -109,8 +109,78 @@ function getBuildsForTask(task, db, releaseId) {
       workflowStatus: build.workflowStatus || null,
       ciRunType: build.ciRunType || null,
       taskId: build.taskId || task.id,
-      internalTrackLink: build.internalTrackLink || (platform === 'ANDROID' && taskStage === 'POST_REGRESSION' ? 'https://play.google.com/apps/internaltest/...' : null),
-      testflightNumber: build.testflightNumber || (platform === 'IOS' && taskStage === 'POST_REGRESSION' ? build.buildNumber : null),
+      internalTrackLink: build.internalTrackLink || (platform === 'ANDROID' && taskStage === 'PRE_RELEASE' ? 'https://play.google.com/apps/internaltest/...' : null),
+      testflightNumber: build.testflightNumber || (platform === 'IOS' && taskStage === 'PRE_RELEASE' ? build.buildNumber : null),
+      createdAt: build.createdAt || new Date().toISOString(),
+      updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
+    };
+  });
+}
+
+/**
+ * Get uploaded builds (staging builds) for a stage
+ * Returns BuildInfo[] array from buildUploadsStaging table
+ * These are builds uploaded but not yet consumed by tasks
+ */
+function getUploadedBuilds(releaseId, buildStage, db) {
+  // Map buildStage to staging table stage format
+  // Staging table uses: 'PRE_REGRESSION' for KICKOFF, 'REGRESSION' for REGRESSION, 'PRE_RELEASE' for PRE_RELEASE
+  let stagingStage = null;
+  if (buildStage === 'KICKOFF' || buildStage === 'PRE_REGRESSION' || buildStage === 'KICK_OFF') {
+    stagingStage = 'PRE_REGRESSION'; // Staging table uses PRE_REGRESSION for KICKOFF builds
+  } else if (buildStage === 'REGRESSION') {
+    stagingStage = 'REGRESSION';
+  } else if (buildStage === 'PRE_RELEASE') {
+    stagingStage = 'PRE_RELEASE';
+  }
+
+  if (!stagingStage) {
+    return [];
+  }
+
+  // Get staging builds that are not used and match the stage
+  const stagingBuilds = db.get('buildUploadsStaging')
+    .filter({ 
+      releaseId: releaseId, 
+      isUsed: false,
+      stage: stagingStage 
+    })
+    .value() || [];
+
+  return stagingBuilds.map(build => {
+    const platform = build.platform || 'ANDROID';
+    
+    // Map staging stage to response buildStage
+    // KICKOFF stage should return 'KICKOFF' as buildStage
+    let responseBuildStage = 'PRE_RELEASE';
+    if (stagingStage === 'PRE_REGRESSION') {
+      responseBuildStage = 'KICKOFF';
+    } else if (stagingStage === 'REGRESSION') {
+      responseBuildStage = 'REGRESSION';
+    } else if (stagingStage === 'PRE_RELEASE') {
+      responseBuildStage = 'PRE_RELEASE';
+    }
+    
+    return {
+      id: build.id,
+      tenantId: build.tenantId || null,
+      releaseId: build.releaseId || releaseId,
+      platform: platform,
+      storeType: null,
+      buildNumber: null,
+      artifactVersionName: build.versionName || null,
+      artifactPath: build.artifactPath,
+      regressionId: build.regressionId || null,
+      ciRunId: build.ciRunId || null,
+      buildUploadStatus: build.buildUploadStatus || 'UPLOADED',
+      buildType: build.buildType || 'MANUAL',
+      buildStage: responseBuildStage,
+      queueLocation: null,
+      workflowStatus: null,
+      ciRunType: null,
+      taskId: null, // Staging builds don't have taskId yet
+      internalTrackLink: build.internalTrackLink || null,
+      testflightNumber: build.testflightNumber || null,
       createdAt: build.createdAt || new Date().toISOString(),
       updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
     };
@@ -465,12 +535,16 @@ function createReleaseProcessMiddleware(router) {
           });
         }
 
+        // Get uploaded builds for KICKOFF stage
+        const uploadedBuilds = getUploadedBuilds(releaseUuid, 'KICKOFF', db);
+
         return res.json({
           success: true,
           stage: 'KICKOFF',
           releaseId: release.id, // Return the UUID id
           tasks: tasks.map(task => mapTaskToBackendContract(task, db, releaseUuid)),
           stageStatus: release.cronJob?.stage1Status || release.stage1Status || 'PENDING',
+          uploadedBuilds: uploadedBuilds,
         });
       }
 
@@ -489,6 +563,13 @@ function createReleaseProcessMiddleware(router) {
                             allCycles.find(c => c.status === 'NOT_STARTED') ||
                             allCycles[allCycles.length - 1];
 
+        // NOTE: Cycle start logic (handled by backend cron):
+        // 1. Cycle starts only when ALL required builds are uploaded for upcoming slot
+        // 2. If builds are uploaded after slot time has passed, cycle starts immediately when all builds are uploaded
+        // 3. When cycle starts, builds are consumed (moved from buildUploadsStaging to builds table with taskId)
+        // 4. Tasks in cycle then pick builds from task.builds (consumed builds)
+        // 5. uploadedBuilds are only visible when cycle hasn't started (currentCycle is null or DONE)
+
         if (!release) {
           return res.status(404).json({
             success: false,
@@ -496,51 +577,67 @@ function createReleaseProcessMiddleware(router) {
           });
         }
 
-        // Get available builds
-        const availableBuilds = db.get('buildUploadsStaging')
-          .filter({ releaseId: releaseUuid, isUsed: false })
-          .value() || [];
-
-        const buildsRequired = release.platforms || ['ANDROID', 'IOS'];
-        const allBuildsUploaded = buildsRequired.every(platform =>
-          availableBuilds.some(build => build.platform === platform)
+        // Get uploaded builds for upcoming slot (only when cycle hasn't started)
+        // uploadedBuilds are only visible when:
+        // 1. No current cycle exists, OR
+        // 2. Current cycle is DONE (completed)
+        // When cycle is IN_PROGRESS, builds are consumed and in task.builds
+        const uploadedBuildsForUpcomingSlot = getUploadedBuilds(releaseUuid, 'REGRESSION', db);
+        
+        // Only return uploadedBuilds if cycle hasn't started (currentCycle is null or DONE)
+        // If cycle is IN_PROGRESS, builds are consumed and should be in task.builds
+        const cycleHasStarted = currentCycle && (
+          currentCycle.status === 'IN_PROGRESS' || 
+          currentCycle.status === 'ACTIVE' ||
+          currentCycle.status === 'NOT_STARTED'
         );
-
-        // Map builds to new BuildInfo structure
-        const mappedBuilds = availableBuilds.map(build => ({
-        id: build.id,
-        tenantId: tenantId || build.tenantId,
-        releaseId: build.releaseId,
-        platform: build.platform,
-        storeType: null,
-        buildNumber: null,
-        artifactVersionName: build.versionName || null,
-        artifactPath: build.artifactPath,
-        regressionId: build.regressionId || null,
-        ciRunId: build.ciRunId || null,
-        buildUploadStatus: build.buildUploadStatus || 'UPLOADED',
-        buildType: build.buildType || 'MANUAL',
-        buildStage: build.stage === 'PRE_REGRESSION' ? 'KICK_OFF' : build.stage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
-        queueLocation: null,
-        workflowStatus: null,
-        ciRunType: null,
-        taskId: build.taskId || null,
-        internalTrackLink: build.internalTrackLink || null,
-        testflightNumber: build.testflightNumber || null,
-          createdAt: build.createdAt,
-          updatedAt: build.updatedAt || build.createdAt,
-        }));
+        
+        const uploadedBuilds = cycleHasStarted ? [] : uploadedBuildsForUpcomingSlot;
 
         // Map cycles to new structure
         const mappedCycles = allCycles.map(cycle => mapCycleToBackendContract(cycle, allCycles));
 
         // Determine approval status
-        const cyclesCompleted = allCycles.length > 0 && allCycles.every(c => 
+        // Calculate upcomingSlot first (needed for cyclesCompleted check)
+        const upcomingSlot = (() => {
+          // If current cycle is DONE, show next upcoming slot
+          if (currentCycle && (currentCycle.status === 'DONE' || currentCycle.status === 'COMPLETED')) {
+            // Calculate next slot (7 days after current cycle completion)
+            const nextSlotDate = currentCycle.completedAt 
+              ? new Date(new Date(currentCycle.completedAt).getTime() + 7 * 24 * 60 * 60 * 1000)
+              : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            return [{
+              date: nextSlotDate.toISOString(),
+              config: {},
+            }];
+          }
+          // If no cycles exist yet, show first upcoming slot
+          if (allCycles.length === 0) {
+            return [{
+              date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+              config: {},
+            }];
+          }
+          // If cycle is IN_PROGRESS, no upcoming slot (cycle has started)
+          return null;
+        })();
+
+        // Check if all cycles are completed (DONE or COMPLETED)
+        const allCyclesCompleted = allCycles.length > 0 && allCycles.every(c => 
           c.status === 'COMPLETED' || c.status === 'DONE'
         );
+        
+        // Check if there are no active cycles
         const noActiveCycles = !allCycles.some(c => 
           c.status === 'IN_PROGRESS' || c.status === 'ACTIVE' || c.status === 'NOT_STARTED'
         );
+        
+        // Check if there are no upcoming slots
+        const noUpcomingSlots = !upcomingSlot || upcomingSlot.length === 0;
+
+        // cyclesCompleted = No active cycles AND no upcoming slots
+        // According to API contract: "No active cycles AND no upcoming slots"
+        const cyclesCompleted = noActiveCycles && noUpcomingSlots;
 
         // Check test management status (check CREATE_TEST_SUITE task)
         const testSuiteTask = tasks.find(t => t.taskType === 'CREATE_TEST_SUITE');
@@ -550,7 +647,7 @@ function createReleaseProcessMiddleware(router) {
         // In real implementation, this would call the cherry pick status API
         const cherryPickStatusOk = cyclesCompleted && noActiveCycles;
 
-        const allRequirementsMet = testManagementPassed && cherryPickStatusOk && cyclesCompleted && noActiveCycles;
+        const allRequirementsMet = testManagementPassed && cherryPickStatusOk && cyclesCompleted;
 
         return res.json({
           success: true,
@@ -565,18 +662,15 @@ function createReleaseProcessMiddleware(router) {
             approvalRequirements: {
               testManagementPassed: testManagementPassed,
               cherryPickStatusOk: cherryPickStatusOk,
-              cyclesCompleted: cyclesCompleted && noActiveCycles,
+              cyclesCompleted: cyclesCompleted, // Already includes noActiveCycles && noUpcomingSlots
             },
           },
-          availableBuilds: mappedBuilds,
-          upcomingSlot: allCycles.length === 0 ? [{
-            date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-            config: {},
-          }] : null,
+          uploadedBuilds: uploadedBuilds,  // Only when cycle hasn't started
+          upcomingSlot: upcomingSlot,
         });
       }
 
-      if (stage === 'POST_REGRESSION') {
+      if (stage === 'PRE_RELEASE') {
         // Try to find release by both id (UUID) and releaseId (user-facing)
         let release = db.get('releases').find({ id: releaseId }).value();
         if (!release) {
@@ -585,9 +679,11 @@ function createReleaseProcessMiddleware(router) {
         
         // Tasks use the release's UUID id, not the user-facing releaseId
         const releaseUuid = release?.id || releaseId;
-        const tasks = db.get('releaseTasks').filter({ releaseId: releaseUuid, taskStage: 'POST_REGRESSION' }).value() || [];
+        const tasks = db.get('releaseTasks')
+          .filter({ releaseId: releaseUuid, taskStage: 'PRE_RELEASE' })
+          .value() || [];
 
-        console.log('[Mock Server] POST_REGRESSION stage lookup:', { 
+        console.log('[Mock Server] PRE_RELEASE stage lookup:', { 
           releaseId, 
           releaseUuid, 
           releaseFound: !!release,
@@ -601,12 +697,16 @@ function createReleaseProcessMiddleware(router) {
           });
         }
 
+        // Get uploaded builds for PRE_RELEASE stage
+        const uploadedBuilds = getUploadedBuilds(releaseUuid, 'PRE_RELEASE', db);
+
         return res.json({
           success: true,
-          stage: 'POST_REGRESSION',
+          stage: 'PRE_RELEASE', // Return PRE_RELEASE as the stage
           releaseId: release.id, // Return the UUID id
           tasks: tasks.map(task => mapTaskToBackendContract(task, db, releaseUuid)),
           stageStatus: release.stage3Status || 'PENDING',
+          uploadedBuilds: uploadedBuilds,
         });
       }
 
@@ -677,7 +777,7 @@ function createReleaseProcessMiddleware(router) {
 
     // PUT/POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
     // Backend route structure: stage and platform are path parameters
-    // Stage can be: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' (TaskStage)
+    // Stage can be: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' (TaskStage)
     // Frontend sends: 'PRE_REGRESSION' | 'REGRESSION' | 'PRE_RELEASE' (BuildUploadStage)
     // BFF route handles the mapping, so mock server receives TaskStage values
     // API contract specifies PUT, but we support both PUT and POST for compatibility
@@ -692,7 +792,7 @@ function createReleaseProcessMiddleware(router) {
         });
       }
 
-      const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION'
+      const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'
       const platform = stageMatch[2]; // Platform: 'ANDROID' | 'IOS' | 'WEB'
 
       // Extract file from multer (multer.any() puts files in req.files array)
@@ -723,7 +823,7 @@ function createReleaseProcessMiddleware(router) {
       const buildUploadStage = 
         stage === 'KICKOFF' ? 'PRE_REGRESSION' :
         stage === 'REGRESSION' ? 'REGRESSION' :
-        stage === 'POST_REGRESSION' ? 'PRE_RELEASE' :
+        stage === 'PRE_RELEASE' ? 'PRE_RELEASE' :
         stage; // Fallback
 
       const uploadId = `upload_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
@@ -783,7 +883,7 @@ function createReleaseProcessMiddleware(router) {
         });
       }
 
-      const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION'
+      const stage = stageMatch[1]; // TaskStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE'
       const { testflightBuildNumber, versionName } = body;
 
       if (!testflightBuildNumber || !versionName) {
@@ -797,7 +897,7 @@ function createReleaseProcessMiddleware(router) {
       const buildUploadStage = 
         stage === 'KICKOFF' ? 'PRE_REGRESSION' :
         stage === 'REGRESSION' ? 'REGRESSION' :
-        stage === 'POST_REGRESSION' ? 'PRE_RELEASE' :
+        stage === 'PRE_RELEASE' ? 'PRE_RELEASE' :
         stage;
 
       const uploadId = `upload_testflight_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
@@ -1109,16 +1209,16 @@ function createReleaseProcessMiddleware(router) {
 
       return res.json({
         success: true,
-        message: 'Regression stage approved and Post-Regression stage triggered successfully',
+        message: 'Regression stage approved and Pre-Release stage triggered successfully',
         releaseId,
         approvedAt: new Date().toISOString(),
         approvedBy: body.approvedBy || 'user-123',
-        nextStage: 'POST_REGRESSION',
+        nextStage: 'PRE_RELEASE',
       });
     }
 
-    // POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/post-regression/complete
-    if (method === 'POST' && path.includes('/stages/post-regression/complete')) {
+    // POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/pre-release/complete
+    if (method === 'POST' && path.includes('/stages/pre-release/complete')) {
       const release = db.get('releases').find({ id: releaseId }).value();
 
       if (!release) {
@@ -1138,7 +1238,7 @@ function createReleaseProcessMiddleware(router) {
 
       return res.json({
         success: true,
-        message: 'Post-regression stage completed',
+        message: 'Pre-release stage completed',
         releaseId,
         completedAt: new Date().toISOString(),
         nextStage: 'RELEASE_SUBMISSION',

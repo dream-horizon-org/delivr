@@ -11,7 +11,7 @@ import axios, { type AxiosResponse } from 'axios';
 import type {
   KickoffStageResponse,
   RegressionStageResponse,
-  PostRegressionStageResponse,
+  PreReleaseStageResponse,
   RetryTaskResponse,
   BuildUploadResponse,
   ListBuildArtifactsResponse,
@@ -64,7 +64,7 @@ class ReleaseProcess {
    * Single endpoint with stage query parameter
    */
   async getStageTasks(tenantId: string, releaseId: string, stage: TaskStage) {
-    return this.__client.get<null, AxiosResponse<KickoffStageResponse | RegressionStageResponse | PostRegressionStageResponse>>(
+    return this.__client.get<null, AxiosResponse<KickoffStageResponse | RegressionStageResponse | PreReleaseStageResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks`,
       { params: { stage } }
     );
@@ -85,10 +85,18 @@ class ReleaseProcess {
   }
 
   /**
-   * Get post-regression stage data - Convenience method
+   * Get pre-release stage data - Convenience method
+   */
+  async getPreReleaseStage(tenantId: string, releaseId: string) {
+    return this.getStageTasks(tenantId, releaseId, TaskStage.PRE_RELEASE) as Promise<AxiosResponse<PreReleaseStageResponse>>;
+  }
+
+  /**
+   * Get post-regression stage data - Legacy alias
+   * @deprecated Use getPreReleaseStage instead
    */
   async getPostRegressionStage(tenantId: string, releaseId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.POST_REGRESSION) as Promise<AxiosResponse<PostRegressionStageResponse>>;
+    return this.getPreReleaseStage(tenantId, releaseId);
   }
 
   // ======================
@@ -223,7 +231,7 @@ class ReleaseProcess {
    */
   async completePostRegressionStage(tenantId: string, releaseId: string) {
     return this.__client.post<null, AxiosResponse<CompletePreReleaseResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/post-regression/complete`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`
     );
   }
 

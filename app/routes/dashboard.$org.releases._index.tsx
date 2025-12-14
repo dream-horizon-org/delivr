@@ -97,7 +97,7 @@ export type ReleasesListLoaderData = {
 export default function ReleasesListPage() {
   const { org, initialReleases } = useLoaderData<ReleasesListLoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || RELEASE_TABS.UPCOMING;
+  const activeTab = searchParams.get('tab') || RELEASE_TABS.ACTIVE;
   
   // Get filter values from URL params
   const buildMode = (searchParams.get('buildMode') || BUILD_MODE_FILTERS.ALL) as BuildModeFilter;
@@ -172,6 +172,13 @@ export default function ReleasesListPage() {
     } else {
       newParams.set('buildMode', value);
     }
+    
+    // If both filters are now "ALL", switch to active tab
+    const currentStage = newParams.get('stage') || STAGE_FILTERS.ALL;
+    if (value === BUILD_MODE_FILTERS.ALL && currentStage === STAGE_FILTERS.ALL) {
+      newParams.set('tab', RELEASE_TABS.ACTIVE);
+    }
+    
     setSearchParams(newParams);
   };
 
@@ -182,6 +189,13 @@ export default function ReleasesListPage() {
     } else {
       newParams.set('stage', value);
     }
+    
+    // If both filters are now "ALL", switch to active tab
+    const currentBuildMode = newParams.get('buildMode') || BUILD_MODE_FILTERS.ALL;
+    if (value === STAGE_FILTERS.ALL && currentBuildMode === BUILD_MODE_FILTERS.ALL) {
+      newParams.set('tab', RELEASE_TABS.ACTIVE);
+    }
+    
     setSearchParams(newParams);
   };
 

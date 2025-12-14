@@ -232,15 +232,16 @@ interface GetReleaseDetailsResponse {
 
 **Response:**
 
-#### For KICKOFF and POST_REGRESSION stages:
+#### For KICKOFF and PRE_RELEASE stages:
 
 ```typescript
 interface StageTasksResponse {
   success: true;
-  stage: 'KICKOFF' | 'POST_REGRESSION';
+  stage: 'KICKOFF' | 'PRE_RELEASE';
   releaseId: string;                    // Release UUID (from path param)
   tasks: Task[];                        // See Common Types
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  uploadedBuilds: BuildInfo[];          // Staging builds not yet consumed by tasks
 }
 ```
 
@@ -252,9 +253,19 @@ interface StageTasksResponse {
 - `TRIGGER_PRE_REGRESSION_BUILDS`
 
 **Build Information for KICKOFF:**
-- Tasks with `taskType: TRIGGER_PRE_REGRESSION_BUILDS` will include `builds: BuildInfo[]` when builds are available
+- Tasks with `taskType: TRIGGER_PRE_REGRESSION_BUILDS`:
+  - If `taskStatus === 'COMPLETED'`: `task.builds` contains consumed builds (cannot be changed)
+  - If `taskStatus !== 'COMPLETED'`: Use `uploadedBuilds` from stage response (can be changed via PUT API)
+- `uploadedBuilds`: Builds uploaded but not yet picked by task (stage-level, filtered by `buildStage: 'KICKOFF'`)
 - Each `BuildInfo` contains `artifactPath` for download links
 - Builds are grouped by platform (ANDROID, IOS, WEB)
+
+**Build Information for PRE_RELEASE:**
+- Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` or `CREATE_AAB_BUILD`:
+  - If `taskStatus === 'COMPLETED'`: `task.builds` contains consumed builds (cannot be changed)
+  - If `taskStatus !== 'COMPLETED'`: Use `uploadedBuilds` from stage response (can be changed via PUT API)
+- `uploadedBuilds`: Builds uploaded but not yet picked by task (stage-level, filtered by `buildStage: 'PRE_RELEASE'`)
+- Platform-specific: IOS for TestFlight, ANDROID for AAB
 
 #### For REGRESSION stage (includes additional fields):
 
@@ -270,7 +281,7 @@ interface RegressionStageTasksResponse {
   cycles: RegressionCycle[];
   currentCycle: RegressionCycle | null;
   approvalStatus: ApprovalStatus;
-  availableBuilds: BuildInfo[];           // See Common Types
+  uploadedBuilds: BuildInfo[];            // Builds uploaded for upcoming slot (only visible when cycle hasn't started)
   upcomingSlot: RegressionSlot[] | null;  // See Common Types
 }
 
@@ -420,9 +431,23 @@ interface ReleaseDetails {
 - `SEND_REGRESSION_BUILD_MESSAGE`
 
 **Build Information for REGRESSION:**
-- Tasks with `taskType: TRIGGER_REGRESSION_BUILDS` will include `builds: BuildInfo[]` when builds are available
-- Each `BuildInfo` contains `artifactPath` for download links
-- Builds are grouped by platform (ANDROID, IOS, WEB)
+- **Upload Widgets Visibility**: Build upload widgets are only visible when:
+  - Current cycle is `DONE` (completed) AND `upcomingSlot` exists, OR
+  - No cycles exist yet (first cycle after kickoff) AND `upcomingSlot` exists
+- **uploadedBuilds**: Builds uploaded for upcoming slot (stage-level, filtered by `buildStage: 'REGRESSION'`)
+  - Only visible when cycle hasn't started (currentCycle is null or DONE)
+  - When cycle is `IN_PROGRESS`, uploadedBuilds is empty (builds are consumed)
+- **Cycle Start Logic** (handled by backend cron):
+  - Cycle starts only when ALL required builds are uploaded for upcoming slot
+  - If builds are uploaded after slot time has passed, cycle starts immediately when all builds are uploaded
+  - When cycle starts, builds are consumed (moved from `buildUploadsStaging` to `builds` table with `taskId`)
+- **Tasks in Cycle**:
+  - When cycle is `IN_PROGRESS`: Tasks use `task.builds` (consumed builds from `builds` table where `taskId === task.id`)
+  - When cycle hasn't started: Tasks don't have builds yet (builds are in `uploadedBuilds`)
+- **Build Flow**:
+  1. Builds uploaded → stored in `buildUploadsStaging` → visible in `uploadedBuilds`
+  2. When cycle starts → builds moved to `builds` table with `taskId` → visible in `task.builds`
+  3. When cycle completes → same flow for next cycle
 
 **Expected Tasks for POST_REGRESSION:**
 

@@ -109,7 +109,7 @@ export interface ApprovalStatus {
 
 /**
  * Base Stage Response - Common fields for all stage APIs
- * Matches backend contract for KICKOFF and POST_REGRESSION
+ * Matches backend contract for KICKOFF and PRE_RELEASE
  */
 export interface StageTasksResponse {
   success: true;
@@ -117,6 +117,7 @@ export interface StageTasksResponse {
   releaseId: string;
   tasks: Task[];
   stageStatus: StageStatus;
+  uploadedBuilds: BuildInfo[];  // Staging builds not yet consumed by tasks
 }
 
 /**
@@ -141,15 +142,15 @@ export interface RegressionStageResponse {
   cycles: RegressionCycle[];
   currentCycle: RegressionCycle | null;
   approvalStatus: ApprovalStatus;
-  availableBuilds: BuildInfo[];
+  uploadedBuilds: BuildInfo[];  // Builds uploaded for upcoming slot (not yet consumed by cycle)
   upcomingSlot: RegressionSlot[] | null;
 }
 
 /**
- * Post-Regression Stage Response
+ * Pre-Release Stage Response
  */
-export interface PostRegressionStageResponse extends StageTasksResponse {
-  stage: TaskStage.POST_REGRESSION;
+export interface PreReleaseStageResponse extends StageTasksResponse {
+  stage: TaskStage.PRE_RELEASE;
 }
 
 /**
@@ -384,7 +385,7 @@ export interface ApproveRegressionStageResponse {
   releaseId: string;
   approvedAt: string;                   // ISO 8601
   approvedBy: string;
-  nextStage: 'POST_REGRESSION';
+  nextStage: 'PRE_RELEASE';
 }
 
 /**
@@ -530,7 +531,7 @@ export interface ReleaseDetails {
   // Release metadata
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
+  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
   releasePhase: Phase;                     // Detailed phase
   
   // Branch information

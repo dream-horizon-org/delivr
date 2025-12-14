@@ -7,7 +7,7 @@ import { Alert, Group, Select, Stack, Text } from '@mantine/core';
 import { useMemo, useState } from 'react';
 import { getStatusFilterOptions } from '~/constants/release-process-ui';
 import { filterAndSortTasks } from '~/utils/task-filtering';
-import type { Task } from '~/types/release-process.types';
+import type { Task, BuildInfo } from '~/types/release-process.types';
 import { TaskCard } from '../TaskCard';
 
 interface TasksListProps {
@@ -17,6 +17,7 @@ interface TasksListProps {
   onRetry?: (taskId: string) => void;
   emptyMessage?: string;
   showFilter?: boolean;
+  uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds
 }
 
 export function TasksList({
@@ -26,6 +27,7 @@ export function TasksList({
   onRetry,
   emptyMessage = 'No tasks available',
   showFilter = true,
+  uploadedBuilds = [],
 }: TasksListProps) {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const statusOptions = getStatusFilterOptions();
@@ -67,6 +69,7 @@ export function TasksList({
                 tenantId={tenantId}
                 releaseId={releaseId}
                 onRetry={onRetry}
+                uploadedBuilds={uploadedBuilds}
               />
             ))}
           </Stack>

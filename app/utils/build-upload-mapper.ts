@@ -14,7 +14,7 @@ export function mapBuildUploadStageToTaskStage(stage: BuildUploadStage): TaskSta
   const map: Record<BuildUploadStage, TaskStage> = {
     [BuildUploadStage.PRE_REGRESSION]: TaskStage.KICKOFF,
     [BuildUploadStage.REGRESSION]: TaskStage.REGRESSION,
-    [BuildUploadStage.PRE_RELEASE]: TaskStage.POST_REGRESSION,
+    [BuildUploadStage.PRE_RELEASE]: TaskStage.PRE_RELEASE,
   };
   return map[stage];
 }
@@ -27,7 +27,7 @@ export function mapTaskStageToBuildUploadStage(stage: TaskStage): BuildUploadSta
   const map: Record<TaskStage, BuildUploadStage> = {
     [TaskStage.KICKOFF]: BuildUploadStage.PRE_REGRESSION,
     [TaskStage.REGRESSION]: BuildUploadStage.REGRESSION,
-    [TaskStage.POST_REGRESSION]: BuildUploadStage.PRE_RELEASE,
+    [TaskStage.PRE_RELEASE]: BuildUploadStage.PRE_RELEASE,
     [TaskStage.DISTRIBUTION]: BuildUploadStage.PRE_RELEASE, // Fallback for distribution stage
   };
   return map[stage] || null;

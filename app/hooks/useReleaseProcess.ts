@@ -11,7 +11,7 @@ import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-e
 import type {
   KickoffStageResponse,
   RegressionStageResponse,
-  PostRegressionStageResponse,
+  PreReleaseStageResponse,
   RetryTaskResponse,
   BuildUploadResponse,
   BuildArtifact,
@@ -133,20 +133,20 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
 /**
  * Get post-regression stage data
  */
-export function usePostRegressionStage(tenantId?: string, releaseId?: string) {
-  return useQuery<PostRegressionStageResponse, Error>(
-    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.POST_REGRESSION),
+export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
+  return useQuery<PreReleaseStageResponse, Error>(
+    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.PRE_RELEASE),
     async () => {
       if (!tenantId || !releaseId) {
         throw new Error('tenantId and releaseId are required');
       }
 
-      const result = await apiGet<PostRegressionStageResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/post-regression`
+      const result = await apiGet<PreReleaseStageResponse>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release`
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch post-regression stage');
+        throw new Error(result.error || 'Failed to fetch pre-release stage');
       }
 
       return result.data;
@@ -271,7 +271,7 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
               stageToInvalidate = TaskStage.REGRESSION;
               break;
             case 'PRE_RELEASE':
-              stageToInvalidate = TaskStage.POST_REGRESSION;
+              stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:
               stageToInvalidate = TaskStage.REGRESSION;
@@ -333,7 +333,7 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
               stageToInvalidate = TaskStage.REGRESSION;
               break;
             case 'PRE_RELEASE':
-              stageToInvalidate = TaskStage.POST_REGRESSION;
+              stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:
               // Defensive: invalidate REGRESSION stage as fallback if unexpected stage value
@@ -478,9 +478,9 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
     {
       onSuccess: () => {
         if (tenantId && releaseId) {
-          // Invalidate both REGRESSION (current) and POST_REGRESSION (next stage that gets triggered)
+          // Invalidate both REGRESSION (current) and PRE_RELEASE (next stage that gets triggered)
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.REGRESSION));
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.POST_REGRESSION));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
           // Invalidate releases list to reflect stage transition
           queryClient.invalidateQueries(['releases', tenantId]);
         }
@@ -515,7 +515,7 @@ export function useCompletePostRegression(tenantId?: string, releaseId?: string)
     {
       onSuccess: () => {
         if (tenantId && releaseId) {
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.POST_REGRESSION));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
           // Invalidate releases list to reflect stage completion
           queryClient.invalidateQueries(['releases', tenantId]);
         }

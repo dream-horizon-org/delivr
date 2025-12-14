@@ -24,6 +24,7 @@ interface ManualBuildUploadWidgetProps {
   platform?: Platform; // Optional: if provided, widget is locked to this platform
   onUploadComplete?: () => void;
   className?: string;
+  forceShowUpload?: boolean; // Force show upload section even if artifacts exist (for "Change Build" mode)
 }
 
 export function ManualBuildUploadWidget({
@@ -34,6 +35,7 @@ export function ManualBuildUploadWidget({
   platform: fixedPlatform,
   onUploadComplete,
   className,
+  forceShowUpload = false,
 }: ManualBuildUploadWidgetProps) {
   // Get release to extract platforms from platformTargetMappings
   const { release } = useRelease(tenantId, releaseId);
@@ -66,7 +68,7 @@ export function ManualBuildUploadWidget({
   const backendStage = useMemo(() => {
     const taskStage = mapBuildUploadStageToTaskStage(stage);
     // Backend uses KICK_OFF, REGRESSION, PRE_RELEASE
-    return taskStage === 'KICKOFF' ? 'KICK_OFF' : taskStage === 'POST_REGRESSION' ? 'PRE_RELEASE' : taskStage;
+    return taskStage === 'KICKOFF' ? 'KICK_OFF' : taskStage === 'PRE_RELEASE' ? 'PRE_RELEASE' : taskStage;
   }, [stage]);
 
   // Fetch artifacts for this stage
@@ -98,8 +100,13 @@ export function ManualBuildUploadWidget({
     return artifactsData.data.filter(a => availablePlatforms.includes(a.platform as Platform));
   }, [artifactsData, fixedPlatform, availablePlatforms]);
 
-  // Check if we should show upload widget (no artifact for platform)
+  // Check if we should show upload widget (no artifact for platform, or forceShowUpload is true)
   const shouldShowUploadWidget = useMemo(() => {
+    // Force show upload section (for "Change Build" mode)
+    if (forceShowUpload) {
+      return true;
+    }
+    
     if (fixedPlatform) {
       // Single platform widget: show upload if no artifact for this platform
       return !platformArtifacts.some(a => a.platform === fixedPlatform);
@@ -109,7 +116,7 @@ export function ManualBuildUploadWidget({
     return availablePlatforms.some(platform => 
       !platformArtifacts.some(a => a.platform === platform)
     );
-  }, [platformArtifacts, fixedPlatform, availablePlatforms]);
+  }, [platformArtifacts, fixedPlatform, availablePlatforms, forceShowUpload]);
 
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder className={className}>

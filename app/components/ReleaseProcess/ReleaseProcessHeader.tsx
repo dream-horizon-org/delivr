@@ -13,7 +13,7 @@
  */
 
 import { Badge, Button, Group, Modal, Paper, ScrollArea, Stack, Text, Title } from '@mantine/core';
-import { Link } from '@remix-run/react';
+import { Link, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft, IconCloudUpload, IconCode, IconEdit, IconGitBranch, IconHistory, IconMessageCircle, IconPlayerPause, IconPlayerPlay, IconTag } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
@@ -63,6 +63,13 @@ export function ReleaseProcessHeader({
 }: ReleaseProcessHeaderProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [activityLogModalOpened, setActivityLogModalOpened] = useState(false);
+  const [searchParams] = useSearchParams();
+  
+  // Get returnTo params from URL to restore filters and tab when going back
+  const returnTo = searchParams.get('returnTo');
+  const backUrl = returnTo 
+    ? `/dashboard/${org}/releases?${returnTo}`
+    : `/dashboard/${org}/releases`;
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
   const queryClient = useQueryClient();
@@ -173,7 +180,7 @@ export function ReleaseProcessHeader({
           <Group justify="space-between" align="flex-start" wrap="wrap">
             {/* Left Side: Back Button + Title + Platform Badges */}
             <Group gap="md" align="flex-start">
-              <Link to={`/dashboard/${org}/releases`}>
+              <Link to={backUrl}>
                 <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
                   {BUTTON_LABELS.BACK}
                 </Button>

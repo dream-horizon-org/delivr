@@ -4,10 +4,11 @@
  * For CI/CD mode: Shows all expected platforms with their status (running, failed, completed)
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Anchor,
   Badge,
+  Button,
   Group,
   Loader,
   Stack,
@@ -17,10 +18,12 @@ import {
   IconBrandApple,
   IconExternalLink,
   IconFile,
+  IconPencil,
   IconX,
 } from '@tabler/icons-react';
 import type { BuildInfo } from '~/types/release-process.types';
-import { Platform, TaskStatus } from '~/types/release-process-enums';
+import { Platform, TaskStatus, BuildUploadStage, TaskType } from '~/types/release-process-enums';
+import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 
 interface BuildsListProps {
   builds: BuildInfo[];
@@ -28,6 +31,12 @@ interface BuildsListProps {
   taskStatus?: TaskStatus; // Task status to determine if showing running/failed states
   isPostRegression: boolean;
   isKickoffRegression: boolean;
+  canChangeBuilds?: boolean; // Whether builds can be changed (only for uploadedBuilds, not consumed)
+  buildStage?: BuildUploadStage | null; // Build stage for upload
+  taskType?: TaskType; // Task type for upload widget
+  tenantId?: string;
+  releaseId?: string;
+  onUploadComplete?: () => void;
 }
 
 export function BuildsList({ 
@@ -35,7 +44,13 @@ export function BuildsList({
   expectedPlatforms,
   taskStatus,
   isPostRegression, 
-  isKickoffRegression 
+  isKickoffRegression,
+  canChangeBuilds = false,
+  buildStage,
+  taskType,
+  tenantId,
+  releaseId,
+  onUploadComplete,
 }: BuildsListProps) {
   // Helper to generate TestFlight link
   const getTestFlightLink = (testflightNumber: string | null): string | null => {
@@ -111,6 +126,12 @@ export function BuildsList({
                   isPostRegression={isPostRegression}
                   isKickoffRegression={isKickoffRegression}
                   getTestFlightLink={getTestFlightLink}
+                  canChangeBuilds={canChangeBuilds}
+                  buildStage={buildStage}
+                  taskType={taskType}
+                  tenantId={tenantId}
+                  releaseId={releaseId}
+                  onUploadComplete={onUploadComplete}
                 />
               ))}
             </Stack>
@@ -127,6 +148,12 @@ interface BuildItemProps {
   isPostRegression: boolean;
   isKickoffRegression: boolean;
   getTestFlightLink: (testflightNumber: string | null) => string | null;
+  canChangeBuilds?: boolean;
+  buildStage?: BuildUploadStage | null;
+  taskType?: TaskType;
+  tenantId?: string;
+  releaseId?: string;
+  onUploadComplete?: () => void;
 }
 
 function BuildItem({
@@ -135,7 +162,27 @@ function BuildItem({
   isPostRegression,
   isKickoffRegression,
   getTestFlightLink,
+  canChangeBuilds = false,
+  buildStage,
+  taskType,
+  tenantId,
+  releaseId,
+  onUploadComplete,
 }: BuildItemProps) {
+  const [isChangingBuild, setIsChangingBuild] = useState(false);
+
+  const handleChangeBuild = () => {
+    setIsChangingBuild(true);
+  };
+
+  const handleCancel = () => {
+    setIsChangingBuild(false);
+  };
+
+  const handleUploadComplete = () => {
+    setIsChangingBuild(false);
+    onUploadComplete?.();
+  };
   // Determine build status for CI/CD builds
   const isCICD = build.buildType === 'CI_CD';
   const isRunning = build.workflowStatus === 'RUNNING';
@@ -150,6 +197,38 @@ function BuildItem({
   const shouldShowAsFailed = taskFailed && !hasArtifact && !hasTestFlightLink && !hasInternalTrackLink;
   const isFailed = buildFailed || shouldShowAsFailed;
 
+  // Show upload widget inline when changing build
+  if (isChangingBuild && buildStage && taskType && tenantId && releaseId) {
+    return (
+      <Stack gap="md" p="sm" style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: '4px' }}>
+        <Group justify="space-between">
+          <Text size="sm" fw={500}>
+            Change Build - {build.platform}
+          </Text>
+          <Button
+            size="xs"
+            variant="subtle"
+            color="gray"
+            leftSection={<IconX size={14} />}
+            onClick={handleCancel}
+          >
+            Cancel
+          </Button>
+        </Group>
+        <ManualBuildUploadWidget
+          tenantId={tenantId}
+          releaseId={releaseId}
+          stage={buildStage}
+          taskType={taskType}
+          platform={build.platform as Platform}
+          onUploadComplete={handleUploadComplete}
+          forceShowUpload={true}
+        />
+      </Stack>
+    );
+  }
+
+  // Show build display normally
   return (
     <Group justify="space-between" align="flex-start" p="sm" 
            style={{ 
@@ -265,6 +344,16 @@ function BuildItem({
           </Group>
         </Stack>
       </Group>
+      {canChangeBuilds && buildStage && taskType && tenantId && releaseId && (
+        <Button
+          size="xs"
+          variant="light"
+          leftSection={<IconPencil size={14} />}
+          onClick={handleChangeBuild}
+        >
+          Change Build
+        </Button>
+      )}
     </Group>
   );
 }

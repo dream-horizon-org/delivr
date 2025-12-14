@@ -4,6 +4,9 @@
  * Contains all conditional rendering logic
  * Orchestrates smaller dumb components for upload widgets and builds
  * Relies on task.builds from stage API, not separate artifacts API
+ * 
+ * NOTE: Upload widgets and uploadedBuilds logic are MANUAL-ONLY
+ * CI/CD builds are handled differently (no upload widgets, builds come from CI/CD pipeline)
  */
 
 import { useMemo } from 'react';
@@ -19,6 +22,7 @@ interface BuildTaskDetailsProps {
   tenantId?: string;
   releaseId?: string;
   onUploadComplete?: () => void;
+  uploadedBuilds?: BuildInfo[];  // Stage-level uploaded builds (not yet consumed)
 }
 
 export function BuildTaskDetails({
@@ -26,6 +30,7 @@ export function BuildTaskDetails({
   tenantId,
   releaseId,
   onUploadComplete,
+  uploadedBuilds = [],  // Stage-level uploaded builds (not yet consumed)
 }: BuildTaskDetailsProps) {
   const { release } = useRelease(tenantId || '', releaseId || '');
   const isManualMode = release?.hasManualBuildUpload === true;
@@ -45,25 +50,35 @@ export function BuildTaskDetails({
     }
   }, [task.taskType]);
 
-  // Extract builds from task.builds or task.externalData?.builds
-  // Note: For completed Post-Regression tasks, task.builds MUST be populated by backend
-  // - TestFlight tasks: builds[0].testflightNumber must be present
-  // - AAB tasks: builds[0].internalTrackLink must be present
-  // - Data source: consumed builds from builds table where taskId === task.id
-  const taskBuilds: BuildInfo[] = useMemo(() => {
-    if (task.builds && Array.isArray(task.builds)) {
-      return task.builds;
+  // Build selection logic based on task status:
+  // - If COMPLETED → use task.builds (consumed, can't change)
+  // - If NOT COMPLETED → use uploadedBuilds (staging, can change)
+  const effectiveBuilds: BuildInfo[] = useMemo(() => {
+    if (task.taskStatus === TaskStatus.COMPLETED) {
+      // Task completed: builds are consumed, use task.builds
+      if (task.builds && Array.isArray(task.builds) && task.builds.length > 0) {
+        return task.builds;
+      }
+      // Fallback to externalData for legacy support
+      if (task.externalData?.builds && Array.isArray(task.externalData.builds)) {
+        return task.externalData.builds as BuildInfo[];
+      }
+      return [];
+    } else {
+      // Task not completed: use uploadedBuilds (staging builds)
+      return uploadedBuilds || [];
     }
-    if (task.externalData?.builds && Array.isArray(task.externalData.builds)) {
-      return task.externalData.builds as BuildInfo[];
-    }
-    return [];
-  }, [task]);
+  }, [task.taskStatus, task.builds, task.externalData, uploadedBuilds]);
+
+  // Can change builds only if task is NOT completed and using uploadedBuilds
+  const canChangeBuilds = useMemo(() => {
+    return task.taskStatus !== TaskStatus.COMPLETED && effectiveBuilds.length > 0;
+  }, [task.taskStatus, effectiveBuilds.length]);
 
   // Group builds by platform
   const buildsByPlatform = useMemo(() => {
     const grouped: Record<string, BuildInfo[]> = {};
-    taskBuilds.forEach((build) => {
+    effectiveBuilds.forEach((build) => {
       const platform = build.platform;
       if (!grouped[platform]) {
         grouped[platform] = [];
@@ -71,7 +86,7 @@ export function BuildTaskDetails({
       grouped[platform].push(build);
     });
     return grouped;
-  }, [taskBuilds]);
+  }, [effectiveBuilds]);
 
   // Determine expected platforms based on task type and release config
   const expectedPlatforms = useMemo(() => {
@@ -148,13 +163,19 @@ export function BuildTaskDetails({
 
       {/* Build Information - Show builds grouped by platform */}
       {/* For CI/CD in progress: Show all expected platforms with their status */}
-      {(taskBuilds.length > 0 || shouldShowAllPlatforms) && (
+      {(effectiveBuilds.length > 0 || shouldShowAllPlatforms) && (
         <BuildsList
-          builds={taskBuilds}
+          builds={effectiveBuilds}
           expectedPlatforms={shouldShowAllPlatforms ? expectedPlatforms : undefined}
           taskStatus={task.taskStatus}
           isPostRegression={isPostRegressionBuildTask}
           isKickoffRegression={isKickoffRegressionBuildTask}
+          canChangeBuilds={canChangeBuilds}
+          buildStage={buildStage}
+          taskType={task.taskType}
+          tenantId={tenantId}
+          releaseId={releaseId}
+          onUploadComplete={onUploadComplete}
         />
       )}
     </Stack>

@@ -30,8 +30,9 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
     refetch,
   });
 
-  // Extract tasks from data (safe to access even if data is null)
+  // Extract tasks and uploadedBuilds from data (safe to access even if data is null)
   const tasks = data?.tasks || [];
+  const uploadedBuilds = data?.uploadedBuilds || [];
 
   return (
     <StageErrorBoundary
@@ -47,6 +48,7 @@ export function KickoffStage({ tenantId, releaseId, className }: KickoffStagePro
           releaseId={releaseId}
           onRetry={handleRetry}
           emptyMessage={KICKOFF_LABELS.NO_TASKS}
+          uploadedBuilds={uploadedBuilds}
         />
       </Stack>
     </StageErrorBoundary>

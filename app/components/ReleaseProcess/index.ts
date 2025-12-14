@@ -10,7 +10,7 @@ export { BuildUploadSection } from './BuildUploadSection';
 export { KickoffStage } from './KickoffStage';
 export { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 export { RegularTaskDetails } from './RegularTaskDetails';
-export { PostRegressionStage } from './PostRegressionStage';
+export { PreReleaseStage } from './PreReleaseStage';
 export { PreKickoffStage } from './PreKickoffStage';
 export { RegressionCycleCard } from './RegressionCycleCard';
 export { RegressionCyclesList } from './RegressionCyclesList';

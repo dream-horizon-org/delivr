@@ -63,8 +63,8 @@ const RELEASE_PROCESS_STAGES: ReleaseStage[] = [
     isNavigable: true,
   },
   {
-    key: TaskStageEnum.POST_REGRESSION,
-    label: STAGE_LABELS.POST_REGRESSION,
+    key: TaskStageEnum.PRE_RELEASE,
+    label: STAGE_LABELS.PRE_RELEASE,
     description: 'Final preparation and submission',
     iconName: 'rocket',
     isNavigable: true,
@@ -87,7 +87,7 @@ function getStageIndex(stage: TaskStage | null | undefined): number {
       return 0;
     case TaskStageEnum.REGRESSION:
       return 1;
-    case TaskStageEnum.POST_REGRESSION:
+    case TaskStageEnum.PRE_RELEASE:
       return 2;
     case TaskStageEnum.DISTRIBUTION:
       return 3;

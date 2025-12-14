@@ -1,6 +1,6 @@
 /**
  * Generate Test Releases Script V2 - Data-Driven Approach
- * Generates all 53 test cases using compact configuration format
+ * Generates all 52 test cases using compact configuration format
  * 
  * Usage: node scripts/generate-test-releases-v2.js
  * Output: Updates mock-server/data/db.json with all test releases
@@ -73,14 +73,14 @@ const TaskStatus = {
 const TaskStage = {
   KICKOFF: 'KICKOFF',
   REGRESSION: 'REGRESSION',
-  POST_REGRESSION: 'POST_REGRESSION',
+  PRE_RELEASE: 'PRE_RELEASE',
 };
 
 const Phase = {
   NOT_STARTED: 'NOT_STARTED',
   KICKOFF: 'KICKOFF',
   REGRESSION: 'REGRESSION',
-  POST_REGRESSION: 'POST_REGRESSION',
+  PRE_RELEASE: 'PRE_RELEASE',
 };
 
 const ReleaseStatus = {
@@ -310,8 +310,8 @@ function validateStageStatus(status) {
 
 function createCronJob(releaseId, phase, stageStatuses = {}) {
   const stage1 = validateStageStatus(stageStatuses.stage1 || (phase === Phase.KICKOFF ? 'IN_PROGRESS' : 'COMPLETED'));
-  const stage2 = validateStageStatus(stageStatuses.stage2 || (phase === Phase.REGRESSION ? 'IN_PROGRESS' : phase === Phase.POST_REGRESSION ? 'COMPLETED' : 'PENDING'));
-  const stage3 = validateStageStatus(stageStatuses.stage3 || (phase === Phase.POST_REGRESSION ? 'IN_PROGRESS' : 'PENDING'));
+  const stage2 = validateStageStatus(stageStatuses.stage2 || (phase === Phase.REGRESSION ? 'IN_PROGRESS' : phase === Phase.PRE_RELEASE ? 'COMPLETED' : 'PENDING'));
+  const stage3 = validateStageStatus(stageStatuses.stage3 || (phase === Phase.PRE_RELEASE ? 'IN_PROGRESS' : 'PENDING'));
   const stage4 = validateStageStatus(stageStatuses.stage4 || 'PENDING');
   
   return {
@@ -640,7 +640,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   // ============================================================================
-  // REGRESSION STAGE - MANUAL MODE (16 test cases)
+  // REGRESSION STAGE - MANUAL MODE (15 test cases)
   // ============================================================================
   
   'REG-M-1': {
@@ -919,30 +919,6 @@ const TEST_CASE_CONFIGS = {
     branch: 'test-reg-m-12-both-builds-failed',
   },
   
-  'REG-M-13': {
-    stage: 'REGRESSION',
-    mode: 'MANUAL',
-    platforms: ['ANDROID', 'IOS'],
-    dateOffset: -5,
-    kickoffDate: -5,
-    kickoffCompleted: true,
-    cycles: [
-      { status: 'IN_PROGRESS', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: 1 },
-    ],
-    upcomingSlot: null,
-    regressionTasks: {
-      RESET_TEST_SUITE: 'COMPLETED',
-      CREATE_RC_TAG: 'COMPLETED',
-      CREATE_RELEASE_NOTES: 'COMPLETED',
-      TRIGGER_REGRESSION_BUILDS: 'AWAITING_MANUAL_BUILD',
-    },
-    stagingBuilds: [],
-    builds: [
-      { platform: 'ANDROID', buildType: 'MANUAL', buildStage: 'REGRESSION', hoursOffset: 1, cycleIndex: 0 },
-    ],
-    branch: 'test-reg-m-13-one-platform-missing',
-  },
-  
   'REG-M-14': {
     stage: 'REGRESSION',
     mode: 'MANUAL',
@@ -1134,11 +1110,11 @@ const TEST_CASE_CONFIGS = {
   },
   
   // ============================================================================
-  // POST-REGRESSION STAGE - MANUAL MODE (10 test cases)
+  // PRE-RELEASE STAGE - MANUAL MODE (10 test cases)
   // ============================================================================
   
   'POST-M-1': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1168,7 +1144,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-2': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1197,7 +1173,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-3': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1226,7 +1202,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-4': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1255,7 +1231,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-5': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1286,7 +1262,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-6': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1318,7 +1294,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-7': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1350,7 +1326,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-8': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1382,7 +1358,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-9': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1414,7 +1390,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-M-10': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1446,11 +1422,11 @@ const TEST_CASE_CONFIGS = {
   },
   
   // ============================================================================
-  // POST-REGRESSION STAGE - CI/CD MODE (4 test cases)
+  // PRE-RELEASE STAGE - CI/CD MODE (4 test cases)
   // ============================================================================
   
   'POST-C-1': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'CI_CD',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1479,7 +1455,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-C-2': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'CI_CD',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1511,7 +1487,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-C-3': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'CI_CD',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1543,7 +1519,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-C-4': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'CI_CD',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1575,11 +1551,11 @@ const TEST_CASE_CONFIGS = {
   },
   
   // ============================================================================
-  // POST-REGRESSION STAGE - PLATFORM VARIATIONS (3 test cases)
+  // PRE-RELEASE STAGE - PLATFORM VARIATIONS (3 test cases)
   // ============================================================================
   
   'POST-P-1': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID'],
     dateOffset: -10,
@@ -1607,7 +1583,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-P-2': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['IOS'],
     dateOffset: -10,
@@ -1635,7 +1611,7 @@ const TEST_CASE_CONFIGS = {
   },
   
   'POST-P-3': {
-    stage: 'POST_REGRESSION',
+    stage: 'PRE_RELEASE',
     mode: 'MANUAL',
     platforms: ['ANDROID', 'IOS'],
     dateOffset: -10,
@@ -1705,7 +1681,7 @@ function generateRelease(releaseId, config, baseDate, kickoffDate, index) {
     if (config.stage === 'REGRESSION') {
       stageStatuses.stage1 = config.kickoffCompleted ? 'COMPLETED' : 'PENDING';
       stageStatuses.stage2 = 'IN_PROGRESS';
-    } else if (config.stage === 'POST_REGRESSION') {
+    } else if (config.stage === 'PRE_RELEASE') {
       stageStatuses.stage1 = 'COMPLETED';
       stageStatuses.stage2 = config.regressionCompleted ? 'COMPLETED' : 'PENDING';
       stageStatuses.stage3 = 'IN_PROGRESS';
@@ -1729,7 +1705,7 @@ function generateRelease(releaseId, config, baseDate, kickoffDate, index) {
     if (lastCycle.completedHoursOffset) {
       updatedAt = addHours(addDays(baseDate, lastCycle.dateOffset), lastCycle.completedHoursOffset);
     }
-  } else if (config.stage === 'POST_REGRESSION' && config.postRegressionDateOffset) {
+  } else if (config.stage === 'PRE_RELEASE' && config.postRegressionDateOffset) {
     updatedAt = addDays(baseDate, config.postRegressionDateOffset);
   }
   
@@ -1767,8 +1743,8 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
   const stage = config.stage;
   const taskDate = kickoffDate || baseDate;
   
-  // Generate kickoff tasks for REGRESSION and POST_REGRESSION stages (they always include completed kickoff tasks)
-  if ((stage === 'REGRESSION' || stage === 'POST_REGRESSION') && config.kickoffCompleted !== false && kickoffDate) {
+  // Generate kickoff tasks for REGRESSION and PRE_RELEASE stages (they always include completed kickoff tasks)
+  if ((stage === 'REGRESSION' || stage === 'PRE_RELEASE') && config.kickoffCompleted !== false && kickoffDate) {
     const kickoffCompletedDate = addHours(kickoffDate, 5);
     const kickoffTaskConfigs = {
       FORK_BRANCH: 'COMPLETED',
@@ -1853,11 +1829,11 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
     });
   }
   
-  // Generate regression tasks for completed cycles (for POST_REGRESSION stage)
-  // POST_REGRESSION stages should include regression tasks from all completed cycles
-  // Note: V1 doesn't include regression tasks in POST_REGRESSION, only kickoff + post-regression tasks
+  // Generate regression tasks for completed cycles (for PRE_RELEASE stage)
+  // PRE_RELEASE stages should include regression tasks from all completed cycles
+  // Note: V1 doesn't include regression tasks in PRE_RELEASE, only kickoff + pre-release tasks
   // But if cycles exist, we should include their regression tasks
-  if (stage === 'POST_REGRESSION' && config.regressionCompleted && cycles.length > 0) {
+  if (stage === 'PRE_RELEASE' && config.regressionCompleted && cycles.length > 0) {
     cycles.forEach((cycle) => {
       const cycleDate = new Date(cycle.slotDateTime);
       const taskConfigs = {
@@ -1884,8 +1860,8 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
     });
   }
   
-  // Generate post-regression tasks
-  if (stage === 'POST_REGRESSION' && config.tasks) {
+  // Generate pre-release tasks
+  if (stage === 'PRE_RELEASE' && config.tasks) {
     const postRegressionDate = config.postRegressionDateOffset 
       ? addDays(baseDate, config.postRegressionDateOffset)
       : addDays(baseDate, -2);
@@ -1914,7 +1890,7 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
         branch: config.branch || null,
       };
       
-      tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.POST_REGRESSION, TaskStatus[status], taskOptions));
+      tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.PRE_RELEASE, TaskStatus[status], taskOptions));
     });
   }
   
@@ -2001,7 +1977,7 @@ function generateBuilds(releaseId, config, baseDate, kickoffDate, tasks, cycles)
           ? addHours(cycleDate.toISOString(), buildConfig.hoursOffset)
           : cycleDate.toISOString();
       } else {
-        const refDate = config.stage === 'POST_REGRESSION' && config.postRegressionDateOffset
+        const refDate = config.stage === 'PRE_RELEASE' && config.postRegressionDateOffset
           ? addDays(baseDate, config.postRegressionDateOffset)
           : taskDate;
         buildDate = buildConfig.hoursOffset 
@@ -2085,16 +2061,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     'KO-C-1', 'KO-C-2', 'KO-C-3', 'KO-C-4',
     // Kickoff Platform (3)
     'KO-P-1', 'KO-P-2', 'KO-P-3',
-    // Regression Manual (16)
+    // Regression Manual (15)
     'REG-M-1', 'REG-M-2', 'REG-M-3', 'REG-M-4', 'REG-M-5', 'REG-M-6', 'REG-M-7', 'REG-M-8',
-    'REG-M-9', 'REG-M-10', 'REG-M-11', 'REG-M-12', 'REG-M-13', 'REG-M-14', 'REG-M-15', 'REG-M-16',
+    'REG-M-9', 'REG-M-10', 'REG-M-11', 'REG-M-12', 'REG-M-14', 'REG-M-15', 'REG-M-16',
     // Regression CI/CD (4)
     'REG-C-1', 'REG-C-2', 'REG-C-3', 'REG-C-4',
-    // Post-Regression Manual (10)
+    // Pre-Release Manual (10)
     'POST-M-1', 'POST-M-2', 'POST-M-3', 'POST-M-4', 'POST-M-5', 'POST-M-6', 'POST-M-7', 'POST-M-8', 'POST-M-9', 'POST-M-10',
-    // Post-Regression CI/CD (4)
+    // Pre-Release CI/CD (4)
     'POST-C-1', 'POST-C-2', 'POST-C-3', 'POST-C-4',
-    // Post-Regression Platform (3)
+    // Pre-Release Platform (3)
     'POST-P-1', 'POST-P-2', 'POST-P-3',
   ];
   

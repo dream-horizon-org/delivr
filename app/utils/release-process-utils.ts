@@ -40,13 +40,13 @@ export function determineReleasePhase(release: BackendReleaseResponse): Phase {
       return Phase.REGRESSION;
     }
 
-    // Check if any post-regression tasks exist
-    const hasPostRegressionTasks = release.tasks.some(
-      (task: any) => task.taskStage === 'POST_REGRESSION' || task.stage === 'POST_REGRESSION'
+    // Check if any pre-release tasks exist
+    const hasPreReleaseTasks = release.tasks.some(
+      (task: any) => task.taskStage === 'PRE_RELEASE' || task.stage === 'PRE_RELEASE'
     );
     
-    if (hasPostRegressionTasks) {
-      return Phase.POST_REGRESSION;
+    if (hasPreReleaseTasks) {
+      return Phase.PRE_RELEASE;
     }
 
     // Default to kickoff if tasks exist but no stage-specific tasks
@@ -70,9 +70,9 @@ export function getStageFromPhase(phase: Phase): TaskStage | null {
     case Phase.REGRESSION:
     case Phase.REGRESSION_AWAITING_NEXT_CYCLE:
       return TaskStageEnum.REGRESSION;
-    case Phase.AWAITING_POST_REGRESSION:
-    case Phase.POST_REGRESSION:
-      return TaskStageEnum.POST_REGRESSION;
+    case Phase.AWAITING_PRE_RELEASE:
+    case Phase.PRE_RELEASE:
+      return TaskStageEnum.PRE_RELEASE;
     case Phase.AWAITING_SUBMISSION:
     case Phase.SUBMISSION:
     case Phase.SUBMITTED_PENDING_APPROVAL:

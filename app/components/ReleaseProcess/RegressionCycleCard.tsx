@@ -9,11 +9,12 @@ import {
   Badge,
   Card,
   Group,
+  Paper,
   Stack,
   Text,
   ThemeIcon,
 } from '@mantine/core';
-import { IconCalendar, IconCheck, IconClock, IconX } from '@tabler/icons-react';
+import { IconCalendar, IconChevronDown, IconCheck, IconClock, IconX } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import {
   CYCLE_STATUS_COLORS,
@@ -21,7 +22,7 @@ import {
   getCycleStatusColor,
   getCycleStatusLabel,
 } from '~/constants/release-process-ui';
-import type { RegressionCycle, Task, BuildInfo } from '~/types/release-process.types';
+import type { RegressionCycle, Task } from '~/types/release-process.types';
 import { RegressionCycleStatus } from '~/types/release-process-enums';
 import { formatReleaseDateTime } from '~/utils/release-process-date';
 import { TaskCard } from './TaskCard';
@@ -29,23 +30,24 @@ import { TaskCard } from './TaskCard';
 interface RegressionCycleCardProps {
   cycle: RegressionCycle;
   tasks: Task[]; // Tasks for this cycle (filtered by releaseCycleId)
-  builds?: BuildInfo[]; // Builds associated with this cycle
+  // Note: Builds are displayed inside task cards via BuildTaskDetails, not here
   tenantId: string;
   releaseId: string;
   onRetryTask?: (taskId: string) => void;
   isExpanded?: boolean; // For past cycles - whether to show expanded by default
   className?: string;
+  isInsideAccordion?: boolean; // Explicitly mark if this is inside an Accordion
 }
 
 export function RegressionCycleCard({
   cycle,
   tasks,
-  builds = [],
   tenantId,
   releaseId,
   onRetryTask,
   isExpanded = false,
   className,
+  isInsideAccordion = false,
 }: RegressionCycleCardProps) {
   const statusColor = getCycleStatusColor(cycle.status);
   const statusLabel = getCycleStatusLabel(cycle.status);
@@ -75,21 +77,45 @@ export function RegressionCycleCard({
     }
   };
 
-  // Group builds by platform
-  const buildsByPlatform = useMemo(() => {
-    const grouped: Record<string, BuildInfo[]> = {};
-    builds.forEach((build) => {
-      if (!grouped[build.platform]) {
-        grouped[build.platform] = [];
-      }
-      grouped[build.platform].push(build);
-    });
-    return grouped;
-  }, [builds]);
-
   // For past cycles, use accordion for collapsible display
   const isPastCycle = cycle.status === RegressionCycleStatus.DONE || cycle.status === RegressionCycleStatus.ABANDONED;
 
+  // Tasks content (used in both accordion and non-accordion views)
+  const tasksContent = (
+    <>
+      {/* Cycle Tasks */}
+      {/* Note: Builds are displayed inside task cards via BuildTaskDetails component */}
+      {/* When cycle is IN_PROGRESS: tasks use task.builds (consumed builds) */}
+      {/* When cycle starts: builds are consumed and moved to task.builds, making task COMPLETED */}
+      {tasks.length > 0 ? (
+        <Stack gap="md">
+          <Text size="sm" fw={500} c="dimmed">
+            Tasks ({tasks.length})
+          </Text>
+          <Stack gap="sm">
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                tenantId={tenantId}
+                releaseId={releaseId}
+                onRetry={onRetryTask}
+                // Note: For regression, uploadedBuilds are for upcoming slot (next cycle)
+                // Current cycle tasks use task.builds when cycle is IN_PROGRESS
+                // No need to pass uploadedBuilds here - they're stage-level for upcoming slot
+              />
+            ))}
+          </Stack>
+        </Stack>
+      ) : (
+        <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
+          No tasks for this cycle
+        </Text>
+      )}
+    </>
+  );
+
+  // Full cycle content with metadata (for non-accordion views)
   const cycleContent = (
     <Stack gap="md">
       {/* Cycle Metadata */}
@@ -127,83 +153,90 @@ export function RegressionCycleCard({
         </Badge>
       </Group>
 
-      {/* Build Info by Platform */}
-      {Object.keys(buildsByPlatform).length > 0 && (
-        <Stack gap="xs">
-          <Text size="sm" fw={500} c="dimmed">
-            Builds
-          </Text>
-          <Group gap="md">
-            {Object.entries(buildsByPlatform).map(([platform, platformBuilds]) => (
-              <Group key={platform} gap="xs">
-                <Badge variant="light" size="sm">
-                  {platform}
-                </Badge>
-                <Text size="xs" c="dimmed">
-                  {platformBuilds.length} build{platformBuilds.length !== 1 ? 's' : ''}
-                </Text>
-              </Group>
-            ))}
-          </Group>
-        </Stack>
-      )}
-
-      {/* Cycle Tasks */}
-      {tasks.length > 0 ? (
-        <Stack gap="md">
-          <Text size="sm" fw={500} c="dimmed">
-            Tasks ({tasks.length})
-          </Text>
-          <Stack gap="sm">
-            {tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                tenantId={tenantId}
-                releaseId={releaseId}
-                onRetry={onRetryTask}
-              />
-            ))}
-          </Stack>
-        </Stack>
-      ) : (
-        <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
-          No tasks for this cycle
-        </Text>
-      )}
+      {tasksContent}
     </Stack>
   );
 
-  // For past cycles, wrap in accordion
-  if (isPastCycle) {
+  // For past cycles, wrap in accordion ONLY if explicitly inside an Accordion
+  // This prevents rendering Accordion.Item outside of Accordion context
+  if (isPastCycle && isInsideAccordion) {
     return (
       <Accordion.Item value={cycle.id} className={className}>
-        <Accordion.Control>
-          <Group justify="space-between" style={{ width: '100%' }}>
-            <Group gap="sm">
-              <Text fw={500}>
-                {cycle.cycleTag || `Cycle ${cycle.id.slice(0, 8)}`}
-              </Text>
-              {cycle.isLatest && (
-                <Badge size="xs" color="blue" variant="light">
-                  Latest
+        <Accordion.Control
+          chevron={null}
+          styles={{
+            control: {
+              padding: 0,
+              '&:hover': {
+                backgroundColor: 'transparent',
+              },
+            },
+            chevron: {
+              display: 'none',
+            },
+            label: {
+              padding: 0,
+            },
+          }}
+        >
+          <Paper
+            shadow="sm"
+            p="md"
+            radius="md"
+            withBorder
+            style={{
+              width: '100%',
+              border: '1px solid var(--mantine-color-gray-3)',
+              backgroundColor: 'var(--mantine-color-white)',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Group justify="space-between" style={{ width: '100%', flex: 1 }}>
+              <Group gap="sm">
+                <Text fw={500}>
+                  {cycle.cycleTag || `Cycle ${cycle.id.slice(0, 8)}`}
+                </Text>
+                {cycle.isLatest && (
+                  <Badge size="xs" color="blue" variant="light">
+                    Latest
+                  </Badge>
+                )}
+              </Group>
+              <Group gap="sm">
+                <Group gap="xs">
+                  <IconCalendar size={16} />
+                  <Text size="sm" c="dimmed">
+                    {cycleDateTime}
+                  </Text>
+                </Group>
+                {completedDateTime && (
+                  <Text size="sm" c="dimmed">
+                    Completed: {completedDateTime}
+                  </Text>
+                )}
+                <Badge
+                  color={statusColor}
+                  leftSection={<ThemeIcon size={16} variant="transparent" color={statusColor}>{getStatusIcon()}</ThemeIcon>}
+                >
+                  {statusLabel}
                 </Badge>
-              )}
+                <IconChevronDown
+                  size={16}
+                  style={{
+                    marginLeft: 'var(--mantine-spacing-xs)',
+                    transition: 'transform 0.2s ease',
+                  }}
+                  className="accordion-chevron"
+                />
+              </Group>
             </Group>
-            <Group gap="sm">
-              <Text size="sm" c="dimmed">
-                {cycleDateTime}
-              </Text>
-              <Badge color={statusColor} size="sm">
-                {statusLabel}
-              </Badge>
-            </Group>
-          </Group>
+          </Paper>
         </Accordion.Control>
         <Accordion.Panel>
-          <Card shadow="sm" padding="md" radius="md" withBorder>
-            {cycleContent}
-          </Card>
+          <Stack gap="md" pt="md">
+            {tasksContent}
+          </Stack>
         </Accordion.Panel>
       </Accordion.Item>
     );

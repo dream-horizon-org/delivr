@@ -55,7 +55,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   const cycles = data?.cycles || [];
   const currentCycle = data?.currentCycle || null;
   const tasks = data?.tasks || [];
-  const availableBuilds = data?.availableBuilds || [];
+  const uploadedBuilds = data?.uploadedBuilds || [];
   const upcomingSlot = data?.upcomingSlot;
   const approvalStatus = data?.approvalStatus;
 
@@ -101,7 +101,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
         cycles={cycles}
         currentCycle={currentCycle}
         tasks={tasks}
-        availableBuilds={availableBuilds}
+        uploadedBuilds={uploadedBuilds}
         upcomingSlot={upcomingSlot ?? null}
         tenantId={tenantId}
         releaseId={releaseId}

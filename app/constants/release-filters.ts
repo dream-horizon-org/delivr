@@ -30,7 +30,7 @@ export const STAGE_FILTERS = {
   ALL: 'all',
   KICKOFF: 'kickoff',
   REGRESSION: 'regression',
-  POST_REGRESSION: 'post_regression',
+  PRE_RELEASE: 'pre_release',
   SUBMISSION: 'submission',
   COMPLETED: 'completed',
 } as const;
@@ -41,7 +41,7 @@ export const STAGE_FILTER_OPTIONS = [
   { value: STAGE_FILTERS.ALL, label: 'All Stages' },
   { value: STAGE_FILTERS.KICKOFF, label: 'Kickoff' },
   { value: STAGE_FILTERS.REGRESSION, label: 'Regression' },
-  { value: STAGE_FILTERS.POST_REGRESSION, label: 'Post-Regression' },
+  { value: STAGE_FILTERS.PRE_RELEASE, label: 'Pre-Release' },
   { value: STAGE_FILTERS.SUBMISSION, label: 'Submission' },
   { value: STAGE_FILTERS.COMPLETED, label: 'Completed' },
 ] as const;
@@ -57,9 +57,9 @@ export const STAGE_FILTER_TO_PHASES: Record<StageFilter, Phase[]> = {
     Phase.REGRESSION_AWAITING_NEXT_CYCLE,
     Phase.AWAITING_REGRESSION,
   ],
-  [STAGE_FILTERS.POST_REGRESSION]: [
-    Phase.POST_REGRESSION,
-    Phase.AWAITING_POST_REGRESSION,
+  [STAGE_FILTERS.PRE_RELEASE]: [
+    Phase.PRE_RELEASE,
+    Phase.AWAITING_PRE_RELEASE,
   ],
   [STAGE_FILTERS.SUBMISSION]: [
     Phase.SUBMISSION,

@@ -94,7 +94,7 @@ export const STAGE_STATUS_COLORS = {
 export const STAGE_LABELS = {
   KICKOFF: 'Kickoff',
   REGRESSION: 'Regression',
-  POST_REGRESSION: 'Post-Regression',
+  PRE_RELEASE: 'Pre-Release',
   DISTRIBUTION: 'Distribution',
 } as const;
 
@@ -217,8 +217,8 @@ export const KICKOFF_LABELS = {
 // Post-Regression Stage Labels
 // ============================================================================
 
-export const POST_REGRESSION_LABELS = {
-  TITLE: 'Post-Regression Stage',
+export const PRE_RELEASE_LABELS = {
+  TITLE: 'Pre-Release Stage',
   DESCRIPTION: 'Pre-release tasks before distribution',
   TASKS: 'Tasks',
   NO_TASKS: 'No tasks available',
@@ -332,8 +332,8 @@ export const PHASE_LABELS = {
   AWAITING_REGRESSION: 'Awaiting Regression',
   REGRESSION: 'Regression',
   REGRESSION_AWAITING_NEXT_CYCLE: 'Awaiting Next Cycle',
-  AWAITING_POST_REGRESSION: 'Awaiting Post-Regression',
-  POST_REGRESSION: 'Post-Regression',
+  AWAITING_PRE_RELEASE: 'Awaiting Pre-Release',
+  PRE_RELEASE: 'Pre-Release',
   AWAITING_SUBMISSION: 'Awaiting Submission',
   SUBMISSION: 'Submission',
   SUBMITTED_PENDING_APPROVAL: 'Submitted - Pending Approval',
@@ -349,8 +349,8 @@ export const PHASE_COLORS = {
   AWAITING_REGRESSION: 'cyan',
   REGRESSION: 'blue',
   REGRESSION_AWAITING_NEXT_CYCLE: 'cyan',
-  AWAITING_POST_REGRESSION: 'cyan',
-  POST_REGRESSION: 'blue',
+  AWAITING_PRE_RELEASE: 'cyan',
+  PRE_RELEASE: 'blue',
   AWAITING_SUBMISSION: 'cyan',
   SUBMISSION: 'blue',
   SUBMITTED_PENDING_APPROVAL: 'cyan',

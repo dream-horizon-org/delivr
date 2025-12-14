@@ -12,10 +12,10 @@ import { Container, Group, Stack } from '@mantine/core';
 import { useNavigate, useParams } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { KickoffStage, PostRegressionStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
+import { KickoffStage, PreReleaseStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { useRelease } from '~/hooks/useRelease';
-import { useKickoffStage, useRegressionStage, usePostRegressionStage } from '~/hooks/useReleaseProcess';
+import { useKickoffStage, useRegressionStage, usePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { Phase, TaskStage } from '~/types/release-process-enums';
 import {
   determineReleasePhase,
@@ -51,7 +51,7 @@ export default function ReleaseDetailsPage() {
   // Fetch stage data for console logging
   const kickoffData = useKickoffStage(org, releaseId);
   const regressionData = useRegressionStage(org, releaseId);
-  const postRegressionData = usePostRegressionStage(org, releaseId);
+  const preReleaseData = usePreReleaseStage(org, releaseId);
 
   // Always land on active stage when release loads or current stage changes
   useEffect(() => {
@@ -69,8 +69,8 @@ export default function ReleaseDetailsPage() {
       stageData = kickoffData.data;
     } else if (selectedStage === TaskStage.REGRESSION) {
       stageData = regressionData.data;
-    } else if (selectedStage === TaskStage.POST_REGRESSION) {
-      stageData = postRegressionData.data;
+    } else if (selectedStage === TaskStage.PRE_RELEASE) {
+      stageData = preReleaseData.data;
     }
 
     if (stageData?.tasks) {
@@ -81,7 +81,7 @@ export default function ReleaseDetailsPage() {
         stage: t.stage,
       })));
     }
-  }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, postRegressionData.data]);
+  }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, preReleaseData.data]);
 
   // Handle navigation to distribution stage
   useEffect(() => {
@@ -135,8 +135,8 @@ export default function ReleaseDetailsPage() {
       return <RegressionStage tenantId={org} releaseId={releaseId} />;
     }
 
-    if (stageToRender === 'POST_REGRESSION') {
-      return <PostRegressionStage tenantId={org} releaseId={releaseId} />;
+    if (stageToRender === 'PRE_RELEASE') {
+      return <PreReleaseStage tenantId={org} releaseId={releaseId} />;
     }
 
     return null;

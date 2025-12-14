@@ -16,7 +16,6 @@ import { IconInfoCircle, IconCalendar } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { useRelease } from '~/hooks/useRelease';
 import { formatReleaseDateTime } from '~/utils/release-process-date';
-import { Platform } from '~/types/release-process-enums';
 import type {
   RegressionCycle,
   RegressionSlot,
@@ -32,7 +31,7 @@ interface RegressionCyclesListProps {
   cycles: RegressionCycle[];
   currentCycle: RegressionCycle | null;
   tasks: Task[]; // All regression tasks (will be grouped by releaseCycleId)
-  availableBuilds: BuildInfo[];
+  uploadedBuilds: BuildInfo[];  // Builds uploaded for upcoming slot (not yet consumed)
   upcomingSlot: RegressionSlot[] | null;
   tenantId: string;
   releaseId: string;
@@ -44,7 +43,7 @@ export function RegressionCyclesList({
   cycles,
   currentCycle,
   tasks,
-  availableBuilds,
+  uploadedBuilds,
   upcomingSlot,
   tenantId,
   releaseId,
@@ -68,19 +67,8 @@ export function RegressionCyclesList({
     return grouped;
   }, [tasks]);
 
-  // Get builds for each cycle
-  const buildsByCycle = useMemo(() => {
-    const grouped: Record<string, BuildInfo[]> = {};
-    availableBuilds.forEach((build) => {
-      if (build.regressionId) {
-        if (!grouped[build.regressionId]) {
-          grouped[build.regressionId] = [];
-        }
-        grouped[build.regressionId].push(build);
-      }
-    });
-    return grouped;
-  }, [availableBuilds]);
+  // Note: Builds are displayed inside task cards via BuildTaskDetails component
+  // No need to extract builds separately - tasks already have builds in task.builds when consumed
 
   // Separate past cycles from current
   const pastCycles = useMemo(() => {
@@ -93,19 +81,24 @@ export function RegressionCyclesList({
   }, [cycles, currentCycle]);
 
   // Determine if we should show upload widgets
-  // Show when: current cycle is completed AND upcoming slot exists (including first cycle after kickoff)
+  // Show ONLY when:
+  // 1. Current cycle is DONE (completed) AND upcoming slot exists
+  // 2. OR no cycles exist yet (first cycle after kickoff) AND upcoming slot exists
+  // Do NOT show when cycle is IN_PROGRESS (cycle has started, builds are consumed)
   const shouldShowUploadWidgets = useMemo(() => {
     if (!isManualMode) return false;
     
-    // If there's an active cycle, don't show upload widgets
+    // Never show if there's an active cycle (IN_PROGRESS)
     if (currentCycle && currentCycle.status === RegressionCycleStatus.IN_PROGRESS) {
       return false;
     }
     
-    // Show if current cycle is completed and there's an upcoming slot
-    const currentCycleCompleted =
-      currentCycle?.status === RegressionCycleStatus.DONE;
+    // Must have an upcoming slot
     const hasUpcomingSlot = upcomingSlot && upcomingSlot.length > 0;
+    if (!hasUpcomingSlot) return false;
+    
+    // Show if current cycle is DONE (completed)
+    const currentCycleCompleted = currentCycle?.status === RegressionCycleStatus.DONE;
     
     // Also show if no cycles exist yet (first cycle after kickoff)
     const noCyclesYet = cycles.length === 0;
@@ -122,17 +115,19 @@ export function RegressionCyclesList({
   }, [release?.platformTargetMappings]);
 
   // Check which platforms still need builds
+  // Only check uploadedBuilds when cycle hasn't started (shouldShowUploadWidgets is true)
   const platformsNeedingBuilds = useMemo(() => {
     if (!shouldShowUploadWidgets) return [];
     
+    // uploadedBuilds are for upcoming slot (not yet consumed by cycle)
     const uploadedPlatforms = new Set(
-      availableBuilds
-        .filter((b) => !b.regressionId) // Only unused builds
+      uploadedBuilds
+        .filter((b) => !b.regressionId) // Only unused builds (not yet linked to cycle)
         .map((b) => b.platform)
     );
     
     return requiredPlatforms.filter((p) => !uploadedPlatforms.has(p));
-  }, [shouldShowUploadWidgets, availableBuilds, requiredPlatforms]);
+  }, [shouldShowUploadWidgets, uploadedBuilds, requiredPlatforms]);
 
   // Format upcoming slot date
   const upcomingSlotDate = useMemo(() => {
@@ -158,7 +153,6 @@ export function RegressionCyclesList({
           <RegressionCycleCard
             cycle={currentCycle}
             tasks={tasksByCycle[currentCycle.id] || []}
-            builds={buildsByCycle[currentCycle.id] || []}
             tenantId={tenantId}
             releaseId={releaseId}
             onRetryTask={onRetryTask}
@@ -244,20 +238,41 @@ export function RegressionCyclesList({
           <Text fw={600} size="lg">
             Past Cycles ({pastCycles.length})
           </Text>
-          <Accordion defaultValue={pastCycles[0]?.id} variant="separated">
-            {pastCycles.map((cycle) => (
-              <RegressionCycleCard
-                key={cycle.id}
-                cycle={cycle}
-                tasks={tasksByCycle[cycle.id] || []}
-                builds={buildsByCycle[cycle.id] || []}
-                tenantId={tenantId}
-                releaseId={releaseId}
-                onRetryTask={onRetryTask}
-                isExpanded={false}
-              />
-            ))}
-          </Accordion>
+          <>
+            <style>{`
+              [data-expanded="true"] .accordion-chevron {
+                transform: rotate(180deg);
+              }
+            `}</style>
+            <Accordion
+              defaultValue={pastCycles[0]?.id}
+              variant="separated"
+              styles={{
+                item: {
+                  border: 'none',
+                  '& + &': {
+                    marginTop: 'var(--mantine-spacing-md)',
+                  },
+                },
+                panel: {
+                  paddingTop: 'var(--mantine-spacing-md)',
+                },
+              }}
+            >
+              {pastCycles.map((cycle) => (
+                <RegressionCycleCard
+                  key={cycle.id}
+                  cycle={cycle}
+                  tasks={tasksByCycle[cycle.id] || []}
+                  tenantId={tenantId}
+                  releaseId={releaseId}
+                  onRetryTask={onRetryTask}
+                  isExpanded={false}
+                  isInsideAccordion={true}
+                />
+              ))}
+            </Accordion>
+          </>
         </Stack>
       )}
     </Stack>
