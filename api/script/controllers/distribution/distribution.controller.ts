@@ -46,8 +46,43 @@ export const createDistributionController = (service: DistributionService) => {
     }
   };
 
+  /**
+   * Get distribution by ID with all submissions and action history
+   * GET /api/v1/distributions/:distributionId
+   */
+  const getDistributionById = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { distributionId } = req.params;
+
+      if (!distributionId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(new Error('Distribution ID is required'), 'Get Distribution')
+        );
+      }
+
+      const distribution = await service.getDistributionById(distributionId);
+
+      if (!distribution) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Distribution')
+        );
+      }
+
+      return res.status(HTTP_STATUS.OK).json(
+        successResponse(distribution)
+      );
+    } catch (error: unknown) {
+      console.error('[Get Distribution by ID] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(
+        errorResponse(error, 'Failed to get distribution')
+      );
+    }
+  };
+
   return {
-    getDistributionByReleaseId
+    getDistributionByReleaseId,
+    getDistributionById
   };
 };
 

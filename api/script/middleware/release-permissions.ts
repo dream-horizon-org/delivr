@@ -194,6 +194,58 @@ export function requireReleaseOwner(config: ReleasePermissionConfig) {
 }
 
 /**
+ * Middleware: Require distribution access
+ * Gets distribution by ID, then checks release permissions
+ */
+export function requireDistributionAccess(config: ReleasePermissionConfig) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+    const distributionId = req.params.distributionId;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    if (!distributionId) {
+      return res.status(400).json({ error: 'Distribution ID required' });
+    }
+    
+    try {
+      const sequelize = (config.storage as any).sequelize;
+      
+      // Get distribution to find the release ID
+      const distribution = await sequelize.models.Distribution.findByPk(distributionId);
+      
+      if (!distribution) {
+        return res.status(404).json({ 
+          error: 'Distribution not found' 
+        });
+      }
+      
+      const releaseId = distribution.dataValues.releaseId;
+      
+      // Check release permissions
+      const releasePermission = await getUserReleasePermission(config.storage, userId, releaseId);
+      
+      if (!releasePermission) {
+        return res.status(403).json({ 
+          error: 'You do not have access to this distribution' 
+        });
+      }
+      
+      // Attach permission info to request
+      (req as any).releasePermission = releasePermission;
+      next();
+    } catch (error) {
+      console.error('Error checking distribution access:', error);
+      return res.status(500).json({ 
+        error: 'Failed to check distribution access' 
+      });
+    }
+  };
+}
+
+/**
  * Helper: Extract release ID from request
  */
 export function extractReleaseId(req: Request): string | null {

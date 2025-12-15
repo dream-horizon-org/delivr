@@ -199,6 +199,15 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     );
   }
 
+  // Get distribution by distribution ID
+  if (distributionController) {
+    router.get(
+      "/distributions/:distributionId",
+      releasePermissions.requireDistributionAccess({ storage }),
+      distributionController.getDistributionById
+    );
+  }
+
   // Get all releases for a tenant
   router.get(
     "/tenants/:tenantId/releases",
