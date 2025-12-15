@@ -6,6 +6,8 @@
 
 // ============================================================================
 // Pre-Release Stage Components (Week 3)
+// NOTE: These components are for PRE-RELEASE module use only
+// They are NOT part of the distribution management module
 // ============================================================================
 export { BuildStatusCard } from './BuildStatusCard';
 export { ExtraCommitsWarning } from './ExtraCommitsWarning';
@@ -67,10 +69,9 @@ export {
 // Component Types
 // ============================================================================
 export type {
-  // Pre-Release
+  // Pre-Release Types (for pre-release module use only)
   BuildStatusCardProps, BuildSummaryState,
-
-  // Distribution
+  // Distribution Types
   DistributionStatusPanelProps, ExtraCommitsWarningProps, HaltRolloutDialogProps, ManualApprovalDialogProps, PlatformSubmissionCardProps, PMApprovalStatusProps, PreReleaseStageProps, RejectionDetailsCardProps, RolloutControlsProps, RolloutProgressBarProps, SubmissionCardProps,
   SubmitToStoresFormProps, UploadAABFormProps,
   VerifyTestFlightFormProps

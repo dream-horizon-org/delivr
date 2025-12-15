@@ -36,7 +36,7 @@ type ArtifactDisplayProps = {
   // Android specific
   artifactName?: string;
   artifactSize?: string;
-  internalTestingLink?: string;
+  internalTrackLink?: string;  // Renamed from internalTestingLink
   // iOS specific
   buildNumber?: string;
   testflightLink?: string;
@@ -53,7 +53,7 @@ export function ArtifactDisplay({
   platform,
   artifactName,
   artifactSize,
-  internalTestingLink,
+  internalTrackLink,  // Renamed from internalTestingLink
   buildNumber,
   testflightLink,
 }: ArtifactDisplayProps) {
@@ -113,7 +113,7 @@ export function ArtifactDisplay({
             </Group>
 
             {/* Internal Testing Link */}
-            {internalTestingLink && (
+            {internalTrackLink && (
               <Group gap="xs">
                 <IconExternalLink size={DIALOG_ICON_SIZES.TITLE} color="var(--mantine-color-green-6)" />
                 <div style={{ flex: 1 }}>
@@ -124,7 +124,7 @@ export function ArtifactDisplay({
                     size="xs"
                     c="blue"
                     component="a"
-                    href={internalTestingLink}
+                    href={internalTrackLink}  // Renamed from internalTestingLink
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ textDecoration: 'underline', cursor: 'pointer' }}

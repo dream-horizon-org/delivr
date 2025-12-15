@@ -5,29 +5,31 @@
  * - Platform and store info
  * - Version and track details
  * - Status with timeline
+ * - Submission history audit trail (actionHistory)
  * - Clickable for navigation
  */
 
-import { Badge, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
+import { Badge, Button, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
   IconBrandAndroid,
   IconBrandApple,
   IconCheck,
   IconChevronRight,
   IconClock,
+  IconHistory,
   IconPlayerPause,
   IconX,
 } from '@tabler/icons-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DISTRIBUTION_UI_LABELS,
-  FORM_ICON_SIZES,
   PLATFORM_LABELS,
   SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
+  SUBMISSION_STATUS_LABELS
 } from '~/constants/distribution.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { RolloutProgressBar } from './RolloutProgressBar';
+import { SubmissionHistoryPanel, type HistoryEvent } from './SubmissionHistoryPanel';
 import type { SubmissionCardProps } from './distribution.types';
 import { getRolloutDisplayStatus } from './distribution.utils';
 
@@ -149,7 +151,10 @@ export function SubmissionCard(props: SubmissionCardProps) {
     track,
     rolloutPercent,
     rejectionReason,
+    actionHistory,
   } = submission;
+
+  const [showHistory, setShowHistory] = useState(false);
 
   const isRejected = submissionStatus === SubmissionStatus.REJECTED;
   const storeName = STORE_NAMES[platform];
@@ -157,6 +162,20 @@ export function SubmissionCard(props: SubmissionCardProps) {
     () => getRolloutDisplayStatus(rolloutPercent, submissionStatus),
     [rolloutPercent, submissionStatus]
   );
+
+  // Transform actionHistory into HistoryEvent format for the panel
+  const historyEvents: HistoryEvent[] = useMemo(() => {
+    if (!actionHistory || actionHistory.length === 0) return [];
+    
+    return actionHistory.map((historyItem) => ({
+      id: `${historyItem.action}-${historyItem.createdAt}`,
+      timestamp: historyItem.createdAt,
+      action: historyItem.action,  // PAUSED, RESUMED, CANCELLED, HALTED
+      actor: historyItem.createdBy,  // Email of user who performed the action
+      actorType: 'user' as const,
+      metadata: historyItem.reason ? { reason: historyItem.reason } : undefined,
+    }));
+  }, [actionHistory]);
 
   const CardWrapper = onClick ? UnstyledButton : 'div';
   const cardWrapperClass = `w-full ${onClick ? 'hover:bg-gray-50 transition-colors' : ''}`;
@@ -245,9 +264,36 @@ export function SubmissionCard(props: SubmissionCardProps) {
         {!compact && (
           <div className="mt-3 pt-3 border-t">
             <SubmissionTimeline submission={submission} />
+            
+            {/* View History Button - Shows action history (PAUSED, RESUMED, HALTED, CANCELLED) */}
+            {historyEvents.length > 0 && (
+              <Group justify="flex-end" mt="sm">
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  leftSection={<IconHistory size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowHistory(true);
+                  }}
+                >
+                  View History
+                </Button>
+              </Group>
+            )}
           </div>
         )}
       </Card>
+
+      {/* History Panel - Shows action history from actionHistory array */}
+      <SubmissionHistoryPanel
+        opened={showHistory}
+        onClose={() => setShowHistory(false)}
+        submissionId={submission.id}
+        platform={platform}
+        version={versionName}
+        events={historyEvents}
+      />
     </CardWrapper>
   );
 }

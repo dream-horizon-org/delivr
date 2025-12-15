@@ -1,10 +1,13 @@
 /**
  * Remix API Route: Submit Existing Submission (First-Time Submission)
- * PUT /api/v1/submissions/:submissionId/submit
+ * PUT /api/v1/submissions/:submissionId/submit?platform=ANDROID|IOS
  * 
  * This endpoint submits an existing PENDING submission to the store.
  * The submission is already created when the distribution is created.
  * This endpoint updates submission details and changes status from PENDING to IN_REVIEW.
+ * 
+ * IMPORTANT: Backend requires `platform` query parameter to identify which table to query
+ * (android_submission_builds or ios_submission_builds)
  * 
  * Use Case: First-time submission where submission already exists with PENDING status
  * Reference: DISTRIBUTION_API_SPEC.md lines 476-594
@@ -18,6 +21,7 @@ import {
   LOG_CONTEXT,
 } from '~/constants/distribution-api.constants';
 import type { SubmitSubmissionRequest } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -52,6 +56,9 @@ function validateInAppPriority(priority: unknown): boolean {
 /**
  * PUT - Submit existing PENDING submission
  * 
+ * Query Parameters:
+ * - platform: ANDROID | IOS (required - for backend table identification)
+ * 
  * Request Body (Android):
  * {
  *   rolloutPercent?: number,     // 0-100, supports decimals
@@ -71,6 +78,23 @@ const submitSubmission: AuthenticatedActionFunction = async ({ params, request }
 
   if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
+  }
+
+  // Extract and validate platform query parameter
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
+  
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PLATFORM',
+          message: 'Platform query parameter is required and must be either ANDROID or IOS',
+        },
+      },
+      { status: HTTP_STATUS.BAD_REQUEST }
+    );
   }
 
   try {
@@ -135,7 +159,8 @@ const submitSubmission: AuthenticatedActionFunction = async ({ params, request }
 
     const response = await DistributionService.submitSubmission(
       submissionId,
-      body
+      body,
+      platform as Platform
     );
 
     return json(response.data);

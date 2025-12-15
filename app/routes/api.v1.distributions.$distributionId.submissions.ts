@@ -90,7 +90,9 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
   
   // In production, upload to S3 and return the S3 key or URL
   // For now, return a mock file reference
-  return new File(chunks, filename ?? 'upload.aab', { type: 'application/octet-stream' });
+  // Convert Uint8Array[] to Blob first to satisfy type requirements
+  const blob = new Blob(chunks as BlobPart[], { type: 'application/octet-stream' });
+  return new File([blob], filename ?? 'upload.aab', { type: 'application/octet-stream' });
 };
 
 /**
@@ -108,7 +110,7 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * Request Body (iOS - application/json):
  * - platform: "IOS"
  * - version: "2.7.1"
- * - testflightBuildNumber: 56790
+ * - testflightNumber: 56790
  * - phasedRelease: true
  * - resetRating: false
  * - releaseNotes: "..."
@@ -215,8 +217,8 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       }
 
       if (
-        !body.testflightBuildNumber ||
-        typeof body.testflightBuildNumber !== 'number'
+        !body.testflightNumber ||
+        typeof body.testflightNumber !== 'number'
       ) {
         return createValidationError(ERROR_MESSAGES.TESTFLIGHT_BUILD_REQUIRED);
       }
@@ -254,7 +256,7 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       const iosRequest: IOSResubmissionRequest = {
         platform: Platform.IOS,
         version: body.version as string,
-        testflightBuildNumber: body.testflightBuildNumber,
+        testflightNumber: body.testflightNumber,
         phasedRelease: body.phasedRelease,
         resetRating: body.resetRating,
         releaseNotes: body.releaseNotes as string,

@@ -1,10 +1,13 @@
 /**
  * Remix API Route: Rollout Control
  * 
- * PATCH /api/v1/submissions/:submissionId/rollout        - Update rollout percentage
- * PATCH /api/v1/submissions/:submissionId/rollout/pause  - Pause rollout (iOS only)
- * PATCH /api/v1/submissions/:submissionId/rollout/resume - Resume rollout (iOS only)
- * PATCH /api/v1/submissions/:submissionId/rollout/halt   - Emergency halt
+ * PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>        - Update rollout percentage
+ * PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS            - Pause rollout (iOS only)
+ * PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS           - Resume rollout (iOS only)
+ * PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>   - Emergency halt
+ * 
+ * IMPORTANT: Backend requires `platform` query parameter to identify which table to update
+ * (android_submission_builds or ios_submission_builds)
  * 
  * Reference: DISTRIBUTION_API_SPEC.md lines 827-1193
  */
@@ -22,12 +25,17 @@ import {
 } from '~/utils/api-route-helpers';
 import {
   ERROR_MESSAGES,
+  HTTP_STATUS,
   LOG_CONTEXT,
   VALIDATION,
 } from '~/constants/distribution-api.constants';
+import { Platform } from '~/types/distribution.types';
 
 /**
  * PATCH - Update rollout percentage
+ * 
+ * Query Parameters:
+ * - platform: ANDROID | IOS (required - for backend table identification)
  * 
  * Platform-specific rules:
  * - Android: Any value 0-100 (supports decimals)
@@ -39,6 +47,23 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 
   if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
+  }
+
+  // Extract and validate platform query parameter
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
+  
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PLATFORM',
+          message: 'Platform query parameter is required and must be either ANDROID or IOS',
+        },
+      },
+      { status: HTTP_STATUS.BAD_REQUEST }
+    );
   }
 
   try {
@@ -54,7 +79,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
     }
 
     const requestData = { rolloutPercent };
-    const response = await DistributionService.updateRollout(submissionId, requestData);
+    const response = await DistributionService.updateRollout(submissionId, requestData, platform as Platform);
 
     return json(response.data);
   } catch (error) {
@@ -66,6 +91,9 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 /**
  * PATCH - Pause rollout (iOS phased release only)
  * 
+ * Query Parameters:
+ * - platform: Must be "IOS" (required - Android does not support pause)
+ * 
  * Request body:
  * - reason: string (required)
  */
@@ -74,6 +102,23 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 
   if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
+  }
+
+  // Extract and validate platform query parameter (must be IOS)
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
+  
+  if (platform !== Platform.IOS) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PLATFORM',
+          message: 'Platform query parameter must be IOS (Android does not support pause)',
+        },
+      },
+      { status: HTTP_STATUS.BAD_REQUEST }
+    );
   }
 
   try {
@@ -85,7 +130,7 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
     }
 
     const requestData = { reason };
-    const response = await DistributionService.pauseRollout(submissionId, requestData);
+    const response = await DistributionService.pauseRollout(submissionId, requestData, platform);
 
     return json(response.data);
   } catch (error) {
@@ -97,17 +142,37 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 /**
  * PATCH - Resume rollout (iOS phased release only)
  * 
+ * Query Parameters:
+ * - platform: Must be "IOS" (required - Android does not support resume)
+ * 
  * No request body required.
  */
-const resumeRollout: AuthenticatedActionFunction = async ({ params, user }) => {
+const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
 
   if (!validateRequired(submissionId, ERROR_MESSAGES.SUBMISSION_ID_REQUIRED)) {
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
+  // Extract and validate platform query parameter (must be IOS)
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
+  
+  if (platform !== Platform.IOS) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PLATFORM',
+          message: 'Platform query parameter must be IOS (Android does not support resume)',
+        },
+      },
+      { status: HTTP_STATUS.BAD_REQUEST }
+    );
+  }
+
   try {
-    const response = await DistributionService.resumeRollout(submissionId);
+    const response = await DistributionService.resumeRollout(submissionId, platform);
     return json(response.data);
   } catch (error) {
     logApiError(LOG_CONTEXT.RESUME_ROLLOUT_API, error);
@@ -117,6 +182,9 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, user }) => {
 
 /**
  * PATCH - Emergency halt rollout
+ * 
+ * Query Parameters:
+ * - platform: ANDROID | IOS (required - for backend table identification)
  * 
  * Request body:
  * - reason: string (required)
@@ -130,6 +198,23 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
+  // Extract and validate platform query parameter
+  const url = new URL(request.url);
+  const platform = url.searchParams.get('platform');
+  
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PLATFORM',
+          message: 'Platform query parameter is required and must be either ANDROID or IOS',
+        },
+      },
+      { status: HTTP_STATUS.BAD_REQUEST }
+    );
+  }
+
   try {
     const body = await request.json();
     const { reason } = body;
@@ -139,7 +224,7 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
     }
 
     const requestData = { reason };
-    const response = await DistributionService.haltRollout(submissionId, requestData);
+    const response = await DistributionService.haltRollout(submissionId, requestData, platform as Platform);
 
     return json(response.data);
   } catch (error) {

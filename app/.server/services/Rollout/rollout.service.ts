@@ -12,6 +12,7 @@ import type {
   Submission,
   UpdateRolloutRequest,
 } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 
 class Rollout {
@@ -23,9 +24,9 @@ class Rollout {
   /**
    * Update rollout percentage for a submission
    */
-  async updateRollout(submissionId: string, request: UpdateRolloutRequest): Promise<ApiResponse<RolloutUpdateResponse>> {
+  async updateRollout(submissionId: string, request: UpdateRolloutRequest, platform: Platform): Promise<ApiResponse<RolloutUpdateResponse>> {
     const response = await this.__client.patch<UpdateRolloutRequest, AxiosResponse<ApiResponse<RolloutUpdateResponse>>>(
-      `/api/v1/submissions/${submissionId}/rollout`,
+      `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
       request
     );
     return response.data;
@@ -34,9 +35,9 @@ class Rollout {
   /**
    * Pause rollout (iOS only)
    */
-  async pauseRollout(submissionId: string, request?: PauseRolloutRequest): Promise<ApiResponse<Submission>> {
+  async pauseRollout(submissionId: string, request?: PauseRolloutRequest, platform: Platform = Platform.IOS): Promise<ApiResponse<Submission>> {
     const response = await this.__client.patch<PauseRolloutRequest | undefined, AxiosResponse<ApiResponse<Submission>>>(
-      `/api/v1/submissions/${submissionId}/rollout/pause`,
+      `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
       request
     );
     return response.data;
@@ -45,9 +46,9 @@ class Rollout {
   /**
    * Resume paused rollout (iOS only)
    */
-  async resumeRollout(submissionId: string): Promise<ApiResponse<Submission>> {
+  async resumeRollout(submissionId: string, platform: Platform = Platform.IOS): Promise<ApiResponse<Submission>> {
     const response = await this.__client.patch<null, AxiosResponse<ApiResponse<Submission>>>(
-      `/api/v1/submissions/${submissionId}/rollout/resume`,
+      `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`,
       null
     );
     return response.data;
@@ -56,9 +57,9 @@ class Rollout {
   /**
    * Emergency halt - stops rollout immediately
    */
-  async haltRollout(submissionId: string, request: HaltRolloutRequest): Promise<ApiResponse<Submission>> {
+  async haltRollout(submissionId: string, request: HaltRolloutRequest, platform: Platform): Promise<ApiResponse<Submission>> {
     const response = await this.__client.patch<HaltRolloutRequest, AxiosResponse<ApiResponse<Submission>>>(
-      `/api/v1/submissions/${submissionId}/rollout/halt`,
+      `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
       request
     );
     return response.data;

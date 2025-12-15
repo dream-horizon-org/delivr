@@ -64,9 +64,22 @@ export const loader = authenticateLoaderRequest(
       throw new Response('Missing required parameters', { status: 404 });
     }
 
+    // Extract platform from query string
+    const url = new URL(request.url);
+    const platform = url.searchParams.get('platform');
+
+    if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+      return json<LoaderData>({
+        org,
+        releaseId,
+        submission: {} as Submission,
+        error: 'Platform query parameter is required and must be either ANDROID or IOS',
+      });
+    }
+
     try {
       // Fetch submission details
-      const submissionResponse = await DistributionService.getSubmission(submissionId);
+      const submissionResponse = await DistributionService.getSubmission(submissionId, platform as Platform);
       const submission = submissionResponse.data;
 
       return json<LoaderData>({
@@ -95,9 +108,14 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 
   const formData = await request.formData();
   const rolloutPercent = parseInt(formData.get('rolloutPercent') as string);
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
 
   try {
-    await RolloutService.updateRollout(submissionId, { rolloutPercent });
+    await RolloutService.updateRollout(submissionId, { rolloutPercent }, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to update rollout' }, { status: 500 });
@@ -112,23 +130,35 @@ const pauseRollout: AuthenticatedActionFunction = async ({ params, request, user
 
   const formData = await request.formData();
   const reason = formData.get('reason') as string;
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
 
   try {
-    await RolloutService.pauseRollout(submissionId, reason ? { reason } : undefined);
+    await RolloutService.pauseRollout(submissionId, reason ? { reason } : undefined, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to pause rollout' }, { status: 500 });
   }
 };
 
-const resumeRollout: AuthenticatedActionFunction = async ({ params, user }) => {
+const resumeRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
   if (!submissionId) {
     return json({ error: 'Submission ID required' }, { status: 400 });
   }
 
+  const formData = await request.formData();
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
+
   try {
-    await RolloutService.resumeRollout(submissionId);
+    await RolloutService.resumeRollout(submissionId, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to resume rollout' }, { status: 500 });
@@ -143,9 +173,14 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
 
   const formData = await request.formData();
   const reason = formData.get('reason') as string;
+  const platform = formData.get('platform') as Platform;
+
+  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+    return json({ error: 'Platform is required' }, { status: 400 });
+  }
 
   try {
-    await RolloutService.haltRollout(submissionId, { reason });
+    await RolloutService.haltRollout(submissionId, { reason }, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to halt rollout' }, { status: 500 });
@@ -244,10 +279,10 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
 
   const handleUpdateRollout = useCallback(() => {
     fetcher.submit(
-      { _action: 'updateRollout', rolloutPercent: targetPercent.toString() },
+      { _action: 'updateRollout', rolloutPercent: targetPercent.toString(), platform: submission.platform },
       { method: 'post' }
     );
-  }, [targetPercent, fetcher]);
+  }, [targetPercent, submission.platform, fetcher]);
 
   const canIncrease = submission.status === SubmissionStatus.LIVE && 
                        submission.rolloutPercent < 100;
@@ -303,22 +338,24 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
 function HaltDialog({ 
   opened, 
   onClose, 
-  submissionId 
+  submissionId,
+  platform
 }: { 
   opened: boolean; 
   onClose: () => void; 
   submissionId: string;
+  platform: Platform;
 }) {
   const [reason, setReason] = useState('');
   const fetcher = useFetcher();
 
   const handleSubmit = useCallback(() => {
     fetcher.submit(
-      { _action: 'haltRollout', reason },
+      { _action: 'haltRollout', reason, platform },
       { method: 'post' }
     );
     onClose();
-  }, [reason, fetcher, onClose]);
+  }, [reason, platform, fetcher, onClose]);
 
   return (
     <Modal opened={opened} onClose={onClose} title="Emergency Halt" size="md" centered>
@@ -467,6 +504,7 @@ export default function SubmissionDetailPage() {
         opened={haltDialogOpened}
         onClose={closeHaltDialog}
         submissionId={submission.id}
+        platform={submission.platform}
       />
 
       {/* Resubmission Dialog */}

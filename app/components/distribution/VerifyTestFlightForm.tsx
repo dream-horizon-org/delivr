@@ -99,7 +99,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
 
     const formData = new FormData();
     formData.append('_action', 'verify-testflight');
-    formData.append('testflightBuildNumber', buildNumber);
+    formData.append('testflightNumber', buildNumber);  // Renamed from testflightBuildNumber
     formData.append('versionName', versionName);
 
     fetcher.submit(formData, { method: 'post' });

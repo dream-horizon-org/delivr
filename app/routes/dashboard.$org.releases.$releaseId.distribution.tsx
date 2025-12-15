@@ -12,34 +12,34 @@ import { IconCheck, IconRocket } from '@tabler/icons-react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-  ManualApprovalDialog,
-  SubmitToStoresForm,
-  UploadAABForm,
-  VerifyTestFlightForm
+    ManualApprovalDialog,
+    SubmitToStoresForm,
+    UploadAABForm,
+    VerifyTestFlightForm
 } from '~/components/distribution';
 import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution-api.constants';
 import {
-  DIALOG_TITLES,
-  ROLLOUT_COMPLETE_PERCENT
+    DIALOG_TITLES,
+    ROLLOUT_COMPLETE_PERCENT
 } from '~/constants/distribution.constants';
 import { useDistribution } from '~/hooks/useDistribution';
 import { usePreRelease } from '~/hooks/usePreRelease';
 import type {
-  AndroidSubmitOptions,
-  BuildsResponse,
-  BuildsSummary,
-  DistributionStatusResponse,
-  ExtraCommitsResponse,
-  IOSSubmitOptions,
-  PMStatusResponse,
-  SubmissionsResponse
+    AndroidSubmitOptions,
+    BuildsResponse,
+    BuildsSummary,
+    DistributionStatusResponse,
+    ExtraCommitsResponse,
+    IOSSubmitOptions,
+    PMStatusResponse,
+    SubmissionsResponse
 } from '~/types/distribution.types';
 import { DistributionStatus, Platform } from '~/types/distribution.types';
 import {
-  createValidationError,
-  handleAxiosError,
-  logApiError,
-  validateRequired,
+    createValidationError,
+    handleAxiosError,
+    logApiError,
+    validateRequired,
 } from '~/utils/api-route-helpers';
 import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/authenticate';
 
@@ -158,11 +158,11 @@ async function handleUploadAAB(releaseId: string, formData: FormData) {
 }
 
 async function handleVerifyTestFlight(releaseId: string, formData: FormData) {
-  const testflightBuildNumber = formData.get('testflightBuildNumber');
+  const testflightNumber = formData.get('testflightNumber');
   const versionName = formData.get('versionName');
 
   // Boundary validation - FormData returns unknown
-  if (typeof testflightBuildNumber !== 'string' || !testflightBuildNumber) {
+  if (typeof testflightNumber !== 'string' || !testflightNumber) {
     return createValidationError(ERROR_MESSAGES.TESTFLIGHT_BUILD_NUMBER_REQUIRED);
   }
   if (typeof versionName !== 'string' || !versionName) {
@@ -172,7 +172,7 @@ async function handleVerifyTestFlight(releaseId: string, formData: FormData) {
   try {
     const response = await DistributionService.verifyTestFlight(releaseId, {
       releaseId,
-      testflightBuildNumber,
+      testflightNumber,
       versionName,
     });
     return json(response.data);
@@ -348,6 +348,7 @@ export default function DistributionPage() {
       </Tabs>
 
       {/* Dialogs */}
+      {/* Pre-Release Upload/Verify Modals (for pre-release module) */}
       <Modal
         opened={preRelease.showUploadDialog}
         onClose={preRelease.closeUploadDialog}

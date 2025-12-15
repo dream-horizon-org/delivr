@@ -6,6 +6,8 @@
  * - Exposure control conflicts
  * - Submission state transitions
  * - Rollout updates
+ * 
+ * ✅ 100% ALIGNED WITH DISTRIBUTION_API_SPEC.md
  */
 
 /**
@@ -15,249 +17,217 @@ function distributionMiddleware(req, res, next) {
   const { method, path, body } = req;
   
   // ============================================================================
-  // SUBMIT TO STORES (Release Process Entry)
+  // SUBMIT EXISTING PENDING SUBMISSION (First-Time Submission)
+  // PUT /api/v1/submissions/:submissionId/submit
   // ============================================================================
   
-  if (method === 'POST' && path.includes('/distribute')) {
-    const releaseId = extractReleaseId(path);
+  if (method === 'PUT' && path.includes('/submissions/') && path.includes('/submit')) {
+    const submissionId = extractSubmissionId(path);
     
-    // Scenario: Version conflict (409)
-    if (releaseId === 'rel_version_conflict') {
-      return res.status(409).json({
+    // Validate iOS fields if present
+    if (body.phasedRelease !== undefined && typeof body.phasedRelease !== 'boolean') {
+      return res.status(400).json({
         success: false,
         error: {
-          code: 'VERSION_EXISTS',
-          message: 'This version already exists in the store',
-          category: 'CONFLICT',
-          httpStatus: 409,
-          details: {
-            platform: 'ANDROID',
-            version: '2.5.0',
-            existingStatus: 'LIVE',
-            resolution: {
-              title: 'Version Conflict',
-              message: 'Version 2.5.0 already exists in Play Store',
-              options: [
-                {
-                  action: 'CREATE_NEW_RELEASE',
-                  label: 'Create new release with incremented version',
-                  recommended: true,
-                },
-                {
-                  action: 'DELETE_DRAFT',
-                  label: 'Delete draft version in store console',
-                  availableIf: 'existingStatus === DRAFT',
-                },
-              ],
-            },
-          },
+          code: 'INVALID_PHASED_RELEASE',
+          message: 'phasedRelease must be a boolean',
+          category: 'VALIDATION',
+          httpStatus: 400,
+        },
+      });
+    }
+    if (body.resetRating !== undefined && typeof body.resetRating !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_RESET_RATING',
+          message: 'resetRating must be a boolean',
+          category: 'VALIDATION',
+          httpStatus: 400,
         },
       });
     }
     
-    // Scenario: Exposure control conflict (409)
-    if (releaseId === 'rel_exposure_conflict') {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'EXPOSURE_CONTROL_CONFLICT',
-          message: 'Previous release has active partial rollout',
-          category: 'CONFLICT',
-          httpStatus: 409,
-          details: {
-            platform: 'ANDROID',
-            currentRelease: {
-              version: '2.4.0',
-              exposurePercent: 25,
-              status: 'APPROVED_RELEASED',
-            },
-            resolution: {
-              title: 'Active Rollout Detected',
-              message: 'Previous release v2.4.0 is at 25% rollout',
-              impact: 'Submitting new version will affect current rollout',
-              options: [
-                {
-                  action: 'COMPLETE_PREVIOUS',
-                  label: 'Complete previous rollout to 100% first',
-                  recommended: true,
-                },
-                {
-                  action: 'HALT_PREVIOUS',
-                  label: 'Halt previous release (make new release primary)',
-                  warning: 'Users on v2.4.0 may be affected',
-                },
-                {
-                  action: 'PROCEED_ANYWAY',
-                  label: 'Proceed with submission (advanced)',
-                  warning: 'Requires manual store console management',
-                },
-              ],
-            },
+    // Determine platform from submissionId
+    const isAndroid = submissionId.includes('android');
+    const isIOS = submissionId.includes('ios');
+    
+    // Android response
+    if (isAndroid) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          id: submissionId,
+          distributionId: 'dist_123',
+          platform: 'ANDROID',
+          storeType: 'PLAY_STORE',
+          status: 'IN_REVIEW',
+          version: '2.7.0',
+          versionCode: 270,
+          rolloutPercent: body.rolloutPercent || 5.5,
+          inAppPriority: body.inAppPriority || 0,
+          releaseNotes: body.releaseNotes || '',
+          submittedAt: new Date().toISOString(),
+          submittedBy: 'prince@dream11.com',
+          statusUpdatedAt: new Date().toISOString(),
+          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          updatedAt: new Date().toISOString(),
+          artifact: {
+            artifactPath: 'https://s3.amazonaws.com/presigned-url/app-release.aab',
+            internalTrackLink: 'https://play.google.com/apps/testing/com.app',
           },
+          actionHistory: [],
         },
       });
     }
     
-    // Scenario: PM approval required (403)
-    if (releaseId === 'rel_pm_not_approved') {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'PM_APPROVAL_REQUIRED',
-          message: 'Project management approval required before distribution',
-          category: 'AUTH',
-          httpStatus: 403,
-          details: {
-            pmTicket: {
-              id: 'PROJ-1234',
-              status: 'IN_PROGRESS',
-              url: 'https://jira.example.com/browse/PROJ-1234',
-            },
-            requiredStatus: 'DONE',
+    // iOS response
+    if (isIOS) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          id: submissionId,
+          distributionId: 'dist_123',
+          platform: 'IOS',
+          storeType: 'APP_STORE',
+          status: 'IN_REVIEW',
+          version: '2.7.0',
+          releaseType: 'AUTOMATIC',
+          phasedRelease: body.phasedRelease ?? true,
+          resetRating: body.resetRating ?? false,
+          rolloutPercent: 0,
+          releaseNotes: body.releaseNotes || '',
+          submittedAt: new Date().toISOString(),
+          submittedBy: 'prince@dream11.com',
+          statusUpdatedAt: new Date().toISOString(),
+          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          updatedAt: new Date().toISOString(),
+          artifact: {
+            testflightNumber: 56789,
           },
+          actionHistory: [],
         },
       });
     }
-    
-    // Success case
-    const { platforms, android, ios } = body;
-    const submissions = [];
-    
-    // Build response array based on requested platforms
-    if (platforms.includes('ANDROID')) {
-      submissions.push({
-        id: `sub_android_${Date.now()}`,
-        platform: 'ANDROID',
-        storeType: 'PLAY_STORE',
-        status: 'IN_REVIEW',
-        buildId: 'build_android_1',
-        version: '2.5.0',
-        track: android?.track || 'PRODUCTION',
-        exposurePercent: android?.exposurePercent || 5,
-        priority: android?.priority || 0,
-        releaseNotes: android?.releaseNotes || '',
-        submittedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      });
-    }
-    
-    if (platforms.includes('IOS')) {
-      submissions.push({
-        id: `sub_ios_${Date.now()}`,
-        platform: 'IOS',
-        storeType: 'APP_STORE',
-        status: 'IN_REVIEW',
-        buildId: 'build_ios_1',
-        version: '2.5.0',
-        exposurePercent: 0,
-        phasedRelease: ios?.phasedRelease || true,
-        releaseType: ios?.releaseType || 'AFTER_APPROVAL',
-        releaseNotes: ios?.releaseNotes || '',
-        submittedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      });
-    }
-    
-    return res.status(201).json({
-      success: true,
-      data: {
-        distributionId: `dist_${releaseId}`,
-        releaseId,
-        submissions,
-      },
-    });
   }
   
   // ============================================================================
-  // SUBMIT TO STORES BY DISTRIBUTION ID (Distribution Management Entry)
+  // CREATE NEW SUBMISSION (Resubmission)
+  // POST /api/v1/distributions/:distributionId/submissions
   // ============================================================================
   
-  if (method === 'PUT' && path.includes('/distributions/') && path.includes('/submit')) {
+  if (method === 'POST' && path.includes('/distributions/') && path.includes('/submissions')) {
     const distributionId = extractDistributionId(path);
+    const { platform } = body;
     
-    // Scenario: Version conflict (409)
-    if (distributionId === 'dist_version_conflict') {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'VERSION_EXISTS',
-          message: 'This version already exists in the store',
-          category: 'CONFLICT',
-          httpStatus: 409,
+    // Validate iOS fields if iOS platform
+    if (platform === 'IOS') {
+      if (body.phasedRelease !== undefined && typeof body.phasedRelease !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_PHASED_RELEASE',
+            message: 'phasedRelease must be a boolean',
+            category: 'VALIDATION',
+            httpStatus: 400,
+          },
+        });
+      }
+      if (body.resetRating !== undefined && typeof body.resetRating !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_RESET_RATING',
+            message: 'resetRating must be a boolean',
+            category: 'VALIDATION',
+            httpStatus: 400,
+          },
+        });
+      }
+    }
+    
+    // Android resubmission response
+    if (platform === 'ANDROID') {
+      return res.status(201).json({
+        success: true,
+        data: {
+          id: `sub_new_android_${Date.now()}`,
+          distributionId,
+          platform: 'ANDROID',
+          storeType: 'PLAY_STORE',
+          status: 'IN_REVIEW',
+          version: body.version || '2.7.1',
+          versionCode: body.versionCode || 271,
+          rolloutPercent: body.rolloutPercent || 5.5,
+          inAppPriority: body.inAppPriority || 0,
+          releaseNotes: body.releaseNotes || '',
+          submittedAt: new Date().toISOString(),
+          submittedBy: 'prince@dream11.com',
+          statusUpdatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          artifact: {
+            artifactPath: 'https://s3.amazonaws.com/new-build/app-release-v2.7.1.aab',
+            // No internalTrackLink for resubmissions - goes directly to production
+          },
+          actionHistory: [],
         },
       });
     }
     
-    // Success case
-    const { platforms, android, ios } = body;
-    const submissions = [];
-    
-    // Build response array based on requested platforms
-    if (platforms.includes('ANDROID')) {
-      submissions.push({
-        id: `sub_android_${Date.now()}`,
-        platform: 'ANDROID',
-        storeType: 'PLAY_STORE',
-        status: 'IN_REVIEW',
-        buildId: 'build_android_1',
-        version: '2.5.0',
-        track: android?.track || 'PRODUCTION',
-        exposurePercent: android?.exposurePercent || 5,
-        priority: android?.priority || 0,
-        releaseNotes: android?.releaseNotes || '',
-        submittedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
+    // iOS resubmission response
+    if (platform === 'IOS') {
+      return res.status(201).json({
+        success: true,
+        data: {
+          id: `sub_new_ios_${Date.now()}`,
+          distributionId,
+          platform: 'IOS',
+          storeType: 'APP_STORE',
+          status: 'IN_REVIEW',
+          version: body.version || '2.7.1',
+          releaseType: 'AUTOMATIC',
+          phasedRelease: body.phasedRelease ?? true,
+          resetRating: body.resetRating ?? false,
+          rolloutPercent: 0,
+          releaseNotes: body.releaseNotes || '',
+          submittedAt: new Date().toISOString(),
+          submittedBy: 'prince@dream11.com',
+          statusUpdatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          artifact: {
+            testflightNumber: body.testflightNumber || 56790,
+          },
+          actionHistory: [],
+        },
       });
     }
-    
-    if (platforms.includes('IOS')) {
-      submissions.push({
-        id: `sub_ios_${Date.now()}`,
-        platform: 'IOS',
-        storeType: 'APP_STORE',
-        status: 'IN_REVIEW',
-        buildId: 'build_ios_1',
-        version: '2.5.0',
-        exposurePercent: 0,
-        phasedRelease: ios?.phasedRelease || true,
-        releaseType: ios?.releaseType || 'AFTER_APPROVAL',
-        releaseNotes: ios?.releaseNotes || '',
-        submittedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      });
-    }
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        distributionId,
-        releaseId: distributionId.replace('dist_', ''),
-        submissions,
-      },
-    });
   }
   
   // ============================================================================
   // UPDATE ROLLOUT
+  // PATCH /api/v1/submissions/:submissionId/rollout
   // ============================================================================
   
-  if (method === 'PATCH' && path.includes('/rollout')) {
+  if (method === 'PATCH' && path.includes('/rollout') && !path.includes('/pause') && !path.includes('/resume') && !path.includes('/halt')) {
     const submissionId = extractSubmissionId(path);
-    const { percentage } = body;
+    const { rolloutPercent } = body;
     
-    // Validate percentage
-    if (!percentage || percentage < 1 || percentage > 100) {
+    // Validate percentage (supports decimals like 5.5)
+    if (rolloutPercent === undefined || rolloutPercent < 0 || rolloutPercent > 100 || typeof rolloutPercent !== 'number') {
       return res.status(400).json({
         success: false,
         error: {
           code: 'INVALID_ROLLOUT_PERCENTAGE',
-          message: 'Rollout percentage must be between 1 and 100',
+          message: 'Rollout percentage must be a number between 0 and 100',
           category: 'VALIDATION',
           httpStatus: 400,
           details: {
-            requestedPercentage: percentage,
-            minAllowed: 1,
+            requestedPercentage: rolloutPercent,
+            minAllowed: 0,
             maxAllowed: 100,
+            note: 'Decimals are supported (e.g., 5.5)',
           },
         },
       });
@@ -267,374 +237,81 @@ function distributionMiddleware(req, res, next) {
     return res.status(200).json({
       success: true,
       data: {
-        submissionId,
-        previousPercentage: 1,
-        newPercentage: percentage,
-        exposurePercent: percentage,
-        updatedAt: new Date().toISOString(),
-        autoPromotedToReleased: percentage === 100,
-        releaseStatus: percentage === 100 ? 'RELEASED' : 'BUILDS_SUBMITTED',
+        id: submissionId,
+        rolloutPercent: rolloutPercent,
+        statusUpdatedAt: new Date().toISOString(),
       },
     });
   }
   
   // ============================================================================
-  // PAUSE ROLLOUT
+  // PAUSE ROLLOUT (iOS Only)
+  // PATCH /api/v1/submissions/:submissionId/rollout/pause
   // ============================================================================
   
-  if (method === 'POST' && path.includes('/pause')) {
+  if (method === 'PATCH' && path.includes('/rollout/pause')) {
     const submissionId = extractSubmissionId(path);
     
     return res.status(200).json({
       success: true,
       data: {
-        submissionId,
-        rolloutStatus: 'PAUSED',
-        pausedAt: new Date().toISOString(),
-        reason: body.reason || null,
+        id: submissionId,
+        status: 'PAUSED',
+        statusUpdatedAt: new Date().toISOString(),
       },
     });
   }
   
   // ============================================================================
-  // RESUME ROLLOUT
+  // RESUME ROLLOUT (iOS Only)
+  // PATCH /api/v1/submissions/:submissionId/rollout/resume
   // ============================================================================
   
-  if (method === 'POST' && path.includes('/resume')) {
+  if (method === 'PATCH' && path.includes('/rollout/resume')) {
     const submissionId = extractSubmissionId(path);
     
     return res.status(200).json({
       success: true,
       data: {
-        submissionId,
-        rolloutStatus: 'ACTIVE',
-        resumedAt: new Date().toISOString(),
+        id: submissionId,
+        status: 'LIVE',
+        statusUpdatedAt: new Date().toISOString(),
       },
     });
   }
   
   // ============================================================================
-  // HALT ROLLOUT
+  // HALT ROLLOUT (Emergency Stop)
+  // PATCH /api/v1/submissions/:submissionId/rollout/halt
   // ============================================================================
   
-  if (method === 'POST' && path.includes('/halt')) {
+  if (method === 'PATCH' && path.includes('/rollout/halt')) {
     const submissionId = extractSubmissionId(path);
     
     return res.status(200).json({
       success: true,
       data: {
-        submissionId,
-        releaseStatus: 'HALTED',
-        haltedAt: new Date().toISOString(),
-        reason: body.reason,
-        severity: body.severity,
-        message: 'Release halted. A new hotfix release is required.',
-      },
-    });
-  }
-  
-  // ============================================================================
-  // RETRY SUBMISSION
-  // ============================================================================
-  
-  if (method === 'POST' && path.includes('/retry')) {
-    const submissionId = extractSubmissionId(path);
-    const { releaseNotes, android, ios } = body;
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: `${submissionId}_retry_${Date.now()}`,
-        platform: submissionId.includes('android') ? 'ANDROID' : 'IOS',
-        storeType: submissionId.includes('android') ? 'PLAY_STORE' : 'APP_STORE',
-        status: 'IN_REVIEW',
-        buildId: 'build_retry_1',
-        version: '2.5.0',
-        releaseNotes: releaseNotes || 'Updated submission',
-        exposurePercent: android?.exposurePercent || 0,
-        submittedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        message: 'Submission retried successfully',
+        id: submissionId,
+        status: 'HALTED',
+        statusUpdatedAt: new Date().toISOString(),
       },
     });
   }
   
   // ============================================================================
   // CANCEL SUBMISSION
+  // PATCH /api/v1/submissions/:submissionId/cancel
   // ============================================================================
   
-  if (method === 'DELETE' && path.includes('/cancel')) {
+  if (method === 'PATCH' && path.includes('/cancel')) {
     const submissionId = extractSubmissionId(path);
-    const { reason } = body;
     
     return res.status(200).json({
       success: true,
       data: {
         id: submissionId,
-        platform: submissionId.includes('android') ? 'ANDROID' : 'IOS',
         status: 'CANCELLED',
-        cancelledAt: new Date().toISOString(),
-        cancelReason: reason || 'User cancelled submission',
-        message: 'Submission cancelled successfully',
-      },
-    });
-  }
-  
-  // ============================================================================
-  // EDIT SUBMISSION
-  // ============================================================================
-  
-  if (method === 'PATCH' && path.includes('/submissions/') && !path.includes('/rollout')) {
-    const submissionId = extractSubmissionId(path);
-    const updates = body;
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: submissionId,
-        platform: submissionId.includes('android') ? 'ANDROID' : 'IOS',
-        ...updates,
-        updatedAt: new Date().toISOString(),
-        message: 'Submission updated successfully',
-      },
-    });
-  }
-  
-  // ============================================================================
-  // SUBMISSION HISTORY
-  // ============================================================================
-  
-  if (method === 'GET' && path.includes('/history')) {
-    const submissionId = extractSubmissionId(path);
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        submissionId,
-        events: [
-          {
-            id: 'evt_1',
-            eventType: 'SUBMITTED',
-            newState: { status: 'IN_REVIEW' },
-            actor: { id: 'user_1', name: 'John Doe', role: 'DEVELOPER' },
-            timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'evt_2',
-            eventType: 'STATUS_CHANGED',
-            previousState: { status: 'IN_REVIEW' },
-            newState: { status: 'APPROVED' },
-            timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'evt_3',
-            eventType: 'ROLLOUT_UPDATED',
-            previousState: { exposurePercent: 5 },
-            newState: { exposurePercent: 25 },
-            actor: { id: 'user_1', name: 'John Doe', role: 'DEVELOPER' },
-            timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-          },
-        ],
-        pagination: {
-          total: 3,
-          limit: 10,
-          offset: 0,
-          hasMore: false,
-        },
-      },
-    });
-  }
-  
-  // ============================================================================
-  // UPLOAD AAB
-  // ============================================================================
-  
-  if (method === 'POST' && path.includes('/upload-aab')) {
-    const releaseId = extractReleaseId(path);
-    
-    // Simulate successful upload
-    return res.status(201).json({
-      success: true,
-      data: {
-        buildId: `build_android_${Date.now()}`,
-        releaseId,
-        platform: 'ANDROID',
-        versionName: '2.5.0',
-        versionCode: '250',
-        packageName: 'com.example.app',
-        fileName: 'app-release.aab',
-        fileSize: 50 * 1024 * 1024, // 50 MB
-        checksum: 'mock_checksum_123',
-        artifactPath: 's3://delivr-builds/mock.aab',
-        internalTrackLink: 'https://play.google.com/apps/internaltest/mock',
-        uploadedToTrack: 'INTERNAL',
-        buildUploadStatus: 'UPLOADED',
-        createdAt: new Date().toISOString(),
-      },
-    });
-  }
-  
-  // ============================================================================
-  // VERIFY TESTFLIGHT
-  // ============================================================================
-  
-  if (method === 'POST' && path.includes('/verify-testflight')) {
-    const releaseId = extractReleaseId(path);
-    const { testflightBuildNumber } = body;
-    
-    // Success case
-    return res.status(200).json({
-      success: true,
-      data: {
-        buildId: `build_ios_${Date.now()}`,
-        releaseId,
-        platform: 'IOS',
-        testflightNumber: testflightBuildNumber,
-        versionName: '2.5.0',
-        versionCode: '250',
-        buildStatus: 'PROCESSED',
-        appStoreConnectId: 'mock_asc_id',
-        bundleId: 'com.example.app',
-        expirationDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-        testflightLink: 'https://testflight.apple.com/join/mock',
-        verified: true,
-        buildUploadStatus: 'UPLOADED',
-        createdAt: new Date().toISOString(),
-      },
-    });
-  }
-  
-  // ============================================================================
-  // GET BUILD DETAILS (Pre-Release Build)
-  // ============================================================================
-  
-  if (method === 'GET' && /releases\/[^/]+\/builds\/[^/]+/.test(path)) {
-    const releaseId = extractReleaseId(path);
-    const buildIdMatch = path.match(/builds\/([^/]+)/);
-    const buildId = buildIdMatch ? buildIdMatch[1] : null;
-    
-    // Mock: Return a pre-release build with testing links
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: buildId,
-        releaseId,
-        platform: 'ANDROID', // or IOS based on buildId
-        buildType: 'PRODUCTION',
-        versionName: '2.5.0',
-        versionCode: '250',
-        artifactPath: 's3://delivr-builds/rel_1/android/app-release.aab',
-        checksum: 'mock-checksum',
-        internalTrackLink: 'https://play.google.com/apps/internaltest/com.example.app',
-        testflightLink: buildId.includes('ios') ? 'https://testflight.apple.com/join/mock' : null,
-        testflightNumber: buildId.includes('ios') ? '17965' : null,
-        buildStrategy: 'MANUAL',
-        buildUploadStatus: 'UPLOADED',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    });
-  }
-  
-  // ============================================================================
-  // GET DISTRIBUTION STATUS
-  // ============================================================================
-  
-  if (method === 'GET' && path.includes('/distribution/status')) {
-    const releaseId = extractReleaseId(path);
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const platform = url.searchParams.get('platform');
-    
-    // Mock: Return per-platform status
-    const androidStatus = {
-      submitted: true,
-      submissionId: 'sub_android_1',
-      status: 'APPROVED_RELEASED',
-      exposurePercent: 25,
-      canRetry: false,
-      error: null,
-    };
-    
-    const iosStatus = {
-      submitted: true,
-      submissionId: 'sub_ios_1',
-      status: 'BUILD_SUBMITTED',
-      exposurePercent: 0,
-      canRetry: false,
-      error: null,
-    };
-    
-    const platforms = {};
-    if (!platform || platform === 'ANDROID') {
-      platforms.android = androidStatus;
-    }
-    if (!platform || platform === 'IOS') {
-      platforms.ios = iosStatus;
-    }
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        releaseId,
-        releaseVersion: '2.5.0',
-        releaseStatus: 'BUILDS_SUBMITTED',
-        platforms,
-        isComplete: false,
-        overallProgress: 12.5,
-        startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        completedAt: null,
-      },
-    });
-  }
-  
-  // ============================================================================
-  // GET RELEASE STORES
-  // ============================================================================
-  
-  if (method === 'GET' && path.includes('/stores') && !path.includes('/submissions')) {
-    const releaseId = extractReleaseId(path);
-    
-    // Mock: Return stores configured for this release
-    // (from release config)
-    return res.status(200).json({
-      success: true,
-      data: {
-        releaseId,
-        stores: [
-          {
-            id: 'play_store_app_a',
-            channelType: 'PLAY_STORE',
-            platform: 'ANDROID',
-            displayName: 'Google Play Store - App A',
-            appIdentifier: 'com.example.app_a',
-            status: 'VERIFIED',
-            capabilities: {
-              supportsRollout: true,
-              supportsTracks: true,
-              supportsVersionCheck: true,
-              supportsStatusPolling: true,
-              requiresReview: true,
-              availableTracks: ['INTERNAL', 'ALPHA', 'BETA', 'PRODUCTION'],
-            },
-            lastVerifiedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: 'app_store_app_a',
-            channelType: 'APP_STORE',
-            platform: 'IOS',
-            displayName: 'Apple App Store - App A',
-            appIdentifier: 'com.example.app_a',
-            status: 'VERIFIED',
-            capabilities: {
-              supportsRollout: false,
-              supportsTracks: false,
-              supportsVersionCheck: true,
-              supportsStatusPolling: true,
-              requiresReview: true,
-            },
-            lastVerifiedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-        ],
+        statusUpdatedAt: new Date().toISOString(),
       },
     });
   }
@@ -663,4 +340,3 @@ function extractDistributionId(path) {
 }
 
 export default distributionMiddleware;
-

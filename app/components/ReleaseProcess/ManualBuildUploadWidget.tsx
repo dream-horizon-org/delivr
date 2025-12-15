@@ -196,7 +196,7 @@ export function ManualBuildUploadWidget({
     try {
       await BuildsService.verifyTestFlight(releaseId, {
         releaseId,
-        testflightBuildNumber: testflightBuildNumber.trim(),
+        testflightNumber: testflightBuildNumber.trim(),
         versionName: versionName.trim(),
       });
 

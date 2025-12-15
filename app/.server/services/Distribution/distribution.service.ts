@@ -226,10 +226,11 @@ class Distribution {
 
   /**
    * Get single submission details
+   * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async getSubmission(submissionId: string) {
+  async getSubmission(submissionId: string, platform: Platform) {
     return this.__client.get<null, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}`
+      `/api/v1/submissions/${submissionId}?platform=${platform}`
     );
   }
 
@@ -256,10 +257,11 @@ class Distribution {
   /**
    * Submit an existing PENDING submission (first-time submission)
    * Updates submission details and changes status from PENDING to IN_REVIEW
+   * @param platform - Required for backend to identify which table to query (android_submission_builds or ios_submission_builds)
    */
-  async submitSubmission(submissionId: string, request: SubmitSubmissionRequest) {
+  async submitSubmission(submissionId: string, request: SubmitSubmissionRequest, platform: Platform) {
     return this.__client.put<SubmitSubmissionRequest, AxiosResponse<SubmissionResponse>>(
-      `/api/v1/submissions/${submissionId}/submit`,
+      `/api/v1/submissions/${submissionId}/submit?platform=${platform}`,
       request
     );
   }
@@ -303,10 +305,11 @@ class Distribution {
    */
   /**
    * Cancel a submission (IN_REVIEW, APPROVED, etc.)
+   * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async cancelSubmission(submissionId: string, request: { reason?: string }) {
+  async cancelSubmission(submissionId: string, request: { reason?: string }, platform: Platform) {
     return this.__client.delete<{ reason: string }, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}/cancel`,
+      `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
       { data: request }
     );
   }
@@ -331,39 +334,43 @@ class Distribution {
 
   /**
    * Update rollout percentage
+   * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async updateRollout(submissionId: string, request: UpdateRolloutRequest) {
+  async updateRollout(submissionId: string, request: UpdateRolloutRequest, platform: Platform) {
     return this.__client.patch<UpdateRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout`,
+      `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
       request
     );
   }
 
   /**
-   * Pause rollout
+   * Pause rollout (iOS only)
+   * @param platform - Must be "IOS" (Android does not support pause)
    */
-  async pauseRollout(submissionId: string, request: PauseRolloutRequest) {
+  async pauseRollout(submissionId: string, request: PauseRolloutRequest, platform: Platform) {
     return this.__client.post<PauseRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout/pause`,
+      `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
       request
     );
   }
 
   /**
-   * Resume rollout
+   * Resume rollout (iOS only)
+   * @param platform - Must be "IOS" (Android does not support resume)
    */
-  async resumeRollout(submissionId: string) {
+  async resumeRollout(submissionId: string, platform: Platform) {
     return this.__client.post<null, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout/resume`
+      `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`
     );
   }
 
   /**
    * Emergency halt rollout
+   * @param platform - Required for backend to identify which table to update (android_submission_builds or ios_submission_builds)
    */
-  async haltRollout(submissionId: string, request: HaltRolloutRequest) {
+  async haltRollout(submissionId: string, request: HaltRolloutRequest, platform: Platform) {
     return this.__client.post<HaltRolloutRequest, RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout/halt`,
+      `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
       request
     );
   }

@@ -7,7 +7,6 @@
  */
 
 import {
-  Button,
   Container,
   Group,
   Loader,
@@ -17,23 +16,22 @@ import {
   Stack,
   Table,
   Text,
-  ThemeIcon,
-  Title,
+  Title
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigation, useRevalidator } from '@remix-run/react';
-import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
+import { DistributionListFilters, type DistributionFilters } from '~/components/distribution/DistributionListFilters';
 import { DistributionListRow } from '~/components/distribution/DistributionListRow';
 import { DistributionStatsCards } from '~/components/distribution/DistributionStatsCards';
 import { EmptyDistributions } from '~/components/distribution/EmptyDistributions';
+import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
 import { SubmitToStoresForm } from '~/components/distribution/SubmitToStoresForm';
 import {
-  DISTRIBUTIONS_LIST_ICON_SIZES,
   DISTRIBUTIONS_LIST_LAYOUT,
-  DISTRIBUTIONS_LIST_UI,
+  DISTRIBUTIONS_LIST_UI
 } from '~/constants/distribution.constants';
 import { useSubmitModalProps } from '~/hooks/useSubmitModalProps';
 import {
@@ -42,6 +40,7 @@ import {
   type PaginationMeta,
 } from '~/types/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { ErrorCategory, checkStaleData, type AppError } from '~/utils/error-handling';
 
 // Types imported from central types file - single source of truth
 interface LoaderData {
@@ -49,7 +48,8 @@ interface LoaderData {
   distributions: DistributionEntry[];
   stats: DistributionStats;
   pagination: PaginationMeta;
-  error?: string;
+  loadedAt: string;
+  error?: AppError | string;
 }
 
 export const loader = authenticateLoaderRequest(
@@ -60,10 +60,17 @@ export const loader = authenticateLoaderRequest(
       throw new Response('Organization not found', { status: 404 });
     }
 
-    // Extract pagination params from URL
+    // Extract pagination and filter params from URL
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
+    
+    // TODO: Pass filters to backend API when implemented
+    // const search = url.searchParams.get('search') || '';
+    // const status = url.searchParams.getAll('status');
+    // const platforms = url.searchParams.getAll('platform');
+    // const dateFrom = url.searchParams.get('dateFrom');
+    // const dateTo = url.searchParams.get('dateTo');
 
     try {
       // Fetch from API with pagination params
@@ -81,9 +88,21 @@ export const loader = authenticateLoaderRequest(
         distributions: distributions as DistributionEntry[],
         stats: stats as DistributionStats,
         pagination: pagination as PaginationMeta,
+        loadedAt: new Date().toISOString(),
       });
     } catch (error) {
       console.error('[Distributions] Failed to fetch:', error);
+      
+      // Parse error into AppError format
+      const appError: AppError = {
+        category: ErrorCategory.NETWORK,
+        code: 'FETCH_FAILED',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        userMessage: 'Failed to load distributions',
+        recoveryGuidance: 'Check your internet connection and try again. If the problem persists, the server may be experiencing issues.',
+        retryable: true,
+      };
+      
       return json<LoaderData>({
         org,
         distributions: [],
@@ -100,21 +119,34 @@ export const loader = authenticateLoaderRequest(
           totalItems: 0,
           hasMore: false,
         },
-        error: 'Failed to fetch distributions',
+        loadedAt: new Date().toISOString(),
+        error: appError,
       });
     }
   }
 );
 
 export default function DistributionsListPage() {
-  const { org, distributions, stats, pagination, error } =
+  const { org, distributions, stats, pagination, loadedAt, error } =
     useLoaderData<LoaderData>();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  
+  // Check if data is stale
+  const staleInfo = loadedAt ? checkStaleData(new Date(loadedAt)) : null;
 
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [selectedDistribution, setSelectedDistribution] =
     useState<DistributionEntry | null>(null);
+
+  // Filters state
+  const [filters, setFilters] = useState<DistributionFilters>({
+    search: '',
+    status: [],
+    platforms: [],
+    dateFrom: null,
+    dateTo: null,
+  });
 
   // Extract complex modal props logic to custom hook
   const submitModalProps = useSubmitModalProps(selectedDistribution);
@@ -122,6 +154,49 @@ export default function DistributionsListPage() {
   const isLoading = navigation.state === 'loading';
   const hasDistributions = distributions.length > 0;
   const hasMultiplePages = pagination.totalPages > 1;
+
+  // Client-side filtering (TODO: move to server-side)
+  const filteredDistributions = useMemo(() => {
+    let result = [...distributions];
+
+    // Search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      result = result.filter(
+        (d) => {
+          const version = d.submissions?.[0]?.versionName || '';
+          return (
+            version.toLowerCase().includes(searchLower) ||
+            d.branch?.toLowerCase().includes(searchLower)
+          );
+        }
+      );
+    }
+
+    // Status filter
+    if (filters.status.length > 0) {
+      result = result.filter((d) => filters.status.includes(d.status));
+    }
+
+    // Platform filter
+    if (filters.platforms.length > 0) {
+      result = result.filter((d) =>
+        d.submissions.some((s: any) => filters.platforms.includes(s.platform))
+      );
+    }
+
+    // Date range filter
+    if (filters.dateFrom || filters.dateTo) {
+      result = result.filter((d) => {
+        const updatedDate = new Date(d.lastUpdated);
+        if (filters.dateFrom && updatedDate < filters.dateFrom) return false;
+        if (filters.dateTo && updatedDate > filters.dateTo) return false;
+        return true;
+      });
+    }
+
+    return result;
+  }, [distributions, filters]);
 
   // Handler functions - extracted from inline JSX
   const handleOpenSubmitModal = useCallback((distribution: DistributionEntry) => {
@@ -146,7 +221,22 @@ export default function DistributionsListPage() {
   }, []);
 
   const handleRetryLoad = useCallback(() => {
-    window.location.reload();
+    revalidator.revalidate();
+  }, [revalidator]);
+
+  const handleFiltersApply = useCallback(() => {
+    // TODO: Update URL params and refetch from server
+    revalidator.revalidate();
+  }, [revalidator]);
+
+  const handleFiltersClear = useCallback(() => {
+    setFilters({
+      search: '',
+      status: [],
+      platforms: [],
+      dateFrom: null,
+      dateTo: null,
+    });
   }, []);
 
   // Pagination display text
@@ -171,43 +261,22 @@ export default function DistributionsListPage() {
         </Group>
       </Paper>
 
-      {/* Error State */}
-      {error && (
-        <Paper
-          p="md"
-          radius="md"
-          withBorder
-          className="mb-6"
-          style={{
-            backgroundColor: 'var(--mantine-color-red-0)',
-            borderColor: 'var(--mantine-color-red-3)',
-          }}
-        >
-          <Group justify="space-between" align="center" wrap="nowrap">
-            <Group gap="sm" align="center" wrap="nowrap">
-              <ThemeIcon color="red" size="lg" radius="sm" variant="light">
-                <IconAlertCircle
-                  size={DISTRIBUTIONS_LIST_ICON_SIZES.ALERT_ICON}
-                />
-              </ThemeIcon>
-              <Text size="sm" fw={500} c="red.9">
-                {error}
-              </Text>
-            </Group>
-            <Button
-              size="sm"
-              variant="filled"
-              color="red"
-              leftSection={
-                <IconRefresh size={DISTRIBUTIONS_LIST_ICON_SIZES.ACTION_BUTTON} />
-              }
-              onClick={handleRetryLoad}
-              style={{ flexShrink: 0 }}
-            >
-              {DISTRIBUTIONS_LIST_UI.RETRY_BUTTON}
-            </Button>
-          </Group>
-        </Paper>
+      {/* Error State - Full page error with retry */}
+      {error && !hasDistributions && (
+        <ErrorState
+          error={error}
+          onRetry={handleRetryLoad}
+          title="Failed to Load Distributions"
+        />
+      )}
+      
+      {/* Stale Data Warning */}
+      {!error && staleInfo?.shouldRefresh && hasDistributions && (
+        <StaleDataWarning
+          loadedAt={new Date(loadedAt)}
+          onRefresh={handleRetryLoad}
+          threshold={5}
+        />
       )}
 
       {/* Loading State */}
@@ -227,6 +296,17 @@ export default function DistributionsListPage() {
 
       {/* Stats */}
       {!isLoading && hasDistributions && <DistributionStatsCards stats={stats} />}
+
+      {/* Filters */}
+      {!isLoading && hasDistributions && (
+        <DistributionListFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onApply={handleFiltersApply}
+          onClear={handleFiltersClear}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* Distributions Table */}
       {!isLoading && !hasDistributions && !error ? (
@@ -275,7 +355,7 @@ export default function DistributionsListPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {distributions.map((distribution) => (
+                {filteredDistributions.map((distribution) => (
                   <DistributionListRow
                     key={distribution.releaseId}
                     distribution={distribution}
@@ -323,7 +403,6 @@ export default function DistributionsListPage() {
             isFirstSubmission={submitModalProps.isFirstSubmission}
             androidArtifact={submitModalProps.androidArtifact}
             iosArtifact={submitModalProps.iosArtifact}
-            isResubmission={submitModalProps.isResubmission}
           />
         )}
       </Modal>

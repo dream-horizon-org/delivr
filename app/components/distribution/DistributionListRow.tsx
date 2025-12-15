@@ -33,6 +33,11 @@ export function DistributionListRow({
 }: DistributionListRowProps) {
   const isPending = distribution.status === DistributionStatus.PENDING;
   
+  // Get version from first submission (all submissions should initially have the same version)
+  const displayVersion = distribution.submissions && distribution.submissions.length > 0
+    ? distribution.submissions[0]?.versionName || 'N/A'
+    : 'N/A';
+  
   return (
     <Table.Tr>
       {/* Version */}
@@ -44,7 +49,7 @@ export function DistributionListRow({
           radius="sm"
           className="font-mono"
         >
-          {distribution.version}
+          {displayVersion}
         </Badge>
       </Table.Td>
 

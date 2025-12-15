@@ -19,7 +19,7 @@ import {
   Textarea,
 } from '@mantine/core';
 import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   BUTTON_LABELS,
   DISTRIBUTION_UI_LABELS,
@@ -31,7 +31,6 @@ import {
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { AndroidOptions } from './AndroidOptions';
 import { ArtifactDisplay } from './ArtifactDisplay';
-import { BuildUploadSelector } from './BuildUploadSelector';
 import type { SubmitToStoresFormProps } from './distribution.types';
 import { IOSOptions } from './IOSOptions';
 import { PlatformCheckbox } from './PlatformCheckbox';
@@ -52,7 +51,6 @@ export function SubmitToStoresForm({
   isFirstSubmission,
   androidArtifact,
   iosArtifact,
-  isResubmission,
 }: SubmitToStoresFormProps) {
 
   // Extract PENDING submissions and available platforms
@@ -86,22 +84,12 @@ export function SubmitToStoresForm({
     submitSuccess,
   } = useFormState(availablePlatforms);
 
-  // Track uploaded build IDs for resubmission
-  const [androidBuildId, setAndroidBuildId] = useState<string | null>(null);
-  const [iosBuildId, setIosBuildId] = useState<string | null>(null);
-
   const hasAndroid = availablePlatforms.includes(Platform.ANDROID);
   const hasIOS = availablePlatforms.includes(Platform.IOS);
   const androidSelected = formState.selectedPlatforms.includes(Platform.ANDROID);
   const iosSelected = formState.selectedPlatforms.includes(Platform.IOS);
   
-  // For resubmission, require build IDs
-  const canSubmit = formState.selectedPlatforms.length > 0 && (
-    !isResubmission || (
-      (!androidSelected || androidBuildId !== null) &&
-      (!iosSelected || iosBuildId !== null)
-    )
-  );
+  const canSubmit = formState.selectedPlatforms.length > 0;
 
   // Platform toggle handlers
   const handleToggleAndroid = useCallback(() => {
@@ -155,7 +143,7 @@ export function SubmitToStoresForm({
           JSON.stringify(androidPayload),
           {
             method: 'PUT',
-            action: `/api/v1/submissions/${androidSubmission.id}/submit`,
+            action: `/api/v1/submissions/${androidSubmission.id}/submit?platform=ANDROID`,
             encType: 'application/json',
           }
         );
@@ -180,7 +168,7 @@ export function SubmitToStoresForm({
           JSON.stringify(iosPayload),
           {
             method: 'PUT',
-            action: `/api/v1/submissions/${iosSubmission.id}/submit`,
+            action: `/api/v1/submissions/${iosSubmission.id}/submit?platform=IOS`,
             encType: 'application/json',
           }
         );
@@ -289,7 +277,7 @@ export function SubmitToStoresForm({
               platform={Platform.ANDROID}
               artifactName={androidArtifact.name}
               artifactSize={androidArtifact.size}
-              internalTestingLink={androidArtifact.internalTestingLink}
+              internalTrackLink={androidArtifact.internalTrackLink}  // Renamed from internalTestingLink
             />
           )}
 
@@ -298,24 +286,6 @@ export function SubmitToStoresForm({
               platform={Platform.IOS}
               buildNumber={iosArtifact.buildNumber}
               testflightLink={iosArtifact.testflightLink}
-            />
-          )}
-
-          {isResubmission && androidSelected && (
-            <BuildUploadSelector
-              platform={Platform.ANDROID}
-              releaseId={releaseId}
-              onBuildReady={setAndroidBuildId}
-              disabled={isSubmitting}
-            />
-          )}
-
-          {isResubmission && iosSelected && (
-            <BuildUploadSelector
-              platform={Platform.IOS}
-              releaseId={releaseId}
-              onBuildReady={setIosBuildId}
-              disabled={isSubmitting}
             />
           )}
 

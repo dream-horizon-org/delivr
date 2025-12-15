@@ -22,33 +22,35 @@ export class RolloutService {
    */
   static async updateRollout(
     submissionId: string,
-    request: UpdateRolloutRequest
+    request: UpdateRolloutRequest,
+    platform: Platform
   ): Promise<ApiResponse<RolloutUpdateResponse>> {
     return apiPatch<RolloutUpdateResponse>(
-      `/api/v1/submissions/${submissionId}/rollout`,
+      `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
       request
     );
   }
 
   /**
-   * Pause rollout
+   * Pause rollout (iOS only)
    */
   static async pauseRollout(
     submissionId: string,
-    request: PauseRolloutRequest
+    request: PauseRolloutRequest,
+    platform: Platform
   ): Promise<ApiResponse<Submission>> {
     return apiPost<Submission>(
-      `/api/v1/submissions/${submissionId}/rollout/pause`,
+      `/api/v1/submissions/${submissionId}/rollout/pause?platform=${platform}`,
       request
     );
   }
 
   /**
-   * Resume rollout
+   * Resume rollout (iOS only)
    */
-  static async resumeRollout(submissionId: string): Promise<ApiResponse<Submission>> {
+  static async resumeRollout(submissionId: string, platform: Platform): Promise<ApiResponse<Submission>> {
     return apiPost<Submission>(
-      `/api/v1/submissions/${submissionId}/rollout/resume`
+      `/api/v1/submissions/${submissionId}/rollout/resume?platform=${platform}`
     );
   }
 
@@ -57,10 +59,11 @@ export class RolloutService {
    */
   static async haltRollout(
     submissionId: string,
-    request: HaltRolloutRequest
+    request: HaltRolloutRequest,
+    platform: Platform
   ): Promise<ApiResponse<Submission>> {
     return apiPost<Submission>(
-      `/api/v1/submissions/${submissionId}/rollout/halt`,
+      `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
       request
     );
   }
@@ -83,11 +86,12 @@ export class RolloutService {
    */
   static async incrementRollout(
     submissionId: string,
-    currentPercentage: number
+    currentPercentage: number,
+    platform: Platform
   ): Promise<ApiResponse<RolloutUpdateResponse> | null> {
     const nextPercentage = this.getSuggestedNextPercentage(currentPercentage);
     if (nextPercentage) {
-      return this.updateRollout(submissionId, { rolloutPercent: nextPercentage });
+      return this.updateRollout(submissionId, { rolloutPercent: nextPercentage }, platform);
     }
     return null;
   }
@@ -95,8 +99,8 @@ export class RolloutService {
   /**
    * Complete rollout (set to 100%)
    */
-  static async completeRollout(submissionId: string): Promise<ApiResponse<RolloutUpdateResponse>> {
-    return this.updateRollout(submissionId, { rolloutPercent: 100 });
+  static async completeRollout(submissionId: string, platform: Platform): Promise<ApiResponse<RolloutUpdateResponse>> {
+    return this.updateRollout(submissionId, { rolloutPercent: 100 }, platform);
   }
 
   /**

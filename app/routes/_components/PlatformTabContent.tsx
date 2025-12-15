@@ -103,7 +103,7 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
           <RolloutControls
             submissionId={submission.id}
             platform={submission.platform}
-            phasedRelease={submission.phasedRelease}
+            phasedRelease={submission.phasedRelease ?? undefined}
             currentPercentage={submission.rolloutPercent}
             status={submission.submissionStatus}
             availableActions={submission.availableActions.filter(
@@ -111,7 +111,12 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
             ) as AvailableAction<RolloutAction>[]}
             onUpdateRollout={(percentage: number) => {
               fetcher.submit(
-                { intent: 'updateRollout', submissionId: submission.id, percentage: String(percentage) },
+                { 
+                  intent: 'updateRollout', 
+                  submissionId: submission.id, 
+                  percentage: String(percentage),
+                  platform: submission.platform
+                },
                 { method: 'post' }
               );
             }}

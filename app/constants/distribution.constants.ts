@@ -753,18 +753,18 @@ export const VALIDATION_RULES = {
 
 /** Rollout status to color mapping */
 export const ROLLOUT_STATUS_COLORS = {
-  complete: 'green',
-  active: 'blue',
-  paused: 'yellow',
-  halted: 'red',
+  COMPLETE: 'green',
+  ACTIVE: 'blue',
+  PAUSED: 'yellow',
+  HALTED: 'red',
 } as const;
 
 /** Rollout status to label mapping */
 export const ROLLOUT_STATUS_LABELS = {
-  complete: 'Complete',
-  active: 'Active',
-  paused: 'Paused',
-  halted: 'Halted',
+  COMPLETE: 'Complete',
+  ACTIVE: 'Active',
+  PAUSED: 'Paused',
+  HALTED: 'Halted',
 } as const;
 
 // ============================================================================

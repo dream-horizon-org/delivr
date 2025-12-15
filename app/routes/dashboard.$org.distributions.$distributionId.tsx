@@ -5,41 +5,43 @@
  */
 
 import {
-  Button,
-  Container,
-  Divider,
-  Group,
-  Loader,
-  Paper,
-  Stack,
-  Text,
-  ThemeIcon,
-  Title,
+    Button,
+    Container,
+    Divider,
+    Group,
+    Loader,
+    Paper,
+    Stack,
+    Text,
+    Title
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useLoaderData, useNavigation } from '@remix-run/react';
-import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
+import { DistributionEmptySubmissions } from '~/components/distribution/DistributionEmptySubmissions';
 import { DistributionOverview } from '~/components/distribution/DistributionOverview';
 import { DistributionSubmissionCard } from '~/components/distribution/DistributionSubmissionCard';
-import { DistributionEmptySubmissions } from '~/components/distribution/DistributionEmptySubmissions';
+import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
 import {
-  DISTRIBUTION_MANAGEMENT_ICON_SIZES,
-  DISTRIBUTION_MANAGEMENT_LAYOUT,
-  DISTRIBUTION_MANAGEMENT_UI,
+    DISTRIBUTION_MANAGEMENT_ICON_SIZES,
+    DISTRIBUTION_MANAGEMENT_LAYOUT,
+    DISTRIBUTION_MANAGEMENT_UI,
 } from '~/constants/distribution.constants';
 import {
-  DistributionStatus,
-  type DistributionWithSubmissions,
+    DistributionStatus,
+    type DistributionWithSubmissions,
 } from '~/types/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { ErrorCategory, checkStaleData, type AppError } from '~/utils/error-handling';
 
 interface LoaderData {
   org: string;
   distribution: DistributionWithSubmissions;
-  error?: string;
+  loadedAt: string;
+  error?: AppError | string;
 }
 
 export const loader = authenticateLoaderRequest(
@@ -59,23 +61,36 @@ export const loader = authenticateLoaderRequest(
       return json<LoaderData>({
         org,
         distribution,
+        loadedAt: new Date().toISOString(),
       });
     } catch (error) {
       console.error('[Distribution Management] Failed to fetch:', error);
+      
+      const appError: AppError = {
+        category: ErrorCategory.NETWORK,
+        code: 'FETCH_FAILED',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        userMessage: 'Failed to load distribution details',
+        recoveryGuidance: 'Check your connection and try again.',
+        retryable: true,
+      };
+      
       return json<LoaderData>({
         org,
         distribution: {} as DistributionWithSubmissions,
-        error: 'Failed to fetch distribution details',
+        loadedAt: new Date().toISOString(),
+        error: appError,
       });
     }
   }
 );
 
 export default function DistributionManagementPage() {
-  const { org, distribution, error } = useLoaderData<LoaderData>();
+  const { org, distribution, loadedAt, error } = useLoaderData<LoaderData>();
   const navigation = useNavigation();
 
   const isLoading = navigation.state === 'loading';
+  const staleInfo = loadedAt ? checkStaleData(new Date(loadedAt)) : null;
   const hasSubmissions = useMemo(
     () => distribution?.submissions?.length > 0,
     [distribution?.submissions?.length]
@@ -84,6 +99,15 @@ export default function DistributionManagementPage() {
     () => distribution?.status === DistributionStatus.PENDING,
     [distribution?.status]
   );
+  
+  // Get display version from submissions (all submissions should have the same initial version)
+  const displayVersion = useMemo(() => {
+    if (!distribution?.submissions || distribution.submissions.length === 0) {
+      return 'N/A';
+    }
+    // Use the first submission's version
+    return distribution.submissions[0]?.versionName || 'N/A';
+  }, [distribution?.submissions]);
 
   const gridStyle = useMemo(
     () => ({
@@ -101,53 +125,35 @@ export default function DistributionManagementPage() {
   if (error || !distribution.id) {
     return (
       <Container size="lg" className="py-8">
-        <Paper
-          p="xl"
-          radius="md"
-          withBorder
-          style={{
-            backgroundColor: 'var(--mantine-color-red-0)',
-            borderColor: 'var(--mantine-color-red-3)',
-          }}
-        >
-          <Stack align="center" gap="md">
-            <ThemeIcon
-              size={DISTRIBUTION_MANAGEMENT_LAYOUT.ERROR_STATE_SIZE}
-              variant="light"
-              color="red"
-              radius="xl"
-            >
-              <IconAlertCircle
-                size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.ERROR_STATE}
-              />
-            </ThemeIcon>
-            <Text size="lg" fw={500} c="red.9">
-              {DISTRIBUTION_MANAGEMENT_UI.ERROR_TITLE}
-            </Text>
-            <Text size="sm" c="dimmed" ta="center">
-              {error || DISTRIBUTION_MANAGEMENT_UI.ERROR_NOT_FOUND}
-            </Text>
-            <Button
-              component={Link}
-              to={`/dashboard/${org}/distributions`}
-              variant="filled"
-              color="blue"
-              leftSection={
-                <IconArrowLeft
-                  size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.BACK_BUTTON}
-                />
-              }
-            >
-              {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.BACK_TO_DISTRIBUTIONS}
-            </Button>
-          </Stack>
-        </Paper>
+        <ErrorState
+          error={error || 'Distribution not found'}
+          onRetry={() => window.location.reload()}
+          title="Failed to Load Distribution"
+        />
+        <Group justify="center" mt="xl">
+          <Button
+            component={Link}
+            to={`/dashboard/${org}/distributions`}
+            variant="filled"
+            leftSection={<IconArrowLeft size={16} />}
+          >
+            {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.BACK_TO_DISTRIBUTIONS}
+          </Button>
+        </Group>
       </Container>
     );
   }
 
   return (
     <Container size="lg" className="py-8">
+      {/* Stale Data Warning */}
+      {staleInfo?.shouldRefresh && (
+        <StaleDataWarning
+          loadedAt={new Date(loadedAt)}
+          onRefresh={() => window.location.reload()}
+          threshold={5}
+        />
+      )}
       {/* Header */}
       <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
         <Group justify="space-between" align="center">
@@ -170,7 +176,7 @@ export default function DistributionManagementPage() {
             <div>
               <Title order={2}>{DISTRIBUTION_MANAGEMENT_UI.PAGE_TITLE}</Title>
               <Text size="sm" c="dimmed">
-                {DISTRIBUTION_MANAGEMENT_UI.PAGE_SUBTITLE(distribution.version)}
+                {DISTRIBUTION_MANAGEMENT_UI.PAGE_SUBTITLE(displayVersion)}
               </Text>
             </div>
           </Group>

@@ -18,6 +18,7 @@ import type {
   PMApprovalStatus,
   RejectionDetails,
   RolloutAction,
+  RolloutDisplayStatus,
   Submission,
   SubmissionInDistribution,
   SubmissionStatus
@@ -84,8 +85,10 @@ type OnVerifyResult = {
 };
 
 // ============================================================================
-// BUILD COMPONENTS
+// BUILD COMPONENTS (Pre-Release)
 // ============================================================================
+// These types are for pre-release components and are NOT exported from distribution module
+// They remain here so pre-release team can use them
 
 export type BuildStatusCardProps = BaseProps & WithPlatform & {
   build: Build | null;
@@ -196,14 +199,12 @@ export type SubmitToStoresFormProps = BaseProps & Closeable & WithReleaseId & {
   androidArtifact?: {
     name: string;
     size: string;
-    internalTestingLink?: string;
+    internalTrackLink?: string;  // Renamed from internalTestingLink
   };
   iosArtifact?: {
     buildNumber: string;
     testflightLink?: string;
   };
-  // Resubmission (after rejection/cancellation)
-  isResubmission?: boolean;
 };
 
 export type SubmissionCardProps = BaseProps & {
@@ -216,16 +217,13 @@ export type SubmissionCardProps = BaseProps & {
 // ROLLOUT COMPONENTS
 // ============================================================================
 
-/** Rollout status for progress display */
-export type RolloutStatus = 'active' | 'paused' | 'halted' | 'complete';
-
 /** Size variants */
 export type SizeVariant = 'sm' | 'md' | 'lg';
 
 export type RolloutProgressBarProps = BaseProps & {
   percentage: number;
   targetPercentage?: number;
-  status: RolloutStatus;
+  status: RolloutDisplayStatus;
   showLabel?: boolean;
   size?: SizeVariant;
 };
@@ -236,9 +234,9 @@ export type RolloutControlsProps = BaseProps & WithSubmissionId & WithPlatform &
   availableActions: AvailableAction<RolloutAction>[];
   phasedRelease?: boolean; // For iOS: true = phased (7-day), false = manual (immediate 100%)
   onUpdateRollout?: (percentage: number) => void;
-  onPause?: () => void;
+  onPause?: (reason?: string) => void; // Optional reason for pause
   onResume?: () => void;
-  onHalt?: () => void;
+  onHalt?: (reason: string) => void; // Required reason for halt
 };
 
 export type HaltRolloutDialogProps = DialogState & RequiredClose & WithSubmissionId & WithPlatform & {

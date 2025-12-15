@@ -1584,63 +1584,113 @@
   "submissions": [
     {
       "id": "sub_android_001",
-      "releaseId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "buildId": "build_001",
+      "distributionId": "dist_001",
       "platform": "ANDROID",
-      "track": "production",
-      "submissionStatus": "LIVE",
-      "exposurePercent": 100,
-      "buildNumber": "270",
+      "storeType": "PLAY_STORE",
+      "status": "LIVE",
+      "version": "v2.7.0",
+      "versionCode": 270,
+      "rolloutPercent": 100,
+      "inAppPriority": 0,
+      "releaseNotes": "Bug fixes and improvements",
       "submittedAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-10T10:00:00.000Z"
+      "submittedBy": "test@example.com",
+      "statusUpdatedAt": "2025-12-10T10:00:00.000Z",
+      "createdAt": "2025-12-09T10:00:00.000Z",
+      "updatedAt": "2025-12-10T10:00:00.000Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release-270.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+      },
+      "actionHistory": []
     },
     {
       "id": "sub_ios_001",
-      "releaseId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "buildId": "build_002",
+      "distributionId": "dist_001",
       "platform": "IOS",
-      "track": "production",
-      "submissionStatus": "IN_REVIEW",
-      "exposurePercent": 0,
-      "buildNumber": "270",
+      "storeType": "APP_STORE",
+      "status": "IN_REVIEW",
+      "version": "v2.7.0",
+      "releaseType": "AUTOMATIC",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercent": 0,
+      "releaseNotes": "Bug fixes and improvements",
       "submittedAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-10T10:00:00.000Z"
+      "submittedBy": "test@example.com",
+      "statusUpdatedAt": "2025-12-10T10:00:00.000Z",
+      "createdAt": "2025-12-09T10:00:00.000Z",
+      "updatedAt": "2025-12-10T10:00:00.000Z",
+      "artifact": {
+        "testflightNumber": 56789
+      },
+      "actionHistory": []
     },
     {
       "id": "sub_android_002",
-      "releaseId": "c3d4e5f6-a7b8-9012-cdef-456789012345",
-      "buildId": "build_003",
+      "distributionId": "dist_002",
       "platform": "ANDROID",
-      "track": "production",
-      "submissionStatus": "LIVE",
-      "exposurePercent": 100,
-      "buildNumber": "260",
+      "storeType": "PLAY_STORE",
+      "status": "LIVE",
+      "version": "v2.6.0",
+      "versionCode": 260,
+      "rolloutPercent": 100,
+      "inAppPriority": 2,
+      "releaseNotes": "Major feature update",
       "submittedAt": "2025-12-08T10:00:00.000Z",
-      "updatedAt": "2025-12-09T10:00:00.000Z"
+      "submittedBy": "test@example.com",
+      "statusUpdatedAt": "2025-12-09T10:00:00.000Z",
+      "createdAt": "2025-12-08T10:00:00.000Z",
+      "updatedAt": "2025-12-09T10:00:00.000Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release-260.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+      },
+      "actionHistory": []
     },
     {
       "id": "sub_ios_002",
-      "releaseId": "c3d4e5f6-a7b8-9012-cdef-456789012345",
-      "buildId": "build_004",
+      "distributionId": "dist_002",
       "platform": "IOS",
-      "track": "production",
-      "submissionStatus": "LIVE",
-      "exposurePercent": 100,
-      "buildNumber": "260",
+      "storeType": "APP_STORE",
+      "status": "LIVE",
+      "version": "v2.6.0",
+      "releaseType": "AUTOMATIC",
+      "phasedRelease": false,
+      "resetRating": false,
+      "rolloutPercent": 100,
+      "releaseNotes": "Major feature update",
       "submittedAt": "2025-12-08T10:00:00.000Z",
-      "updatedAt": "2025-12-09T10:00:00.000Z"
+      "submittedBy": "test@example.com",
+      "statusUpdatedAt": "2025-12-09T10:00:00.000Z",
+      "createdAt": "2025-12-08T10:00:00.000Z",
+      "updatedAt": "2025-12-09T10:00:00.000Z",
+      "artifact": {
+        "testflightNumber": 56788
+      },
+      "actionHistory": []
     },
     {
       "id": "sub_ios_003",
-      "releaseId": "f9a0b1c2-d3e4-7890-1234-234567890123",
-      "buildId": "build_005",
+      "distributionId": "dist_003",
       "platform": "IOS",
-      "track": "production",
-      "submissionStatus": "APPROVED",
-      "exposurePercent": 0,
-      "buildNumber": "245",
+      "storeType": "APP_STORE",
+      "status": "APPROVED",
+      "version": "v2.4.5",
+      "releaseType": "AUTOMATIC",
+      "phasedRelease": true,
+      "resetRating": true,
+      "rolloutPercent": 0,
+      "releaseNotes": "Hotfix for iOS crash",
       "submittedAt": "2025-12-07T10:00:00.000Z",
-      "updatedAt": "2025-12-08T10:00:00.000Z"
+      "submittedBy": "test@example.com",
+      "statusUpdatedAt": "2025-12-08T10:00:00.000Z",
+      "createdAt": "2025-12-07T10:00:00.000Z",
+      "updatedAt": "2025-12-08T10:00:00.000Z",
+      "artifact": {
+        "testflightNumber": 56750
+      },
+      "actionHistory": []
     }
   ],
   "distributionStatus": [
@@ -1651,12 +1701,12 @@
       "platforms": {
         "ANDROID": {
           "status": "LIVE",
-          "exposurePercent": 50,
+          "rolloutPercent": 50,
           "submissionId": "sub_android_dist"
         },
         "IOS": {
           "status": "IN_REVIEW",
-          "exposurePercent": 0,
+          "rolloutPercent": 0,
           "submissionId": "sub_ios_dist"
         }
       },
@@ -1672,7 +1722,7 @@
       "platforms": {
         "IOS": {
           "status": "LIVE",
-          "exposurePercent": 100,
+          "rolloutPercent": 100,
           "submissionId": "sub_ios_only"
         }
       },

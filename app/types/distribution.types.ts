@@ -129,6 +129,14 @@ export enum SubmissionAction {
   HALT = 'HALT',
 }
 
+/** Rollout display status for UI components */
+export enum RolloutDisplayStatus {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  HALTED = 'HALTED',
+  COMPLETE = 'COMPLETE',
+}
+
 // ============================================================================
 // LITERAL TYPES - Keep as types for specific use cases
 // ============================================================================
@@ -254,8 +262,8 @@ export type Build = EntityTimestamps & VersionInfo & {
   
   // Artifact info
   artifactPath: string | null;
-  testflightNumber: string | null;
-  internalTrackLink: string | null;
+  testflightNumber: string | null;  // Renamed from testflightBuildNumber
+  internalTrackLink: string | null;  // Renamed from internalTestingLink
   checksum: string | null;
   
   // CI/CD metadata
@@ -313,10 +321,18 @@ export type Submission = EntityTimestamps & VersionInfo & {
   
   // Artifact information
   artifact?: {
-    buildUrl?: string;
-    internalTestingLink?: string;
-    testflightBuildNumber?: number;
+    artifactPath?: string;           // Renamed from buildUrl
+    internalTrackLink?: string;      // Renamed from internalTestingLink
+    testflightNumber?: number;       // Renamed from testflightBuildNumber
   } | null;
+  
+  // Action history (audit trail)
+  actionHistory: Array<{
+    action: 'PAUSED' | 'RESUMED' | 'CANCELLED' | 'HALTED';
+    createdBy: string;  // Email of user who performed the action
+    createdAt: string;  // ISO timestamp
+    reason: string;     // User-provided reason
+  }>;
   
   // Timestamps
   submittedAt: string | null;
@@ -460,7 +476,7 @@ export type AndroidResubmissionRequest = {
 export type IOSResubmissionRequest = {
   platform: Platform.IOS;
   version: string;                // e.g., "2.7.1"
-  testflightBuildNumber: number;
+  testflightNumber: number;       // Renamed from testflightBuildNumber
   phasedRelease: boolean;
   resetRating: boolean;
   releaseNotes: string;
@@ -494,7 +510,7 @@ export type UploadAABRequest = Partial<VersionInfo> & {
 /** Verify TestFlight Request (for manual mode) */
 export type VerifyTestFlightRequest = Pick<VersionInfo, 'versionName'> & {
   releaseId: string;
-  testflightBuildNumber: string;
+  testflightNumber: string;  // Renamed from testflightBuildNumber
 };
 
 /** Manual Approval Request */
@@ -721,11 +737,12 @@ export interface SubmissionInDistribution {
   id: string;
   platform: Platform;
   storeType?: string; // 'PLAY_STORE' | 'APP_STORE'
+  versionName?: string; // Version string (e.g., "2.7.0")
+  versionCode?: string; // Version code (Android-specific)
   details: {
     track?: string;
     buildNumber?: string;
     packageName?: string;  // Android-specific
-    versionCode?: string;  // Android-specific
     bundleId?: string;     // iOS-specific
     buildVersion?: string; // iOS-specific
     [key: string]: unknown; // Other platform-specific details
@@ -740,11 +757,11 @@ export interface SubmissionInDistribution {
  * Distribution with full submissions
  * Returned from GET /api/v1/distributions/:distributionId
  * Contains complete distribution object with ALL submissions (current + historical)
+ * Note: Version field removed - each submission has its own version
  */
 export interface DistributionWithSubmissions {
   id: string;
   releaseId: string;
-  version: string;
   branch: string;
   status: DistributionStatus;
   platforms: Platform[];
@@ -757,11 +774,11 @@ export interface DistributionWithSubmissions {
  * Distribution Entry
  * Represents a single distribution with its associated submissions
  * Returned from GET /api/v1/distributions (list endpoint)
+ * Note: Version field removed - each submission has its own version
  */
 export interface DistributionEntry {
   id: string; // Distribution ID (from distribution table)
   releaseId: string;
-  version: string;
   branch: string;
   status: DistributionStatus; // PENDING, PARTIALLY_RELEASED, or COMPLETED
   platforms: Platform[]; // Platforms this release targets (from release configuration)
@@ -774,7 +791,7 @@ export interface DistributionEntry {
       name: string;
       size: string;
       buildId: string;
-      internalTestingLink?: string;
+      internalTrackLink?: string;  // Renamed from internalTestingLink
     };
     ios?: {
       buildNumber: string;

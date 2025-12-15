@@ -8,22 +8,22 @@
  * - Uses POST /api/v1/distributions/:distributionId/submissions
  */
 
-import { 
+import {
   Alert,
-  Button, 
+  Button,
   Divider,
-  FileInput, 
-  Group, 
-  Modal, 
+  FileInput,
+  Group,
+  Modal,
   NumberInput,
   Paper,
   Select,
   Slider,
-  Stack, 
-  Text, 
+  Stack,
+  Text,
   Textarea,
   TextInput,
-  ThemeIcon 
+  ThemeIcon
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
@@ -33,10 +33,10 @@ import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
-  DIALOG_UI,
-  PLATFORM_LABELS,
+  PLATFORM_LABELS
 } from '~/constants/distribution.constants';
 import { Platform, type Submission } from '~/types/distribution.types';
+import { ErrorAlert } from './ErrorRecovery';
 
 // ============================================================================
 // TYPES
@@ -53,7 +53,7 @@ type AndroidResubmissionFormData = {
 
 type IOSResubmissionFormData = {
   version: string;
-  testflightBuildNumber: number | null;
+  testflightNumber: number | null;  // Renamed from testflightBuildNumber
   phasedRelease: boolean;
   resetRating: boolean;
   releaseNotes: string;
@@ -112,14 +112,14 @@ export function ReSubmissionDialog({
   const iosForm = useForm<IOSResubmissionFormData>({
     initialValues: {
       version: previousSubmission.versionName,
-      testflightBuildNumber: null,
+      testflightNumber: null,  // Renamed from testflightBuildNumber
       phasedRelease: previousSubmission.phasedRelease ?? true,
       resetRating: previousSubmission.resetRating ?? false,
       releaseNotes: previousSubmission.releaseNotes || '',
     },
     validate: {
       version: (value) => (!value ? 'Version is required' : null),
-      testflightBuildNumber: (value) => (!value ? 'TestFlight build number is required' : null),
+      testflightNumber: (value) => (!value ? 'TestFlight build number is required' : null),  // Renamed from testflightBuildNumber
       releaseNotes: (value) => (!value ? 'Release notes are required' : null),
     },
   });
@@ -146,12 +146,12 @@ export function ReSubmissionDialog({
 
   // Handle iOS submission
   const handleIOSSubmit = useCallback((values: IOSResubmissionFormData, _event?: React.FormEvent<HTMLFormElement>) => {
-    if (!values.testflightBuildNumber) return;
+    if (!values.testflightNumber) return;
 
     const payload = {
       platform: Platform.IOS,
       version: values.version,
-      testflightBuildNumber: values.testflightBuildNumber,
+      testflightNumber: values.testflightNumber,  // Renamed from testflightBuildNumber
       phasedRelease: values.phasedRelease,
       resetRating: values.resetRating,
       releaseNotes: values.releaseNotes,
@@ -210,11 +210,11 @@ export function ReSubmissionDialog({
             <Paper p="xs" withBorder bg="gray.0">
               {isAndroid ? (
                 <Text size="xs" c="dimmed">
-                  AAB: {previousSubmission.artifact?.buildUrl || 'N/A'}
+                  AAB: {previousSubmission.artifact?.artifactPath || 'N/A'}
                 </Text>
               ) : (
                 <Text size="xs" c="dimmed">
-                  TestFlight Build: {previousSubmission.artifact?.testflightBuildNumber || 'N/A'}
+                  TestFlight Build: {previousSubmission.artifact?.testflightNumber || 'N/A'}
                 </Text>
               )}
             </Paper>
@@ -243,7 +243,7 @@ export function ReSubmissionDialog({
                 required
                 min={1}
                 disabled={isSubmitting}
-                {...iosForm.getInputProps('testflightBuildNumber')}
+                {...iosForm.getInputProps('testflightNumber')}
               />
             )}
           </div>
@@ -351,9 +351,11 @@ export function ReSubmissionDialog({
 
           {/* Error Display */}
           {fetcher.data?.error && (
-            <Alert color="red" icon={<IconAlertCircle size={16} />}>
-              {fetcher.data.error.message || 'An error occurred'}
-            </Alert>
+            <ErrorAlert
+              error={typeof fetcher.data.error === 'string' ? fetcher.data.error : fetcher.data.error.message || 'An error occurred'}
+              onRetry={isAndroid ? () => androidForm.onSubmit(handleAndroidSubmit)() : () => iosForm.onSubmit(handleIOSSubmit)()}
+              onDismiss={() => fetcher.load('/')}
+            />
           )}
 
           {/* Action Buttons */}

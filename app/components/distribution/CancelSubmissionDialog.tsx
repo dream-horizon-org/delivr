@@ -74,10 +74,10 @@ export function CancelSubmissionDialog({
 
     fetcher.submit(JSON.stringify(payload), {
       method: 'delete',
-      action: `/api/v1/submissions/${submissionId}/cancel`,
+      action: `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
       encType: 'application/json',
     });
-  }, [submissionId, reason, fetcher]);
+  }, [submissionId, platform, reason, fetcher]);
 
   const handleClose = useCallback(() => {
     setReason('');

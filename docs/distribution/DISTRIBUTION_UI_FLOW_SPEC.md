@@ -522,7 +522,7 @@ START: User wants to manage submissions
 │   │   ├─ iOS Phased: User can only select 100% (complete early)
 │   │   ├─ iOS Manual: No rollout control (always 100%)
 │   │   ├─ Click: "Update Rollout"
-│   │   ├─ API: PATCH /api/v1/submissions/{submissionId}/rollout
+│   │   ├─ API: PATCH /api/v1/submissions/{submissionId}/rollout?platform={platform}
 │   │   ├─ Optimistic update: Progress bar animates
 │   │   └─ Success → Confirmed at new %
 │   │
@@ -530,13 +530,13 @@ START: User wants to manage submissions
 │   │   ├─ Click: "Pause" button
 │   │   ├─ Opens: PauseRolloutDialog
 │   │   ├─ Required: Enter reason
-│   │   ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/pause
+│   │   ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/pause?platform=IOS
 │   │   └─ Success → Status changes to PAUSED
 │   │
 │   ├─ ACTION C: Resume Rollout (if paused)
 │   │   ├─ Click: "Resume" button
 │   │   ├─ Opens: ResumeRolloutDialog (simple confirmation)
-│   │   ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/resume
+│   │   ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/resume?platform=IOS
 │   │   └─ Success → Status returns to LIVE
 │   │
 │   └─ ACTION D: Emergency Halt (any platform, any state)
@@ -544,7 +544,7 @@ START: User wants to manage submissions
 │       ├─ Opens: HaltRolloutDialog
 │       │   ├─ Reason: (required field)
 │       │   └─ Warning: "This requires a hotfix release"
-│       ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/halt
+│       ├─ Confirm → API: PATCH /api/v1/submissions/{submissionId}/rollout/halt?platform={platform}
 │       └─ Success → Status changes to HALTED (terminal)
 │
 └─ USE CASE 4: View Submission History
@@ -641,8 +641,8 @@ const distribution = await DistributionService.getDistributionByRelease(releaseI
 // API: GET /api/v1/releases/:releaseId/distribution
 
 // Response includes:
-// - distribution { id, releaseId, version, branch, status, platforms }
-// - submissions [] (auto-created with PENDING status)
+// - distribution { id, releaseId, branch, status, platforms }
+// - submissions [] (auto-created with PENDING status, each has its own version)
 ```
 
 ### 4.2 Initial State (Submissions in PENDING)
@@ -838,7 +838,7 @@ const distribution = await DistributionService.getDistribution(distributionId);
 // API: GET /api/v1/distributions/:distributionId
 
 // Response includes:
-// - distribution { id, releaseId, version, branch, status, platforms }
+// - distribution { id, releaseId, branch, status, platforms }
 // - submissions [] (all submissions including historical)
 // - Each submission includes artifact details
 ```
@@ -1115,7 +1115,7 @@ type ReSubmissionFormData = {
   
   // iOS-specific (if platform === 'IOS')
   ios?: {
-    testflightBuildNumber: number; // NEW TestFlight build (required)
+    testflightNumber: number; // NEW TestFlight build (required)
     phasedRelease: boolean; // Pre-filled, editable
     resetRating: boolean; // Pre-filled, editable
     releaseNotes: string; // Pre-filled, editable
@@ -1140,7 +1140,7 @@ const initialValues = {
   } : undefined,
   
   ios: previousSubmission.platform === 'IOS' ? {
-    // testflightBuildNumber: user must provide NEW number
+    // testflightNumber: user must provide NEW number
     phasedRelease: previousSubmission.phasedRelease || true,
     resetRating: previousSubmission.resetRating || false,
     releaseNotes: previousSubmission.releaseNotes || '',
@@ -1333,7 +1333,7 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 **API**:
 ```typescript
 // Update rollout to any %
-PATCH /api/v1/submissions/:submissionId/rollout
+PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
 { rolloutPercent: 27.3 }  // Supports decimals
 ```
 
@@ -1348,15 +1348,15 @@ PATCH /api/v1/submissions/:submissionId/rollout
 **API**:
 ```typescript
 // Complete early (skip to 100%)
-PATCH /api/v1/submissions/:submissionId/rollout
+PATCH /api/v1/submissions/:submissionId/rollout?platform=IOS
 { rolloutPercent: 100 }  // Only 100 allowed
 
 // Pause
-PATCH /api/v1/submissions/:submissionId/rollout/pause
+PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
 { reason: "Monitoring crash reports" }
 
 // Resume
-PATCH /api/v1/submissions/:submissionId/rollout/resume
+PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 ```
 
 ### 9.3 iOS - Manual Release
@@ -1435,27 +1435,27 @@ POST /api/v1/distributions/:distributionId/submissions
 
 ### Update Rollout
 ```
-PATCH /api/v1/submissions/:submissionId/rollout
+PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 ```
 
 ### Pause Rollout (iOS phased only)
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/pause
+PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
 ```
 
 ### Resume Rollout
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/resume
+PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 ```
 
 ### Emergency Halt
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/halt
+PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
 ```
 
 ### Cancel Submission
 ```
-PATCH /api/v1/submissions/:submissionId/cancel
+PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
 ```
 
 ### Get Distribution

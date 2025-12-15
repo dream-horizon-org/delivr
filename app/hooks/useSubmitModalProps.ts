@@ -8,17 +8,15 @@ import { useMemo } from 'react';
 import {
   DistributionStatus,
   Platform,
-  SubmissionStatus,
-  type DistributionEntry,
+  type DistributionEntry
 } from '~/types/distribution.types';
 
 export type SubmitModalPropsData = {
   isFirstSubmission: boolean;
-  isResubmission: boolean;
   androidArtifact?: {
     name: string;
     size: string;
-    internalTestingLink?: string;
+    internalTrackLink?: string;
   };
   iosArtifact?: {
     buildNumber: string;
@@ -40,13 +38,6 @@ export function useSubmitModalProps(
       distribution.status === DistributionStatus.PENDING &&
       distribution.submissions.length === 0;
 
-    // Check if this is a resubmission (after rejection or cancellation)
-    const isResubmission = distribution.submissions.some(
-      (s) =>
-        s.status === SubmissionStatus.REJECTED ||
-        s.status === SubmissionStatus.CANCELLED
-    );
-
     // Extract Android artifact if available
     const androidArtifact =
       distribution.platforms.includes(Platform.ANDROID) &&
@@ -54,8 +45,8 @@ export function useSubmitModalProps(
         ? {
             name: distribution.artifacts.android.name,
             size: distribution.artifacts.android.size,
-            internalTestingLink:
-              distribution.artifacts.android.internalTestingLink,
+            internalTrackLink:
+              distribution.artifacts.android.internalTrackLink,
           }
         : undefined;
 
@@ -71,7 +62,6 @@ export function useSubmitModalProps(
 
     return {
       isFirstSubmission,
-      isResubmission,
       androidArtifact,
       iosArtifact,
     };

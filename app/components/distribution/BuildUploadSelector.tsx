@@ -55,7 +55,7 @@ export function BuildUploadSelector({
   disabled,
 }: BuildUploadSelectorProps) {
   const [aabFile, setAabFile] = useState<File | null>(null);
-  const [testflightBuildNumber, setTestflightBuildNumber] = useState('');
+  const [testflightNumber, setTestflightNumber] = useState('');  // Renamed from testflightBuildNumber
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
@@ -94,7 +94,7 @@ export function BuildUploadSelector({
   }, [aabFile, releaseId, onBuildReady]);
 
   const handleTestflightVerify = useCallback(async () => {
-    if (!testflightBuildNumber.trim()) return;
+    if (!testflightNumber.trim()) return;
 
     setIsUploading(true);
     setUploadError('');
@@ -104,7 +104,7 @@ export function BuildUploadSelector({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          testflightBuildNumber: testflightBuildNumber.trim(),
+          testflightNumber: testflightNumber.trim(),  // Renamed from testflightBuildNumber
         }),
       });
 
@@ -120,10 +120,10 @@ export function BuildUploadSelector({
     } finally {
       setIsUploading(false);
     }
-  }, [testflightBuildNumber, releaseId, onBuildReady]);
+  }, [testflightNumber, releaseId, onBuildReady]);  // Renamed from testflightBuildNumber
 
   const handleTestflightInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setTestflightBuildNumber(e.currentTarget.value);
+    setTestflightNumber(e.currentTarget.value);  // Renamed from setTestflightBuildNumber
   }, []);
 
   const handleClearError = useCallback(() => {
@@ -202,7 +202,7 @@ export function BuildUploadSelector({
               label={DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD_NUMBER}
               placeholder={DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD_PLACEHOLDER}
               leftSection={<IconRocket size={FORM_ICON_SIZES.INPUT} />}
-              value={testflightBuildNumber}
+              value={testflightNumber}  // Renamed from testflightBuildNumber
               onChange={handleTestflightInputChange}
               disabled={disabled || isUploading}
               required
@@ -215,7 +215,7 @@ export function BuildUploadSelector({
             <Button
               leftSection={<IconRocket size={FORM_ICON_SIZES.BUTTON} />}
               onClick={handleTestflightVerify}
-              disabled={!testflightBuildNumber.trim() || disabled}
+              disabled={!testflightNumber.trim() || disabled}  // Renamed from testflightBuildNumber
               loading={isUploading}
               color="blue"
               fullWidth

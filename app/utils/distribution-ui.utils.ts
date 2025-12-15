@@ -4,7 +4,7 @@
  * NO React, NO JSX - pure functions only
  */
 
-import { DistributionStatus, SubmissionStatus } from '~/types/distribution.types';
+import { DistributionStatus, RolloutDisplayStatus, SubmissionStatus } from '~/types/distribution.types';
 
 /**
  * Get color for distribution or submission status
@@ -89,14 +89,14 @@ export function getRolloutStatus(
   isComplete: boolean,
   canResume: boolean,
   rolloutCompletePercent: number = 100
-): 'complete' | 'paused' | 'active' {
+): RolloutDisplayStatus {
   if (isComplete || currentPercentage === rolloutCompletePercent) {
-    return 'complete';
+    return RolloutDisplayStatus.COMPLETE;
   }
   if (canResume) {
-    return 'paused';
+    return RolloutDisplayStatus.PAUSED;
   }
-  return 'active';
+  return RolloutDisplayStatus.ACTIVE;
 }
 
 /**

@@ -192,7 +192,7 @@ interface AndroidResubmissionRequest {
 interface IOSResubmissionRequest {
   platform: 'IOS';
   version: string;
-  testflightBuildNumber: number;
+  testflightNumber: number;
   phasedRelease?: boolean;
   resetRating?: boolean;
   releaseNotes?: string;
@@ -238,7 +238,7 @@ export const action = authenticateActionRequest({ POST: createResubmission });
 - [ ] Creates NEW submission (new submissionId)
 - [ ] Android: Uploads AAB file
 - [ ] Android: versionCode optional (extracted from AAB)
-- [ ] Android: No internalTestingLink in response (direct to production)
+- [ ] Android: No internalTrackLink in response (direct to production)
 - [ ] iOS: Validates TestFlight build number
 - [ ] Returns 201 with new submission object
 - [ ] Pre-fills form with previous submission data on frontend
@@ -449,9 +449,10 @@ TO:   app/routes/dashboard.$org.distributions.$distributionId.tsx
 
 ---
 
-##### 2.1.4 GET /api/v1/submissions/:submissionId
+##### 2.1.4 GET /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>
 
-**File:** `app/routes/api.v1.submissions.$submissionId.ts`  
+**File:** `app/routes/api.v1.submissions.$submissionId.ts`
+**Query Parameter:** `platform` (required) - "ANDROID" or "IOS"  
 **Reference:** DISTRIBUTION_API_SPEC.md lines 715-826
 
 **Checklist:**
@@ -483,9 +484,10 @@ TO:   app/routes/dashboard.$org.distributions.$distributionId.tsx
 
 #### 2.2 Rollout Management APIs
 
-##### 2.2.1 PATCH /api/v1/submissions/:submissionId/rollout
+##### 2.2.1 PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 
-**File:** `app/routes/api.v1.submissions.$submissionId.rollout.ts`  
+**File:** `app/routes/api.v1.submissions.$submissionId.rollout.ts`
+**Query Parameter:** `platform` (required) - "ANDROID" or "IOS"  
 **Reference:** DISTRIBUTION_API_SPEC.md lines 827-912
 
 **Checklist:**
@@ -527,9 +529,10 @@ if (platform === 'IOS' && phasedRelease === false) {
 
 ---
 
-##### 2.2.2 PATCH /api/v1/submissions/:submissionId/rollout/pause
+##### 2.2.2 PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
 
-**File:** Create `app/routes/api.v1.submissions.$submissionId.rollout.pause.ts`  
+**File:** Create `app/routes/api.v1.submissions.$submissionId.rollout.pause.ts`
+**Query Parameter:** `platform` (required) - Must be "IOS" (Android does not support pause)  
 **Reference:** DISTRIBUTION_API_SPEC.md lines 1081-1113
 
 **Implementation:**
@@ -580,9 +583,10 @@ export const action = authenticateActionRequest({ PATCH: pauseRollout });
 
 ---
 
-##### 2.2.3 PATCH /api/v1/submissions/:submissionId/rollout/resume
+##### 2.2.3 PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 
-**File:** Create `app/routes/api.v1.submissions.$submissionId.rollout.resume.ts`  
+**File:** Create `app/routes/api.v1.submissions.$submissionId.rollout.resume.ts`
+**Query Parameter:** `platform` (required) - Must be "IOS" (Android does not support resume)  
 **Reference:** DISTRIBUTION_API_SPEC.md lines 1114-1136
 
 **Implementation:**
@@ -624,9 +628,10 @@ export const action = authenticateActionRequest({ PATCH: resumeRollout });
 
 ---
 
-##### 2.2.4 PATCH /api/v1/submissions/:submissionId/rollout/halt
+##### 2.2.4 PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
 
-**File:** Create `app/routes/api.v1.submissions.$submissionId.rollout.halt.ts`  
+**File:** Create `app/routes/api.v1.submissions.$submissionId.rollout.halt.ts`
+**Query Parameter:** `platform` (required) - "ANDROID" or "IOS"  
 **Reference:** DISTRIBUTION_API_SPEC.md lines 1137-1169
 
 **Implementation:**
@@ -678,9 +683,10 @@ export const action = authenticateActionRequest({ PATCH: haltRollout });
 
 #### 2.3 Submission Management APIs
 
-##### 2.3.1 PATCH /api/v1/submissions/:submissionId/cancel
+##### 2.3.1 PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
 
-**File:** `app/routes/api.v1.submissions.$submissionId.cancel.ts`  
+**File:** `app/routes/api.v1.submissions.$submissionId.cancel.ts`
+**Query Parameter:** `platform` (required) - "ANDROID" or "IOS"  
 **Reference:** DISTRIBUTION_API_SPEC.md lines 1048-1080
 
 **Checklist:**
@@ -804,7 +810,7 @@ interface CancelRequest {
      
      // Reset artifact (must provide new)
      aabFile: null,
-     testflightBuildNumber: null
+     testflightNumber: null
    });
    ```
 
@@ -836,7 +842,7 @@ interface CancelRequest {
        body: JSON.stringify({
          platform: 'IOS',
          version: version,
-         testflightBuildNumber: testflightBuildNumber,
+         testflightNumber: testflightNumber,
          phasedRelease: phasedRelease,
          resetRating: resetRating,
          releaseNotes: releaseNotes
@@ -853,7 +859,7 @@ interface CancelRequest {
 - [ ] Handles JSON for iOS
 - [ ] versionCode optional for Android
 - [ ] Response shows NEW submission ID (not same as old)
-- [ ] No internalTestingLink for Android resubmission
+- [ ] No internalTrackLink for Android resubmission
 - [ ] Handles errors gracefully
 
 ---
@@ -958,23 +964,27 @@ interface CancelRequest {
 #### 3.4 Dialog Components
 
 ##### PauseRolloutDialog.tsx
-- [ ] API: `PATCH /api/v1/submissions/:submissionId/rollout/pause`
+- [ ] API: `PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS`
 - [ ] Required field: `reason`
+- [ ] Required query param: `platform=IOS`
 - [ ] Only show for iOS phased release + LIVE status
 
 ##### ResumeRolloutDialog.tsx
-- [ ] API: `PATCH /api/v1/submissions/:submissionId/rollout/resume`
+- [ ] API: `PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS`
 - [ ] No request body needed
+- [ ] Required query param: `platform=IOS`
 - [ ] Only show for iOS phased release + PAUSED status
 
 ##### HaltRolloutDialog.tsx
-- [ ] API: `PATCH /api/v1/submissions/:submissionId/rollout/halt`
+- [ ] API: `PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>`
 - [ ] Required field: `reason` (NO severity field)
+- [ ] Required query param: `platform` (ANDROID or IOS)
 - [ ] Show for all platforms + LIVE status
 
 ##### CancelSubmissionDialog.tsx
-- [ ] API: `PATCH /api/v1/submissions/:submissionId/cancel`
+- [ ] API: `PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>`
 - [ ] Optional field: `reason`
+- [ ] Required query param: `platform` (ANDROID or IOS)
 - [ ] Show for PENDING, IN_REVIEW, APPROVED statuses
 
 ---
@@ -1631,7 +1641,7 @@ export default function DistributionManagement() {
       {/* Breadcrumbs */}
       <Breadcrumbs>
         <Anchor component={Link} to="/distributions">Distributions</Anchor>
-        <Text>{distribution.version}</Text>
+        <Text>{currentSubmission?.version || 'Distribution'}</Text>
       </Breadcrumbs>
       
       {/* Header with distribution details */}
@@ -1732,13 +1742,12 @@ export default function DistributionManagement() {
 export interface Distribution {
   id: string;
   releaseId: string;
-  version: string;
   branch: string;
   status: DistributionStatus;
   platforms: Platform[];
   createdAt: string;
   updatedAt: string;
-  submissions: Submission[];
+  submissions: Submission[];  // Each submission has its own version
 }
 
 export interface Submission {
@@ -1754,12 +1763,12 @@ export interface Submission {
 }
 
 export interface AndroidArtifact {
-  buildUrl: string;
-  internalTestingLink?: string;  // Not present in resubmissions
+  artifactPath: string;
+  internalTrackLink?: string;  // Not present in resubmissions
 }
 
 export interface IOSArtifact {
-  testflightBuildNumber: number;
+  testflightNumber: number;
 }
 ```
 

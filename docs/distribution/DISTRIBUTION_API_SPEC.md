@@ -34,7 +34,14 @@ This document specifies the complete API contract for the Distribution module, w
 - **Created**: Automatically after pre-release completion
 - **Purpose**: Container for all submissions for a release
 - **Lifecycle**: PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED
+- **Status Calculation**: Backend only - Frontend never calculates, only displays
 - **Relationship**: 1 Distribution : N Submissions
+- **Status Logic**: 
+  - `PENDING`: No submissions made yet
+  - `PARTIALLY_SUBMITTED`: At least 1 (but not all) submissions made
+  - `SUBMITTED`: All configured platforms submitted to stores
+  - `PARTIALLY_RELEASED`: At least 1 submission is LIVE (not all at 100%)
+  - `RELEASED`: All submissions LIVE at 100% rollout
 
 ### Submission
 - **Created**: Automatically when distribution is created (one per configured platform)
@@ -86,15 +93,35 @@ PENDING → IN_REVIEW → APPROVED → LIVE
 ## Enums & Constants
 
 ### DistributionStatus
+
+**Backend-Calculated Status** (Frontend displays only, does not calculate):
+
 ```typescript
 enum DistributionStatus {
-  PENDING = 'PENDING',                          // Created, not submitted yet
-  PARTIALLY_SUBMITTED = 'PARTIALLY_SUBMITTED',  // Some platforms submitted
-  SUBMITTED = 'SUBMITTED',                      // All platforms submitted
-  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',    // Some platforms live
-  RELEASED = 'RELEASED'                         // All platforms 100% live
+  PENDING = 'PENDING',                          // Initial state, no submissions made yet
+  PARTIALLY_SUBMITTED = 'PARTIALLY_SUBMITTED',  // At least 1 submission made (not all)
+  SUBMITTED = 'SUBMITTED',                      // All configured platforms submitted
+  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',    // At least 1 submission is LIVE (not all at 100%)
+  RELEASED = 'RELEASED'                         // All submissions LIVE at 100% rollout
 }
 ```
+
+**State Machine Logic (Backend Only):**
+
+| Current State | Trigger | Next State | Example |
+|---------------|---------|------------|---------|
+| `PENDING` | First submission made | `PARTIALLY_SUBMITTED` | Android submitted, iOS still pending |
+| `PARTIALLY_SUBMITTED` | All platforms submitted | `SUBMITTED` | Both Android & iOS submitted |
+| `PARTIALLY_SUBMITTED` | First submission goes LIVE | `PARTIALLY_RELEASED` | Android submitted goes LIVE, iOS still pending |
+| `SUBMITTED` | First submission goes LIVE | `PARTIALLY_RELEASED` | Android LIVE, iOS still IN_REVIEW |
+| `PARTIALLY_RELEASED` | Additional submission made | `PARTIALLY_RELEASED` | Stays same - still partially released |
+| `PARTIALLY_RELEASED` | All submissions LIVE at 100% | `RELEASED` | Both platforms at 100% rollout |
+
+**Key Points:**
+- ✅ Backend calculates and returns this status
+- ✅ Frontend ONLY displays the status (never calculates it)
+- ✅ Status is derived from all submissions' states and rollout percentages
+- ✅ `PARTIALLY_RELEASED` persists until ALL submissions reach 100%
 
 ### SubmissionStatus
 ```typescript
@@ -166,7 +193,6 @@ GET /api/v1/releases/:releaseId/distribution
   "data": {
     "id": "dist_123",
     "releaseId": "rel_456",
-    "version": "2.7.0",
     "branch": "main",
     "status": "PENDING",
     "platforms": ["ANDROID", "IOS"],
@@ -190,9 +216,10 @@ GET /api/v1/releases/:releaseId/distribution
         "createdAt": "2025-12-14T10:00:00Z",
         "updatedAt": "2025-12-14T10:00:00Z",
         "artifact": {
-          "buildUrl": "https://s3.amazonaws.com/presigned-url/app-release.aab",
-          "internalTestingLink": "https://play.google.com/apps/testing/com.app"
-        }
+          "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
+          "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+        },
+        "actionHistory": []
       },
       {
         "id": "sub_012",
@@ -212,8 +239,22 @@ GET /api/v1/releases/:releaseId/distribution
         "createdAt": "2025-12-14T10:00:00Z",
         "updatedAt": "2025-12-14T12:00:00Z",
         "artifact": {
-          "testflightBuildNumber": 56789
-        }
+          "testflightNumber": 56789
+        },
+        "actionHistory": [
+          {
+            "action": "PAUSED",
+            "createdBy": "prince@dream11.com",
+            "createdAt": "2025-12-14T11:00:00Z",
+            "reason": "Found critical bug in production"
+          },
+          {
+            "action": "RESUMED",
+            "createdBy": "prince@dream11.com",
+            "createdAt": "2025-12-14T11:30:00Z",
+            "reason": "Bug fixed and verified"
+          }
+        ]
       }
     ]
   }
@@ -227,7 +268,6 @@ GET /api/v1/releases/:releaseId/distribution
   "data": {
     "id": "dist_123",
     "releaseId": "rel_456",
-    "version": "2.7.0",
     "branch": "main",
     "status": "PENDING",
     "platforms": ["ANDROID", "IOS"],
@@ -251,9 +291,10 @@ GET /api/v1/releases/:releaseId/distribution
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T09:00:00Z",
         "artifact": {
-          "buildUrl": "https://s3.amazonaws.com/presigned-url/app-release.aab",
-          "internalTestingLink": "https://play.google.com/apps/testing/com.app"
-        }
+          "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
+          "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+        },
+        "actionHistory": []
       },
       {
         "id": "sub_def",
@@ -273,8 +314,9 @@ GET /api/v1/releases/:releaseId/distribution
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T09:00:00Z",
         "artifact": {
-          "testflightBuildNumber": 56789
-        }
+          "testflightNumber": 56789
+        },
+        "actionHistory": []
       }
     ]
   }
@@ -289,7 +331,6 @@ GET /api/v1/releases/:releaseId/distribution
 **Distribution Object** (top level `data`):
 - `id`: Distribution ID
 - `releaseId`: Associated release ID
-- `version`: Version number
 - `branch`: Git branch
 - `status`: Distribution status (PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED)
 - `platforms`: Array of platforms configured for this distribution
@@ -309,18 +350,28 @@ GET /api/v1/releases/:releaseId/distribution
     - **iOS**: `releaseType` (always "AUTOMATIC", display only), `phasedRelease`, `resetRating`
   - **`artifact`** Object (nested in each submission):
     - **Android**: 
-      - `buildUrl`: Presigned S3 URL to download AAB
-      - `internalTestingLink`: Google Play internal testing link (optional - only for first submission, not resubmissions)
+      - `artifactPath`: Presigned S3 URL to download AAB
+      - `internalTrackLink`: Google Play internal testing link (optional - only for first submission, not resubmissions)
     - **iOS**: 
-      - `testflightBuildNumber`: TestFlight build number
+      - `testflightNumber`: TestFlight build number
+  - **`actionHistory`** Array (audit trail for manual actions):
+    - `action`: Action type ("PAUSED" | "RESUMED" | "CANCELLED" | "HALTED")
+    - `createdBy`: Email of user who performed the action
+    - `createdAt`: ISO timestamp when action was performed
+    - `reason`: User-provided reason for the action
+    - Empty array `[]` if no actions have been taken
 
 **Important Field Notes:**
+- **Distribution has NO version field**: Version information exists only in submissions
 - **`inAppPriority`**: Android in-app update priority (0-5), not `priority`
 - **`statusUpdatedAt`**: Last status change timestamp, not `statusChangedAt`
 - **`submittedBy`**: Email of user who submitted
 - **`resetRating`**: Boolean for iOS rating reset, not `resetRatings`
 - **`releaseType`**: iOS only, always "AUTOMATIC" (display-only field, non-editable, default value)
-- **`artifact.internalTestingLink`**: Optional - present only for first submission, not for resubmissions (AAB directly submitted to production)
+- **`artifact.artifactPath`**: S3 path or URL to AAB file (was `buildUrl`)
+- **`artifact.internalTrackLink`**: Optional Google Play internal testing link (was `internalTestingLink`) - present only for first submission, not for resubmissions
+- **`artifact.testflightNumber`**: iOS TestFlight build number (was `testflightBuildNumber`)
+- **`actionHistory`**: Audit trail for PAUSED/RESUMED/CANCELLED/HALTED actions; empty array if none
 
 **Notes:**
 - ✅ **Preferred endpoint** for release process distribution step
@@ -360,7 +411,6 @@ GET /api/v1/distributions
     "distributions": [
       {
         "id": "dist_123",
-        "version": "v2.7.0",
         "branch": "release/2.7.0",
         "status": "PENDING",
         "platforms": ["ANDROID", "IOS"],
@@ -473,8 +523,13 @@ Submit an existing PENDING submission to the store (first-time submission).
 
 **Endpoint:**
 ```
-PUT /api/v1/submissions/:submissionId/submit
+PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to query (iOS and Android submissions are in separate tables) |
 
 **Request Body (Android):**
 ```json
@@ -509,7 +564,7 @@ PUT /api/v1/submissions/:submissionId/submit
 **Notes:**
 - ✅ Submission **already exists** with PENDING status (auto-created with distribution)
 - ✅ Submission **already has platform and artifact** associated
-- ✅ No need to specify platform - it's already known from the submissionId
+- ⚠️ **MUST provide `platform` query parameter** - Required because iOS and Android submissions are stored in separate database tables
 - ✅ Artifact (AAB/TestFlight build) is already linked from pre-release
 
 **Response (Android):**
@@ -533,9 +588,10 @@ PUT /api/v1/submissions/:submissionId/submit
     "createdAt": "2025-12-14T09:00:00Z",
     "updatedAt": "2025-12-14T10:00:00Z",
     "artifact": {
-      "buildUrl": "https://s3.amazonaws.com/presigned-url/app-release.aab",
-      "internalTestingLink": "https://play.google.com/apps/testing/com.app"
-    }
+      "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
+      "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+    },
+    "actionHistory": []
   }
 }
 ```
@@ -562,8 +618,9 @@ PUT /api/v1/submissions/:submissionId/submit
     "createdAt": "2025-12-14T09:00:00Z",
     "updatedAt": "2025-12-14T10:00:00Z",
     "artifact": {
-      "testflightBuildNumber": 56789
-    }
+      "testflightNumber": 56789
+    },
+    "actionHistory": []
   }
 }
 ```
@@ -615,7 +672,6 @@ GET /api/v1/distributions/:distributionId
   "data": {
     "id": "dist_123",
     "releaseId": "rel_456",
-    "version": "2.7.0",
     "branch": "main",
     "status": "PARTIALLY_RELEASED",
     "platforms": ["ANDROID", "IOS"],
@@ -639,9 +695,10 @@ GET /api/v1/distributions/:distributionId
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T12:00:00Z",
         "artifact": {
-          "buildUrl": "https://s3.amazonaws.com/presigned-url/app-release.aab",
-          "internalTestingLink": "https://play.google.com/apps/testing/com.app"
-        }
+          "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
+          "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+        },
+        "actionHistory": []
       },
       {
         "id": "sub_012",
@@ -661,8 +718,9 @@ GET /api/v1/distributions/:distributionId
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T10:00:00Z",
         "artifact": {
-          "testflightBuildNumber": 56789
-        }
+          "testflightNumber": 56789
+        },
+        "actionHistory": []
       }
     ]
   }
@@ -674,7 +732,6 @@ GET /api/v1/distributions/:distributionId
 **Distribution Object** (top level `data`):
 - `id`: Distribution ID
 - `releaseId`: Associated release ID
-- `version`: Version number
 - `branch`: Git branch
 - `status`: Distribution status (PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED)
 - `platforms`: Array of platforms configured
@@ -693,16 +750,23 @@ GET /api/v1/distributions/:distributionId
     - **iOS**: `releaseType` (always "AUTOMATIC"), `phasedRelease`, `resetRating`
   - **`artifact`** Object (nested in each submission):
     - **Android**: 
-      - `buildUrl`: Presigned S3 URL to download AAB
-      - `internalTestingLink`: Google Play internal testing link (optional)
+      - `artifactPath`: Presigned S3 URL to download AAB
+      - `internalTrackLink`: Google Play internal testing link (optional)
     - **iOS**: 
-      - `testflightBuildNumber`: TestFlight build number
+      - `testflightNumber`: TestFlight build number
+  - **`actionHistory`** Array (audit trail):
+    - `action`: "PAUSED" | "RESUMED" | "CANCELLED" | "HALTED"
+    - `createdBy`: Email of user who performed the action
+    - `createdAt`: ISO timestamp
+    - `reason`: User-provided reason
+    - Empty array `[]` if no manual actions taken
 
 **Notes:**
 - ✅ Returns **ALL submissions** including historical ones (not just latest per platform)
-- ✅ Each submission includes full artifact details
+- ✅ Each submission includes full artifact details and action history
 - ✅ Identical structure to `GET /api/v1/releases/:releaseId/distribution`
 - ✅ Use this endpoint for distribution management page
+- ✅ Distribution has NO version field - version exists only in submissions
 
 ---
 
@@ -712,8 +776,13 @@ Get full details for a specific submission with artifact information.
 
 **Endpoint:**
 ```
-GET /api/v1/submissions/:submissionId
+GET /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to query (iOS and Android submissions are in separate tables) |
 
 **Use Case:**
 - Submission details page
@@ -742,9 +811,10 @@ GET /api/v1/submissions/:submissionId
     "createdAt": "2025-12-14T10:00:00Z",
     "updatedAt": "2025-12-14T14:00:00Z",
     "artifact": {
-      "buildUrl": "https://s3.amazonaws.com/presigned-url/app-release.aab",
-      "internalTestingLink": "https://play.google.com/apps/testing/com.app"
-    }
+      "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
+      "internalTrackLink": "https://play.google.com/apps/testing/com.app"
+    },
+    "actionHistory": []
   }
 }
 ```
@@ -771,8 +841,22 @@ GET /api/v1/submissions/:submissionId
     "createdAt": "2025-12-14T10:00:00Z",
     "updatedAt": "2025-12-14T14:00:00Z",
     "artifact": {
-      "testflightBuildNumber": 56789
-    }
+      "testflightNumber": 56789
+    },
+    "actionHistory": [
+      {
+        "action": "PAUSED",
+        "createdBy": "prince@dream11.com",
+        "createdAt": "2025-12-14T11:00:00Z",
+        "reason": "Found critical bug in phased rollout"
+      },
+      {
+        "action": "RESUMED",
+        "createdBy": "prince@dream11.com",
+        "createdAt": "2025-12-14T11:30:00Z",
+        "reason": "Bug fixed and verified in TestFlight"
+      }
+    ]
   }
 }
 ```
@@ -805,10 +889,10 @@ GET /api/v1/submissions/:submissionId
 
 **`artifact`** Object (nested):
 - **Android**: 
-  - `buildUrl`: Presigned S3 URL to download AAB
-  - `internalTestingLink`: Google Play internal testing link (optional - only for first submission)
+  - `artifactPath`: Presigned S3 URL to download AAB
+  - `internalTrackLink`: Google Play internal testing link (optional - only for first submission)
 - **iOS**: 
-  - `testflightBuildNumber`: TestFlight build number
+  - `testflightNumber`: TestFlight build number
 
 **Notes:**
 - ✅ Returns complete submission details with all fields
@@ -824,8 +908,13 @@ Increase/decrease rollout percentage for a submission (platform-specific rules a
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout
+PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables) |
 
 **Request:**
 ```json
@@ -932,7 +1021,7 @@ POST /api/v1/distributions/:distributionId/submissions
 {
   "platform": "IOS",
   "version": "2.7.1",
-  "testflightBuildNumber": 56790,
+  "testflightNumber": 56790,
   "phasedRelease": true,
   "resetRating": false,
   "releaseNotes": "Fixed issues from rejected build"
@@ -953,7 +1042,7 @@ POST /api/v1/distributions/:distributionId/submissions
 - `inAppPriority`: `number` (0-5) - In-app update priority (required)
 
 **iOS-Specific:**
-- `testflightBuildNumber`: `number` - TestFlight build number (required)
+- `testflightNumber`: `number` - TestFlight build number (required)
 - `phasedRelease`: `boolean` - Enable 7-day phased rollout (required)
 - `resetRating`: `boolean` - Reset app rating (required)
 
@@ -982,13 +1071,14 @@ POST /api/v1/distributions/:distributionId/submissions
     "createdAt": "2025-12-14T15:00:00Z",
     "updatedAt": "2025-12-14T15:00:00Z",
     "artifact": {
-      "buildUrl": "https://s3.amazonaws.com/new-build/app-release-v2.7.1.aab"
-    }
+      "artifactPath": "https://s3.amazonaws.com/new-build/app-release-v2.7.1.aab"
+    },
+    "actionHistory": []
   }
 }
 ```
 
-**Note:** For Android resubmissions, AAB is submitted **directly to production** (not internal testing), so `internalTestingLink` is NOT available.
+**Note:** For Android resubmissions, AAB is submitted **directly to production** (not internal testing), so `internalTrackLink` is NOT available.
 
 **Response (iOS):**
 ```json
@@ -1012,8 +1102,9 @@ POST /api/v1/distributions/:distributionId/submissions
     "createdAt": "2025-12-14T15:00:00Z",
     "updatedAt": "2025-12-14T15:00:00Z",
     "artifact": {
-      "testflightBuildNumber": 56790
-    }
+      "testflightNumber": 56790
+    },
+    "actionHistory": []
   }
 }
 ```
@@ -1045,8 +1136,13 @@ Cancel an in-review submission.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/cancel
+PATCH /api/v1/submissions/:submissionId/cancel?platform=<ANDROID|IOS>
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables) |
 
 **Request (Optional):**
 ```json
@@ -1078,8 +1174,13 @@ Pause an active rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/pause
+PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | Must be "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables). Android does not support pause. |
 
 **Request:**
 ```json
@@ -1111,8 +1212,13 @@ Resume a paused rollout.
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/resume
+PATCH /api/v1/submissions/:submissionId/rollout/resume?platform=IOS
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | Must be "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables). Android does not support resume. |
 
 **Response:**
 ```json
@@ -1134,8 +1240,13 @@ Immediately halt a release (cannot resubmit, must create new release).
 
 **Endpoint:**
 ```
-PATCH /api/v1/submissions/:submissionId/rollout/halt
+PATCH /api/v1/submissions/:submissionId/rollout/halt?platform=<ANDROID|IOS>
 ```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | Yes | "ANDROID" or "IOS" - Required to identify which database table to update (iOS and Android submissions are in separate tables) |
 
 **Request:**
 ```json
@@ -1194,8 +1305,8 @@ CREATE TABLE android_submission_builds (
     
     -- Build
     buildType ENUM('MANUAL', 'CI_CD') NOT NULL,
-    internalTestingLink VARCHAR(255) NULL,
-    buildUrl TEXT NULL,
+    internalTrackLink VARCHAR(255) NULL,
+    artifactPath TEXT NULL,
     
     -- Store
     storeType VARCHAR(20) NOT NULL DEFAULT 'PLAY_STORE',
@@ -1209,6 +1320,7 @@ CREATE TABLE android_submission_builds (
     releaseNotes TEXT NULL,
     inAppPriority INT NULL,
     createdBy VARCHAR(50) NOT NULL,
+    actionHistory JSON NULL,  -- Audit trail: [{action, createdBy, createdAt, reason}]
     
     -- Timestamps
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1234,7 +1346,7 @@ CREATE TABLE ios_submission_builds (
     isCurrent BOOLEAN DEFAULT TRUE,
     
     -- Version
-    testflightBuildNumber VARCHAR(255) NULL,
+    testflightNumber VARCHAR(255) NULL,  -- Renamed from testflightBuildNumber
     version VARCHAR(20) NOT NULL,
     
     -- Build
@@ -1253,6 +1365,7 @@ CREATE TABLE ios_submission_builds (
     phasedRelease BOOLEAN NULL,
     resetRating BOOLEAN NULL,
     createdBy VARCHAR(50) NOT NULL,
+    actionHistory JSON NULL,  -- Audit trail: [{action, createdBy, createdAt, reason}]
     
     -- Timestamps
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

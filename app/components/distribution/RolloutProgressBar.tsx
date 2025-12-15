@@ -10,19 +10,20 @@
 import { Group, Progress, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertOctagon, IconCheck, IconPlayerPause, IconTrendingUp } from '@tabler/icons-react';
 import { PROGRESS_BAR_HEIGHTS } from '~/constants/distribution.constants';
-import type { RolloutProgressBarProps, RolloutStatus } from './distribution.types';
+import { RolloutDisplayStatus } from '~/types/distribution.types';
+import type { RolloutProgressBarProps } from './distribution.types';
 import { getRolloutStatusColor, getRolloutStatusLabel } from './distribution.utils';
 
 // ============================================================================
 // LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
-function getStatusIcon(status: RolloutStatus) {
-  const iconMap: Record<RolloutStatus, React.ReactNode> = {
-    complete: <IconCheck size={14} />,
-    active: <IconTrendingUp size={14} />,
-    paused: <IconPlayerPause size={14} />,
-    halted: <IconAlertOctagon size={14} />,
+function getStatusIcon(status: RolloutDisplayStatus) {
+  const iconMap: Record<RolloutDisplayStatus, React.ReactNode> = {
+    [RolloutDisplayStatus.COMPLETE]: <IconCheck size={14} />,
+    [RolloutDisplayStatus.ACTIVE]: <IconTrendingUp size={14} />,
+    [RolloutDisplayStatus.PAUSED]: <IconPlayerPause size={14} />,
+    [RolloutDisplayStatus.HALTED]: <IconAlertOctagon size={14} />,
   };
   return iconMap[status];
 }
@@ -43,7 +44,7 @@ export function RolloutProgressBar(props: RolloutProgressBarProps) {
 
   const color = getRolloutStatusColor(status);
   const height = PROGRESS_BAR_HEIGHTS[size];
-  const isAnimated = status === 'active' && targetPercentage !== undefined && targetPercentage > percentage;
+  const isAnimated = status === RolloutDisplayStatus.ACTIVE && targetPercentage !== undefined && targetPercentage > percentage;
 
   return (
     <div className={className} data-testid="rollout-progress-bar">
@@ -74,7 +75,7 @@ export function RolloutProgressBar(props: RolloutProgressBarProps) {
         size={height}
         radius="xl"
         animated={isAnimated}
-        striped={status === 'paused'}
+        striped={status === RolloutDisplayStatus.PAUSED}
       />
 
       {/* Milestone Markers */}

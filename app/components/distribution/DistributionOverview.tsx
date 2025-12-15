@@ -26,6 +26,11 @@ export type DistributionOverviewProps = {
 };
 
 export function DistributionOverview({ distribution }: DistributionOverviewProps) {
+  // Get version from first submission (all submissions should initially have the same version)
+  const displayVersion = 'submissions' in distribution && distribution.submissions?.length > 0
+    ? distribution.submissions[0]?.versionName || 'N/A'
+    : 'N/A';
+    
   return (
     <Paper shadow="sm" p="lg" radius="md" withBorder>
       <Stack gap="md">
@@ -33,7 +38,7 @@ export function DistributionOverview({ distribution }: DistributionOverviewProps
           <div>
             <Title order={3}>{DISTRIBUTION_MANAGEMENT_UI.OVERVIEW_TITLE}</Title>
             <Text size="sm" c="dimmed">
-              {DISTRIBUTION_MANAGEMENT_UI.RELEASE_VERSION(distribution.version)}
+              {DISTRIBUTION_MANAGEMENT_UI.RELEASE_VERSION(displayVersion)}
             </Text>
           </div>
           <Badge

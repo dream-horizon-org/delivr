@@ -9,41 +9,46 @@
  */
 
 import {
-  Badge,
-  Button,
-  Card,
-  Divider,
-  Group,
-  Paper,
-  Slider,
-  Stack,
-  Text,
+    Badge,
+    Button,
+    Card,
+    Divider,
+    Group,
+    Paper,
+    Slider,
+    Stack,
+    Text,
 } from '@mantine/core';
 import {
-  IconAlertOctagon,
-  IconCheck,
-  IconPlayerPause,
-  IconPlayerPlay,
-  IconTrendingUp,
+    IconAlertOctagon,
+    IconCheck,
+    IconPlayerPause,
+    IconPlayerPlay,
+    IconTrendingUp,
 } from '@tabler/icons-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  BUTTON_LABELS,
-  MAX_ROLLOUT_PERCENTAGE,
-  ROLLOUT_COMPLETE_PERCENT,
-  ROLLOUT_CONTROLS_ICON_SIZES,
-  ROLLOUT_CONTROLS_UI,
+    BUTTON_LABELS,
+    MAX_ROLLOUT_PERCENTAGE,
+    ROLLOUT_COMPLETE_PERCENT,
+    ROLLOUT_CONTROLS_ICON_SIZES,
+    ROLLOUT_CONTROLS_UI,
 } from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
 import { getPlatformRolloutLabel, getRolloutStatus } from '~/utils/distribution-ui.utils';
 import {
-  getPlatformRules,
-  getRolloutControlType,
-  getPlatformRolloutDescription,
-  getIOSPhasedReleaseDay,
+    getIOSPhasedReleaseDay,
+    getPlatformRolloutDescription,
+    getPlatformRules,
+    getRolloutControlType,
 } from '~/utils/platform-rules';
 import { ActionButton } from './ActionButton';
+import { CompleteEarlyDialog } from './CompleteEarlyDialog';
+import { HaltConfirmationDialog } from './HaltConfirmationDialog';
+import { IOSPhasedReleaseSchedule } from './IOSPhasedReleaseSchedule';
+import { PauseConfirmationDialog } from './PauseConfirmationDialog';
 import { PresetButtons } from './PresetButtons';
+import { ResumeConfirmationDialog } from './ResumeConfirmationDialog';
 import { RolloutProgressBar } from './RolloutProgressBar';
 import type { RolloutControlsProps } from './distribution.types';
 import { deriveActionAvailability } from './distribution.utils';
@@ -67,6 +72,12 @@ export function RolloutControls({
   onHalt,
   className,
 }: RolloutControlsProps) {
+  // Dialog state
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+  const [showHaltDialog, setShowHaltDialog] = useState(false);
+  const [showCompleteEarlyDialog, setShowCompleteEarlyDialog] = useState(false);
+
   // Get platform-specific rules
   const platformRules = useMemo(
     () => getPlatformRules(platform, phasedRelease),
@@ -140,10 +151,49 @@ export function RolloutControls({
     }
   }, [onUpdateRollout, hasChanges, targetPercentage, resetChanges]);
 
-  const handleCompleteEarly = useCallback(() => {
+  // Dialog Handlers
+  const handlePauseClick = useCallback(() => {
+    setShowPauseDialog(true);
+  }, []);
+
+  const handlePauseConfirm = useCallback((reason?: string) => {
+    if (onPause) {
+      onPause(reason);
+    }
+    setShowPauseDialog(false);
+  }, [onPause]);
+
+  const handleResumeClick = useCallback(() => {
+    setShowResumeDialog(true);
+  }, []);
+
+  const handleResumeConfirm = useCallback(() => {
+    if (onResume) {
+      onResume();
+    }
+    setShowResumeDialog(false);
+  }, [onResume]);
+
+  const handleHaltClick = useCallback(() => {
+    setShowHaltDialog(true);
+  }, []);
+
+  const handleHaltConfirm = useCallback((reason: string) => {
+    if (onHalt) {
+      onHalt(reason);
+    }
+    setShowHaltDialog(false);
+  }, [onHalt]);
+
+  const handleCompleteEarlyClick = useCallback(() => {
+    setShowCompleteEarlyDialog(true);
+  }, []);
+
+  const handleCompleteEarlyConfirm = useCallback(() => {
     if (onUpdateRollout) {
       onUpdateRollout(100);
     }
+    setShowCompleteEarlyDialog(false);
   }, [onUpdateRollout]);
 
   return (
@@ -231,8 +281,8 @@ export function RolloutControls({
 
         {/* iOS Phased Release - Complete Early (100% only) */}
         {controlType === 'complete-early' && canUpdate && !isComplete && (
-          <div>
-            <Group justify="space-between" mb="xs">
+          <Stack gap="md">
+            <Group justify="space-between">
               <div>
                 <Text size="sm" fw={500}>
                   iOS Phased Release
@@ -244,17 +294,20 @@ export function RolloutControls({
               <Button
                 size="sm"
                 leftSection={<IconCheck size={16} />}
-                onClick={handleCompleteEarly}
+                onClick={handleCompleteEarlyClick}
                 loading={isLoading}
                 disabled={isLoading}
               >
                 Complete Early (100%)
               </Button>
             </Group>
-            <Text size="xs" c="dimmed">
-              {platformDescription}
-            </Text>
-          </div>
+            
+            {/* 7-Day Schedule Component */}
+            <IOSPhasedReleaseSchedule
+              currentDay={iosPhasedDay || 1}
+              currentPercentage={currentPercentage}
+            />
+          </Stack>
         )}
 
         {/* iOS Manual Release - Read-only */}
@@ -282,7 +335,7 @@ export function RolloutControls({
                   }
                   label={BUTTON_LABELS.PAUSE}
                   color="yellow"
-                  onClick={onPause}
+                  onClick={handlePauseClick}
                   disabled={isLoading}
                   loading={isLoading}
                   tooltip={pauseReason}
@@ -296,7 +349,7 @@ export function RolloutControls({
                   }
                   label={BUTTON_LABELS.RESUME}
                   color="green"
-                  onClick={onResume}
+                  onClick={handleResumeClick}
                   disabled={isLoading}
                   loading={isLoading}
                   tooltip={resumeReason}
@@ -310,7 +363,7 @@ export function RolloutControls({
                   }
                   label={BUTTON_LABELS.HALT}
                   color="red"
-                  onClick={onHalt}
+                  onClick={handleHaltClick}
                   disabled={isLoading}
                   tooltip={haltReason}
                 />
@@ -342,6 +395,43 @@ export function RolloutControls({
           </Paper>
         )}
       </Stack>
+
+      {/* Confirmation Dialogs */}
+      <PauseConfirmationDialog
+        opened={showPauseDialog}
+        onClose={() => setShowPauseDialog(false)}
+        onConfirm={handlePauseConfirm}
+        platform={platformLabel}
+        currentPercentage={currentPercentage}
+        isLoading={isLoading}
+      />
+
+      <ResumeConfirmationDialog
+        opened={showResumeDialog}
+        onClose={() => setShowResumeDialog(false)}
+        onConfirm={handleResumeConfirm}
+        platform={platformLabel}
+        currentPercentage={currentPercentage}
+        isLoading={isLoading}
+      />
+
+      <HaltConfirmationDialog
+        opened={showHaltDialog}
+        onClose={() => setShowHaltDialog(false)}
+        onConfirm={handleHaltConfirm}
+        platform={platformLabel}
+        version={submissionId}
+        isLoading={isLoading}
+      />
+
+      <CompleteEarlyDialog
+        opened={showCompleteEarlyDialog}
+        onClose={() => setShowCompleteEarlyDialog(false)}
+        onConfirm={handleCompleteEarlyConfirm}
+        currentDay={iosPhasedDay || 1}
+        currentPercentage={currentPercentage}
+        isLoading={isLoading}
+      />
     </Card>
   );
 }

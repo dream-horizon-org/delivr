@@ -24,6 +24,7 @@ import {
   BuildUploadStatus,
   DistributionStatus,
   Platform,
+  RolloutDisplayStatus,
   SubmissionAction,
   SubmissionStatus,
 } from '~/types/distribution.types';
@@ -241,11 +242,11 @@ export function deriveActionAvailability(
 export function getRolloutDisplayStatus(
   percentage: number,
   status: SubmissionStatus
-): 'active' | 'paused' | 'halted' | 'complete' {
-  if (percentage === ROLLOUT_COMPLETE_PERCENT) return 'complete';
-  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) return 'halted';
-  if (status === SubmissionStatus.PAUSED) return 'paused';
-  return 'active';
+): RolloutDisplayStatus {
+  if (percentage === ROLLOUT_COMPLETE_PERCENT) return RolloutDisplayStatus.COMPLETE;
+  if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) return RolloutDisplayStatus.HALTED;
+  if (status === SubmissionStatus.PAUSED) return RolloutDisplayStatus.PAUSED;
+  return RolloutDisplayStatus.ACTIVE;
 }
 
 
@@ -259,11 +260,11 @@ export function getReleaseStatusColor(status: DistributionStatus): string {
 }
 
 /** Status to color mapping for rollout status */
-export function getRolloutStatusColor(status: 'active' | 'paused' | 'halted' | 'complete'): string {
+export function getRolloutStatusColor(status: RolloutDisplayStatus): string {
   return ROLLOUT_STATUS_COLORS[status];
 }
 
 /** Status to label mapping for rollout status */
-export function getRolloutStatusLabel(status: 'active' | 'paused' | 'halted' | 'complete'): string {
+export function getRolloutStatusLabel(status: RolloutDisplayStatus): string {
   return ROLLOUT_STATUS_LABELS[status];
 }

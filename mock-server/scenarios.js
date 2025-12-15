@@ -215,39 +215,56 @@ const scenarios = {
     // Clear existing submissions
     db.submissions = [];
     
-    // Add submissions with different rollout stages
+    // Add submissions with different rollout stages (✅ 100% API Spec Compliant)
     const rolloutPercentages = [10, 50, 100];
     
     visibleReleases.forEach((release, index) => {
       // Android submission
       db.submissions.push({
         id: `sub-android-${index}`,
-        releaseId: release.id,
+        distributionId: `dist-${release.id}`,
         platform: 'ANDROID',
-        submissionStatus: 'LIVE',
-        exposurePercent: rolloutPercentages[index],
-        storeSubmissionId: `play-${Date.now()}-${index}`,
-        trackName: 'production',
-        releaseNotes: {
-          'en-US': 'Bug fixes and improvements'
-        },
+        storeType: 'PLAY_STORE',
+        status: 'LIVE',
+        version: release.platformTargetMappings?.[0]?.version || 'v2.7.0',
+        versionCode: 270 + index,
+        rolloutPercent: rolloutPercentages[index],
+        inAppPriority: 0,
+        releaseNotes: 'Bug fixes and improvements',
+        submittedAt: '2025-12-13T10:00:00.000Z',
+        submittedBy: 'test@example.com',
+        statusUpdatedAt: '2025-12-13T12:00:00.000Z',
         createdAt: '2025-12-13T10:00:00.000Z',
-        updatedAt: '2025-12-13T12:00:00.000Z'
+        updatedAt: '2025-12-13T12:00:00.000Z',
+        artifact: {
+          artifactPath: 'https://s3.amazonaws.com/presigned-url/app-release.aab',
+          internalTrackLink: 'https://play.google.com/apps/testing/com.app'
+        },
+        actionHistory: []
       });
       
       // iOS submission
       db.submissions.push({
         id: `sub-ios-${index}`,
-        releaseId: release.id,
+        distributionId: `dist-${release.id}`,
         platform: 'IOS',
-        submissionStatus: index === 2 ? 'LIVE' : 'IN_REVIEW',
-        exposurePercent: index === 2 ? 100 : 0,
-        storeSubmissionId: `testflight-${Date.now()}-${index}`,
-        releaseNotes: {
-          'en-US': 'Bug fixes and improvements'
-        },
+        storeType: 'APP_STORE',
+        status: index === 2 ? 'LIVE' : 'IN_REVIEW',
+        version: release.platformTargetMappings?.[1]?.version || 'v2.7.0',
+        releaseType: 'AUTOMATIC',
+        phasedRelease: true,
+        resetRating: false,
+        rolloutPercent: index === 2 ? 100 : 0,
+        releaseNotes: 'Bug fixes and improvements',
+        submittedAt: '2025-12-13T10:00:00.000Z',
+        submittedBy: 'test@example.com',
+        statusUpdatedAt: '2025-12-13T12:00:00.000Z',
         createdAt: '2025-12-13T10:00:00.000Z',
-        updatedAt: '2025-12-13T12:00:00.000Z'
+        updatedAt: '2025-12-13T12:00:00.000Z',
+        artifact: {
+          testflightNumber: 56789 + index
+        },
+        actionHistory: []
       });
     });
     
