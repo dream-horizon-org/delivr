@@ -12,7 +12,7 @@ import {
 } from '../../constants/testflight-build';
 import type { StoreIntegrationController, StoreCredentialController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
-import { decrypt, decryptFromStorage } from '../../utils/encryption';
+import { decryptIfEncrypted, decryptFromStorage } from '../../utils/encryption';
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
 import type { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import type { ReleaseRepository } from '../../models/release/release.repository';
@@ -283,9 +283,9 @@ export class TestFlightBuildVerificationService {
 
     let privateKeyPem = credentialPayload.privateKeyPem ?? '';
     if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
-      try {
-        privateKeyPem = decrypt(privateKeyPem);
-      } catch {
+      // Decrypt frontend-encrypted value (Layer 1)
+      privateKeyPem = decryptIfEncrypted(privateKeyPem, 'privateKeyPem');
+      if (!privateKeyPem.startsWith('-----BEGIN')) {
         return {
           success: false,
           errorCode: 'STORE_INTEGRATION_INVALID',
