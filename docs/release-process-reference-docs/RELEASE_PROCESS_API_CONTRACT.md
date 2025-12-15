@@ -1553,6 +1553,91 @@ interface DeleteBuildArtifactResponse {
 ### 23. Get Test Management Status
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/test-management-run-status`
 
+**Path Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tenantId` | string | Yes | Tenant UUID |
+| `releaseId` | string | Yes | Release UUID (primary key in DB) |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `platform` | string | No | Filter by platform: `IOS`, `ANDROID`, `WEB`. If not provided, returns all platforms |
+
+**Response:**
+
+**Status Code:** `200 OK`
+
+#### Single Platform (when `platform` query param provided):
+
+```typescript
+interface GetTestManagementStatusResponse {
+  success: true;
+  releaseId: string;
+  testManagementConfigId: string;
+  platform: string;
+  target: string;
+  version: string;
+  hasTestRun: boolean;
+  runId: string | null;                 // This is the testRunId
+  status?: string;
+  runLink?: string;
+  total?: number;
+  testResults?: {
+    passed?: number;
+    failed?: number;
+    untested?: number;
+    blocked?: number;
+    inProgress?: number;
+    passPercentage?: number;
+    threshold?: number;
+    thresholdPassed?: boolean;
+  };
+  readyForApproval?: boolean;           // Extra: status === COMPLETED && thresholdPassed
+  message: string;                      // Extra: Descriptive message
+  error?: string;                       // Extra: Error message if fetch failed
+}
+```
+
+#### All Platforms (when no `platform` query param):
+
+```typescript
+interface GetTestManagementStatusAllPlatformsResponse {
+  success: true;
+  releaseId: string;
+  testManagementConfigId: string;
+  platforms: TestManagementStatusResult[];
+}
+
+type TestManagementStatusResult = {
+  platform: string;
+  target: string;
+  version: string;
+  hasTestRun: boolean;
+  runId: string | null;
+  status?: string;
+  runLink?: string;
+  total?: number;
+  testResults?: {
+    passed?: number;
+    failed?: number;
+    untested?: number;
+    blocked?: number;
+    inProgress?: number;
+    passPercentage?: number;
+    threshold?: number;
+    thresholdPassed?: boolean;
+  };
+  readyForApproval?: boolean;
+  message: string;
+  error?: string;
+};
+```
+
+---
+
 ### 24. Get Project Management Status
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/project-management-run-status`
 

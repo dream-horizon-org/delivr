@@ -354,7 +354,9 @@ export interface GetTestManagementStatusResponse {
     threshold?: number;
     thresholdPassed?: boolean;
   };
-  lastUpdated: string;                 // ISO 8601 timestamp - Required by API contract
+  readyForApproval?: boolean;           // Extra: status === COMPLETED && thresholdPassed
+  message: string;                      // Extra: Descriptive message
+  error?: string;                       // Extra: Error message if fetch failed
 }
 
 /**
@@ -380,7 +382,9 @@ export type TestManagementStatusResult = {
     threshold?: number;
     thresholdPassed?: boolean;
   };
-  lastUpdated: string;                 // ISO 8601 timestamp - Required by API contract
+  readyForApproval?: boolean;
+  message: string;
+  error?: string;
 };
 
 /**
