@@ -24,7 +24,6 @@ import {
 } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
-  IconPlus,
   IconPencil,
   IconTrash,
   IconServer,
@@ -142,26 +141,6 @@ export function WorkflowList({
 
   return (
     <Stack gap="lg">
-      {/* Header */}
-      <Group justify="space-between" align="flex-start">
-        <Box>
-          <Text size="lg" fw={600} c={theme.colors.slate[9]} mb={4}>
-            CI/CD Pipelines
-          </Text>
-          <Text size="sm" c={theme.colors.slate[5]}>
-            Manage your Jenkins and GitHub Actions workflows
-          </Text>
-        </Box>
-        <Button
-          component={Link}
-          to={`/dashboard/${tenantId}/releases/workflows/new`}
-          color="brand"
-          leftSection={<IconPlus size={16} />}
-          disabled={!hasAnyIntegration}
-        >
-          Add Workflow
-        </Button>
-      </Group>
 
       {/* No Integrations Alert */}
       {!hasAnyIntegration && (
@@ -270,9 +249,6 @@ export function WorkflowList({
                             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                             borderRadius: theme.radius.sm,
                             fontSize: theme.fontSizes.sm,
-                            '&[data-hovered]': {
-                              backgroundColor: theme.colors.slate[0],
-                            },
                           },
                         }}
                       >
@@ -300,15 +276,7 @@ export function WorkflowList({
                               <Menu.Item
                                 leftSection={<IconTrash size={16} stroke={1.5} />}
                                 onClick={() => handleDeleteClick(workflow)}
-                                styles={{
-                                  item: {
-                                    color: theme.colors.red[7],
-                                    '&[data-hovered]': {
-                                      backgroundColor: theme.colors.red[0],
-                                      color: theme.colors.red[8],
-                                    },
-                                  },
-                                }}
+                                color="red"
                               >
                                 Delete
                               </Menu.Item>
@@ -402,9 +370,6 @@ export function WorkflowList({
                             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                             borderRadius: theme.radius.sm,
                             fontSize: theme.fontSizes.sm,
-                            '&[data-hovered]': {
-                              backgroundColor: theme.colors.slate[0],
-                            },
                           },
                         }}
                       >
@@ -432,15 +397,7 @@ export function WorkflowList({
                               <Menu.Item
                                 leftSection={<IconTrash size={16} stroke={1.5} />}
                                 onClick={() => handleDeleteClick(workflow)}
-                                styles={{
-                                  item: {
-                                    color: theme.colors.red[7],
-                                    '&[data-hovered]': {
-                                      backgroundColor: theme.colors.red[0],
-                                      color: theme.colors.red[8],
-                                    },
-                                  },
-                                }}
+                                color="red"
                               >
                                 Delete
                               </Menu.Item>

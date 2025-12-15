@@ -3,7 +3,7 @@
  * First step of the Configuration Wizard with improved UX
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   TextInput,
   Textarea,
@@ -33,7 +33,17 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
   const theme = useMantineTheme();
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  const [defaultBranch, setDefaultBranch] = useState<string>('main');
+  
+  // Track if we've already auto-filled the default branch (prevent re-setting)
+  const hasAutoFilledBranchRef = useRef(false);
+  
+  // Keep a ref to the current config to avoid stale closures
+  const configRef = useRef(config);
+  
+  // Update ref whenever config changes
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   // Fetch branches from SCM integration
   useEffect(() => {
@@ -50,10 +60,18 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
             label: branch.default ? `${branch.name} (default)` : branch.name,
           }));
           setBranches(branchOptions);
-          if (result.data.defaultBranch) {
-            setDefaultBranch(result.data.defaultBranch);
-            if (!config.baseBranch) {
-              onChange({ ...config, baseBranch: result.data.defaultBranch });
+          
+          // Auto-set default branch ONLY if:
+          // 1. We have a default branch from the API
+          // 2. We haven't auto-filled before (prevents overwriting user input)
+          // 3. Config doesn't already have a baseBranch set (check current ref value)
+          if (result.data.defaultBranch && !hasAutoFilledBranchRef.current) {
+            // Use the ref to get the most current config value
+            const currentConfig = configRef.current;
+            if (!currentConfig.baseBranch) {
+              hasAutoFilledBranchRef.current = true;
+              // Use the current config from ref to avoid stale closure
+              onChange({ ...currentConfig, baseBranch: result.data.defaultBranch });
             }
           }
         }
@@ -67,13 +85,9 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
     if (tenantId) {
       fetchBranches();
     }
+    // Only run once when tenantId changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
-  // Separate useEffect for auto-selecting default branch
-  useEffect(() => {
-    if(!config.baseBranch && defaultBranch && defaultBranch !== 'main') {
-      onChange({...config, baseBranch: defaultBranch});
-    }
-  }, [defaultBranch]);
 
   return (
     <Stack gap="lg">
@@ -133,18 +147,22 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
         <Select
           label="Release Type"
           data={[
-            { value: 'PLANNED', label: 'Planned Release' },
+            { value: 'MINOR', label: 'Minor Release' },
             { value: 'HOTFIX', label: 'Hotfix Release' },
             { value: 'MAJOR', label: 'Major Release' },
           ]}
-          value={config.releaseType || 'PLANNED'}
-          onChange={(val) => onChange({ ...config, releaseType: (val || 'PLANNED') as any })}
+          value={config.releaseType || 'MINOR'}
+          onChange={(val) => {
+            // Explicitly handle the change and preserve other config values
+            onChange({ ...config, releaseType: (val || 'MINOR') as any });
+          }}
           required
           withAsterisk
           clearable={false}
           description="Type of releases this configuration is designed for"
           size="sm"
           leftSection={<IconTag size={14} />}
+          allowDeselect={false}
         />
 
         {/* Base Branch */}
@@ -153,7 +171,10 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
           placeholder={loadingBranches ? 'Loading branches...' : 'Select a branch'}
           data={branches}
           value={config.baseBranch || ''}
-          onChange={(val) => onChange({ ...config, baseBranch: val || '' })}
+          onChange={(val) => {
+            // Explicitly preserve all other config values
+            onChange({ ...config, baseBranch: val || '' });
+          }}
           searchable
           clearable={false}
           required
@@ -163,6 +184,7 @@ export function BasicInfoForm({ config, onChange, tenantId }: BasicInfoFormProps
           description="Default branch to fork from for releases (from SCM integration)"
           size="sm"
           leftSection={<IconGitBranch size={14} />}
+          allowDeselect={false}
           nothingFoundMessage={
             branches.length === 0 && !loadingBranches 
               ? "No branches found. Make sure your SCM integration is configured." 

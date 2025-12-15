@@ -140,25 +140,17 @@ export function OrgsPage() {
   if (isLoading) {
     return (
       <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
-        {/* Header Skeleton */}
-        <Box 
-          style={{ 
-            borderBottom: `1px solid ${borderColor}`,
-            backgroundColor: 'white',
-          }} 
-          py={HEADER_PY} 
-          px={HEADER_PX}
-        >
-          <Group justify="space-between" align="center">
+        <Box py={CONTENT_PY} px={CONTENT_PX}>
+          {/* Page Title Skeleton */}
+          <Group justify="space-between" align="center" mb="xl">
             <Group gap="md">
               <Skeleton height={32} width={160} radius="sm" />
               <Skeleton height={24} width={32} radius="sm" />
             </Group>
             <Skeleton height={36} width={160} radius="md" />
           </Group>
-        </Box>
-        {/* Content Skeleton */}
-        <Box py={CONTENT_PY} px={CONTENT_PX}>
+          
+          {/* Content Skeleton */}
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={20}>
             {Array(8).fill(0).map((_, i) => (
               <Skeleton key={i} height={160} radius="md" />
@@ -173,40 +165,34 @@ export function OrgsPage() {
   if (isError) {
     return (
       <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
-        {/* Header */}
-        <Box 
-          style={{ 
-            borderBottom: `1px solid ${borderColor}`,
-            backgroundColor: 'white',
-          }} 
-          py={HEADER_PY} 
-          px={HEADER_PX}
-        >
-          <Group justify="space-between" align="center">
+        <Box py={CONTENT_PY} px={CONTENT_PX}>
+          {/* Page Title */}
+          <Group justify="space-between" align="center" mb="xl">
             <Group gap="md">
               <Title order={2} c="dark.9" fw={700}>Projects</Title>
             </Group>
           </Group>
-        </Box>
-        {/* Error Content */}
-        <Center py={120}>
-          <Stack align="center" gap="lg">
-            <ThemeIcon size={64} radius="md" color="red" variant="light">
-              <IconBuildingSkyscraper size={32} />
-            </ThemeIcon>
-            <Stack gap={4} align="center">
-              <Text fw={600} size="lg" c="dark.9">Unable to load projects</Text>
-              <Text c="dimmed" size="sm">There was a problem connecting to the server.</Text>
+          
+          {/* Error Content */}
+          <Center py={120}>
+            <Stack align="center" gap="lg">
+              <ThemeIcon size={64} radius="md" color="red" variant="light">
+                <IconBuildingSkyscraper size={32} />
+              </ThemeIcon>
+              <Stack gap={4} align="center">
+                <Text fw={600} size="lg" c="dark.9">Unable to load projects</Text>
+                <Text c="dimmed" size="sm">There was a problem connecting to the server.</Text>
+              </Stack>
+              <Button 
+                onClick={() => refetch()} 
+                variant="light"
+                leftSection={<IconRefresh size={16} />}
+              >
+                Try Again
+              </Button>
             </Stack>
-            <Button 
-              onClick={() => refetch()} 
-              variant="light"
-              leftSection={<IconRefresh size={16} />}
-            >
-              Try Again
-            </Button>
-          </Stack>
-        </Center>
+          </Center>
+        </Box>
       </Box>
     );
   }
@@ -214,43 +200,34 @@ export function OrgsPage() {
   // Success State
   return (
     <Box style={{ backgroundColor: bgColor, minHeight: '100%' }}>
-      {/* Header */}
-      <Box
-        style={{
-          borderBottom: `1px solid ${borderColor}`,
-          backgroundColor: 'white',
-        }}
-      >
-        <Box py={HEADER_PY} px={HEADER_PX}>
-          <Group justify="space-between" align="center">
-            <Group gap="md">
-              <Title order={2} c="dark.9" fw={700}>
-                Projects
-              </Title>
-              <Badge 
-                size="lg" 
-                variant="filled" 
-                color="dark" 
-                radius="sm"
-                fw={600}
-              >
-                {data?.length || 0}
-              </Badge>
-            </Group>
-            
-            <CTAButton
-              leftSection={<IconPlus size={16} />}
-              onClick={() => setCreateOrgOpen(true)}
-              size="sm"
-            >
-              New Project
-            </CTAButton>
-          </Group>
-        </Box>
-      </Box>
-
-      {/* Main Content */}
+      {/* Page Title Section - Styled as content, not a duplicate header */}
       <Box py={CONTENT_PY} px={CONTENT_PX}>
+        <Group justify="space-between" align="center" mb="xl">
+          <Group gap="md">
+            <Title order={2} c="dark.9" fw={700}>
+              Projects
+            </Title>
+            <Badge 
+              size="lg" 
+              variant="filled" 
+              color="dark" 
+              radius="sm"
+              fw={600}
+            >
+              {data?.length || 0}
+            </Badge>
+          </Group>
+          
+          <CTAButton
+            leftSection={<IconPlus size={16} />}
+            onClick={() => setCreateOrgOpen(true)}
+            size="sm"
+          >
+            New Project
+          </CTAButton>
+        </Group>
+
+        {/* Main Content */}
         
         {/* Organizations Grid */}
         <Box mb={64}>

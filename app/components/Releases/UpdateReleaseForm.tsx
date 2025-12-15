@@ -187,7 +187,7 @@ export function UpdateReleaseForm({
           <Select
             label="Release Type"
             data={[
-              { value: RELEASE_TYPES.PLANNED, label: 'Planned Release' },
+              { value: RELEASE_TYPES.MINOR, label: 'Minor Release' },
               { value: RELEASE_TYPES.HOTFIX, label: 'Hotfix' },
               { value: 'UNPLANNED', label: 'Unplanned' },
             ]}

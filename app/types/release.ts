@@ -5,7 +5,7 @@
 
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 
-export type ReleaseType = 'PLANNED' | 'HOTFIX' | 'MAJOR';
+export type ReleaseType = 'MINOR' | 'HOTFIX' | 'MAJOR';
 
 // Backend release statuses (matches database enum)
 export type ReleaseStatus = 

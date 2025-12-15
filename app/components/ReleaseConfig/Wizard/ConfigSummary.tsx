@@ -109,7 +109,7 @@ export function ConfigSummary({ config }: ConfigSummaryProps) {
               label="Release Type"
               value={
                 <Badge variant="light" size="sm" color="brand">
-                  {config.releaseType || 'Planned'}
+                  {config.releaseType || 'Minor'}
                 </Badge>
               }
             />

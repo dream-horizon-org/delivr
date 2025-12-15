@@ -33,11 +33,24 @@ export function useReleases(
 ) {
   const queryClient = useQueryClient();
 
+  // Check if we should force a refetch (e.g., after creating a release)
+  // Look for 'refresh' query parameter in URL
+  const shouldForceRefetch = typeof window !== 'undefined' && 
+    new URLSearchParams(window.location.search).has('refresh');
+  
+  // If refresh param is present, invalidate immediately to force refetch
+  useEffect(() => {
+    if (shouldForceRefetch && tenantId) {
+      console.log('[useReleases] Refresh parameter detected, invalidating cache...');
+      queryClient.invalidateQueries(QUERY_KEY(tenantId));
+    }
+  }, [shouldForceRefetch, tenantId, queryClient]);
+
   // CRITICAL: Sync loader data with React Query cache on every navigation
   // initialData only works on first mount, so we need to explicitly update cache
   // when loader provides new data on subsequent navigations
   useEffect(() => {
-    if (options?.initialData && tenantId) {
+    if (options?.initialData && tenantId && !shouldForceRefetch) {
       const queryKey = QUERY_KEY(tenantId);
       const existingData = queryClient.getQueryData<ReleasesResponse>(queryKey);
       
@@ -50,7 +63,7 @@ export function useReleases(
         queryClient.setQueryData<ReleasesResponse>(queryKey, options.initialData);
       }
     }
-  }, [options?.initialData, tenantId, queryClient]);
+  }, [options?.initialData, tenantId, queryClient, shouldForceRefetch]);
 
   // Fetch all releases for tenant
   const {
@@ -80,11 +93,11 @@ export function useReleases(
     },
     {
       enabled: !!tenantId, // Only fetch if tenantId exists
-      initialData: options?.initialData, // Use initialData if provided
+      initialData: shouldForceRefetch ? undefined : options?.initialData, // Skip initialData if forcing refetch
       staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh (releases change more frequently than configs)
       cacheTime: 10 * 60 * 1000, // 10 minutes - cache time
       refetchOnWindowFocus: true, // Refetch when user returns to tab (background refetch)
-      refetchOnMount: false, // Don't refetch on component mount if data is fresh
+      refetchOnMount: shouldForceRefetch ? true : false, // Force refetch if refresh param present
       refetchOnReconnect: true, // Refetch when network reconnects
       retry: 1, // Retry once on failure
       // Background refetching: refetch in background when data becomes stale

@@ -3,6 +3,8 @@
  * Central export for all release process components
  */
 
+export { ActivityLogsContent } from './ActivityLogsContent';
+export { ActivityLogsDrawer } from './ActivityLogsDrawer';
 export { KickoffStage } from './KickoffStage';
 export { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 export { PostRegressionStage } from './PostRegressionStage';
