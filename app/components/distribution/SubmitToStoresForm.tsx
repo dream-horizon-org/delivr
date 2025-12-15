@@ -118,10 +118,7 @@ export function SubmitToStoresForm({
   }, [updateField]);
 
   // Android option handlers - NO INLINE FUNCTIONS
-  const handleAndroidTrackChange = useCallback((value: string) => {
-    updateField('androidTrack', value);
-  }, [updateField]);
-
+  // Note: Track handler removed - track not used per API spec
   const handleAndroidRolloutChange = useCallback((value: number) => {
     updateField('androidRollout', value);
   }, [updateField]);
@@ -131,12 +128,13 @@ export function SubmitToStoresForm({
   }, [updateField]);
 
   // iOS option handlers - NO INLINE FUNCTIONS
-  const handleIOSReleaseTypeChange = useCallback((value: string) => {
-    updateField('iosReleaseType', value);
-  }, [updateField]);
-
+  // Note: iOS release type is always "AUTOMATIC" per API spec (non-editable)
   const handleIOSPhasedReleaseChange = useCallback((value: boolean) => {
     updateField('iosPhasedRelease', value);
+  }, [updateField]);
+
+  const handleIOSResetRatingChange = useCallback((value: boolean) => {
+    updateField('iosResetRating', value);
   }, [updateField]);
 
   // Handle submission - Submit per platform separately
@@ -174,7 +172,7 @@ export function SubmitToStoresForm({
       try {
         const iosPayload = {
           phasedRelease: formState.iosPhasedRelease,
-          resetRating: false, // Default value if not in form state
+          resetRating: formState.iosResetRating,
           releaseNotes: formState.releaseNotes,
         };
         
@@ -326,10 +324,8 @@ export function SubmitToStoresForm({
           {/* Platform-specific Options */}
           {androidSelected && (
             <AndroidOptions
-              track={formState.androidTrack}
               rollout={formState.androidRollout}
               priority={formState.androidPriority}
-              onTrackChange={handleAndroidTrackChange}
               onRolloutChange={handleAndroidRolloutChange}
               onPriorityChange={handleAndroidPriorityChange}
               disabled={isSubmitting}
@@ -338,10 +334,10 @@ export function SubmitToStoresForm({
 
           {iosSelected && (
             <IOSOptions
-              releaseType={formState.iosReleaseType}
               phasedRelease={formState.iosPhasedRelease}
-              onReleaseTypeChange={handleIOSReleaseTypeChange}
+              resetRating={formState.iosResetRating}
               onPhasedReleaseChange={handleIOSPhasedReleaseChange}
+              onResetRatingChange={handleIOSResetRatingChange}
               disabled={isSubmitting}
             />
           )}

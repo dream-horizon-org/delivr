@@ -10,7 +10,6 @@
  * Reference: DISTRIBUTION_API_SPEC.md lines 476-594
  */
 
-import type { ActionFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
@@ -95,6 +94,39 @@ const submitSubmission: AuthenticatedActionFunction = async ({ params, request }
           error: {
             code: 'INVALID_PRIORITY',
             message: 'In-app priority must be an integer between 0 and 5',
+          },
+        },
+        { status: HTTP_STATUS.BAD_REQUEST }
+      );
+    }
+
+    // Validate iOS-specific fields
+    if (
+      body.phasedRelease !== undefined &&
+      typeof body.phasedRelease !== 'boolean'
+    ) {
+      return json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_PHASED_RELEASE',
+            message: 'phasedRelease must be a boolean',
+          },
+        },
+        { status: HTTP_STATUS.BAD_REQUEST }
+      );
+    }
+
+    if (
+      body.resetRating !== undefined &&
+      typeof body.resetRating !== 'boolean'
+    ) {
+      return json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_RESET_RATING',
+            message: 'resetRating must be a boolean',
           },
         },
         { status: HTTP_STATUS.BAD_REQUEST }

@@ -11,17 +11,16 @@ import type {
   Build,
   BuildStrategy,
   BuildUploadStatus,
-  DistributionStatus,
   DistributionStatusData,
   ExtraCommitsData,
-  HaltSeverity,
+  // HaltSeverity removed - deprecated, not used per API spec
   Platform,
   PMApprovalStatus,
   RejectionDetails,
   RolloutAction,
   Submission,
   SubmissionInDistribution,
-  SubmissionStatus,
+  SubmissionStatus
 } from '~/types/distribution.types';
 
 // ============================================================================

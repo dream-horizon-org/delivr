@@ -102,7 +102,11 @@ export enum ApproverRole {
   RELEASE_PILOT = 'RELEASE_PILOT',
 }
 
-/** Halt severity levels */
+/** 
+ * @deprecated HaltSeverity is not used per API spec
+ * Halt operations only require a reason, not severity
+ * Kept for backwards compatibility - will be removed in future version
+ */
 export enum HaltSeverity {
   CRITICAL = 'CRITICAL',
   HIGH = 'HIGH',
@@ -132,8 +136,12 @@ export enum SubmissionAction {
 /** Android release tracks */
 export type AndroidTrack = 'INTERNAL' | 'ALPHA' | 'BETA' | 'PRODUCTION';
 
-/** iOS release types */
-export type IOSReleaseType = 'MANUAL_RELEASE' | 'AFTER_APPROVAL' | 'SCHEDULED';
+/** 
+ * iOS release type - Always "AUTOMATIC" per API spec
+ * This is a display-only field, non-editable, default value
+ * @see API Spec lines 309, 322, 693, 802
+ */
+export type IOSReleaseType = 'AUTOMATIC';
 
 /** Update priority (0-5) */
 export type UpdatePriority = 0 | 1 | 2 | 3 | 4 | 5;

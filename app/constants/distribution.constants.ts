@@ -179,6 +179,8 @@ export const MAX_AAB_FILE_SIZE_LABEL = '200 MB';
 
 /**
  * Android Play Store Tracks
+ * @deprecated Track selection removed - AAB submissions go directly to production per API spec
+ * Kept for backwards compatibility - will be removed in future version
  */
 export const ANDROID_TRACKS = [
   { value: 'INTERNAL', label: 'Internal Testing' },
@@ -188,13 +190,11 @@ export const ANDROID_TRACKS = [
 ] as const;
 
 /**
- * iOS Release Types
+ * iOS Release Type - Always "AUTOMATIC" per API spec
+ * This is a display-only field, non-editable
+ * @deprecated Do not use - iOS release type is always AUTOMATIC
  */
-export const IOS_RELEASE_TYPES = [
-  { value: 'MANUAL_RELEASE', label: 'Manual Release' },
-  { value: 'AFTER_APPROVAL', label: 'Automatic After Approval' },
-  { value: 'SCHEDULED', label: 'Scheduled Release' },
-] as const;
+export const IOS_RELEASE_TYPE_AUTOMATIC = 'AUTOMATIC' as const;
 
 /**
  * Android Update Priority Levels
@@ -272,6 +272,8 @@ export const DISTRIBUTION_UI_LABELS = {
   IOS_RELEASE_TYPE_DESC: 'When should the app be released',
   IOS_PHASED_RELEASE: 'Enable Phased Release',
   IOS_PHASED_RELEASE_DESC: 'Gradually release to users over 7 days',
+  IOS_RESET_RATING: 'Reset App Rating',
+  IOS_RESET_RATING_DESC: 'Reset app rating to zero for this version',
   
   // Common Form Labels
   RELEASE_NOTES: 'Release Notes',

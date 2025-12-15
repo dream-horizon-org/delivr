@@ -8,11 +8,12 @@ import { Platform } from '~/types/distribution.types';
 
 type FormState = {
   selectedPlatforms: Platform[];
-  androidTrack: string;
+  // Note: androidTrack removed - not used per API spec (submissions go directly to production)
   androidRollout: number;
   androidPriority: number;
-  iosReleaseType: string;
+  // Note: iosReleaseType removed - always "AUTOMATIC" per API spec (non-editable)
   iosPhasedRelease: boolean;
+  iosResetRating: boolean;
   releaseNotes: string;
 };
 
@@ -24,11 +25,12 @@ type SubmitToStoresActionResponse = {
 export function useFormState(availablePlatforms: Platform[]) {
   const [formState, setFormState] = useState<FormState>({
     selectedPlatforms: [...availablePlatforms],
-    androidTrack: 'PRODUCTION',
+    // Note: androidTrack removed - not used per API spec
     androidRollout: 100,
     androidPriority: 0,  // Per API Spec: default 0
-    iosReleaseType: 'AFTER_APPROVAL',
+    // Note: iosReleaseType removed - always "AUTOMATIC" per API spec
     iosPhasedRelease: true,
+    iosResetRating: false,  // Per API Spec: default false
     releaseNotes: '',
   });
 

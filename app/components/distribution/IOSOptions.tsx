@@ -1,37 +1,36 @@
 /**
  * IOSOptions - iOS-specific submission options
+ * 
+ * Note: iOS release type is always "AUTOMATIC" per API spec (display-only, non-editable)
  */
 
-import { useCallback } from 'react';
-import { Checkbox, Group, Paper, Select, Stack, Text } from '@mantine/core';
+import { Badge, Checkbox, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { IconBrandApple } from '@tabler/icons-react';
-import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES, IOS_RELEASE_TYPES } from '~/constants/distribution.constants';
+import { useCallback } from 'react';
+import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES } from '~/constants/distribution.constants';
 
 type IOSOptionsProps = {
-  releaseType: string;
   phasedRelease: boolean;
-  onReleaseTypeChange: (value: string) => void;
+  resetRating: boolean;
   onPhasedReleaseChange: (value: boolean) => void;
+  onResetRatingChange: (value: boolean) => void;
   disabled?: boolean;
 };
 
-// Memoized data transformation (computed once)
-const IOS_RELEASE_TYPES_DATA = IOS_RELEASE_TYPES.map(t => ({ value: t.value, label: t.label }));
-
 export function IOSOptions({ 
-  releaseType, 
   phasedRelease,
-  onReleaseTypeChange,
+  resetRating,
   onPhasedReleaseChange,
+  onResetRatingChange,
   disabled,
 }: IOSOptionsProps) {
-  const handleReleaseTypeChange = useCallback((v: string | null) => {
-    if (v) onReleaseTypeChange(v);
-  }, [onReleaseTypeChange]);
-
   const handlePhasedReleaseChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onPhasedReleaseChange(e.currentTarget.checked);
   }, [onPhasedReleaseChange]);
+
+  const handleResetRatingChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onResetRatingChange(e.currentTarget.checked);
+  }, [onResetRatingChange]);
 
   return (
     <Paper p="md" withBorder radius="md" bg="blue.0">
@@ -41,13 +40,14 @@ export function IOSOptions({
       </Group>
       
       <Stack gap="md">
-        <Select
+        {/* Release Type - Display only (always AUTOMATIC per API spec) */}
+        <TextInput
           label={DISTRIBUTION_UI_LABELS.IOS_RELEASE_TYPE}
-          description={DISTRIBUTION_UI_LABELS.IOS_RELEASE_TYPE_DESC}
-          value={releaseType}
-          onChange={handleReleaseTypeChange}
-          data={IOS_RELEASE_TYPES_DATA}
-          disabled={disabled}
+          description="Release type is always AUTOMATIC for App Store submissions"
+          value="AUTOMATIC"
+          readOnly
+          disabled
+          rightSection={<Badge size="xs" variant="light" color="blue">Default</Badge>}
         />
 
         <Checkbox
@@ -55,6 +55,14 @@ export function IOSOptions({
           description={DISTRIBUTION_UI_LABELS.IOS_PHASED_RELEASE_DESC}
           checked={phasedRelease}
           onChange={handlePhasedReleaseChange}
+          disabled={disabled}
+        />
+
+        <Checkbox
+          label={DISTRIBUTION_UI_LABELS.IOS_RESET_RATING}
+          description={DISTRIBUTION_UI_LABELS.IOS_RESET_RATING_DESC}
+          checked={resetRating}
+          onChange={handleResetRatingChange}
           disabled={disabled}
         />
       </Stack>
