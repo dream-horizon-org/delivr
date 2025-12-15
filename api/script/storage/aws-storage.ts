@@ -91,6 +91,11 @@ import { createStoreIntegrationModel, createStoreCredentialModel } from "./integ
 import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
 import { createBuildModel, BuildRepository } from "../models/release";
+import {
+  createDistributionModel,
+  createIosSubmissionBuildModel,
+  createAndroidSubmissionBuildModel
+} from "../models/distribution";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -461,6 +466,11 @@ export function createModelss(sequelize: Sequelize) {
   const TenantTestManagementIntegration = createTenantTestManagementIntegrationModel(sequelize);
   const TestManagementConfig = createTestManagementConfigModel(sequelize);
   
+  // Distribution models
+  const Distribution = createDistributionModel(sequelize);  // Distribution tracking
+  const IosSubmissionBuild = createIosSubmissionBuildModel(sequelize);  // iOS submission builds
+  const AndroidSubmissionBuild = createAndroidSubmissionBuildModel(sequelize);  // Android submission builds
+  
   // Define associations
   // ============================================
 
@@ -602,6 +612,55 @@ export function createModelss(sequelize: Sequelize) {
     foreignKey: 'tenantId',
     as: 'tenant'
   });
+  
+  // Distribution associations
+  // Tenant has many Distributions
+  Tenant.hasMany(Distribution, { 
+    foreignKey: 'tenantId',
+    as: 'distributions' 
+  });
+  Distribution.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Release has many Distributions
+  Release.hasMany(Distribution, { 
+    foreignKey: 'releaseId',
+    as: 'distributions' 
+  });
+  Distribution.belongsTo(Release, { 
+    foreignKey: 'releaseId',
+    as: 'release',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Distribution has many iOS Submission Builds
+  Distribution.hasMany(IosSubmissionBuild, { 
+    foreignKey: 'distributionId',
+    as: 'iosSubmissions' 
+  });
+  IosSubmissionBuild.belongsTo(Distribution, { 
+    foreignKey: 'distributionId',
+    as: 'distribution',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Distribution has many Android Submission Builds
+  Distribution.hasMany(AndroidSubmissionBuild, { 
+    foreignKey: 'distributionId',
+    as: 'androidSubmissions' 
+  });
+  AndroidSubmissionBuild.belongsTo(Distribution, { 
+    foreignKey: 'distributionId',
+    as: 'distribution',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
 
   return {
     Account,
@@ -638,6 +697,9 @@ export function createModelss(sequelize: Sequelize) {
     ChannelConfig: CommConfig,  // Legacy alias
     TenantTestManagementIntegration,  // Test management integrations
     TestManagementConfig,  // Test management configurations
+    Distribution,  // Distribution tracking
+    IosSubmissionBuild,  // iOS submission builds
+    AndroidSubmissionBuild,  // Android submission builds
   };
 }
 
