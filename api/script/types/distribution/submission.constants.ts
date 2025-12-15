@@ -55,12 +55,13 @@ export const SUBMISSION_PLATFORMS = Object.values(SUBMISSION_PLATFORM);
 export type SubmissionPlatform = typeof SUBMISSION_PLATFORM[keyof typeof SUBMISSION_PLATFORM];
 
 /**
- * Action types for submissions (pause, halt, cancel)
+ * Action types for submissions (pause, halt, cancel, resume)
  */
 export const SUBMISSION_ACTION = {
   PAUSED: 'PAUSED',
   HALTED: 'HALTED',
-  CANCELLED: 'CANCELLED'
+  CANCELLED: 'CANCELLED',
+  RESUMED: 'RESUMED'
 } as const;
 
 export const SUBMISSION_ACTIONS = Object.values(SUBMISSION_ACTION);
@@ -135,6 +136,7 @@ export const SUBMISSION_ACTION_HISTORY_SUCCESS_MESSAGES = {
   CREATED: 'Submission action recorded successfully',
   SUBMISSION_PAUSED: 'Submission paused successfully',
   SUBMISSION_HALTED: 'Submission halted successfully',
-  SUBMISSION_CANCELLED: 'Submission cancelled successfully'
+  SUBMISSION_CANCELLED: 'Submission cancelled successfully',
+  SUBMISSION_RESUMED: 'Submission resumed successfully'
 } as const;
 

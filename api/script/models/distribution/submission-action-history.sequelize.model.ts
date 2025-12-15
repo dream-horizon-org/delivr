@@ -1,6 +1,6 @@
 /**
  * Submission Action History Sequelize Model
- * Tracks actions (pause, halt, cancel) taken on submissions
+ * Tracks actions (pause, halt, cancel, resume) taken on submissions
  */
 
 import { DataTypes, Model, Sequelize } from 'sequelize';
@@ -49,7 +49,7 @@ export const createSubmissionActionHistoryModel = (
         type: DataTypes.ENUM(...SUBMISSION_ACTIONS),
         allowNull: false,
         field: 'action',
-        comment: 'Action taken (PAUSED, HALTED, CANCELLED)'
+        comment: 'Action taken (PAUSED, HALTED, CANCELLED, RESUMED)'
       },
       reason: {
         type: DataTypes.TEXT,
