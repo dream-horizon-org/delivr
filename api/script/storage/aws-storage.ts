@@ -94,7 +94,8 @@ import { createBuildModel, BuildRepository } from "../models/release";
 import {
   createDistributionModel,
   createIosSubmissionBuildModel,
-  createAndroidSubmissionBuildModel
+  createAndroidSubmissionBuildModel,
+  createSubmissionActionHistoryModel
 } from "../models/distribution";
 
 //Creating Access Key
@@ -470,6 +471,7 @@ export function createModelss(sequelize: Sequelize) {
   const Distribution = createDistributionModel(sequelize);  // Distribution tracking
   const IosSubmissionBuild = createIosSubmissionBuildModel(sequelize);  // iOS submission builds
   const AndroidSubmissionBuild = createAndroidSubmissionBuildModel(sequelize);  // Android submission builds
+  const SubmissionActionHistory = createSubmissionActionHistoryModel(sequelize);  // Submission action history
   
   // Define associations
   // ============================================
@@ -700,6 +702,7 @@ export function createModelss(sequelize: Sequelize) {
     Distribution,  // Distribution tracking
     IosSubmissionBuild,  // iOS submission builds
     AndroidSubmissionBuild,  // Android submission builds
+    SubmissionActionHistory,  // Submission action history
   };
 }
 
