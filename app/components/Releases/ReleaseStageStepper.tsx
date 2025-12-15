@@ -146,14 +146,14 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
 
       <Stepper
         active={selectedStageIndex >= 0 ? selectedStageIndex : 0}
-        onStepClick={handleStepClick}
+        onStepClick={onStageSelect ? handleStepClick : undefined}
         size="sm"
         styles={{
           step: {
-            cursor: 'pointer',
+            cursor: onStageSelect ? 'pointer' : 'default',
           },
           stepIcon: {
-            cursor: 'pointer',
+            cursor: onStageSelect ? 'pointer' : 'default',
           },
         }}
       >
@@ -198,7 +198,7 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
                 position="bottom"
                 withArrow
               >
-                {stepContent}
+                <span>{stepContent}</span>
               </Tooltip>
             );
           }

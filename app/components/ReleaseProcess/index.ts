@@ -7,6 +7,8 @@ export { BuildArtifactsList } from './BuildArtifactsList';
 export { BuildTaskDetails } from './BuildTaskDetails';
 export { BuildsList } from './BuildsList';
 export { BuildUploadSection } from './BuildUploadSection';
+export { ActivityLogsContent } from './ActivityLogsContent';
+export { ActivityLogsDrawer } from './ActivityLogsDrawer';
 export { KickoffStage } from './KickoffStage';
 export { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 export { RegularTaskDetails } from './RegularTaskDetails';

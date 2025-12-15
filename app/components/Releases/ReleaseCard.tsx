@@ -21,7 +21,6 @@ export const ReleaseCard = memo(function ReleaseCard({
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
   const [searchParams] = useSearchParams();
-  console.log(theme)
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);

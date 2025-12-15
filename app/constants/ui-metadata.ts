@@ -188,7 +188,7 @@ export const RELEASE_TYPE_UI_METADATA: Record<string, {
     releaseFrequency: string;
   };
 }> = {
-  PLANNED: {
+  MINOR: {
     description: 'Regular scheduled release',
     icon: 'calendar',
     color: 'blue',

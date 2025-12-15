@@ -10,6 +10,7 @@
  * - Displays release cards with backend data
  */
 
+import { useEffect } from 'react';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
@@ -36,7 +37,7 @@ import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagemen
  * Server-side loader to fetch initial releases
  * Provides data for fast first load, React Query handles caching
  */
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org: tenantId } = params;
 
   if (!tenantId) {
@@ -45,6 +46,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
   try {
     const userId = user.user.id;
+    
+    // Check if this is a fresh request after creating/updating a release
+    const url = new URL(request.url);
+    const hasRefreshParam = url.searchParams.has('refresh');
+    
     const result = await listReleases(tenantId, userId, { includeTasks: false });
 
     if (!result.success) {
@@ -67,9 +73,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
       initialReleases: result.releases || [],
     }, {
       headers: {
-        // Browser caches for 2 minutes
-        // After 2 minutes, serves stale while revalidating for 5 minutes
-        'Cache-Control': 'private, max-age=120, stale-while-revalidate=300',
+        // If refresh param is present (after create/update), don't cache
+        // Otherwise, cache for 30 seconds (reduced from 2 minutes for fresher data)
+        'Cache-Control': hasRefreshParam 
+          ? 'no-cache, no-store, must-revalidate' 
+          : 'private, max-age=30, stale-while-revalidate=60',
       },
     });
   } catch (error: any) {

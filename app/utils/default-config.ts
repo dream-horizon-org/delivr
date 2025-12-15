@@ -16,7 +16,7 @@ export function createDefaultConfig(tenantId: string): Partial<ReleaseConfigurat
     // id is omitted - backend will generate it on save
     tenantId,
     name: '',
-    releaseType: 'PLANNED',
+    releaseType: 'MINOR',
     isDefault: true,
     platforms: [], // Will be derived from targets
     targets: [], // User must select distribution targets

@@ -64,25 +64,7 @@ export function Intro() {
 
   return (
     <Box bg="white" mih="100vh">
-      {/* Navbar placeholder style */}
-      <Box style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }} py="md">
-        <Container size="xl">
-          <Group justify="space-between">
-            <Group gap="sm">
-              <ThemeIcon size="lg" color="brand" variant="light" radius="md">
-                <IconRocket size={20} />
-              </ThemeIcon>
-              <Text fw={700} size="lg" c="slate.9">Delivr</Text>
-            </Group>
-            <Group>
-               <Button variant="subtle" size="sm" color="slate">Documentation</Button>
-               <Button variant="subtle" size="sm" color="slate">Support</Button>
-            </Group>
-          </Group>
-        </Container>
-      </Box>
-
-      {/* Hero */}
+      {/* Hero - Header is already provided by parent layout */}
       <Container size="md" py={100}>
         <Stack align="center" gap="xl" mb={80}>
           <Badge 
@@ -128,6 +110,7 @@ export function Intro() {
               size="lg"
               fw={600}
               c="slate.9"
+              onClick={() => window.open('https://dota.dreamsportslabs.com/', '_blank')}
             >
               Read the docs
             </Button>

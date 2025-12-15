@@ -616,7 +616,7 @@ export const CONFIG_LIST_LABELS = {
   STATUS_ARCHIVED: 'Archived',
   
   // Release Type Options
-  TYPE_PLANNED: 'Planned',
+  TYPE_MINOR: 'Minor',
   TYPE_HOTFIX: 'Hotfix',
   TYPE_MAJOR: 'Major',
   
@@ -643,7 +643,7 @@ export const CONFIG_STATUS = {
 // ============================================================================
 
 export const RELEASE_TYPE = {
-  PLANNED: 'PLANNED',
+  MINOR: 'MINOR',
   HOTFIX: 'HOTFIX',
   MAJOR: 'MAJOR',
 } as const;
