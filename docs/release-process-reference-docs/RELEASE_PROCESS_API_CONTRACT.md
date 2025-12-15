@@ -1881,64 +1881,92 @@ type ActivityLog = {
 
 ## Release Management APIs
 
-### 29. Pause Release
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/pause`
+### 29. Pause Release (Stop Cron Job)
+**POST** `/api/releases/{releaseId}/cron/stop`
 
 **Path Parameters:**
-- `tenantId` (string, required): Tenant UUID
 - `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
 
-**Request:**
-```typescript
-interface PauseReleaseRequest {
-  reason?: string;
-  pausedBy: string;
-}
-```
+**Request Body:**
+Empty body (no parameters required)
 
 **Response:**
 ```typescript
 interface PauseReleaseResponse {
   success: boolean;
-  message: string;
+  message: string;  // e.g., "Cron job stopped"
   releaseId: string;
-  status: ReleaseStatus.PAUSED;
-  pausedAt: string;
-  pausedBy: string;
 }
 ```
+
+**Error Responses:**
+
+#### 404 Not Found
+```json
+{
+  "success": false,
+  "error": "Cron job not running"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "success": false,
+  "error": "Failed to stop cron job: <error message>"
+}
+```
+
+**Notes:**
+- Stops the cron job for the release, effectively pausing the release process
+- Uses `stopCronJob()` service function
+- Returns 404 if cron job is not currently running
+- This endpoint is implemented in `kickoff-cron-job.ts` route file
 
 ---
 
-### 30. Resume Release
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/resume`
+### 30. Resume Release (Start Cron Job)
+**POST** `/api/releases/{releaseId}/cron/start`
 
 **Path Parameters:**
-- `tenantId` (string, required): Tenant UUID
 - `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
 
-**Request:**
-```typescript
-interface ResumeReleaseRequest {
-  resumedBy: string;
-}
-```
+**Request Body:**
+Empty body (no parameters required)
 
 **Response:**
 ```typescript
 interface ResumeReleaseResponse {
   success: boolean;
-  message: string;
+  message: string;  // e.g., "Cron job started" or "Cron job already running"
   releaseId: string;
-  status: ReleaseStatus; // Previous status
-  resumedAt: string;
-  resumedBy: string;
+}
+```
+
+**Error Responses:**
+
+#### 404 Not Found
+```json
+{
+  "success": false,
+  "error": "Cron job not found for release"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "success": false,
+  "error": "Failed to start cron job: <error message>"
 }
 ```
 
 **Notes:**
-- Resume can be done using the pause API by setting appropriate status, but this separate endpoint provides clearer semantics
-- Resuming a release restores it to its previous status before it was paused
+- Starts the cron job for the release, effectively resuming the release process
+- Uses `startCronJob()` service function
+- Returns success with "already running" message if cron job is already active
+- Updates cron job status to `IN_PROGRESS` for stage 1
+- This endpoint is implemented in `kickoff-cron-job.ts` route file
 
 ---
 

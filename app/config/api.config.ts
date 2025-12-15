@@ -87,6 +87,7 @@ export const RELEASE_PROCESS_API_PATTERNS = [
   '/api/v1/tenants/*/releases/*/notifications',       // Get Notifications (API #20)
   '/api/v1/tenants/*/releases/*/notify',              // Send Notification (API #21)
   '/api/v1/tenants/*/releases/*/activity-logs',       // Activity Logs (API #23)
+  '/api/v1/tenants/*/releases/*/pause-resume',        // Pause/Resume Release (API #29, #30)
 ] as const;
 
 /**

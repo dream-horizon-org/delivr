@@ -692,4 +692,54 @@ export function useBuildArtifacts(
   );
 }
 
+// ======================
+// Release Management Hooks
+// ======================
+
+/**
+ * Pause or resume release (stop/start cron job)
+ * POST /api/v1/tenants/:tenantId/releases/:releaseId/pause-resume
+ * Backend implementation:
+ *   - Pause: POST /api/releases/:releaseId/cron/stop
+ *   - Resume: POST /api/releases/:releaseId/cron/start
+ * 
+ * @param tenantId - Tenant UUID
+ * @param releaseId - Release UUID
+ * @returns Mutation that accepts { action: 'pause' | 'resume' }
+ */
+export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { success: boolean; message: string; releaseId: string },
+    Error,
+    { action: 'pause' | 'resume' }
+  >(
+    async ({ action }) => {
+      if (!tenantId || !releaseId) {
+        throw new Error('tenantId and releaseId are required');
+      }
+
+      const result = await apiPost<{ success: boolean; message: string; releaseId: string }>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/pause-resume`,
+        { action }
+      );
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || `Failed to ${action} release`);
+      }
+
+      return result.data;
+    },
+    {
+      onSuccess: () => {
+        // Invalidate release queries to refresh data
+        queryClient.invalidateQueries(['releases', tenantId]);
+        queryClient.invalidateQueries(['release', tenantId, releaseId]);
+        queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
+      },
+    }
+  );
+}
+
 

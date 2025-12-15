@@ -344,6 +344,30 @@ class ReleaseProcess {
       { params }
     );
   }
+
+  // ======================
+  // Release Management APIs
+  // ======================
+
+  /**
+   * Pause release (stop cron job) - Matches backend implementation
+   * POST /api/releases/:releaseId/cron/stop
+   */
+  async pauseRelease(releaseId: string) {
+    return this.__client.post<null, AxiosResponse<{ success: boolean; message: string; releaseId: string }>>(
+      `/api/releases/${releaseId}/cron/stop`
+    );
+  }
+
+  /**
+   * Resume release (start cron job) - Matches backend implementation
+   * POST /api/releases/:releaseId/cron/start
+   */
+  async resumeRelease(releaseId: string) {
+    return this.__client.post<null, AxiosResponse<{ success: boolean; message: string; releaseId: string }>>(
+      `/api/releases/${releaseId}/cron/start`
+    );
+  }
 }
 
 export const ReleaseProcessService = new ReleaseProcess();

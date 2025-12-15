@@ -20,7 +20,7 @@ import {
   BUTTON_LABELS,
 } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
-import { useActivityLogs, useSendNotification } from '~/hooks/useReleaseProcess';
+import { useActivityLogs, useSendNotification, usePauseResumeRelease } from '~/hooks/useReleaseProcess';
 import { Phase, ReleaseStatus } from '~/types/release-process-enums';
 import type { MessageTypeEnum, ActivityLog } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
@@ -84,25 +84,15 @@ export function ReleaseProcessActionsSidebar({
     }
   };
 
+  // Pause/Resume hook
+  const pauseResumeMutation = usePauseResumeRelease(org, release.id);
+
   // Handle pause/resume
   const handlePauseResume = async () => {
     try {
-      const newCronStatus = isPaused ? 'RUNNING' : 'PAUSED';
-      const result = await apiPatch<{ success: boolean; release?: BackendReleaseResponse; error?: string }>(
-        `/api/v1/tenants/${org}/releases/${release.id}`,
-        {
-          cronJob: {
-            ...release.cronJob,
-            cronStatus: newCronStatus,
-          },
-        }
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update release status');
-      }
-
-      await invalidateReleases(queryClient, org);
+      const action = isPaused ? 'resume' : 'pause';
+      await pauseResumeMutation.mutateAsync({ action });
+      
       showSuccessToast({
         message: isPaused ? 'Release resumed successfully' : 'Release paused successfully',
       });
