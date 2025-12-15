@@ -41,7 +41,7 @@ export const getLatestTagName = async (
   repo: string
 ): Promise<string | null> => {
   try {
-    const { data } = await client.repos.listTags({ owner, repo, per_page: 1, page: 1 });
+    const { data } = await client.rest.repos.listTags({ owner, repo, per_page: 1, page: 1 });
     const hasTags = Array.isArray(data) && data.length > 0;
     if (!hasTags) return null;
     return data[0].name;
@@ -57,7 +57,7 @@ export const generateReleaseNotes = async (
   currentTag: string,
   previousTag: string
 ): Promise<string> => {
-  const { data } = await client.repos.compareCommits({
+  const { data } = await client.rest.repos.compareCommits({
     owner,
     repo,
     base: previousTag,

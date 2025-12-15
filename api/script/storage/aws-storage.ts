@@ -59,7 +59,8 @@ import {
   CronJobRepository,
   ReleaseTaskRepository,
   StateHistoryRepository,
-  ReleaseUploadsRepository
+  ReleaseUploadsRepository,
+  RegressionCycleRepository
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
@@ -686,7 +687,7 @@ export class S3Storage implements storage.Storage {
     public platformMappingRepository!: ReleasePlatformTargetMappingRepository;  // Alias for releasePlatformTargetMappingRepository
     public cronJobRepository!: CronJobRepository;  // Cron job repository
     public releaseTaskRepository!: ReleaseTaskRepository;  // Release task repository
-    public regressionCycleRepository: any = null;  // Regression cycle repository (optional)
+    public regressionCycleRepository!: RegressionCycleRepository;  // Regression cycle repository
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseVersionService!: ReleaseVersionService;
@@ -949,6 +950,8 @@ export class S3Storage implements storage.Storage {
           
           this.cronJobRepository = new CronJobRepository(this.sequelize.models.CronJob);
           this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          this.regressionCycleRepository = new RegressionCycleRepository(this.sequelize.models.RegressionCycle);
+          console.log("Regression Cycle Repository initialized");
           const cronJobRepo = this.cronJobRepository;
           const releaseTaskRepo = this.releaseTaskRepository;
           const stateHistoryRepo = new StateHistoryRepository(
