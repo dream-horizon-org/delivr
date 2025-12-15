@@ -131,7 +131,7 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
 }
 
 /**
- * Get post-regression stage data
+ * Get pre-release stage data
  */
 export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
   return useQuery<PreReleaseStageResponse, Error>(
@@ -490,10 +490,10 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
 }
 
 /**
- * Complete post-regression stage
- * Backend contract: POST /stages/post-regression/complete (no request body)
+ * Complete pre-release stage
+ * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/stages/pre-release/complete (no request body)
  */
-export function useCompletePostRegression(tenantId?: string, releaseId?: string) {
+export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
   return useMutation<CompletePreReleaseResponse, Error, void>(
@@ -503,11 +503,11 @@ export function useCompletePostRegression(tenantId?: string, releaseId?: string)
       }
 
       const result = await apiPost<CompletePreReleaseResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/post-regression/complete`
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to complete post-regression stage');
+        throw new Error(result.error || 'Failed to complete pre-release stage');
       }
 
       return result.data;
@@ -658,10 +658,6 @@ export function useBuildArtifacts(
       const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts${queryString ? `?${queryString}` : ''}`;
 
       const result = await apiGet<ListBuildArtifactsResponse>(endpoint);
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useReleaseProcess.ts:581',message:'apiGet result structure',data:{hasSuccess:!!result.success,hasData:!!result.data,dataType:typeof result.data,isArray:Array.isArray(result.data),dataKeys:result.data?Object.keys(result.data):null,dataDataIsArray:Array.isArray(result.data?.data)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
 
       if (!result.success || !result.data) {
         throw new Error(result.error || 'Failed to fetch build artifacts');

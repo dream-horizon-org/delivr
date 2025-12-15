@@ -1,82 +1,45 @@
 /**
  * Task Detail Types
- * TypeScript interfaces for task-specific externalData structures
+ * TypeScript interfaces for task-specific output structures
+ * These types are re-exported from release-process.types.ts for component usage
  * Each interface matches the component name and expected data structure
  */
 
-/**
- * ForkBranchTaskDetails - FORK_BRANCH task
- */
-export interface ForkBranchTaskDetailsData {
-  branchName: string;
-  branchUrl: string;
-}
+// Import and re-export output types from release-process.types.ts
+import type {
+  ForkBranchTaskOutput,
+  ProjectManagementTaskOutput,
+  TestManagementTaskOutput,
+  CreateRcTagTaskOutput,
+  ReleaseNotesTaskOutput,
+  CreateReleaseTagTaskOutput,
+  FinalReleaseNotesTaskOutput,
+  BuildTaskOutput,
+  TaskOutput,
+} from './release-process.types';
+
+export type {
+  ForkBranchTaskOutput,
+  ProjectManagementTaskOutput,
+  TestManagementTaskOutput,
+  CreateRcTagTaskOutput,
+  ReleaseNotesTaskOutput,
+  CreateReleaseTagTaskOutput,
+  FinalReleaseNotesTaskOutput,
+  BuildTaskOutput,
+  TaskOutput,
+};
 
 /**
- * ProjectManagementTaskDetails - CREATE_PROJECT_MANAGEMENT_TICKET task
+ * Legacy type aliases for backward compatibility
+ * @deprecated Use the Output types directly (e.g., ForkBranchTaskOutput instead of ForkBranchTaskDetailsData)
  */
-export interface ProjectManagementTaskDetailsData {
-  projectManagement: {
-    platforms: Array<{
-      platform: string;
-      ticketUrl: string;
-    }>;
-  };
-}
-
-/**
- * CreateTestSuiteTaskDetails - CREATE_TEST_SUITE task
- */
-export interface CreateTestSuiteTaskDetailsData {
-  testManagement: {
-    platforms: Array<{
-      platform: string;
-      runId: string;
-      runUrl: string;
-    }>;
-  };
-}
-
-/**
- * ResetTestSuiteTaskDetails - RESET_TEST_SUITE task
- */
-export interface ResetTestSuiteTaskDetailsData {
-  testManagement: {
-    platforms: Array<{
-      platform: string;
-      runId: string;
-      runUrl: string;
-    }>;
-  };
-}
-
-/**
- * CreateRcTagTaskDetails - CREATE_RC_TAG task
- */
-export interface CreateRcTagTaskDetailsData {
-  tagName: string;
-  tagUrl: string;
-}
-
-/**
- * CreateReleaseNotesTaskDetails - CREATE_RELEASE_NOTES task
- */
-export interface CreateReleaseNotesTaskDetailsData {
-  notesUrl: string;
-}
-
-/**
- * CreateReleaseTagTaskDetails - CREATE_RELEASE_TAG task
- */
-export interface CreateReleaseTagTaskDetailsData {
-  tagName: string;
-  tagUrl: string;
-}
-
-/**
- * CreateFinalReleaseNotesTaskDetails - CREATE_FINAL_RELEASE_NOTES task
- */
-export interface CreateFinalReleaseNotesTaskDetailsData {
-  notesUrl: string;
-}
+export type ForkBranchTaskDetailsData = ForkBranchTaskOutput;
+export type ProjectManagementTaskDetailsData = ProjectManagementTaskOutput;
+export type CreateTestSuiteTaskDetailsData = TestManagementTaskOutput;
+export type ResetTestSuiteTaskDetailsData = TestManagementTaskOutput;
+export type CreateRcTagTaskDetailsData = CreateRcTagTaskOutput;
+export type CreateReleaseNotesTaskDetailsData = ReleaseNotesTaskOutput;
+export type CreateReleaseTagTaskDetailsData = CreateReleaseTagTaskOutput;
+export type CreateFinalReleaseNotesTaskDetailsData = FinalReleaseNotesTaskOutput;
 

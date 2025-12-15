@@ -7,16 +7,31 @@ import { Group, Stack, Text, Badge } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconTicket } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
-import type { ProjectManagementTaskDetailsData } from '~/types/task-details.types';
+import { TaskStatus } from '~/types/release-process-enums';
+import type { ProjectManagementTaskOutput } from '~/types/task-details.types';
 
 interface ProjectManagementTaskDetailsProps {
   task: Task;
 }
 
 export function ProjectManagementTaskDetails({ task }: ProjectManagementTaskDetailsProps) {
-  const externalData = task.externalData as ProjectManagementTaskDetailsData | null;
+  // Only read output when task is COMPLETED or FAILED
+  const output = (task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED)
+    ? (task.output as ProjectManagementTaskOutput | null)
+    : null;
 
-  const platforms = externalData?.projectManagement?.platforms || [];
+  // If FAILED, check for error in output
+  if (task.taskStatus === TaskStatus.FAILED && output && 'error' in output) {
+    return (
+      <Stack gap="xs">
+        <Text size="sm" c="red">
+          {String(output.error)}
+        </Text>
+      </Stack>
+    );
+  }
+
+  const platforms = output?.platforms || [];
 
   // Extract ticket ID from URL (e.g., "JIRA-12345-ANDROID" from "https://company.atlassian.net/browse/JIRA-12345-ANDROID")
   function extractTicketId(url: string): string {

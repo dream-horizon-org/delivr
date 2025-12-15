@@ -7,17 +7,32 @@ import { Group, Stack, Text } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconTag } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
-import type { CreateReleaseTagTaskDetailsData } from '~/types/task-details.types';
+import { TaskStatus } from '~/types/release-process-enums';
+import type { CreateReleaseTagTaskOutput } from '~/types/task-details.types';
 
 interface CreateReleaseTagTaskDetailsProps {
   task: Task;
 }
 
 export function CreateReleaseTagTaskDetails({ task }: CreateReleaseTagTaskDetailsProps) {
-  const externalData = task.externalData as CreateReleaseTagTaskDetailsData | null;
+  // Only read output when task is COMPLETED or FAILED
+  const output = (task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED)
+    ? (task.output as CreateReleaseTagTaskOutput | null)
+    : null;
 
-  const tagName = externalData?.tagName;
-  const tagUrl = externalData?.tagUrl;
+  // If FAILED, check for error in output
+  if (task.taskStatus === TaskStatus.FAILED && output && 'error' in output) {
+    return (
+      <Stack gap="xs">
+        <Text size="sm" c="red">
+          {String(output.error)}
+        </Text>
+      </Stack>
+    );
+  }
+
+  const tagName = output?.tagName;
+  const tagUrl = output?.tagUrl;
 
   if (!tagName && !tagUrl) {
     return (

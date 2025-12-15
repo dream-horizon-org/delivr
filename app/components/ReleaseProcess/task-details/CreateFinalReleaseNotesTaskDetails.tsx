@@ -7,22 +7,37 @@ import { Group, Stack, Text } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconFileText } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
-import type { CreateFinalReleaseNotesTaskDetailsData } from '~/types/task-details.types';
+import { TaskStatus } from '~/types/release-process-enums';
+import type { FinalReleaseNotesTaskOutput } from '~/types/task-details.types';
 
 interface CreateFinalReleaseNotesTaskDetailsProps {
   task: Task;
 }
 
 export function CreateFinalReleaseNotesTaskDetails({ task }: CreateFinalReleaseNotesTaskDetailsProps) {
-  const externalData = task.externalData as CreateFinalReleaseNotesTaskDetailsData | null;
+  // Only read output when task is COMPLETED or FAILED
+  const output = (task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED)
+    ? (task.output as FinalReleaseNotesTaskOutput | null)
+    : null;
 
-  const notesUrl = externalData?.notesUrl;
+  // If FAILED, check for error in output
+  if (task.taskStatus === TaskStatus.FAILED && output && 'error' in output) {
+    return (
+      <Stack gap="xs">
+        <Text size="sm" c="red">
+          {String(output.error)}
+        </Text>
+      </Stack>
+    );
+  }
 
-  if (!notesUrl) {
+  const tagUrl = output?.tagUrl;
+
+  if (!tagUrl) {
     return (
       <Stack gap="xs">
         <Text size="sm" c="dimmed">
-          No release notes available
+          No tag information available
         </Text>
       </Stack>
     );
@@ -30,15 +45,15 @@ export function CreateFinalReleaseNotesTaskDetails({ task }: CreateFinalReleaseN
 
   return (
     <Stack gap="md">
-      {/* Release Notes Link */}
+      {/* Tag Link */}
       <Stack gap="xs">
         <Text size="xs" c="dimmed" fw={500}>
-          Final Release Notes
+          Tag
         </Text>
-        <Anchor href={notesUrl} target="_blank" size="sm" c="brand">
+        <Anchor href={tagUrl} target="_blank" size="sm" c="brand">
           <Group gap={4}>
             <IconFileText size={14} />
-            <Text size="sm">View Release Notes</Text>
+            <Text size="sm">View Tag</Text>
             <IconExternalLink size={14} />
           </Group>
         </Anchor>

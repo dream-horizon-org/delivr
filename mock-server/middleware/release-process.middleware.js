@@ -79,9 +79,14 @@ function getBuildsForTask(task, db, releaseId) {
   // Only use consumed builds (not staging builds)
   const allBuilds = consumedBuilds;
   
+  // API contract: builds field must always be present, empty array if no builds
   if (allBuilds.length === 0) {
-    return undefined;
+    return [];
   }
+
+  // Get tenantId from release or use default (mandatory field)
+  const release = db ? db.get('releases').find({ id: releaseId }).value() : null;
+  const defaultTenantId = release?.tenantId || releaseId?.split('-')[0] || '00000000-0000-0000-0000-000000000000';
 
   return allBuilds.map(build => {
     // Determine platform from build
@@ -90,29 +95,53 @@ function getBuildsForTask(task, db, releaseId) {
     // Keep storeType from build data (backend may or may not send it)
     // Frontend doesn't depend on it anymore - uses platform + testflightNumber/internalTrackLink instead
     const storeType = build.storeType || null;
+    
+    // Determine buildStage (must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE')
+    // API contract: buildStage must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+    let mappedBuildStage = build.buildStage;
+    if (!mappedBuildStage || !['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'].includes(mappedBuildStage)) {
+      // Map from taskStage or buildStage parameter
+      if (buildStage === 'PRE_REGRESSION' || buildStage === 'KICKOFF' || buildStage === 'KICK_OFF') {
+        mappedBuildStage = 'KICK_OFF';
+      } else if (buildStage === 'REGRESSION') {
+        mappedBuildStage = 'REGRESSION';
+      } else if (buildStage === 'PRE_RELEASE') {
+        mappedBuildStage = 'PRE_RELEASE';
+      } else {
+        mappedBuildStage = 'KICK_OFF'; // Default fallback
+      }
+    }
 
+    // API contract: BuildInfo mandatory fields
     return {
+      // MANDATORY fields (must always be present)
       id: build.id,
-      tenantId: build.tenantId || null,
-      releaseId: build.releaseId || releaseId,
+      tenantId: build.tenantId || defaultTenantId, // Must be string, never null
+      releaseId: build.releaseId || releaseId, // Must be release.id (UUID), not release.releaseId
       platform: platform,
+      buildStage: mappedBuildStage, // Must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+      artifactPath: build.artifactPath || null, // Mandatory field (can be null)
+      internalTrackLink: build.internalTrackLink || (platform === 'ANDROID' && taskStage === 'PRE_RELEASE' ? 'https://play.google.com/apps/internaltest/...' : null), // Mandatory field (can be null)
+      testflightNumber: build.testflightNumber || (platform === 'IOS' && taskStage === 'PRE_RELEASE' ? build.buildNumber : null), // Mandatory field (can be null)
+      createdAt: build.createdAt || new Date().toISOString(),
+      updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
+      
+      // OPTIONAL fields (only in builds table)
+      buildType: build.buildType || 'MANUAL',
+      buildUploadStatus: build.buildUploadStatus || (build.isUsed === false ? 'UPLOADED' : 'UPLOADED'),
       storeType: storeType,
       buildNumber: build.buildNumber || build.testflightNumber || null,
       artifactVersionName: build.artifactVersionName || build.versionName || null,
-      artifactPath: build.artifactPath || null,
       regressionId: build.regressionId || null,
       ciRunId: build.ciRunId || null,
-      buildUploadStatus: build.buildUploadStatus || (build.isUsed === false ? 'UPLOADED' : 'UPLOADED'),
-      buildType: build.buildType || 'MANUAL',
-      buildStage: buildStage === 'PRE_REGRESSION' ? 'KICK_OFF' : buildStage === 'REGRESSION' ? 'REGRESSION' : 'PRE_RELEASE',
       queueLocation: build.queueLocation || null,
       workflowStatus: build.workflowStatus || null,
       ciRunType: build.ciRunType || null,
       taskId: build.taskId || task.id,
-      internalTrackLink: build.internalTrackLink || (platform === 'ANDROID' && taskStage === 'PRE_RELEASE' ? 'https://play.google.com/apps/internaltest/...' : null),
-      testflightNumber: build.testflightNumber || (platform === 'IOS' && taskStage === 'PRE_RELEASE' ? build.buildNumber : null),
-      createdAt: build.createdAt || new Date().toISOString(),
-      updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
+      
+      // OPTIONAL fields (only in uploads table)
+      isUsed: build.isUsed !== undefined ? build.isUsed : undefined,
+      usedByTaskId: build.usedByTaskId || null,
     };
   });
 }
@@ -147,85 +176,114 @@ function getUploadedBuilds(releaseId, buildStage, db) {
     })
     .value() || [];
 
+  // Get tenantId from release or use default (mandatory field)
+  const release = db.get('releases').find({ id: releaseId }).value();
+  const defaultTenantId = release?.tenantId || releaseId?.split('-')[0] || '00000000-0000-0000-0000-000000000000';
+
   return stagingBuilds.map(build => {
     const platform = build.platform || 'ANDROID';
     
     // Map staging stage to response buildStage
-    // KICKOFF stage should return 'KICKOFF' as buildStage
+    // API contract: buildStage must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
     let responseBuildStage = 'PRE_RELEASE';
     if (stagingStage === 'PRE_REGRESSION') {
-      responseBuildStage = 'KICKOFF';
+      responseBuildStage = 'KICK_OFF'; // API contract uses 'KICK_OFF', not 'KICKOFF'
     } else if (stagingStage === 'REGRESSION') {
       responseBuildStage = 'REGRESSION';
     } else if (stagingStage === 'PRE_RELEASE') {
       responseBuildStage = 'PRE_RELEASE';
     }
     
+    // API contract: BuildInfo mandatory fields
     return {
+      // MANDATORY fields (must always be present)
       id: build.id,
-      tenantId: build.tenantId || null,
-      releaseId: build.releaseId || releaseId,
+      tenantId: build.tenantId || defaultTenantId, // Must be string, never null
+      releaseId: build.releaseId || releaseId, // Must be release.id (UUID), not release.releaseId
       platform: platform,
+      buildStage: responseBuildStage, // Must be one of: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'
+      artifactPath: build.artifactPath || null, // Mandatory field (can be null)
+      internalTrackLink: build.internalTrackLink || null, // Mandatory field (can be null)
+      testflightNumber: build.testflightNumber || null, // Mandatory field (can be null)
+      createdAt: build.createdAt || new Date().toISOString(),
+      updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
+      
+      // OPTIONAL fields (only in builds table)
+      buildType: build.buildType || 'MANUAL',
+      buildUploadStatus: build.buildUploadStatus || 'UPLOADED',
       storeType: null,
       buildNumber: null,
       artifactVersionName: build.versionName || null,
-      artifactPath: build.artifactPath,
       regressionId: build.regressionId || null,
       ciRunId: build.ciRunId || null,
-      buildUploadStatus: build.buildUploadStatus || 'UPLOADED',
-      buildType: build.buildType || 'MANUAL',
-      buildStage: responseBuildStage,
       queueLocation: null,
       workflowStatus: null,
       ciRunType: null,
       taskId: null, // Staging builds don't have taskId yet
-      internalTrackLink: build.internalTrackLink || null,
-      testflightNumber: build.testflightNumber || null,
-      createdAt: build.createdAt || new Date().toISOString(),
-      updatedAt: build.updatedAt || build.createdAt || new Date().toISOString(),
+      
+      // OPTIONAL fields (only in uploads table)
+      isUsed: build.isUsed !== undefined ? build.isUsed : false,
+      usedByTaskId: build.usedByTaskId || null,
     };
   });
 }
 
 /**
  * Map old task structure to new Task interface (backend contract)
- * Populates externalData with task-specific structure based on taskType
+ * Populates output with task-specific structure based on taskType
  */
 function mapTaskToBackendContract(task, db = null, releaseId = null) {
-  // Build externalData based on task type
-  // First, check if externalData already exists with new structure (from generator)
-  let externalData = null;
+  // Build output based on task type
+  // First, check if output or externalData already exists with new structure (from generator)
+  let output = null;
   
-  // If externalData already exists and has the expected structure, use it
-  if (task.externalData && typeof task.externalData === 'object' && Object.keys(task.externalData).length > 0) {
+  // Support both output (new) and externalData (legacy) fields
+  const existingData = task.output || task.externalData;
+  
+  // If output/externalData already exists and has the expected structure, use it
+  if (existingData && typeof existingData === 'object' && existingData !== null && Object.keys(existingData).length > 0) {
     // Check if it's already in the new format (has expected keys for this task type)
     const hasNewStructure = 
-      (task.taskType === 'FORK_BRANCH' && (task.externalData.branchName || task.externalData.branchUrl)) ||
-      (task.taskType === 'CREATE_PROJECT_MANAGEMENT_TICKET' && task.externalData.projectManagement) ||
-      (task.taskType === 'CREATE_TEST_SUITE' && task.externalData.testManagement) ||
-      (task.taskType === 'RESET_TEST_SUITE' && task.externalData.testManagement) ||
-      (task.taskType === 'CREATE_RC_TAG' && (task.externalData.tagName || task.externalData.tagUrl)) ||
-      (task.taskType === 'CREATE_RELEASE_NOTES' && task.externalData.notesUrl) ||
-      (task.taskType === 'CREATE_RELEASE_TAG' && (task.externalData.tagName || task.externalData.tagUrl)) ||
-      (task.taskType === 'CREATE_FINAL_RELEASE_NOTES' && task.externalData.notesUrl);
+      (task.taskType === 'FORK_BRANCH' && (existingData.branchName || existingData.branchUrl)) ||
+      (task.taskType === 'CREATE_PROJECT_MANAGEMENT_TICKET' && (existingData.platforms || existingData.projectManagement)) ||
+      (task.taskType === 'CREATE_TEST_SUITE' && (existingData.platforms || existingData.testManagement)) ||
+      (task.taskType === 'RESET_TEST_SUITE' && (existingData.platforms || existingData.testManagement)) ||
+      (task.taskType === 'CREATE_RC_TAG' && (existingData.tagName || existingData.tagUrl)) ||
+      (task.taskType === 'CREATE_RELEASE_NOTES' && (existingData.tagUrl || existingData.notesUrl)) ||
+      (task.taskType === 'CREATE_RELEASE_TAG' && (existingData.tagName || existingData.tagUrl)) ||
+      (task.taskType === 'CREATE_FINAL_RELEASE_NOTES' && (existingData.tagUrl || existingData.notesUrl)) ||
+      ((task.taskType === 'TRIGGER_PRE_REGRESSION_BUILDS' || 
+        task.taskType === 'TRIGGER_REGRESSION_BUILDS' || 
+        task.taskType === 'TRIGGER_TEST_FLIGHT_BUILD' || 
+        task.taskType === 'CREATE_AAB_BUILD') && (existingData.jobUrl || existingData.workflowUrl));
     
     if (hasNewStructure) {
-      externalData = task.externalData;
+      // Flatten nested structures if needed
+      if (existingData.projectManagement && existingData.projectManagement.platforms) {
+        output = { platforms: existingData.projectManagement.platforms };
+      } else if (existingData.testManagement && existingData.testManagement.platforms) {
+        output = { platforms: existingData.testManagement.platforms };
+      } else if (existingData.notesUrl && !existingData.tagUrl) {
+        // Convert notesUrl to tagUrl for release notes tasks
+        output = { tagUrl: existingData.notesUrl };
+      } else {
+        output = existingData;
+      }
     }
   }
   
   // If no new structure found, build from old fields or generate default for COMPLETED tasks
-  if (!externalData) {
+  if (!output) {
     switch (task.taskType) {
       case 'FORK_BRANCH':
-        if (task.branch || task.branchUrl || task.externalData?.branchName || task.externalData?.branchUrl) {
-          externalData = {
-            branchName: task.externalData?.branchName || task.branch || task.branchName || null,
-            branchUrl: task.externalData?.branchUrl || task.branchUrl || (task.branch ? `https://github.com/org/repo/tree/${task.branch}` : null),
+        if (task.branch || task.branchUrl || existingData?.branchName || existingData?.branchUrl) {
+          output = {
+            branchName: existingData?.branchName || task.branch || task.branchName || null,
+            branchUrl: existingData?.branchUrl || task.branchUrl || (task.branch ? `https://github.com/org/repo/tree/${task.branch}` : null),
           };
         } else if (task.taskStatus === 'COMPLETED' && task.branch) {
           // Generate default for COMPLETED tasks even if no explicit data
-          externalData = {
+          output = {
             branchName: task.branch,
             branchUrl: `https://github.com/org/repo/tree/${task.branch}`,
           };
@@ -234,9 +292,15 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
 
       case 'CREATE_PROJECT_MANAGEMENT_TICKET':
         // Support both old flat structure and new organized structure
-        if (task.ticketUrl || task.platformTickets) {
-          const platforms = task.platformTickets || [];
-          if (task.ticketUrl && !platforms.length) {
+        if (task.ticketUrl || task.platformTickets || existingData?.projectManagement || existingData?.platforms) {
+          let platforms = [];
+          if (existingData?.platforms) {
+            platforms = existingData.platforms;
+          } else if (existingData?.projectManagement?.platforms) {
+            platforms = existingData.projectManagement.platforms;
+          } else if (task.platformTickets) {
+            platforms = task.platformTickets;
+          } else if (task.ticketUrl) {
             // Single ticket - create platform entry if we have platform info
             platforms.push({
               platform: task.platform || 'ANDROID',
@@ -244,32 +308,34 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
             });
           }
           if (platforms.length > 0) {
-            externalData = {
-              projectManagement: {
-                platforms: platforms.map(pt => ({
-                  platform: pt.platform || pt.platformName,
-                  ticketUrl: pt.ticketUrl || pt.url,
-                })),
-              },
+            output = {
+              platforms: platforms.map(pt => ({
+                platform: pt.platform || pt.platformName,
+                ticketUrl: pt.ticketUrl || pt.url,
+              })),
             };
           }
         } else if (task.taskStatus === 'COMPLETED' && task.externalId) {
           // Generate default for COMPLETED tasks
-          externalData = {
-            projectManagement: {
-              platforms: [
-                { platform: 'ANDROID', ticketUrl: `https://company.atlassian.net/browse/${task.externalId}-ANDROID` },
-                { platform: 'IOS', ticketUrl: `https://company.atlassian.net/browse/${task.externalId}-IOS` },
-              ],
-            },
+          output = {
+            platforms: [
+              { platform: 'ANDROID', ticketUrl: `https://company.atlassian.net/browse/${task.externalId}-ANDROID` },
+              { platform: 'IOS', ticketUrl: `https://company.atlassian.net/browse/${task.externalId}-IOS` },
+            ],
           };
         }
         break;
 
       case 'CREATE_TEST_SUITE':
-        if (task.testSuiteUrl || task.testRunId || task.runLink) {
-          const platforms = task.platformRuns || [];
-          if (task.runLink && !platforms.length) {
+        if (task.testSuiteUrl || task.testRunId || task.runLink || existingData?.testManagement || existingData?.platforms) {
+          let platforms = [];
+          if (existingData?.platforms) {
+            platforms = existingData.platforms;
+          } else if (existingData?.testManagement?.platforms) {
+            platforms = existingData.testManagement.platforms;
+          } else if (task.platformRuns) {
+            platforms = task.platformRuns;
+          } else if (task.runLink) {
             // Single run - create platform entry
             platforms.push({
               platform: task.platform || 'ANDROID',
@@ -277,69 +343,71 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
               runUrl: task.runLink || task.runUrl,
             });
           }
-          externalData = {
-            testManagement: {
+          if (platforms.length > 0) {
+            output = {
               platforms: platforms.map(pr => ({
                 platform: pr.platform || pr.platformName,
                 runId: pr.runId || pr.testRunId,
                 runUrl: pr.runUrl || pr.runLink,
               })),
-            },
-          };
+            };
+          }
         } else if (task.taskStatus === 'COMPLETED' && task.externalId) {
           // Generate default for COMPLETED tasks
-          externalData = {
-            testManagement: {
-              platforms: [
-                { platform: 'ANDROID', runId: 'RUN-ANDROID-001', runUrl: `https://testmanagement.company.com/runs/RUN-ANDROID-001` },
-                { platform: 'IOS', runId: 'RUN-IOS-001', runUrl: `https://testmanagement.company.com/runs/RUN-IOS-001` },
-              ],
-            },
+          output = {
+            platforms: [
+              { platform: 'ANDROID', runId: 'RUN-ANDROID-001', runUrl: `https://testmanagement.company.com/runs/RUN-ANDROID-001` },
+              { platform: 'IOS', runId: 'RUN-IOS-001', runUrl: `https://testmanagement.company.com/runs/RUN-IOS-001` },
+            ],
           };
         }
         break;
 
       case 'RESET_TEST_SUITE':
-        if (task.testSuiteUrl || task.testRunId || task.runLink) {
-          const platforms = task.platformRuns || [];
-          if (task.runLink && !platforms.length) {
+        if (task.testSuiteUrl || task.testRunId || task.runLink || existingData?.testManagement || existingData?.platforms) {
+          let platforms = [];
+          if (existingData?.platforms) {
+            platforms = existingData.platforms;
+          } else if (existingData?.testManagement?.platforms) {
+            platforms = existingData.testManagement.platforms;
+          } else if (task.platformRuns) {
+            platforms = task.platformRuns;
+          } else if (task.runLink) {
             platforms.push({
               platform: task.platform || 'ANDROID',
               runId: task.testRunId || task.runId || 'RUN-002',
               runUrl: task.runLink || task.runUrl,
             });
           }
-          externalData = {
-            testManagement: {
+          if (platforms.length > 0) {
+            output = {
               platforms: platforms.map(pr => ({
                 platform: pr.platform || pr.platformName,
                 runId: pr.runId || pr.testRunId,
                 runUrl: pr.runUrl || pr.runLink,
               })),
-            },
-          };
+            };
+          }
         } else if (task.taskStatus === 'COMPLETED' && task.externalId) {
           // Generate default for COMPLETED tasks
-          externalData = {
-            testManagement: {
-              platforms: [
-                { platform: 'ANDROID', runId: 'RUN-ANDROID-002', runUrl: `https://testmanagement.company.com/runs/RUN-ANDROID-002` },
-                { platform: 'IOS', runId: 'RUN-IOS-002', runUrl: `https://testmanagement.company.com/runs/RUN-IOS-002` },
-              ],
-            },
+          output = {
+            platforms: [
+              { platform: 'ANDROID', runId: 'RUN-ANDROID-002', runUrl: `https://testmanagement.company.com/runs/RUN-ANDROID-002` },
+              { platform: 'IOS', runId: 'RUN-IOS-002', runUrl: `https://testmanagement.company.com/runs/RUN-IOS-002` },
+            ],
           };
         }
         break;
 
       case 'CREATE_RC_TAG':
-        if (task.tag || task.tagUrl || task.tagName) {
-          externalData = {
-            tagName: task.tagName || task.tag || 'v1.0.0-RC1',
-            tagUrl: task.tagUrl || (task.tag ? `https://github.com/org/repo/releases/tag/${task.tag}` : null),
+        if (task.tag || task.tagUrl || task.tagName || existingData?.tagName || existingData?.tagUrl) {
+          output = {
+            tagName: existingData?.tagName || task.tagName || task.tag || 'v1.0.0-RC1',
+            tagUrl: existingData?.tagUrl || task.tagUrl || (task.tag ? `https://github.com/org/repo/releases/tag/${task.tag}` : null),
           };
         } else if (task.taskStatus === 'COMPLETED') {
           // Generate default for COMPLETED tasks
-          externalData = {
+          output = {
             tagName: 'v1.0.0-RC1',
             tagUrl: 'https://github.com/org/repo/releases/tag/v1.0.0-RC1',
           };
@@ -347,27 +415,27 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
         break;
 
       case 'CREATE_RELEASE_NOTES':
-        if (task.notesUrl) {
-          externalData = {
-            notesUrl: task.notesUrl,
+        if (task.notesUrl || task.tagUrl || existingData?.tagUrl || existingData?.notesUrl) {
+          output = {
+            tagUrl: existingData?.tagUrl || task.tagUrl || task.notesUrl || existingData?.notesUrl || null,
           };
         } else if (task.taskStatus === 'COMPLETED') {
           // Generate default for COMPLETED tasks
-          externalData = {
-            notesUrl: 'https://docs.company.com/releases/v1.0.0-rc1',
+          output = {
+            tagUrl: 'https://github.com/org/repo/releases/tag/v1.0.0-rc1',
           };
         }
         break;
 
       case 'CREATE_RELEASE_TAG':
-        if (task.tag || task.tagUrl || task.tagName) {
-          externalData = {
-            tagName: task.tagName || task.tag || 'v1.0.0',
-            tagUrl: task.tagUrl || (task.tag ? `https://github.com/org/repo/releases/tag/${task.tag}` : null),
+        if (task.tag || task.tagUrl || task.tagName || existingData?.tagName || existingData?.tagUrl) {
+          output = {
+            tagName: existingData?.tagName || task.tagName || task.tag || 'v1.0.0',
+            tagUrl: existingData?.tagUrl || task.tagUrl || (task.tag ? `https://github.com/org/repo/releases/tag/${task.tag}` : null),
           };
         } else if (task.taskStatus === 'COMPLETED') {
           // Generate default for COMPLETED tasks
-          externalData = {
+          output = {
             tagName: 'v1.0.0',
             tagUrl: 'https://github.com/org/repo/releases/tag/v1.0.0',
           };
@@ -375,22 +443,39 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
         break;
 
       case 'CREATE_FINAL_RELEASE_NOTES':
-        if (task.notesUrl) {
-          externalData = {
-            notesUrl: task.notesUrl,
+        if (task.notesUrl || task.tagUrl || existingData?.tagUrl || existingData?.notesUrl) {
+          output = {
+            tagUrl: existingData?.tagUrl || task.tagUrl || task.notesUrl || existingData?.notesUrl || null,
           };
         } else if (task.taskStatus === 'COMPLETED') {
           // Generate default for COMPLETED tasks
-          externalData = {
-            notesUrl: 'https://docs.company.com/releases/v1.0.0',
+          output = {
+            tagUrl: 'https://github.com/org/repo/releases/tag/v1.0.0',
+          };
+        }
+        break;
+
+      case 'TRIGGER_PRE_REGRESSION_BUILDS':
+      case 'TRIGGER_REGRESSION_BUILDS':
+      case 'TRIGGER_TEST_FLIGHT_BUILD':
+      case 'CREATE_AAB_BUILD':
+        // Build tasks can have jobUrl when running (special case)
+        if (existingData?.jobUrl || task.jobUrl) {
+          output = {
+            jobUrl: existingData?.jobUrl || task.jobUrl || null,
+          };
+        } else if (task.taskStatus === 'IN_PROGRESS' || task.taskStatus === 'AWAITING_CALLBACK') {
+          // Generate default URL for running build tasks
+          output = {
+            jobUrl: `https://ci.company.com/job/${task.id}`,
           };
         }
         break;
 
       default:
-        // For other task types or error cases, preserve existing externalData or use legacy structure
-        if (task.externalData) {
-          externalData = task.externalData;
+        // For other task types or error cases, preserve existing output/externalData or use legacy structure
+        if (existingData && typeof existingData === 'object') {
+          output = existingData;
         } else {
           const legacyData = {};
           if (task.branchUrl) legacyData.branchUrl = task.branchUrl;
@@ -401,7 +486,7 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
           if (task.notesUrl) legacyData.notesUrl = task.notesUrl;
           if (task.error) legacyData.error = task.error;
           if (Object.keys(legacyData).length > 0) {
-            externalData = legacyData;
+            output = legacyData;
           }
         }
         break;
@@ -409,7 +494,8 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
   }
 
   // Get builds for this task if db and releaseId are provided
-  const builds = db && releaseId ? getBuildsForTask(task, db, releaseId) : undefined;
+  // API contract: builds field must always be present, empty array if no builds
+  const builds = db && releaseId ? getBuildsForTask(task, db, releaseId) : [];
 
   return {
     id: task.id,
@@ -424,8 +510,8 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
     isRegressionSubTasks: task.isRegressionSubTasks || false,
     identifier: task.identifier || null,
     externalId: task.externalId || task.ticketId || task.testSuiteId || null,
-    externalData: externalData && Object.keys(externalData).length > 0 ? externalData : null,
-    builds: builds, // Include builds array if available
+    output: output && Object.keys(output).length > 0 ? output : null, // API contract: output field (not externalData)
+    builds: builds || [], // API contract: Always present, empty array if no builds
     branch: task.branch || null,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt || task.createdAt,
@@ -799,10 +885,6 @@ function createReleaseProcessMiddleware(router) {
       // Backend expects 'artifact' field name
       const file = req.files?.find(f => f.fieldname === 'artifact') || req.file;
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'release-process.middleware.js:394',message:'Mock server file extraction',data:{filesCount:req.files?.length||0,fileFieldnames:req.files?.map(f=>f.fieldname)||[],hasFile:!!file,fileSize:file?.size,fileName:file?.originalname||file?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       console.log('[Mock Server] Build upload request:', { 
         method, 
         path, 
@@ -825,6 +907,26 @@ function createReleaseProcessMiddleware(router) {
         stage === 'REGRESSION' ? 'REGRESSION' :
         stage === 'PRE_RELEASE' ? 'PRE_RELEASE' :
         stage; // Fallback
+
+      // For PUT requests: Find and remove existing unused build for this platform/stage
+      // This ensures we replace instead of adding duplicates (API contract: "Creates/updates entry")
+      if (method === 'PUT') {
+        const existingBuilds = db.get('buildUploadsStaging')
+          .filter({ 
+            releaseId, 
+            stage: buildUploadStage, 
+            platform,
+            isUsed: false 
+          })
+          .value() || [];
+        
+        // Remove all existing unused builds for this platform/stage (should be only one, but handle multiple)
+        existingBuilds.forEach(existingBuild => {
+          db.get('buildUploadsStaging')
+            .remove({ id: existingBuild.id })
+            .write();
+        });
+      }
 
       const uploadId = `upload_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
       const buildData = {
@@ -899,6 +1001,24 @@ function createReleaseProcessMiddleware(router) {
         stage === 'REGRESSION' ? 'REGRESSION' :
         stage === 'PRE_RELEASE' ? 'PRE_RELEASE' :
         stage;
+
+      // Remove existing unused iOS builds for this stage (when changing build)
+      // This ensures we replace instead of adding duplicates
+      const existingBuilds = db.get('buildUploadsStaging')
+        .filter({ 
+          releaseId, 
+          stage: buildUploadStage, 
+          platform: 'IOS',
+          isUsed: false 
+        })
+        .value() || [];
+      
+      // Remove all existing unused iOS builds for this stage
+      existingBuilds.forEach(existingBuild => {
+        db.get('buildUploadsStaging')
+          .remove({ id: existingBuild.id })
+          .write();
+      });
 
       const uploadId = `upload_testflight_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
       const buildData = {
@@ -1174,7 +1294,16 @@ function createReleaseProcessMiddleware(router) {
       // Mock: Determine status based on release state
       // In real implementation, this would check if branch head commit == latest tag commit
       // cherryPickAvailable: true = cherry picks exist, false = commits match
-      const cherryPickAvailable = release?.stage2Status !== 'COMPLETED' && Math.random() > 0.3; // 70% chance of no cherry picks when stage2 is completed
+      // For testing: If release has a flag or specific state, make it deterministic
+      // Otherwise, use random but favor OK status when cycles are completed
+      const allCycles = db.get('regressionCycles').filter({ releaseId }).value() || [];
+      const allCyclesCompleted = allCycles.length > 0 && allCycles.every(c => 
+        c.status === 'COMPLETED' || c.status === 'DONE'
+      );
+      
+      // If all cycles are completed, cherry picks should be OK (false) for approval testing
+      // Otherwise, random but with 30% chance of cherry picks
+      const cherryPickAvailable = !allCyclesCompleted && Math.random() > 0.7; // 30% chance of cherry picks when cycles not completed
       
       return res.json({
         success: true,

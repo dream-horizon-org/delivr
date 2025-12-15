@@ -20,6 +20,7 @@ export { RegressionStage } from './RegressionStage';
 export { ReleaseProcessActionsSidebar } from './ReleaseProcessActionsSidebar';
 export { ReleaseProcessHeader } from './ReleaseProcessHeader';
 export { ReleaseProcessSidebar } from './ReleaseProcessSidebar';
+export { IntegrationsStatusSidebar } from './IntegrationsStatusSidebar';
 export { TaskCard } from './TaskCard';
 export * from './task-details';
 

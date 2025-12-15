@@ -16,10 +16,85 @@ import type {
 } from './release-process-enums';
 
 /**
+ * Task Output Types - Union type for task-specific output structures
+ * Each task type has its own output format (flat structure, no nested layers)
+ */
+
+// Fork Branch Task Output
+export interface ForkBranchTaskOutput {
+  branchName: string;
+  branchUrl: string;
+}
+
+// Project Management Task Output (flattened - no projectManagement wrapper)
+export interface ProjectManagementTaskOutput {
+  platforms: Array<{
+    platform: string;
+    ticketUrl: string;
+  }>;
+}
+
+// Test Management Task Output (flattened - no testManagement wrapper)
+export interface TestManagementTaskOutput {
+  platforms: Array<{
+    platform: string;
+    runId: string;
+    runUrl: string;
+  }>;
+}
+
+// RC Tag Task Output
+export interface CreateRcTagTaskOutput {
+  tagName: string;
+  tagUrl: string;
+}
+
+// Release Notes Task Output (tagUrl only)
+export interface ReleaseNotesTaskOutput {
+  tagUrl: string;
+}
+
+// Release Tag Task Output
+export interface CreateReleaseTagTaskOutput {
+  tagName: string;
+  tagUrl: string;
+}
+
+// Final Release Notes Task Output (tagUrl only)
+export interface FinalReleaseNotesTaskOutput {
+  tagUrl: string;
+}
+
+// Build Task Output (for CI/CD build tasks)
+// jobUrl is available when task starts running (IN_PROGRESS, AWAITING_CALLBACK, etc.)
+// Special case: Unlike other tasks, build tasks can have output even when IN_PROGRESS
+export interface BuildTaskOutput {
+  jobUrl?: string;        // CI/CD job URL (e.g., Jenkins job URL, GitHub Actions workflow URL)
+}
+
+// Tasks with no output (or minimal output)
+export type EmptyTaskOutput = null | { error?: string };
+
+/**
+ * Union type for all task outputs
+ * Each task type maps to its specific output interface
+ */
+export type TaskOutput =
+  | ForkBranchTaskOutput
+  | ProjectManagementTaskOutput
+  | TestManagementTaskOutput
+  | CreateRcTagTaskOutput
+  | ReleaseNotesTaskOutput
+  | CreateReleaseTagTaskOutput
+  | FinalReleaseNotesTaskOutput
+  | BuildTaskOutput
+  | EmptyTaskOutput;
+
+/**
  * Task - Matches backend contract exactly
  * Note: Backend API contract uses `taskStage` and `status`, but our implementation uses `stage` and `taskStatus`
  * The mock server maps between these field names for compatibility
- * Task-specific metadata is stored in externalData (maps to backend's `metadata` and `output`)
+ * Task-specific output is stored in `output` field (replaces `externalData`)
  */
 export interface Task {
   id: string;                              // Primary key (UUID)
@@ -34,8 +109,8 @@ export interface Task {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;               // External system ID (e.g., Jira ticket ID)
-  externalData: Record<string, unknown> | null; // Maps to backend's `metadata` and `output`
-  builds?: BuildInfo[];                    // Builds associated with this task (for Kickoff/Regression/Post-Regression)
+  output: TaskOutput | null;               // Task-specific output (union type based on taskType)
+  builds: BuildInfo[];                     // Builds linked to this task (builds.taskId = task.id). Always present, empty array if no builds.
   branch?: string | null;                  // Branch name (optional, only for branch-related tasks)
   createdAt: string;                       // ISO 8601
   updatedAt: string;                       // ISO 8601
@@ -44,29 +119,51 @@ export interface Task {
 
 /**
  * BuildInfo - Matches backend contract exactly
+ * Used for Kickoff, Regression, and Pre-Release build tasks
+ * 
+ * For Kickoff/Regression tasks:
+ * - Contains artifactPath for download links
+ * - Used to display build artifacts by platform
+ * 
+ * For Pre-Release tasks:
+ * - iOS: Contains testflightNumber for TestFlight link
+ * - Android: Contains internalTrackLink for Play Store Internal Track link
  */
 export interface BuildInfo {
+  // ============================================================================
+  // MANDATORY: Available in BOTH builds and uploads
+  // ============================================================================
   id: string;
   tenantId: string;
   releaseId: string;
   platform: Platform;
-  storeType: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
-  buildNumber: string | null;
-  artifactVersionName: string | null;
-  artifactPath: string | null;
-  regressionId: string | null;          // FK to regression cycle
-  ciRunId: string | null;
-  buildUploadStatus: 'PENDING' | 'UPLOADED' | 'FAILED';
-  buildType: 'MANUAL' | 'CI_CD';
   buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
-  queueLocation: string | null;
-  workflowStatus: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
-  ciRunType: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
-  taskId: string | null;                // Reference to release_tasks table
+  artifactPath: string | null;
   internalTrackLink: string | null;     // Play Store Internal Track Link
   testflightNumber: string | null;      // TestFlight build number
   createdAt: string;                    // ISO 8601
   updatedAt: string;                    // ISO 8601
+
+  // ============================================================================
+  // OPTIONAL: Only in builds table (from CI/CD or consumed manual uploads)
+  // ============================================================================
+  buildType?: 'MANUAL' | 'CI_CD';
+  buildUploadStatus?: 'PENDING' | 'UPLOADED' | 'FAILED';
+  storeType?: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
+  buildNumber?: string | null;
+  artifactVersionName?: string | null;
+  regressionId?: string | null;         // FK to regression cycle
+  ciRunId?: string | null;
+  queueLocation?: string | null;
+  workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
+  ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  taskId?: string | null;               // Reference to release_tasks table
+
+  // ============================================================================
+  // OPTIONAL: Only in uploads table (unused manual uploads)
+  // ============================================================================
+  isUsed?: boolean;                     // Whether consumed by a task
+  usedByTaskId?: string | null;         // FK to release_tasks.id if consumed
 }
 
 /**
@@ -401,14 +498,14 @@ export type ApproveRegressionRequest = ApproveRegressionStageRequest;
 export type ApproveRegressionResponse = ApproveRegressionStageResponse;
 
 /**
- * Complete Post-Regression Request
+ * Complete Pre-Release Request
  */
-export interface CompletePostRegressionRequest {
+export interface CompletePreReleaseRequest {
   notes?: string;
 }
 
 /**
- * Complete Post-Regression Response - Matches backend contract
+ * Complete Pre-Release Response - Matches backend contract
  */
 export interface CompletePreReleaseResponse {
   success: true;

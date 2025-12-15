@@ -58,10 +58,6 @@ server.use((req, res, next) => {
         });
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:50',message:'Multer processed request',data:{path:req.path,method:req.method,filesCount:req.files?.length||0,fileFieldnames:req.files?.map(f=>f.fieldname)||[],contentType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
       next();
     });
   } else {

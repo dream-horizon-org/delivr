@@ -15,53 +15,56 @@ interface RegularTaskDetailsProps {
 }
 
 export function RegularTaskDetails({ task }: RegularTaskDetailsProps) {
-  // Extract external links from externalData
-  const branchUrl = task.externalData?.branchUrl as string | undefined;
-  const ticketUrl = task.externalData?.ticketUrl as string | undefined;
-  const runLink = task.externalData?.runLink as string | undefined;
-  
-  // Extract artifact links for successful build tasks (legacy support)
-  const isFileBasedBuildTask = 
+  // Only read output when task is COMPLETED or FAILED (except build tasks which are handled separately)
+  const isBuildTask = 
     task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS ||
-    task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS;
-  const hasCompletedBuild = 
-    task.taskStatus === TaskStatus.COMPLETED && 
-    isFileBasedBuildTask;
+    task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS ||
+    task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ||
+    task.taskType === TaskType.CREATE_AAB_BUILD;
   
-  // Artifact links can be stored as artifactPath, artifactUrl, or builds array
-  const artifactPath = task.externalData?.artifactPath as string | undefined;
-  const artifactUrl = task.externalData?.artifactUrl as string | undefined;
-  const builds = task.externalData?.builds as Array<{ 
-    artifactPath?: string; 
-    artifactUrl?: string; 
-    platform?: string;
-    downloadUrl?: string;
-  }> | undefined;
+  // For build tasks, output can be read even when IN_PROGRESS (special case)
+  // For other tasks, only read when COMPLETED or FAILED
+  const output = (isBuildTask || task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED)
+    ? task.output
+    : null;
   
-  // Collect all artifact links
-  const artifactLinks: Array<{ url: string; platform?: string; label: string }> = [];
+  // Extract links based on output type
+  let branchUrl: string | undefined;
+  let ticketUrl: string | undefined;
+  let runLink: string | undefined;
+  let tagUrl: string | undefined;
+  let jobUrl: string | undefined;
   
-  if (hasCompletedBuild) {
-    // Single artifact path/url (for single platform builds)
-    const singleArtifactUrl = artifactUrl || artifactPath;
-    if (singleArtifactUrl && (!builds || builds.length === 0)) {
-      artifactLinks.push({ url: singleArtifactUrl, label: 'Download Artifact' });
+  if (output && typeof output === 'object' && output !== null) {
+    // Handle different output types
+    if ('branchUrl' in output) {
+      branchUrl = output.branchUrl as string;
     }
-    
-    // Multiple builds (for regression cycles with multiple platforms)
-    if (builds && Array.isArray(builds) && builds.length > 0) {
-      builds.forEach((build) => {
-        const buildUrl = build.downloadUrl || build.artifactUrl || build.artifactPath;
-        if (buildUrl) {
-          const platformLabel = build.platform ? ` (${build.platform})` : '';
-          artifactLinks.push({ 
-            url: buildUrl, 
-            platform: build.platform,
-            label: `Download Artifact${platformLabel}` 
-          });
-        }
-      });
+    if ('tagUrl' in output) {
+      tagUrl = output.tagUrl as string;
     }
+    if ('jobUrl' in output) {
+      jobUrl = output.jobUrl as string;
+    }
+    // For project management and test management, extract URLs from platforms array
+    if ('platforms' in output && Array.isArray(output.platforms)) {
+      const platforms = output.platforms as Array<{ ticketUrl?: string; runUrl?: string }>;
+      ticketUrl = platforms[0]?.ticketUrl;
+      runLink = platforms[0]?.runUrl;
+    }
+  }
+  
+  // If FAILED, check for error in output
+  if (task.taskStatus === TaskStatus.FAILED && output && typeof output === 'object' && 'error' in output) {
+    return (
+      <Stack gap="md">
+        <Stack gap="xs">
+          <Text size="sm" c="red">
+            {String(output.error)}
+          </Text>
+        </Stack>
+      </Stack>
+    );
   }
 
   return (
@@ -83,7 +86,7 @@ export function RegularTaskDetails({ task }: RegularTaskDetailsProps) {
       )}
 
       {/* External Links */}
-      {(branchUrl || ticketUrl || runLink || artifactLinks.length > 0) && (
+      {(branchUrl || ticketUrl || runLink || tagUrl || jobUrl) && (
         <Stack gap="xs">
           <Text size="xs" c="dimmed" fw={500}>
             Links
@@ -113,34 +116,35 @@ export function RegularTaskDetails({ task }: RegularTaskDetailsProps) {
                 </Group>
               </Anchor>
             )}
-            {artifactLinks.map((artifact, index) => (
-              <Anchor 
-                key={index} 
-                href={artifact.url} 
-                target="_blank" 
-                size="sm" 
-                c="brand"
-                download
-              >
+            {tagUrl && (
+              <Anchor href={tagUrl} target="_blank" size="sm" c="brand">
                 <Group gap={4}>
                   <IconExternalLink size={14} />
-                  <Text size="sm">{artifact.label}</Text>
+                  <Text size="sm">View Tag</Text>
                 </Group>
               </Anchor>
-            ))}
+            )}
+            {jobUrl && (
+              <Anchor href={jobUrl} target="_blank" size="sm" c="brand">
+                <Group gap={4}>
+                  <IconExternalLink size={14} />
+                  <Text size="sm">View Job</Text>
+                </Group>
+              </Anchor>
+            )}
           </Group>
         </Stack>
       )}
 
       {/* Task Metadata */}
-      {task.externalData && Object.keys(task.externalData).length > 0 && (
+      {output && typeof output === 'object' && output !== null && !('branchUrl' in output) && !('tagUrl' in output) && !('jobUrl' in output) && !('platforms' in output) && !('error' in output) && (
         <Stack gap="xs">
           <Text size="xs" c="dimmed" fw={500}>
             Additional Information
           </Text>
           <Paper p="sm" withBorder style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
             <Text size="xs" className="font-mono" style={{ whiteSpace: 'pre-wrap' }}>
-              {JSON.stringify(task.externalData, null, 2)}
+              {JSON.stringify(output, null, 2)}
             </Text>
           </Paper>
         </Stack>

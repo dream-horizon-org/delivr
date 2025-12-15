@@ -153,11 +153,6 @@ export function FileUploadSection({
           }
         />
       )}
-      {fixedPlatform && (
-        <Text size="sm" c="dimmed" fw={500}>
-          Platform: {fixedPlatform === 'ANDROID' ? 'Android' : fixedPlatform === 'IOS' ? 'iOS' : 'Web'}
-        </Text>
-      )}
 
       {/* File Input */}
       <Box>

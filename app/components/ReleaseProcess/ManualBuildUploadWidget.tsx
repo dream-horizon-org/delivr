@@ -4,7 +4,7 @@
  * Orchestrates FileUploadSection and TestFlightVerificationSection components
  */
 
-import { Anchor, Card, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Card, Group, Stack, Text } from '@mantine/core';
 import { IconBrandApple, IconFile } from '@tabler/icons-react';
 import { useEffect, useMemo } from 'react';
 import { BUILD_UPLOAD_LABELS } from '~/constants/release-process-ui';
@@ -118,22 +118,46 @@ export function ManualBuildUploadWidget({
     );
   }, [platformArtifacts, fixedPlatform, availablePlatforms, forceShowUpload]);
 
+  // Get file extension and platform name
+  const getFileExtension = () => {
+    if (isTestFlightVerification) return null;
+    if (fixedPlatform === 'ANDROID') {
+      // AAB build task uses .aab, others use .apk
+      return taskType === TaskType.CREATE_AAB_BUILD ? '.aab' : '.apk';
+    }
+    if (fixedPlatform === 'IOS') return '.ipa';
+    return null;
+  };
+
+  const getPlatformName = () => {
+    if (isTestFlightVerification) return 'TestFlight';
+    if (fixedPlatform === 'ANDROID') return 'Android';
+    if (fixedPlatform === 'IOS') return 'iOS';
+    if (fixedPlatform === 'WEB') return 'Web';
+    return null;
+  };
+
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder className={className}>
       <Stack gap="md">
-        <Group justify="space-between">
-          <div>
-            <Text fw={600} size="lg" mb="xs">
-              {isTestFlightVerification ? 'Verify TestFlight Build' : BUILD_UPLOAD_LABELS.TITLE}
-            </Text>
-            <Text size="sm" c="dimmed">
-              {isTestFlightVerification
-                ? 'Enter the TestFlight build number to verify it exists'
-                : 'Upload build files for this stage'}
-            </Text>
-          </div>
-          {isTestFlightVerification && (
-            <IconBrandApple size={24} className="text-blue-600" />
+        <Group gap="xs" align="center">
+          {isTestFlightVerification ? (
+            <>
+              <Text fw={600} size="sm">Verify</Text>
+              <Badge size="sm" variant="light" color="blue">TestFlight</Badge>
+            </>
+          ) : (
+            <>
+              <Text fw={600} size="sm">Upload</Text>
+              {getFileExtension() && (
+                <Badge size="sm" variant="light" color={fixedPlatform === 'ANDROID' ? 'green' : 'blue'}>
+                  {getFileExtension()}
+                </Badge>
+              )}
+              {getPlatformName() && (
+                <Text size="sm" c="dimmed">for {getPlatformName()}</Text>
+              )}
+            </>
           )}
         </Group>
 

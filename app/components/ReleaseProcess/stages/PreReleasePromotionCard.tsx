@@ -1,37 +1,37 @@
 /**
- * PostRegressionPromotionCard Component
- * Handles the "Complete Post-Regression" promotion button
+ * PreReleasePromotionCard Component
+ * Handles the "Complete Pre-Release" promotion button
  */
 
 import { Button, Card, Group, Text } from '@mantine/core';
 import { IconRocket } from '@tabler/icons-react';
 import { useCallback } from 'react';
-import { useCompletePostRegression } from '~/hooks/useReleaseProcess';
+import { useCompletePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showSuccessToast } from '~/utils/toast';
 
-interface PostRegressionPromotionCardProps {
+interface PreReleasePromotionCardProps {
   tenantId: string;
   releaseId: string;
   canPromote: boolean;
   onComplete: () => Promise<unknown>;
 }
 
-export function PostRegressionPromotionCard({
+export function PreReleasePromotionCard({
   tenantId,
   releaseId,
   canPromote,
   onComplete,
-}: PostRegressionPromotionCardProps) {
-  const completeMutation = useCompletePostRegression(tenantId, releaseId);
+}: PreReleasePromotionCardProps) {
+  const completeMutation = useCompletePreReleaseStage(tenantId, releaseId);
 
-  const handleCompletePostRegression = useCallback(async () => {
+  const handleCompletePreRelease = useCallback(async () => {
     try {
       await completeMutation.mutateAsync();
-      showSuccessToast({ message: 'Post-regression stage completed successfully' });
+      showSuccessToast({ message: 'Pre-release stage completed successfully' });
       await onComplete();
     } catch (error) {
-      handleStageError(error, 'complete post-regression stage');
+      handleStageError(error, 'complete pre-release stage');
     }
   }, [completeMutation, onComplete]);
 
@@ -51,11 +51,11 @@ export function PostRegressionPromotionCard({
         <Button
           size="lg"
           disabled={!canPromote}
-          onClick={handleCompletePostRegression}
+          onClick={handleCompletePreRelease}
           leftSection={<IconRocket size={18} />}
           loading={completeMutation.isLoading}
         >
-          Complete Post-Regression
+          Complete Pre-Release
         </Button>
       </Group>
     </Card>

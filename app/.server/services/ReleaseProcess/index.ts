@@ -227,7 +227,7 @@ class ReleaseProcess {
   }
 
   /**
-   * Complete post-regression stage - Matches backend contract API #12
+   * Complete pre-release stage - Matches backend contract API #12
    */
   async completePostRegressionStage(tenantId: string, releaseId: string) {
     return this.__client.post<null, AxiosResponse<CompletePreReleaseResponse>>(

@@ -101,9 +101,9 @@ const Platform = {
   IOS: 'IOS',
 };
 
-// Helper function to generate task-specific externalData based on taskType
-function generateTaskExternalData(taskType, status, options = {}) {
-  if (status !== TaskStatus.COMPLETED) {
+// Helper function to generate task-specific output based on taskType
+function generateTaskOutput(taskType, status, options = {}) {
+  if (status !== TaskStatus.COMPLETED && status !== TaskStatus.IN_PROGRESS && status !== TaskStatus.AWAITING_CALLBACK) {
     return status === TaskStatus.FAILED ? { error: `Failed ${taskType}` } : null;
   }
 
@@ -114,64 +114,94 @@ function generateTaskExternalData(taskType, status, options = {}) {
 
   switch (taskType) {
     case TaskType.FORK_BRANCH:
-      return {
-        branchName: branch,
-        branchUrl: `https://github.com/org/repo/tree/${branch}`,
-      };
+      if (status === TaskStatus.COMPLETED) {
+        return {
+          branchName: branch,
+          branchUrl: `https://github.com/org/repo/tree/${branch}`,
+        };
+      }
+      return null;
 
     case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
-      return {
-        projectManagement: {
+      if (status === TaskStatus.COMPLETED) {
+        return {
           platforms: platforms.map(platform => ({
             platform: platform,
             ticketUrl: `https://company.atlassian.net/browse/JIRA-${releaseId.slice(0, 8).toUpperCase()}-${platform}`,
           })),
-        },
-      };
+        };
+      }
+      return null;
 
     case TaskType.CREATE_TEST_SUITE:
-      return {
-        testManagement: {
+      if (status === TaskStatus.COMPLETED) {
+        return {
           platforms: platforms.map(platform => ({
             platform: platform,
             runId: `RUN-${platform}-001`,
             runUrl: `https://testmanagement.company.com/runs/RUN-${platform}-001`,
           })),
-        },
-      };
+        };
+      }
+      return null;
 
     case TaskType.RESET_TEST_SUITE:
-      return {
-        testManagement: {
+      if (status === TaskStatus.COMPLETED) {
+        return {
           platforms: platforms.map(platform => ({
             platform: platform,
             runId: `RUN-${platform}-00${cycleIndex + 1}`,
             runUrl: `https://testmanagement.company.com/runs/RUN-${platform}-00${cycleIndex + 1}`,
           })),
-        },
-      };
+        };
+      }
+      return null;
 
     case TaskType.CREATE_RC_TAG:
-      return {
-        tagName: `v1.0.0-RC${cycleIndex}`,
-        tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0-RC${cycleIndex}`,
-      };
+      if (status === TaskStatus.COMPLETED) {
+        return {
+          tagName: `v1.0.0-RC${cycleIndex}`,
+          tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0-RC${cycleIndex}`,
+        };
+      }
+      return null;
 
     case TaskType.CREATE_RELEASE_NOTES:
-      return {
-        notesUrl: `https://docs.company.com/releases/v1.0.0-rc${cycleIndex}`,
-      };
+      if (status === TaskStatus.COMPLETED) {
+        return {
+          tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0-rc${cycleIndex}`,
+        };
+      }
+      return null;
 
     case TaskType.CREATE_RELEASE_TAG:
-      return {
-        tagName: `v1.0.0`,
-        tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0`,
-      };
+      if (status === TaskStatus.COMPLETED) {
+        return {
+          tagName: `v1.0.0`,
+          tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0`,
+        };
+      }
+      return null;
 
     case TaskType.CREATE_FINAL_RELEASE_NOTES:
-      return {
-        notesUrl: `https://docs.company.com/releases/v1.0.0`,
-      };
+      if (status === TaskStatus.COMPLETED) {
+        return {
+          tagUrl: `https://github.com/org/repo/releases/tag/v1.0.0`,
+        };
+      }
+      return null;
+
+    case TaskType.TRIGGER_PRE_REGRESSION_BUILDS:
+    case TaskType.TRIGGER_REGRESSION_BUILDS:
+    case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
+    case TaskType.CREATE_AAB_BUILD:
+      // Build tasks can have jobUrl when running (special case)
+      if (status === TaskStatus.IN_PROGRESS || status === TaskStatus.AWAITING_CALLBACK) {
+        return {
+          jobUrl: `https://ci.company.com/job/${taskType}-${Date.now()}`,
+        };
+      }
+      return null;
 
     default:
       return null;
@@ -185,8 +215,8 @@ function createTask(releaseId, taskType, stage, status, options = {}) {
   const createdAt = options.createdAt || now;
   const updatedAt = options.updatedAt || now;
   
-  // Generate externalData based on task type and status
-  const externalData = generateTaskExternalData(taskType, status, {
+  // Generate output based on task type and status
+  const output = generateTaskOutput(taskType, status, {
     ...options,
     releaseId: releaseId,
   });
@@ -207,7 +237,8 @@ function createTask(releaseId, taskType, stage, status, options = {}) {
     isRegressionSubTasks: stage === TaskStage.REGRESSION,
     identifier: null,
     externalId: options.externalId || (taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET ? `JIRA-${releaseId.slice(0, 8).toUpperCase()}` : taskType === TaskType.CREATE_TEST_SUITE ? `TEST-SUITE-${releaseId.slice(0, 8).toUpperCase()}` : null),
-    externalData: externalData,
+    output: output,
+    builds: [], // Always present, empty array if no builds (API contract requirement)
     branch: options.branch || (taskType === TaskType.FORK_BRANCH && status === TaskStatus.COMPLETED ? `release/v1.0.0` : null),
     createdAt: createdAt,
     updatedAt: updatedAt,

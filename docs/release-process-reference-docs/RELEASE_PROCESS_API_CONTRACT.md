@@ -27,6 +27,42 @@ const response = await apiGet(`/api/v1/tenants/${tenantId}/releases/${release.re
 
 ---
 
+## ⚠️ CRITICAL: Response Field Conventions
+
+### ReleaseDetails Response
+When you receive a `ReleaseDetails` object in API responses, it contains **both fields**:
+- **`id`** (string): Primary key (UUID) - Use this for subsequent API calls
+- **`releaseId`** (string): User-facing identifier (e.g., "REL-001") - Use this for display purposes only
+
+```typescript
+interface ReleaseDetails {
+  id: string;                              // Primary key (UUID) - Use in API paths
+  releaseId: string;                       // User-facing identifier (e.g., "REL-001") - Display only
+  // ... other fields
+}
+```
+
+### Task Response (StageTasksResponse)
+When you receive a `StageTasksResponse` (from Get Stage Tasks API), the `releaseId` field in the response is actually **`release.id`** (the UUID primary key), NOT the user-facing identifier.
+
+```typescript
+interface StageTasksResponse {
+  success: true;
+  stage: 'KICKOFF' | 'PRE_RELEASE';
+  releaseId: string;                    // This is release.id (UUID primary key), NOT release.releaseId
+  tasks: Task[];                        // Task objects do NOT contain a releaseId field
+  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  uploadedBuilds: BuildInfo[];
+}
+```
+
+**Important Notes:**
+- **Task objects** (`Task[]`) do NOT have a `releaseId` field - they are associated with a release via the response-level `releaseId` field
+- The `releaseId` in `StageTasksResponse` matches the `{releaseId}` path parameter you used (which should be `release.id`)
+- Use this `releaseId` value for subsequent API calls to the same release
+
+---
+
 ## Common Types
 
 ### Task
@@ -35,7 +71,7 @@ interface Task {
   id: string;                              // Primary key (UUID)
   taskId: string;                          // Unique task identifier
   taskType: TaskType;
-  stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION';
+  stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'AWAITING_MANUAL_BUILD' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
   taskConclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
   accountId: string | null;
@@ -44,13 +80,76 @@ interface Task {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;               // External system ID (e.g., Jira ticket ID)
-  externalData: Record<string, unknown> | null; // Flexible metadata per task type (maps to backend's metadata and output)
-  branch: string | null;
-  builds?: BuildInfo[];                    // Builds associated with this task (for Kickoff/Regression/Post-Regression build tasks)
+  output: TaskOutput | null;               // Task-specific output (union type - format varies by taskType)
+  builds: BuildInfo[];                     // Builds linked to this task (builds.taskId = task.id). Always present, empty array if no builds.
+  branch?: string | null;                  // Branch name (optional, only for branch-related tasks)
   createdAt: string;                       // ISO 8601
   updatedAt: string;                       // ISO 8601
 }
 ```
+
+### Task Output Types
+
+**Important:** 
+- **Regular tasks**: `output` is only populated when `taskStatus === 'COMPLETED'` or `'FAILED'`
+  - If `FAILED` and output contains `error`, display the error
+  - Otherwise, display output only when `COMPLETED`
+- **Build tasks (special case)**: `jobUrl` can be present even when `taskStatus === 'IN_PROGRESS'` or `'AWAITING_CALLBACK'`
+
+The `output` field contains task-specific data. The structure varies by `taskType`:
+
+#### FORK_BRANCH
+```typescript
+{
+  branchName: string;
+  branchUrl: string;
+}
+```
+
+#### CREATE_PROJECT_MANAGEMENT_TICKET
+```typescript
+{
+  platforms: Array<{
+    platform: string;
+    ticketUrl: string;
+  }>;
+}
+```
+
+#### CREATE_TEST_SUITE / RESET_TEST_SUITE
+```typescript
+{
+  platforms: Array<{
+    platform: string;
+    runId: string;
+    runUrl: string;
+  }>;
+}
+```
+
+#### CREATE_RC_TAG / CREATE_RELEASE_TAG
+```typescript
+{
+  tagName: string;
+  tagUrl: string;
+}
+```
+
+#### CREATE_RELEASE_NOTES / CREATE_FINAL_RELEASE_NOTES
+```typescript
+{
+  tagUrl: string;
+}
+```
+
+#### Build Tasks (TRIGGER_PRE_REGRESSION_BUILDS, TRIGGER_REGRESSION_BUILDS, TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD)
+```typescript
+{
+  jobUrl?: string;        // CI/CD job URL (e.g., Jenkins job URL, GitHub Actions workflow URL) - available when task is IN_PROGRESS, AWAITING_CALLBACK, COMPLETED, or FAILED
+}
+```
+
+**Note:** Build tasks are special - they can have `jobUrl` in `output` even when the task is still running (`IN_PROGRESS` or `AWAITING_CALLBACK`), allowing users to monitor CI/CD progress. This is different from regular tasks where output is only available when `COMPLETED` or `FAILED`.
 
 ### TaskStatus
 ```typescript
@@ -71,7 +170,7 @@ enum TaskStage {
   PRE_KICKOFF = 'PRE_KICKOFF',
   KICKOFF = 'KICKOFF',
   REGRESSION = 'REGRESSION',
-  POST_REGRESSION = 'POST_REGRESSION', // Pre-Release
+  PRE_RELEASE = 'PRE_RELEASE', // Pre-Release (formerly POST_REGRESSION)
   RELEASE_SUBMISSION = 'RELEASE_SUBMISSION', // NEW - separate from RELEASE
   RELEASE = 'RELEASE' // Distribution/Released
 }
@@ -112,13 +211,14 @@ enum TaskType {
   AUTOMATION_RUNS = 'AUTOMATION_RUNS',
   SEND_REGRESSION_BUILD_MESSAGE = 'SEND_REGRESSION_BUILD_MESSAGE',
   
-  // Post-Regression (Pre-Release)
+  // Pre-Release (Stage 3)
   PRE_RELEASE_CHERRY_PICKS_REMINDER = 'PRE_RELEASE_CHERRY_PICKS_REMINDER',
-  TEST_FLIGHT_BUILD = 'TEST_FLIGHT_BUILD',
+  TRIGGER_TEST_FLIGHT_BUILD = 'TRIGGER_TEST_FLIGHT_BUILD',
+  CREATE_AAB_BUILD = 'CREATE_AAB_BUILD',
   CREATE_RELEASE_TAG = 'CREATE_RELEASE_TAG',
   CREATE_FINAL_RELEASE_NOTES = 'CREATE_FINAL_RELEASE_NOTES',
-  SEND_POST_REGRESSION_MESSAGE = 'SEND_POST_REGRESSION_MESSAGE',
-  ADD_L6_APPROVAL_CHECK = 'ADD_L6_APPROVAL_CHECK',
+  SEND_PRE_RELEASE_MESSAGE = 'SEND_PRE_RELEASE_MESSAGE',
+  CHECK_PROJECT_RELEASE_APPROVAL = 'CHECK_PROJECT_RELEASE_APPROVAL',
   
   // Release
   PROMOTE_BUILD = 'PROMOTE_BUILD'
@@ -129,7 +229,7 @@ enum TaskType {
 ```typescript
 enum MessageTypeEnum {
   REGRESSION_BUILD = 'REGRESSION_BUILD',
-  POST_REGRESSION = 'POST_REGRESSION',
+  PRE_RELEASE = 'PRE_RELEASE',
   RELEASE_ANNOUNCEMENT = 'RELEASE_ANNOUNCEMENT',
   KICKOFF_REMINDER = 'KICKOFF_REMINDER',
   PRE_RELEASE_REMINDER = 'PRE_RELEASE_REMINDER'
@@ -144,7 +244,7 @@ interface BuildArtifact {
   downloadUrl: string | null;              // Presigned S3 download URL (expires in 1 hour), `null` if no artifact
   artifactVersionName: string;             // Version string (e.g., "1.2.3")
   buildNumber: string | null;              // Build number / version code
-  releaseId: string;                       // Associated release ID (primary key)
+  releaseId: string;                       // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
   platform: 'ANDROID' | 'IOS' | 'WEB';    // Platform
   storeType: string | null;                // Target store: `APP_STORE`, `PLAY_STORE`, `TESTFLIGHT`, `WEB`
   buildStage: string;                      // Stage: `KICK_OFF`, `REGRESSION`, `PRE_RELEASE`
@@ -162,38 +262,51 @@ interface BuildArtifact {
 ```typescript
 /**
  * BuildInfo - Build information included in task responses
- * Used for Kickoff, Regression, and Post-Regression build tasks
+ * Used for Kickoff, Regression, and Pre-Release build tasks
  * 
  * For Kickoff/Regression tasks:
  * - Contains artifactPath for download links
  * - Used to display build artifacts by platform
  * 
- * For Post-Regression tasks:
+ * For Pre-Release tasks:
  * - iOS: Contains testflightNumber for TestFlight link
  * - Android: Contains internalTrackLink for Play Store Internal Track link
  */
 interface BuildInfo {
-  id: string;                              // Unique build ID
-  tenantId: string;                        // Tenant UUID
-  releaseId: string;                       // Release UUID (primary key)
-  platform: 'ANDROID' | 'IOS' | 'WEB';    // Platform
-  storeType: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
-  buildNumber: string | null;              // Build number / version code
-  artifactVersionName: string | null;      // Version string (e.g., "1.2.3")
-  artifactPath: string | null;             // S3 path to artifact (`null` for TestFlight builds)
-  regressionId: string | null;             // FK to regression cycle
-  ciRunId: string | null;                  // CI/CD run ID
-  buildUploadStatus: 'PENDING' | 'UPLOADED' | 'FAILED';
-  buildType: 'MANUAL' | 'CI_CD';
+  // ============================================================================
+  // MANDATORY: Available in BOTH builds and uploads
+  // ============================================================================
+  id: string;
+  tenantId: string;
+  releaseId: string;                    // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
+  platform: 'ANDROID' | 'IOS' | 'WEB';
   buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
-  queueLocation: string | null;
-  workflowStatus: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
-  ciRunType: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
-  taskId: string | null;                  // Reference to release_tasks table
-  internalTrackLink: string | null;       // Play Store Internal Track Link (for Android AAB builds)
-  testflightNumber: string | null;         // TestFlight build number (for iOS builds)
-  createdAt: string;                       // ISO 8601
-  updatedAt: string;                       // ISO 8601
+  artifactPath: string | null;
+  internalTrackLink: string | null;     // Play Store Internal Track Link
+  testflightNumber: string | null;      // TestFlight build number
+  createdAt: string;                    // ISO 8601
+  updatedAt: string;                    // ISO 8601
+
+  // ============================================================================
+  // OPTIONAL: Only in builds table (from CI/CD or consumed manual uploads)
+  // ============================================================================
+  buildType?: 'MANUAL' | 'CI_CD';
+  buildUploadStatus?: 'PENDING' | 'UPLOADED' | 'FAILED';
+  storeType?: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
+  buildNumber?: string | null;
+  artifactVersionName?: string | null;
+  regressionId?: string | null;         // FK to regression cycle
+  ciRunId?: string | null;
+  queueLocation?: string | null;
+  workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
+  ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  taskId?: string | null;               // Reference to release_tasks table
+
+  // ============================================================================
+  // OPTIONAL: Only in uploads table (unused manual uploads)
+  // ============================================================================
+  isUsed?: boolean;                     // Whether consumed by a task
+  usedByTaskId?: string | null;         // FK to release_tasks.id if consumed
 }
 ```
 
@@ -213,8 +326,13 @@ interface BuildInfo {
 interface GetReleaseDetailsResponse {
   success: true;
   release: ReleaseDetails;  // See Common Types above
+  // Note: release.id = UUID (primary key), release.releaseId = user-facing identifier (e.g., "REL-001")
 }
 ```
+
+**Response Field Clarification:**
+- `release.id`: Primary key (UUID) - Use this for subsequent API calls
+- `release.releaseId`: User-facing identifier (e.g., "REL-001") - Use this for display only
 
 ---
 
@@ -228,7 +346,7 @@ interface GetReleaseDetailsResponse {
 - `releaseId` (string, required): Release primary key (UUID) - **NOT the user-facing identifier**
 
 **Query Parameters:**
-- `stage` (string, required): Stage filter: `KICKOFF`, `REGRESSION`, or `POST_REGRESSION`
+- `stage` (string, required): Stage filter: `KICKOFF`, `REGRESSION`, or `PRE_RELEASE`
 
 **Response:**
 
@@ -238,12 +356,16 @@ interface GetReleaseDetailsResponse {
 interface StageTasksResponse {
   success: true;
   stage: 'KICKOFF' | 'PRE_RELEASE';
-  releaseId: string;                    // Release UUID (from path param)
-  tasks: Task[];                        // See Common Types
+  releaseId: string;                    // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
+  tasks: Task[];                        // See Common Types - Note: Task objects do NOT contain a releaseId field
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   uploadedBuilds: BuildInfo[];          // Staging builds not yet consumed by tasks
 }
 ```
+
+**Response Field Clarification:**
+- `releaseId`: This field contains `release.id` (the UUID primary key), NOT `release.releaseId` (the user-facing identifier)
+- `tasks`: Array of Task objects - **Task objects do NOT have a `releaseId` field** - they are associated with the release via the response-level `releaseId` field
 
 **Expected Tasks for KICKOFF:**
 - `PRE_KICK_OFF_REMINDER`
@@ -273,8 +395,8 @@ interface StageTasksResponse {
 interface RegressionStageTasksResponse {
   success: true;
   stage: 'REGRESSION';
-  releaseId: string;                    // Release UUID (from path param)
-  tasks: Task[];                        // See Common Types
+  releaseId: string;                    // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
+  tasks: Task[];                        // See Common Types - Note: Task objects do NOT contain a releaseId field
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   
   // Regression-specific fields
@@ -284,10 +406,15 @@ interface RegressionStageTasksResponse {
   uploadedBuilds: BuildInfo[];            // Builds uploaded for upcoming slot (only visible when cycle hasn't started)
   upcomingSlot: RegressionSlot[] | null;  // See Common Types
 }
+```
+
+**Response Field Clarification:**
+- `releaseId`: This field contains `release.id` (the UUID primary key), NOT `release.releaseId` (the user-facing identifier)
+- `tasks`: Array of Task objects - **Task objects do NOT have a `releaseId` field** - they are associated with the release via the response-level `releaseId` field
 
 interface RegressionCycle {
   id: string;                           // Cycle UUID
-  releaseId: string;
+  releaseId: string;                     // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
   isLatest: boolean;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'ABANDONED';
   cycleTag: string | null;              // e.g., "RC1", "RC2"
@@ -354,8 +481,8 @@ type Phase =
   | 'AWAITING_REGRESSION'            // Stage 1 complete, waiting for Stage 2 trigger
   | 'REGRESSION'                     // Stage 2 running (current cycle active)
   | 'REGRESSION_AWAITING_NEXT_CYCLE' // Between regression cycles
-  | 'AWAITING_POST_REGRESSION'       // Stage 2 complete, waiting for Stage 3 trigger
-  | 'POST_REGRESSION'                // Stage 3 running
+  | 'AWAITING_PRE_RELEASE'           // Stage 2 complete, waiting for Stage 3 trigger
+  | 'PRE_RELEASE'                    // Stage 3 running
   | 'AWAITING_SUBMISSION'            // Stage 3 complete, waiting for Stage 4 trigger
   | 'SUBMISSION'                     // Stage 4 running, release IN_PROGRESS
   | 'SUBMITTED_PENDING_APPROVAL'     // Stage 4 running, release SUBMITTED
@@ -377,7 +504,7 @@ interface ReleaseDetails {
   // Release metadata
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
+  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
   releasePhase: Phase;                     // Detailed phase (see Phase type above)
   
   // Branch information
@@ -449,17 +576,17 @@ interface ReleaseDetails {
   2. When cycle starts → builds moved to `builds` table with `taskId` → visible in `task.builds`
   3. When cycle completes → same flow for next cycle
 
-**Expected Tasks for POST_REGRESSION:**
+**Expected Tasks for PRE_RELEASE:**
 
 - `PRE_RELEASE_CHERRY_PICKS_REMINDER`
 - `TRIGGER_TEST_FLIGHT_BUILD`
 - `CREATE_AAB_BUILD`
 - `CREATE_RELEASE_TAG`
 - `CREATE_FINAL_RELEASE_NOTES`
-- `SEND_POST_REGRESSION_MESSAGE`
+- `SEND_PRE_RELEASE_MESSAGE`
 - `CHECK_PROJECT_RELEASE_APPROVAL`
 
-**Build Information for POST_REGRESSION:**
+**Build Information for PRE_RELEASE:**
 - **For Completed Tasks**: Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` or `CREATE_AAB_BUILD` that have `taskStatus: 'COMPLETED'` **MUST** include `builds: BuildInfo[]` array with consumed builds from the `builds` table where `taskId === task.id`
 - Tasks with `taskType: TRIGGER_TEST_FLIGHT_BUILD` (iOS) will include `builds: BuildInfo[]` when builds are available
   - Each iOS `BuildInfo` contains `testflightNumber` for TestFlight link generation (required for completed tasks)
@@ -492,7 +619,7 @@ interface RetryTaskResponse {
   message: string;                      // "Task retry initiated. Cron will re-execute on next tick."
   data: {
     taskId: string;                     // Task UUID
-    releaseId: string;                  // Release UUID (primary key)
+    releaseId: string;                  // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
     previousStatus: string;             // Previous task status (should be "FAILED")
     newStatus: string;                  // New task status (should be "PENDING")
   };
@@ -529,7 +656,7 @@ interface RetryTaskResponse {
 
 **Path Parameters:**
 - `tenantId` (string, required): Tenant UUID
-- `releaseId` (string, required): Release UUID (user-facing identifier, e.g., "REL-001")
+- `releaseId` (string, required): Release UUID (primary key in DB) - **NOT the user-facing identifier**
 
 **Request Body:**
 ```typescript
@@ -544,11 +671,11 @@ interface ApproveRegressionStageRequest {
 ```typescript
 interface ApproveRegressionStageResponse {
   success: true;
-  message: string;                      // "Regression stage approved and Post-Regression stage triggered successfully"
-  releaseId: string;                    // Release UUID
+  message: string;                      // "Regression stage approved and Pre-Release stage triggered successfully"
+  releaseId: string;                    // This is release.id (UUID primary key), NOT release.releaseId (user-facing identifier)
   approvedAt: string;                   // ISO 8601 timestamp
   approvedBy: string;                   // Account ID of approver
-  nextStage: 'POST_REGRESSION';
+  nextStage: 'PRE_RELEASE';
 }
 ```
 
@@ -580,7 +707,7 @@ Before approval can proceed, the following requirements must be met (unless `for
 
 - This endpoint serves dual purpose: **Approve Regression** + **Trigger Stage 3**
 - Approval is at the **regression stage level**, not individual cycle level
-- Approving automatically triggers Stage 3 (Post-Regression) - no separate trigger needed
+- Approving automatically triggers Stage 3 (Pre-Release) - no separate trigger needed
 - Use `forceApprove: true` sparingly (for exceptional cases only)
 - Activity logging is planned but not yet implemented
 
@@ -633,7 +760,7 @@ interface AbandonRegressionCycleResponse {
 ---
 
 ### 13. Trigger Pre-Release Completion
-**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/post-regression/complete`
+**POST** `/api/v1/tenants/{tenantId}/releases/{releaseId}/stages/pre-release/complete`
 
 **Request Body:**
 Empty body (no parameters required)
@@ -659,13 +786,13 @@ interface CompletePreReleaseResponse {
 **Behavior:**
 
 1. Validates release exists and belongs to tenant
-2. Validates Stage 3 (Post-Regression) is `COMPLETED` (all tasks done)
+2. Validates Stage 3 (Pre-Release) is `COMPLETED` (all tasks done)
 3. Triggers Stage 4 (Release Submission)
 4. Returns confirmation with next stage information
 
 **Notes:**
 
-- This completes the Post-Regression stage and transitions to Release Submission
+- This completes the Pre-Release stage and transitions to Release Submission
 - All Stage 3 tasks must be completed before this can be called
 - Used when `autoTransitionToStage4` is not enabled (manual workflow)
 
@@ -1427,7 +1554,7 @@ interface DeleteBuildArtifactResponse {
 **GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/test-management-run-status`
 
 ### 24. Get Project Management Status
-**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/project-management/status`
+**GET** `/api/v1/tenants/{tenantId}/releases/{releaseId}/project-management-run-status`
 
 **Path Parameters:**
 
@@ -1498,7 +1625,7 @@ type ProjectManagementStatusResult = {
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `tenantId` | string | Yes | Tenant UUID |
-| `releaseId` | string | Yes | Release UUID (user-facing identifier, e.g., "REL-001") |
+| `releaseId` | string | Yes | Release UUID (primary key in DB) - **NOT the user-facing identifier** |
 
 **Response:**
 ```typescript
@@ -1641,10 +1768,7 @@ Updates the "What's New" content for a release (release notes).
 | `releaseId` | string | Yes | Release UUID (primary key in DB) |
 
 **Query Parameters:**
-- `limit?: number` (default: 50)
-- `offset?: number` (default: 0)
-- `stage?: TaskStage`
-- `taskType?: TaskType`
+None - Returns all activity logs for the release
 
 **Response:**
 

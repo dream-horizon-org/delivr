@@ -7,16 +7,31 @@ import { Group, Stack, Text, Badge } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconTestPipe } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
-import type { CreateTestSuiteTaskDetailsData } from '~/types/task-details.types';
+import { TaskStatus } from '~/types/release-process-enums';
+import type { TestManagementTaskOutput } from '~/types/task-details.types';
 
 interface CreateTestSuiteTaskDetailsProps {
   task: Task;
 }
 
 export function CreateTestSuiteTaskDetails({ task }: CreateTestSuiteTaskDetailsProps) {
-  const externalData = task.externalData as CreateTestSuiteTaskDetailsData | null;
+  // Only read output when task is COMPLETED or FAILED
+  const output = (task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED)
+    ? (task.output as TestManagementTaskOutput | null)
+    : null;
 
-  const platforms = externalData?.testManagement?.platforms || [];
+  // If FAILED, check for error in output
+  if (task.taskStatus === TaskStatus.FAILED && output && 'error' in output) {
+    return (
+      <Stack gap="xs">
+        <Text size="sm" c="red">
+          {String(output.error)}
+        </Text>
+      </Stack>
+    );
+  }
+
+  const platforms = output?.platforms || [];
 
   return (
     <Stack gap="md">

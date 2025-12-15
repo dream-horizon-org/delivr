@@ -7,18 +7,18 @@
 import { Stack } from '@mantine/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExtraCommitsWarning } from '~/components/distribution';
-import { usePreReleaseStage } from '~/hooks/useReleaseProcess';
+import { usePreReleaseStage, useProjectManagementStatus } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus } from '~/types/release-process-enums';
 import { validateStageProps } from '~/utils/prop-validation';
 import { apiGet } from '~/utils/api-client';
 import { handleStageError } from '~/utils/stage-error-handling';
-import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution.types';
+import type { ExtraCommitsResponse } from '~/types/distribution.types';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { PreReleaseTasksList } from './stages/PreReleaseTasksList';
-import { PostRegressionApprovalSection } from './stages/PostRegressionApprovalSection';
-import { PostRegressionPromotionCard } from './stages/PostRegressionPromotionCard';
+import { PreReleaseApprovalSection } from './stages/PreReleaseApprovalSection';
+import { PreReleasePromotionCard } from './stages/PreReleasePromotionCard';
 
 interface PreReleaseStageProps {
   tenantId: string;
@@ -39,34 +39,24 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     refetch,
   });
   
-  // Modal states
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  
-  // Extra commits and PM status
+  // Extra commits
   const [extraCommits, setExtraCommits] = useState<ExtraCommitsResponse['data'] | null>(null);
-  const [pmStatus, setPmStatus] = useState<PMStatusResponse['data'] | null>(null);
   const [isLoadingExtraData, setIsLoadingExtraData] = useState(false);
 
-  // Fetch extra commits and PM status
+  // Fetch extra commits
   useEffect(() => {
     const fetchExtraData = async () => {
       setIsLoadingExtraData(true);
       try {
-        const [extraCommitsResult, pmStatusResult] = await Promise.all([
-          apiGet<ExtraCommitsResponse>(`/api/v1/releases/${releaseId}/extra-commits`),
-          apiGet<PMStatusResponse>(`/api/v1/releases/${releaseId}/pm-status`),
-        ]);
+        const extraCommitsResult = await apiGet<ExtraCommitsResponse>(`/api/v1/releases/${releaseId}/extra-commits`);
         
         if (extraCommitsResult.success && extraCommitsResult.data) {
           setExtraCommits(extraCommitsResult.data.data);
         }
-        if (pmStatusResult.success && pmStatusResult.data) {
-          setPmStatus(pmStatusResult.data.data);
-        }
       } catch (error) {
         // Error handled silently - components will show default state
         // Use handleStageError with showToast: false for optional data
-        handleStageError(error, 'fetch extra commits and PM status', {
+        handleStageError(error, 'fetch extra commits', {
           showToast: false,
           logError: true,
         });
@@ -79,6 +69,9 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
       fetchExtraData();
     }
   }, [releaseId]);
+
+  // Fetch project management status using the correct API contract endpoint
+  const projectManagementStatus = useProjectManagementStatus(tenantId, releaseId);
 
   // Extract tasks and uploadedBuilds from data
   const tasks = data?.tasks || [];
@@ -94,13 +87,25 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     const allTasksCompleted = preReleaseTasks.length > 0 && 
       preReleaseTasks.every((t: Task) => t.taskStatus === TaskStatus.COMPLETED);
     
-    // Check PM approval separately (if PM integration exists)
-    const pmApprovalReady = pmStatus 
-      ? pmStatus.approved === true 
-      : true; // If no PM integration, no approval needed
+    // Check PM status using project-management-run-status API (API contract endpoint)
+    // If no PM integration or all platforms completed, approval is ready
+    let pmApprovalReady = true;
+    
+    if (projectManagementStatus.data) {
+      if ('platforms' in projectManagementStatus.data) {
+        // All platforms response - all must be completed
+        const allPlatformsCompleted = projectManagementStatus.data.platforms.every(
+          (platform) => platform.isCompleted === true
+        );
+        pmApprovalReady = allPlatformsCompleted;
+      } else {
+        // Single platform response
+        pmApprovalReady = projectManagementStatus.data.isCompleted === true;
+      }
+    }
     
     return allTasksCompleted && pmApprovalReady;
-  }, [tasks, pmStatus]);
+  }, [tasks, projectManagementStatus.data]);
 
 
 
@@ -136,17 +141,15 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
       />
 
       {/* PM Approval Section */}
-      <PostRegressionApprovalSection
+      <PreReleaseApprovalSection
+        tenantId={tenantId}
         releaseId={releaseId}
-        pmStatus={pmStatus}
-        showApprovalDialog={showApprovalDialog}
-        onShowApprovalDialog={setShowApprovalDialog}
-        onPmStatusUpdate={setPmStatus}
+        projectManagementStatus={projectManagementStatus}
         onRefetch={refetch}
       />
 
       {/* Promotion Card */}
-      <PostRegressionPromotionCard
+      <PreReleasePromotionCard
         tenantId={tenantId}
         releaseId={releaseId}
         canPromote={canPromote}

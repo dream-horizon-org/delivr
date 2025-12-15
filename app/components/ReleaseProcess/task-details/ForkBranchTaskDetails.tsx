@@ -7,17 +7,32 @@ import { Group, Stack, Text } from '@mantine/core';
 import { Anchor } from '@mantine/core';
 import { IconExternalLink, IconGitBranch } from '@tabler/icons-react';
 import type { Task } from '~/types/release-process.types';
-import type { ForkBranchTaskDetailsData } from '~/types/task-details.types';
+import { TaskStatus } from '~/types/release-process-enums';
+import type { ForkBranchTaskOutput } from '~/types/task-details.types';
 
 interface ForkBranchTaskDetailsProps {
   task: Task;
 }
 
 export function ForkBranchTaskDetails({ task }: ForkBranchTaskDetailsProps) {
-  const externalData = task.externalData as ForkBranchTaskDetailsData | null;
+  // Only read output when task is COMPLETED or FAILED
+  const output = (task.taskStatus === TaskStatus.COMPLETED || task.taskStatus === TaskStatus.FAILED)
+    ? (task.output as ForkBranchTaskOutput | null)
+    : null;
 
-  const branchName = externalData?.branchName || task.branch;
-  const branchUrl = externalData?.branchUrl;
+  // If FAILED, check for error in output
+  if (task.taskStatus === TaskStatus.FAILED && output && 'error' in output) {
+    return (
+      <Stack gap="xs">
+        <Text size="sm" c="red">
+          {String(output.error)}
+        </Text>
+      </Stack>
+    );
+  }
+
+  const branchName = output?.branchName || task.branch;
+  const branchUrl = output?.branchUrl;
 
   if (!branchName && !branchUrl) {
     return (

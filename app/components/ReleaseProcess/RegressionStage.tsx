@@ -5,20 +5,18 @@
  */
 
 import {
+  Accordion,
   Button,
   Card,
   Group,
   Stack,
   Text,
-  Anchor,
 } from '@mantine/core';
 import { IconCheck, IconRocket, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import {
   useRegressionStage,
   useApproveRegression,
-  useTestManagementStatus,
-  useCherryPickStatus,
 } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import { validateStageProps } from '~/utils/prop-validation';
@@ -39,10 +37,6 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
 
   const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId);
   const approveMutation = useApproveRegression(tenantId, releaseId);
-
-  // Fetch status checks
-  const testManagementStatus = useTestManagementStatus(tenantId, releaseId);
-  const cherryPickStatus = useCherryPickStatus(tenantId, releaseId);
 
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
@@ -112,111 +106,98 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
       {approvalStatus && (
         <Card shadow="sm" padding="lg" radius="md" withBorder>
           <Stack gap="md">
-            <Group justify="space-between" align="center">
-              <div>
-                <Text fw={600} size="lg" mb="xs">
+            <Group justify="space-between" align="center" wrap="nowrap">
+              <div style={{ flex: 1 }}>
+                <Text fw={600} size="lg" mb={4}>
                   Regression Approval
                 </Text>
-                <Text size="sm" c="dimmed">
-                  {canApprove
-                    ? 'All requirements met. Ready to approve and proceed to post-regression.'
-                    : 'Complete all requirements before approving regression stage.'}
-                </Text>
+                {approvalRequirements && (
+                  <Group gap="md">
+                    <Text size="sm" c="green">
+                      Passed: {Object.values(approvalRequirements).filter(v => v).length}
+                    </Text>
+                    <Text size="sm" c="red">
+                      Pending: {Object.values(approvalRequirements).filter(v => !v).length}
+                    </Text>
+                  </Group>
+                )}
               </div>
+              <Button
+                size="md"
+                disabled={!canApprove}
+                onClick={handleApprove}
+                leftSection={<IconRocket size={18} />}
+                loading={approveMutation.isLoading}
+              >
+                Approve Regression Stage
+              </Button>
             </Group>
 
-            {/* Approval Requirements */}
-            <Stack gap="xs">
-              <Text size="sm" fw={500} c="dimmed">
-                Requirements
-              </Text>
-              
-              {/* Test Management Status */}
-              {testManagementStatus.data && 'status' in testManagementStatus.data && (
-                <Group gap="sm">
-                  {testManagementStatus.data.status === 'PASSED' ? (
-                    <IconCheck size={16} color="green" />
-                  ) : (
-                    <IconX size={16} color="red" />
-                  )}
-                  <Text size="sm">
-                    Test Management:{' '}
-                    {testManagementStatus.data.status === 'PASSED' ? (
-                      <Text component="span" c="green" fw={500}>
-                        Passed
-                      </Text>
-                    ) : (
-                      <Text component="span" c="red" fw={500}>
-                        {testManagementStatus.data.status || 'Pending'}
-                      </Text>
-                    )}
-                  </Text>
-                  {'runLink' in testManagementStatus.data && testManagementStatus.data.runLink && (
-                    <Anchor href={testManagementStatus.data.runLink} target="_blank" size="sm">
-                      View Results
-                    </Anchor>
-                  )}
-                </Group>
-              )}
+            {/* Approval Requirements - Accordion */}
+            {approvalRequirements && (
+              <Accordion variant="separated" radius="md">
+                <Accordion.Item value="requirements">
+                  <Accordion.Control>
+                    <Text size="sm" fw={500}>
+                      View Requirements
+                    </Text>
+                  </Accordion.Control>
+                  <Accordion.Panel>
+                    <Stack gap="sm">
+                      {/* Test Management */}
+                      <Group gap="sm">
+                        {approvalRequirements.testManagementPassed ? (
+                          <IconCheck size={16} color="green" />
+                        ) : (
+                          <IconX size={16} color="red" />
+                        )}
+                        <Text size="sm">
+                          {approvalRequirements.testManagementPassed ? (
+                            <Text component="span" c="green" fw={500}>Test Management</Text>
+                          ) : (
+                            <Text component="span" c="red">Test Management</Text>
+                          )}
+                        </Text>
+                      </Group>
 
-              {/* Cherry Pick Status */}
-              {cherryPickStatus.data && (
-                <Group gap="sm">
-                  {!cherryPickStatus.data.cherryPickAvailable ? (
-                    <IconCheck size={16} color="green" />
-                  ) : (
-                    <IconX size={16} color="red" />
-                  )}
-                  <Text size="sm">
-                    Cherry Pick Status:{' '}
-                    {!cherryPickStatus.data.cherryPickAvailable ? (
-                      <Text component="span" c="green" fw={500}>
-                        OK
-                      </Text>
-                    ) : (
-                      <Text component="span" c="red" fw={500}>
-                        Pending
-                      </Text>
-                    )}
-                  </Text>
-                </Group>
-              )}
+                      {/* Cherry Pick Status */}
+                      <Group gap="sm" align="flex-start">
+                        {approvalRequirements.cherryPickStatusOk ? (
+                          <IconCheck size={16} color="green" style={{ marginTop: 2 }} />
+                        ) : (
+                          <IconX size={16} color="red" style={{ marginTop: 2 }} />
+                        )}
+                        <Text size="sm" style={{ flex: 1 }}>
+                          {approvalRequirements.cherryPickStatusOk ? (
+                            <Text component="span" c="green" fw={500}>Cherry Pick Status</Text>
+                          ) : (
+                            <Text component="span" c="red">
+                              Cherry Pick Status: New cherry picks found. Add regression slot to test changes.
+                            </Text>
+                          )}
+                        </Text>
+                      </Group>
 
-              {/* Cycles Completed */}
-              {approvalRequirements && (
-                <Group gap="sm">
-                  {approvalRequirements.cyclesCompleted ? (
-                    <IconCheck size={16} color="green" />
-                  ) : (
-                    <IconX size={16} color="red" />
-                  )}
-                  <Text size="sm">
-                    Cycles Completed:{' '}
-                    {approvalRequirements.cyclesCompleted ? (
-                      <Text component="span" c="green" fw={500}>
-                        Yes
-                      </Text>
-                    ) : (
-                      <Text component="span" c="red" fw={500}>
-                        No
-                      </Text>
-                    )}
-                  </Text>
-                </Group>
-              )}
-            </Stack>
-
-            {/* Approve Button */}
-            <Button
-              size="lg"
-              disabled={!canApprove}
-              onClick={handleApprove}
-              leftSection={<IconRocket size={18} />}
-              loading={approveMutation.isLoading}
-              fullWidth
-            >
-              Approve Regression Stage
-            </Button>
+                      {/* Cycles Completed */}
+                      <Group gap="sm">
+                        {approvalRequirements.cyclesCompleted ? (
+                          <IconCheck size={16} color="green" />
+                        ) : (
+                          <IconX size={16} color="red" />
+                        )}
+                        <Text size="sm">
+                          {approvalRequirements.cyclesCompleted ? (
+                            <Text component="span" c="green" fw={500}>All Cycles Completed</Text>
+                          ) : (
+                            <Text component="span" c="red">Cycles Pending</Text>
+                          )}
+                        </Text>
+                      </Group>
+                    </Stack>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+            )}
           </Stack>
         </Card>
       )}

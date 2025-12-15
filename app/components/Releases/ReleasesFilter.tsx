@@ -22,7 +22,7 @@ export const ReleasesFilter = memo(function ReleasesFilter({
   onStageChange,
 }: ReleasesFilterProps) {
   return (
-    <Group gap="md" className="mb-6">
+    <Group gap="md">
       <Select
         label="Build Mode"
         placeholder="Select build mode"

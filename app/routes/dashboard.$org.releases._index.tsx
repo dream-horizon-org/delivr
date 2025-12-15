@@ -220,22 +220,22 @@ export default function ReleasesListPage() {
       )}
 
       {!shouldShowLoader && (
-        <>
-          <ReleasesFilter
-            buildMode={buildMode}
-            stage={stage}
-            onBuildModeChange={handleBuildModeChange}
-            onStageChange={handleStageChange}
-          />
-          <ReleasesTabs
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            upcoming={filteredUpcoming}
-            active={filteredActive}
-            completed={filteredCompleted}
-            org={org}
-          />
-        </>
+        <ReleasesTabs
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          upcoming={filteredUpcoming}
+          active={filteredActive}
+          completed={filteredCompleted}
+          org={org}
+          leftSection={
+            <ReleasesFilter
+              buildMode={buildMode}
+              stage={stage}
+              onBuildModeChange={handleBuildModeChange}
+              onStageChange={handleStageChange}
+            />
+          }
+        />
       )}
     </Container>
   );

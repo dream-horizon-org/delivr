@@ -10,9 +10,10 @@
  */
 
 import { useMemo } from 'react';
-import { Stack } from '@mantine/core';
+import { Stack, Group, Text, Anchor } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import { useRelease } from '~/hooks/useRelease';
-import type { Task, BuildInfo } from '~/types/release-process.types';
+import type { Task, BuildInfo, BuildTaskOutput } from '~/types/release-process.types';
 import { TaskStatus, BuildUploadStage, TaskType, Platform } from '~/types/release-process-enums';
 import { BuildUploadSection } from './BuildUploadSection';
 import { BuildsList } from './BuildsList';
@@ -53,22 +54,19 @@ export function BuildTaskDetails({
   // Build selection logic based on task status:
   // - If COMPLETED → use task.builds (consumed, can't change)
   // - If NOT COMPLETED → use uploadedBuilds (staging, can change)
+  // Note: task.builds is always present (required field), empty array if no builds
   const effectiveBuilds: BuildInfo[] = useMemo(() => {
     if (task.taskStatus === TaskStatus.COMPLETED) {
       // Task completed: builds are consumed, use task.builds
-      if (task.builds && Array.isArray(task.builds) && task.builds.length > 0) {
+      if (Array.isArray(task.builds) && task.builds.length > 0) {
         return task.builds;
-      }
-      // Fallback to externalData for legacy support
-      if (task.externalData?.builds && Array.isArray(task.externalData.builds)) {
-        return task.externalData.builds as BuildInfo[];
       }
       return [];
     } else {
       // Task not completed: use uploadedBuilds (staging builds)
       return uploadedBuilds || [];
     }
-  }, [task.taskStatus, task.builds, task.externalData, uploadedBuilds]);
+  }, [task.taskStatus, task.builds, uploadedBuilds]);
 
   // Can change builds only if task is NOT completed and using uploadedBuilds
   const canChangeBuilds = useMemo(() => {
@@ -99,10 +97,10 @@ export function BuildTaskDetails({
       // Regression: Android and iOS
       return [Platform.ANDROID, Platform.IOS];
     } else if (task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD) {
-      // Post-Regression TestFlight: iOS only
+      // Pre-Release TestFlight: iOS only
       return [Platform.IOS];
     } else if (task.taskType === TaskType.CREATE_AAB_BUILD) {
-      // Post-Regression AAB: Android only
+      // Pre-Release AAB: Android only
       return [Platform.ANDROID];
     }
     return [];
@@ -129,7 +127,7 @@ export function BuildTaskDetails({
     tenantId &&
     releaseId;
 
-  // Determine if this is a Post-Regression build task
+  // Determine if this is a Pre-Release build task
   const isPostRegressionBuildTask = 
     task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ||
     task.taskType === TaskType.CREATE_AAB_BUILD;
@@ -147,8 +145,38 @@ export function BuildTaskDetails({
     task.taskStatus === TaskStatus.FAILED
   );
 
+  // Extract CI/CD URL from output (for build tasks)
+  // Special case: Build tasks can have jobUrl even when IN_PROGRESS
+  const buildOutput = task.output as BuildTaskOutput | null;
+  const jobUrl = buildOutput?.jobUrl;
+  
+  // Show CI/CD link if:
+  // - Task is IN_PROGRESS or AWAITING_CALLBACK (build tasks special case)
+  // - OR task is COMPLETED/FAILED and has jobUrl
+  const shouldShowCICDLink = !!jobUrl && (
+    task.taskStatus === TaskStatus.IN_PROGRESS ||
+    task.taskStatus === TaskStatus.AWAITING_CALLBACK ||
+    task.taskStatus === TaskStatus.COMPLETED ||
+    task.taskStatus === TaskStatus.FAILED
+  );
+
   return (
     <Stack gap="md">
+      {/* CI/CD Link - Show when task is running or completed and has URL */}
+      {shouldShowCICDLink && (
+        <Stack gap="xs">
+          <Text size="xs" c="dimmed" fw={500}>
+            CI/CD Link
+          </Text>
+          <Anchor href={jobUrl} target="_blank" size="sm" c="brand">
+            <Group gap={4}>
+              <IconExternalLink size={14} />
+              <Text size="sm">View Job</Text>
+            </Group>
+          </Anchor>
+        </Stack>
+      )}
+
       {/* Build Upload Widget - Show for platforms without builds (Manual mode only) */}
       {showBuildUpload && buildStage && tenantId && releaseId && (
         <BuildUploadSection

@@ -13,6 +13,7 @@ import { useNavigate, useParams } from '@remix-run/react';
 import { useState, useEffect } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { KickoffStage, PreReleaseStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
+import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { useRelease } from '~/hooks/useRelease';
 import { useKickoffStage, useRegressionStage, usePreReleaseStage } from '~/hooks/useReleaseProcess';
@@ -161,12 +162,22 @@ export default function ReleaseDetailsPage() {
             {renderStageComponent()}
           </div>
 
-          {/* Right Sidebar - Stage Stepper (beside tasks) */}
-          <ReleaseProcessSidebar
-            currentStage={currentStage}
-            selectedStage={selectedStage}
-            onStageSelect={handleStageSelect}
-          />
+          {/* Right Sidebar - Stage Stepper + Integration Status */}
+          <Stack gap="md" style={{ width: '280px' }}>
+            {/* Stage Stepper */}
+            <ReleaseProcessSidebar
+              currentStage={currentStage}
+              selectedStage={selectedStage}
+              onStageSelect={handleStageSelect}
+            />
+
+            {/* Integration Status Sidebar - Real-time status from individual APIs */}
+            <IntegrationsStatusSidebar
+              tenantId={org}
+              releaseId={releaseId}
+              currentStage={selectedStage}
+            />
+          </Stack>
         </Group>
       </Stack>
     </Container>

@@ -263,7 +263,7 @@ function BuildItem({
             )}
           </Group>
           
-          {/* For Post-Regression: Show TestFlight or Internal Track links */}
+          {/* For Pre-Release: Show TestFlight or Internal Track links */}
           {isPostRegression && (
             <Stack gap="xs">
               {/* iOS TestFlight Link */}

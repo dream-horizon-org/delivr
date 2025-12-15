@@ -62,7 +62,7 @@ export const TASK_TYPE_LABELS = {
   CREATE_RELEASE_NOTES: 'Create Release Notes',
   TRIGGER_REGRESSION_BUILDS: 'Trigger Regression Builds',
   
-  // Stage 3: Post-Regression (4 tasks)
+  // Stage 3: Pre-Release (4 tasks)
   TRIGGER_TEST_FLIGHT_BUILD: 'Trigger TestFlight Build',
   CREATE_AAB_BUILD: 'Create AAB Build',
   CREATE_RELEASE_TAG: 'Create Release Tag',
@@ -214,7 +214,7 @@ export const KICKOFF_LABELS = {
 } as const;
 
 // ============================================================================
-// Post-Regression Stage Labels
+// Pre-Release Stage Labels
 // ============================================================================
 
 export const PRE_RELEASE_LABELS = {
