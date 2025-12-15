@@ -36,7 +36,7 @@ export async function getUserReleasePermission(
     const sequelize = (storage as any).sequelize;
     
     // Get release
-    const release = await sequelize.models.release.findByPk(releaseId);
+    const release = await sequelize.models.Release.findByPk(releaseId);
     
     if (!release) {
       return null;
