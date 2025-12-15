@@ -27,7 +27,7 @@ export class AndroidSubmissionBuildRepository {
       storeType: data.storeType ?? 'PLAY_STORE',
       status: data.status ?? 'PENDING',
       releaseNotes: data.releaseNotes ?? null,
-      inAppPriority: data.inAppPriority ?? null,
+      inAppUpdatePriority: data.inAppUpdatePriority ?? null,
       rolloutPercentage: data.rolloutPercentage ?? null,
       submittedBy: data.submittedBy ?? null,
       isActive: data.isActive ?? true
@@ -103,7 +103,7 @@ export class AndroidSubmissionBuildRepository {
       ...(data.storeType && { storeType: data.storeType }),
       ...(data.status && { status: data.status }),
       ...(data.releaseNotes !== undefined && { releaseNotes: data.releaseNotes }),
-      ...(data.inAppPriority !== undefined && { inAppPriority: data.inAppPriority }),
+      ...(data.inAppUpdatePriority !== undefined && { inAppUpdatePriority: data.inAppUpdatePriority }),
       ...(data.rolloutPercentage !== undefined && { rolloutPercentage: data.rolloutPercentage }),
       ...(data.submittedBy !== undefined && { submittedBy: data.submittedBy }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),

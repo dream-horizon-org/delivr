@@ -52,6 +52,8 @@ export const createIosSubmissionBuildModel = (
           model: 'distribution',
           key: 'id'
         },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
         comment: 'Reference to distribution table'
       },
       testflightNumber: {

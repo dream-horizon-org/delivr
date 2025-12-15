@@ -18,7 +18,7 @@ export type AndroidSubmissionBuildAttributes = {
   storeType: string;
   status: SubmissionStatus;
   releaseNotes: string | null;
-  inAppPriority: number | null;
+  inAppUpdatePriority: number | null;
   rolloutPercentage: number | null;
   submittedBy: string | null;
   isActive: boolean;
@@ -52,6 +52,8 @@ export const createAndroidSubmissionBuildModel = (
           model: 'distribution',
           key: 'id'
         },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
         comment: 'Reference to distribution table'
       },
       internalTrackLink: {
@@ -104,10 +106,10 @@ export const createAndroidSubmissionBuildModel = (
         field: 'releaseNotes',
         comment: 'Release notes for this submission'
       },
-      inAppPriority: {
+      inAppUpdatePriority: {
         type: DataTypes.INTEGER,
         allowNull: true,
-        field: 'inAppPriority',
+        field: 'inAppUpdatePriority',
         comment: 'In-app update priority (0-5)'
       },
       rolloutPercentage: {

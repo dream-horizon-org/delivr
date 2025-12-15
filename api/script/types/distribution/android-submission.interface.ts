@@ -14,7 +14,7 @@ export type AndroidSubmissionBuild = {
   storeType: string;
   status: SubmissionStatus;
   releaseNotes: string | null;
-  inAppPriority: number | null;
+  inAppUpdatePriority: number | null;
   rolloutPercentage: number | null;
   submittedBy: string | null;
   isActive: boolean;
@@ -38,7 +38,7 @@ export type CreateAndroidSubmissionDto = {
   storeType?: string;
   status?: SubmissionStatus;
   releaseNotes?: string | null;
-  inAppPriority?: number | null;
+  inAppUpdatePriority?: number | null;
   rolloutPercentage?: number | null;
   submittedBy?: string | null;
   isActive?: boolean;
@@ -56,7 +56,7 @@ export type UpdateAndroidSubmissionDto = {
   storeType?: string;
   status?: SubmissionStatus;
   releaseNotes?: string | null;
-  inAppPriority?: number | null;
+  inAppUpdatePriority?: number | null;
   rolloutPercentage?: number | null;
   submittedBy?: string | null;
   isActive?: boolean;
