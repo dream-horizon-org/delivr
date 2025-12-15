@@ -82,7 +82,7 @@ export type DistributionWithSubmissions = {
   status: string;
   platforms: string[];
   createdAt: Date;
-  updatedAt: Date;
+  statusUpdatedAt: Date;
   submissions: FormattedSubmission[];
 };
 
@@ -202,7 +202,7 @@ export class DistributionService {
       status: distribution.status,
       platforms: distribution.configuredListOfPlatforms,
       createdAt: distribution.createdAt,
-      updatedAt: distribution.updatedAt,
+      statusUpdatedAt: distribution.statusUpdatedAt,
       submissions: allSubmissions
     };
   }
