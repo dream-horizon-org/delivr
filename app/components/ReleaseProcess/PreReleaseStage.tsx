@@ -6,20 +6,18 @@
 
 import { Stack, Group, Text, Badge } from '@mantine/core';
 import { IconCheck, IconX } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ExtraCommitsWarning } from '~/components/distribution';
+import { useCallback, useMemo, useState } from 'react';
 import { usePreReleaseStage, useProjectManagementStatus, useCompletePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import type { Task } from '~/types/release-process.types';
-import { TaskStatus } from '~/types/release-process-enums';
+import { TaskStage, TaskStatus } from '~/types/release-process-enums';
 import { validateStageProps } from '~/utils/prop-validation';
-import { apiGet } from '~/utils/api-client';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
-import type { ExtraCommitsResponse } from '~/types/distribution.types';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { PreReleaseTasksList } from './stages/PreReleaseTasksList';
 import { StageApprovalSection, type ApprovalRequirement } from './shared/StageApprovalSection';
+import { ApprovalConfirmationModal } from './shared/ApprovalConfirmationModal';
 
 interface PreReleaseStageProps {
   tenantId: string;
@@ -40,40 +38,14 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     refetch,
   });
   
-  // Extra commits
-  const [extraCommits, setExtraCommits] = useState<ExtraCommitsResponse['data'] | null>(null);
-  const [isLoadingExtraData, setIsLoadingExtraData] = useState(false);
-
-  // Fetch extra commits
-  useEffect(() => {
-    const fetchExtraData = async () => {
-      setIsLoadingExtraData(true);
-      try {
-        const extraCommitsResult = await apiGet<ExtraCommitsResponse>(`/api/v1/releases/${releaseId}/extra-commits`);
-        
-        if (extraCommitsResult.success && extraCommitsResult.data) {
-          setExtraCommits(extraCommitsResult.data.data);
-        }
-      } catch (error) {
-        // Error handled silently - components will show default state
-        // Use handleStageError with showToast: false for optional data
-        handleStageError(error, 'fetch extra commits', {
-          showToast: false,
-          logError: true,
-        });
-      } finally {
-        setIsLoadingExtraData(false);
-      }
-    };
-    
-    if (releaseId) {
-      fetchExtraData();
-    }
-  }, [releaseId]);
+  // Use cherry-pick status API instead of extra-commits API
+  // Cherry-pick status is already displayed in IntegrationsStatusSidebar
+  // No need to show ExtraCommitsWarning here as cherry-pick status is handled in sidebar
 
   // Fetch project management status using the correct API contract endpoint
   const projectManagementStatus = useProjectManagementStatus(tenantId, releaseId);
   const completeMutation = useCompletePreReleaseStage(tenantId, releaseId);
+  const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
   // Extract tasks and uploadedBuilds from data
   const tasks = data?.tasks || [];
@@ -85,7 +57,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     
     // All tasks completed requirement
     // Filter for PRE_RELEASE stage tasks only
-    const preReleaseTasks = tasks.filter((t: Task) => t.stage === 'PRE_RELEASE');
+    const preReleaseTasks = tasks.filter((t: Task) => t.stage === TaskStage.PRE_RELEASE);
     
     // Count pending tasks (not completed, not skipped)
     const pendingTasks = preReleaseTasks.filter(
@@ -149,27 +121,26 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
     return requirements.every((r) => r.passed);
   }, [requirements]);
 
-  const handleApprove = useCallback(async () => {
+  const handleApproveClick = useCallback(() => {
     if (!canPromote) {
       showErrorToast({ message: 'Approval requirements not met' });
       return;
     }
+    setApprovalModalOpened(true);
+  }, [canPromote]);
 
+  const handleApprove = useCallback(async (comments?: string) => {
     try {
-      await completeMutation.mutateAsync();
+      await completeMutation.mutateAsync({
+        notes: comments || undefined,
+      });
+      setApprovalModalOpened(false);
       showSuccessToast({ message: 'Pre-release stage approved successfully' });
       await refetch();
     } catch (error) {
       handleStageError(error, 'approve pre-release stage');
     }
-  }, [canPromote, completeMutation, refetch]);
-
-
-
-  const handleAcknowledgeExtraCommits = useCallback(() => {
-    // Acknowledge extra commits (client-side only for now)
-    // TODO: Implement acknowledgment API call when available
-  }, []);
+  }, [completeMutation, refetch]);
 
   return (
     <StageErrorBoundary
@@ -179,15 +150,6 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
       stageName="pre-release stage"
     >
       <Stack gap="lg" className={className}>
-      {/* Extra Commits Warning - above tasks */}
-      {extraCommits?.hasExtraCommits && (
-        <ExtraCommitsWarning
-          extraCommits={extraCommits}
-          canDismiss
-          onProceed={handleAcknowledgeExtraCommits}
-        />
-      )}
-
       {/* Tasks List */}
       <PreReleaseTasksList
         tasks={tasks}
@@ -202,7 +164,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
         <StageApprovalSection
           title="Pre-Release Approval"
           canApprove={canPromote}
-          onApprove={handleApprove}
+          onApprove={handleApproveClick}
           isApproving={completeMutation.isLoading}
           approvalButtonText="Approve Pre-Release Stage"
           requirements={requirements}
@@ -259,6 +221,17 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
           )}
         />
       )}
+
+      {/* Approval Confirmation Modal */}
+      <ApprovalConfirmationModal
+        opened={approvalModalOpened}
+        onClose={() => setApprovalModalOpened(false)}
+        onConfirm={handleApprove}
+        title="Approve Pre-Release Stage"
+        message="Are you sure you want to approve the pre-release stage? This will complete the pre-release stage."
+        confirmLabel="Approve"
+        isLoading={completeMutation.isLoading}
+      />
       </Stack>
     </StageErrorBoundary>
   );

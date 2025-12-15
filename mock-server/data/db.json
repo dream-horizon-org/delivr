@@ -12665,7 +12665,7 @@
       "releasePilotAccountId": "4JCGF-VeXg",
       "lastUpdatedByAccountId": "4JCGF-VeXg",
       "createdAt": "2024-12-05T10:00:00.000Z",
-      "updatedAt": "2024-12-08T10:00:00.000Z",
+      "updatedAt": "2025-12-15T16:16:00.137Z",
       "cronJob": {
         "id": "eccd3fdb-af5b-49c1-9378-226c432d70d0",
         "stage1Status": "COMPLETED",
@@ -13002,7 +13002,8 @@
           "createdAt": "2024-12-08T10:00:00.000Z",
           "updatedAt": "2024-12-08T14:00:00.000Z"
         }
-      ]
+      ],
+      "stage3Status": "COMPLETED"
     },
     {
       "id": "e99b5bc9-5492-4388-8a52-b3d6c174081d",

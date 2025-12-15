@@ -489,17 +489,6 @@ export interface ApproveRegressionStageResponse {
   nextStage: 'PRE_RELEASE';
 }
 
-/**
- * Approve Regression Request - Legacy alias (for backward compatibility)
- * @deprecated Use ApproveRegressionStageRequest instead
- */
-export type ApproveRegressionRequest = ApproveRegressionStageRequest;
-
-/**
- * Approve Regression Response - Legacy alias (for backward compatibility)
- * @deprecated Use ApproveRegressionStageResponse instead
- */
-export type ApproveRegressionResponse = ApproveRegressionStageResponse;
 
 /**
  * Complete Pre-Release Request
@@ -519,11 +508,6 @@ export interface CompletePreReleaseResponse {
   nextStage: 'RELEASE_SUBMISSION';
 }
 
-/**
- * Complete Post-Regression Response - Legacy alias (for backward compatibility)
- * @deprecated Use CompletePreReleaseResponse instead
- */
-export type CompletePostRegressionResponse = CompletePreReleaseResponse;
 
 /**
  * Post Slack Message Request
@@ -564,17 +548,6 @@ export interface ActivityLogsResponse {
   activityLogs: ActivityLog[];
 }
 
-/**
- * Activity Log Entry - Legacy alias (for backward compatibility)
- * @deprecated Use ActivityLog instead
- */
-export type ActivityLogEntry = ActivityLog;
-
-/**
- * Activity Log Response - Legacy alias (for backward compatibility)
- * @deprecated Use ActivityLogsResponse instead
- */
-export type ActivityLogResponse = ActivityLogsResponse;
 
 /**
  * Phase - Detailed release phase
@@ -725,16 +698,11 @@ export interface NotificationsResponse {
 
 /**
  * Message Type Enum - Values based on notification_type DB enum
+ * Supported manual message types for Slack notifications
  */
 export type MessageTypeEnum = 
-  | 'RELEASE_KICKOFF'
-  | 'REGRESSION_SLOT_REMINDER'
-  | 'REGRESSION_COMPLETE'
-  | 'PRE_RELEASE_CHERRY_PICKS_REMINDER'
-  | 'RELEASE_APPROVED'
-  | 'RELEASE_SUBMITTED'
-  // ... other notification types
-  ;
+  | 'test-results-summary'
+  | 'pre-kickoff-reminder';
 
 /**
  * Notification Request - Matches backend contract from API #21

@@ -30,16 +30,4 @@ export type {
   TaskOutput,
 };
 
-/**
- * Legacy type aliases for backward compatibility
- * @deprecated Use the Output types directly (e.g., ForkBranchTaskOutput instead of ForkBranchTaskDetailsData)
- */
-export type ForkBranchTaskDetailsData = ForkBranchTaskOutput;
-export type ProjectManagementTaskDetailsData = ProjectManagementTaskOutput;
-export type CreateTestSuiteTaskDetailsData = TestManagementTaskOutput;
-export type ResetTestSuiteTaskDetailsData = TestManagementTaskOutput;
-export type CreateRcTagTaskDetailsData = CreateRcTagTaskOutput;
-export type CreateReleaseNotesTaskDetailsData = ReleaseNotesTaskOutput;
-export type CreateReleaseTagTaskDetailsData = CreateReleaseTagTaskOutput;
-export type CreateFinalReleaseNotesTaskDetailsData = FinalReleaseNotesTaskOutput;
 

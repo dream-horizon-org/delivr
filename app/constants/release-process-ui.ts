@@ -136,6 +136,20 @@ export const BUTTON_LABELS = {
   RESUME: 'Resume',
   ACTIVITY_LOG: 'Activity Log',
   POST_SLACK_MESSAGE: 'Post Slack Message',
+  
+  // Slack Message Types
+  SLACK_MESSAGE_TYPES: {
+    TEST_RESULTS_SUMMARY: {
+      value: 'test-results-summary',
+      label: 'Test Results Summary',
+      description: 'Send test results summary to Slack',
+    },
+    PRE_KICKOFF_REMINDER: {
+      value: 'pre-kickoff-reminder',
+      label: 'Pre-Kickoff Reminder',
+      description: 'Send pre-kickoff reminder to Slack',
+    },
+  },
   BACK: 'Back',
 } as const;
 

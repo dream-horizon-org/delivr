@@ -21,6 +21,7 @@ import type {
   CherryPickStatusResponse,
   ApproveRegressionStageRequest,
   ApproveRegressionStageResponse,
+  CompletePreReleaseRequest,
   CompletePreReleaseResponse,
   ActivityLogsResponse,
   NotificationsResponse,
@@ -496,14 +497,15 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
 export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<CompletePreReleaseResponse, Error, void>(
-    async () => {
+  return useMutation<CompletePreReleaseResponse, Error, CompletePreReleaseRequest | undefined>(
+    async (request) => {
       if (!tenantId || !releaseId) {
         throw new Error('tenantId and releaseId are required');
       }
 
       const result = await apiPost<CompletePreReleaseResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`,
+        request || {}
       );
 
       if (!result.success || !result.data) {

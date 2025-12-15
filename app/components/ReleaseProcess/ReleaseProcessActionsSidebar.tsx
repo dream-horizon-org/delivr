@@ -4,7 +4,7 @@
  * Contains all action buttons: Edit, Pause/Resume, Activity Log, Post Slack Message
  */
 
-import { Button, Group, Modal, Paper, ScrollArea, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, Paper, ScrollArea, Select, Stack, Text } from '@mantine/core';
 import {
   IconEdit,
   IconHistory,
@@ -44,6 +44,7 @@ export function ReleaseProcessActionsSidebar({
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [activityLogModalOpened, setActivityLogModalOpened] = useState(false);
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
+  const [selectedMessageType, setSelectedMessageType] = useState<MessageTypeEnum | null>(null);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
   const queryClient = useQueryClient();
 
@@ -119,13 +120,19 @@ export function ReleaseProcessActionsSidebar({
   };
 
   // Handle send notification (Slack message)
-  const handleSendNotification = async (messageType: MessageTypeEnum) => {
+  const handleSendNotification = async () => {
+    if (!selectedMessageType) {
+      showErrorToast({ message: 'Please select a message type' });
+      return;
+    }
+
     try {
       await sendNotificationMutation.mutateAsync({
-        messageType,
+        messageType: selectedMessageType,
       });
       showSuccessToast({ message: 'Notification sent successfully' });
       setSlackMessageModalOpened(false);
+      setSelectedMessageType(null);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to send notification');
       showErrorToast({ message: errorMessage });
@@ -236,7 +243,10 @@ export function ReleaseProcessActionsSidebar({
       {/* Post Slack Message Modal */}
       <Modal
         opened={slackMessageModalOpened}
-        onClose={() => setSlackMessageModalOpened(false)}
+        onClose={() => {
+          setSlackMessageModalOpened(false);
+          setSelectedMessageType(null);
+        }}
         title={BUTTON_LABELS.POST_SLACK_MESSAGE}
         size="md"
       >
@@ -244,18 +254,46 @@ export function ReleaseProcessActionsSidebar({
           <Text size="sm" c="dimmed">
             Select a message type to send to Slack:
           </Text>
-          <Group>
+          <Select
+            label="Message Type"
+            placeholder="Choose a message type"
+            data={[
+              {
+                value: BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.value,
+                label: BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.label,
+              },
+              {
+                value: BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.value,
+                label: BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.label,
+              },
+            ]}
+            value={selectedMessageType}
+            onChange={(value: string | null) => setSelectedMessageType(value as MessageTypeEnum | null)}
+            required
+          />
+          {selectedMessageType && (
+            <Text size="xs" c="dimmed">
+              {selectedMessageType === BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.value
+                ? BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.description
+                : BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.description}
+            </Text>
+          )}
+          <Group justify="flex-end" mt="md">
             <Button
-              variant="outline"
-              onClick={() => handleSendNotification('REGRESSION_COMPLETE' as MessageTypeEnum)}
+              variant="subtle"
+              onClick={() => {
+                setSlackMessageModalOpened(false);
+                setSelectedMessageType(null);
+              }}
             >
-              Regression Build Ready
+              Cancel
             </Button>
             <Button
-              variant="outline"
-              onClick={() => handleSendNotification('RELEASE_APPROVED' as MessageTypeEnum)}
+              onClick={handleSendNotification}
+              loading={sendNotificationMutation.isLoading}
+              disabled={!selectedMessageType}
             >
-              Post-Regression Build Ready
+              Send Message
             </Button>
           </Group>
         </Stack>

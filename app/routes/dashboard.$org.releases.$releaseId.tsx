@@ -165,11 +165,11 @@ export default function ReleaseDetailsPage() {
           {/* Right Sidebar - Stage Stepper + Integration Status */}
           <Stack gap="md" style={{ width: '280px' }}>
             {/* Stage Stepper */}
-            <ReleaseProcessSidebar
-              currentStage={currentStage}
-              selectedStage={selectedStage}
-              onStageSelect={handleStageSelect}
-            />
+          <ReleaseProcessSidebar
+            currentStage={currentStage}
+            selectedStage={selectedStage}
+            onStageSelect={handleStageSelect}
+          />
 
             {/* Integration Status Sidebar - Real-time status from individual APIs */}
             <IntegrationsStatusSidebar

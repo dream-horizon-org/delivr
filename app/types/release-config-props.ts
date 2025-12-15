@@ -315,13 +315,6 @@ export interface RegressionSlotTimelineProps {
   targetReleaseDate: string;
 }
 
-// This interface is deprecated - use the one below
-export interface RegressionSlotCardPropsOld {
-  slot: RegressionSlot;
-  index: number;
-  onEdit: () => void;
-  onDelete: () => void;
-}
 
 // ============================================================================
 // Project Management (Jira) Components

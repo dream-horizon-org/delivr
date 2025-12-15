@@ -10,7 +10,7 @@ import {
   Text,
 } from '@mantine/core';
 import { IconCheck, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   useRegressionStage,
   useApproveRegression,
@@ -22,6 +22,7 @@ import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { RegressionCyclesList } from './RegressionCyclesList';
 import { StageApprovalSection, type ApprovalRequirement } from './shared/StageApprovalSection';
+import { ApprovalConfirmationModal } from './shared/ApprovalConfirmationModal';
 
 interface RegressionStageProps {
   tenantId: string;
@@ -35,6 +36,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
 
   const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId);
   const approveMutation = useApproveRegression(tenantId, releaseId);
+  const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
@@ -51,26 +53,30 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   const upcomingSlot = data?.upcomingSlot;
   const approvalStatus = data?.approvalStatus;
 
-  const handleApprove = useCallback(async () => {
+  const handleApproveClick = useCallback(() => {
     if (!approvalStatus?.canApprove) {
       showErrorToast({ message: 'Approval requirements not met' });
       return;
     }
+    setApprovalModalOpened(true);
+  }, [approvalStatus]);
 
+  const handleApprove = useCallback(async (comments?: string) => {
     try {
       // Backend will extract user ID from authenticated session
       // The BFF route uses authenticateActionRequest which provides user context
       await approveMutation.mutateAsync({
         approvedBy: '', // Backend extracts from session, this field may be optional
-        comments: 'Regression stage approved',
+        comments: comments || undefined,
       });
       
+      setApprovalModalOpened(false);
       showSuccessToast({ message: 'Regression stage approved successfully' });
       await refetch();
     } catch (error) {
       handleStageError(error, 'approve regression stage');
     }
-  }, [approvalStatus, approveMutation, refetch]);
+  }, [approveMutation, refetch]);
 
   // Check if approval button should be enabled
   const canApprove = useMemo(() => {
@@ -136,7 +142,7 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
         <StageApprovalSection
           title="Regression Approval"
           canApprove={canApprove}
-          onApprove={handleApprove}
+          onApprove={handleApproveClick}
           isApproving={approveMutation.isLoading}
           approvalButtonText="Approve Regression Stage"
           requirements={requirements}
@@ -144,6 +150,17 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
           pendingCount={pendingCount}
         />
       )}
+
+      {/* Approval Confirmation Modal */}
+      <ApprovalConfirmationModal
+        opened={approvalModalOpened}
+        onClose={() => setApprovalModalOpened(false)}
+        onConfirm={handleApprove}
+        title="Approve Regression Stage"
+        message="Are you sure you want to approve the regression stage? This will trigger the pre-release stage."
+        confirmLabel="Approve"
+        isLoading={approveMutation.isLoading}
+      />
       </Stack>
     </StageErrorBoundary>
   );

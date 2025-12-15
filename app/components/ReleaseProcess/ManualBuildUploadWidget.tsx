@@ -10,8 +10,8 @@ import { useEffect, useMemo } from 'react';
 import { BUILD_UPLOAD_LABELS } from '~/constants/release-process-ui';
 import { useBuildArtifacts } from '~/hooks/useReleaseProcess';
 import { useRelease } from '~/hooks/useRelease';
-import type { BuildUploadStage, Platform } from '~/types/release-process-enums';
-import { TaskType } from '~/types/release-process-enums';
+import { PLATFORMS } from '~/types/release-config-constants';
+import { BuildUploadStage, Platform, TaskStage, TaskType } from '~/types/release-process-enums';
 import { mapBuildUploadStageToTaskStage } from '~/utils/build-upload-mapper';
 import { FileUploadSection } from './builds/FileUploadSection';
 import { TestFlightVerificationSection } from './builds/TestFlightVerificationSection';
@@ -58,7 +58,7 @@ export function ManualBuildUploadWidget({
     
     // For TestFlight, only show iOS
     if (isTestFlightVerification) {
-      return platforms.filter(p => p === 'IOS');
+      return platforms.filter(p => p === PLATFORMS.IOS);
     }
     
     return platforms;
@@ -68,7 +68,7 @@ export function ManualBuildUploadWidget({
   const backendStage = useMemo(() => {
     const taskStage = mapBuildUploadStageToTaskStage(stage);
     // Backend uses KICK_OFF, REGRESSION, PRE_RELEASE
-    return taskStage === 'KICKOFF' ? 'KICK_OFF' : taskStage === 'PRE_RELEASE' ? 'PRE_RELEASE' : taskStage;
+    return taskStage === TaskStage.KICKOFF ? 'KICK_OFF' : taskStage === TaskStage.PRE_RELEASE ? 'PRE_RELEASE' : taskStage;
   }, [stage]);
 
   // Fetch artifacts for this stage
@@ -121,19 +121,19 @@ export function ManualBuildUploadWidget({
   // Get file extension and platform name
   const getFileExtension = () => {
     if (isTestFlightVerification) return null;
-    if (fixedPlatform === 'ANDROID') {
+    if (fixedPlatform === PLATFORMS.ANDROID) {
       // AAB build task uses .aab, others use .apk
       return taskType === TaskType.CREATE_AAB_BUILD ? '.aab' : '.apk';
     }
-    if (fixedPlatform === 'IOS') return '.ipa';
+    if (fixedPlatform === PLATFORMS.IOS) return '.ipa';
     return null;
   };
 
   const getPlatformName = () => {
     if (isTestFlightVerification) return 'TestFlight';
-    if (fixedPlatform === 'ANDROID') return 'Android';
-    if (fixedPlatform === 'IOS') return 'iOS';
-    if (fixedPlatform === 'WEB') return 'Web';
+    if (fixedPlatform === PLATFORMS.ANDROID) return 'Android';
+    if (fixedPlatform === PLATFORMS.IOS) return 'iOS';
+    if (fixedPlatform === Platform.WEB) return 'Web';
     return null;
   };
 
@@ -150,7 +150,7 @@ export function ManualBuildUploadWidget({
             <>
               <Text fw={600} size="sm">Upload</Text>
               {getFileExtension() && (
-                <Badge size="sm" variant="light" color={fixedPlatform === 'ANDROID' ? 'green' : 'blue'}>
+                <Badge size="sm" variant="light" color={fixedPlatform === PLATFORMS.ANDROID ? 'green' : 'blue'}>
                   {getFileExtension()}
                 </Badge>
               )}
@@ -181,7 +181,7 @@ export function ManualBuildUploadWidget({
                       </Anchor>
                     ) : (
                       <Text size="xs" c="dimmed">
-                        {artifact.platform === 'IOS' && !artifact.downloadUrl && artifact.buildNumber 
+                        {artifact.platform === PLATFORMS.IOS && !artifact.downloadUrl && artifact.buildNumber 
                           ? `TestFlight Build #${artifact.buildNumber}` 
                           : 'No download available'}
                       </Text>

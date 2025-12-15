@@ -169,7 +169,7 @@ export function IntegrationsStatusSidebar({
         )}
 
         {/* Pre-Release Stage: Project Management Status (Platform-wise) */}
-        {currentStage === 'PRE_RELEASE' && (
+        {currentStage === TaskStageEnum.PRE_RELEASE && (
           <>
             <Divider />
             <Stack gap="xs">
