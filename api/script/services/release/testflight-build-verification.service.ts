@@ -12,7 +12,7 @@ import {
 } from '../../constants/testflight-build';
 import type { StoreIntegrationController, StoreCredentialController } from '../../storage/integrations/store/store-controller';
 import { StoreType, IntegrationStatus } from '../../storage/integrations/store/store-types';
-import { decrypt } from '../../utils/encryption';
+import { decrypt, decryptFromStorage } from '../../utils/encryption';
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
 import type { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
 import type { ReleaseRepository } from '../../models/release/release.repository';
@@ -249,12 +249,15 @@ export class TestFlightBuildVerificationService {
 
     let credentialPayload: any;
     try {
-      credentialPayload = JSON.parse(credential.encryptedPayload.toString('utf-8'));
+      // Decrypt the encrypted payload first
+      const encryptedString = credential.encryptedPayload.toString('utf-8');
+      const decryptedString = decryptFromStorage(encryptedString);
+      credentialPayload = JSON.parse(decryptedString);
     } catch {
       return {
         success: false,
         errorCode: 'STORE_INTEGRATION_INVALID',
-        errorMessage: 'Failed to parse App Store Connect credentials',
+        errorMessage: 'Failed to decrypt or parse App Store Connect credentials',
       };
     }
 
