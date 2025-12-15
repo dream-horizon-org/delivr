@@ -4,21 +4,22 @@
  * Similar to KickoffStage but with enhanced TaskCards for build, approval, and promotion tasks
  */
 
-import { Stack } from '@mantine/core';
+import { Stack, Group, Text, Badge } from '@mantine/core';
+import { IconCheck, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ExtraCommitsWarning } from '~/components/distribution';
-import { usePreReleaseStage, useProjectManagementStatus } from '~/hooks/useReleaseProcess';
+import { usePreReleaseStage, useProjectManagementStatus, useCompletePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus } from '~/types/release-process-enums';
 import { validateStageProps } from '~/utils/prop-validation';
 import { apiGet } from '~/utils/api-client';
 import { handleStageError } from '~/utils/stage-error-handling';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import type { ExtraCommitsResponse } from '~/types/distribution.types';
 import { StageErrorBoundary } from './shared/StageErrorBoundary';
 import { PreReleaseTasksList } from './stages/PreReleaseTasksList';
-import { PreReleaseApprovalSection } from './stages/PreReleaseApprovalSection';
-import { PreReleasePromotionCard } from './stages/PreReleasePromotionCard';
+import { StageApprovalSection, type ApprovalRequirement } from './shared/StageApprovalSection';
 
 interface PreReleaseStageProps {
   tenantId: string;
@@ -72,40 +73,96 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
 
   // Fetch project management status using the correct API contract endpoint
   const projectManagementStatus = useProjectManagementStatus(tenantId, releaseId);
+  const completeMutation = useCompletePreReleaseStage(tenantId, releaseId);
 
   // Extract tasks and uploadedBuilds from data
   const tasks = data?.tasks || [];
   const uploadedBuilds = data?.uploadedBuilds || [];
 
-  // Calculate promotion readiness - all PRE_RELEASE tasks must be completed
-  const canPromote = useMemo(() => {
-    const preReleaseTasks = tasks.filter(
-      (t: Task) => t.stage === 'PRE_RELEASE'
+  // Calculate approval requirements for Pre-Release
+  const requirements: ApprovalRequirement[] = useMemo(() => {
+    const reqs: ApprovalRequirement[] = [];
+    
+    // All tasks completed requirement
+    // Filter for PRE_RELEASE stage tasks only
+    const preReleaseTasks = tasks.filter((t: Task) => t.stage === 'PRE_RELEASE');
+    
+    // Count pending tasks (not completed, not skipped)
+    const pendingTasks = preReleaseTasks.filter(
+      (t: Task) => t.taskStatus !== TaskStatus.COMPLETED && t.taskStatus !== TaskStatus.SKIPPED
     );
     
-    // All pre-release tasks must be completed
-    const allTasksCompleted = preReleaseTasks.length > 0 && 
-      preReleaseTasks.every((t: Task) => t.taskStatus === TaskStatus.COMPLETED);
+    // Only show as passed if there are tasks AND all are completed (or skipped)
+    // If no tasks exist, show as not passed (can't approve without tasks)
+    const allTasksCompleted = preReleaseTasks.length > 0 && pendingTasks.length === 0;
     
-    // Check PM status using project-management-run-status API (API contract endpoint)
-    // If no PM integration or all platforms completed, approval is ready
-    let pmApprovalReady = true;
-    
+    reqs.push({
+      label: 'All Tasks Completed',
+      passed: allTasksCompleted,
+      message: preReleaseTasks.length === 0 
+        ? 'No pre-release tasks found'
+        : pendingTasks.length > 0
+        ? `${pendingTasks.length} task(s) pending`
+        : undefined,
+    });
+
+    // Project Management requirement (platform-wise)
     if (projectManagementStatus.data) {
       if ('platforms' in projectManagementStatus.data) {
-        // All platforms response - all must be completed
         const allPlatformsCompleted = projectManagementStatus.data.platforms.every(
           (platform) => platform.isCompleted === true
         );
-        pmApprovalReady = allPlatformsCompleted;
+        reqs.push({
+          label: 'Project Management',
+          passed: allPlatformsCompleted,
+          message: allPlatformsCompleted
+            ? undefined
+            : 'Some platforms have incomplete tickets.',
+        });
       } else {
-        // Single platform response
-        pmApprovalReady = projectManagementStatus.data.isCompleted === true;
+        reqs.push({
+          label: 'Project Management',
+          passed: projectManagementStatus.data.isCompleted === true,
+        });
       }
+    } else if (!projectManagementStatus.isLoading) {
+      // No PM integration configured
+      reqs.push({
+        label: 'Project Management',
+        passed: true, // No PM integration means no requirement
+      });
     }
-    
-    return allTasksCompleted && pmApprovalReady;
-  }, [tasks, projectManagementStatus.data]);
+
+    return reqs;
+  }, [tasks, projectManagementStatus.data, projectManagementStatus.isLoading]);
+
+  const passedCount = useMemo(() => {
+    return requirements.filter((r) => r.passed).length;
+  }, [requirements]);
+
+  const pendingCount = useMemo(() => {
+    return requirements.filter((r) => !r.passed).length;
+  }, [requirements]);
+
+  // Calculate promotion readiness - all PRE_RELEASE tasks must be completed
+  const canPromote = useMemo(() => {
+    return requirements.every((r) => r.passed);
+  }, [requirements]);
+
+  const handleApprove = useCallback(async () => {
+    if (!canPromote) {
+      showErrorToast({ message: 'Approval requirements not met' });
+      return;
+    }
+
+    try {
+      await completeMutation.mutateAsync();
+      showSuccessToast({ message: 'Pre-release stage approved successfully' });
+      await refetch();
+    } catch (error) {
+      handleStageError(error, 'approve pre-release stage');
+    }
+  }, [canPromote, completeMutation, refetch]);
 
 
 
@@ -140,21 +197,68 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
         uploadedBuilds={uploadedBuilds}
       />
 
-      {/* PM Approval Section */}
-      <PreReleaseApprovalSection
-        tenantId={tenantId}
-        releaseId={releaseId}
-        projectManagementStatus={projectManagementStatus}
-        onRefetch={refetch}
-      />
-
-      {/* Promotion Card */}
-      <PreReleasePromotionCard
-        tenantId={tenantId}
-        releaseId={releaseId}
-        canPromote={canPromote}
-        onComplete={refetch}
-      />
+      {/* Approval Section */}
+      {(projectManagementStatus.data || projectManagementStatus.isLoading) && (
+        <StageApprovalSection
+          title="Pre-Release Approval"
+          canApprove={canPromote}
+          onApprove={handleApprove}
+          isApproving={completeMutation.isLoading}
+          approvalButtonText="Approve Pre-Release Stage"
+          requirements={requirements}
+          passedCount={passedCount}
+          pendingCount={pendingCount}
+          renderRequirements={() => (
+            <Stack gap="sm">
+              {requirements.map((req, index) => (
+                <Group key={index} gap="sm">
+                  {req.passed ? (
+                    <IconCheck size={16} color="green" />
+                  ) : (
+                    <IconX size={16} color="red" />
+                  )}
+                  <Text size="sm" style={{ flex: 1 }}>
+                    {req.passed ? (
+                      <Text component="span" c="green" fw={500}>
+                        {req.label}
+                      </Text>
+                    ) : (
+                      <Text component="span" c="red">
+                        {req.label}
+                        {req.message && `: ${req.message}`}
+                      </Text>
+                    )}
+                  </Text>
+                </Group>
+              ))}
+              {/* Show platform details for PM if available */}
+              {projectManagementStatus.data && 'platforms' in projectManagementStatus.data && (
+                <Stack gap="xs" mt="sm" pl="md">
+                  {projectManagementStatus.data.platforms.map((platform, idx) => (
+                    <Group key={idx} gap="xs" justify="space-between">
+                      <Text size="xs" c="dimmed">
+                        {platform.platform}
+                      </Text>
+                      {platform.isCompleted ? (
+                        <Badge color="green" size="sm">Completed</Badge>
+                      ) : platform.hasTicket ? (
+                        <Badge color="blue" size="sm">In Progress</Badge>
+                      ) : (
+                        <Badge color="gray" size="sm">No Ticket</Badge>
+                      )}
+                      {platform.ticketKey && (
+                        <Text size="xs" c="dimmed" ml="xs">
+                          {platform.ticketKey}
+                        </Text>
+                      )}
+                    </Group>
+                  ))}
+                </Stack>
+              )}
+            </Stack>
+          )}
+        />
+      )}
       </Stack>
     </StageErrorBoundary>
   );
