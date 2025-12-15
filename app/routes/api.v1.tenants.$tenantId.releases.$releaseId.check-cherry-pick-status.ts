@@ -1,9 +1,9 @@
 /**
- * Remix API Route: Post-Regression Stage
- * GET /api/v1/tenants/:tenantId/releases/:releaseId/stages/post-regression
+ * Remix API Route: Check Cherry Pick Status
+ * GET /api/v1/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
  * 
  * BFF route that proxies to ReleaseProcessService
- * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/tasks?stage=POST_REGRESSION
+ * Backend contract: GET /api/v1/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
  */
 
 import { json } from '@remix-run/node';
@@ -20,8 +20,8 @@ import {
 } from '~/utils/api-route-helpers';
 
 /**
- * GET - Get post-regression stage data
- * Calls backend API: GET /tasks?stage=POST_REGRESSION
+ * GET - Get cherry pick status
+ * Calls backend API: GET /check-cherry-pick-status
  */
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {
@@ -36,20 +36,21 @@ export const loader = authenticateLoaderRequest(
     }
 
     try {
-      console.log('[BFF] Fetching post-regression stage for release:', releaseId);
-      const response = await ReleaseProcessService.getPostRegressionStage(tenantId, releaseId);
-      console.log('[BFF] Post-regression stage response:', response.data);
+      console.log('[BFF] Fetching cherry pick status for release:', releaseId);
+      const response = await ReleaseProcessService.getCherryPickStatus(tenantId, releaseId);
+      console.log('[BFF] Cherry pick status response:', response.data);
       
-      // Backend returns { success: true, stage: 'POST_REGRESSION', releaseId, tasks, stageStatus }
+      // Backend returns { success: true, releaseId, latestReleaseTag, commitIdsMatch }
       // Axios wraps it in response.data, so response.data = { success: true, ... }
       const responseData = response.data;
       
       // Return data wrapped in success envelope for consistency
       return json({ success: true, data: responseData });
     } catch (error) {
-      logApiError('POST_REGRESSION_STAGE_API', error);
-      return handleAxiosError(error, 'Failed to fetch post-regression stage');
+      logApiError('CHERRY_PICK_STATUS_API', error);
+      return handleAxiosError(error, 'Failed to fetch cherry pick status');
     }
   }
 );
+
 

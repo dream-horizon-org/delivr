@@ -11,9 +11,11 @@ import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-e
 import type {
   KickoffStageResponse,
   RegressionStageResponse,
-  PostRegressionStageResponse,
+  PreReleaseStageResponse,
   RetryTaskResponse,
   BuildUploadResponse,
+  BuildArtifact,
+  ListBuildArtifactsResponse,
   TestManagementStatusResponse,
   ProjectManagementStatusResponse,
   CherryPickStatusResponse,
@@ -93,7 +95,7 @@ export function useKickoffStage(tenantId?: string, releaseId?: string) {
 export function useRegressionStage(tenantId?: string, releaseId?: string) {
   const isEnabled = !!tenantId && !!releaseId;
   
-  console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled });
+  // console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled });
   
   return useQuery<RegressionStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.REGRESSION),
@@ -131,20 +133,20 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
 /**
  * Get post-regression stage data
  */
-export function usePostRegressionStage(tenantId?: string, releaseId?: string) {
-  return useQuery<PostRegressionStageResponse, Error>(
-    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.POST_REGRESSION),
+export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
+  return useQuery<PreReleaseStageResponse, Error>(
+    QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.PRE_RELEASE),
     async () => {
       if (!tenantId || !releaseId) {
         throw new Error('tenantId and releaseId are required');
       }
 
-      const result = await apiGet<PostRegressionStageResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/post-regression`
+      const result = await apiGet<PreReleaseStageResponse>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release`
       );
 
       if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch post-regression stage');
+        throw new Error(result.error || 'Failed to fetch pre-release stage');
       }
 
       return result.data;
@@ -185,6 +187,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
         throw new Error(result.error || 'Failed to retry task');
       }
 
+      // Contract expects { success: true, message, data: {...} }
+      // apiPost already unwraps the response, so result.data should be the RetryTaskResponse
       return result.data;
     },
     {
@@ -194,6 +198,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
           Object.values(TaskStage).forEach((stage) => {
             queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stage));
           });
+          // Invalidate releases list to reflect task status changes
+          queryClient.invalidateQueries(['releases', tenantId]);
         }
       },
     }
@@ -206,6 +212,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
 
 /**
  * Upload manual build
+ * Uses BFF route: POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+ * BFF route handles mapping BuildUploadStage to TaskStage and renaming 'file' to 'artifact'
  */
 export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
@@ -220,16 +228,17 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
         throw new Error('tenantId and releaseId are required');
       }
 
+      // Create form data with only the file (stage and platform are in path)
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('platform', platform);
-      formData.append('stage', stage);
 
-      // Use fetch directly for FormData (apiPost doesn't handle FormData well)
+      // Use BFF route with stage and platform in path
+      // BFF route will map BuildUploadStage to TaskStage and forward to backend
+      // API contract specifies PUT, but we use POST for compatibility
       const response = await fetch(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/upload`,
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/${platform}`,
         {
-          method: 'POST',
+          method: 'PUT', // API contract specifies PUT
           body: formData,
         }
       );
@@ -240,10 +249,17 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
       }
 
       const data = await response.json();
+      // Backend returns { success: true, data: {...} }
+      // Return the data field if present, otherwise return the whole response
       return data.data || data;
     },
     {
       onSuccess: (_, variables) => {
+        // Invalidate artifacts query to show uploaded artifact
+        if (tenantId && releaseId) {
+          queryClient.invalidateQueries(['release-process', 'artifacts', tenantId, releaseId]);
+        }
+        
         // Invalidate the appropriate stage based on upload stage
         if (tenantId && releaseId) {
           let stageToInvalidate: TaskStage;
@@ -255,9 +271,73 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
               stageToInvalidate = TaskStage.REGRESSION;
               break;
             case 'PRE_RELEASE':
-              stageToInvalidate = TaskStage.POST_REGRESSION;
+              stageToInvalidate = TaskStage.PRE_RELEASE;
               break;
             default:
+              stageToInvalidate = TaskStage.REGRESSION;
+          }
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
+        }
+      },
+    }
+  );
+}
+
+/**
+ * Verify TestFlight build
+ * Uses BFF route: POST /api/v1/tenants/:tenantId/releases/:releaseId/stages/:stage/builds/ios/verify-testflight
+ */
+export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    BuildUploadResponse,
+    Error,
+    { stage: BuildUploadStage; testflightBuildNumber: string; versionName: string }
+  >(
+    async ({ stage, testflightBuildNumber, versionName }) => {
+      if (!tenantId || !releaseId) {
+        throw new Error('tenantId and releaseId are required');
+      }
+
+      const result = await apiPost<BuildUploadResponse>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${stage}/builds/ios/verify-testflight`,
+        {
+          testflightBuildNumber,
+          versionName,
+        }
+      );
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to verify TestFlight build');
+      }
+
+      // Backend returns { success: true, data: {...} }
+      return result.data;
+    },
+    {
+      onSuccess: (_, variables) => {
+        // Invalidate artifacts query to show verified build
+        if (tenantId && releaseId) {
+          queryClient.invalidateQueries(['release-process', 'artifacts', tenantId, releaseId]);
+        }
+        
+        // Invalidate the appropriate stage
+        if (tenantId && releaseId) {
+          let stageToInvalidate: TaskStage;
+          switch (variables.stage) {
+            case 'PRE_REGRESSION':
+              stageToInvalidate = TaskStage.KICKOFF;
+              break;
+            case 'REGRESSION':
+              stageToInvalidate = TaskStage.REGRESSION;
+              break;
+            case 'PRE_RELEASE':
+              stageToInvalidate = TaskStage.PRE_RELEASE;
+              break;
+            default:
+              // Defensive: invalidate REGRESSION stage as fallback if unexpected stage value
+              console.warn(`[useVerifyTestFlight] Unexpected stage: ${variables.stage}, defaulting to REGRESSION`);
               stageToInvalidate = TaskStage.REGRESSION;
           }
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
@@ -375,7 +455,7 @@ export function useCherryPickStatus(tenantId?: string, releaseId?: string) {
 
 /**
  * Approve regression stage
- * Backend contract: POST /stages/regression/approve with ApproveRegressionStageRequest
+ * Backend contract: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
  */
 export function useApproveRegression(tenantId?: string, releaseId?: string) {
   const queryClient = useQueryClient();
@@ -386,21 +466,23 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
         throw new Error('tenantId and releaseId are required');
       }
 
-      const result = await apiPost<ApproveRegressionStageResponse>(
-        `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/regression/approve`,
+      const response = await apiPost<ApproveRegressionStageResponse>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-pre-release`,
         request
       );
-
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to approve regression stage');
+      if (!response.success || !response.data) {
+        throw new Error('Failed to approve regression stage');
       }
-
-      return result.data;
+      return response.data;
     },
     {
       onSuccess: () => {
         if (tenantId && releaseId) {
+          // Invalidate both REGRESSION (current) and PRE_RELEASE (next stage that gets triggered)
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.REGRESSION));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
+          // Invalidate releases list to reflect stage transition
+          queryClient.invalidateQueries(['releases', tenantId]);
         }
       },
     }
@@ -433,7 +515,9 @@ export function useCompletePostRegression(tenantId?: string, releaseId?: string)
     {
       onSuccess: () => {
         if (tenantId && releaseId) {
-          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.POST_REGRESSION));
+          queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
+          // Invalidate releases list to reflect stage completion
+          queryClient.invalidateQueries(['releases', tenantId]);
         }
       },
     }
@@ -545,4 +629,71 @@ export function useActivityLogs(tenantId?: string, releaseId?: string) {
     }
   );
 }
+
+// ======================
+// Build Artifacts Hooks
+// ======================
+
+/**
+ * List build artifacts
+ * Backend contract: GET /tenants/:tenantId/releases/:releaseId/builds/artifacts
+ */
+export function useBuildArtifacts(
+  tenantId?: string,
+  releaseId?: string,
+  filters?: { platform?: Platform; buildStage?: string }
+) {
+  return useQuery<ListBuildArtifactsResponse, Error>(
+    ['release-process', 'artifacts', tenantId, releaseId, filters],
+    async () => {
+      if (!tenantId || !releaseId) {
+        throw new Error('tenantId and releaseId are required');
+      }
+
+      const params = new URLSearchParams();
+      if (filters?.platform) params.append('platform', filters.platform);
+      if (filters?.buildStage) params.append('buildStage', filters.buildStage);
+
+      const queryString = params.toString();
+      const endpoint = `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts${queryString ? `?${queryString}` : ''}`;
+
+      const result = await apiGet<ListBuildArtifactsResponse>(endpoint);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/f9402839-8b19-4c73-b767-d6dcf38aa8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useReleaseProcess.ts:581',message:'apiGet result structure',data:{hasSuccess:!!result.success,hasData:!!result.data,dataType:typeof result.data,isArray:Array.isArray(result.data),dataKeys:result.data?Object.keys(result.data):null,dataDataIsArray:Array.isArray(result.data?.data)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to fetch build artifacts');
+      }
+
+      // apiGet returns { success: true, data: T }
+      // For ListBuildArtifactsResponse, T = { success: boolean, data: BuildArtifact[] }
+      // So result.data should be { success: true, data: BuildArtifact[] }
+      const responseData = result.data;
+      
+      // Check if responseData is already in the correct format
+      if (responseData && typeof responseData === 'object' && 'data' in responseData && Array.isArray(responseData.data)) {
+        // Already in correct format: { success: true, data: [...] }
+        return responseData as ListBuildArtifactsResponse;
+      }
+      
+      // If it's an array directly, wrap it
+      if (Array.isArray(responseData)) {
+        return { success: true, data: responseData } as ListBuildArtifactsResponse;
+      }
+      
+      // Fallback: return as-is
+      return responseData as ListBuildArtifactsResponse;
+    },
+    {
+      enabled: !!tenantId && !!releaseId,
+      staleTime: 30 * 1000, // 30 seconds
+      cacheTime: 2 * 60 * 1000, // 2 minutes
+      refetchOnWindowFocus: true,
+      retry: 1,
+    }
+  );
+}
+
 

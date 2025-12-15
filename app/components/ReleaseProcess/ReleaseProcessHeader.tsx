@@ -13,11 +13,11 @@
  */
 
 import { Badge, Button, Group, Modal, Paper, ScrollArea, Stack, Text, Title } from '@mantine/core';
-import { Link } from '@remix-run/react';
-import { IconArrowLeft, IconEdit, IconGitBranch, IconHistory, IconMessageCircle, IconPlayerPause, IconPlayerPlay, IconTag } from '@tabler/icons-react';
+import { Link, useSearchParams } from '@remix-run/react';
+import { IconArrowLeft, IconCloudUpload, IconCode, IconEdit, IconGitBranch, IconHistory, IconMessageCircle, IconPlayerPause, IconPlayerPlay, IconTag } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import { ActivityLogsDrawer } from './ActivityLogsDrawer';
 import {
@@ -33,6 +33,7 @@ import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { useSendNotification } from '~/hooks/useReleaseProcess';
 import { Phase, ReleaseStatus } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
+import type { MessageTypeEnum, ActivityLog } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
@@ -62,6 +63,14 @@ export function ReleaseProcessHeader({
   className,
 }: ReleaseProcessHeaderProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
+  const [activityLogModalOpened, setActivityLogModalOpened] = useState(false);
+  const [searchParams] = useSearchParams();
+  
+  // Get returnTo params from URL to restore filters and tab when going back
+  const returnTo = searchParams.get('returnTo');
+  const backUrl = returnTo 
+    ? `/dashboard/${org}/releases?${returnTo}`
+    : `/dashboard/${org}/releases`;
   const [activityDrawerOpened, setActivityDrawerOpened] = useState(false);
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
@@ -96,7 +105,7 @@ export function ReleaseProcessHeader({
       setEditModalOpened(false);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to update release');
-      console.error('[ReleaseProcessHeader] Update error:', errorMessage, error);
+      // Error is already handled by toast notification in calling code
       throw new Error(errorMessage);
     }
   };
@@ -146,10 +155,10 @@ export function ReleaseProcessHeader({
   };
 
   // Handle send notification (Slack message)
-  const handleSendNotification = async (messageType: string) => {
+  const handleSendNotification = async (messageType: MessageTypeEnum) => {
     try {
       await sendNotificationMutation.mutateAsync({
-        messageType: messageType as any,
+        messageType,
       });
       showSuccessToast({ message: 'Notification sent successfully' });
       setSlackMessageModalOpened(false);
@@ -168,7 +177,7 @@ export function ReleaseProcessHeader({
         <Stack gap="md">
           {/* Top Section: Back Button */}
           <Group>
-            <Link to={`/dashboard/${org}/releases`}>
+            <Link to={backUrl}>
               <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
                 {BUTTON_LABELS.BACK}
               </Button>
@@ -352,13 +361,13 @@ export function ReleaseProcessHeader({
           <Group>
             <Button
               variant="outline"
-              onClick={() => handleSendNotification('REGRESSION_BUILD_READY')}
+              onClick={() => handleSendNotification('REGRESSION_COMPLETE' as MessageTypeEnum)}
             >
               Regression Build Ready
             </Button>
             <Button
               variant="outline"
-              onClick={() => handleSendNotification('POST_REGRESSION_BUILD_READY')}
+              onClick={() => handleSendNotification('RELEASE_APPROVED' as MessageTypeEnum)}
             >
               Post-Regression Build Ready
             </Button>

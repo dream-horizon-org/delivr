@@ -14,12 +14,21 @@ import { useEffect } from 'react';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
+import { useMemo } from 'react';
 import { useReleases } from '~/hooks/useReleases';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { PageError } from '~/components/Common/PageError';
 import { ReleasesListHeader } from '~/components/Releases/ReleasesListHeader';
+import { ReleasesFilter } from '~/components/Releases/ReleasesFilter';
 import { ReleasesTabs } from '~/components/Releases/ReleasesTabs';
 import { RELEASE_TABS } from '~/constants/release-tabs';
+import {
+  BUILD_MODE_FILTERS,
+  STAGE_FILTERS,
+  STAGE_FILTER_TO_PHASES,
+  type BuildModeFilter,
+  type StageFilter,
+} from '~/constants/release-filters';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { listReleases } from '~/.server/services/ReleaseManagement';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
@@ -96,6 +105,11 @@ export type ReleasesListLoaderData = {
 export default function ReleasesListPage() {
   const { org, initialReleases } = useLoaderData<ReleasesListLoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || RELEASE_TABS.ACTIVE;
+  
+  // Get filter values from URL params
+  const buildMode = (searchParams.get('buildMode') || BUILD_MODE_FILTERS.ALL) as BuildModeFilter;
+  const stage = (searchParams.get('stage') || STAGE_FILTERS.ALL) as StageFilter;
 
   // Use React Query with initialData from server-side loader
   const {
@@ -112,40 +126,85 @@ export default function ReleasesListPage() {
     },
   });
 
-  // Smart default tab selection:
-  // 1. If user has explicitly selected a tab via URL, use that
-  // 2. If there are active releases, default to "active" tab
-  // 3. Otherwise, default to "upcoming" tab
-  const hasExplicitTab = searchParams.has('tab');
-  const defaultTab = active.length > 0 ? RELEASE_TABS.ACTIVE : RELEASE_TABS.UPCOMING;
-  const activeTab = hasExplicitTab ? (searchParams.get('tab') || defaultTab) : defaultTab;
+  // Filter function
+  const filterReleases = useMemo(() => {
+    return (releases: BackendReleaseResponse[]): BackendReleaseResponse[] => {
+      return releases.filter((release) => {
+        // Filter by build mode
+        if (buildMode !== BUILD_MODE_FILTERS.ALL) {
+          const isManual = release.hasManualBuildUpload;
+          if (buildMode === BUILD_MODE_FILTERS.MANUAL && !isManual) {
+            return false;
+          }
+          if (buildMode === BUILD_MODE_FILTERS.CI_CD && isManual) {
+            return false;
+          }
+        }
 
-  // Set the smart default tab in URL if no explicit tab is set
-  // This ensures the URL reflects the actual tab being displayed
-  useEffect(() => {
-    if (!hasExplicitTab && !isLoading) {
-      setSearchParams({ tab: defaultTab }, { replace: true });
-    }
-  }, [hasExplicitTab, defaultTab, isLoading, setSearchParams]);
+        // Filter by stage
+        if (stage !== STAGE_FILTERS.ALL) {
+          const allowedPhases = STAGE_FILTER_TO_PHASES[stage];
+          const releasePhase = release.releasePhase;
+          
+          if (!releasePhase) {
+            return false; // No phase means not started, exclude unless ALL
+          }
+          
+          if (allowedPhases.length > 0 && !allowedPhases.includes(releasePhase)) {
+            return false;
+          }
+        }
 
-  // Clean up refresh parameter from URL after data is loaded
-  // This prevents the parameter from sticking around in the URL
-  useEffect(() => {
-    if (searchParams.has('refresh') && !isLoading) {
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('refresh');
-      // Keep tab parameter if it exists
-      if (activeTab) {
-        newParams.set('tab', activeTab);
-      }
-      setSearchParams(newParams, { replace: true });
-    }
-  }, [searchParams, isLoading, activeTab, setSearchParams]);
+        return true;
+      });
+    };
+  }, [buildMode, stage]);
+
+  // Apply filters to releases
+  const filteredUpcoming = useMemo(() => filterReleases(upcoming), [upcoming, filterReleases]);
+  const filteredActive = useMemo(() => filterReleases(active), [active, filterReleases]);
+  const filteredCompleted = useMemo(() => filterReleases(completed), [completed, filterReleases]);
 
   const handleTabChange = (value: string | null) => {
     if (value) {
-      setSearchParams({ tab: value });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', value);
+      setSearchParams(newParams);
     }
+  };
+
+  const handleBuildModeChange = (value: BuildModeFilter) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === BUILD_MODE_FILTERS.ALL) {
+      newParams.delete('buildMode');
+    } else {
+      newParams.set('buildMode', value);
+    }
+    
+    // If both filters are now "ALL", switch to active tab
+    const currentStage = newParams.get('stage') || STAGE_FILTERS.ALL;
+    if (value === BUILD_MODE_FILTERS.ALL && currentStage === STAGE_FILTERS.ALL) {
+      newParams.set('tab', RELEASE_TABS.ACTIVE);
+    }
+    
+    setSearchParams(newParams);
+  };
+
+  const handleStageChange = (value: StageFilter) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === STAGE_FILTERS.ALL) {
+      newParams.delete('stage');
+    } else {
+      newParams.set('stage', value);
+    }
+    
+    // If both filters are now "ALL", switch to active tab
+    const currentBuildMode = newParams.get('buildMode') || BUILD_MODE_FILTERS.ALL;
+    if (value === STAGE_FILTERS.ALL && currentBuildMode === BUILD_MODE_FILTERS.ALL) {
+      newParams.set('tab', RELEASE_TABS.ACTIVE);
+    }
+    
+    setSearchParams(newParams);
   };
 
   // Only show loader if we don't have initialData and are actually loading
@@ -161,14 +220,22 @@ export default function ReleasesListPage() {
       )}
 
       {!shouldShowLoader && (
-        <ReleasesTabs
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          upcoming={upcoming}
-          active={active}
-          completed={completed}
-          org={org}
-        />
+        <>
+          <ReleasesFilter
+            buildMode={buildMode}
+            stage={stage}
+            onBuildModeChange={handleBuildModeChange}
+            onStageChange={handleStageChange}
+          />
+          <ReleasesTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            upcoming={filteredUpcoming}
+            active={filteredActive}
+            completed={filteredCompleted}
+            org={org}
+          />
+        </>
       )}
     </Container>
   );

@@ -4,7 +4,7 @@
  */
 
 import { Badge, Box, Card, Group, Stack, Text, useMantineTheme } from '@mantine/core';
-import { Link } from '@remix-run/react';
+import { Link, useSearchParams } from '@remix-run/react';
 import { IconCheck, IconClock, IconFlag, IconRocket, IconSettings, IconTarget } from '@tabler/icons-react';
 import { memo } from 'react';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
@@ -20,7 +20,7 @@ export const ReleaseCard = memo(function ReleaseCard({
   org
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
-  console.log(theme)
+  const [searchParams] = useSearchParams();
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -32,9 +32,15 @@ export const ReleaseCard = memo(function ReleaseCard({
   const activeStatus = getReleaseActiveStatus(release);
   const activeStatusColor = getActiveStatusColor(activeStatus);
 
+  // Preserve search params (filters and tab) when navigating to release detail
+  const returnToParams = new URLSearchParams(searchParams);
+  const releaseUrl = returnToParams.toString() 
+    ? `/dashboard/${org}/releases/${release.id}?returnTo=${encodeURIComponent(returnToParams.toString())}`
+    : `/dashboard/${org}/releases/${release.id}`;
+
   return (
     <Link
-      to={`/dashboard/${org}/releases/${release.id}`}
+      to={releaseUrl}
       className="block no-underline"
     >
         <Card

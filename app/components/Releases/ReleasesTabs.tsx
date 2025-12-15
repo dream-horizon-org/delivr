@@ -7,7 +7,7 @@ import { memo, useMemo } from 'react';
 import { Tabs } from '@mantine/core';
 import { RELEASE_TAB_CONFIGS } from '~/constants/release-tabs';
 import { ReleasesTabPanel } from './ReleasesTabPanel';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 interface ReleasesTabsProps {
   activeTab: string;

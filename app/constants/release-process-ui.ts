@@ -5,6 +5,8 @@
  * NO HARDCODED STRINGS IN COMPONENTS - USE THIS FILE!
  */
 
+import { TaskStatus } from '~/types/release-process-enums';
+
 // ============================================================================
 // Task Status Labels
 // ============================================================================
@@ -12,6 +14,8 @@
 export const TASK_STATUS_LABELS = {
   PENDING: 'Pending',
   IN_PROGRESS: 'In Progress',
+  AWAITING_CALLBACK: 'Awaiting Callback',
+  AWAITING_MANUAL_BUILD: 'Awaiting Manual Build',
   COMPLETED: 'Completed',
   FAILED: 'Failed',
   SKIPPED: 'Skipped',
@@ -20,9 +24,25 @@ export const TASK_STATUS_LABELS = {
 export const TASK_STATUS_COLORS = {
   PENDING: 'gray',
   IN_PROGRESS: 'blue',
+  AWAITING_CALLBACK: 'yellow',
+  AWAITING_MANUAL_BUILD: 'orange',
   COMPLETED: 'green',
   FAILED: 'red',
   SKIPPED: 'yellow',
+} as const;
+
+/**
+ * Task Status Order for Sorting
+ * Lower numbers = higher priority (shown first)
+ */
+export const TASK_STATUS_ORDER: Record<string, number> = {
+  PENDING: 1,
+  IN_PROGRESS: 2,
+  AWAITING_CALLBACK: 2,
+  AWAITING_MANUAL_BUILD: 2,
+  COMPLETED: 3,
+  FAILED: 4,
+  SKIPPED: 5,
 } as const;
 
 // ============================================================================
@@ -30,34 +50,23 @@ export const TASK_STATUS_COLORS = {
 // ============================================================================
 
 export const TASK_TYPE_LABELS = {
-  // Stage 1: Kickoff
-  PRE_KICK_OFF_REMINDER: 'Pre Kickoff Reminder',
+  // Stage 1: Kickoff (4 tasks)
   FORK_BRANCH: 'Fork Branch',
   CREATE_PROJECT_MANAGEMENT_TICKET: 'Create Project Management Ticket',
   CREATE_TEST_SUITE: 'Create Test Suite',
   TRIGGER_PRE_REGRESSION_BUILDS: 'Trigger Pre-Regression Builds',
   
-  // Stage 2: Regression
+  // Stage 2: Regression (4 tasks)
   RESET_TEST_SUITE: 'Reset Test Suite',
   CREATE_RC_TAG: 'Create RC Tag',
   CREATE_RELEASE_NOTES: 'Create Release Notes',
   TRIGGER_REGRESSION_BUILDS: 'Trigger Regression Builds',
-  TRIGGER_AUTOMATION_RUNS: 'Trigger Automation Runs',
-  AUTOMATION_RUNS: 'Automation Runs',
-  SEND_REGRESSION_BUILD_MESSAGE: 'Send Regression Build Message',
   
-  // Stage 3: Post-Regression
-  PRE_RELEASE_CHERRY_PICKS_REMINDER: 'Pre-Release Cherry Picks Reminder',
-  CREATE_RELEASE_TAG: 'Create Release Tag',
-  CREATE_FINAL_RELEASE_NOTES: 'Create Final Release Notes',
+  // Stage 3: Post-Regression (4 tasks)
   TRIGGER_TEST_FLIGHT_BUILD: 'Trigger TestFlight Build',
   CREATE_AAB_BUILD: 'Create AAB Build',
-  SEND_POST_REGRESSION_MESSAGE: 'Send Post-Regression Message',
-  CHECK_PROJECT_RELEASE_APPROVAL: 'Check Project Release Approval',
-  COMPLETE_POST_REGRESSION: 'Complete Post-Regression',
-  
-  // Manual API
-  SUBMIT_TO_TARGET: 'Submit to Target',
+  CREATE_RELEASE_TAG: 'Create Release Tag',
+  CREATE_FINAL_RELEASE_NOTES: 'Create Final Release Notes',
 } as const;
 
 // ============================================================================
@@ -85,7 +94,7 @@ export const STAGE_STATUS_COLORS = {
 export const STAGE_LABELS = {
   KICKOFF: 'Kickoff',
   REGRESSION: 'Regression',
-  POST_REGRESSION: 'Post-Regression',
+  PRE_RELEASE: 'Pre-Release',
   DISTRIBUTION: 'Distribution',
 } as const;
 
@@ -159,6 +168,9 @@ export const HEADER_LABELS = {
   NO_BRANCH: 'No branch',
   NOT_AVAILABLE: 'N/A',
   PLATFORM_SEPARATOR: '→',
+  BUILD_MODE: 'Build Mode',
+  MANUAL_BUILD: 'Manual Build',
+  CI_CD_BUILD: 'CI/CD Build',
 } as const;
 
 // ============================================================================
@@ -205,8 +217,8 @@ export const KICKOFF_LABELS = {
 // Post-Regression Stage Labels
 // ============================================================================
 
-export const POST_REGRESSION_LABELS = {
-  TITLE: 'Post-Regression Stage',
+export const PRE_RELEASE_LABELS = {
+  TITLE: 'Pre-Release Stage',
   DESCRIPTION: 'Pre-release tasks before distribution',
   TASKS: 'Tasks',
   NO_TASKS: 'No tasks available',
@@ -320,8 +332,8 @@ export const PHASE_LABELS = {
   AWAITING_REGRESSION: 'Awaiting Regression',
   REGRESSION: 'Regression',
   REGRESSION_AWAITING_NEXT_CYCLE: 'Awaiting Next Cycle',
-  AWAITING_POST_REGRESSION: 'Awaiting Post-Regression',
-  POST_REGRESSION: 'Post-Regression',
+  AWAITING_PRE_RELEASE: 'Awaiting Pre-Release',
+  PRE_RELEASE: 'Pre-Release',
   AWAITING_SUBMISSION: 'Awaiting Submission',
   SUBMISSION: 'Submission',
   SUBMITTED_PENDING_APPROVAL: 'Submitted - Pending Approval',
@@ -337,8 +349,8 @@ export const PHASE_COLORS = {
   AWAITING_REGRESSION: 'cyan',
   REGRESSION: 'blue',
   REGRESSION_AWAITING_NEXT_CYCLE: 'cyan',
-  AWAITING_POST_REGRESSION: 'cyan',
-  POST_REGRESSION: 'blue',
+  AWAITING_PRE_RELEASE: 'cyan',
+  PRE_RELEASE: 'blue',
   AWAITING_SUBMISSION: 'cyan',
   SUBMISSION: 'blue',
   SUBMITTED_PENDING_APPROVAL: 'cyan',
@@ -387,5 +399,48 @@ export function getPhaseLabel(phase: string): string {
  */
 export function getPhaseColor(phase: string): string {
   return PHASE_COLORS[phase as keyof typeof PHASE_COLORS] || 'gray';
+}
+
+// ============================================================================
+// Build Upload Constants
+// ============================================================================
+
+/**
+ * Maximum file size for build uploads (in bytes)
+ */
+export const BUILD_UPLOAD_CONSTANTS = {
+  MAX_FILE_SIZE_BYTES: 500 * 1024 * 1024, // 500 MB
+  MAX_FILE_SIZE_MB: 500,
+  ALLOWED_EXTENSIONS: {
+    ANDROID: ['.aab', '.apk'],
+    IOS: ['.ipa'],
+    WEB: ['.zip', '.tar.gz'],
+  },
+} as const;
+
+// ============================================================================
+// Status Filter Options
+// ============================================================================
+
+/**
+ * Status filter options for task filtering in stage components
+ * Used in KickoffStage, PostRegressionStage, and other stage components
+ */
+export const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: TaskStatus.PENDING, label: TASK_STATUS_LABELS.PENDING },
+  { value: TaskStatus.IN_PROGRESS, label: TASK_STATUS_LABELS.IN_PROGRESS },
+  { value: TaskStatus.AWAITING_CALLBACK, label: TASK_STATUS_LABELS.AWAITING_CALLBACK },
+  { value: TaskStatus.AWAITING_MANUAL_BUILD, label: TASK_STATUS_LABELS.AWAITING_MANUAL_BUILD },
+  { value: TaskStatus.COMPLETED, label: TASK_STATUS_LABELS.COMPLETED },
+  { value: TaskStatus.FAILED, label: TASK_STATUS_LABELS.FAILED },
+  { value: TaskStatus.SKIPPED, label: TASK_STATUS_LABELS.SKIPPED },
+] as const;
+
+/**
+ * Get status filter options (helper function for consistency)
+ */
+export function getStatusFilterOptions() {
+  return STATUS_FILTER_OPTIONS;
 }
 
