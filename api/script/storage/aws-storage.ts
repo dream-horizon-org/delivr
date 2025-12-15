@@ -684,6 +684,9 @@ export class S3Storage implements storage.Storage {
     public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
     public releaseUploadsRepository!: ReleaseUploadsRepository;  // Manual build uploads repository
     public platformMappingRepository!: ReleasePlatformTargetMappingRepository;  // Alias for releasePlatformTargetMappingRepository
+    public cronJobRepository!: CronJobRepository;  // Cron job repository
+    public releaseTaskRepository!: ReleaseTaskRepository;  // Release task repository
+    public regressionCycleRepository: any = null;  // Regression cycle repository (optional)
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseVersionService!: ReleaseVersionService;
@@ -944,8 +947,10 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Uploads Repository initialized");
           
-          const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
-          const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          this.cronJobRepository = new CronJobRepository(this.sequelize.models.CronJob);
+          this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          const cronJobRepo = this.cronJobRepository;
+          const releaseTaskRepo = this.releaseTaskRepository;
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );

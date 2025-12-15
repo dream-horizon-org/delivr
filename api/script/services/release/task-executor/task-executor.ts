@@ -31,6 +31,13 @@ import type { ReleaseConfigRepository } from '../../../models/release-configs/re
 import { RELEASE_ERROR_MESSAGES } from '../release.constants';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import type { PlatformName } from '../../../models/release/release.interface';
+import {
+  BUILD_PLATFORM,
+  BUILD_STAGE,
+  BUILD_TYPE,
+  BUILD_UPLOAD_STATUS,
+  STORE_TYPE
+} from '~types/release-management/builds';
 
 /**
  * Task execution result
@@ -1639,7 +1646,7 @@ export class TaskExecutor {
 
         // Create build record from manual upload
         const buildId = uuidv4();
-        const versionName = getReleaseVersion(release);
+        const versionName = iosMapping?.version ?? getReleaseVersion(release);
         await BuildModel.create({
           id: buildId,
           tenantId: tenantId,
@@ -1647,14 +1654,16 @@ export class TaskExecutor {
           artifactVersionName: versionName,
           artifactPath: iosUpload.artifactPath,
           releaseId: context.releaseId,
-          platform: 'IOS',
-          storeType: 'TESTFLIGHT',
+          platform: BUILD_PLATFORM.IOS,
+          storeType: STORE_TYPE.TESTFLIGHT,
           regressionId: null,
-          buildUploadStatus: 'UPLOADED',
-          buildType: 'MANUAL',
-          buildStage: 'PRE_RELEASE',
+          buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
+          buildType: BUILD_TYPE.MANUAL,
+          buildStage: BUILD_STAGE.PRE_RELEASE,
           queueLocation: null,
-          workflowStatus: null
+          workflowStatus: null,
+          taskId: task.id,
+          testflightNumber: iosUpload.testflightNumber ?? null
         });
 
         console.log(`[TaskExecutor] Consumed manual upload for IOS (TestFlight): ${uploadFileName}`);
@@ -1761,7 +1770,7 @@ export class TaskExecutor {
 
         // Create build record from manual upload
         const buildId = uuidv4();
-        const versionName = getReleaseVersion(release);
+        const versionName = androidMapping?.version ?? getReleaseVersion(release);
         await BuildModel.create({
           id: buildId,
           tenantId: tenantId,
@@ -1769,14 +1778,16 @@ export class TaskExecutor {
           artifactVersionName: versionName,
           artifactPath: androidUpload.artifactPath,
           releaseId: context.releaseId,
-          platform: 'ANDROID',
-          storeType: 'PLAY_STORE',
+          platform: BUILD_PLATFORM.ANDROID,
+          storeType: STORE_TYPE.PLAY_STORE,
           regressionId: null,
-          buildUploadStatus: 'UPLOADED',
-          buildType: 'MANUAL',
-          buildStage: 'PRE_RELEASE',
+          buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
+          buildType: BUILD_TYPE.MANUAL,
+          buildStage: BUILD_STAGE.PRE_RELEASE,
           queueLocation: null,
-          workflowStatus: null
+          workflowStatus: null,
+          taskId: task.id,
+          internalTrackLink: androidUpload.internalTrackLink ?? null
         });
 
         console.log(`[TaskExecutor] Consumed manual upload for ANDROID (AAB): ${uploadFileName}`);

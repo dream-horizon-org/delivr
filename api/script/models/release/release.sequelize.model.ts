@@ -159,7 +159,7 @@ export const createReleaseModel = (
       lastUpdatedByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'lastUpdatedByAccountId',
+        field: 'lastUpdateByAccountId', // DB column name (without 'd')
         references: {
           model: 'accounts',
           key: 'id'

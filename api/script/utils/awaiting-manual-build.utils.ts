@@ -220,6 +220,10 @@ export const checkAndConsumeManualBuilds = async (
       
       const artifactVersionName = platformMapping.version;
 
+      // Determine store type and copy appropriate link from upload
+      const isIosPlatform = upload.platform === 'IOS';
+      const storeType = isIosPlatform ? 'APP_STORE' : 'PLAY_STORE';
+
       const buildData: CreateBuildDto = {
         id: buildId,
         tenantId: upload.tenantId,
@@ -230,13 +234,15 @@ export const checkAndConsumeManualBuilds = async (
         buildNumber: uploadFileName,
         artifactVersionName,
         artifactPath: upload.artifactPath,
-        storeType: upload.platform === 'IOS' ? 'APP_STORE' : 'PLAY_STORE',
+        storeType,
         regressionId: cycleId ?? null,
         ciRunId: null,
         buildUploadStatus: 'UPLOADED',
         queueLocation: null,
         workflowStatus: null,
-        taskId: taskId
+        taskId: taskId,
+        internalTrackLink: upload.internalTrackLink ?? null,
+        testflightNumber: upload.testflightNumber ?? null
       };
       
       await buildRepo.create(buildData);
