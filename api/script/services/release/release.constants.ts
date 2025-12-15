@@ -83,6 +83,7 @@ export const RELEASE_DEFAULTS = {
   POLL_INTERVAL_MS: 60000,        // Cron job polling interval (1 minute)
   LOCK_TIMEOUT_MS: 300000,         // Lock timeout for distributed execution (5 minutes)
   MAX_RETRY_ATTEMPTS: 3,           // Maximum retries for task execution
-  TASK_TIMEOUT_MS: 600000          // Task execution timeout (10 minutes)
+  TASK_TIMEOUT_MS: 600000,         // Task execution timeout (10 minutes)
+  FALLBACK_VERSION: '0.0.0'        // Fallback version when no version can be determined
 } as const;
 

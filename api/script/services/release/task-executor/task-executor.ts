@@ -28,7 +28,7 @@ import { Platform } from '../../../types/integrations/project-management/platfor
 import { TestManagementRunService } from '../../integrations/test-management/test-run/test-run.service';
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
-import { RELEASE_ERROR_MESSAGES } from '../release.constants';
+import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS } from '../release.constants';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
 import type { PlatformName } from '../../../models/release/release.interface';
 import {
@@ -77,28 +77,61 @@ export interface TaskExecutionContext {
 /**
  * Extract version from release branch
  * @param branch - Branch name like "release/v1.0.0" or "release/v1.2.3-beta"
- * @returns Version string like "1.0.0" or "1.2.3-beta"
+ * @returns Version string like "1.0.0" or "1.2.3-beta", or null if branch is null/invalid
  * 
  * Schema Note: The new schema stores `branch` directly (e.g., "release/v1.0.0")
  * instead of a separate `version` column. This helper extracts the version part.
  */
-const extractVersionFromBranch = (branch: string): string => {
+const extractVersionFromBranch = (branch: string | null | undefined): string | null => {
+  // Handle null/undefined branch gracefully
+  const branchIsNullOrUndefined = branch === null || branch === undefined;
+  if (branchIsNullOrUndefined) {
+    return null;
+  }
+  
   // Pattern: "release/v{version}" -> extract "{version}"
   const match = branch.match(/^release\/v(.+)$/);
-  if (match) {
+  const matchFound = match !== null && match.length > 1;
+  if (matchFound) {
     return match[1];
   }
+  
   // Fallback: if branch doesn't match pattern, use branch name as-is
   return branch;
 };
 
 /**
- * Get version for a release (derived from branch)
+ * Get version for a release
+ * Priority: platformMappings[0].version > branch-derived version > fallback "0.0.0"
+ * 
  * @param release - Release object with branch field
+ * @param platformMappings - Optional platform mappings containing per-platform version
  * @returns Version string
  */
-const getReleaseVersion = (release: Release): string => {
-  return extractVersionFromBranch(release.branch);
+const getReleaseVersion = (
+  release: Release, 
+  platformMappings?: PlatformTargetMapping[]
+): string => {
+  // Priority 1: Use version from platform mappings (most reliable)
+  const hasPlatformMappings = platformMappings && platformMappings.length > 0;
+  if (hasPlatformMappings) {
+    const firstMappingVersion = platformMappings[0].version;
+    const versionExists = firstMappingVersion !== null && firstMappingVersion !== undefined && firstMappingVersion !== '';
+    if (versionExists) {
+      return firstMappingVersion;
+    }
+  }
+  
+  // Priority 2: Extract from branch
+  const branchVersion = extractVersionFromBranch(release.branch);
+  const hasBranchVersion = branchVersion !== null;
+  if (hasBranchVersion) {
+    return branchVersion;
+  }
+  
+  // Priority 3: Fallback (should never reach here in normal operation)
+  console.warn(`[getReleaseVersion] No version found for release ${release.id}, using fallback`);
+  return RELEASE_DEFAULTS.FALLBACK_VERSION;
 };
 
 // IntegrationInstances interface removed - now using real services via DI
@@ -482,14 +515,15 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId } = context;
+    const { release, tenantId, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
     }
 
     // Generate release branch name (e.g., release/v1.0.0)
-    const releaseBranch = `release/v${getReleaseVersion(release)}`;
+    const version = getReleaseVersion(release, platformTargetMappings);
+    const releaseBranch = `release/v${version}`;
     const baseBranch = release.baseBranch || 'master';
 
     // Call SCM integration
@@ -595,6 +629,7 @@ export class TaskExecutor {
     const ticketIds: string[] = [];
 
     // Create ticket for EACH platform and store result in mapping
+    const version = getReleaseVersion(release, platformMappings);
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
@@ -603,8 +638,8 @@ export class TaskExecutor {
         pmConfigId: pmConfigId,
         tickets: [{
           platform: platformName as Platform,
-          title: `Release ${getReleaseVersion(release)} - ${platformName}`,
-          description: `Release ${getReleaseVersion(release)} planned for ${release.targetReleaseDate}`
+          title: `Release ${version} - ${platformName}`,
+          description: `Release ${version} planned for ${release.targetReleaseDate}`
         }]
       });
 
@@ -668,6 +703,7 @@ export class TaskExecutor {
     }
 
     const runIds: string[] = [];
+    const version = getReleaseVersion(release, platformMappings);
 
     // Create test run for EACH platform and store result in mapping
     for (const mapping of platformMappings) {
@@ -676,7 +712,7 @@ export class TaskExecutor {
       // Call service with correct signature
       const results = await this.testRunService.createTestRuns({
         testManagementConfigId: testConfigId,
-        runName: `Release ${getReleaseVersion(release)} - ${platformName} Test Suite`
+        runName: `Release ${version} - ${platformName} Test Suite`
       });
       
       // Get the run ID for this platform
@@ -769,7 +805,7 @@ export class TaskExecutor {
 
           // Create build record from manual upload
           const buildId = uuidv4();
-          const versionName = mapping.version ?? getReleaseVersion(release);
+          const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
@@ -829,15 +865,15 @@ export class TaskExecutor {
         platform: platformName,
         jobParameters: {
           platform: platformName,
-          version: mapping.version ?? getReleaseVersion(release),
-          branch: release.branch ?? `release/v${getReleaseVersion(release)}`,
+          version: mapping.version ?? getReleaseVersion(release, platformMappings),
+          branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
           buildType: 'pre-regression'
         }
       });
 
       const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
-      const versionName = mapping.version ?? getReleaseVersion(release);
+      const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
 
       await BuildModel.create({
         id: buildId,
@@ -939,7 +975,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId, task } = context;
+    const { release, tenantId, task, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -967,7 +1003,8 @@ export class TaskExecutor {
         throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_TAG_NOT_FOUND(task.regressionId));
     }
 
-    const releaseBranch = release.branch || `release/v${getReleaseVersion(release)}`;
+    const version = getReleaseVersion(release, platformTargetMappings);
+    const releaseBranch = release.branch || `release/v${version}`;
 
     // Create RC tag - integration returns tag name
     await this.scmService.createReleaseTag(
@@ -975,7 +1012,7 @@ export class TaskExecutor {
       releaseBranch,
       cycleTag,
       undefined, // targets (not needed for RC tags)
-      getReleaseVersion(release)
+      version
     );
 
     // Category B: Return raw object
@@ -983,7 +1020,7 @@ export class TaskExecutor {
       value: cycleTag,
       tag: cycleTag,
       branch: releaseBranch,
-      version: getReleaseVersion(release),
+      version: version,
       timestamp: new Date().toISOString()
     };
   }
@@ -1003,7 +1040,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId, task } = context;
+    const { release, tenantId, task, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -1046,7 +1083,7 @@ export class TaskExecutor {
       tenantId,
       currentTag,
       previousTag,
-      getReleaseVersion(release),
+      getReleaseVersion(release, platformTargetMappings),
       undefined // parentTargets (not needed for regression notes)
     );
 
@@ -1139,7 +1176,7 @@ export class TaskExecutor {
 
           // Create build record from manual upload
           const buildId = uuidv4();
-          const versionName = mapping.version ?? getReleaseVersion(release);
+          const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
           if (BuildModel) {
             await BuildModel.create({
               id: buildId,
@@ -1199,8 +1236,8 @@ export class TaskExecutor {
         platform: platformName,
         jobParameters: {
           platform: platformName,
-          version: mapping.version ?? getReleaseVersion(release),
-          branch: release.branch ?? `release/v${getReleaseVersion(release)}`,
+          version: mapping.version ?? getReleaseVersion(release, platformMappings),
+          branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
           buildType: 'regression',
           regressionId: task.regressionId
         }
@@ -1208,7 +1245,7 @@ export class TaskExecutor {
 
       const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
-      const versionName = mapping.version ?? getReleaseVersion(release);
+      const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
 
       await BuildModel.create({
         id: buildId,
@@ -1288,8 +1325,8 @@ export class TaskExecutor {
         platform: platformName,
         jobParameters: {
           platform: platformName,
-          version: mapping.version || getReleaseVersion(release),
-          branch: release.branch || `release/v${getReleaseVersion(release)}`,
+          version: mapping.version || getReleaseVersion(release, platformMappings),
+          branch: release.branch || `release/v${getReleaseVersion(release, platformMappings)}`,
           regressionId: task.regressionId
         }
       });
@@ -1490,12 +1527,13 @@ export class TaskExecutor {
     const targets: string[] = Array.from(new Set(platformMappings.map(m => m.target)));
 
     // Create final release tag - integration generates tag from targets + version (returns string)
+    const version = getReleaseVersion(release, platformMappings);
     const tagName = await this.scmService.createReleaseTag(
       tenantId,
-      release.branch || `release/v${getReleaseVersion(release)}`,
+      release.branch || `release/v${version}`,
       undefined, // No explicit tagName - let integration generate from targets + version
       targets,
-      getReleaseVersion(release)
+      version
     );
 
     // Update release record with the created tag
@@ -1508,7 +1546,7 @@ export class TaskExecutor {
       value: tagName,
       tagName: tagName,
       targets: targets,
-      version: getReleaseVersion(release),
+      version: version,
       branch: release.branch,
       timestamp: new Date().toISOString()
     };
@@ -1531,7 +1569,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId } = context;
+    const { release, tenantId, platformTargetMappings } = context;
 
     if (!this.scmService) {
       throw new Error(RELEASE_ERROR_MESSAGES.SCM_INTEGRATION_NOT_AVAILABLE);
@@ -1573,7 +1611,7 @@ export class TaskExecutor {
       releaseUrl: releaseUrl,
       currentTag: currentTag,
       previousTag: previousTag ?? null,
-      version: getReleaseVersion(release),
+      version: getReleaseVersion(release, platformTargetMappings),
       timestamp: new Date().toISOString()
     };
   }
@@ -1646,7 +1684,7 @@ export class TaskExecutor {
 
         // Create build record from manual upload
         const buildId = uuidv4();
-        const versionName = iosMapping?.version ?? getReleaseVersion(release);
+        const versionName = iosMapping?.version ?? getReleaseVersion(release, platformMappings);
         await BuildModel.create({
           id: buildId,
           tenantId: tenantId,
@@ -1692,8 +1730,8 @@ export class TaskExecutor {
       platform: 'IOS',
       jobParameters: {
         platform: 'IOS',
-        version: iosMapping?.version || getReleaseVersion(release),
-        branch: release.branch || `release/v${getReleaseVersion(release)}`,
+        version: iosMapping?.version || getReleaseVersion(release, platformMappings),
+        branch: release.branch || `release/v${getReleaseVersion(release, platformMappings)}`,
         buildType: 'testflight'
       }
     });
@@ -1770,7 +1808,7 @@ export class TaskExecutor {
 
         // Create build record from manual upload
         const buildId = uuidv4();
-        const versionName = androidMapping?.version ?? getReleaseVersion(release);
+        const versionName = androidMapping?.version ?? getReleaseVersion(release, platformMappings);
         await BuildModel.create({
           id: buildId,
           tenantId: tenantId,
@@ -1816,8 +1854,8 @@ export class TaskExecutor {
       platform: 'ANDROID',
       jobParameters: {
         platform: 'ANDROID',
-        version: androidMapping?.version || getReleaseVersion(release),
-        branch: release.branch || `release/v${getReleaseVersion(release)}`,
+        version: androidMapping?.version || getReleaseVersion(release, platformMappings),
+        branch: release.branch || `release/v${getReleaseVersion(release, platformMappings)}`,
         buildType: 'aab'
       }
     });
@@ -1883,7 +1921,7 @@ export class TaskExecutor {
     context: TaskExecutionContext
     
   ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId } = context;
+    const { release, tenantId: _tenantId, platformTargetMappings } = context;
 
     // Get release configuration
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
@@ -1930,7 +1968,7 @@ export class TaskExecutor {
       currentStatus: ticketStatus.currentStatus,
       completedStatus: ticketStatus.completedStatus,
       message: ticketStatus.message,
-      version: getReleaseVersion(release),
+      version: getReleaseVersion(release, platformTargetMappings),
       timestamp: new Date().toISOString()
     };
   }
