@@ -43,7 +43,7 @@ export interface ApiResponse<T = unknown> {
  */
 export interface CreateReleaseRequestBody {
   targetReleaseDate: string;
-  plannedDate: string;
+  kickOffDate: string;
   version: string;
   type: string;
   baseBranch: string;

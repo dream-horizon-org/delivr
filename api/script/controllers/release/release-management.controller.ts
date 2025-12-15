@@ -304,11 +304,8 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(HTTP_STATUS.OK).json({
-        success: true,
-        tasks: result.tasks,
-        count: result.count
-      });
+      // Pass through the result as-is (handles both basic and REGRESSION responses)
+      return res.status(HTTP_STATUS.OK).json(result);
     } catch (error: unknown) {
       console.error('[Get Tasks] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -398,13 +395,24 @@ export class ReleaseManagementController {
   };
 
   /**
-   * Trigger Stage 3 (Pre-Release)
+   * Trigger Stage 3 (Pre-Release) / Approve Regression Stage
    * POST /tenants/:tenantId/releases/:releaseId/trigger-pre-release
    */
   triggerPreRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
       const tenantId = req.params.tenantId;
       const releaseId = req.params.releaseId;
+      
+      // Extract request body parameters
+      const { approvedBy, comments, forceApprove } = req.body;
+
+      // Validate required fields
+      if (!approvedBy) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'approvedBy is required'
+        });
+      }
 
       // Input validation (first-level)
       if (!releaseId) {
@@ -415,7 +423,13 @@ export class ReleaseManagementController {
       }
 
       // Delegate to service
-      const result = await this.cronJobService.triggerStage3(releaseId, tenantId);
+      const result = await this.cronJobService.triggerStage3(
+        releaseId, 
+        tenantId, 
+        approvedBy,
+        comments,
+        forceApprove
+      );
 
       if (result.success === false) {
         return res.status(result.statusCode).json({
@@ -426,15 +440,18 @@ export class ReleaseManagementController {
 
       return res.status(HTTP_STATUS.OK).json({
         success: true,
-        message: 'Stage 3 (Pre-Release) triggered successfully',
-        release: result.data
+        message: 'Regression stage approved and Post-Regression stage triggered successfully',
+        releaseId: result.data.releaseId,
+        approvedAt: result.data.approvedAt,
+        approvedBy: result.data.approvedBy,
+        nextStage: result.data.nextStage
       });
     } catch (error: unknown) {
       console.error('[Trigger Pre-Release] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
-        error: 'Failed to trigger pre-release',
+        error: 'Failed to approve regression stage',
         message: errorMessage
       });
     }
@@ -521,6 +538,39 @@ export class ReleaseManagementController {
       return res.status(statusCode).json({
         success: false,
         error: error.message ?? 'Failed to check project management run status'
+      });
+    }
+  }
+
+  /**
+   * Check cherry pick status
+   * GET /tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
+   */
+  checkCherryPickStatus = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { tenantId, releaseId } = req.params;
+
+      // Delegate to service
+      const result = await this.statusService.getCherryPickStatus(releaseId, tenantId);
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('[Check Cherry Pick Status] Error:', error);
+      
+      // Determine status code based on error message
+      let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      if (error.message?.includes('not found')) {
+        statusCode = HTTP_STATUS.NOT_FOUND;
+      } else if (error.message?.includes('does not have') || error.message?.includes('not available')) {
+        statusCode = HTTP_STATUS.BAD_REQUEST;
+      }
+
+      return res.status(statusCode).json({
+        success: false,
+        error: error.message ?? 'Failed to check cherry pick status'
       });
     }
   }

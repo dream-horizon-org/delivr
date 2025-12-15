@@ -69,6 +69,12 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     return router;
   }
 
+  // Inject ReleaseStatusService into CronJobService (for approval checks)
+  if (storageWithServices.releaseStatusService) {
+    cronJobService.setReleaseStatusService(storageWithServices.releaseStatusService);
+    console.log('[Release Management] ReleaseStatusService injected into CronJobService');
+  }
+
   // Create ManualUploadService (optional - may not be available in all environments)
   let manualUploadService: ManualUploadService | undefined;
   const canCreateManualUploadService = hasManualUploadDependencies(storage);
@@ -399,13 +405,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.get(
     "/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.checkCherryPickStatus
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Cherry pick status endpoint coming soon"
-      });
-    }
+    controller.checkCherryPickStatus
   );
 
   // Check project management run status

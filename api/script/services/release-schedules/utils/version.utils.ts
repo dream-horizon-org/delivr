@@ -3,6 +3,7 @@
  * Handles semantic version parsing and bumping for scheduled releases
  */
 
+import * as semver from 'semver';
 import type {
   SemanticVersion,
   ReleaseType,
@@ -28,39 +29,20 @@ import { RELEASE_TYPE, SCHEDULED_RELEASE_ERROR_MESSAGES } from '../release-sched
  * parseVersion("1.0.0-rc1") // { major: 1, minor: 0, patch: 0 }
  */
 export const parseVersion = (version: string): SemanticVersion => {
-  // Remove leading 'v' if present
-  const cleanVersion = version.startsWith('v') ? version.slice(1) : version;
+  // Use semver library to parse and validate version
+  // Handles all edge cases: leading zeros, invalid formats, pre-release tags, etc.
+  const parsed = semver.parse(version);
   
-  // Remove any suffix after hyphen (e.g., "-beta", "-rc1")
-  const versionCore = cleanVersion.split('-')[0];
-  
-  // Split by dots
-  const parts = versionCore.split('.');
-  
-  // Validate we have at least major.minor.patch
-  const hasEnoughParts = parts.length >= 3;
-  if (!hasEnoughParts) {
+  const isInvalid = parsed === null;
+  if (isInvalid) {
     throw new Error(SCHEDULED_RELEASE_ERROR_MESSAGES.INVALID_VERSION_FORMAT);
   }
   
-  const major = parseInt(parts[0], 10);
-  const minor = parseInt(parts[1], 10);
-  const patch = parseInt(parts[2], 10);
-  
-  // Validate all parts are valid numbers
-  const hasInvalidParts = isNaN(major) || isNaN(minor) || isNaN(patch);
-  if (hasInvalidParts) {
-    throw new Error(SCHEDULED_RELEASE_ERROR_MESSAGES.INVALID_VERSION_FORMAT);
-  }
-  
-  return { major, minor, patch };
-};
-
-/**
- * Convert semantic version components back to string
- */
-export const formatVersion = (version: SemanticVersion): string => {
-  return `${version.major}.${version.minor}.${version.patch}`;
+  return {
+    major: parsed.major,
+    minor: parsed.minor,
+    patch: parsed.patch
+  };
 };
 
 // ============================================================================
@@ -74,44 +56,54 @@ export const formatVersion = (version: SemanticVersion): string => {
  * - MINOR: 1.2.3 → 1.3.0 (resets patch)
  * - HOTFIX: 1.2.3 → 1.2.4
  * 
+ * Note: Pre-release tags (e.g., "1.0.0-beta") are stripped before bumping
+ * to maintain consistent behavior with the original implementation.
+ * 
  * @param version - Current version string
  * @param releaseType - Type of release (MAJOR, MINOR, HOTFIX)
  * @returns Bumped version string
  * 
  * @example
- * bumpVersion("1.2.3", "MAJOR")  // "2.0.0"
- * bumpVersion("1.2.3", "MINOR")  // "1.3.0"
- * bumpVersion("1.2.3", "HOTFIX") // "1.2.4"
+ * bumpVersion("1.2.3", "MAJOR")       // "2.0.0"
+ * bumpVersion("1.2.3", "MINOR")       // "1.3.0"
+ * bumpVersion("1.2.3", "HOTFIX")      // "1.2.4"
+ * bumpVersion("1.0.0-beta", "MAJOR")  // "2.0.0" (strips -beta first)
  */
 export const bumpVersion = (version: string, releaseType: ReleaseType): string => {
-  const parsed = parseVersion(version);
+  // Coerce version to strip pre-release tags and build metadata
+  // This maintains the old behavior where "1.0.0-beta" → "1.0.0" → bump → "2.0.0"
+  const coerced = semver.coerce(version);
+  if (coerced === null) {
+    throw new Error(SCHEDULED_RELEASE_ERROR_MESSAGES.INVALID_VERSION_FORMAT);
+  }
+  const cleanVersion = coerced.version;
   
   const isMajor = releaseType === RELEASE_TYPE.MAJOR;
   const isMinor = releaseType === RELEASE_TYPE.MINOR;
   const isHotfix = releaseType === RELEASE_TYPE.HOTFIX;
   
   if (isMajor) {
-    return formatVersion({
-      major: parsed.major + 1,
-      minor: 0,
-      patch: 0
-    });
+    const bumped = semver.inc(cleanVersion, 'major');
+    if (bumped === null) {
+      throw new Error(SCHEDULED_RELEASE_ERROR_MESSAGES.INVALID_VERSION_FORMAT);
+    }
+    return bumped;
   }
   
   if (isMinor) {
-    return formatVersion({
-      major: parsed.major,
-      minor: parsed.minor + 1,
-      patch: 0
-    });
+    const bumped = semver.inc(cleanVersion, 'minor');
+    if (bumped === null) {
+      throw new Error(SCHEDULED_RELEASE_ERROR_MESSAGES.INVALID_VERSION_FORMAT);
+    }
+    return bumped;
   }
   
   if (isHotfix) {
-    return formatVersion({
-      major: parsed.major,
-      minor: parsed.minor,
-      patch: parsed.patch + 1
-    });
+    const bumped = semver.inc(cleanVersion, 'patch');
+    if (bumped === null) {
+      throw new Error(SCHEDULED_RELEASE_ERROR_MESSAGES.INVALID_VERSION_FORMAT);
+    }
+    return bumped;
   }
   
   // Fallback (should never reach here with proper types)
@@ -159,12 +151,7 @@ export const bumpPlatformTargetVersions = (
  * @returns true if valid, false otherwise
  */
 export const isValidVersion = (version: string): boolean => {
-  try {
-    parseVersion(version);
-    return true;
-  } catch {
-    return false;
-  }
+  return semver.valid(version) !== null;
 };
 
 /**
@@ -173,25 +160,7 @@ export const isValidVersion = (version: string): boolean => {
  * @returns -1 if v1 < v2, 0 if equal, 1 if v1 > v2
  */
 export const compareVersions = (v1: string, v2: string): number => {
-  const parsed1 = parseVersion(v1);
-  const parsed2 = parseVersion(v2);
-  
-  // Compare major
-  if (parsed1.major !== parsed2.major) {
-    return parsed1.major > parsed2.major ? 1 : -1;
-  }
-  
-  // Compare minor
-  if (parsed1.minor !== parsed2.minor) {
-    return parsed1.minor > parsed2.minor ? 1 : -1;
-  }
-  
-  // Compare patch
-  if (parsed1.patch !== parsed2.patch) {
-    return parsed1.patch > parsed2.patch ? 1 : -1;
-  }
-  
-  return 0;
+  return semver.compare(v1, v2);
 };
 
 // ============================================================================

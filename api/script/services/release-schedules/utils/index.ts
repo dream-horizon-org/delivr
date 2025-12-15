@@ -20,7 +20,6 @@ export {
 // Version Utilities
 export {
   parseVersion,
-  formatVersion,
   bumpVersion,
   bumpPlatformTargetVersions,
   isValidVersion,

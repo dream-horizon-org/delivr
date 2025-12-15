@@ -155,10 +155,10 @@ export const buildMessage = (
  * 
  * @example
  * const slackMessage = buildSlackMessage(
- *   Task.REGRESSION_BUILD_TRIGGERED,
- *   ['Sep 25, 2025, 7:01 PM', 'v6.3.1']
+ *   Task.PRE_KICKOFF_REMINDER,
+ *   ['v6.3.1', 'Sep 25, 2025, 7:01 PM']
  * );
- * // Returns: "🚨 Regression Build Triggered\n\nRegression Builds Triggered! at Sep 25, 2025, 7:01 PM for Release v6.3.1"
+ * // Returns: "📅 Pre-Kickoff Reminder\n\nReminder: Release kickoff for *v6.3.1* is scheduled at *Sep 25, 2025, 7:01 PM*"
  */
 export const buildSlackMessage = (
   task: Task,

@@ -40,6 +40,12 @@ import {
   createReleaseScheduleModel,
   ReleaseScheduleRepository
 } from "../models/release-schedules";
+import {
+  createReleaseNotificationModel,
+  ReleaseNotificationRepository
+} from "../models/release-notification";
+import { ReleaseNotificationService } from "../services/release-notification";
+import { MessagingService } from "../services/integrations/comm/messaging/messaging.service";
 import { ReleaseConfigService } from "../services/release-configs";
 import { ReleaseScheduleService } from "../services/release-schedules";
 import { createCronicleService } from "../services/cronicle";
@@ -58,6 +64,8 @@ import {
   ReleasePlatformTargetMappingRepository,
   CronJobRepository,
   ReleaseTaskRepository,
+  RegressionCycleRepository,
+  ReleaseUploadsRepository,
   StateHistoryRepository
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
@@ -65,6 +73,7 @@ import { ReleaseRetrievalService } from "../services/release/release-retrieval.s
 import { ReleaseStatusService } from "../services/release/release-status.service";
 import { ReleaseUpdateService } from "../services/release/release-update.service";
 import { ReleaseVersionService } from "../services/release/release-version.service";
+import { SCMService } from "../services/integrations/scm/scm.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -438,6 +447,7 @@ export function createModelss(sequelize: Sequelize) {
   const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
   const Build = createBuildModel(sequelize);  // Build records (CI/CD)
   const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
+  const ReleaseNotification = createReleaseNotificationModel(sequelize);  // Release notifications ledger
   const ReleaseUpload = createReleaseUploadModel(sequelize);  // Manual build uploads staging
 
   // ============================================
@@ -498,6 +508,18 @@ export function createModelss(sequelize: Sequelize) {
   // Release and State History (One Release has many history entries)
   Release.hasMany(StateHistory, { foreignKey: 'releaseId', as: 'history' });
   StateHistory.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Release and Notifications (One Release has many Notifications)
+  Release.hasMany(ReleaseNotification, { foreignKey: 'releaseId', as: 'notifications' });
+  ReleaseNotification.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Tenant and Notifications (One Tenant has many Notifications)
+  Tenant.hasMany(ReleaseNotification, { foreignKey: 'tenantId', as: 'notifications' });
+  ReleaseNotification.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+  // Account and Notifications (Creator relationship for ad-hoc notifications)
+  Account.hasMany(ReleaseNotification, { foreignKey: 'createdByUserId', as: 'createdNotifications' });
+  ReleaseNotification.belongsTo(Account, { foreignKey: 'createdByUserId', as: 'creator' });
 
   // Release and Regression Cycles (One Release has many Regression Cycles)
   Release.hasMany(RegressionCycle, { foreignKey: 'releaseId', as: 'regressionCycles' });
@@ -605,6 +627,7 @@ export function createModelss(sequelize: Sequelize) {
     stateHistory: StateHistory,
     build: Build,  // Build records for CI/CD
     regressionCycle: RegressionCycle,  // Regression cycles within release workflow
+    releaseNotification: ReleaseNotification,  // Release notifications ledger
     releaseUpload: ReleaseUpload,  // Manual build uploads staging table
     CommIntegrations,  // Communication integrations
     SlackIntegrations: CommIntegrations,  // Legacy alias
@@ -678,6 +701,9 @@ export class S3Storage implements storage.Storage {
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
     public releaseScheduleService!: ReleaseScheduleService;
+    public releaseNotificationRepository!: ReleaseNotificationRepository;
+    public messagingService!: MessagingService;
+    public releaseNotificationService!: ReleaseNotificationService;
     public cronicleService: CronicleService | null = null;
     public releaseRepository!: ReleaseRepository;  // Release repository
     public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
@@ -906,6 +932,19 @@ export class S3Storage implements storage.Storage {
           const releaseScheduleRepository = new ReleaseScheduleRepository(releaseScheduleModel);
           console.log("Release Schedule Repository initialized");
           
+          // Initialize Release Notification Repository
+          this.releaseNotificationRepository = new ReleaseNotificationRepository(
+            this.sequelize.models.ReleaseNotification
+          );
+          console.log("Release Notification Repository initialized");
+          
+          // Initialize Messaging Service
+          this.messagingService = new MessagingService(
+            this.commIntegrationService,
+            this.commConfigService
+          );
+          console.log("Messaging Service initialized");
+          
           // Initialize Cronicle Service (optional - only if configured)
           this.cronicleService = this.initializeCronicleService();
           
@@ -933,6 +972,16 @@ export class S3Storage implements storage.Storage {
           );
           const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
           const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          const regressionCycleRepo = new RegressionCycleRepository(
+            this.sequelize.models.RegressionCycle
+          );
+          const buildRepo = new BuildRepository(
+            this.sequelize.models.Build
+          );
+          const releaseUploadsRepo = new ReleaseUploadsRepository(
+            this.sequelize,
+            this.sequelize.models.ReleaseUpload as any
+          );
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );
@@ -959,9 +1008,21 @@ export class S3Storage implements storage.Storage {
             this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
             cronJobRepo,
-            releaseTaskRepo
+            releaseTaskRepo,
+            regressionCycleRepo,
+            buildRepo,
+            releaseUploadsRepo
           );
           console.log("Release Retrieval Service initialized");
+          
+          // Initialize Release Notification Service (after releaseConfigService and releaseRetrievalService)
+          this.releaseNotificationService = new ReleaseNotificationService(
+            this.messagingService,
+            this.releaseNotificationRepository,
+            this.releaseConfigService,
+            this.releaseRetrievalService
+          );
+          console.log("Release Notification Service initialized");
           
           // Set dependencies for scheduled release creation (after all services are initialized)
           this.releaseScheduleService.setReleaseCreationDependencies({
@@ -972,13 +1033,24 @@ export class S3Storage implements storage.Storage {
           });
           console.log("Release Schedule Service dependencies set");
           
+          // Initialize SCM Service (for cherry pick status checking)
+          const scmService = new SCMService();
+          console.log("SCM Service initialized");
+          
           this.releaseStatusService = new ReleaseStatusService(
             this.releaseRetrievalService,
             this.releaseConfigService,
             this.projectManagementTicketService,
-            this.testManagementRunService
+            this.testManagementRunService,
+            scmService,
+            this.releaseRepository,
+            regressionCycleRepo
           );
           console.log("Release Status Service initialized");
+          
+          // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
+          this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
+          console.log("Release Status Service injected into Release Retrieval Service");
           
           this.releaseUpdateService = new ReleaseUpdateService(
             this.releaseRepository,

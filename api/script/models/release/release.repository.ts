@@ -43,14 +43,6 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
-  async findByReleaseId(releaseId: string, tenantId: string): Promise<Release | null> {
-    const release = await this.model.findOne({
-      where: { releaseId, tenantId }
-    });
-    if (!release) return null;
-    return this.toPlainObject(release);
-  }
-
   async findByBaseReleaseId(baseReleaseId: string, tenantId: string): Promise<Release | null> {
     const release = await this.model.findOne({
       where: { baseReleaseId, tenantId }

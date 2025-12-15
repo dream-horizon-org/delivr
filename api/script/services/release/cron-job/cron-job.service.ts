@@ -33,8 +33,11 @@ import {
 } from '~services/release/workflow-polling';
 import { createScopedLogger } from '~utils/logger.utils';
 const log = createScopedLogger('CronJobService');
+import type { ReleaseStatusService } from '../release-status.service';
 
 export class CronJobService {
+  private releaseStatusService?: ReleaseStatusService;
+
   constructor(
     private readonly cronJobRepo: CronJobRepository,
     private readonly releaseRepo: ReleaseRepository,
@@ -45,6 +48,13 @@ export class CronJobService {
     private readonly releaseUploadsRepo?: ReleaseUploadsRepository,
     private readonly cronicleService?: CronicleService | null
   ) {}
+
+  /**
+   * Set ReleaseStatusService (for circular dependency resolution)
+   */
+  setReleaseStatusService(service: ReleaseStatusService): void {
+    this.releaseStatusService = service;
+  }
 
   /**
    * Start cron job for a release
@@ -220,7 +230,14 @@ export class CronJobService {
    * - Stage 2 must be COMPLETED
    * - Stage 3 must be PENDING
    */
-  async triggerStage3(releaseId: string, tenantId: string): Promise<TriggerStageResult> {
+  async triggerStage3(
+    releaseId: string, 
+    tenantId: string,
+    approvedBy: string,
+    comments?: string,
+    forceApprove?: boolean
+  ): Promise<TriggerStageResult> {
+
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
@@ -234,6 +251,35 @@ export class CronJobService {
     const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
     if (!cronJob) {
       return { success: false, error: `Cron job not found for release: ${releaseId}`, statusCode: 404 };
+    }
+
+    // Validate approval requirements (unless forceApprove is true)
+    if (!forceApprove && this.releaseStatusService) {
+      // Check cherry pick status (must be OK - no pending cherry picks)
+      const hasCherryPicks = await this.releaseStatusService.cherryPickAvailable(tenantId, releaseId);
+      const cherryPickStatusOk = !hasCherryPicks;
+      
+      if (!cherryPickStatusOk) {
+        return {
+          success: false,
+          error: 'Cherry pick status check failed: New cherry picks found. Please ensure all cherry picks are merged and atleast one cycle is completed before approval.',
+          statusCode: 400
+        };
+      }
+
+      // Check cycles completed (no active cycles and no upcoming slots)
+      const allCycles = await this.regressionCycleRepo.findByReleaseId(releaseId);
+      const hasActiveCycle = allCycles.some(c => c.status === 'IN_PROGRESS' || c.status === 'NOT_STARTED');
+      const hasUpcomingSlots = cronJob.upcomingRegressions && cronJob.upcomingRegressions.length > 0;
+      const cyclesCompleted = !hasActiveCycle && !hasUpcomingSlots;
+
+      if (!cyclesCompleted) {
+        return {
+          success: false,
+          error: 'Cycles not completed: Active cycles exist or upcoming slots are scheduled. Please complete/remove remaining cycles before approval.',
+          statusCode: 400
+        };
+      }
     }
 
     // Validate Stage 2 is COMPLETED
@@ -264,13 +310,21 @@ export class CronJobService {
     // Start the cron job
     await this.startCronJob(releaseId);
 
-    log.info('Stage 3 triggered for release', { releaseId });
+    console.log(`[CronJobService] Stage 3 triggered for release ${releaseId} (approved by: ${approvedBy})`);
+
+    // TODO: Register activity log
+    // - Action: REGRESSION_STAGE_APPROVED
+    // - Metadata: { approvedBy, comments, approvedAt: new Date().toISOString(), nextStage: 'PRE_RELEASE' }
+    // - Service: ActivityLogService (not yet implemented)
 
     return {
       success: true,
       data: {
         releaseId,
-        stage3Status: StageStatus.IN_PROGRESS
+        stage3Status: StageStatus.IN_PROGRESS,
+        approvedBy,
+        approvedAt: new Date().toISOString(),
+        nextStage: 'PRE_RELEASE' as const
       }
     };
   }
@@ -577,6 +631,9 @@ export type TriggerStageResult = {
     releaseId: string;
     stage2Status?: string;
     stage3Status?: string;
+    approvedBy?: string;
+    approvedAt?: string;
+    nextStage?: 'PRE_RELEASE';
   };
 } | {
   success: false;
@@ -591,6 +648,7 @@ export type ArchiveReleaseResult = {
     status: string;
     alreadyArchived: boolean;
     cronJobPaused?: boolean;
+    archivedBy?: string;
     archivedAt: string;
   };
 } | {

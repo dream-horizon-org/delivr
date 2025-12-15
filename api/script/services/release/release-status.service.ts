@@ -9,7 +9,10 @@ import { ReleaseRetrievalService } from './release-retrieval.service';
 import type { ReleaseConfigService } from '../release-configs/release-config.service';
 import type { ProjectManagementTicketService } from '../integrations/project-management';
 import type { TestManagementRunService } from '../integrations/test-management/test-run/test-run.service';
+import type { SCMService } from '../integrations/scm/scm.service';
 import type { Platform as PMPlatform } from '~types/integrations/project-management';
+import type { ReleaseRepository } from '~models/release/release.repository';
+import type { RegressionCycleRepository } from '~models/release/regression-cycle.repository';
 
 /**
  * Project Management Status Result (Single Platform)
@@ -50,16 +53,18 @@ export type TestManagementStatusResult = {
   hasTestRun: boolean;
   runId: string | null;
   status?: string;
-  url?: string;
+  runLink?: string;
   total?: number;
-  passed?: number;
-  failed?: number;
-  untested?: number;
-  blocked?: number;
-  inProgress?: number;
-  passPercentage?: number;
-  threshold?: number;
-  isPassingThreshold?: boolean;
+  testResults?: {
+    passed?: number;
+    failed?: number;
+    untested?: number;
+    blocked?: number;
+    inProgress?: number;
+    passPercentage?: number;
+    threshold?: number;
+    thresholdPassed?: boolean;
+  };
   readyForApproval?: boolean;
   message: string;
   error?: string;
@@ -79,7 +84,10 @@ export class ReleaseStatusService {
     private readonly releaseRetrievalService: ReleaseRetrievalService,
     private readonly releaseConfigService: ReleaseConfigService,
     private readonly projectManagementTicketService: ProjectManagementTicketService,
-    private readonly testManagementRunService: TestManagementRunService
+    private readonly testManagementRunService: TestManagementRunService,
+    private readonly scmService: SCMService,
+    private readonly releaseRepo: ReleaseRepository,
+    private readonly regressionCycleRepo: RegressionCycleRepository
   ) {}
 
   /**
@@ -155,7 +163,7 @@ export class ReleaseStatusService {
     );
 
     return {
-      releaseId: release.releaseId,
+      releaseId: release.id,  // Primary key (releases.id)
       projectManagementConfigId: releaseConfig.projectManagementConfigId,
       platforms: platformStatuses
     };
@@ -293,7 +301,7 @@ export class ReleaseStatusService {
     );
 
     return {
-      releaseId: release.releaseId,
+      releaseId: release.id,  // Primary key (releases.id)
       testManagementConfigId: releaseConfig.testManagementConfigId,
       platforms: platformStatuses
     };
@@ -337,16 +345,18 @@ export class ReleaseStatusService {
         hasTestRun: true,
         runId: statusResult.runId,
         status: statusResult.status,
-        url: statusResult.url,
+        runLink: statusResult.url,
         total: statusResult.total,
-        passed: statusResult.passed,
-        failed: statusResult.failed,
-        untested: statusResult.untested,
-        blocked: statusResult.blocked,
-        inProgress: statusResult.inProgress,
-        passPercentage: statusResult.passPercentage,
-        threshold: statusResult.threshold,
-        isPassingThreshold: statusResult.isPassingThreshold,
+        testResults: {
+          passed: statusResult.passed,
+          failed: statusResult.failed,
+          untested: statusResult.untested,
+          blocked: statusResult.blocked,
+          inProgress: statusResult.inProgress,
+          passPercentage: statusResult.passPercentage,
+          threshold: statusResult.threshold,
+          thresholdPassed: statusResult.isPassingThreshold
+        },
         readyForApproval: statusResult.readyForApproval,
         message: 'Test run status retrieved successfully'
       };
@@ -364,6 +374,169 @@ export class ReleaseStatusService {
         message: `Failed to check test run status: ${errorMessage}`
       };
     }
+  }
+
+  /**
+   * Check if all platforms are passing their test management thresholds
+   * Used for regression approval logic
+   * 
+   * @param releaseId - Release ID
+   * @returns true if ALL platforms have test runs and are passing threshold, false otherwise
+   */
+  async allPlatformsPassingTestManagement(releaseId: string): Promise<boolean> {
+    try {
+      // Get test management status for all platforms
+      const result = await this.getTestManagementStatus(releaseId);
+      
+      // Handle the all-platforms case (TestManagementStatusResults)
+      if ('platforms' in result) {
+        // Check that ALL platforms:
+        // 1. Have a test run (hasTestRun = true)
+        // 2. Are passing their threshold (testResults.thresholdPassed = true)
+        const allPassing = result.platforms.every(platform => 
+          platform.hasTestRun && platform.testResults?.thresholdPassed === true
+        );
+        
+        return allPassing;
+      }
+      
+      // Shouldn't reach here, but handle single platform case just in case
+      return result.testResults?.thresholdPassed ?? false;
+      
+    } catch (error) {
+      // If no test management config exists, consider it as passing (nothing to check)
+      const errorMessage = error instanceof Error ? error.message : '';
+      const noConfigError = errorMessage.includes('Release does not have a configuration') ||
+                            errorMessage.includes('does not have test management integration');
+      
+      if (noConfigError) {
+        console.log(`[ReleaseStatusService] No test management config for release ${releaseId}, returning true (nothing to check)`);
+        return true;
+      }
+      
+      // For any other error, fail-safe to false
+      console.warn(`[ReleaseStatusService] Failed to check test thresholds for release ${releaseId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if all platforms have completed their project management tickets
+   * Used for regression approval logic
+   * 
+   * @param releaseId - Release ID
+   * @returns true if ALL platforms have tickets and are completed, false otherwise
+   */
+  async allPlatformsPassingProjectManagement(releaseId: string): Promise<boolean> {
+    try {
+      // Get project management status for all platforms
+      const result = await this.getProjectManagementStatus(releaseId);
+      
+      // Handle the all-platforms case (ProjectManagementStatusResults)
+      if ('platforms' in result) {
+        // Check that ALL platforms:
+        // 1. Have a ticket (hasTicket = true)
+        // 2. Are completed (isCompleted = true)
+        const allCompleted = result.platforms.every(platform => 
+          platform.hasTicket && platform.isCompleted === true
+        );
+        
+        return allCompleted;
+      }
+      
+      // Shouldn't reach here, but handle single platform case just in case
+      return result.isCompleted ?? false;
+      
+    } catch (error) {
+      // If no project management config exists, consider it as passing (nothing to check)
+      const errorMessage = error instanceof Error ? error.message : '';
+      const noConfigError = errorMessage.includes('Release does not have a configuration') ||
+                            errorMessage.includes('does not have project management integration');
+      
+      if (noConfigError) {
+        console.log(`[ReleaseStatusService] No project management config for release ${releaseId}, returning true (nothing to check)`);
+        return true;
+      }
+      
+      // For any other error, fail-safe to false
+      console.warn(`[ReleaseStatusService] Failed to check PM completion for release ${releaseId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if cherry picks are available (branch HEAD differs from latest regression cycle tag)
+   * Used for regression approval logic
+   * 
+   * @param tenantId - Tenant ID
+   * @param releaseId - Release ID (internal UUID)
+   * @returns true if cherry picks EXIST (branch diverged), false otherwise
+   */
+  async cherryPickAvailable(tenantId: string, releaseId: string): Promise<boolean> {
+    try {
+      // 1. Fetch release (for branch)
+      const release = await this.releaseRepo.findById(releaseId);
+      
+      if (!release || !release.branch) {
+        console.warn(`[ReleaseStatusService] Release not found or no branch for release ${releaseId}`);
+        return false;
+      }
+      
+      // 2. Fetch latest regression cycle (for cycleTag)
+      const latestCycle = await this.regressionCycleRepo.findLatest(releaseId);
+      
+      if (!latestCycle || !latestCycle.cycleTag) {
+        console.warn(`[ReleaseStatusService] No latest regression cycle or cycleTag for release ${releaseId}`);
+        return false;
+      }
+      
+      // 3. Check cherry pick status via SCM service
+      // SCMService.checkCherryPickStatus returns:
+      // - true  → cherry picks EXIST (branch HEAD !== tag SHA)
+      // - false → NO cherry picks (branch HEAD === tag SHA)
+      const hasCherryPicks = await this.scmService.checkCherryPickStatus(
+        tenantId,
+        release.branch,
+        latestCycle.cycleTag
+      );
+      
+      return hasCherryPicks;
+      
+    } catch (error) {
+      // If no SCM integration exists or any error occurs, fail-safe to false
+      console.warn(`[ReleaseStatusService] Failed to check cherry pick status for release ${releaseId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get cherry pick status for a release (for API response)
+   * 
+   * @param releaseId - Release ID (user-facing)
+   * @param tenantId - Tenant ID
+   * @returns Cherry pick status with releaseId and availability
+   */
+  async getCherryPickStatus(
+    releaseId: string,
+    tenantId: string
+  ): Promise<{
+    releaseId: string;
+    cherryPickAvailable: boolean;
+  }> {
+    // Fetch release to verify it exists
+    const release = await this.releaseRetrievalService.getReleaseById(releaseId);
+    
+    if (!release) {
+      throw new Error('Release not found');
+    }
+    
+    // Check cherry pick availability
+    const cherryPickAvailable = await this.cherryPickAvailable(tenantId, releaseId);
+    
+    return {
+      releaseId: release.id,  // Primary key (releases.id)
+      cherryPickAvailable
+    };
   }
 }
 

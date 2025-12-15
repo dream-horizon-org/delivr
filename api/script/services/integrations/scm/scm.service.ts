@@ -79,8 +79,16 @@ export class SCMService implements SCMIntegration {
     return provider.getCommitsDiff(tenantId, branch, tag, releaseId);
   }
 
-  async checkCherryPickStatus(tenantId: string, releaseId: string): Promise<boolean> {
+  /**
+   * Check if cherry picks are available (branch diverged from tag)
+   * 
+   * @param tenantId - Tenant ID (to get the right SCM provider and config)
+   * @param branch - Branch name to check
+   * @param tag - Tag name to compare against
+   * @returns true if branch HEAD !== tag commit (cherry picks exist), false otherwise
+   */
+  async checkCherryPickStatus(tenantId: string, branch: string, tag: string): Promise<boolean> {
     const provider = await this.getProviderForTenant(tenantId);
-    return provider.checkCherryPickStatus(tenantId, releaseId);
+    return provider.checkCherryPickStatus(tenantId, branch, tag);
   }
 }
