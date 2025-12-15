@@ -310,7 +310,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   // ============================================================================
 
   /**
-   * POST /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
+   * PUT /tenants/:tenantId/releases/:releaseId/stages/:stage/builds/:platform
    * 
    * Upload a build artifact manually for a specific platform.
    * Used when hasManualBuildUpload = true.
