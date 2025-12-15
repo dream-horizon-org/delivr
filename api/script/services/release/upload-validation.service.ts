@@ -174,7 +174,7 @@ export class UploadValidationService {
       return { valid: true };
     }
 
-    const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK];
+    const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK, TaskStatus.AWAITING_MANUAL_BUILD];
     const taskStatusAllowed = allowedStatuses.includes(task.taskStatus as TaskStatus);
     
     if (taskStatusAllowed) {
@@ -247,7 +247,7 @@ export class UploadValidationService {
 
       const hasTask = task !== null;
       if (hasTask) {
-        const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK];
+        const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK, TaskStatus.AWAITING_MANUAL_BUILD];
         const taskStatusNotAllowed = !allowedStatuses.includes(task.taskStatus as TaskStatus);
         
         if (taskStatusNotAllowed) {
@@ -316,7 +316,7 @@ export class UploadValidationService {
     const hasTask = task !== null;
     
     if (hasTask) {
-      const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK];
+      const allowedStatuses = [TaskStatus.PENDING, TaskStatus.AWAITING_CALLBACK, TaskStatus.AWAITING_MANUAL_BUILD];
       const taskStatusNotAllowed = !allowedStatuses.includes(task.taskStatus as TaskStatus);
       
       if (taskStatusNotAllowed) {
