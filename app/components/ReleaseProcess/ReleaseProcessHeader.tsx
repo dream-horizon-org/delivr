@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { useQueryClient } from 'react-query';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
+import { ActivityLogsDrawer } from './ActivityLogsDrawer';
 import {
   BUTTON_LABELS,
   HEADER_LABELS,
@@ -29,7 +30,7 @@ import {
   STAGE_LABELS,
 } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
-import { useActivityLogs, useSendNotification } from '~/hooks/useReleaseProcess';
+import { useSendNotification } from '~/hooks/useReleaseProcess';
 import { Phase, ReleaseStatus } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
@@ -61,7 +62,7 @@ export function ReleaseProcessHeader({
   className,
 }: ReleaseProcessHeaderProps) {
   const [editModalOpened, setEditModalOpened] = useState(false);
-  const [activityLogModalOpened, setActivityLogModalOpened] = useState(false);
+  const [activityDrawerOpened, setActivityDrawerOpened] = useState(false);
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
   const queryClient = useQueryClient();
@@ -73,9 +74,6 @@ export function ReleaseProcessHeader({
     releaseStatus === ReleaseStatus.PAUSED || 
     releasePhase === Phase.PAUSED_BY_USER || 
     releasePhase === Phase.PAUSED_BY_FAILURE;
-
-  // Activity logs hook
-  const { data: activityLogs, isLoading: isLoadingLogs } = useActivityLogs(org, release.id);
 
   // Send notification hook
   const sendNotificationMutation = useSendNotification(org, release.id);
@@ -299,7 +297,7 @@ export function ReleaseProcessHeader({
               <Button
                 variant="outline"
                 leftSection={<IconHistory size={16} />}
-                onClick={() => setActivityLogModalOpened(true)}
+                onClick={() => setActivityDrawerOpened(true)}
               >
                 {BUTTON_LABELS.ACTIVITY_LOG}
               </Button>
@@ -335,38 +333,13 @@ export function ReleaseProcessHeader({
         />
       </Modal>
 
-      {/* Activity Log Modal */}
-      <Modal
-        opened={activityLogModalOpened}
-        onClose={() => setActivityLogModalOpened(false)}
-        title={BUTTON_LABELS.ACTIVITY_LOG}
-        size="lg"
-        scrollAreaComponent={ScrollArea.Autosize}
-      >
-        {isLoadingLogs ? (
-          <Text c="dimmed">Loading activity logs...</Text>
-        ) : activityLogs?.activityLogs && activityLogs.activityLogs.length > 0 ? (
-          <Stack gap="sm">
-            {activityLogs.activityLogs.map((log) => (
-              <div key={log.id} style={{ padding: '8px', borderBottom: '1px solid var(--mantine-color-slate-2)' }}>
-                <Text size="sm" fw={500}>
-                  {log.type}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {new Date(log.updatedAt).toLocaleString()}
-                </Text>
-                {log.updatedBy && (
-                  <Text size="xs" c="dimmed">
-                    By: {log.updatedBy}
-                  </Text>
-                )}
-              </div>
-            ))}
-          </Stack>
-        ) : (
-          <Text c="dimmed">No activity logs available</Text>
-        )}
-      </Modal>
+      {/* Activity Logs Drawer */}
+      <ActivityLogsDrawer
+        opened={activityDrawerOpened}
+        onClose={() => setActivityDrawerOpened(false)}
+        tenantId={org}
+        releaseId={release.id}
+      />
 
       {/* Slack Message Modal - Send predefined notification */}
       <Modal
