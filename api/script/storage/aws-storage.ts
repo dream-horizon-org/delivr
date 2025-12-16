@@ -34,7 +34,9 @@ import { CommIntegrationService } from "../services/integrations/comm/comm-integ
 import { CommConfigService } from "../services/integrations/comm/comm-config";
 import {
   createReleaseConfigModel,
-  ReleaseConfigRepository
+  createReleaseConfigActivityLogModel,
+  ReleaseConfigRepository,
+  ReleaseConfigActivityLogRepository
 } from "../models/release-configs";
 import {
   createReleaseScheduleModel,
@@ -46,7 +48,7 @@ import {
 } from "../models/release-notification";
 import { ReleaseNotificationService } from "../services/release-notification";
 import { MessagingService } from "../services/integrations/comm/messaging/messaging.service";
-import { ReleaseConfigService } from "../services/release-configs";
+import { ReleaseConfigService, ReleaseConfigActivityLogService } from "../services/release-configs";
 import { ReleaseScheduleService } from "../services/release-schedules";
 import { createCronicleService } from "../services/cronicle";
 import type { CronicleService } from "../services/cronicle";
@@ -58,6 +60,7 @@ import {
   createPlatformTargetMappingModel,
   createPlatformModel,
   createTargetModel,
+  createActivityLogModel,
   createRegressionCycleModel,
   createReleaseUploadModel,
   ReleaseRepository,
@@ -66,7 +69,8 @@ import {
   ReleaseTaskRepository,
   RegressionCycleRepository,
   ReleaseUploadsRepository,
-  StateHistoryRepository
+  StateHistoryRepository,
+  ActivityLogRepository
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
@@ -74,6 +78,7 @@ import { ReleaseStatusService } from "../services/release/release-status.service
 import { ReleaseUpdateService } from "../services/release/release-update.service";
 import { ReleaseVersionService } from "../services/release/release-version.service";
 import { SCMService } from "../services/integrations/scm/scm.service";
+import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -455,6 +460,8 @@ export function createModelss(sequelize: Sequelize) {
   const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
   const ReleaseNotification = createReleaseNotificationModel(sequelize);  // Release notifications ledger
   const ReleaseUpload = createReleaseUploadModel(sequelize);  // Manual build uploads staging
+  const ActivityLog = createActivityLogModel(sequelize);  // Activity logs for release updates
+  const ReleaseConfigActivityLog = createReleaseConfigActivityLogModel(sequelize);  // Activity logs for release config updates
 
   // ============================================
   const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
@@ -690,6 +697,8 @@ export function createModelss(sequelize: Sequelize) {
     regressionCycle: RegressionCycle,  // Regression cycles within release workflow
     releaseNotification: ReleaseNotification,  // Release notifications ledger
     releaseUpload: ReleaseUpload,  // Manual build uploads staging table
+    ActivityLog,  // Activity logs for release updates
+    ReleaseConfigActivityLog,  // Activity logs for release config updates
     CommIntegrations,  // Communication integrations
     SlackIntegrations: CommIntegrations,  // Legacy alias
     StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
@@ -764,6 +773,7 @@ export class S3Storage implements storage.Storage {
     public cicdConfigRepository!: CICDConfigRepository;  // CI/CD config repository
     public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public releaseConfigRepository!: ReleaseConfigRepository;
+    public releaseConfigActivityLogRepository!: ReleaseConfigActivityLogRepository;
     public releaseConfigService!: ReleaseConfigService;
     public releaseScheduleService!: ReleaseScheduleService;
     public releaseNotificationRepository!: ReleaseNotificationRepository;
@@ -777,11 +787,14 @@ export class S3Storage implements storage.Storage {
     public cronJobRepository!: CronJobRepository;  // Cron job repository
     public releaseTaskRepository!: ReleaseTaskRepository;  // Release task repository
     public regressionCycleRepository!: RegressionCycleRepository;  // Regression cycle repository
+    public releaseConfigActivityLogService!: ReleaseConfigActivityLogService;
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseVersionService!: ReleaseVersionService;
     public releaseUpdateService!: ReleaseUpdateService;
     public releaseStatusService!: ReleaseStatusService;
+    public releaseActivityLogService!: ReleaseActivityLogService;  // Release activity log service
+    public activityLogRepository!: ActivityLogRepository;  // Activity log repository
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
     public storeIntegrationController!: StoreIntegrationController;  // Store integration controller
@@ -1001,6 +1014,13 @@ export class S3Storage implements storage.Storage {
           const releaseConfigModel = createReleaseConfigModel(this.sequelize);
           this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
           
+          this.releaseConfigActivityLogRepository = new ReleaseConfigActivityLogRepository(models.ReleaseConfigActivityLog);
+          this.releaseConfigActivityLogService = new ReleaseConfigActivityLogService(
+            this.releaseConfigActivityLogRepository
+          );
+          console.log("Release Config Activity Log Service initialized");
+          
+          
           // Initialize Release Schedule Repository
           const releaseScheduleModel = createReleaseScheduleModel(this.sequelize);
           const releaseScheduleRepository = new ReleaseScheduleRepository(releaseScheduleModel);
@@ -1035,7 +1055,9 @@ export class S3Storage implements storage.Storage {
             this.cicdConfigService,
             this.testManagementConfigService,
             this.commConfigService,
-            this.projectManagementConfigService
+            this.projectManagementConfigService,
+            this.releaseConfigActivityLogService,
+            this.releaseConfigActivityLogRepository
           );
           console.log("Release Config Service initialized");
           
@@ -1063,6 +1085,9 @@ export class S3Storage implements storage.Storage {
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );
+          const activityLogRepo = new ActivityLogRepository(models.ActivityLog);
+          this.activityLogRepository = activityLogRepo;
+          console.log("Activity Log Repository initialized");
           
           // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
           this.releaseVersionService = new ReleaseVersionService(
@@ -1137,6 +1162,9 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Status Service initialized");
           
+          this.releaseActivityLogService = new ReleaseActivityLogService(activityLogRepo);
+          console.log("Release Activity Log Service initialized");
+          
           // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
           this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
           console.log("Release Status Service injected into Release Retrieval Service");
@@ -1145,6 +1173,7 @@ export class S3Storage implements storage.Storage {
             this.releaseRepository,
             cronJobRepo,
             this.releasePlatformTargetMappingRepository,
+            this.releaseActivityLogService,
             null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");

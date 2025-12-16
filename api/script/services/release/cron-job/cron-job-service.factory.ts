@@ -63,6 +63,9 @@ export function getCronJobService(storage: Storage): CronJobService | null {
   // Get cronicle service from storage (if available)
   const cronicleService = (storage as any).cronicleService ?? null;
 
+  // Get activity log service from storage (if available)
+  const activityLogService = (storage as any).releaseActivityLogService ?? null;
+
   // Create and cache service
   cachedService = new CronJobService(
     cronJobRepo,
@@ -72,7 +75,8 @@ export function getCronJobService(storage: Storage): CronJobService | null {
     platformMappingRepo,
     storage,
     releaseUploadsRepo,
-    cronicleService
+    cronicleService,
+    activityLogService
   );
 
   return cachedService;

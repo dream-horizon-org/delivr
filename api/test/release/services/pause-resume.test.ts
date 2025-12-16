@@ -127,7 +127,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(true);
@@ -167,7 +167,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(true);
@@ -197,7 +197,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -226,7 +226,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -255,7 +255,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -304,7 +304,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(true);
@@ -342,7 +342,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -375,7 +375,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -409,7 +409,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);

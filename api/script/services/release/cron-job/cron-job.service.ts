@@ -35,6 +35,7 @@ import {
 import { createScopedLogger } from '~utils/logger.utils';
 const log = createScopedLogger('CronJobService');
 import type { ReleaseStatusService } from '../release-status.service';
+import type { ReleaseActivityLogService } from '../release-activity-log.service';
 
 export class CronJobService {
   private releaseStatusService?: ReleaseStatusService;
@@ -47,7 +48,8 @@ export class CronJobService {
     private readonly platformMappingRepo: ReleasePlatformTargetMappingRepository,
     private readonly storage: Storage,
     private readonly releaseUploadsRepo?: ReleaseUploadsRepository,
-    private readonly cronicleService?: CronicleService | null
+    private readonly cronicleService?: CronicleService | null,
+    private readonly activityLogService?: ReleaseActivityLogService
   ) {}
 
   /**
@@ -292,10 +294,21 @@ export class CronJobService {
 
     console.log(`[CronJobService] Stage 3 triggered for release ${releaseId} (approved by: ${approvedBy})`);
 
-    // TODO: Register activity log
-    // - Action: REGRESSION_STAGE_APPROVED
-    // - Metadata: { approvedBy, comments, approvedAt: new Date().toISOString(), nextStage: 'PRE_RELEASE' }
-    // - Service: ActivityLogService (not yet implemented)
+    // Register activity log (use approvedBy as updatedBy)
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          approvedBy,
+          new Date(),
+          'REGRESSION_STAGE_APPROVAL',
+          { currentActiveStage: 'REGRESSION' },
+          { currentActiveStage: 'PRE_RELEASE' }
+        );
+      } catch (error) {
+        console.error(`[CronJobService] Failed to log stage 3 approval activity:`, error);
+      }
+    }
 
     return {
       success: true,
@@ -475,7 +488,7 @@ export class CronJobService {
    * - Active releases (not ARCHIVED or COMPLETED)
    * - Releases owned by the tenant
    */
-  async pauseRelease(releaseId: string, tenantId: string): Promise<PauseReleaseResult> {
+  async pauseRelease(releaseId: string, tenantId: string, accountId: string): Promise<PauseReleaseResult> {
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
@@ -512,6 +525,9 @@ export class CronJobService {
       };
     }
 
+    // Capture old pauseType before update
+    const oldPauseType = cronJob.pauseType;
+
     // Update pauseType to USER_REQUESTED
     // Note: Scheduler keeps running, state machine will skip execution
     await this.cronJobRepo.update(cronJob.id, {
@@ -519,6 +535,22 @@ export class CronJobService {
     });
 
     console.log(`[CronJobService] Release ${releaseId} paused by user (pauseType = USER_REQUESTED)`);
+
+    // Register activity log
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          new Date(),
+          'PAUSE_RELEASE',
+          { pauseType: oldPauseType },
+          { pauseType: PauseType.USER_REQUESTED }
+        );
+      } catch (error) {
+        console.error(`[CronJobService] Failed to log pause activity:`, error);
+      }
+    }
 
     return {
       success: true,
@@ -571,7 +603,7 @@ export class CronJobService {
    * - TASK_FAILURE paused releases (requires retry/fix)
    * - AWAITING_STAGE_TRIGGER paused releases (requires stage trigger API - "awaiting stage approval")
    */
-  async resumeRelease(releaseId: string, tenantId: string): Promise<ResumeReleaseResult> {
+  async resumeRelease(releaseId: string, tenantId: string, accountId: string): Promise<ResumeReleaseResult> {
     // Verify release exists and belongs to tenant
     const release = await this.releaseRepo.findById(releaseId);
     if (!release) {
@@ -610,12 +642,31 @@ export class CronJobService {
       };
     }
 
+    // Capture old pauseType before update
+    const oldPauseType = cronJob.pauseType;
+
     // Update pauseType to NONE
     await this.cronJobRepo.update(cronJob.id, {
       pauseType: PauseType.NONE
     });
 
     console.log(`[CronJobService] Release ${releaseId} resumed (pauseType = NONE)`);
+
+    // Register activity log
+    if (this.activityLogService) {
+      try {
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          new Date(),
+          'RESUME_RELEASE',
+          { pauseType: oldPauseType },
+          { pauseType: PauseType.NONE }
+        );
+      } catch (error) {
+        console.error(`[CronJobService] Failed to log resume activity:`, error);
+      }
+    }
 
     return {
       success: true,

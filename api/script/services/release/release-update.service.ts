@@ -8,6 +8,7 @@ import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { BuildRepository } from '../../models/release/build.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
+import { ReleaseActivityLogService } from './release-activity-log.service';
 import { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import { UpdateReleaseRequestBody } from '../../types/release/release.interface';
 import { 
@@ -70,6 +71,7 @@ export class ReleaseUpdateService {
     private readonly releaseRepository: ReleaseRepository,
     private readonly cronJobRepository: CronJobRepository,
     private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
+    private readonly activityLogService: ReleaseActivityLogService,
     private readonly cronJobService: CronJobService,
     private readonly taskRepository?: ReleaseTaskRepository,
     private readonly buildRepository?: BuildRepository,
@@ -121,6 +123,18 @@ export class ReleaseUpdateService {
 
     // Step 3: Update release fields (if allowed)
     if (validation.canEditRelease && this.hasReleaseUpdates(updates)) {
+      // Capture OLD values (before update)
+      const previousReleaseValues = {
+        releaseConfigId: currentRelease.releaseConfigId,
+        type: currentRelease.type,
+        branch: currentRelease.branch,
+        baseBranch: currentRelease.baseBranch,
+        baseReleaseId: currentRelease.baseReleaseId,
+        kickOffReminderDate: currentRelease.kickOffReminderDate,
+        kickOffDate: currentRelease.kickOffDate,
+        targetReleaseDate: currentRelease.targetReleaseDate
+      };
+      
       const releaseUpdates: UpdateReleaseDto = {
         lastUpdatedByAccountId: accountId
       };
@@ -184,8 +198,33 @@ export class ReleaseUpdateService {
         releaseUpdates.kickOffDate = updates.kickOffDate ? new Date(updates.kickOffDate) : null;
       }
 
+      // Update database
       await this.releaseRepository.update(releaseId, releaseUpdates);
+      
+      // Capture NEW values (after update)
+      const newReleaseValues = {
+        releaseConfigId: releaseUpdates.releaseConfigId ?? currentRelease.releaseConfigId,
+        type: releaseUpdates.type ?? currentRelease.type,
+        branch: releaseUpdates.branch ?? currentRelease.branch,
+        baseBranch: releaseUpdates.baseBranch ?? currentRelease.baseBranch,
+        baseReleaseId: releaseUpdates.baseReleaseId ?? currentRelease.baseReleaseId,
+        kickOffReminderDate: releaseUpdates.kickOffReminderDate ?? currentRelease.kickOffReminderDate,
+        kickOffDate: releaseUpdates.kickOffDate ?? currentRelease.kickOffDate,
+        targetReleaseDate: releaseUpdates.targetReleaseDate ?? currentRelease.targetReleaseDate
+      };
+      
+      // Log activity
+      await this.activityLogService.registerActivityLogs(
+        releaseId,
+        accountId,
+        now,
+        'RELEASE',
+        previousReleaseValues,
+        newReleaseValues
+      );
     }
+
+    
 
     // Step 4: Update platform target mappings (if allowed and before kickoff)
     if (validation.canEditPlatformMappings && updates.platformTargetMappings) {
@@ -195,7 +234,7 @@ export class ReleaseUpdateService {
     // Step 5: Update cron job fields (if provided)
     if (updates.cronJob) {
       await this.updateCronJobFields(releaseId, updates.cronJob, validation, accountId);
-    }
+    } 
 
     // Step 6: Return updated release
     const updatedRelease = await this.releaseRepository.findById(releaseId);
@@ -258,16 +297,58 @@ export class ReleaseUpdateService {
    * Update platform target mappings
    */
   private async updatePlatformTargetMappings(
-    _releaseId: string,
+    releaseId: string,
     mappings: Array<{ id: string; platform: string; target: string; version: string }>,
-    _accountId: string
+    accountId: string
   ): Promise<void> {
-    for (const mapping of mappings) {
-      await this.platformMappingRepository.update(mapping.id, {
-        platform: mapping.platform as 'ANDROID' | 'IOS' | 'WEB',
-        target: mapping.target as 'WEB' | 'PLAY_STORE' | 'APP_STORE',
-        version: mapping.version
+    
+    const now = new Date();
+    
+    // Get OLD mappings BEFORE update
+    const oldMappings = await this.platformMappingRepository.getByReleaseId(releaseId);
+    const oldMappingMap = new Map(oldMappings.map(m => [m.id, m]));
+    const newMappingIds = new Set(mappings.map(m => m.id));
+    
+    // 1️⃣ Handle ADDED and UPDATED mappings
+    for (const newMapping of mappings) {
+      const oldMapping = oldMappingMap.get(newMapping.id);
+      
+      // Update database
+      await this.platformMappingRepository.update(newMapping.id, {
+        platform: newMapping.platform as 'ANDROID' | 'IOS' | 'WEB',
+        target: newMapping.target as 'WEB' | 'PLAY_STORE' | 'APP_STORE',
+        version: newMapping.version
       });
+      
+      // Log changes (ADDED if oldMapping is null, UPDATED if exists)
+      await this.activityLogService.registerActivityLogs(
+        releaseId,
+        accountId,
+        now,
+        'PLATFORM_TARGET',
+        oldMapping ?? null,  // null = ADDED
+        newMapping
+      );
+    }
+    
+    // 2️⃣ Handle DELETED mappings (in OLD but not in NEW)
+    for (const oldMapping of oldMappings) {
+      const wasDeleted = !newMappingIds.has(oldMapping.id);
+      
+      if (wasDeleted) {
+        // Delete from database
+        await this.platformMappingRepository.delete(oldMapping.id);
+        
+        // Log deletion
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          now,
+          'PLATFORM_TARGET',
+          oldMapping,  // OLD value
+          null         // null = DELETED
+        );
+      }
     }
   }
 
@@ -278,22 +359,58 @@ export class ReleaseUpdateService {
     releaseId: string,
     cronJobUpdates: NonNullable<UpdateReleaseRequestBody['cronJob']>,
     validation: ReleaseUpdateValidationResult,
-    _accountId: string
+    accountId: string
   ): Promise<void> {
     const cronJob = await this.cronJobRepository.findByReleaseId(releaseId);
     if (!cronJob) {
       throw new Error('Cron job not found for release');
     }
-
+    const now = new Date();
     const updates: UpdateCronJobDto = {};
 
-    // cronConfig can only be updated before kickoff
+    // 1️⃣ Handle cronConfig update (only before kickoff)
     if (cronJobUpdates.cronConfig !== undefined && validation.canEditCronConfig) {
+      const oldCronConfig = cronJob.cronConfig;
       updates.cronConfig = cronJobUpdates.cronConfig;
+      
+      // Log cronConfig changes
+      await this.activityLogService.registerActivityLogs(
+        releaseId,
+        accountId,
+        now,
+        'CRONCONFIG',
+        oldCronConfig ?? null,
+        cronJobUpdates.cronConfig ?? null
+      );
     }
 
-    // upcomingRegressions with stage-based validation
+    // 2️⃣ Handle upcomingRegressions update (always allowed for IN_PROGRESS releases)
     if (cronJobUpdates.upcomingRegressions !== undefined) {
+      const oldRegressions = cronJob.upcomingRegressions ?? [];
+      
+      // Convert string dates to Date objects for DB storage
+      const newRegressions = cronJobUpdates.upcomingRegressions.map(regression => ({
+        date: new Date(regression.date),
+        config: regression.config
+      }));
+      
+      // 3️⃣ Compare arrays index by index
+      const maxLength = Math.max(oldRegressions.length, newRegressions.length);
+      
+      for (let i = 0; i < maxLength; i++) {
+        const oldRegression = i < oldRegressions.length ? oldRegressions[i] : null;
+        const newRegression = i < newRegressions.length ? newRegressions[i] : null;
+        
+        // Log: UPDATED (both exist), ADDED (only new), DELETED (only old)
+        await this.activityLogService.registerActivityLogs(
+          releaseId,
+          accountId,
+          now,
+          'REGRESSION',
+          oldRegression,
+          newRegression
+        );
+      }
       const slotUpdateResult = await this.handleRegressionSlotUpdate(
         releaseId,
         cronJob,

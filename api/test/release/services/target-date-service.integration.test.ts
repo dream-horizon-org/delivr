@@ -220,11 +220,18 @@ async function createTestRegressionCycle(
         startCronJob: jest.fn().mockResolvedValue(undefined)
       } as any;
 
+      // Mock ActivityLogService (4th parameter)
+      const mockActivityLogService = {
+        registerActivityLogs: jest.fn().mockResolvedValue(undefined),
+        registerConfigActivityLogs: jest.fn().mockResolvedValue(undefined)
+      } as any;
+
       // Create ReleaseUpdateService with all dependencies
       updateService = new ReleaseUpdateService(
         releaseRepo,
         cronJobRepo,
         platformMappingRepo,
+        mockActivityLogService,
         mockCronJobService,
         releaseTaskRepo,
         buildRepo,
