@@ -17,20 +17,21 @@
 import { Badge, Button, Card, Group, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
-  IconBrandAndroid,
-  IconBrandApple,
-  IconCheck,
-  IconClock,
-  IconExternalLink,
-  IconPlayerPause,
-  IconX,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconCheck,
+    IconClock,
+    IconExternalLink,
+    IconPlayerPause,
+    IconX,
 } from '@tabler/icons-react';
 import {
-  PLATFORM_LABELS,
-  ROLLOUT_COMPLETE_PERCENT,
-  SUBMISSION_PROGRESS_COLORS,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
+    PLATFORM_LABELS,
+    ROLLOUT_COMPLETE_PERCENT,
+    STORE_NAMES,
+    SUBMISSION_PROGRESS_COLORS,
+    SUBMISSION_STATUS_COLORS,
+    SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
 import type { Submission } from '~/types/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
@@ -91,18 +92,19 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
 
   const {
     platform,
-    submissionStatus,
-    versionName,
-    versionCode,
-    track,
-    rolloutPercent,
+    status,
+    version,
+    rolloutPercentage,
     submittedAt,
-    approvedAt,
   } = submission;
+  
+  const versionCode = submission.platform === Platform.ANDROID && 'versionCode' in submission
+    ? submission.versionCode
+    : null;
 
-  const storeName = platform === Platform.ANDROID ? 'Play Store' : 'App Store';
+  const storeName = STORE_NAMES[platform];
   const showProgress =
-    submissionStatus === SubmissionStatus.LIVE || submissionStatus === SubmissionStatus.APPROVED;
+    status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED;
 
   return (
     <Card
@@ -123,7 +125,7 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
                 <Text fw={600} size={compact ? 'sm' : 'md'}>
                   {PLATFORM_LABELS[platform]}
                 </Text>
-                {track && <Badge size="xs" variant="outline">{track}</Badge>}
+                {/* track field is not in API spec */}
               </Group>
               <Text size="xs" c="dimmed">
                 {storeName}
@@ -132,11 +134,11 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
           </Group>
 
           <Badge
-            color={SUBMISSION_STATUS_COLORS[submissionStatus]}
+            color={SUBMISSION_STATUS_COLORS[status]}
             variant="light"
-            leftSection={getSubmissionStatusIcon(submissionStatus)}
+            leftSection={getSubmissionStatusIcon(status)}
           >
-            {SUBMISSION_STATUS_LABELS[submissionStatus]}
+            {SUBMISSION_STATUS_LABELS[status]}
           </Badge>
         </Group>
 
@@ -146,7 +148,7 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
             Version:
           </Text>
           <Text size="sm">
-            {versionName} ({versionCode})
+            {version}{versionCode && ` (${versionCode})`}
           </Text>
         </Group>
 
@@ -158,15 +160,15 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
                 Rollout Progress
               </Text>
               <Text size="xs" fw={600}>
-                {rolloutPercent}%
+                {rolloutPercentage}%
               </Text>
             </Group>
             <Progress
-              value={rolloutPercent}
-              color={SUBMISSION_PROGRESS_COLORS[submissionStatus]}
+              value={rolloutPercentage}
+              color={SUBMISSION_PROGRESS_COLORS[status]}
               size="md"
               radius="md"
-              animated={rolloutPercent < ROLLOUT_COMPLETE_PERCENT}
+              animated={rolloutPercentage < ROLLOUT_COMPLETE_PERCENT}
             />
           </div>
         )}
@@ -180,14 +182,7 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
               </Text>
               <Text size="xs">{new Date(submittedAt).toLocaleDateString()}</Text>
             </Group>
-            {approvedAt && (
-              <Group gap="xs">
-                <Text size="xs" c="dimmed" w={70}>
-                  Approved:
-                </Text>
-                <Text size="xs">{new Date(approvedAt).toLocaleDateString()}</Text>
-              </Group>
-            )}
+            {/* approvedAt is not in API spec */}
             <Group gap="xs">
               <Text size="xs" c="dimmed" w={70}>
                 Last updated:
@@ -199,24 +194,24 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
 
         {/* Status Message */}
         <Text size="sm" c="dimmed">
-          {submissionStatus === SubmissionStatus.IN_REVIEW &&
+          {status === SubmissionStatus.IN_REVIEW &&
             'Awaiting store review. This typically takes 1-3 days.'}
-          {submissionStatus === SubmissionStatus.REJECTED &&
+          {status === SubmissionStatus.REJECTED &&
             'Submission was rejected. Go to Distribution Management to fix and re-submit.'}
-          {submissionStatus === SubmissionStatus.APPROVED &&
+          {status === SubmissionStatus.APPROVED &&
             'Approved by store. Use Distribution Management to start rollout.'}
-          {submissionStatus === SubmissionStatus.LIVE &&
-            rolloutPercent < ROLLOUT_COMPLETE_PERCENT &&
+          {status === SubmissionStatus.LIVE &&
+            rolloutPercentage < ROLLOUT_COMPLETE_PERCENT &&
             'Rolling out. Use Distribution Management to update percentage.'}
-          {submissionStatus === SubmissionStatus.LIVE &&
-            rolloutPercent === ROLLOUT_COMPLETE_PERCENT &&
+          {status === SubmissionStatus.LIVE &&
+            rolloutPercentage === ROLLOUT_COMPLETE_PERCENT &&
             'Live to 100% of users!'}
-          {submissionStatus === SubmissionStatus.HALTED &&
+          {status === SubmissionStatus.HALTED &&
             'Rollout halted. Check Distribution Management for details.'}
         </Text>
 
         {/* Link to Distribution Management */}
-        {submissionStatus !== SubmissionStatus.IN_REVIEW && (
+        {status !== SubmissionStatus.IN_REVIEW && (
           <Button
             component={Link}
             to={`/dashboard/${org}/distributions/${distributionId}`}

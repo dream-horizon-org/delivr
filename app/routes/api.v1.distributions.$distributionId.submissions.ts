@@ -14,28 +14,27 @@
  * - iOS: application/json (TestFlight build number only)
  */
 
-import type { ActionFunctionArgs } from '@remix-run/node';
 import { json, unstable_parseMultipartFormData } from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-  ERROR_MESSAGES,
-  HTTP_STATUS,
-  LOG_CONTEXT,
+    ERROR_MESSAGES,
+    HTTP_STATUS,
+    LOG_CONTEXT,
 } from '~/constants/distribution-api.constants';
-import { Platform } from '~/types/distribution.types';
 import type {
-  AndroidResubmissionRequest,
-  IOSResubmissionRequest,
+    AndroidResubmissionRequest,
+    IOSResubmissionRequest,
 } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution.types';
 import {
-  createValidationError,
-  handleAxiosError,
-  logApiError,
-  validateRequired,
+    createValidationError,
+    handleAxiosError,
+    logApiError,
+    validateRequired,
 } from '~/utils/api-route-helpers';
 import {
-  authenticateActionRequest,
-  type AuthenticatedActionFunction,
+    authenticateActionRequest,
+    type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 
 /**
@@ -103,8 +102,8 @@ const uploadHandler: import('@remix-run/node').UploadHandler = async ({ data, fi
  * - version: "2.7.1"
  * - versionCode: 271 (optional)
  * - aabFile: <file>
- * - rolloutPercent: 5
- * - inAppPriority: 0
+ * - rolloutPercentage: 5
+ * - inAppUpdatePriority: 0
  * - releaseNotes: "..."
  * 
  * Request Body (iOS - application/json):
@@ -134,8 +133,8 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
       const version = formData.get('version');
       const versionCodeStr = formData.get('versionCode');
       const aabFile = formData.get('aabFile');
-      const rolloutPercentStr = formData.get('rolloutPercent');
-      const inAppPriorityStr = formData.get('inAppPriority');
+      const rolloutPercentStr = formData.get('rolloutPercentage');
+      const inAppPriorityStr = formData.get('inAppUpdatePriority');
       const releaseNotes = formData.get('releaseNotes');
 
       // Validate required fields
@@ -151,13 +150,13 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
         return createValidationError(ERROR_MESSAGES.AAB_FILE_REQUIRED);
       }
 
-      const rolloutPercent = rolloutPercentStr ? Number(rolloutPercentStr) : undefined;
-      if (rolloutPercent === undefined || !validateRolloutPercent(rolloutPercent)) {
+      const rolloutPercentage = rolloutPercentStr ? Number(rolloutPercentStr) : undefined;
+      if (rolloutPercentage === undefined || !validateRolloutPercent(rolloutPercentage)) {
         return createValidationError(ERROR_MESSAGES.PERCENTAGE_REQUIRED);
       }
 
-      const inAppPriority = inAppPriorityStr ? Number(inAppPriorityStr) : undefined;
-      if (inAppPriority === undefined || !validateInAppPriority(inAppPriority)) {
+      const inAppUpdatePriority = inAppPriorityStr ? Number(inAppPriorityStr) : undefined;
+      if (inAppUpdatePriority === undefined || !validateInAppPriority(inAppUpdatePriority)) {
         return json(
           {
             success: false,
@@ -179,8 +178,8 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
         version: String(version),
         versionCode: versionCodeStr ? Number(versionCodeStr) : undefined,
         aabFile: aabFile as File,
-        rolloutPercent,
-        inAppPriority,
+        rolloutPercentage,
+        inAppUpdatePriority,
         releaseNotes: String(releaseNotes),
       };
 
@@ -192,8 +191,8 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
         serviceFormData.append('versionCode', String(androidRequest.versionCode));
       }
       serviceFormData.append('aabFile', androidRequest.aabFile);
-      serviceFormData.append('rolloutPercent', String(androidRequest.rolloutPercent));
-      serviceFormData.append('inAppPriority', String(androidRequest.inAppPriority));
+      serviceFormData.append('rolloutPercentage', String(androidRequest.rolloutPercentage));
+      serviceFormData.append('inAppUpdatePriority', String(androidRequest.inAppUpdatePriority));
       serviceFormData.append('releaseNotes', androidRequest.releaseNotes);
 
       const response = await DistributionService.createResubmission(

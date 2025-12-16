@@ -6,7 +6,24 @@
  * - iOS Phased Release (7-day automatic)
  * - iOS Manual Release (immediate 100%)
  * 
+ * ✅ Correct iOS Behavior:
+ * ┌───────────────┬───────────┬──────────────┬────────────┬─────────────────────────────────────┐
+ * │ phasedRelease │ Rollout % │ Can Update?  │ Can Pause? │ Why?                                │
+ * ├───────────────┼───────────┼──────────────┼────────────┼─────────────────────────────────────┤
+ * │ true          │ 1-99%     │ ✅ Yes       │ ✅ Yes     │ Phased release with controls        │
+ * │               │           │ (to 100%)    │            │                                     │
+ * ├───────────────┼───────────┼──────────────┼────────────┼─────────────────────────────────────┤
+ * │ true          │ 100%      │ ❌ No        │ ❌ No      │ Already complete                    │
+ * ├───────────────┼───────────┼──────────────┼────────────┼─────────────────────────────────────┤
+ * │ false         │ 100%      │ ❌ No        │ ❌ No      │ Manual release (instant 100%,       │
+ * │               │           │              │            │ no controls)                        │
+ * ├───────────────┼───────────┼──────────────┼────────────┼─────────────────────────────────────┤
+ * │ false         │ <100%     │ ❌ INVALID   │ ❌ INVALID │ This shouldn't exist!               │
+ * │               │           │              │            │ (Prevented by validation)           │
+ * └───────────────┴───────────┴──────────────┴────────────┴─────────────────────────────────────┘
+ * 
  * Reference: DISTRIBUTION_API_SPEC.md lines 46-82
+ * See also: LIVE_STATE_VERIFICATION.md
  */
 
 import { Platform } from '~/types/distribution.types';
@@ -238,20 +255,20 @@ export function getRolloutPresets(
 /**
  * Calculate current day in iOS phased release (7-day cycle)
  * 
- * @param rolloutPercent - Current rollout percentage
+ * @param rolloutPercentage - Current rollout percentage
  * @returns Day number (1-7) in the phased release cycle
  */
-export function getIOSPhasedReleaseDay(rolloutPercent: number): number {
+export function getIOSPhasedReleaseDay(rolloutPercentage: number): number {
   // Apple's 7-day phased release:
   // Day 1: ~1%, Day 2: ~2%, Day 3: ~5%, Day 4: ~10%
   // Day 5: ~20%, Day 6: ~50%, Day 7: 100%
   
-  if (rolloutPercent >= 100) return 7;
-  if (rolloutPercent >= 50) return 6;
-  if (rolloutPercent >= 20) return 5;
-  if (rolloutPercent >= 10) return 4;
-  if (rolloutPercent >= 5) return 3;
-  if (rolloutPercent >= 2) return 2;
+  if (rolloutPercentage >= 100) return 7;
+  if (rolloutPercentage >= 50) return 6;
+  if (rolloutPercentage >= 20) return 5;
+  if (rolloutPercentage >= 10) return 4;
+  if (rolloutPercentage >= 5) return 3;
+  if (rolloutPercentage >= 2) return 2;
   return 1;
 }
 

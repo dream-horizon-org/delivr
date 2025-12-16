@@ -40,10 +40,10 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
   const storeName = platform === Platform.ANDROID ? 'Google Play Store' : 'Apple App Store';
   const isAndroid = platform === Platform.ANDROID;
   const showRolloutControls = submission && isAndroid && (
-    submission.submissionStatus === SubmissionStatus.APPROVED ||
-    (submission.submissionStatus === SubmissionStatus.LIVE && submission.rolloutPercent < ROLLOUT_COMPLETE_PERCENT)
+    submission.status === SubmissionStatus.APPROVED ||
+    (submission.status === SubmissionStatus.LIVE && submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT)
   );
-  const showRejectedView = submission?.submissionStatus === SubmissionStatus.REJECTED && submission.rejectionReason;
+  const showRejectedView = submission?.status === SubmissionStatus.REJECTED;
 
   // No submission yet
   if (!submission) {
@@ -103,12 +103,10 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
           <RolloutControls
             submissionId={submission.id}
             platform={submission.platform}
-            phasedRelease={submission.phasedRelease ?? undefined}
-            currentPercentage={submission.rolloutPercent}
-            status={submission.submissionStatus}
-            availableActions={submission.availableActions.filter(
-              (action) => action.action !== SubmissionAction.RETRY
-            ) as AvailableAction<RolloutAction>[]}
+            phasedRelease={(submission.platform === Platform.IOS && 'phasedRelease' in submission) ? submission.phasedRelease : undefined}
+            currentPercentage={submission.rolloutPercentage}
+            status={submission.status}
+            availableActions={[]}
             onUpdateRollout={(percentage: number) => {
               fetcher.submit(
                 { 
@@ -132,9 +130,16 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
         <RejectedSubmissionView
           platform={submission.platform}
           submissionId={submission.id}
-          versionName={submission.versionName}
-          rejectionReason={submission.rejectionReason!}
-          rejectionDetails={submission.rejectionDetails ?? null}
+          versionName={submission.version}
+          {/* 
+            TODO: Replace with real data once backend implements rejection fields
+            Backend team notified - see docs/distribution/BACKEND_API_DATA_GAPS.md
+            Using hardcoded fallback until backend adds:
+            - submission.rejectionReason
+            - submission.rejectionDetails
+          */}
+          rejectionReason={'Submission was rejected by the store'}
+          rejectionDetails={null}
           onFixMetadata={() => onOpenRetryDialog(submission)}
           onUploadNewBuild={() => onOpenRetryDialog(submission)}
         />

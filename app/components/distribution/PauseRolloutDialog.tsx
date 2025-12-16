@@ -35,6 +35,7 @@ export function PauseRolloutDialog({
   isLoading,
 }: PauseRolloutDialogProps) {
   const [reason, setReason] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const platformLabel = useMemo(() => PLATFORM_LABELS[platform], [platform]);
   const confirmationText = useMemo(
@@ -44,20 +45,26 @@ export function PauseRolloutDialog({
 
   const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
-  }, []);
+    if (validationError) {
+      setValidationError(null);
+    }
+  }, [validationError]);
 
   const handleConfirm = useCallback(() => {
     const trimmedReason = reason.trim();
-    // Only pass reason if non-empty; function signature allows optional parameter
-    if (trimmedReason.length > 0) {
-      onConfirm(trimmedReason);
-    } else {
-      onConfirm();
+    
+    // Validate: reason is mandatory
+    if (!trimmedReason) {
+      setValidationError(DIALOG_UI.PAUSE.REASON_REQUIRED);
+      return;
     }
+
+    onConfirm(trimmedReason);
   }, [reason, onConfirm]);
 
   const handleClose = useCallback(() => {
     setReason('');
+    setValidationError(null);
     onClose();
   }, [onClose]);
 
@@ -88,6 +95,9 @@ export function PauseRolloutDialog({
           value={reason}
           onChange={handleReasonChange}
           disabled={isLoading}
+          required
+          error={validationError}
+          minRows={3}
         />
 
         <Group justify="flex-end" mt="md">

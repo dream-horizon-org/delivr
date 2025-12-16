@@ -11,21 +11,22 @@
 
 import { Badge, Button, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
-  IconBrandAndroid,
-  IconBrandApple,
-  IconCheck,
-  IconChevronRight,
-  IconClock,
-  IconHistory,
-  IconPlayerPause,
-  IconX,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconCheck,
+    IconChevronRight,
+    IconClock,
+    IconHistory,
+    IconPlayerPause,
+    IconX,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import {
-  DISTRIBUTION_UI_LABELS,
-  PLATFORM_LABELS,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS
+    DISTRIBUTION_UI_LABELS,
+    PLATFORM_LABELS,
+    STORE_NAMES,
+    SUBMISSION_STATUS_COLORS,
+    SUBMISSION_STATUS_LABELS
 } from '~/constants/distribution.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { RolloutProgressBar } from './RolloutProgressBar';
@@ -44,11 +45,6 @@ const ICON_SIZES = {
 } as const;
 
 const TIMELINE_LABEL_WIDTH = 70;
-
-const STORE_NAMES = {
-  [Platform.ANDROID]: 'Play Store',
-  [Platform.IOS]: 'App Store',
-} as const;
 
 // ============================================================================
 // LOCAL HELPER - Returns JSX (must stay in component file)
@@ -99,7 +95,8 @@ type SubmissionTimelineProps = {
 };
 
 function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
-  const { submittedAt, approvedAt, releasedAt } = submission;
+  const { submittedAt } = submission;
+  // Note: approvedAt and releasedAt are not in the API spec
   
   return (
     <Stack gap={4}>
@@ -111,22 +108,7 @@ function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
           <Text size="xs">{new Date(submittedAt).toLocaleDateString()}</Text>
         </Group>
       )}
-      {approvedAt && (
-        <Group gap="xs">
-          <Text size="xs" c="dimmed" w={TIMELINE_LABEL_WIDTH}>
-            {DISTRIBUTION_UI_LABELS.TIMELINE_APPROVED}
-          </Text>
-          <Text size="xs">{new Date(approvedAt).toLocaleDateString()}</Text>
-        </Group>
-      )}
-      {releasedAt && (
-        <Group gap="xs">
-          <Text size="xs" c="dimmed" w={TIMELINE_LABEL_WIDTH}>
-            {DISTRIBUTION_UI_LABELS.TIMELINE_RELEASED}
-          </Text>
-          <Text size="xs">{new Date(releasedAt).toLocaleDateString()}</Text>
-        </Group>
-      )}
+      {/* approvedAt and releasedAt are not available in API spec */}
     </Stack>
   );
 }
@@ -145,22 +127,24 @@ export function SubmissionCard(props: SubmissionCardProps) {
 
   const {
     platform,
-    submissionStatus,
-    versionName,
-    versionCode,
-    track,
-    rolloutPercent,
-    rejectionReason,
+    status,
+    version,
+    rolloutPercentage,
     actionHistory,
   } = submission;
+  
+  // Extract platform-specific fields
+  const versionCode = submission.platform === Platform.ANDROID && 'versionCode' in submission 
+    ? submission.versionCode 
+    : null;
 
   const [showHistory, setShowHistory] = useState(false);
 
-  const isRejected = submissionStatus === SubmissionStatus.REJECTED;
+  const isRejected = status === SubmissionStatus.REJECTED;
   const storeName = STORE_NAMES[platform];
   const rolloutStatus = useMemo(
-    () => getRolloutDisplayStatus(rolloutPercent, submissionStatus),
-    [rolloutPercent, submissionStatus]
+    () => getRolloutDisplayStatus(rolloutPercentage, status),
+    [rolloutPercentage, status]
   );
 
   // Transform actionHistory into HistoryEvent format for the panel
@@ -202,9 +186,7 @@ export function SubmissionCard(props: SubmissionCardProps) {
                 <Text fw={600} size={compact ? 'sm' : 'md'}>
                   {PLATFORM_LABELS[platform]}
                 </Text>
-                {track && (
-                  <Badge size="xs" variant="outline">{track}</Badge>
-                )}
+                {/* track field is not in API spec */}
               </Group>
               <Text size="xs" c="dimmed">{storeName}</Text>
             </div>
@@ -212,11 +194,11 @@ export function SubmissionCard(props: SubmissionCardProps) {
           
           <Group gap="sm">
             <Badge 
-              color={SUBMISSION_STATUS_COLORS[submissionStatus]} 
+              color={SUBMISSION_STATUS_COLORS[status]} 
               variant="light"
-              leftSection={getSubmissionStatusIcon(submissionStatus)}
+              leftSection={getSubmissionStatusIcon(status)}
             >
-              {SUBMISSION_STATUS_LABELS[submissionStatus]}
+              {SUBMISSION_STATUS_LABELS[status]}
             </Badge>
             
             {onClick && (
@@ -229,33 +211,35 @@ export function SubmissionCard(props: SubmissionCardProps) {
         <Group gap="lg" mb={compact ? 'sm' : 'md'}>
           <div>
             <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.VERSION_LABEL}</Text>
-            <Text size="sm" fw={500}>{versionName}</Text>
+            <Text size="sm" fw={500}>{version}</Text>
           </div>
-          <div>
-            <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.BUILD_LABEL}</Text>
-            <Text size="sm" fw={500}>{versionCode}</Text>
-          </div>
+          {versionCode && (
+            <div>
+              <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.BUILD_LABEL}</Text>
+              <Text size="sm" fw={500}>{versionCode}</Text>
+            </div>
+          )}
           <div>
             <Text size="xs" c="dimmed">{DISTRIBUTION_UI_LABELS.EXPOSURE_LABEL}</Text>
-            <Text size="sm" fw={500}>{rolloutPercent}%</Text>
+            <Text size="sm" fw={500}>{rolloutPercentage}%</Text>
           </div>
         </Group>
 
         {/* Rollout Progress (if not compact) */}
         {!compact && (
           <RolloutProgressBar
-            percentage={rolloutPercent}
+            percentage={rolloutPercentage}
             status={rolloutStatus}
             showLabel={false}
             size="sm"
           />
         )}
 
-        {/* Rejection Warning */}
-        {isRejected && rejectionReason && (
+        {/* Rejection Warning - rejectionReason not in API spec */}
+        {isRejected && (
           <div className={`${compact ? 'mt-2' : 'mt-3'} p-2 bg-red-50 rounded border border-red-200`}>
             <Text size="xs" c="red.7" lineClamp={compact ? 1 : 2}>
-              <Text span fw={500}>{DISTRIBUTION_UI_LABELS.REJECTION_LABEL}:</Text> {rejectionReason}
+              <Text span fw={500}>{DISTRIBUTION_UI_LABELS.REJECTION_LABEL}:</Text> Submission was rejected
             </Text>
           </div>
         )}
@@ -291,7 +275,7 @@ export function SubmissionCard(props: SubmissionCardProps) {
         onClose={() => setShowHistory(false)}
         submissionId={submission.id}
         platform={platform}
-        version={versionName}
+        version={version}
         events={historyEvents}
       />
     </CardWrapper>

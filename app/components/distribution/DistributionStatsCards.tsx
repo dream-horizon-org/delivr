@@ -1,10 +1,14 @@
 /**
  * Distribution Stats Cards Component
- * Displays aggregate statistics for distributions (Total, Rolling Out, In Review, Released)
+ * Displays aggregate statistics for distributions
+ * - Total Distributions: Count of all distributions
+ * - Total Submissions: Count of all submissions across all distributions
+ * - In Review: Count of submissions with IN_REVIEW status
+ * - Released: Count of submissions with LIVE status at 100% exposure
  */
 
 import { Card, Group, SimpleGrid, Text, ThemeIcon } from '@mantine/core';
-import { IconCheck, IconClock, IconList, IconProgress } from '@tabler/icons-react';
+import { IconCheck, IconClock, IconList, IconFileText } from '@tabler/icons-react';
 import { DISTRIBUTIONS_LIST_ICON_SIZES, DISTRIBUTIONS_LIST_UI } from '~/constants/distribution.constants';
 import type { DistributionStats } from '~/types/distribution.types';
 
@@ -18,28 +22,28 @@ export function DistributionStatsCards({ stats }: DistributionStatsCardsProps) {
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Group justify="space-between" mb="xs">
           <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-            {DISTRIBUTIONS_LIST_UI.STATS_TITLES.TOTAL}
+            {DISTRIBUTIONS_LIST_UI.STATS_TITLES.TOTAL_DISTRIBUTIONS}
           </Text>
           <ThemeIcon size="sm" variant="light" color="gray" radius="md">
             <IconList size={DISTRIBUTIONS_LIST_ICON_SIZES.STATS_CARD} />
           </ThemeIcon>
         </Group>
         <Text size="32" fw={700} lh={1}>
-          {stats.total}
+          {stats.totalDistributions}
         </Text>
       </Card>
       
       <Card shadow="sm" padding="lg" radius="md" withBorder>
         <Group justify="space-between" mb="xs">
           <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-            {DISTRIBUTIONS_LIST_UI.STATS_TITLES.ROLLING_OUT}
+            {DISTRIBUTIONS_LIST_UI.STATS_TITLES.TOTAL_SUBMISSIONS}
           </Text>
           <ThemeIcon size="sm" variant="light" color="blue" radius="md">
-            <IconProgress size={DISTRIBUTIONS_LIST_ICON_SIZES.STATS_CARD} />
+            <IconFileText size={DISTRIBUTIONS_LIST_ICON_SIZES.STATS_CARD} />
           </ThemeIcon>
         </Group>
         <Text size="32" fw={700} c="blue" lh={1}>
-          {stats.rollingOut}
+          {stats.totalSubmissions}
         </Text>
       </Card>
       
@@ -53,7 +57,7 @@ export function DistributionStatsCards({ stats }: DistributionStatsCardsProps) {
           </ThemeIcon>
         </Group>
         <Text size="32" fw={700} c="orange" lh={1}>
-          {stats.inReview}
+          {stats.inReviewSubmissions}
         </Text>
       </Card>
       
@@ -67,7 +71,7 @@ export function DistributionStatsCards({ stats }: DistributionStatsCardsProps) {
           </ThemeIcon>
         </Group>
         <Text size="32" fw={700} c="green" lh={1}>
-          {stats.released}
+          {stats.releasedSubmissions}
         </Text>
       </Card>
     </SimpleGrid>

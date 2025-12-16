@@ -16,21 +16,21 @@
 import { json } from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-  ERROR_MESSAGES,
-  HTTP_STATUS,
-  LOG_CONTEXT,
+    ERROR_MESSAGES,
+    HTTP_STATUS,
+    LOG_CONTEXT,
 } from '~/constants/distribution-api.constants';
 import type { SubmitSubmissionRequest } from '~/types/distribution.types';
 import { Platform } from '~/types/distribution.types';
 import {
-  createValidationError,
-  handleAxiosError,
-  logApiError,
-  validateRequired,
+    createValidationError,
+    handleAxiosError,
+    logApiError,
+    validateRequired,
 } from '~/utils/api-route-helpers';
 import {
-  authenticateActionRequest,
-  type AuthenticatedActionFunction,
+    authenticateActionRequest,
+    type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 
 /**
@@ -61,8 +61,8 @@ function validateInAppPriority(priority: unknown): boolean {
  * 
  * Request Body (Android):
  * {
- *   rolloutPercent?: number,     // 0-100, supports decimals
- *   inAppPriority?: number,      // 0-5
+ *   rolloutPercentage?: number,     // 0-100, supports decimals
+ *   inAppUpdatePriority?: number,      // 0-5
  *   releaseNotes?: string
  * }
  * 
@@ -102,15 +102,15 @@ const submitSubmission: AuthenticatedActionFunction = async ({ params, request }
 
     // Validate Android-specific fields
     if (
-      body.rolloutPercent !== undefined &&
-      !validateRolloutPercent(body.rolloutPercent)
+      body.rolloutPercentage !== undefined &&
+      !validateRolloutPercent(body.rolloutPercentage)
     ) {
       return createValidationError(ERROR_MESSAGES.PERCENTAGE_REQUIRED);
     }
 
     if (
-      body.inAppPriority !== undefined &&
-      !validateInAppPriority(body.inAppPriority)
+      body.inAppUpdatePriority !== undefined &&
+      !validateInAppPriority(body.inAppUpdatePriority)
     ) {
       return json(
         {

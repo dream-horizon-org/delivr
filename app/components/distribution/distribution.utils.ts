@@ -199,7 +199,7 @@ export function deriveApprovalState(pmStatus: PMApprovalStatus): ApprovalState {
  * Derive action availability from props (pure function, not a hook)
  */
 export function deriveActionAvailability(
-  availableActions: AvailableAction<RolloutAction>[],
+  availableActions: AvailableAction[],
   status: SubmissionStatus,
   platform: Platform,
   currentPercentage: number

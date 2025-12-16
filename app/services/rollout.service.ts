@@ -4,13 +4,13 @@
  * Used by React components, loaders, and actions
  */
 
-import { ROLLOUT_PRESETS } from '~/constants/distribution.constants';
+import { ROLLOUT_COMPLETE_PERCENT, ROLLOUT_PRESETS } from '~/constants/distribution.constants';
 import type {
-  HaltRolloutRequest,
-  PauseRolloutRequest,
-  RolloutUpdateResponse,
-  Submission,
-  UpdateRolloutRequest,
+    HaltRolloutRequest,
+    PauseRolloutRequest,
+    RolloutUpdateResponse,
+    Submission,
+    UpdateRolloutRequest,
 } from '~/types/distribution.types';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
@@ -91,7 +91,7 @@ export class RolloutService {
   ): Promise<ApiResponse<RolloutUpdateResponse> | null> {
     const nextPercentage = this.getSuggestedNextPercentage(currentPercentage);
     if (nextPercentage) {
-      return this.updateRollout(submissionId, { rolloutPercent: nextPercentage }, platform);
+      return this.updateRollout(submissionId, { rolloutPercentage: nextPercentage }, platform);
     }
     return null;
   }
@@ -100,7 +100,7 @@ export class RolloutService {
    * Complete rollout (set to 100%)
    */
   static async completeRollout(submissionId: string, platform: Platform): Promise<ApiResponse<RolloutUpdateResponse>> {
-    return this.updateRollout(submissionId, { rolloutPercent: 100 }, platform);
+    return this.updateRollout(submissionId, { rolloutPercentage: 100 }, platform);
   }
 
   /**
@@ -111,9 +111,9 @@ export class RolloutService {
   ): boolean {
     return (
       submission.platform === Platform.ANDROID && // Only Android supports manual rollout
-      (submission.submissionStatus === SubmissionStatus.LIVE || 
-       submission.submissionStatus === SubmissionStatus.APPROVED) &&
-      submission.rolloutPercent < 100
+      (submission.status === SubmissionStatus.LIVE || 
+       submission.status === SubmissionStatus.APPROVED) &&
+      submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT
     );
   }
 

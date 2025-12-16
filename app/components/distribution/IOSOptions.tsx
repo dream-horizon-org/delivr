@@ -1,7 +1,7 @@
 /**
  * IOSOptions - iOS-specific submission options
  * 
- * Note: iOS release type is always "AUTOMATIC" per API spec (display-only, non-editable)
+ * Note: iOS release type is always "AFTER_APPROVAL" per API spec (display-only, non-editable)
  */
 
 import { Badge, Checkbox, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
@@ -40,11 +40,11 @@ export function IOSOptions({
       </Group>
       
       <Stack gap="md">
-        {/* Release Type - Display only (always AUTOMATIC per API spec) */}
+        {/* Release Type - Display only (always AFTER_APPROVAL per API spec) */}
         <TextInput
           label={DISTRIBUTION_UI_LABELS.IOS_RELEASE_TYPE}
-          description="Release type is always AUTOMATIC for App Store submissions"
-          value="AUTOMATIC"
+          description="Release type is always AFTER_APPROVAL for App Store submissions"
+          value="AFTER_APPROVAL"
           readOnly
           disabled
           rightSection={<Badge size="xs" variant="light" color="blue">Default</Badge>}

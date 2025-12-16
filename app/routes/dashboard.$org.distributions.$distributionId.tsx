@@ -1,45 +1,60 @@
 /**
- * Distribution Management Page
- * Full view of a single distribution with all its submissions
+ * Distribution Detail Page
+ * Shows distribution overview with platform tabs for managing submissions
  * Route: /dashboard/:org/distributions/:distributionId
  */
 
 import {
-    Button,
-    Container,
-    Divider,
-    Group,
-    Loader,
-    Paper,
-    Stack,
-    Text,
-    Title
+  Badge,
+  Button,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Paper,
+  Stack,
+  Tabs,
+  Text,
+  Title,
 } from '@mantine/core';
-import { json, type LoaderFunctionArgs } from '@remix-run/node';
-import { Link, useLoaderData, useNavigation } from '@remix-run/react';
-import { IconArrowLeft } from '@tabler/icons-react';
-import { useCallback, useMemo } from 'react';
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
+import { Link, useFetcher, useLoaderData, useNavigation, useRevalidator } from '@remix-run/react';
+import { IconArrowLeft, IconBrandAndroid, IconBrandApple, IconExternalLink, IconRefresh } from '@tabler/icons-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { DistributionEmptySubmissions } from '~/components/distribution/DistributionEmptySubmissions';
-import { DistributionOverview } from '~/components/distribution/DistributionOverview';
-import { DistributionSubmissionCard } from '~/components/distribution/DistributionSubmissionCard';
+import { RolloutService } from '~/.server/services/Rollout';
+import { ActivityHistoryLog } from '~/components/distribution/ActivityHistoryLog';
+import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
 import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
+import { HaltRolloutDialog } from '~/components/distribution/HaltRolloutDialog';
+import { LatestSubmissionCard } from '~/components/distribution/LatestSubmissionCard';
+import { PauseRolloutDialog } from '~/components/distribution/PauseRolloutDialog';
+import { PromoteAndroidSubmissionDialog } from '~/components/distribution/PromoteAndroidSubmissionDialog';
+import { PromoteIOSSubmissionDialog } from '~/components/distribution/PromoteIOSSubmissionDialog';
+import { ReSubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
+import { ResumeRolloutDialog } from '~/components/distribution/ResumeRolloutDialog';
+import { SubmissionHistoryTimeline } from '~/components/distribution/SubmissionHistoryTimeline';
+import { UpdateRolloutDialog } from '~/components/distribution/UpdateRolloutDialog';
 import {
-    DISTRIBUTION_MANAGEMENT_ICON_SIZES,
-    DISTRIBUTION_MANAGEMENT_LAYOUT,
-    DISTRIBUTION_MANAGEMENT_UI,
+  DISTRIBUTION_MANAGEMENT_UI,
+  DISTRIBUTION_STATUS_COLORS,
+  SUBMISSION_STATUS_COLORS,
 } from '~/constants/distribution.constants';
 import {
-    DistributionStatus,
-    type DistributionWithSubmissions,
+  Platform,
+  SubmissionStatus,
+  type DistributionDetail,
+  type Submission,
 } from '~/types/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
+import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
 import { ErrorCategory, checkStaleData, type AppError } from '~/utils/error-handling';
+import { showErrorToast } from '~/utils/toast';
 
 interface LoaderData {
   org: string;
-  distribution: DistributionWithSubmissions;
+  distribution: DistributionDetail;
   loadedAt: string;
   error?: AppError | string;
 }
@@ -64,7 +79,7 @@ export const loader = authenticateLoaderRequest(
         loadedAt: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('[Distribution Management] Failed to fetch:', error);
+      console.error('[Distribution Detail] Failed to fetch:', error);
       
       const appError: AppError = {
         category: ErrorCategory.NETWORK,
@@ -77,7 +92,7 @@ export const loader = authenticateLoaderRequest(
       
       return json<LoaderData>({
         org,
-        distribution: {} as DistributionWithSubmissions,
+        distribution: {} as DistributionDetail,
         loadedAt: new Date().toISOString(),
         error: appError,
       });
@@ -85,42 +100,464 @@ export const loader = authenticateLoaderRequest(
   }
 );
 
-export default function DistributionManagementPage() {
+export const action = authenticateLoaderRequest(
+  async ({ request, params }: ActionFunctionArgs & { user: User }) => {
+    const { distributionId } = params;
+    const formData = await request.formData();
+    const intent = formData.get('intent') as string;
+    const submissionId = formData.get('submissionId') as string;
+    const platform = formData.get('platform') as Platform;
+
+    try {
+      switch (intent) {
+        case 'promoteSubmission': {
+          const releaseNotes = formData.get('releaseNotes') as string;
+
+          let submitRequest: any;
+
+          if (platform === Platform.ANDROID) {
+            const rolloutPercentage = parseFloat(formData.get('rolloutPercentage') as string);
+            const inAppUpdatePriority = parseInt(formData.get('inAppUpdatePriority') as string);
+
+            submitRequest = {
+              rolloutPercentage,
+              inAppUpdatePriority,
+              releaseNotes,
+            };
+          } else {
+            // iOS
+            const phasedRelease = formData.get('phasedRelease') === 'true';
+            const resetRating = formData.get('resetRating') === 'true';
+
+            submitRequest = {
+              phasedRelease,
+              resetRating,
+              releaseNotes,
+            };
+          }
+
+          await DistributionService.submitSubmission(submissionId, submitRequest, platform);
+          return json({ success: true });
+        }
+
+        case 'pauseRollout': {
+          const reason = formData.get('reason') as string;
+          await RolloutService.pauseRollout(submissionId, { reason }, platform);
+          return json({ success: true });
+        }
+
+        case 'resumeRollout': {
+          await RolloutService.resumeRollout(submissionId, platform);
+          return json({ success: true });
+        }
+
+        case 'haltRollout': {
+          const reason = formData.get('reason') as string;
+          await RolloutService.haltRollout(submissionId, { reason }, platform);
+          return json({ success: true });
+        }
+
+        case 'updateRollout': {
+          const rolloutPercentage = parseFloat(formData.get('rolloutPercentage') as string);
+          await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
+          return json({ success: true });
+        }
+
+        default:
+          return json({ success: false, error: 'Unknown intent' }, { status: 400 });
+      }
+    } catch (error) {
+      console.error(`[Distribution Detail] Action failed:`, error);
+      return json(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        { status: 500 }
+      );
+    }
+  }
+);
+
+export default function DistributionDetailPage() {
   const { org, distribution, loadedAt, error } = useLoaderData<LoaderData>();
   const navigation = useNavigation();
+  const fetcher = useFetcher();
+  const revalidator = useRevalidator();
 
   const isLoading = navigation.state === 'loading';
-  const staleInfo = loadedAt ? checkStaleData(new Date(loadedAt)) : null;
-  const hasSubmissions = useMemo(
-    () => distribution?.submissions?.length > 0,
-    [distribution?.submissions?.length]
-  );
-  const isPending = useMemo(
-    () => distribution?.status === DistributionStatus.PENDING,
-    [distribution?.status]
-  );
+  const staleInfo = loadedAt ? checkStaleData(loadedAt) : null;
+
+  // Dialog state management
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [isPromoteAndroidDialogOpen, setIsPromoteAndroidDialogOpen] = useState(false);
+  const [isPromoteIOSDialogOpen, setIsPromoteIOSDialogOpen] = useState(false);
+  const [isPauseDialogOpen, setIsPauseDialogOpen] = useState(false);
+  const [isResumeDialogOpen, setIsResumeDialogOpen] = useState(false);
+  const [isHaltDialogOpen, setIsHaltDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isUpdateRolloutDialogOpen, setIsUpdateRolloutDialogOpen] = useState(false);
+  const [isResubmitDialogOpen, setIsResubmitDialogOpen] = useState(false);
   
-  // Get display version from submissions (all submissions should have the same initial version)
-  const displayVersion = useMemo(() => {
-    if (!distribution?.submissions || distribution.submissions.length === 0) {
-      return 'N/A';
-    }
-    // Use the first submission's version
-    return distribution.submissions[0]?.versionName || 'N/A';
-  }, [distribution?.submissions]);
+  // Track when we need to close dialog after revalidation
+  const [shouldCloseAfterRevalidation, setShouldCloseAfterRevalidation] = useState(false);
 
-  const gridStyle = useMemo(
-    () => ({
-      display: 'grid',
-      gridTemplateColumns: `repeat(auto-fit, minmax(${DISTRIBUTION_MANAGEMENT_LAYOUT.CARD_MIN_WIDTH}px, 1fr))`,
-      gap: '1rem',
-    }),
-    []
+  // Dialog handlers
+  const handleOpenPauseDialog = useCallback((submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsPauseDialogOpen(true);
+  }, []);
+
+  const handleOpenResumeDialog = useCallback((submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsResumeDialogOpen(true);
+  }, []);
+
+  const handleOpenHaltDialog = useCallback((submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsHaltDialogOpen(true);
+  }, []);
+
+  const handleOpenCancelDialog = useCallback((submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsCancelDialogOpen(true);
+  }, []);
+
+  const handleOpenUpdateRolloutDialog = useCallback((submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsUpdateRolloutDialogOpen(true);
+  }, []);
+
+  const handleOpenResubmitDialog = useCallback((submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsResubmitDialogOpen(true);
+  }, []);
+
+  const handleCloseDialogs = useCallback(() => {
+    setIsPromoteAndroidDialogOpen(false);
+    setIsPromoteIOSDialogOpen(false);
+    setIsPauseDialogOpen(false);
+    setIsResumeDialogOpen(false);
+    setIsHaltDialogOpen(false);
+    setIsCancelDialogOpen(false);
+    setIsUpdateRolloutDialogOpen(false);
+    setIsResubmitDialogOpen(false);
+    setSelectedSubmission(null);
+  }, []);
+
+  // Close specific dialog after action completes (without clearing selectedSubmission)
+  const handleCloseSpecificDialog = useCallback((dialogType: 'pause' | 'resume' | 'halt' | 'updateRollout' | 'cancel') => {
+    switch (dialogType) {
+      case 'pause':
+        setIsPauseDialogOpen(false);
+        break;
+      case 'resume':
+        setIsResumeDialogOpen(false);
+        break;
+      case 'halt':
+        setIsHaltDialogOpen(false);
+        break;
+      case 'updateRollout':
+        setIsUpdateRolloutDialogOpen(false);
+        break;
+      case 'cancel':
+        setIsCancelDialogOpen(false);
+        break;
+    }
+    // Don't clear selectedSubmission - allow user to perform another action
+  }, []);
+
+  // Close dialogs after revalidation completes
+  useEffect(() => {
+    if (shouldCloseAfterRevalidation && revalidator.state === 'idle') {
+      handleCloseDialogs();
+      setShouldCloseAfterRevalidation(false);
+    }
+  }, [shouldCloseAfterRevalidation, revalidator.state, handleCloseDialogs]);
+
+  // Action handlers - Call API via fetcher
+  const handlePause = useCallback((reason?: string) => {
+    if (!selectedSubmission) return;
+    
+    const formData = new FormData();
+    formData.append('intent', 'pauseRollout');
+    formData.append('submissionId', selectedSubmission.id);
+    formData.append('platform', selectedSubmission.platform);
+    if (reason) {
+      formData.append('reason', reason);
+    }
+    
+    fetcher.submit(formData, { method: 'post' });
+  }, [selectedSubmission, fetcher]);
+
+  const handleResume = useCallback(() => {
+    if (!selectedSubmission) return;
+    
+    const formData = new FormData();
+    formData.append('intent', 'resumeRollout');
+    formData.append('submissionId', selectedSubmission.id);
+    formData.append('platform', selectedSubmission.platform);
+    
+    fetcher.submit(formData, { method: 'post' });
+  }, [selectedSubmission, fetcher]);
+
+  const handleHalt = useCallback((reason: string) => {
+    if (!selectedSubmission) return;
+    
+    const formData = new FormData();
+    formData.append('intent', 'haltRollout');
+    formData.append('submissionId', selectedSubmission.id);
+    formData.append('platform', selectedSubmission.platform);
+    formData.append('reason', reason);
+    
+    fetcher.submit(formData, { method: 'post' });
+  }, [selectedSubmission, fetcher]);
+
+  const handleUpdateRolloutSubmit = useCallback((rolloutPercentage: number) => {
+    if (!selectedSubmission) return;
+    
+    const formData = new FormData();
+    formData.append('intent', 'updateRollout');
+    formData.append('submissionId', selectedSubmission.id);
+    formData.append('platform', selectedSubmission.platform);
+    formData.append('rolloutPercentage', rolloutPercentage.toString());
+    
+    fetcher.submit(formData, { method: 'post' });
+  }, [selectedSubmission, fetcher]);
+
+  // Helper: Revalidate data and then close dialogs
+  const revalidateAndCloseSpecific = useCallback((dialogType: 'pause' | 'resume' | 'halt' | 'updateRollout' | 'cancel') => {
+    // Close only the specific dialog immediately
+    handleCloseSpecificDialog(dialogType);
+    // Trigger revalidation to fetch fresh data
+    revalidator.revalidate();
+  }, [revalidator, handleCloseSpecificDialog]);
+
+  const handleCancelComplete = useCallback(() => {
+    revalidateAndCloseSpecific('cancel');
+  }, [revalidateAndCloseSpecific]);
+
+  const handlePromoteComplete = useCallback(() => {
+    // Promote dialogs are platform-specific, close all and reset
+    revalidator.revalidate();
+    setShouldCloseAfterRevalidation(true);
+  }, [revalidator]);
+
+  const handleResubmitComplete = useCallback(() => {
+    // Resubmit creates new submission, close all and reset
+    revalidator.revalidate();
+    setShouldCloseAfterRevalidation(true);
+  }, [revalidator]);
+
+  const handlePauseComplete = useCallback(() => {
+    revalidateAndCloseSpecific('pause');
+  }, [revalidateAndCloseSpecific]);
+
+  const handleResumeComplete = useCallback(() => {
+    revalidateAndCloseSpecific('resume');
+  }, [revalidateAndCloseSpecific]);
+
+  const handleHaltComplete = useCallback(() => {
+    revalidateAndCloseSpecific('halt');
+  }, [revalidateAndCloseSpecific]);
+
+  const handleUpdateRolloutComplete = useCallback(() => {
+    revalidateAndCloseSpecific('updateRollout');
+  }, [revalidateAndCloseSpecific]);
+
+  // Watch fetcher state and trigger revalidation when API calls complete
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data) {
+      const response = fetcher.data as { success: boolean; error?: string };
+      
+      if (response.success === true) {
+        // Success: Close dialog and refresh data (no toast needed - dialog closing = success indicator)
+        if (isPauseDialogOpen) {
+          handlePauseComplete();
+        } else if (isResumeDialogOpen) {
+          handleResumeComplete();
+        } else if (isHaltDialogOpen) {
+          handleHaltComplete();
+        } else if (isUpdateRolloutDialogOpen) {
+          handleUpdateRolloutComplete();
+        }
+        // Note: Promote and Cancel dialogs are handled elsewhere
+      } else if (response.success === false) {
+        // API call failed - show error toast and keep dialog open
+        let errorMessage = response.error || 'An unexpected error occurred. Please try again.';
+        
+        // Clean up technical error messages for better UX
+        if (errorMessage.includes('status code 404')) {
+          errorMessage = 'The requested resource was not found. Please refresh and try again.';
+        } else if (errorMessage.includes('status code 500')) {
+          errorMessage = 'Server error occurred. Please try again later.';
+        } else if (errorMessage.includes('status code 403')) {
+          errorMessage = 'You do not have permission to perform this action.';
+        } else if (errorMessage.includes('status code 401')) {
+          errorMessage = 'Your session has expired. Please refresh the page.';
+        } else if (errorMessage.includes('Network Error') || errorMessage.includes('ERR_NETWORK')) {
+          errorMessage = 'Network connection failed. Please check your internet connection.';
+        }
+        
+        console.error('[Distribution] API Error:', response.error);
+        
+        // Determine which action failed and show appropriate error message
+        let actionName = 'Action';
+        if (isPauseDialogOpen) actionName = 'Pause Rollout';
+        else if (isResumeDialogOpen) actionName = 'Resume Rollout';
+        else if (isHaltDialogOpen) actionName = 'Halt Rollout';
+        else if (isUpdateRolloutDialogOpen) actionName = 'Update Rollout';
+        else if (isCancelDialogOpen) actionName = 'Cancel Submission';
+        else if (isPromoteAndroidDialogOpen || isPromoteIOSDialogOpen) actionName = 'Submit to Store';
+        
+        showErrorToast({
+          title: `${actionName} Failed`,
+          message: errorMessage,
+          duration: 8000, // Show longer for errors
+        });
+        
+        // Dialog stays open so user can retry or cancel manually
+        // DO NOT call completion handlers - let user close dialog manually
+      }
+    }
+  }, [
+    fetcher.state,
+    fetcher.data,
+    isPauseDialogOpen,
+    isResumeDialogOpen,
+    isHaltDialogOpen,
+    isUpdateRolloutDialogOpen,
+    isCancelDialogOpen,
+    isPromoteAndroidDialogOpen,
+    isPromoteIOSDialogOpen,
+    handlePauseComplete,
+    handleResumeComplete,
+    handleHaltComplete,
+    handleUpdateRolloutComplete,
+  ]);
+
+  // Separate active and historical submissions per platform
+  const androidSubmissions = useMemo(
+    () => distribution.submissions?.filter((s) => s.platform === Platform.ANDROID) || [],
+    [distribution.submissions]
   );
 
-  const handleBackClick = useCallback(() => {
-    // Navigation handled by Link component
-  }, []);
+  const iosSubmissions = useMemo(
+    () => distribution.submissions?.filter((s) => s.platform === Platform.IOS) || [],
+    [distribution.submissions]
+  );
+
+  // Get latest (active) submissions
+  const latestAndroidSubmission = useMemo(
+    () => androidSubmissions.find((s) => s.isActive),
+    [androidSubmissions]
+  );
+
+  const latestIOSSubmission = useMemo(
+    () => iosSubmissions.find((s) => s.isActive),
+    [iosSubmissions]
+  );
+
+  // Get historical submissions (not active)
+  const historicalAndroidSubmissions = useMemo(
+    () => androidSubmissions.filter((s) => !s.isActive),
+    [androidSubmissions]
+  );
+
+  const historicalIOSSubmissions = useMemo(
+    () => iosSubmissions.filter((s) => !s.isActive),
+    [iosSubmissions]
+  );
+
+  // Platform-specific update rollout dialog handlers (defined after submissions)
+  const handleOpenAndroidUpdateRolloutDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      handleOpenUpdateRolloutDialog(latestAndroidSubmission);
+    }
+  }, [latestAndroidSubmission, handleOpenUpdateRolloutDialog]);
+
+  const handleOpenIOSUpdateRolloutDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      handleOpenUpdateRolloutDialog(latestIOSSubmission);
+    }
+  }, [latestIOSSubmission, handleOpenUpdateRolloutDialog]);
+
+  // Platform-specific promote dialog handlers (for PENDING status)
+  const handleOpenAndroidPromoteDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      setSelectedSubmission(latestAndroidSubmission);
+      setIsPromoteAndroidDialogOpen(true);
+    }
+  }, [latestAndroidSubmission]);
+
+  const handleOpenIOSPromoteDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      setSelectedSubmission(latestIOSSubmission);
+      setIsPromoteIOSDialogOpen(true);
+    }
+  }, [latestIOSSubmission]);
+
+  // Platform-specific resubmit dialog handlers
+  const handleOpenAndroidResubmitDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      handleOpenResubmitDialog(latestAndroidSubmission);
+    }
+  }, [latestAndroidSubmission, handleOpenResubmitDialog]);
+
+  const handleOpenIOSResubmitDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      handleOpenResubmitDialog(latestIOSSubmission);
+    }
+  }, [latestIOSSubmission, handleOpenResubmitDialog]);
+
+  // Platform-specific dialog handlers
+  const handleOpenAndroidPauseDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      handleOpenPauseDialog(latestAndroidSubmission);
+    }
+  }, [latestAndroidSubmission, handleOpenPauseDialog]);
+
+  const handleOpenAndroidResumeDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      handleOpenResumeDialog(latestAndroidSubmission);
+    }
+  }, [latestAndroidSubmission, handleOpenResumeDialog]);
+
+  const handleOpenAndroidHaltDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      handleOpenHaltDialog(latestAndroidSubmission);
+    }
+  }, [latestAndroidSubmission, handleOpenHaltDialog]);
+
+  const handleOpenAndroidCancelDialog = useCallback(() => {
+    if (latestAndroidSubmission) {
+      handleOpenCancelDialog(latestAndroidSubmission);
+    }
+  }, [latestAndroidSubmission, handleOpenCancelDialog]);
+
+  const handleOpenIOSPauseDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      handleOpenPauseDialog(latestIOSSubmission);
+    }
+  }, [latestIOSSubmission, handleOpenPauseDialog]);
+
+  const handleOpenIOSResumeDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      handleOpenResumeDialog(latestIOSSubmission);
+    }
+  }, [latestIOSSubmission, handleOpenResumeDialog]);
+
+  const handleOpenIOSHaltDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      handleOpenHaltDialog(latestIOSSubmission);
+    }
+  }, [latestIOSSubmission, handleOpenHaltDialog]);
+
+  const handleOpenIOSCancelDialog = useCallback(() => {
+    if (latestIOSSubmission) {
+      handleOpenCancelDialog(latestIOSSubmission);
+    }
+  }, [latestIOSSubmission, handleOpenCancelDialog]);
 
   if (error || !distribution.id) {
     return (
@@ -137,7 +574,7 @@ export default function DistributionManagementPage() {
             variant="filled"
             leftSection={<IconArrowLeft size={16} />}
           >
-            {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.BACK_TO_DISTRIBUTIONS}
+            Back to Distributions
           </Button>
         </Group>
       </Container>
@@ -154,82 +591,401 @@ export default function DistributionManagementPage() {
           threshold={5}
         />
       )}
-      {/* Header */}
-      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
-        <Group justify="space-between" align="center">
-          <Group>
-            <Button
-              component={Link}
-              to={`/dashboard/${org}/distributions`}
-              variant="subtle"
-              color="gray"
-              leftSection={
-                <IconArrowLeft
-                  size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.BACK_BUTTON}
-                />
-              }
-              size="sm"
-            >
-              {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.BACK}
-            </Button>
-            <Divider orientation="vertical" />
-            <div>
-              <Title order={2}>{DISTRIBUTION_MANAGEMENT_UI.PAGE_TITLE}</Title>
-              <Text size="sm" c="dimmed">
-                {DISTRIBUTION_MANAGEMENT_UI.PAGE_SUBTITLE(displayVersion)}
-              </Text>
-            </div>
-          </Group>
-          {isLoading && <Loader size="sm" color="blue" />}
-        </Group>
-      </Paper>
 
-      {/* Distribution Overview */}
-      <DistributionOverview distribution={distribution} />
+      {/* Back Button - Outside of header */}
+      <Group mb="lg">
+        <Button
+          component={Link}
+          to={`/dashboard/${org}/distributions`}
+          variant="subtle"
+          color="gray"
+          leftSection={<IconArrowLeft size={16} />}
+          size="sm"
+        >
+          Back to Distributions
+        </Button>
+      </Group>
 
-      {/* Submissions Section */}
-      <Paper shadow="sm" p="lg" radius="md" withBorder className="mt-6">
+      {/* Header Section - Complete Distribution Summary */}
+      <Paper shadow="sm" p="xl" radius="md" withBorder mb="xl">
         <Stack gap="lg">
+          {/* Title Row */}
           <Group justify="space-between" align="center">
-            <div>
-              <Title order={4}>
-                {DISTRIBUTION_MANAGEMENT_UI.PLATFORM_SUBMISSIONS_TITLE}
+            <Group gap="md" align="center">
+              <Title order={1} size="h2">
+                {distribution.branch}
               </Title>
-              <Text size="sm" c="dimmed">
-                {DISTRIBUTION_MANAGEMENT_UI.PLATFORM_SUBMISSIONS_SUBTITLE}
-              </Text>
-            </div>
-            {!hasSubmissions && isPending && (
-              <Button
-                component={Link}
-                to={`/dashboard/${org}/distributions`}
-                variant="filled"
-                color="blue"
+              <Badge
+                size="xl"
+                variant="light"
+                color={DISTRIBUTION_STATUS_COLORS[distribution.status] || 'gray'}
+                radius="sm"
+                styles={{ root: { textTransform: 'uppercase' } }}
               >
-                {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.SUBMIT_TO_STORES}
-              </Button>
-            )}
+                {formatStatus(distribution.status)}
+              </Badge>
+            </Group>
+            {isLoading && <Loader size="md" />}
           </Group>
 
           <Divider />
 
-          {hasSubmissions ? (
-            <div style={gridStyle}>
-              {distribution.submissions.map((submission: any) => (
-                <DistributionSubmissionCard
-                  key={submission.id}
-                  submission={submission}
-                  org={org}
-                  releaseId={distribution.releaseId}
-                />
-              ))}
-            </div>
-          ) : (
-            <DistributionEmptySubmissions />
-          )}
+          {/* Metadata Row - All in one line */}
+          <Group gap="xl" align="flex-start">
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                Release
+              </Text>
+              <Text
+                component={Link}
+                to={`/dashboard/${org}/releases/${distribution.releaseId}`}
+                size="sm"
+                fw={600}
+                c="blue"
+                td="none"
+                style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                {distribution.branch}
+                <IconExternalLink size={14} />
+              </Text>
+            </Stack>
+
+            <Divider orientation="vertical" />
+
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                Created
+              </Text>
+              <Text size="sm" fw={500}>
+                {formatDateTime(distribution.createdAt)}
+              </Text>
+            </Stack>
+
+            <Divider orientation="vertical" />
+
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                Last Updated
+              </Text>
+              <Text size="sm" fw={500} c="dimmed">
+                {distribution.updatedAt ? formatDateTime(distribution.updatedAt) : 'N/A'}
+              </Text>
+            </Stack>
+
+            <Divider orientation="vertical" />
+
+            {/* Only show Platform Status if there are any submissions */}
+            {(androidSubmissions.length > 0 || iosSubmissions.length > 0) && (
+              <Stack gap={4}>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                  Platform Status
+                </Text>
+                <Group gap="sm">
+                  {/* Android Status - Only show if there are Android submissions */}
+                  {androidSubmissions.length > 0 && (
+                    <Badge
+                      size="lg"
+                      variant="light"
+                      color={
+                        latestAndroidSubmission
+                          ? SUBMISSION_STATUS_COLORS[latestAndroidSubmission.status] || 'gray'
+                          : 'gray'
+                      }
+                      leftSection={<IconBrandAndroid size={16} />}
+                      styles={{ root: { paddingLeft: 8 } }}
+                    >
+                      {latestAndroidSubmission?.rolloutPercentage || 0}%
+                    </Badge>
+                  )}
+
+                  {/* iOS Status - Only show if there are iOS submissions */}
+                  {iosSubmissions.length > 0 && (
+                    <Badge
+                      size="lg"
+                      variant="light"
+                      color={
+                        latestIOSSubmission
+                          ? SUBMISSION_STATUS_COLORS[latestIOSSubmission.status] || 'gray'
+                          : 'gray'
+                      }
+                      leftSection={<IconBrandApple size={16} />}
+                      styles={{ root: { paddingLeft: 8 } }}
+                    >
+                      {latestIOSSubmission?.rolloutPercentage || 0}%
+                    </Badge>
+                  )}
+                </Group>
+              </Stack>
+            )}
+          </Group>
         </Stack>
       </Paper>
+
+      {/* Platform Tabs */}
+      <Paper shadow="sm" p="xl" radius="md" withBorder>
+        <Tabs defaultValue={androidSubmissions.length > 0 ? 'android' : 'ios'}>
+          <Tabs.List>
+            {androidSubmissions.length > 0 && (
+              <Tabs.Tab
+                value="android"
+                leftSection={<IconBrandAndroid size={18} />}
+              >
+                Android
+              </Tabs.Tab>
+            )}
+            {iosSubmissions.length > 0 && (
+              <Tabs.Tab
+                value="ios"
+                leftSection={<IconBrandApple size={18} />}
+              >
+                iOS
+              </Tabs.Tab>
+            )}
+          </Tabs.List>
+
+          {/* Android Tab - Only render if there are Android submissions */}
+          {androidSubmissions.length > 0 && (
+            <Tabs.Panel value="android" pt="xl">
+            <Stack gap="xl">
+              {/* Latest Android Submission */}
+              <div>
+                <Title order={4} mb="md">{DISTRIBUTION_MANAGEMENT_UI.SECTIONS.LATEST_ANDROID_SUBMISSION}</Title>
+                {latestAndroidSubmission ? (
+                  <LatestSubmissionCard
+                    submission={latestAndroidSubmission}
+                    org={org}
+                    onPromote={handleOpenAndroidPromoteDialog}
+                    onUpdateRollout={handleOpenAndroidUpdateRolloutDialog}
+                    onPause={handleOpenAndroidPauseDialog}
+                    onResume={handleOpenAndroidResumeDialog}
+                    onHalt={handleOpenAndroidHaltDialog}
+                    onCancel={handleOpenAndroidCancelDialog}
+                    onResubmit={handleOpenAndroidResubmitDialog}
+                  />
+                ) : (
+                  <Paper p="xl" radius="md" withBorder>
+                    <Stack align="center" gap="md">
+                      <Text c="dimmed" ta="center">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_ACTIVE_ANDROID_SUBMISSION}</Text>
+                      {/* Show Resubmit button if there's a rejected/cancelled submission */}
+                      {historicalAndroidSubmissions.length > 0 && 
+                       (historicalAndroidSubmissions[0].status === SubmissionStatus.REJECTED || 
+                        historicalAndroidSubmissions[0].status === SubmissionStatus.CANCELLED) && (
+                        <Button
+                          variant="filled"
+                          color="blue"
+                          leftSection={<IconRefresh size={16} />}
+                          onClick={handleOpenAndroidResubmitDialog}
+                        >
+                          {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.RESUBMIT}
+                        </Button>
+                      )}
+                    </Stack>
+                  </Paper>
+                )}
+              </div>
+
+              <Divider />
+
+              {/* Android Submission History */}
+              <div>
+                <Title order={4} mb="md">{DISTRIBUTION_MANAGEMENT_UI.SECTIONS.ANDROID_SUBMISSION_HISTORY}</Title>
+                {historicalAndroidSubmissions.length > 0 ? (
+                  <SubmissionHistoryTimeline
+                    submissions={historicalAndroidSubmissions}
+                    platform={Platform.ANDROID}
+                  />
+                ) : (
+                  <Paper p="xl" radius="md" withBorder className="text-center">
+                    <Text c="dimmed">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_HISTORICAL_ANDROID_SUBMISSIONS}</Text>
+                  </Paper>
+                )}
+              </div>
+
+              <Divider />
+
+              {/* Android Activity History */}
+              <div>
+                <Title order={4} mb="md">{DISTRIBUTION_MANAGEMENT_UI.SECTIONS.ANDROID_ACTIVITY_HISTORY}</Title>
+                {latestAndroidSubmission?.actionHistory &&
+                latestAndroidSubmission.actionHistory.length > 0 ? (
+                  <ActivityHistoryLog actionHistory={latestAndroidSubmission.actionHistory} />
+                ) : (
+                  <Paper p="xl" radius="md" withBorder className="text-center">
+                    <Text c="dimmed">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_ANDROID_ACTIVITY_HISTORY}</Text>
+                  </Paper>
+                )}
+              </div>
+            </Stack>
+          </Tabs.Panel>
+          )}
+
+          {/* iOS Tab - Only render if there are iOS submissions */}
+          {iosSubmissions.length > 0 && (
+            <Tabs.Panel value="ios" pt="xl">
+            <Stack gap="xl">
+              {/* Latest iOS Submission */}
+              <div>
+                <Title order={4} mb="md">{DISTRIBUTION_MANAGEMENT_UI.SECTIONS.LATEST_IOS_SUBMISSION}</Title>
+                {latestIOSSubmission ? (
+                  <LatestSubmissionCard
+                    submission={latestIOSSubmission}
+                    org={org}
+                    onPromote={handleOpenIOSPromoteDialog}
+                    onUpdateRollout={handleOpenIOSUpdateRolloutDialog}
+                    onPause={handleOpenIOSPauseDialog}
+                    onResume={handleOpenIOSResumeDialog}
+                    onHalt={handleOpenIOSHaltDialog}
+                    onCancel={handleOpenIOSCancelDialog}
+                    onResubmit={handleOpenIOSResubmitDialog}
+                  />
+                ) : (
+                  <Paper p="xl" radius="md" withBorder>
+                    <Stack align="center" gap="md">
+                      <Text c="dimmed" ta="center">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_ACTIVE_IOS_SUBMISSION}</Text>
+                      {/* Show Resubmit button if there's a rejected/cancelled submission */}
+                      {historicalIOSSubmissions.length > 0 && 
+                       (historicalIOSSubmissions[0].status === SubmissionStatus.REJECTED || 
+                        historicalIOSSubmissions[0].status === SubmissionStatus.CANCELLED) && (
+                        <Button
+                          variant="filled"
+                          color="blue"
+                          leftSection={<IconRefresh size={16} />}
+                          onClick={handleOpenIOSResubmitDialog}
+                        >
+                          {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.RESUBMIT}
+                        </Button>
+                      )}
+                    </Stack>
+                  </Paper>
+                )}
+              </div>
+
+              <Divider />
+
+              {/* iOS Submission History */}
+              <div>
+                <Title order={4} mb="md">{DISTRIBUTION_MANAGEMENT_UI.SECTIONS.IOS_SUBMISSION_HISTORY}</Title>
+                {historicalIOSSubmissions.length > 0 ? (
+                  <SubmissionHistoryTimeline
+                    submissions={historicalIOSSubmissions}
+                    platform={Platform.IOS}
+                  />
+                ) : (
+                  <Paper p="xl" radius="md" withBorder className="text-center">
+                    <Text c="dimmed">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_HISTORICAL_IOS_SUBMISSIONS}</Text>
+                  </Paper>
+                )}
+              </div>
+
+              <Divider />
+
+              {/* iOS Activity History */}
+              <div>
+                <Title order={4} mb="md">{DISTRIBUTION_MANAGEMENT_UI.SECTIONS.IOS_ACTIVITY_HISTORY}</Title>
+                {latestIOSSubmission?.actionHistory &&
+                latestIOSSubmission.actionHistory.length > 0 ? (
+                  <ActivityHistoryLog actionHistory={latestIOSSubmission.actionHistory} />
+                ) : (
+                  <Paper p="xl" radius="md" withBorder className="text-center">
+                    <Text c="dimmed">{DISTRIBUTION_MANAGEMENT_UI.EMPTY_STATES.NO_IOS_ACTIVITY_HISTORY}</Text>
+                  </Paper>
+                )}
+              </div>
+            </Stack>
+          </Tabs.Panel>
+          )}
+        </Tabs>
+      </Paper>
+
+      {/* Action Dialogs */}
+      {selectedSubmission && (
+        <>
+          {/* Promote Android Submission Dialog (PENDING) */}
+          {selectedSubmission.platform === Platform.ANDROID && (
+            <PromoteAndroidSubmissionDialog
+              opened={isPromoteAndroidDialogOpen}
+              onClose={handleCloseDialogs}
+              submission={selectedSubmission as any}
+              onPromoteComplete={handlePromoteComplete}
+            />
+          )}
+
+          {/* Promote iOS Submission Dialog (PENDING) */}
+          {selectedSubmission.platform === Platform.IOS && (
+            <PromoteIOSSubmissionDialog
+              opened={isPromoteIOSDialogOpen}
+              onClose={handleCloseDialogs}
+              submission={selectedSubmission as any}
+              onPromoteComplete={handlePromoteComplete}
+            />
+          )}
+
+          {/* Pause Rollout Dialog */}
+          <PauseRolloutDialog
+            opened={isPauseDialogOpen}
+            onClose={handleCloseDialogs}
+            platform={selectedSubmission.platform}
+            currentPercentage={selectedSubmission.rolloutPercentage}
+            onConfirm={handlePause}
+            isLoading={fetcher.state === 'submitting'}
+          />
+
+          {/* Resume Rollout Dialog */}
+          <ResumeRolloutDialog
+            opened={isResumeDialogOpen}
+            onClose={handleCloseDialogs}
+            platform={selectedSubmission.platform}
+            currentPercentage={selectedSubmission.rolloutPercentage}
+            onConfirm={handleResume}
+            isLoading={fetcher.state === 'submitting'}
+          />
+
+          {/* Halt Rollout Dialog */}
+          <HaltRolloutDialog
+            opened={isHaltDialogOpen}
+            onClose={handleCloseDialogs}
+            submissionId={selectedSubmission.id}
+            platform={selectedSubmission.platform}
+            isHalting={fetcher.state === 'submitting'}
+            onHalt={handleHalt}
+          />
+
+          {/* Cancel Submission Dialog */}
+          <CancelSubmissionDialog
+            opened={isCancelDialogOpen}
+            onClose={handleCloseDialogs}
+            submissionId={selectedSubmission.id}
+            platform={selectedSubmission.platform}
+            version={selectedSubmission.version}
+            currentStatus={selectedSubmission.status}
+            onCancelComplete={handleCancelComplete}
+          />
+
+          {/* Update Rollout Dialog */}
+          <UpdateRolloutDialog
+            opened={isUpdateRolloutDialogOpen}
+            onClose={handleCloseDialogs}
+            platform={selectedSubmission.platform}
+            currentPercentage={selectedSubmission.rolloutPercentage}
+            phasedRelease={
+              selectedSubmission.platform === Platform.IOS && 'phasedRelease' in selectedSubmission
+                ? selectedSubmission.phasedRelease ?? undefined
+                : undefined
+            }
+            onConfirm={handleUpdateRolloutSubmit}
+            isLoading={fetcher.state === 'submitting'}
+          />
+
+          {/* Resubmit Dialog */}
+          <ReSubmissionDialog
+            opened={isResubmitDialogOpen}
+            onClose={handleCloseDialogs}
+            distributionId={distribution.id}
+            previousSubmission={selectedSubmission}
+            onResubmitComplete={handleResubmitComplete}
+          />
+        </>
+      )}
     </Container>
   );
 }
-

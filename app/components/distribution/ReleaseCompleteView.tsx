@@ -9,12 +9,12 @@ import { Anchor, Badge, Card, Group, Stack, Text, ThemeIcon, Timeline } from '@m
 import { IconBrandAndroid, IconBrandApple, IconCheck, IconConfetti, IconExternalLink } from '@tabler/icons-react';
 import { PLATFORM_LABELS } from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
-import { formatRelativeTime } from './distribution.utils';
+import { formatDateTime } from '~/utils/distribution-ui.utils';
 
 export type PlatformReleaseInfo = {
   platform: Platform;
   versionName: string;
-  rolloutPercent: number;
+  rolloutPercentage: number;
   storeLink?: string;
   submittedAt: string | null;
   releasedAt: string | null;
@@ -85,7 +85,7 @@ export function ReleaseCompleteView({
                   <Badge color="green" variant="filled" size="lg">
                     <Group gap={4}>
                       <IconCheck size={14} />
-                      {platform.rolloutPercent}%
+                      {platform.rolloutPercentage}%
                     </Group>
                   </Badge>
 
@@ -113,13 +113,13 @@ export function ReleaseCompleteView({
           {platforms[0]?.submittedAt && (
             <Timeline.Item title="Submitted">
               <Text size="xs" c="dimmed">
-                {formatRelativeTime(platforms[0].submittedAt)}
+                {formatDateTime(platforms[0].submittedAt)}
               </Text>
             </Timeline.Item>
           )}
           <Timeline.Item title="Released">
             <Text size="xs" c="dimmed">
-              {formatRelativeTime(completedAt)}
+              {formatDateTime(completedAt)}
             </Text>
           </Timeline.Item>
         </Timeline>

@@ -8,6 +8,7 @@
  *   node mock-server/scenarios.js active  → Test with 2 distributions
  *   node mock-server/scenarios.js many    → Test pagination (20 items)
  *   node mock-server/scenarios.js mixed   → Test mixed statuses
+ *   node mock-server/scenarios.js history → Test submission history (run after 'many')
  *   node mock-server/scenarios.js reset   → Restore original
  */
 
@@ -109,49 +110,128 @@ const scenarios = {
   
   /**
    * MANY ITEMS (Pagination Test)
-   * 20+ distributions
+   * 20+ distributions with submissions
    * Result: Pagination controls appear
    */
   many: () => {
     const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
     
-    // Distribution statuses that mock server accepts
-    const distStatuses = ['PENDING', 'PARTIALLY_RELEASED', 'COMPLETED'];
+    // Clear existing data
+    db.distributions = [];
+    db.submissions = [];
     
-    // Make all existing releases visible with distribution statuses
-    db.releases.forEach((r, i) => {
-      r.status = distStatuses[i % distStatuses.length];
-    });
+    // Distribution statuses
+    const distStatuses = ['PENDING', 'PARTIALLY_RELEASED', 'SUBMITTED', 'PARTIALLY_RELEASED', 'RELEASED'];
+    const submissionStatuses = ['PENDING', 'IN_REVIEW', 'APPROVED', 'LIVE', 'LIVE'];
+    const rolloutPercentages = [0, 0, 0, 25, 100];
     
-    // Clone first release multiple times to create 20 total
+    // Create 20 releases with distributions and submissions
     const baseRelease = db.releases[0];
-    while (db.releases.length < 20) {
-      const clone = JSON.parse(JSON.stringify(baseRelease));
-      const index = db.releases.length;
+    db.releases = []; // Clear existing
+    
+    for (let i = 0; i < 20; i++) {
+      // Determine platform targets (vary for realism)
+      // Pattern: Both, Android-only, iOS-only, Both, Both, ...
+      let targetPlatforms;
+      if (i % 5 === 1) {
+        targetPlatforms = ['ANDROID']; // Android-only
+      } else if (i % 5 === 2) {
+        targetPlatforms = ['IOS']; // iOS-only
+      } else {
+        targetPlatforms = ['ANDROID', 'IOS']; // Both platforms
+      }
       
-      // Update IDs to be unique
-      clone.id = `test-release-${index}`;
-      clone.releaseId = `REL-TEST-${String(index).padStart(3, '0')}`;
-      clone.status = distStatuses[index % distStatuses.length]; // ✅ Use distribution statuses
+      // Create release
+      const release = JSON.parse(JSON.stringify(baseRelease));
+      release.id = `test-release-${String(i).padStart(3, '0')}`;
+      release.releaseId = `REL-TEST-${String(i).padStart(3, '0')}`;
+      release.branch = `release/3.${i}.0`;
+      release.version = `3.${i}.0`;
+      release.status = 'SUBMITTED';
       
-      // Update version in platformTargetMappings
-      if (clone.platformTargetMappings) {
-        clone.platformTargetMappings.forEach(pt => {
-          pt.id = `pt-${index}-${pt.platform}`;
-          pt.releaseId = clone.id;
-          pt.version = `v3.${index}.0`;
+      // Set platform target mappings based on what platforms are targeted
+      release.platformTargetMappings = targetPlatforms.map(platform => ({
+        id: `pt-${i}-${platform}`,
+        releaseId: release.id,
+        platform: platform,
+        version: `3.${i}.0`
+      }));
+      
+      db.releases.push(release);
+      
+      // Create distribution
+      const distId = `dist_${String(i + 1).padStart(3, '0')}`;
+      db.distributions.push({
+        id: distId,
+        tenantId: 'EkgmIbgGQx',
+        releaseId: release.id,
+        status: distStatuses[i % distStatuses.length],
+        createdAt: new Date(Date.now() - (20 - i) * 86400000).toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Create submissions ONLY for targeted platforms
+      if (targetPlatforms.includes('ANDROID')) {
+        db.submissions.push({
+          id: `sub-android-${i}`,
+          distributionId: distId,
+          releaseId: release.id,
+          platform: 'ANDROID',
+          storeType: 'PLAY_STORE',
+          status: submissionStatuses[i % submissionStatuses.length],
+          version: `3.${i}.0`,
+          versionCode: 300 + i,
+          rolloutPercentage: rolloutPercentages[i % rolloutPercentages.length],
+          inAppUpdatePriority: 0,
+          releaseNotes: `Release 3.${i}.0 - Bug fixes and improvements`,
+          submittedAt: i % 5 === 0 ? null : new Date(Date.now() - (19 - i) * 86400000).toISOString(),
+          submittedBy: i % 5 === 0 ? null : 'prince@dream11.com',
+          statusUpdatedAt: new Date(Date.now() - (19 - i) * 43200000).toISOString(),
+          createdAt: new Date(Date.now() - (20 - i) * 86400000).toISOString(),
+          updatedAt: new Date(Date.now() - (19 - i) * 43200000).toISOString(),
+          isActive: true, // ✅ Active submission
+          artifact: {
+            artifactPath: `https://s3.amazonaws.com/builds/android-3.${i}.0.aab`,
+            internalTrackLink: i === 0 ? `https://play.google.com/apps/testing/com.app.${i}` : undefined
+          },
+          actionHistory: []
         });
       }
       
-      clone.branch = `release/3.${index}.0`;
-      
-      db.releases.push(clone);
+      if (targetPlatforms.includes('IOS')) {
+        db.submissions.push({
+          id: `sub-ios-${i}`,
+          distributionId: distId,
+          releaseId: release.id,
+          platform: 'IOS',
+          storeType: 'APP_STORE',
+          status: submissionStatuses[(i + 1) % submissionStatuses.length],
+          version: `3.${i}.0`,
+          releaseType: 'AFTER_APPROVAL',
+          phasedRelease: i % 2 === 0,
+          resetRating: false,
+          rolloutPercentage: rolloutPercentages[(i + 1) % rolloutPercentages.length],
+          releaseNotes: `Release 3.${i}.0 - Bug fixes and improvements`,
+          isActive: true, // ✅ Active submission
+          submittedAt: i % 5 === 0 ? null : new Date(Date.now() - (19 - i) * 86400000).toISOString(),
+          submittedBy: i % 5 === 0 ? null : 'prince@dream11.com',
+          statusUpdatedAt: new Date(Date.now() - (19 - i) * 43200000).toISOString(),
+          createdAt: new Date(Date.now() - (20 - i) * 86400000).toISOString(),
+          updatedAt: new Date(Date.now() - (19 - i) * 43200000).toISOString(),
+          artifact: {
+            testflightNumber: 50000 + i
+          },
+          actionHistory: []
+        });
+      }
     }
     
     fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-    console.log(`✅ MANY ITEMS: ${db.releases.length} distributions`);
+    console.log(`✅ MANY ITEMS: ${db.distributions.length} distributions (${db.submissions.length} submissions)`);
+    console.log('   Platform mix: Both platforms, Android-only, iOS-only, Both, Both (repeating)');
+    console.log('   Expected: Some distributions show only 🤖, some only 🍎, most show both');
     console.log('   Expected: Pagination controls at bottom');
-    console.log('   Expected: "Showing 1-10 of 20" text');
+    console.log('   Expected: "Showing 1-10 of 20" on page 1');
     console.log('   Refresh browser to see changes');
   },
   
@@ -182,6 +262,163 @@ const scenarios = {
   },
   
   /**
+   * DETAILED HISTORY
+   * First distribution has multiple submissions (historical + active)
+   * Perfect for testing detail page with submission history
+   * 
+   * NOTE: Run "node scenarios.js many" first to create distributions
+   */
+  history: () => {
+    const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+    
+    // Clear existing submissions for first distribution
+    const firstDist = db.distributions[0];
+    if (!firstDist) {
+      console.error('❌ No distributions found. Run "node scenarios.js many" first.');
+      return;
+    }
+    
+    // Remove existing submissions for this distribution
+    db.submissions = db.submissions.filter(s => s.distributionId !== firstDist.id);
+    
+    const distId = firstDist.id;
+    const releaseId = firstDist.releaseId;
+    
+    // Android: 2 Historical + 1 Active
+    db.submissions.push({
+        id: `sub-android-hist-1`,
+        distributionId: distId,
+        releaseId: releaseId,
+        platform: 'ANDROID',
+        storeType: 'PLAY_STORE',
+        status: 'REJECTED',
+        version: '3.0.0',
+        versionCode: 300,
+        rolloutPercentage: 5,
+        inAppUpdatePriority: 0,
+        releaseNotes: 'Initial release - rejected due to policy violation',
+        submittedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+        submittedBy: 'prince@dream11.com',
+        statusUpdatedAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+        createdAt: new Date(Date.now() - 12 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 8 * 86400000).toISOString(),
+        isActive: false,
+        artifact: { artifactPath: `https://s3.amazonaws.com/builds/android-3.0.0-v1.aab` },
+        actionHistory: []
+      },
+      {
+        id: `sub-android-hist-2`,
+        distributionId: distId,
+        releaseId: releaseId,
+        platform: 'ANDROID',
+        storeType: 'PLAY_STORE',
+        status: 'CANCELLED',
+        version: '3.0.0',
+        versionCode: 301,
+        rolloutPercentage: 5,
+        inAppUpdatePriority: 0,
+        releaseNotes: 'Release 3.0.0 - Fixed policy issues',
+        submittedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
+        submittedBy: 'prince@dream11.com',
+        statusUpdatedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+        createdAt: new Date(Date.now() - 6 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+        isActive: false,
+        artifact: { artifactPath: `https://s3.amazonaws.com/builds/android-3.0.0-v2.aab` },
+        actionHistory: [{
+          action: 'CANCELLED',
+          performedBy: 'prince@dream11.com',
+          performedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+          reason: 'Found critical bug, cancelling to resubmit with fix'
+        }]
+      },
+      {
+        id: `sub-android-active`,
+        distributionId: distId,
+        releaseId: releaseId,
+        platform: 'ANDROID',
+        storeType: 'PLAY_STORE',
+        status: 'LIVE',
+        version: '3.0.0',
+        versionCode: 302,
+        rolloutPercentage: 25,
+        inAppUpdatePriority: 0,
+        releaseNotes: 'Release 3.0.0 - All issues fixed, rolling out',
+        submittedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+        submittedBy: 'prince@dream11.com',
+        statusUpdatedAt: new Date(Date.now() - 12 * 3600000).toISOString(),
+        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 12 * 3600000).toISOString(),
+        isActive: true,
+        artifact: {
+          artifactPath: `https://s3.amazonaws.com/builds/android-3.0.0-v3.aab`,
+          internalTrackLink: `https://play.google.com/apps/testing/com.app.test`
+        },
+        actionHistory: []
+      }
+    );
+    
+    // iOS: 1 Historical + 1 Active (PAUSED)
+    db.submissions.push({
+        id: `sub-ios-hist-1`,
+        distributionId: distId,
+        releaseId: releaseId,
+        platform: 'IOS',
+        storeType: 'APP_STORE',
+        status: 'REJECTED',
+        version: '3.0.0',
+        releaseType: 'AFTER_APPROVAL',
+        phasedRelease: true,
+        resetRating: false,
+        rolloutPercentage: 0,
+        releaseNotes: 'Initial iOS release - rejected',
+        submittedAt: new Date(Date.now() - 9 * 86400000).toISOString(),
+        submittedBy: 'prince@dream11.com',
+        statusUpdatedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+        createdAt: new Date(Date.now() - 11 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+        isActive: false,
+        artifact: { testflightNumber: 1001 },
+        actionHistory: []
+      },
+      {
+        id: `sub-ios-active`,
+        distributionId: distId,
+        releaseId: releaseId,
+        platform: 'IOS',
+        storeType: 'APP_STORE',
+        status: 'PAUSED',
+        version: '3.0.0',
+        releaseType: 'AFTER_APPROVAL',
+        phasedRelease: true,
+        resetRating: false,
+        rolloutPercentage: 50,
+        releaseNotes: 'Release 3.0.0 - Phased release (paused for monitoring)',
+        submittedAt: new Date(Date.now() - 4 * 86400000).toISOString(),
+        submittedBy: 'prince@dream11.com',
+        statusUpdatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
+        createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
+        isActive: true,
+        artifact: { testflightNumber: 1002 },
+        actionHistory: [{
+          action: 'PAUSED',
+          performedBy: 'prince@dream11.com',
+          performedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
+          reason: 'Monitoring crash reports before continuing rollout'
+        }]
+      }
+    );
+    
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+    console.log('✅ DETAILED HISTORY: First distribution now has submission history');
+    console.log('   Android: 2 historical (REJECTED, CANCELLED) + 1 active (LIVE 25%)');
+    console.log('   iOS: 1 historical (REJECTED) + 1 active (PAUSED 50%)');
+    console.log('   Navigate to first distribution to test detail page');
+    console.log('   Refresh browser to see changes');
+  },
+  
+  /**
    * RESET
    * Restore original db.json from backup
    */
@@ -205,6 +442,11 @@ const scenarios = {
   submissions: () => {
     const db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
     
+    // ✅ Ensure distributions table exists
+    if (!db.distributions) {
+      db.distributions = [];
+    }
+    
     // Make first 3 releases visible
     const visibleReleases = db.releases.slice(0, 3);
     visibleReleases.forEach(r => r.status = 'SUBMITTED');
@@ -212,24 +454,38 @@ const scenarios = {
     // Hide rest
     db.releases.slice(3).forEach(r => r.status = 'IN_PROGRESS');
     
-    // Clear existing submissions
+    // Clear existing distributions and submissions
+    db.distributions = [];
     db.submissions = [];
     
     // Add submissions with different rollout stages (✅ 100% API Spec Compliant)
     const rolloutPercentages = [10, 50, 100];
+    const distStatuses = ['PARTIALLY_RELEASED', 'SUBMITTED', 'RELEASED'];
     
     visibleReleases.forEach((release, index) => {
+      const distId = `dist_${String(index + 1).padStart(3, '0')}`;
+      
+      // ✅ Add distribution entry
+      db.distributions.push({
+        id: distId,
+        tenantId: 'EkgmIbgGQx',
+        releaseId: release.id,
+        status: distStatuses[index],
+        createdAt: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
       // Android submission
       db.submissions.push({
         id: `sub-android-${index}`,
-        distributionId: `dist-${release.id}`,
+        distributionId: distId,
         platform: 'ANDROID',
         storeType: 'PLAY_STORE',
         status: 'LIVE',
         version: release.platformTargetMappings?.[0]?.version || 'v2.7.0',
         versionCode: 270 + index,
-        rolloutPercent: rolloutPercentages[index],
-        inAppPriority: 0,
+        rolloutPercentage: rolloutPercentages[index],
+        inAppUpdatePriority: 0,
         releaseNotes: 'Bug fixes and improvements',
         submittedAt: '2025-12-13T10:00:00.000Z',
         submittedBy: 'test@example.com',
@@ -246,15 +502,15 @@ const scenarios = {
       // iOS submission
       db.submissions.push({
         id: `sub-ios-${index}`,
-        distributionId: `dist-${release.id}`,
+        distributionId: distId,
         platform: 'IOS',
         storeType: 'APP_STORE',
         status: index === 2 ? 'LIVE' : 'IN_REVIEW',
         version: release.platformTargetMappings?.[1]?.version || 'v2.7.0',
-        releaseType: 'AUTOMATIC',
+        releaseType: 'AFTER_APPROVAL',
         phasedRelease: true,
         resetRating: false,
-        rolloutPercent: index === 2 ? 100 : 0,
+        rolloutPercentage: index === 2 ? 100 : 0,
         releaseNotes: 'Bug fixes and improvements',
         submittedAt: '2025-12-13T10:00:00.000Z',
         submittedBy: 'test@example.com',

@@ -10,12 +10,12 @@
 import { Badge, Card, Group, RingProgress, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconClock, IconRocket } from '@tabler/icons-react';
 import {
-  PLATFORM_LABELS,
-  RELEASE_STATUS_COLORS,
-  RELEASE_STATUS_LABELS,
-  ROLLOUT_COMPLETE_PERCENT,
+    PLATFORM_LABELS,
+    RELEASE_STATUS_COLORS,
+    RELEASE_STATUS_LABELS,
+    ROLLOUT_COMPLETE_PERCENT,
 } from '~/constants/distribution.constants';
-import { Platform, DistributionStatus } from '~/types/distribution.types';
+import { DistributionStatus, Platform } from '~/types/distribution.types';
 import type { DistributionStatusPanelProps } from './distribution.types';
 
 // ============================================================================
@@ -192,7 +192,7 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
                 platform={Platform.ANDROID}
                 submitted={platforms.android.submitted}
                 status={platforms.android.status}
-                percentage={platforms.android.rolloutPercent}
+                percentage={platforms.android.rolloutPercentage}
               />
             )}
             {platforms.ios && (
@@ -200,7 +200,7 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
                 platform={Platform.IOS}
                 submitted={platforms.ios.submitted}
                 status={platforms.ios.status}
-                percentage={platforms.ios.rolloutPercent}
+                percentage={platforms.ios.rolloutPercentage}
               />
             )}
           </Stack>

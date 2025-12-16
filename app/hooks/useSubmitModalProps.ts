@@ -38,32 +38,17 @@ export function useSubmitModalProps(
       distribution.status === DistributionStatus.PENDING &&
       distribution.submissions.length === 0;
 
-    // Extract Android artifact if available
-    const androidArtifact =
-      distribution.platforms.includes(Platform.ANDROID) &&
-      distribution.artifacts?.android
-        ? {
-            name: distribution.artifacts.android.name,
-            size: distribution.artifacts.android.size,
-            internalTrackLink:
-              distribution.artifacts.android.internalTrackLink,
-          }
-        : undefined;
-
-    // Extract iOS artifact if available
-    const iosArtifact =
-      distribution.platforms.includes(Platform.IOS) &&
-      distribution.artifacts?.ios
-        ? {
-            buildNumber: distribution.artifacts.ios.buildNumber,
-            testflightLink: distribution.artifacts.ios.testflightLink,
-          }
-        : undefined;
+    // Note: Artifact details (AAB files, TestFlight builds) are not available in the list view
+    // DistributionEntry only contains minimal submission info (SubmissionInDistribution[])
+    // Full artifact details would require:
+    // 1. Navigating to the detail view (which has full Submission objects), OR
+    // 2. Fetching from a separate builds/artifacts endpoint
+    // For now, return undefined - the submit modal will handle this gracefully
 
     return {
       isFirstSubmission,
-      androidArtifact,
-      iosArtifact,
+      androidArtifact: undefined,
+      iosArtifact: undefined,
     };
   }, [distribution]);
 }

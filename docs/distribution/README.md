@@ -1,251 +1,236 @@
 # Distribution Module - Complete Documentation
 
 **Location:** `delivr-web-panel-managed/docs/distribution/`  
-**Last Updated:** December 15, 2025  
-**Status:** ✅ **100% READY FOR TESTING**
+**Last Updated:** December 16, 2025  
+**Status:** ✅ **PRODUCTION READY**
 
 ---
 
 ## 📚 Documentation Index
 
-### 🎯 Core Specifications (START HERE)
+### 🎯 Core Specifications
 
-#### 1. **DISTRIBUTION_API_SPEC.md** (Holy Grail)
+#### 1. **DISTRIBUTION_API_SPEC.md** (The Holy Grail)
 - **Purpose:** Complete API specification for backend implementation
-- **Audience:** Backend developers, API consumers
+- **Audience:** Backend developers, API consumers, Frontend integration
 - **Contents:**
   - All API endpoints (20+ endpoints)
-  - Request/response schemas
+  - Request/response schemas with examples
   - Platform-specific rules (Android, iOS)
+  - Distribution & Submission lifecycle
+  - Action transitions and state machine
   - Database schemas
   - Error codes and handling
-  - Complete examples
-- **Status:** ✅ Final - Ready for implementation
-- **Last Updated:** December 15, 2025
+  - Field name standards and conventions
+- **Status:** ✅ Final - Production Ready
+- **Lines:** ~1,676 lines
 
 #### 2. **DISTRIBUTION_UI_FLOW_SPEC.md**
 - **Purpose:** Complete UI flows and user journeys
-- **Audience:** Frontend developers, UX designers
+- **Audience:** Frontend developers, UX designers, Product managers
 - **Contents:**
-  - Complete user journeys
+  - Complete user journeys (two-module architecture)
   - UI states and components
   - Action availability matrix
   - Navigation flows
-  - Two-module architecture
   - Platform-specific UI rules
-- **Status:** ✅ Final - Ready for implementation
-- **Last Updated:** December 15, 2025
+  - Error handling and edge cases
+  - Component hierarchy and props
+- **Status:** ✅ Final - Production Ready
+- **Lines:** ~1,499 lines
 
----
-
-### 📋 Implementation & Testing Documentation
-
-#### 3. **IMPLEMENTATION_PLAN.md**
-- **Purpose:** Detailed step-by-step implementation plan with exact code examples
-- **Audience:** Developers implementing the distribution module
+#### 3. **DISTRIBUTION_TESTING_PLAN.md**
+- **Purpose:** Comprehensive testing scenarios and acceptance criteria
+- **Audience:** QA engineers, Test automation, Developers
 - **Contents:**
-  - 9 detailed implementation phases
-  - Specific file changes with code examples
-  - Acceptance criteria per task
-  - 10-day execution plan
-  - Definition of done checklist
-  - Platform-specific implementation details
-- **Status:** ✅ Ready for execution
-- **Last Updated:** December 15, 2025
-
-#### 4. **DISTRIBUTION_TESTING_PLAN.md**
-- **Purpose:** Comprehensive testing guide with 608 detailed test cases
-- **Audience:** QA engineers, developers
-- **Contents:**
-  - 14 comprehensive test modules
-  - 608 individual test cases
-  - Platform-specific test matrices (Android, iOS Phased, iOS Manual)
-  - Platform parameter validation tests
-  - Mock server setup and commands
-  - Edge cases & error handling
-  - Visual/UI and accessibility testing checklists
-  - Bug reporting and tracking templates
-- **Status:** ✅ Ready for testing
-- **Last Updated:** December 15, 2025
-
+  - Test scenarios for all flows
+  - Platform-specific test cases
+  - API endpoint testing
+  - UI component testing
+  - Integration test scenarios
+  - Edge cases and error scenarios
+  - Regression test checklist
+- **Status:** ✅ Final - Ready for QA
+- **Lines:** ~1,354 lines
 
 ---
 
-## 🎯 Quick Start Guide
+## 🚀 Quick Start
 
-### For Backend Implementation
-1. **Read:** `DISTRIBUTION_API_SPEC.md` (Holy Grail)
-2. **Focus on:** API Endpoints (Section 4-8)
-3. **Reference:** Database schemas (Section 11)
-4. **Implement:** Following exact specifications
+### For Backend Developers
+→ **Start with:** `DISTRIBUTION_API_SPEC.md`
+- Implement all 20+ API endpoints
+- Follow the database schema
+- Implement platform-specific rules
+- Use the exact field names and response structures
 
-### For Frontend Implementation
-1. **Read:** `DISTRIBUTION_UI_FLOW_SPEC.md`
-2. **Focus on:** User Journeys (Section 2)
-3. **Reference:** Component architecture (Section 6)
-4. **Build:** Following UI states and flows
+### For Frontend Developers
+→ **Start with:** `DISTRIBUTION_UI_FLOW_SPEC.md` 
+- Review the two-module architecture
+- Implement the component hierarchy
+- Follow the action availability rules
+- Reference `DISTRIBUTION_API_SPEC.md` for API integration
 
-### For Testing
-1. **Read:** `DISTRIBUTION_TESTING_PLAN.md` (Start here for QA)
-2. **Run:** 5-Minute Smoke Test (in testing plan)
-3. **Setup:** Mock server with `npm start` (in mock-server directory)
-4. **Execute:** 608 comprehensive test cases
-5. **Verify:** All user flows work correctly
-
----
-
-## 🔄 Document Relationships
-
-```
-DISTRIBUTION_API_SPEC.md (Holy Grail)
-        ↓
-        Defines all APIs, schemas, rules
-        ↓
-        ↓
-DISTRIBUTION_UI_FLOW_SPEC.md
-        ↓
-        Implements UI based on API spec
-        ↓
-        ↓
-IMPLEMENTATION_PLAN.md
-        ↓
-        Step-by-step implementation guide
-        ↓
-        ↓
-DISTRIBUTION_TESTING_PLAN.md (608 detailed test cases)
-        ↓
-        Comprehensive test scenarios + Quick Setup + 5-Min Smoke Test
-```
+### For QA Engineers
+→ **Start with:** `DISTRIBUTION_TESTING_PLAN.md`
+- Execute all test scenarios
+- Verify platform-specific behaviors
+- Test edge cases and error handling
+- Run regression tests after changes
 
 ---
 
-## 📊 Key Features Documented
+## 📋 Key Concepts
 
-### Distribution Module Features
-- ✅ **5-state distribution flow**: `PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED`
-- ✅ **8 submission statuses**: Including `PENDING`, `PAUSED`, `CANCELLED`
-- ✅ **Auto-created submissions**: Backend creates PENDING submissions after pre-release
-- ✅ **Platform-specific rules**: Different for Android, iOS Phased, iOS Manual
-- ✅ **Two-module architecture**: Release Management (limited) vs Distribution Management (full)
-- ✅ **Resubmission flow**: Creates NEW submission with NEW artifact
-- ✅ **Rollout management**: Platform-specific percentage controls
+### Distribution Lifecycle (5 States)
+```
+PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED
+```
+
+**Key Rule:** Once `RELEASED`, the status **NEVER changes** (immutable terminal state)
+
+**Status Derivation:** 
+- Single platform: `PENDING` → `SUBMITTED` → `RELEASED`
+- Two platforms: Includes `PARTIALLY_SUBMITTED` and `PARTIALLY_RELEASED`
+- **"Released" means:** `APPROVED`, `LIVE`, `PAUSED`, or `HALTED` status
+
+### Submission Lifecycle (8 States)
+```
+PENDING → IN_REVIEW → APPROVED → LIVE
+             ↓            ↓         ↓
+         REJECTED     REJECTED   PAUSED (iOS only)
+             ↓            ↓         ↓
+         CANCELLED    CANCELLED  HALTED (Android only)
+```
+
+### Available Actions
+
+| Action | From → To | Platform | Prerequisites |
+|--------|-----------|----------|---------------|
+| **Submit** | PENDING → IN_REVIEW | Both | Details provided |
+| **Cancel** | IN_REVIEW → CANCELLED | Both | - |
+| **Resubmit** | REJECTED/CANCELLED → IN_REVIEW | Both | New submission (new ID) |
+| **Pause** | LIVE → PAUSED | iOS only | `phasedRelease=true` |
+| **Resume** | PAUSED → LIVE | iOS only | - |
+| **Halt** | LIVE → HALTED | **Android only** | Terminal state |
+| **Update Rollout** | LIVE → LIVE | Both | Platform-specific rules |
 
 ---
 
-## 🎯 Critical Architecture Points
+## 🔑 Platform-Specific Rules
 
-### 1. Distribution Lifecycle
-```
-Pre-Release Completes
-    ↓
-Backend auto-creates distribution (status: PENDING)
-    ↓
-Backend auto-creates submissions (one per platform, status: PENDING)
-    ↓
-User fills details & submits (PENDING → IN_REVIEW)
-    ↓
-Store reviews (IN_REVIEW → APPROVED/REJECTED)
-    ↓
-User manages rollout (APPROVED → LIVE → RELEASED)
-```
+### Android
+- ✅ Manual staged rollout (any %, decimals allowed)
+- ✅ Can **HALT** (emergency stop - terminal state)
+- ❌ Cannot PAUSE
+- ✅ `inAppUpdatePriority` (0-5)
 
-### 2. Route Structure
-```
-Release Page (Limited):
-  /releases/{releaseId}?tab=distribution
-  → Can: Submit PENDING, Monitor status
-  → Cannot: Manage rollout, Retry, Pause/Halt
-
-Distribution Management (Full):
-  /distributions/{distributionId}
-  → Can: Everything (submit, manage, retry, pause, halt)
-  → Primary identifier: distributionId (not releaseId!)
-```
-
-### 3. Platform-Specific Rollout Rules
-```
-Android:
-  → Any percentage (0-100, decimals supported)
-  → Cannot pause (only halt for emergencies)
-
-iOS Phased Release:
-  → Automatic 7-day rollout by Apple
-  → Can update to 100% only (complete early)
-  → Can PAUSE/RESUME
-
-iOS Manual Release:
-  → Always 100% immediately
-  → No rollout control
-```
+### iOS
+- ✅ **Phased Release** (automatic 7-day rollout, can pause/resume)
+- ✅ **Manual Release** (immediate 100%, no rollout control)
+- ✅ Can **PAUSE** and **RESUME** (phased only)
+- ❌ Cannot HALT (use Cancel or store-level controls)
+- ✅ `releaseType`: Always `"AFTER_APPROVAL"`
 
 ---
 
-## ✅ Implementation Checklist
+## 🎯 Two-Module Architecture
+
+### 1. Release Management (Limited View)
+**Route:** `/dashboard/:org/releases/:releaseId`  
+**Tab:** "Distribution" tab  
+**Scope:** View-only for PM approval context  
+**API:** `GET /api/v1/releases/:releaseId/distribution`
+
+### 2. Distribution Management (Full Control)
+**Route:** `/dashboard/:org/distributions`  
+**Scope:** Full CRUD for distribution operations  
+**APIs:** 
+- `GET /api/v1/distributions` (list with pagination)
+- `GET /api/v1/distributions/:distributionId` (detail)
+- All submission action endpoints
+
+---
+
+## ⚠️ Critical Implementation Notes
+
+### Backend Team Clarifications (Applied)
+1. ✅ **Halt is Android-only** (iOS does NOT support halt)
+2. ✅ **`releaseType`** = `"AFTER_APPROVAL"` (not `"AUTOMATIC"`)
+3. ✅ **Field names:**
+   - `rolloutPercentage` (not `rolloutPercent`)
+   - `inAppUpdatePriority` (not `inAppPriority`)
+
+### Data Model
+- ✅ **Artifacts** are per-submission (not per-distribution)
+- ✅ **Action History** auto-populated by backend for PAUSED/RESUMED/CANCELLED/HALTED
+- ✅ **`isActive` flag** identifies current submission (vs historical)
+- ✅ **Resubmission** creates NEW submission entity with new ID
+
+### PENDING Submissions
+- iOS: `phasedRelease: null`, `resetRating: null` (user fills during submit)
+- iOS: `releaseType: "AFTER_APPROVAL"` (always set, even for PENDING)
+- Both: `submittedAt: null`, `submittedBy: null`
+- Both: `releaseNotes: ""` (empty string, not null)
+
+---
+
+## 📊 Implementation Status
 
 ### Backend
-- [ ] Implement all 20+ API endpoints
-- [ ] Create database tables (3 main tables)
-- [ ] Implement platform-specific rules
-- [ ] Add auto-creation logic for submissions
-- [ ] Implement rollout management
-- [ ] Add error handling and validation
+- ✅ 20+ API endpoints specified
+- ✅ Database schemas defined
+- ✅ Platform-specific rules documented
+- ✅ Error codes and handling specified
 
 ### Frontend
-- [ ] Build Release Page Distribution Tab (limited)
-- [ ] Build Distribution List page
-- [ ] Build Distribution Management page (full)
-- [ ] Implement all dialogs and forms
-- [ ] Add platform-specific UI rules
-- [ ] Integrate with backend APIs
+- ✅ Types aligned 100% with API spec
+- ✅ All components implemented
+- ✅ Action availability logic correct
+- ✅ Two-module architecture implemented
+- ✅ Platform-specific UI flows implemented
 
-### Testing
-- [ ] Test all API endpoints
-- [ ] Test all user journeys
-- [ ] Test platform-specific behaviors
-- [ ] Test error scenarios
-- [ ] Test rollout management
-- [ ] Test resubmission flows
+### Mock Server
+- ✅ 30 test distributions generated
+- ✅ All status combinations covered
+- ✅ Platform-specific scenarios included
+- ✅ Action history samples provided
+- ✅ 100% aligned with API spec
+
+### Documentation
+- ✅ API specification complete
+- ✅ UI flow specification complete
+- ✅ Testing plan complete
+- ✅ All examples and edge cases documented
 
 ---
 
-## 🔗 External References
+## 🧪 Testing
 
-### Related Documentation
-- Release Process API Contract: `../release-process-reference-docs/RELEASE_PROCESS_API_CONTRACT.md`
-- Client API Contract: `../release-process-reference-docs/CLIENT_API_CONTRACT.md`
-- Manual Build Upload Flow: `../release-process-reference-docs/MANUAL_BUILD_UPLOAD_FLOW.md`
+### Manual Testing Setup
+1. Start mock server: `pnpm run mock` (port 4000)
+2. Start frontend: `pnpm run dev` (port 3003)
+3. Navigate to `/dashboard/:org/distributions`
+4. Test all flows per `DISTRIBUTION_TESTING_PLAN.md`
 
-### Mock Server
-- Testing Quick Reference: `../../mock-server/TESTING_QUICK_REFERENCE.md`
+### Automated Testing
+Refer to `DISTRIBUTION_TESTING_PLAN.md` for:
+- API endpoint tests
+- UI component tests
+- Integration tests
+- E2E scenarios
 
 ---
 
 ## 📞 Support & Questions
 
-For questions or clarifications:
-1. Check the API spec first (`DISTRIBUTION_API_SPEC.md`)
-2. Review UI flow spec (`DISTRIBUTION_UI_FLOW_SPEC.md`)
-3. Consult testing plan for examples
-4. Reach out to team leads
+For questions or clarifications on:
+- **API Contracts:** See `DISTRIBUTION_API_SPEC.md`
+- **UI Flows:** See `DISTRIBUTION_UI_FLOW_SPEC.md`
+- **Testing:** See `DISTRIBUTION_TESTING_PLAN.md`
 
 ---
 
-## 🎉 Status Summary
-
-| Document | Status | Date | Lines |
-|----------|--------|------|-------|
-| DISTRIBUTION_API_SPEC.md | ✅ Final | Dec 15 | 1,466 |
-| DISTRIBUTION_UI_FLOW_SPEC.md | ✅ Final | Dec 15 | 1,496 |
-| DISTRIBUTION_TESTING_PLAN.md | ✅ Ready | Dec 15 | ~1,350 |
-| IMPLEMENTATION_PLAN.md | ✅ Ready | Dec 15 | 2,126 |
-| README.md | ✅ Current | Dec 15 | 250 |
-
-**Total Documentation:** ~6,688 lines  
-**Status:** ✅ **100% READY FOR TESTING!**
-
----
-
-**Last Updated:** December 15, 2025  
-**Maintained By:** Release Management Team  
-**Version:** 3.0 (Testing Ready)
-
+**Last Updated:** December 16, 2025  
+**Version:** 1.0.0 Production Ready  
+**Total Documentation:** ~4,835 lines across 3 specification documents

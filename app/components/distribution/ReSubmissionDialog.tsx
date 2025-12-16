@@ -9,33 +9,40 @@
  */
 
 import {
-  Alert,
-  Button,
-  Divider,
-  FileInput,
-  Group,
-  Modal,
-  NumberInput,
-  Paper,
-  Select,
-  Slider,
-  Stack,
-  Text,
-  Textarea,
-  TextInput,
-  ThemeIcon
+    Alert,
+    Button,
+    Divider,
+    FileInput,
+    Group,
+    Modal,
+    NumberInput,
+    Paper,
+    Select,
+    Slider,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+    ThemeIcon
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import {
-  BUTTON_LABELS,
-  DIALOG_ICON_SIZES,
-  DIALOG_TITLES,
-  PLATFORM_LABELS
+    BUTTON_LABELS,
+    DIALOG_ICON_SIZES,
+    DIALOG_TITLES,
+    MAX_ROLLOUT_PERCENT,
+    MIN_ROLLOUT_PERCENT,
+    PLATFORM_LABELS
 } from '~/constants/distribution.constants';
-import { Platform, type Submission } from '~/types/distribution.types';
+import {
+    AndroidSubmission,
+    IOSSubmission,
+    Platform,
+    type Submission
+} from '~/types/distribution.types';
 import { ErrorAlert } from './ErrorRecovery';
 
 // ============================================================================
@@ -46,8 +53,8 @@ type AndroidResubmissionFormData = {
   version: string;
   versionCode?: number | undefined;
   aabFile: File | null;
-  rolloutPercent: number;
-  inAppPriority: number;
+  rolloutPercentage: number;
+  inAppUpdatePriority: number;
   releaseNotes: string;
 };
 
@@ -84,23 +91,27 @@ export function ReSubmissionDialog({
   const platformLabel = useMemo(() => PLATFORM_LABELS[previousSubmission.platform], [previousSubmission.platform]);
 
   // Android form
+  const androidSubmission = previousSubmission.platform === Platform.ANDROID 
+    ? previousSubmission as AndroidSubmission 
+    : null;
+  
   const androidForm = useForm<AndroidResubmissionFormData>({
     initialValues: {
-      version: previousSubmission.versionName,
-      versionCode: previousSubmission.versionCode ? Number(previousSubmission.versionCode) : undefined,
+      version: previousSubmission.version || '',
+      versionCode: androidSubmission?.versionCode,
       aabFile: null,
-      rolloutPercent: previousSubmission.rolloutPercent || 5,
-      inAppPriority: previousSubmission.inAppPriority ?? 0,
+      rolloutPercentage: previousSubmission.rolloutPercentage || 5,
+      inAppUpdatePriority: androidSubmission?.inAppUpdatePriority ?? 0,
       releaseNotes: previousSubmission.releaseNotes || '',
     },
     validate: {
       aabFile: (value) => (!value ? 'Please upload an AAB file' : null),
       version: (value) => (!value ? 'Version is required' : null),
-      rolloutPercent: (value) => {
-        if (value < 0 || value > 100) return 'Must be between 0 and 100';
+      rolloutPercentage: (value) => {
+        if (value < MIN_ROLLOUT_PERCENT || value > MAX_ROLLOUT_PERCENT) return `Must be between ${MIN_ROLLOUT_PERCENT} and ${MAX_ROLLOUT_PERCENT}`;
         return null;
       },
-      inAppPriority: (value) => {
+      inAppUpdatePriority: (value) => {
         if (value < 0 || value > 5) return 'Must be between 0 and 5';
         return null;
       },
@@ -109,12 +120,16 @@ export function ReSubmissionDialog({
   });
 
   // iOS form
+  const iosSubmission = previousSubmission.platform === Platform.IOS
+    ? previousSubmission as IOSSubmission
+    : null;
+  
   const iosForm = useForm<IOSResubmissionFormData>({
     initialValues: {
-      version: previousSubmission.versionName,
+      version: previousSubmission.version || '',
       testflightNumber: null,  // Renamed from testflightBuildNumber
-      phasedRelease: previousSubmission.phasedRelease ?? true,
-      resetRating: previousSubmission.resetRating ?? false,
+      phasedRelease: iosSubmission?.phasedRelease ?? true,
+      resetRating: iosSubmission?.resetRating ?? false,
       releaseNotes: previousSubmission.releaseNotes || '',
     },
     validate: {
@@ -133,8 +148,8 @@ export function ReSubmissionDialog({
     formData.append('version', values.version);
     formData.append('aabFile', values.aabFile);
     if (values.versionCode) formData.append('versionCode', values.versionCode.toString());
-    formData.append('rolloutPercent', values.rolloutPercent.toString());
-    formData.append('inAppPriority', values.inAppPriority.toString());
+    formData.append('rolloutPercentage', values.rolloutPercentage.toString());
+    formData.append('inAppUpdatePriority', values.inAppUpdatePriority.toString());
     formData.append('releaseNotes', values.releaseNotes);
 
     fetcher.submit(formData, {
@@ -288,10 +303,10 @@ export function ReSubmissionDialog({
                     { value: 100, label: '100%' },
                   ]}
                   disabled={isSubmitting}
-                  {...androidForm.getInputProps('rolloutPercent')}
+                  {...androidForm.getInputProps('rolloutPercentage')}
                 />
                 <Text size="xs" c="dimmed" mt="xs">
-                  Current: {androidForm.values.rolloutPercent}%
+                  Current: {androidForm.values.rolloutPercentage}%
                 </Text>
               </div>
 
@@ -307,8 +322,8 @@ export function ReSubmissionDialog({
                   { value: '5', label: '5 - Critical' },
                 ]}
                 disabled={isSubmitting}
-                value={androidForm.values.inAppPriority.toString()}
-                onChange={(value) => androidForm.setFieldValue('inAppPriority', parseInt(value || '0'))}
+                value={androidForm.values.inAppUpdatePriority.toString()}
+                onChange={(value) => androidForm.setFieldValue('inAppUpdatePriority', parseInt(value || '0'))}
               />
             </>
           ) : (

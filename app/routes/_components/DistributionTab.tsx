@@ -7,14 +7,14 @@ import { Button, Card, Group, Stack, Text, Title } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import { IconExternalLink, IconRocket } from '@tabler/icons-react';
 import {
-  DistributionStatusPanel,
-  ReleaseCompleteView,
-  SubmissionStatusCard,
+    DistributionStatusPanel,
+    ReleaseCompleteView,
+    SubmissionStatusCard,
 } from '~/components/distribution';
-import type { DistributionStatusResponse } from '~/types/distribution.types';
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
-import { SubmissionStatus } from '~/types/distribution.types';
 import type { useDistribution } from '~/hooks/useDistribution';
+import type { DistributionStatusResponse } from '~/types/distribution.types';
+import { SubmissionStatus } from '~/types/distribution.types';
 import { EmptySubmissionsCard } from './EmptySubmissionsCard';
 import { RejectionWarningCard } from './RejectionWarningCard';
 
@@ -34,13 +34,14 @@ export function DistributionTab({
   const showManagementButton = distribution.hasSubmissions;
   const showSubmitButton = distribution.canSubmitToStores && distribution.availablePlatforms.length > 0;
   const isAllPlatformsComplete = distribution.submissions.every(
-    (s) => s.submissionStatus === SubmissionStatus.LIVE && s.rolloutPercent === ROLLOUT_COMPLETE_PERCENT
+    (s) => s.status === SubmissionStatus.LIVE && s.rolloutPercentage === ROLLOUT_COMPLETE_PERCENT
   );
+  // Use statusUpdatedAt for completed releases (releasedAt not in API spec)
   const completedAt = distribution.submissions.reduce((latest, s) => {
-    const releasedAt = s.releasedAt;
-    if (!releasedAt) return latest;
-    if (!latest) return releasedAt;
-    return new Date(releasedAt) > new Date(latest) ? releasedAt : latest;
+    const updatedAt = s.statusUpdatedAt;
+    if (!updatedAt) return latest;
+    if (!latest) return updatedAt;
+    return new Date(updatedAt) > new Date(latest) ? updatedAt : latest;
   }, null as string | null) ?? new Date().toISOString();
 
   return (
@@ -100,10 +101,10 @@ export function DistributionTab({
                 releaseVersion={distributionStatusData.releaseVersion}
                 platforms={distribution.submissions.map((s) => ({
                   platform: s.platform,
-                  versionName: s.versionName,
-                  rolloutPercent: s.rolloutPercent,
-                  submittedAt: s.submittedAt,
-                  releasedAt: s.releasedAt,
+                  versionName: s.version,
+                  rolloutPercentage: s.rolloutPercentage,
+                  submittedAt: s.submittedAt || null,
+                  releasedAt: null, // Not in API spec
                 }))}
                 completedAt={completedAt}
               />

@@ -64,8 +64,8 @@ function distributionMiddleware(req, res, next) {
           status: 'IN_REVIEW',
           version: '2.7.0',
           versionCode: 270,
-          rolloutPercent: body.rolloutPercent || 5.5,
-          inAppPriority: body.inAppPriority || 0,
+          rolloutPercentage: body.rolloutPercentage || 5.5,
+          inAppUpdatePriority: body.inAppUpdatePriority || 0,
           releaseNotes: body.releaseNotes || '',
           submittedAt: new Date().toISOString(),
           submittedBy: 'prince@dream11.com',
@@ -92,10 +92,10 @@ function distributionMiddleware(req, res, next) {
           storeType: 'APP_STORE',
           status: 'IN_REVIEW',
           version: '2.7.0',
-          releaseType: 'AUTOMATIC',
+          releaseType: 'AFTER_APPROVAL',
           phasedRelease: body.phasedRelease ?? true,
           resetRating: body.resetRating ?? false,
-          rolloutPercent: 0,
+          rolloutPercentage: 0,
           releaseNotes: body.releaseNotes || '',
           submittedAt: new Date().toISOString(),
           submittedBy: 'prince@dream11.com',
@@ -158,8 +158,8 @@ function distributionMiddleware(req, res, next) {
           status: 'IN_REVIEW',
           version: body.version || '2.7.1',
           versionCode: body.versionCode || 271,
-          rolloutPercent: body.rolloutPercent || 5.5,
-          inAppPriority: body.inAppPriority || 0,
+          rolloutPercentage: body.rolloutPercentage || 5.5,
+          inAppUpdatePriority: body.inAppUpdatePriority || 0,
           releaseNotes: body.releaseNotes || '',
           submittedAt: new Date().toISOString(),
           submittedBy: 'prince@dream11.com',
@@ -186,10 +186,10 @@ function distributionMiddleware(req, res, next) {
           storeType: 'APP_STORE',
           status: 'IN_REVIEW',
           version: body.version || '2.7.1',
-          releaseType: 'AUTOMATIC',
+          releaseType: 'AFTER_APPROVAL',
           phasedRelease: body.phasedRelease ?? true,
           resetRating: body.resetRating ?? false,
-          rolloutPercent: 0,
+          rolloutPercentage: 0,
           releaseNotes: body.releaseNotes || '',
           submittedAt: new Date().toISOString(),
           submittedBy: 'prince@dream11.com',
@@ -212,10 +212,10 @@ function distributionMiddleware(req, res, next) {
   
   if (method === 'PATCH' && path.includes('/rollout') && !path.includes('/pause') && !path.includes('/resume') && !path.includes('/halt')) {
     const submissionId = extractSubmissionId(path);
-    const { rolloutPercent } = body;
+    const { rolloutPercentage } = body;
     
     // Validate percentage (supports decimals like 5.5)
-    if (rolloutPercent === undefined || rolloutPercent < 0 || rolloutPercent > 100 || typeof rolloutPercent !== 'number') {
+    if (rolloutPercentage === undefined || rolloutPercentage < 0 || rolloutPercentage > 100 || typeof rolloutPercentage !== 'number') {
       return res.status(400).json({
         success: false,
         error: {
@@ -224,7 +224,7 @@ function distributionMiddleware(req, res, next) {
           category: 'VALIDATION',
           httpStatus: 400,
           details: {
-            requestedPercentage: rolloutPercent,
+            requestedPercentage: rolloutPercentage,
             minAllowed: 0,
             maxAllowed: 100,
             note: 'Decimals are supported (e.g., 5.5)',
@@ -238,7 +238,7 @@ function distributionMiddleware(req, res, next) {
       success: true,
       data: {
         id: submissionId,
-        rolloutPercent: rolloutPercent,
+        rolloutPercentage: rolloutPercentage,
         statusUpdatedAt: new Date().toISOString(),
       },
     });

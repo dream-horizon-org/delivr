@@ -5,14 +5,15 @@
 
 import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
+import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
 import type {
-  HaltRolloutRequest,
-  PauseRolloutRequest,
-  RolloutUpdateResponse,
-  Submission,
-  UpdateRolloutRequest,
+    HaltRolloutRequest,
+    PauseRolloutRequest,
+    RolloutUpdateResponse,
+    Submission,
+    UpdateRolloutRequest,
 } from '~/types/distribution.types';
-import { Platform } from '~/types/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 
 class Rollout {
@@ -70,8 +71,8 @@ class Rollout {
    */
   canIncreaseRollout(submission: Submission): boolean {
     return (
-      submission.submissionStatus === 'LIVE' &&
-      submission.rolloutPercent < 100
+      submission.status === SubmissionStatus.LIVE &&
+      submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT
     );
   }
 }

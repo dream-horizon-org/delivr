@@ -488,10 +488,10 @@ node mock-server/scenarios.js five
 | 4.4.2 | iOS section header | Check header | "iOS Options" with icon | [ ] |
 | 4.4.3 | iOS section background | Check styling | Light blue background | [ ] |
 | 4.4.4 | Release Type field | Check field | Shows "Release Type" read-only field | [ ] |
-| 4.4.5 | Release Type value | Check field | Shows "AUTOMATIC" (non-editable) | [ ] |
+| 4.4.5 | Release Type value | Check field | Shows "AFTER_APPROVAL" (non-editable) | [ ] |
 | 4.4.6 | Release Type badge | Check field | Shows blue "Default" badge | [ ] |
 | 4.4.7 | Release Type disabled | Try to edit | Field is disabled/read-only | [ ] |
-| 4.4.8 | Release Type help text | Check description | Explains it's always AUTOMATIC | [ ] |
+| 4.4.8 | Release Type help text | Check description | Explains it's always AFTER_APPROVAL | [ ] |
 | 4.4.9 | Phased Release checkbox | Check field | Shows "Enable Phased Release" checkbox | [ ] |
 | 4.4.10 | Phased default checked | Check checkbox | Checked by default | [ ] |
 | 4.4.11 | Phased checkbox toggle | Click checkbox | Toggles on/off | [ ] |
@@ -579,7 +579,7 @@ node mock-server/scenarios.js five
 | 5.4.3 | Update button text | Check button | Says "Update Rollout" or "Apply Update" | [ ] |
 | 5.4.4 | Click Update button | Set 25% + click | Sends API request | [ ] |
 | 5.4.5 | API request correct | Check Network tab | `PATCH /api/v1/submissions/{id}/rollout?platform=ANDROID` | [ ] |
-| 5.4.6 | Request body correct | Check payload | `{"rolloutPercent": 25.0}` (float) | [ ] |
+| 5.4.6 | Request body correct | Check payload | `{"rolloutPercentage": 25.0}` (float) | [ ] |
 | 5.4.7 | Loading state during update | During API call | Button shows spinner | [ ] |
 | 5.4.8 | Optimistic UI update | Immediately after click | Progress bar updates before API returns | [ ] |
 | 5.4.9 | Success toast displays | After success | Shows "Rollout updated to 25%" toast | [ ] |
@@ -648,8 +648,8 @@ node mock-server/scenarios.js five
 | 6.3.8 | Cancel button in dialog | Check dialog | Shows Cancel button | [ ] |
 | 6.3.9 | Cancel works | Click Cancel | Dialog closes, no action taken | [ ] |
 | 6.3.10 | Confirm button dangerous | Check dialog | Confirm button is warning/red style | [ ] |
-| 6.3.11 | Confirm Complete Early | Click Confirm | Sends PATCH request with rolloutPercent=100 | [ ] |
-| 6.3.12 | API request correct | Check Network | `PATCH /api/v1/submissions/{id}/rollout?platform=IOS` with `{"rolloutPercent": 100}` | [ ] |
+| 6.3.11 | Confirm Complete Early | Click Confirm | Sends PATCH request with rolloutPercentage=100 | [ ] |
+| 6.3.12 | API request correct | Check Network | `PATCH /api/v1/submissions/{id}/rollout?platform=IOS` with `{"rolloutPercentage": 100}` | [ ] |
 | 6.3.13 | Success toast displays | After success | Shows "Released to 100% of users" | [ ] |
 | 6.3.14 | Rollout shows 100% | After success | Current rollout displays 100% | [ ] |
 | 6.3.15 | Phased controls disappear | After complete | Pause/Complete buttons disappear (rollout done) | [ ] |

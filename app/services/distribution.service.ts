@@ -4,13 +4,14 @@
  * Used by React components, loaders, and actions
  */
 
+import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
 import type {
-  DistributionStatusResponse,
-  DistributionsResponse,
-  Submission,
-  SubmissionsResponse,
-  SubmitToStoreRequest,
-  SubmitToStoreResponse,
+    DistributionStatusResponse,
+    DistributionsResponse,
+    Submission,
+    SubmissionsResponse,
+    SubmitToStoreRequest,
+    SubmitToStoreResponse,
 } from '~/types/distribution.types';
 import { SubmissionStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
@@ -107,7 +108,7 @@ export class DistributionService {
       (p) =>
         p?.submitted &&
         p.status === SubmissionStatus.LIVE &&
-        p.rolloutPercent >= 100
+        p.rolloutPercentage >= 100
     );
   }
 
@@ -118,7 +119,7 @@ export class DistributionService {
     submissions: Submission[]
   ): Submission[] {
     return submissions.filter(
-      (sub) => sub.submissionStatus === SubmissionStatus.REJECTED
+      (sub) => sub.status === SubmissionStatus.REJECTED
     );
   }
 
@@ -140,9 +141,9 @@ export class DistributionService {
 
     const totalProgress = platformStatuses.reduce((sum: number, p) => {
       if (!p?.submitted) return sum;
-      if (p.status === SubmissionStatus.LIVE && p.rolloutPercent === 100) return sum + 100;
+      if (p.status === SubmissionStatus.LIVE && p.rolloutPercentage === ROLLOUT_COMPLETE_PERCENT) return sum + ROLLOUT_COMPLETE_PERCENT;
       if (p.status === SubmissionStatus.LIVE || p.status === SubmissionStatus.APPROVED)
-        return sum + p.rolloutPercent;
+        return sum + p.rolloutPercentage;
       if (p.status === SubmissionStatus.IN_REVIEW) return sum + 10; // Arbitrary small progress
       return sum;
     }, 0);

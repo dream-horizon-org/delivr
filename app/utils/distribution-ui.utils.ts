@@ -46,6 +46,25 @@ export function formatDate(dateString: string | null | undefined): string {
 }
 
 /**
+ * Format date and time in full readable format
+ * Example: "Dec 15, 2025 at 3:45 PM"
+ */
+export function formatDateTime(dateString: string | null | undefined): string {
+  if (!dateString) return '-';
+  
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }) + ' at ' + date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/**
  * Format date as relative time (e.g., "2 hours ago")
  */
 export function formatRelativeTime(dateString: string | null | undefined): string {

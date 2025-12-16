@@ -5,7 +5,6 @@
  * Reference: platform-rules.ts for platform-specific rules
  */
 
-import { Platform } from '~/types/distribution.types';
 
 // ============================================================================
 // VALIDATION RESULT TYPE
@@ -87,8 +86,16 @@ export function validateVersionCode(value: number | null | undefined): Validatio
 
 /**
  * Validate iOS rollout percentage
- * iOS phased release: only 100% allowed (complete early)
- * iOS manual release: always 100%
+ * 
+ * ✅ Correct iOS Behavior:
+ * - phasedRelease=true, rollout 1-99%: Can update to 100% only
+ * - phasedRelease=true, rollout 100%: Cannot update (already complete)
+ * - phasedRelease=false, rollout 100%: Cannot update (manual release, no controls)
+ * - phasedRelease=false, rollout <100%: ❌ INVALID - THIS VALIDATION PREVENTS IT
+ * 
+ * @param value - The rollout percentage value to validate
+ * @param phasedRelease - Whether phased release is enabled
+ * @returns ValidationResult with error if invalid
  */
 export function validateIOSRolloutPercent(
   value: number,
@@ -98,6 +105,7 @@ export function validateIOSRolloutPercent(
     return { valid: false, error: 'Rollout percentage must be a number' };
   }
 
+  // iOS Phased Release: Can only update to 100% (complete early)
   if (phasedRelease && value !== 100) {
     return { 
       valid: false, 
@@ -105,6 +113,7 @@ export function validateIOSRolloutPercent(
     };
   }
 
+  // iOS Manual Release: Always 100%, prevent invalid state (phasedRelease=false with <100%)
   if (!phasedRelease && value !== 100) {
     return { 
       valid: false, 
@@ -260,8 +269,8 @@ export function validateAndroidSubmission(data: {
   version: string;
   versionCode?: number;
   aabFile: File | null;
-  rolloutPercent: number;
-  inAppPriority: number;
+  rolloutPercentage: number;
+  inAppUpdatePriority: number;
   releaseNotes: string;
 }): { valid: boolean; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
@@ -275,11 +284,11 @@ export function validateAndroidSubmission(data: {
   const aabResult = validateAABFile(data.aabFile);
   if (!aabResult.valid) errors.aabFile = aabResult.error!;
 
-  const rolloutResult = validateAndroidRolloutPercent(data.rolloutPercent);
-  if (!rolloutResult.valid) errors.rolloutPercent = rolloutResult.error!;
+  const rolloutResult = validateAndroidRolloutPercent(data.rolloutPercentage);
+  if (!rolloutResult.valid) errors.rolloutPercentage = rolloutResult.error!;
 
-  const priorityResult = validateInAppPriority(data.inAppPriority);
-  if (!priorityResult.valid) errors.inAppPriority = priorityResult.error!;
+  const priorityResult = validateInAppPriority(data.inAppUpdatePriority);
+  if (!priorityResult.valid) errors.inAppUpdatePriority = priorityResult.error!;
 
   const notesResult = validateReleaseNotes(data.releaseNotes);
   if (!notesResult.valid) errors.releaseNotes = notesResult.error!;

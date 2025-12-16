@@ -26,9 +26,9 @@ export type DistributionOverviewProps = {
 };
 
 export function DistributionOverview({ distribution }: DistributionOverviewProps) {
-  // Get version from first submission (all submissions should initially have the same version)
+  // Get version from first submission (only available for DistributionDetail with full Submission objects)
   const displayVersion = 'submissions' in distribution && distribution.submissions?.length > 0
-    ? distribution.submissions[0]?.versionName || 'N/A'
+    ? ('version' in distribution.submissions[0] ? distribution.submissions[0].version : 'N/A')
     : 'N/A';
     
   return (
@@ -76,22 +76,22 @@ export function DistributionOverview({ distribution }: DistributionOverviewProps
               {DISTRIBUTION_MANAGEMENT_UI.LABELS.LAST_UPDATED}
             </Text>
             <Text size="sm" fw={500}>
-              {formatDate('lastUpdated' in distribution ? distribution.lastUpdated : distribution.updatedAt)}
+              {'updatedAt' in distribution ? formatDate(distribution.updatedAt) : formatDate(distribution.statusUpdatedAt)}
             </Text>
           </div>
         </Group>
 
-        {'submittedAt' in distribution && distribution.submittedAt && (
+        {'createdAt' in distribution && distribution.createdAt && (
           <Group>
             <ThemeIcon size="lg" variant="light" color="blue" radius="sm">
               <IconClock size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.DETAIL} />
             </ThemeIcon>
             <div>
               <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                {DISTRIBUTION_MANAGEMENT_UI.LABELS.SUBMITTED_AT}
+                Created At
               </Text>
               <Text size="sm" fw={500}>
-                {formatDate(distribution.submittedAt)}
+                {formatDate(distribution.createdAt)}
               </Text>
             </div>
           </Group>

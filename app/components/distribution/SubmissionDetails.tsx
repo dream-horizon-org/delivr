@@ -2,8 +2,8 @@
  * SubmissionDetails - Displays submission version and metadata
  */
 
-import { Badge, Group, Stack, Text } from '@mantine/core';
-import type { Build, Submission } from '~/types/distribution.types';
+import { Group, Stack, Text } from '@mantine/core';
+import { Platform, type Submission } from '~/types/distribution.types';
 
 type SubmissionDetailsProps = {
   submission: Submission;
@@ -17,20 +17,16 @@ export function SubmissionDetails({
       <Group gap="xs">
         <Text size="sm" c="dimmed">Version:</Text>
         <Text size="sm" fw={500}>
-          {submission.versionName} ({submission.versionCode})
+          {submission.version}
+          {submission.platform === Platform.ANDROID && 'versionCode' in submission && ` (${submission.versionCode})`}
         </Text>
       </Group>
       
-      {submission.track && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">Track:</Text>
-          <Badge size="xs" variant="light">{submission.track}</Badge>
-        </Group>
-      )}
+      {/* track field is not in API spec */}
 
       <Group gap="xs">
         <Text size="sm" c="dimmed">Exposure:</Text>
-        <Text size="sm" fw={500}>{submission.rolloutPercent}%</Text>
+        <Text size="sm" fw={500}>{submission.rolloutPercentage}%</Text>
       </Group>
 
       {submission.submittedAt && (

@@ -20,6 +20,7 @@ import {
 import {
   BUTTON_LABELS,
   PLATFORM_LABELS,
+  STORE_NAMES,
   STORE_URLS,
   SUBMISSION_STATUS_COLORS,
   SUBMISSION_STATUS_LABELS,
@@ -63,9 +64,9 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
   } = props;
 
   const hasSubmission = submission !== null;
-  const isRejected = submission?.submissionStatus === SubmissionStatus.REJECTED;
-  const isReleased = submission?.submissionStatus === SubmissionStatus.LIVE;
-  const storeName = platform === Platform.ANDROID ? 'Play Store' : 'App Store';
+  const isRejected = submission?.status === SubmissionStatus.REJECTED;
+  const isReleased = submission?.status === SubmissionStatus.LIVE;
+  const storeName = STORE_NAMES[platform];
 
   return (
     <Card 
@@ -88,11 +89,11 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
         
         {hasSubmission && (
           <Badge 
-            color={SUBMISSION_STATUS_COLORS[submission.submissionStatus]} 
+            color={SUBMISSION_STATUS_COLORS[submission.status]} 
             variant="light"
-            leftSection={getStatusIcon(submission.submissionStatus)}
+            leftSection={getStatusIcon(submission.status)}
           >
-            {SUBMISSION_STATUS_LABELS[submission.submissionStatus]}
+            {SUBMISSION_STATUS_LABELS[submission.status]}
           </Badge>
         )}
       </Group>
@@ -102,11 +103,11 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
         <>
           <SubmissionDetails submission={submission} />
 
-          {/* Rejection Warning */}
-          {isRejected && submission.rejectionReason && (
+          {/* Rejection Warning - Not in API spec, but keeping for now */}
+          {isRejected && (
             <div className="mt-3 p-2 bg-red-50 rounded border border-red-200">
               <Text size="xs" c="red.7" fw={500}>
-                Rejection: {submission.rejectionReason}
+                Rejection detected
               </Text>
             </div>
           )}

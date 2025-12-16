@@ -9,10 +9,10 @@ import { Alert, Button, Group, Modal, Radio, Stack, Text, ThemeIcon } from '@man
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  BUTTON_LABELS,
-  DIALOG_ICON_SIZES,
-  DIALOG_UI,
-  PLATFORM_LABELS,
+    BUTTON_LABELS,
+    DIALOG_ICON_SIZES,
+    DIALOG_UI,
+    PLATFORM_LABELS,
 } from '~/constants/distribution.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 
@@ -21,7 +21,7 @@ export type ExposureControlConflictDetails = {
   platform: Platform;
   currentRelease: {
     version: string;
-    rolloutPercent: number;
+    rolloutPercentage: number;
     status: SubmissionStatus.LIVE | SubmissionStatus.APPROVED;
   };
   resolution: {
@@ -64,7 +64,7 @@ export function ExposureControlDialog({
     return DIALOG_UI.EXPOSURE_CONTROL.CURRENT_RELEASE_INFO(
       platformLabel,
       conflict.currentRelease.version,
-      conflict.currentRelease.rolloutPercent
+      conflict.currentRelease.rolloutPercentage
     );
   }, [conflict, platformLabel]);
 
@@ -108,8 +108,9 @@ export function ExposureControlDialog({
         </Group>
       }
       size="lg"
+      centered
     >
-      <Stack gap="md">
+      <Stack gap="lg">
         {/* Current rollout info */}
         <Alert 
           icon={<IconInfoCircle size={DIALOG_ICON_SIZES.ALERT} />} 
@@ -167,7 +168,7 @@ export function ExposureControlDialog({
           </Alert>
         )}
 
-        <Group justify="flex-end" mt="md">
+        <Group justify="flex-end" mt="xl">
           <Button 
             variant="subtle" 
             onClick={handleClose} 

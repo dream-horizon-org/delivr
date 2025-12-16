@@ -303,8 +303,8 @@ export default function DistributionPage() {
   // Derived state: Check if Android has an active rollout (0-100%)
   const hasAndroidActiveRollout = 
     data.distributionStatus.data.platforms.android?.submitted === true &&
-    data.distributionStatus.data.platforms.android?.rolloutPercent > 0 &&
-    data.distributionStatus.data.platforms.android?.rolloutPercent < ROLLOUT_COMPLETE_PERCENT;
+    data.distributionStatus.data.platforms.android?.rolloutPercentage > 0 &&
+    data.distributionStatus.data.platforms.android?.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT;
 
   return (
     <Container size="xl" className="py-8">

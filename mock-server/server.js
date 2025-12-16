@@ -544,74 +544,90 @@ server.get('/api/v1/releases/:releaseId/distribution', (req, res) => {
     });
   }
   
-  // Get all submissions for this release (current + historical)
-  const allSubmissions = db.get('submissions').filter({ releaseId }).value() || [];
-  const distributionId = `dist_${releaseId.substring(0, 8)}`;
-  
-  // Build complete submissions array with artifacts
-  const submissions = allSubmissions.map(sub => ({
-    id: sub.id,
-    distributionId,
-    platform: sub.platform,
-    storeType: sub.platform === 'ANDROID' ? 'PLAY_STORE' : 'APP_STORE',
-    status: sub.submissionStatus,
-    version: release.version,
-    ...(sub.platform === 'ANDROID' && {
-      versionCode: sub.versionCode || 270,
-      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
-      inAppPriority: sub.inAppPriority || 0,
-    }),
-    ...(sub.platform === 'IOS' && {
-      releaseType: 'AUTOMATIC',
-      phasedRelease: sub.phasedRelease !== undefined ? sub.phasedRelease : true,
-      resetRating: sub.resetRating || false,
-      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
-    }),
-    releaseNotes: sub.releaseNotes || 'Bug fixes and improvements',
-    submittedAt: sub.submittedAt || null,
-    submittedBy: sub.submittedBy || null,
-    statusUpdatedAt: sub.statusUpdatedAt || sub.updatedAt || new Date().toISOString(),
-    createdAt: sub.createdAt || new Date().toISOString(),
-    updatedAt: sub.updatedAt || new Date().toISOString(),
-    artifact: sub.platform === 'ANDROID' ? {
-      artifactPath: `https://s3.amazonaws.com/builds/${sub.buildId}.aab`,
-      ...(sub.internalTrackLink && { internalTrackLink: sub.internalTrackLink }),
-    } : {
-      testflightNumber: sub.testflightNumber || 56789,
-    },
-    actionHistory: sub.actionHistory || [],
-  }));
-  
-  // Determine distribution status
-  const platforms = ['ANDROID', 'IOS'].filter(p => submissions.some(s => s.platform === p));
-  const latestSubmissions = platforms.map(platform => 
-    submissions.filter(s => s.platform === platform).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0]
-  ).filter(Boolean);
-  
-  let status = 'PENDING';
-  if (latestSubmissions.every(s => s.status === 'LIVE' && s.rolloutPercent === 100)) {
-    status = 'RELEASED';
-  } else if (latestSubmissions.some(s => s.status === 'LIVE')) {
-    status = 'PARTIALLY_RELEASED';
-  } else if (latestSubmissions.every(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
-    status = 'SUBMITTED';
-  } else if (latestSubmissions.some(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
-    status = 'PARTIALLY_SUBMITTED';
+  // ✅ Query store_distribution table by releaseId
+  const distribution = db.get('store_distribution').find({ releaseId }).value();
+  if (!distribution) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'DISTRIBUTION_NOT_FOUND', message: 'Distribution not found for this release' },
+    });
   }
+  
+  // Get all submissions for this distribution (current + historical) from both tables
+  const androidSubs = db.get('android_submission_builds').filter({ distributionId: distribution.id }).value() || [];
+  const iosSubs = db.get('ios_submission_builds').filter({ distributionId: distribution.id }).value() || [];
+  
+  // Build complete submissions array with artifacts (✅ EXACT API SPEC)
+  const submissions = [];
+  
+  // Android submissions
+  androidSubs.forEach(sub => {
+    submissions.push({
+      id: sub.id,
+      distributionId: sub.distributionId,
+      platform: 'ANDROID',
+      storeType: sub.storeType,
+      status: sub.status,
+      version: sub.version,
+      versionCode: sub.versionCode,
+      rolloutPercentage: sub.rolloutPercentage,
+      inAppUpdatePriority: sub.inAppUpdatePriority,
+      releaseNotes: sub.releaseNotes,
+      submittedAt: sub.submittedAt,
+      submittedBy: sub.submittedBy,
+      statusUpdatedAt: sub.statusUpdatedAt,
+      createdAt: sub.createdAt,
+      updatedAt: sub.updatedAt,
+      isActive: sub.isCurrent, // ✅ Map isCurrent to isActive
+      artifact: sub.artifact || {
+        artifactPath: sub.artifactPath,
+        ...(sub.internalTrackLink && { internalTrackLink: sub.internalTrackLink }),
+      },
+      actionHistory: sub.actionHistory || [],
+      ...(sub.rejectionReason && { rejectionReason: sub.rejectionReason }),
+    });
+  });
+  
+  // iOS submissions
+  iosSubs.forEach(sub => {
+    submissions.push({
+      id: sub.id,
+      distributionId: sub.distributionId,
+      platform: 'IOS',
+      storeType: sub.storeType,
+      status: sub.status,
+      version: sub.version,
+      releaseType: sub.releaseType || 'AFTER_APPROVAL',
+      phasedRelease: sub.phasedRelease,
+      resetRating: sub.resetRating,
+      rolloutPercentage: sub.rolloutPercentage,
+      releaseNotes: sub.releaseNotes,
+      submittedAt: sub.submittedAt,
+      submittedBy: sub.submittedBy,
+      statusUpdatedAt: sub.statusUpdatedAt,
+      createdAt: sub.createdAt,
+      updatedAt: sub.updatedAt,
+      isActive: sub.isCurrent, // ✅ Map isCurrent to isActive
+      artifact: sub.artifact || {
+        testflightNumber: sub.testflightNumber,
+      },
+      actionHistory: sub.actionHistory || [],
+    });
+  });
+  
+  // Determine platforms from submissions
+  const platforms = ['ANDROID', 'IOS'].filter(p => submissions.some(s => s.platform === p));
   
   res.json({
     success: true,
     data: {
-      id: distributionId,
-      releaseId,
-      version: release.version,
-      branch: release.branch || `release/${release.version}`,
-      status,
+      id: distribution.id,
+      releaseId: distribution.releaseId,
+      branch: release.branch || 'unknown',
+      status: distribution.status, // ✅ Use status from distribution table
       platforms,
-      createdAt: release.createdAt || new Date().toISOString(),
-      updatedAt: release.updatedAt || new Date().toISOString(),
+      createdAt: distribution.createdAt,
+      updatedAt: distribution.updatedAt,
       submissions,
     },
   });
@@ -642,7 +658,7 @@ server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
       submitted: true,
       submissionId: androidSubmission.id,
       status: androidSubmission.submissionStatus,
-      rolloutPercent: androidSubmission.rolloutPercent || androidSubmission.exposurePercent || 0,
+      rolloutPercentage: androidSubmission.rolloutPercentage || androidSubmission.exposurePercent || 0,
       canRetry: androidSubmission.submissionStatus === 'REJECTED',
       error: null,
     };
@@ -653,7 +669,7 @@ server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
       submitted: true,
       submissionId: iosSubmission.id,
       status: iosSubmission.submissionStatus,
-      rolloutPercent: iosSubmission.rolloutPercent || iosSubmission.exposurePercent || 0,
+      rolloutPercentage: iosSubmission.rolloutPercentage || iosSubmission.exposurePercent || 0,
       canRetry: iosSubmission.submissionStatus === 'REJECTED',
       error: null,
     };
@@ -663,7 +679,7 @@ server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
   const platformCount = Object.keys(platforms).length;
   const totalProgress = Object.values(platforms).reduce((sum, p) => {
     if (p.status === 'RELEASED') return sum + 100;
-    if (p.status === 'LIVE') return sum + (p.rolloutPercent || p.exposurePercent || 0);
+    if (p.status === 'LIVE') return sum + (p.rolloutPercentage || p.exposurePercent || 0);
     if (p.status === 'BUILD_SUBMITTED') return sum + 10;
     return sum;
   }, 0);
@@ -732,7 +748,7 @@ server.post('/api/v1/releases/:releaseId/distribute', (req, res) => {
       versionName: android.versionName || '1.0.0',
       versionCode: android.versionCode || '100',
       submissionStatus: 'BUILD_SUBMITTED',
-      rolloutPercent: android.initialRolloutPercent || 10,
+      rolloutPercentage: android.initialRolloutPercent || 10,
       exposurePercent: android.initialRolloutPercent || 10, // Legacy
       track: android.track || 'PRODUCTION',
       releaseNotes: android.releaseNotes || '',
@@ -755,7 +771,7 @@ server.post('/api/v1/releases/:releaseId/distribute', (req, res) => {
       versionName: ios.versionName || '1.0.0',
       versionCode: ios.versionCode || '100',
       submissionStatus: 'BUILD_SUBMITTED',
-      rolloutPercent: 0,
+      rolloutPercentage: 0,
       exposurePercent: 0, // Legacy
       track: 'PRODUCTION',
       releaseNotes: ios.releaseNotes || '',
@@ -861,14 +877,14 @@ server.get('/api/v1/submissions/:submissionId', (req, res) => {
     version: release?.version || '2.7.0',
     ...(submission.platform === 'ANDROID' && {
       versionCode: submission.versionCode || 270,
-      rolloutPercent: submission.rolloutPercent || submission.exposurePercent || 0,
-      inAppPriority: submission.inAppPriority || 0,
+      rolloutPercentage: submission.rolloutPercentage || submission.exposurePercent || 0,
+      inAppUpdatePriority: submission.inAppUpdatePriority || 0,
     }),
     ...(submission.platform === 'IOS' && {
-      releaseType: 'AUTOMATIC',
+      releaseType: 'AFTER_APPROVAL',
       phasedRelease: submission.phasedRelease ?? true,
       resetRating: submission.resetRating ?? false,
-      rolloutPercent: submission.rolloutPercent || submission.exposurePercent || 0,
+      rolloutPercentage: submission.rolloutPercentage || submission.exposurePercent || 0,
     }),
     releaseNotes: submission.releaseNotes || '',
     submittedAt: submission.submittedAt || null,
@@ -876,6 +892,7 @@ server.get('/api/v1/submissions/:submissionId', (req, res) => {
     statusUpdatedAt: submission.statusUpdatedAt || submission.updatedAt || new Date().toISOString(),
     createdAt: submission.createdAt || new Date().toISOString(),
     updatedAt: submission.updatedAt || new Date().toISOString(),
+    isActive: submission.isActive ?? true, // ✅ Maps from DB isCurrent field
     artifact: submission.platform === 'ANDROID' ? {
       artifactPath: `https://s3.amazonaws.com/presigned-url/app-release.aab`,
       ...(submission.internalTrackLink && { internalTrackLink: submission.internalTrackLink }),
@@ -1017,7 +1034,7 @@ server.patch('/api/v1/submissions/:submissionId/cancel', (req, res) => {
 server.patch('/api/v1/submissions/:submissionId/rollout', (req, res) => {
   const { submissionId } = req.params;
   const { platform } = req.query;
-  const { rolloutPercent } = req.body;
+  const { rolloutPercentage } = req.body;
   const db = router.db;
   
   // Validate platform query parameter
@@ -1035,9 +1052,9 @@ server.patch('/api/v1/submissions/:submissionId/rollout', (req, res) => {
   if (submission.value()) {
     const statusUpdatedAt = new Date().toISOString();
     submission.assign({ 
-      rolloutPercent,
-      exposurePercent: rolloutPercent, // Legacy field
-      submissionStatus: rolloutPercent >= 100 ? 'LIVE' : 'LIVE',
+      rolloutPercentage,
+      exposurePercent: rolloutPercentage, // Legacy field
+      submissionStatus: rolloutPercentage >= 100 ? 'LIVE' : 'LIVE',
       statusUpdatedAt,
       updatedAt: statusUpdatedAt,
     }).write();
@@ -1046,7 +1063,7 @@ server.patch('/api/v1/submissions/:submissionId/rollout', (req, res) => {
       success: true,
       data: {
         id: submissionId,
-        rolloutPercent,
+        rolloutPercentage,
         statusUpdatedAt,
       },
     });
@@ -1222,81 +1239,83 @@ server.get('/api/v1/distributions', (req, res) => {
   const statusFilter = req.query.status; // PENDING, PARTIALLY_SUBMITTED, SUBMITTED, PARTIALLY_RELEASED, RELEASED
   const platformFilter = req.query.platform; // ANDROID, IOS
   
-  // Get all releases and submissions
+  // ✅ Query from actual database tables
+  const allDistributionsFromDb = db.get('store_distribution').value() || [];
+  const androidSubmissions = db.get('android_submission_builds').value() || [];
+  const iosSubmissions = db.get('ios_submission_builds').value() || [];
   const releases = db.get('releases').value() || [];
-  const allSubmissions = db.get('submissions').value() || [];
   
-  // Group submissions by releaseId
-  const submissionsByRelease = allSubmissions.reduce((acc, sub) => {
-    if (!acc[sub.releaseId]) acc[sub.releaseId] = [];
-    acc[sub.releaseId].push(sub);
+  // Create lookup maps
+  const releaseById = releases.reduce((acc, rel) => {
+    acc[rel.id] = rel;
     return acc;
   }, {});
   
-  // Build distribution entries
-  let allDistributions = releases
-    .filter(release => {
-      // Only include releases that have submissions
-      return submissionsByRelease[release.id]?.length > 0;
-    })
-    .map(release => {
-      const releaseSubmissions = submissionsByRelease[release.id] || [];
+  // Build distribution response objects
+  let allDistributions = allDistributionsFromDb
+    .map(dist => {
+      const release = releaseById[dist.releaseId];
       
-      // Get ONLY latest submission per platform
-      const platforms = ['ANDROID', 'IOS'];
-      const latestSubmissions = platforms
-        .map(platform => {
-          const platformSubs = releaseSubmissions.filter(s => s.platform === platform);
-          if (platformSubs.length === 0) return null;
-          // Sort by createdAt desc, get first
-          return platformSubs.sort((a, b) => 
-            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-          )[0];
-        })
-        .filter(Boolean);
+      // Get current (isCurrent = true) submissions for this distribution
+      const currentAndroidSub = androidSubmissions.find(s => 
+        s.distributionId === dist.id && s.isCurrent === true
+      );
+      const currentIosSub = iosSubmissions.find(s => 
+        s.distributionId === dist.id && s.isCurrent === true
+      );
       
-      // Build submissions array per API spec (ONLY latest per platform)
-      const submissions = latestSubmissions.map(sub => ({
-        id: sub.id,
-        platform: sub.platform,
-        status: sub.submissionStatus || sub.status,
-        rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
-        statusUpdatedAt: sub.statusUpdatedAt || sub.updatedAt || new Date().toISOString(),
-      }));
+      // Get ALL submissions for platform determination (including historical)
+      const hasAndroidSubs = androidSubmissions.some(s => s.distributionId === dist.id);
+      const hasIosSubs = iosSubmissions.some(s => s.distributionId === dist.id);
       
-      // Calculate distribution status per API spec
-      let distStatus = 'PENDING';
-      if (submissions.length === 0) {
-        distStatus = 'PENDING';
-      } else {
-        const allSubmitted = submissions.every(s => ['IN_REVIEW', 'APPROVED', 'LIVE', 'PAUSED', 'REJECTED', 'HALTED', 'CANCELLED'].includes(s.status));
-        const someSubmitted = submissions.some(s => ['IN_REVIEW', 'APPROVED', 'LIVE', 'PAUSED'].includes(s.status));
-        const allFullyReleased = submissions.every(s => s.status === 'LIVE' && s.rolloutPercent === 100);
-        const someFullyReleased = submissions.some(s => s.status === 'LIVE' && s.rolloutPercent === 100);
-        
-        if (allFullyReleased) {
-          distStatus = 'RELEASED';
-        } else if (someFullyReleased) {
-          distStatus = 'PARTIALLY_RELEASED';
-        } else if (allSubmitted) {
-          distStatus = 'SUBMITTED';
-        } else if (someSubmitted) {
-          distStatus = 'PARTIALLY_SUBMITTED';
-        }
+      // Build submissions array per API spec (ONLY current submissions)
+      const submissions = [];
+      
+      if (currentAndroidSub) {
+        submissions.push({
+          id: currentAndroidSub.id,
+          platform: 'ANDROID',
+          status: currentAndroidSub.status,
+          rolloutPercentage: currentAndroidSub.rolloutPercentage || 0,
+          statusUpdatedAt: currentAndroidSub.statusUpdatedAt,
+          isActive: true, // isCurrent = true maps to isActive = true
+        });
       }
       
-      // statusUpdatedAt = max of all submissions' statusUpdatedAt
-      const statusUpdatedAt = submissions.length > 0
-        ? new Date(Math.max(...submissions.map(s => new Date(s.statusUpdatedAt).getTime()))).toISOString()
-        : new Date().toISOString();
+      if (currentIosSub) {
+        submissions.push({
+          id: currentIosSub.id,
+          platform: 'IOS',
+          status: currentIosSub.status,
+          rolloutPercentage: currentIosSub.rolloutPercentage || 0,
+          statusUpdatedAt: currentIosSub.statusUpdatedAt,
+          isActive: true, // isCurrent = true maps to isActive = true
+        });
+      }
+      
+      // Determine platforms from ALL submissions (current + historical)
+      // This ensures platforms show even when all submissions are inactive (REJECTED/CANCELLED)
+      const platforms = [];
+      if (hasAndroidSubs) platforms.push('ANDROID');
+      if (hasIosSubs) platforms.push('IOS');
+      
+      // statusUpdatedAt = max of all submissions' statusUpdatedAt (including historical)
+      const allDistSubmissions = [
+        ...androidSubmissions.filter(s => s.distributionId === dist.id),
+        ...iosSubmissions.filter(s => s.distributionId === dist.id),
+      ];
+      const statusUpdatedAt = allDistSubmissions.length > 0
+        ? new Date(Math.max(...allDistSubmissions.map(s => new Date(s.statusUpdatedAt).getTime()))).toISOString()
+        : dist.updatedAt;
       
       return {
-        id: `dist_${release.id.substring(0, 8)}`,
-        version: release.version || 'v2.7.0',
-        branch: release.branch || `release/${release.version || '2.7.0'}`,
-        status: distStatus,
-        platforms: submissions.map(s => s.platform),
-        submissions, // ONLY latest per platform
+        id: dist.id,
+        releaseId: dist.releaseId, // ✅ Included for linking to release page
+        branch: release?.branch || 'unknown',
+        status: dist.status, // ✅ Use status from distributions table (backend calculates)
+        platforms, // ✅ Based on ALL submissions (current + historical)
+        submissions, // ONLY current submissions per API spec
+        createdAt: dist.createdAt,
         statusUpdatedAt,
       };
     });
@@ -1317,7 +1336,7 @@ server.get('/api/v1/distributions', (req, res) => {
       sum + d.submissions.filter(s => s.status === 'IN_REVIEW').length, 0
     ),
     releasedSubmissions: allDistributions.reduce((sum, d) => 
-      sum + d.submissions.filter(s => s.status === 'LIVE' && s.rolloutPercent === 100).length, 0
+      sum + d.submissions.filter(s => s.status === 'LIVE' && s.rolloutPercentage === 100).length, 0
     ),
   };
   
@@ -1352,84 +1371,95 @@ server.get('/api/v1/distributions/:distributionId', (req, res) => {
   const { distributionId } = req.params;
   const db = router.db;
   
-  // Extract releaseId from distributionId (format: dist_releaseIdPrefix)
-  const releaseIdPrefix = distributionId.replace('dist_', '');
-  const release = db.get('releases').find(r => r.id.startsWith(releaseIdPrefix)).value();
+  // ✅ Query from actual database tables
+  const distribution = db.get('store_distribution').find({ id: distributionId }).value();
   
-  if (!release) {
+  if (!distribution) {
     return res.status(404).json({
       success: false,
       error: { code: 'DISTRIBUTION_NOT_FOUND', message: 'Distribution not found' },
     });
   }
   
-  // Get all submissions for this release (current + historical)
-  const allSubmissions = db.get('submissions').filter({ releaseId: release.id }).value() || [];
+  // Get release for branch info
+  const release = db.get('releases').find({ id: distribution.releaseId }).value();
   
-  // Build complete submissions array with artifacts
-  const submissions = allSubmissions.map(sub => ({
-    id: sub.id,
-    distributionId,
-    platform: sub.platform,
-    storeType: sub.platform === 'ANDROID' ? 'PLAY_STORE' : 'APP_STORE',
-    status: sub.submissionStatus,
-    version: release.version,
-    ...(sub.platform === 'ANDROID' && {
-      versionCode: sub.versionCode || 270,
-      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
-      inAppPriority: sub.inAppPriority || 0,
-    }),
-    ...(sub.platform === 'IOS' && {
-      releaseType: 'AUTOMATIC',
-      phasedRelease: sub.phasedRelease !== undefined ? sub.phasedRelease : true,
-      resetRating: sub.resetRating || false,
-      rolloutPercent: sub.rolloutPercent || sub.exposurePercent || 0,
-    }),
-    releaseNotes: sub.releaseNotes || 'Bug fixes and improvements',
-    submittedAt: sub.submittedAt || null,
-    submittedBy: sub.submittedBy || null,
-    statusUpdatedAt: sub.statusUpdatedAt || sub.updatedAt || new Date().toISOString(),
-    createdAt: sub.createdAt || new Date().toISOString(),
-    updatedAt: sub.updatedAt || new Date().toISOString(),
-    artifact: sub.platform === 'ANDROID' ? {
-      artifactPath: `https://s3.amazonaws.com/builds/${sub.buildId}.aab`,
-      ...(sub.internalTrackLink && { internalTrackLink: sub.internalTrackLink }),
-    } : {
-      testflightNumber: sub.testflightNumber || 56789,
-    },
-    actionHistory: sub.actionHistory || [],
-  }));
+  // Get all submissions for this distribution (current + historical) from both tables
+  const androidSubs = db.get('android_submission_builds').filter({ distributionId }).value() || [];
+  const iosSubs = db.get('ios_submission_builds').filter({ distributionId }).value() || [];
   
-  // Determine distribution status
+  // Build complete submissions array with artifacts (✅ EXACT API SPEC)
+  const submissions = [];
+  
+  // Android submissions
+  androidSubs.forEach(sub => {
+    submissions.push({
+      id: sub.id,
+      distributionId: sub.distributionId,
+      platform: 'ANDROID',
+      storeType: sub.storeType,
+      status: sub.status,
+      version: sub.version,
+      versionCode: sub.versionCode,
+      rolloutPercentage: sub.rolloutPercentage,
+      inAppUpdatePriority: sub.inAppUpdatePriority,
+      releaseNotes: sub.releaseNotes,
+      submittedAt: sub.submittedAt,
+      submittedBy: sub.submittedBy,
+      statusUpdatedAt: sub.statusUpdatedAt,
+      createdAt: sub.createdAt,
+      updatedAt: sub.updatedAt,
+      isActive: sub.isCurrent, // ✅ Map isCurrent to isActive
+      artifact: sub.artifact || {
+        artifactPath: sub.artifactPath,
+        ...(sub.internalTrackLink && { internalTrackLink: sub.internalTrackLink }),
+      },
+      actionHistory: sub.actionHistory || [],
+      ...(sub.rejectionReason && { rejectionReason: sub.rejectionReason }),
+    });
+  });
+  
+  // iOS submissions
+  iosSubs.forEach(sub => {
+    submissions.push({
+      id: sub.id,
+      distributionId: sub.distributionId,
+      platform: 'IOS',
+      storeType: sub.storeType,
+      status: sub.status,
+      version: sub.version,
+      releaseType: sub.releaseType || 'AFTER_APPROVAL',
+      phasedRelease: sub.phasedRelease,
+      resetRating: sub.resetRating,
+      rolloutPercentage: sub.rolloutPercentage,
+      releaseNotes: sub.releaseNotes,
+      submittedAt: sub.submittedAt,
+      submittedBy: sub.submittedBy,
+      statusUpdatedAt: sub.statusUpdatedAt,
+      createdAt: sub.createdAt,
+      updatedAt: sub.updatedAt,
+      isActive: sub.isCurrent, // ✅ Map isCurrent to isActive
+      artifact: sub.artifact || {
+        testflightNumber: sub.testflightNumber,
+      },
+      actionHistory: sub.actionHistory || [],
+      ...(sub.rejectionReason && { rejectionReason: sub.rejectionReason }),
+    });
+  });
+  
+  // Determine platforms based on actual submissions
   const platforms = ['ANDROID', 'IOS'].filter(p => submissions.some(s => s.platform === p));
-  const latestSubmissions = platforms.map(platform => 
-    submissions.filter(s => s.platform === platform).sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0]
-  );
-  
-  let status = 'PENDING';
-  if (latestSubmissions.every(s => s.status === 'LIVE' && s.rolloutPercent === 100)) {
-    status = 'RELEASED';
-  } else if (latestSubmissions.some(s => s.status === 'LIVE')) {
-    status = 'PARTIALLY_RELEASED';
-  } else if (latestSubmissions.every(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
-    status = 'SUBMITTED';
-  } else if (latestSubmissions.some(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status))) {
-    status = 'PARTIALLY_SUBMITTED';
-  }
   
   res.json({
     success: true,
     data: {
-      id: distributionId,
-      releaseId: release.id,
-      version: release.version,
-      branch: release.branch || `release/${release.version}`,
-      status,
+      id: distribution.id,
+      releaseId: distribution.releaseId, // ✅ From distribution table
+      branch: release?.branch || 'unknown', // ✅ From release table (joined)
+      status: distribution.status, // ✅ From distribution table
       platforms,
-      createdAt: release.createdAt || new Date().toISOString(),
-      updatedAt: release.updatedAt || new Date().toISOString(),
+      createdAt: distribution.createdAt,
+      updatedAt: distribution.updatedAt,
       submissions,
     },
   });
@@ -1441,7 +1471,7 @@ server.get('/api/v1/distributions/:distributionId', (req, res) => {
  */
 server.post('/api/v1/distributions/:distributionId/submissions', (req, res) => {
   const { distributionId } = req.params;
-  const { platform, version, versionCode, rolloutPercent, inAppPriority, phasedRelease, resetRating, releaseNotes, testflightNumber } = req.body;
+  const { platform, version, versionCode, rolloutPercentage, inAppUpdatePriority, phasedRelease, resetRating, releaseNotes, testflightNumber } = req.body;
   const db = router.db;
   
   // Extract releaseId from distributionId
@@ -1466,14 +1496,14 @@ server.post('/api/v1/distributions/:distributionId/submissions', (req, res) => {
     version,
     ...(platform === 'ANDROID' && {
       versionCode: versionCode || parseInt(version.replace(/\./g, '')),
-      rolloutPercent: rolloutPercent || 5,
-      inAppPriority: inAppPriority !== undefined ? inAppPriority : 0,
+      rolloutPercentage: rolloutPercentage || 5,
+      inAppUpdatePriority: inAppUpdatePriority !== undefined ? inAppUpdatePriority : 0,
     }),
     ...(platform === 'IOS' && {
-      releaseType: 'AUTOMATIC',
+      releaseType: 'AFTER_APPROVAL',
       phasedRelease: phasedRelease !== undefined ? phasedRelease : true,
       resetRating: resetRating || false,
-      rolloutPercent: 0,
+      rolloutPercentage: 0,
       testflightNumber,
     }),
     releaseNotes: releaseNotes || '',

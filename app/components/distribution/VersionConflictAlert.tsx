@@ -15,7 +15,8 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { Link } from '@remix-run/react';
-import type { Platform } from '~/types/distribution.types';
+import { STORE_NAMES } from '~/constants/distribution.constants';
+import { Platform } from '~/types/distribution.types';
 
 type VersionConflictAlertProps = {
   platform: Platform;
@@ -30,7 +31,7 @@ export function VersionConflictAlert({
   existingStatus,
   org,
 }: VersionConflictAlertProps) {
-  const platformName = platform === 'ANDROID' ? 'Play Store' : 'App Store';
+  const platformName = STORE_NAMES[platform];
   const canDeleteDraft = existingStatus === 'DRAFT';
 
   return (
@@ -66,7 +67,7 @@ export function VersionConflictAlert({
             <Button
               component="a"
               href={
-                platform === 'ANDROID'
+                platform === Platform.ANDROID
                   ? 'https://play.google.com/console'
                   : 'https://appstoreconnect.apple.com'
               }

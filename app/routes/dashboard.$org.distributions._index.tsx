@@ -19,11 +19,10 @@ import {
   Title
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
-import { useLoaderData, useNavigation, useRevalidator } from '@remix-run/react';
-import { useCallback, useMemo, useState } from 'react';
+import { useLoaderData, useNavigate, useNavigation, useRevalidator, useSearchParams } from '@remix-run/react';
+import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { DistributionListFilters, type DistributionFilters } from '~/components/distribution/DistributionListFilters';
 import { DistributionListRow } from '~/components/distribution/DistributionListRow';
 import { DistributionStatsCards } from '~/components/distribution/DistributionStatsCards';
 import { EmptyDistributions } from '~/components/distribution/EmptyDistributions';
@@ -107,10 +106,10 @@ export const loader = authenticateLoaderRequest(
         org,
         distributions: [],
         stats: {
-          total: 0,
-          rollingOut: 0,
-          inReview: 0,
-          released: 0,
+          totalDistributions: 0,
+          totalSubmissions: 0,
+          inReviewSubmissions: 0,
+          releasedSubmissions: 0,
         },
         pagination: {
           page: 1,
@@ -131,6 +130,8 @@ export default function DistributionsListPage() {
     useLoaderData<LoaderData>();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // Check if data is stale
   const staleInfo = loadedAt ? checkStaleData(new Date(loadedAt)) : null;
@@ -139,15 +140,6 @@ export default function DistributionsListPage() {
   const [selectedDistribution, setSelectedDistribution] =
     useState<DistributionEntry | null>(null);
 
-  // Filters state
-  const [filters, setFilters] = useState<DistributionFilters>({
-    search: '',
-    status: [],
-    platforms: [],
-    dateFrom: null,
-    dateTo: null,
-  });
-
   // Extract complex modal props logic to custom hook
   const submitModalProps = useSubmitModalProps(selectedDistribution);
 
@@ -155,48 +147,10 @@ export default function DistributionsListPage() {
   const hasDistributions = distributions.length > 0;
   const hasMultiplePages = pagination.totalPages > 1;
 
-  // Client-side filtering (TODO: move to server-side)
-  const filteredDistributions = useMemo(() => {
-    let result = [...distributions];
-
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      result = result.filter(
-        (d) => {
-          const version = d.submissions?.[0]?.versionName || '';
-          return (
-            version.toLowerCase().includes(searchLower) ||
-            d.branch?.toLowerCase().includes(searchLower)
-          );
-        }
-      );
-    }
-
-    // Status filter
-    if (filters.status.length > 0) {
-      result = result.filter((d) => filters.status.includes(d.status));
-    }
-
-    // Platform filter
-    if (filters.platforms.length > 0) {
-      result = result.filter((d) =>
-        d.submissions.some((s: any) => filters.platforms.includes(s.platform))
-      );
-    }
-
-    // Date range filter
-    if (filters.dateFrom || filters.dateTo) {
-      result = result.filter((d) => {
-        const updatedDate = new Date(d.lastUpdated);
-        if (filters.dateFrom && updatedDate < filters.dateFrom) return false;
-        if (filters.dateTo && updatedDate > filters.dateTo) return false;
-        return true;
-      });
-    }
-
-    return result;
-  }, [distributions, filters]);
+  // Debug: Log navigation state
+  console.log('[Distributions] Navigation state:', navigation.state);
+  console.log('[Distributions] Has distributions:', hasDistributions);
+  console.log('[Distributions] Distributions count:', distributions.length);
 
   // Handler functions - extracted from inline JSX
   const handleOpenSubmitModal = useCallback((distribution: DistributionEntry) => {
@@ -215,29 +169,18 @@ export default function DistributionsListPage() {
   }, [handleCloseSubmitModal, revalidator]);
 
   const handlePageChange = useCallback((newPage: number) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('page', String(newPage));
-    window.location.href = url.toString();
-  }, []);
+    // Client-side navigation - no full page refresh
+    console.log('[Pagination] Changing to page:', newPage);
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('page', String(newPage));
+    const newUrl = `?${newSearchParams.toString()}`;
+    console.log('[Pagination] Navigating to:', newUrl);
+    navigate(newUrl, { replace: false });
+  }, [navigate, searchParams]);
 
   const handleRetryLoad = useCallback(() => {
     revalidator.revalidate();
   }, [revalidator]);
-
-  const handleFiltersApply = useCallback(() => {
-    // TODO: Update URL params and refetch from server
-    revalidator.revalidate();
-  }, [revalidator]);
-
-  const handleFiltersClear = useCallback(() => {
-    setFilters({
-      search: '',
-      status: [],
-      platforms: [],
-      dateFrom: null,
-      dateTo: null,
-    });
-  }, []);
 
   // Pagination display text
   const paginationText = DISTRIBUTIONS_LIST_UI.PAGINATION_TEXT(
@@ -297,17 +240,6 @@ export default function DistributionsListPage() {
       {/* Stats */}
       {!isLoading && hasDistributions && <DistributionStatsCards stats={stats} />}
 
-      {/* Filters */}
-      {!isLoading && hasDistributions && (
-        <DistributionListFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          onApply={handleFiltersApply}
-          onClear={handleFiltersClear}
-          isLoading={isLoading}
-        />
-      )}
-
       {/* Distributions Table */}
       {!isLoading && !hasDistributions && !error ? (
         <EmptyDistributions />
@@ -322,11 +254,6 @@ export default function DistributionsListPage() {
             >
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>
-                    <Text size="sm" fw={600} tt="uppercase">
-                      {DISTRIBUTIONS_LIST_UI.TABLE_HEADERS.VERSION}
-                    </Text>
-                  </Table.Th>
                   <Table.Th>
                     <Text size="sm" fw={600} tt="uppercase">
                       {DISTRIBUTIONS_LIST_UI.TABLE_HEADERS.BRANCH}
@@ -344,6 +271,11 @@ export default function DistributionsListPage() {
                   </Table.Th>
                   <Table.Th>
                     <Text size="sm" fw={600} tt="uppercase">
+                      Created
+                    </Text>
+                  </Table.Th>
+                  <Table.Th>
+                    <Text size="sm" fw={600} tt="uppercase">
                       {DISTRIBUTIONS_LIST_UI.TABLE_HEADERS.LAST_UPDATED}
                     </Text>
                   </Table.Th>
@@ -355,12 +287,11 @@ export default function DistributionsListPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {filteredDistributions.map((distribution) => (
+                {distributions.map((distribution) => (
                   <DistributionListRow
-                    key={distribution.releaseId}
+                    key={distribution.id}
                     distribution={distribution}
                     org={org}
-                    onSubmitClick={handleOpenSubmitModal}
                   />
                 ))}
               </Table.Tbody>
@@ -394,7 +325,6 @@ export default function DistributionsListPage() {
       >
         {selectedDistribution && submitModalProps && (
           <SubmitToStoresForm
-            releaseId={selectedDistribution.releaseId}
             distributionId={selectedDistribution.id}
             submissions={selectedDistribution.submissions}
             hasAndroidActiveRollout={false}

@@ -10,31 +10,31 @@
 import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import type {
-  APISuccessResponse,
-  ApprovalResponse,
-  BuildResponse,
-  BuildsResponse,
-  CreateResubmissionRequest,
-  DistributionsResponse,
-  DistributionStatusResponse,
-  DistributionWithSubmissions,
-  ExtraCommitsResponse,
-  HaltRolloutRequest,
-  ManualApprovalRequest,
-  PauseRolloutRequest,
-  Platform,
-  PMStatusResponse,
-  ReleaseStoresResponse,
-  RolloutUpdateResponse,
-  SubmissionResponse,
-  SubmissionsResponse,
-  SubmitSubmissionRequest,
-  SubmitToStoreRequest,
-  SubmitToStoreResponse,
-  UpdateRolloutRequest,
-  UploadAABResponse,
-  VerifyTestFlightRequest,
-  VerifyTestFlightResponse
+    APISuccessResponse,
+    ApprovalResponse,
+    BuildResponse,
+    BuildsResponse,
+    CreateResubmissionRequest,
+    DistributionsResponse,
+    DistributionStatusResponse,
+    DistributionWithSubmissions,
+    ExtraCommitsResponse,
+    HaltRolloutRequest,
+    ManualApprovalRequest,
+    PauseRolloutRequest,
+    Platform,
+    PMStatusResponse,
+    ReleaseStoresResponse,
+    RolloutUpdateResponse,
+    SubmissionResponse,
+    SubmissionsResponse,
+    SubmitSubmissionRequest,
+    SubmitToStoreRequest,
+    SubmitToStoreResponse,
+    UpdateRolloutRequest,
+    UploadAABResponse,
+    VerifyTestFlightRequest,
+    VerifyTestFlightResponse
 } from '~/types/distribution.types';
 
 class Distribution {
@@ -319,7 +319,7 @@ class Distribution {
    */
   async editSubmission(submissionId: string, updates: Partial<{
     releaseNotes: string;
-    rolloutPercent: number;
+    rolloutPercentage: number;
     releaseType: string;
   }>) {
     return this.__client.patch<typeof updates, SubmissionResponse>(

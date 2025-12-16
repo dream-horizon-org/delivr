@@ -10,8 +10,8 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type {
-  DistributionStatusData,
-  Submission
+    DistributionStatusData,
+    Submission
 } from '~/types/distribution.types';
 import { DistributionStatus, Platform, SubmissionStatus as SubmissionStatusEnum } from '~/types/distribution.types';
 
@@ -102,13 +102,13 @@ export function useDistribution(params: UseDistributionParams): UseDistributionR
   const hasSubmissions = androidSubmission !== null || iosSubmission !== null;
 
   // Submission states
-  const androidRejected = androidSubmission?.submissionStatus === SubmissionStatusEnum.REJECTED;
-  const iosRejected = iosSubmission?.submissionStatus === SubmissionStatusEnum.REJECTED;
+  const androidRejected = androidSubmission?.status === SubmissionStatusEnum.REJECTED;
+  const iosRejected = iosSubmission?.status === SubmissionStatusEnum.REJECTED;
   const hasRejections = androidRejected || iosRejected;
 
   // Rollout percentages
-  const androidRolloutPercent = androidSubmission?.rolloutPercent ?? 0;
-  const iosRolloutPercent = iosSubmission?.rolloutPercent ?? 0;
+  const androidRolloutPercent = androidSubmission?.rolloutPercentage ?? 0;
+  const iosRolloutPercent = iosSubmission?.rolloutPercentage ?? 0;
 
   // Actions availability
   const canSubmitToStores = useMemo(() => {

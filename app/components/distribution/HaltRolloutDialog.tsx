@@ -10,16 +10,18 @@
 
 import {
   Alert,
+  Badge,
   Button,
   Group,
   List,
   Modal,
+  Paper,
   Stack,
   Text,
   Textarea,
   ThemeIcon,
 } from '@mantine/core';
-import { IconAlertOctagon, IconAlertTriangle } from '@tabler/icons-react';
+import { IconAlertOctagon, IconAlertTriangle, IconBrandAndroid, IconBrandApple } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
   BUTTON_LABELS,
@@ -28,6 +30,7 @@ import {
   DIALOG_UI,
   PLATFORM_LABELS,
 } from '~/constants/distribution.constants';
+import { Platform } from '~/types/distribution.types';
 import type { HaltRolloutDialogProps } from './distribution.types';
 
 export function HaltRolloutDialog({
@@ -42,6 +45,8 @@ export function HaltRolloutDialog({
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const platformLabel = PLATFORM_LABELS[platform];
+  const isAndroid = platform === Platform.ANDROID;
+  const PlatformIcon = isAndroid ? IconBrandAndroid : IconBrandApple;
 
   const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.target.value);
@@ -81,7 +86,7 @@ export function HaltRolloutDialog({
       size="md"
       centered
     >
-      <Stack gap="md">
+      <Stack gap="lg">
         {/* Warning Alert */}
         <Alert 
           icon={<IconAlertTriangle size={DIALOG_ICON_SIZES.ALERT} />} 
@@ -89,16 +94,24 @@ export function HaltRolloutDialog({
           variant="light"
         >
           <Stack gap="xs">
-            <Text size="sm" fw={500}>{DIALOG_UI.HALT.WARNING_TITLE}</Text>
+            <Text size="sm" fw={600}>{DIALOG_UI.HALT.WARNING_TITLE}</Text>
             <Text size="sm">{DIALOG_UI.HALT.WARNING_MESSAGE}</Text>
           </Stack>
         </Alert>
 
         {/* Platform Info */}
-        <div>
-          <Text size="sm" c="dimmed">Platform</Text>
-          <Text size="sm" fw={500}>{platformLabel}</Text>
-        </div>
+        <Paper p="md" withBorder className="bg-white">
+          <Group justify="space-between" align="center">
+            <Text size="sm" fw={600} c="dark">Platform</Text>
+            <Badge 
+              size="lg" 
+              variant="light"
+              leftSection={<PlatformIcon size={DIALOG_ICON_SIZES.ALERT} />}
+            >
+              {platformLabel}
+            </Badge>
+          </Group>
+        </Paper>
 
         {/* Reason Field */}
         <Textarea
@@ -114,10 +127,12 @@ export function HaltRolloutDialog({
 
         {/* Consequences */}
         <div>
-          <Text size="sm" fw={500} mb="xs">{DIALOG_UI.HALT.CONSEQUENCE_TITLE}</Text>
+          <Text size="sm" fw={600} mb="xs">{DIALOG_UI.HALT.CONSEQUENCE_TITLE}</Text>
           <List size="sm" spacing="xs">
             {DIALOG_UI.HALT.CONSEQUENCE_ITEMS.map((item, index) => (
-              <List.Item key={index}>{item}</List.Item>
+              <List.Item key={index}>
+                <Text size="sm">{item}</Text>
+              </List.Item>
             ))}
           </List>
         </div>

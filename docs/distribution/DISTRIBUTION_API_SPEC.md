@@ -4,6 +4,12 @@
 **Date**: December 14, 2025  
 **Status**: ✅ **IMPLEMENTED & PRODUCTION READY**
 
+**Known Gap (Future Enhancement):**
+- 🔴 **Rejection Details** - Not yet implemented (backend team notified)
+  - Fields: `rejectionReason: string`, `rejectionDetails: { guideline, description, screenshot }`
+  - Will be added to submission objects in future update
+  - Frontend has hardcoded fallback for now
+
 ---
 
 ## Overview
@@ -36,12 +42,34 @@ This document specifies the complete API contract for the Distribution module, w
 - **Lifecycle**: PENDING → PARTIALLY_SUBMITTED → SUBMITTED → PARTIALLY_RELEASED → RELEASED
 - **Status Calculation**: Backend only - Frontend never calculates, only displays
 - **Relationship**: 1 Distribution : N Submissions
-- **Status Logic**: 
-  - `PENDING`: No submissions made yet
-  - `PARTIALLY_SUBMITTED`: At least 1 (but not all) submissions made
-  - `SUBMITTED`: All configured platforms submitted to stores
-  - `PARTIALLY_RELEASED`: At least 1 submission is LIVE (not all at 100%)
-  - `RELEASED`: All submissions LIVE at 100% rollout
+- **Important**: **Once RELEASED, the distribution status NEVER changes** (immutable terminal state)
+
+#### Distribution Status Logic
+
+**Key Concept**: For distribution status calculation, a submission is considered **"released"** when it reaches `APPROVED` status or beyond (`LIVE`, `PAUSED`, `HALTED`).
+
+**Single Platform Distributions** (e.g., Android-only or iOS-only):
+  - `PENDING`: Submission is PENDING
+  - `SUBMITTED`: Submission is IN_REVIEW
+  - `RELEASED`: Submission is APPROVED, LIVE, PAUSED, or HALTED
+  - **No PARTIALLY_* statuses** (not applicable for single platform)
+
+**Two Platform Distributions** (Android + iOS):
+  - `PENDING`: Both submissions are PENDING
+  - `PARTIALLY_SUBMITTED`: At least one submission is IN_REVIEW, the other is PENDING
+  - `SUBMITTED`: Both submissions are IN_REVIEW (neither "released" yet)
+  - `PARTIALLY_RELEASED`: At least one (but not all) submissions are "released" (APPROVED or beyond)
+  - `RELEASED`: Both submissions are "released" (APPROVED, LIVE, PAUSED, or HALTED)
+  
+**Examples**:
+  - Android: PENDING, iOS: PENDING → Distribution: `PENDING`
+  - Android: IN_REVIEW, iOS: PENDING → Distribution: `PARTIALLY_SUBMITTED`
+  - Android: IN_REVIEW, iOS: IN_REVIEW → Distribution: `SUBMITTED`
+  - Android: APPROVED, iOS: IN_REVIEW → Distribution: `PARTIALLY_RELEASED`
+  - Android: APPROVED, iOS: APPROVED → Distribution: `RELEASED`
+  - Android: LIVE (50%), iOS: APPROVED → Distribution: `RELEASED`
+  - Android: LIVE (100%), iOS: LIVE (100%) → Distribution: `RELEASED`
+  - Android: HALTED (35%), iOS: LIVE (75%) → Distribution: `RELEASED`
 
 ### Submission
 - **Created**: Automatically when distribution is created (one per configured platform)
@@ -87,6 +115,96 @@ PENDING → IN_REVIEW → APPROVED → LIVE
 - **Rollout Types**:
   - Phased Release: Automatic rollout over 7 days, can skip to 100%, pausable
   - Manual Release: Immediate 100%, no rollout control
+
+---
+
+## Submission Actions & State Transitions
+
+### Available Actions
+
+| Action | From Status | To Status | Platform | Prerequisites | Result |
+|--------|-------------|-----------|----------|---------------|--------|
+| **Submit** | PENDING | IN_REVIEW | Both | Submission details provided | Submission sent to store for review |
+| **Cancel** | IN_REVIEW | CANCELLED | Both | - | Submission cancelled, becomes inactive, can resubmit |
+| **Resubmit** | REJECTED, CANCELLED | IN_REVIEW | Both | New submission details | Creates **new submission** (new ID), old becomes inactive |
+| **Pause** | LIVE | PAUSED | iOS only | `phasedRelease = true` | Rollout paused, can resume later |
+| **Resume** | PAUSED | LIVE | iOS only | - | Rollout continues from current % |
+| **Halt** | LIVE | HALTED | **Android only** | - | **Terminal state**, no further actions possible |
+| **Update Rollout** | LIVE | LIVE | Both | - | Changes rollout percentage (platform-specific rules) |
+
+### Action Rules
+
+#### 1. Submit (`POST /api/v1/submissions/:submissionId/submit`)
+- **Prerequisite**: Submission must be `PENDING`
+- **Required**: Submission details (artifact, release notes, etc.)
+- **Transition**: PENDING → IN_REVIEW
+- **Effect**: 
+  - Distribution status may change to `PARTIALLY_SUBMITTED` (if other platforms still PENDING)
+  - Distribution status may change to `SUBMITTED` (if all platforms now in review)
+
+#### 2. Cancel (`POST /api/v1/submissions/:submissionId/cancel`)
+- **Prerequisite**: Submission must be `IN_REVIEW`
+- **Required**: Cancellation reason (mandatory)
+- **Transition**: IN_REVIEW → CANCELLED
+- **Effect**: 
+  - Submission becomes inactive (`isActive = false`)
+  - Enables resubmission flow (create new submission)
+  - Distribution status may revert based on remaining submissions
+
+#### 3. Resubmit (`POST /api/v1/submissions/:submissionId/resubmit`)
+- **Prerequisite**: Submission must be `REJECTED` or `CANCELLED`
+- **Required**: New submission details (new artifact, updated release notes)
+- **Creates**: **New submission entity** with new `submissionId`
+- **Effect**: 
+  - Old submission becomes inactive (`isActive = false`)
+  - New submission is active (`isActive = true`, status = IN_REVIEW)
+  - Distribution status recalculated based on new submission
+
+#### 4. Pause Rollout (`POST /api/v1/submissions/:submissionId/pause`)
+- **Prerequisite**: 
+  - Platform must be iOS
+  - Submission status must be `LIVE`
+  - `phasedRelease` must be `true`
+- **Required**: Pause reason (mandatory)
+- **Transition**: LIVE → PAUSED
+- **Effect**: 
+  - Rollout halted at current percentage
+  - Can be resumed later
+  - Distribution status remains `RELEASED` (PAUSED is considered "released")
+
+#### 5. Resume Rollout (`POST /api/v1/submissions/:submissionId/resume`)
+- **Prerequisite**: 
+  - Platform must be iOS
+  - Submission status must be `PAUSED`
+- **Required**: No additional parameters
+- **Transition**: PAUSED → LIVE
+- **Effect**: 
+  - Rollout continues from current percentage
+  - Distribution status remains `RELEASED`
+
+#### 6. Halt Rollout (`POST /api/v1/submissions/:submissionId/halt`)
+- **Prerequisite**: 
+  - **Platform must be Android** (iOS does NOT support halt)
+  - Submission status must be `LIVE`
+- **Required**: Halt reason (mandatory)
+- **Transition**: LIVE → HALTED
+- **Effect**: 
+  - **TERMINAL STATE** - no further actions possible
+  - Rollout frozen at current percentage
+  - Submission remains active (`isActive = true`)
+  - Distribution status remains `RELEASED` (HALTED is considered "released")
+  - Use case: Emergency stop due to critical bugs
+- **Note**: iOS submissions cannot be halted. Use Cancel or store-level controls instead.
+
+#### 7. Update Rollout (`POST /api/v1/rollout/update`)
+- **Prerequisite**: Submission status must be `LIVE`
+- **Required**: New rollout percentage
+- **Platform-Specific Rules**:
+  - **Android**: Can update to any percentage (0-100, decimals allowed)
+  - **iOS Phased Release**: Can only update to 100% (to complete early)
+  - **iOS Manual Release**: Always at 100%, cannot update
+- **Transition**: LIVE → LIVE (status unchanged)
+- **Effect**: `rolloutPercentage` updated, distribution status remains `RELEASED`
 
 ---
 
@@ -161,9 +279,9 @@ enum Platform {
 
 **Field Name Standards:**
 - Use **camelCase** (not snake_case)
-- Use **rolloutPercent** (not rollout_percentage) - float 0-100 (supports decimals)
+- Use **rolloutPercentage** (not rollout_percentage) - float 0-100 (supports decimals)
 - Use **releaseNotes** (not what's_New_Text)
-- Use **inAppPriority** (Android only) - integer 0-5
+- Use **inAppUpdatePriority** (Android only) - integer 0-5
 - Use **statusUpdatedAt** (not approved_at or rejected_at or cancelled_at)
 - Use **submittedBy** - email of user who submitted
 - Use **resetRating** (iOS only, not resetRatings) - boolean
@@ -182,9 +300,14 @@ GET /api/v1/releases/:releaseId/distribution
 ```
 
 **Use Case:** 
-- Release process distribution step
+- Release process distribution step (initial fetch on landing to Distribution Tab)
 - Display distribution status and submissions in release workflow
 - Check if distribution exists before allowing submit
+
+**ID Usage Pattern:**
+1. **Initial fetch**: Use `releaseId` to get distribution
+2. **All subsequent operations**: Use returned `distributionId` (from `data.id`)
+3. **Never use `releaseId` again** after initial fetch - all operations use `distributionId` and `submissionId`
 
 **Response:**
 ```json
@@ -207,14 +330,15 @@ GET /api/v1/releases/:releaseId/distribution
         "status": "IN_REVIEW",
         "version": "2.7.0",
         "versionCode": 270,
-        "rolloutPercent": 5,
-        "inAppPriority": 0,
+        "rolloutPercentage": 5,
+        "inAppUpdatePriority": 0,
         "releaseNotes": "Bug fixes",
         "submittedAt": "2025-12-14T10:00:00Z",
         "submittedBy": "prince@dream11.com",
         "statusUpdatedAt": "2025-12-14T10:00:00Z",
         "createdAt": "2025-12-14T10:00:00Z",
         "updatedAt": "2025-12-14T10:00:00Z",
+        "isActive": true,
         "artifact": {
           "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
           "internalTrackLink": "https://play.google.com/apps/testing/com.app"
@@ -228,16 +352,17 @@ GET /api/v1/releases/:releaseId/distribution
         "storeType": "APP_STORE",
         "status": "LIVE",
         "version": "2.7.0",
-        "releaseType": "AUTOMATIC",
+        "releaseType": "AFTER_APPROVAL",
         "phasedRelease": true,
         "resetRating": false,
-        "rolloutPercent": 15,
+        "rolloutPercentage": 15,
         "releaseNotes": "Bug fixes",
         "submittedAt": "2025-12-14T10:00:00Z",
         "submittedBy": "prince@dream11.com",
         "statusUpdatedAt": "2025-12-14T12:00:00Z",
         "createdAt": "2025-12-14T10:00:00Z",
         "updatedAt": "2025-12-14T12:00:00Z",
+        "isActive": true,
         "artifact": {
           "testflightNumber": 56789
         },
@@ -282,14 +407,15 @@ GET /api/v1/releases/:releaseId/distribution
         "status": "PENDING",
         "version": "2.7.0",
         "versionCode": 270,
-        "rolloutPercent": 0,
-        "inAppPriority": 0,
+        "rolloutPercentage": 0,
+        "inAppUpdatePriority": 0,
         "releaseNotes": "",
         "submittedAt": null,
         "submittedBy": null,
         "statusUpdatedAt": "2025-12-14T09:00:00Z",
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T09:00:00Z",
+        "isActive": true,
         "artifact": {
           "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
           "internalTrackLink": "https://play.google.com/apps/testing/com.app"
@@ -303,16 +429,17 @@ GET /api/v1/releases/:releaseId/distribution
         "storeType": "APP_STORE",
         "status": "PENDING",
         "version": "2.7.0",
-        "releaseType": "AUTOMATIC",
+        "releaseType": "AFTER_APPROVAL",
         "phasedRelease": false,
         "resetRating": false,
-        "rolloutPercent": 0,
+        "rolloutPercentage": 0,
         "releaseNotes": "",
         "submittedAt": null,
         "submittedBy": null,
         "statusUpdatedAt": "2025-12-14T09:00:00Z",
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T09:00:00Z",
+        "isActive": true,
         "artifact": {
           "testflightNumber": 56789
         },
@@ -343,11 +470,15 @@ GET /api/v1/releases/:releaseId/distribution
 - **Never empty**: Always has entries for each platform in `platforms` array
 - Each submission includes:
   - Basic info: `id`, `distributionId`, `platform`, `storeType`, `status`, `version`
-  - Rollout: `rolloutPercent` (0-100)
+  - Rollout: `rolloutPercentage` (0-100)
   - Metadata: `releaseNotes`, `submittedAt`, `submittedBy`, `statusUpdatedAt`
+  - **`isActive`**: `boolean` - Indicates if this is the current submission for the platform
+    - **`true`**: Current/latest submission (PENDING, IN_REVIEW, APPROVED, LIVE, PAUSED, HALTED)
+    - **`false`**: Historical submission (REJECTED or CANCELLED *after* user created a resubmission)
+    - **Note**: HALTED remains `isActive: true` (terminal state, cannot resubmit within same distribution)
   - Platform-specific fields:
-    - **Android**: `versionCode`, `inAppPriority` (0-5)
-    - **iOS**: `releaseType` (always "AUTOMATIC", display only), `phasedRelease`, `resetRating`
+    - **Android**: `versionCode`, `inAppUpdatePriority` (0-5)
+    - **iOS**: `releaseType` (always "AFTER_APPROVAL", display only), `phasedRelease`, `resetRating`
   - **`artifact`** Object (nested in each submission):
     - **Android**: 
       - `artifactPath`: Presigned S3 URL to download AAB
@@ -360,18 +491,22 @@ GET /api/v1/releases/:releaseId/distribution
     - `createdAt`: ISO timestamp when action was performed
     - `reason`: User-provided reason for the action
     - Empty array `[]` if no actions have been taken
+    - **Important**: `action` records what was done (e.g., "RESUMED"), while `status` shows current state (e.g., "LIVE")
+    - **Example**: After RESUME, `status` = "LIVE", but `actionHistory` still logs the "RESUMED" action
 
 **Important Field Notes:**
 - **Distribution has NO version field**: Version information exists only in submissions
-- **`inAppPriority`**: Android in-app update priority (0-5), not `priority`
+- **`inAppUpdatePriority`**: Android in-app update priority (0-5), not `priority`
 - **`statusUpdatedAt`**: Last status change timestamp, not `statusChangedAt`
 - **`submittedBy`**: Email of user who submitted
 - **`resetRating`**: Boolean for iOS rating reset, not `resetRatings`
-- **`releaseType`**: iOS only, always "AUTOMATIC" (display-only field, non-editable, default value)
+- **`releaseType`**: iOS only, always "AFTER_APPROVAL" (display-only field, non-editable, default value)
 - **`artifact.artifactPath`**: S3 path or URL to AAB file (was `buildUrl`)
 - **`artifact.internalTrackLink`**: Optional Google Play internal testing link (was `internalTestingLink`) - present only for first submission, not for resubmissions
 - **`artifact.testflightNumber`**: iOS TestFlight build number (was `testflightBuildNumber`)
 - **`actionHistory`**: Audit trail for PAUSED/RESUMED/CANCELLED/HALTED actions; empty array if none
+  - Backend automatically populates this when actions occur
+  - Logs the action taken (e.g., "RESUMED"), which may differ from current `status` (e.g., "LIVE")
 
 **Notes:**
 - ✅ **Preferred endpoint** for release process distribution step
@@ -379,7 +514,9 @@ GET /api/v1/releases/:releaseId/distribution
 - **Submissions are auto-created** when distribution is created (one per platform)
 - **Initial submission status**: PENDING (not yet submitted to store)
 - Each submission includes its artifact info (build URLs, TestFlight numbers)
-- No separate `artifacts` object at distribution level - artifacts are per-submission
+- **IMPORTANT**: No separate `artifacts` object at distribution level - **artifacts are per-submission**
+  - ✅ Access artifacts via: `submission.artifact`
+  - ❌ Distribution does NOT have an `artifacts` field
 - No `availableActions` object - frontend calculates based on submission statuses
 - **Submissions array is never empty** - always contains one entry per configured platform
 - Used in release workflow to show distribution step progress
@@ -411,6 +548,7 @@ GET /api/v1/distributions
     "distributions": [
       {
         "id": "dist_123",
+        "releaseId": "rel_456",
         "branch": "release/2.7.0",
         "status": "PENDING",
         "platforms": ["ANDROID", "IOS"],
@@ -419,17 +557,20 @@ GET /api/v1/distributions
             "id": "sub_789",
             "platform": "ANDROID",
             "status": "IN_REVIEW",
-            "rolloutPercent": 5,
-            "statusUpdatedAt": "2025-12-14T10:30:00Z"
+            "rolloutPercentage": 5,
+            "statusUpdatedAt": "2025-12-14T10:30:00Z",
+            "isActive": true
           },
           {
             "id": "sub_012",
             "platform": "IOS",
             "status": "APPROVED",
-            "rolloutPercent": 0,
-            "statusUpdatedAt": "2025-12-14T10:00:00Z"
+            "rolloutPercentage": 0,
+            "statusUpdatedAt": "2025-12-14T10:00:00Z",
+            "isActive": true
           }
         ],
+        "createdAt": "2025-12-14T09:00:00Z",
         "statusUpdatedAt": "2025-12-14T10:30:00Z"
       }
     ],
@@ -453,12 +594,21 @@ GET /api/v1/distributions
 **Response Fields:**
 
 **Distribution Object** (each item in `distributions` array):
-- `id`: Distribution ID
-- `version`: Version number (e.g., "v2.7.0")
+- `id`: Distribution ID (used for all subsequent operations in Distribution Management)
+- `releaseId`: Release ID (used for linking back to the source release page)
 - `branch`: Git branch name (e.g., "release/2.7.0")
 - `status`: Distribution status (PENDING, PARTIALLY_SUBMITTED, SUBMITTED, PARTIALLY_RELEASED, RELEASED)
 - `platforms`: Array of platforms (["ANDROID", "IOS"])
+- `createdAt`: When distribution was created (ISO 8601 timestamp)
 - `statusUpdatedAt`: **Max of all submissions' statusUpdatedAt** (most recent status change across all platforms)
+
+**ID Usage Pattern:**
+- ✅ **`releaseId`** is included for linking back to the source release page
+- ✅ **`distributionId`** (from `id` field) drives all Distribution Management operations
+- ✅ Each distribution's `id` is used for:
+  - Submit to stores: `POST /distributions/:id/submit`
+  - View details: `GET /distributions/:id`
+  - All rollout operations (via submission IDs from nested `submissions` array)
 
 **`submissions`** Array (nested in each distribution):
 - **Returns ONLY the latest/current submission per platform** (not historical submissions)
@@ -466,8 +616,9 @@ GET /api/v1/distributions
   - `id`: Submission ID
   - `platform`: ANDROID or IOS
   - `status`: Submission status (PENDING, IN_REVIEW, APPROVED, LIVE, PAUSED, REJECTED, HALTED, CANCELLED)
-  - `rolloutPercent`: Current rollout percentage (0-100)
+  - `rolloutPercentage`: Current rollout percentage (0-100)
   - `statusUpdatedAt`: Last status change timestamp for this submission
+  - `isActive`: Always `true` in list view (since only current submissions are returned)
 
 **`pagination`** Object:
 - Standard pagination metadata
@@ -501,7 +652,7 @@ stats.inReviewSubmissions = allDistributions.reduce((sum, d) =>
 // Count submissions with LIVE status at 100% exposure
 stats.releasedSubmissions = allDistributions.reduce((sum, d) => 
   sum + d.submissions.filter(s => 
-    s.status === 'LIVE' && s.rolloutPercent === 100
+    s.status === 'LIVE' && s.rolloutPercentage === 100
   ).length, 0
 );
 ```
@@ -534,8 +685,8 @@ PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 **Request Body (Android):**
 ```json
 {
-  "rolloutPercent": 5,
-  "inAppPriority": 0,
+  "rolloutPercentage": 5,
+  "inAppUpdatePriority": 0,
   "releaseNotes": "Bug fixes and performance improvements"
 }
 ```
@@ -552,8 +703,8 @@ PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 **Request Fields:**
 
 **For Android Submission:**
-- `rolloutPercent`: `float` (0-100, supports decimals like 5.5, 27.3) - Initial rollout percentage
-- `inAppPriority`: `number` (0-5) - In-app update priority
+- `rolloutPercentage`: `float` (0-100, supports decimals like 5.5, 27.3) - Initial rollout percentage
+- `inAppUpdatePriority`: `number` (0-5) - In-app update priority
 - `releaseNotes`: `string` - Release notes for users
 
 **For iOS Submission:**
@@ -579,8 +730,8 @@ PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
     "status": "IN_REVIEW",
     "version": "2.7.0",
     "versionCode": 270,
-    "rolloutPercent": 5,
-    "inAppPriority": 0,
+    "rolloutPercentage": 5,
+    "inAppUpdatePriority": 0,
     "releaseNotes": "Bug fixes and performance improvements",
     "submittedAt": "2025-12-14T10:00:00Z",
     "submittedBy": "prince@dream11.com",
@@ -607,10 +758,10 @@ PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
     "storeType": "APP_STORE",
     "status": "IN_REVIEW",
     "version": "2.7.0",
-    "releaseType": "AUTOMATIC",
+    "releaseType": "AFTER_APPROVAL",
     "phasedRelease": true,
     "resetRating": false,
-    "rolloutPercent": 0,
+    "rolloutPercentage": 0,
     "releaseNotes": "Bug fixes and performance improvements",
     "submittedAt": "2025-12-14T10:00:00Z",
     "submittedBy": "prince@dream11.com",
@@ -628,7 +779,7 @@ PUT /api/v1/submissions/:submissionId/submit?platform=<ANDROID|IOS>
 **What Happens:**
 1. Backend finds submission by `submissionId` (already exists with PENDING status)
 2. Validates submission is in PENDING state
-3. Updates submission with provided details (rolloutPercent, releaseNotes, etc.)
+3. Updates submission with provided details (rolloutPercentage, releaseNotes, etc.)
 4. Changes `status` from PENDING → IN_REVIEW
 5. Sets `submittedAt` = current timestamp
 6. Sets `submittedBy` = current user email
@@ -686,14 +837,15 @@ GET /api/v1/distributions/:distributionId
         "status": "LIVE",
         "version": "2.7.0",
         "versionCode": 270,
-        "rolloutPercent": 100,
-        "inAppPriority": 0,
+        "rolloutPercentage": 100,
+        "inAppUpdatePriority": 0,
         "releaseNotes": "Bug fixes and performance improvements",
         "submittedAt": "2025-12-14T10:00:00Z",
         "submittedBy": "prince@dream11.com",
         "statusUpdatedAt": "2025-12-14T12:00:00Z",
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T12:00:00Z",
+        "isActive": true,
         "artifact": {
           "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
           "internalTrackLink": "https://play.google.com/apps/testing/com.app"
@@ -707,16 +859,17 @@ GET /api/v1/distributions/:distributionId
         "storeType": "APP_STORE",
         "status": "IN_REVIEW",
         "version": "2.7.0",
-        "releaseType": "AUTOMATIC",
+        "releaseType": "AFTER_APPROVAL",
         "phasedRelease": true,
         "resetRating": false,
-        "rolloutPercent": 0,
+        "rolloutPercentage": 0,
         "releaseNotes": "Bug fixes and performance improvements",
         "submittedAt": "2025-12-14T10:00:00Z",
         "submittedBy": "prince@dream11.com",
         "statusUpdatedAt": "2025-12-14T10:00:00Z",
         "createdAt": "2025-12-14T09:00:00Z",
         "updatedAt": "2025-12-14T10:00:00Z",
+        "isActive": true,
         "artifact": {
           "testflightNumber": 56789
         },
@@ -742,12 +895,16 @@ GET /api/v1/distributions/:distributionId
 - Includes both latest submissions and past submissions (if resubmitted after rejection/cancellation)
 - Each submission includes:
   - Basic info: `id`, `distributionId`, `platform`, `storeType`, `status`, `version`
-  - Rollout: `rolloutPercent` (0-100)
+  - Rollout: `rolloutPercentage` (0-100)
   - Metadata: `releaseNotes`, `submittedAt`, `submittedBy`, `statusUpdatedAt`
   - Timestamps: `createdAt`, `updatedAt`
+  - **`isActive`**: `boolean` - Indicates if this is the current submission for the platform
+    - **`true`**: Current/latest submission (PENDING, IN_REVIEW, APPROVED, LIVE, PAUSED, HALTED)
+    - **`false`**: Historical submission (REJECTED or CANCELLED *after* user created a resubmission)
+    - **Note**: HALTED remains `isActive: true` (terminal state, cannot resubmit within same distribution)
   - Platform-specific fields:
-    - **Android**: `versionCode`, `inAppPriority` (0-5)
-    - **iOS**: `releaseType` (always "AUTOMATIC"), `phasedRelease`, `resetRating`
+    - **Android**: `versionCode`, `inAppUpdatePriority` (0-5)
+    - **iOS**: `releaseType` (always "AFTER_APPROVAL"), `phasedRelease`, `resetRating`
   - **`artifact`** Object (nested in each submission):
     - **Android**: 
       - `artifactPath`: Presigned S3 URL to download AAB
@@ -760,6 +917,7 @@ GET /api/v1/distributions/:distributionId
     - `createdAt`: ISO timestamp
     - `reason`: User-provided reason
     - Empty array `[]` if no manual actions taken
+    - **Note**: Logs actions taken (e.g., "RESUMED"), separate from current `status` (e.g., "LIVE")
 
 **Notes:**
 - ✅ Returns **ALL submissions** including historical ones (not just latest per platform)
@@ -802,14 +960,15 @@ GET /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>
     "status": "LIVE",
     "version": "2.7.0",
     "versionCode": 270,
-    "rolloutPercent": 50,
-    "inAppPriority": 0,
+    "rolloutPercentage": 50,
+    "inAppUpdatePriority": 0,
     "releaseNotes": "Bug fixes and performance improvements",
     "submittedAt": "2025-12-14T10:00:00Z",
     "submittedBy": "prince@dream11.com",
     "statusUpdatedAt": "2025-12-14T12:00:00Z",
     "createdAt": "2025-12-14T10:00:00Z",
     "updatedAt": "2025-12-14T14:00:00Z",
+    "isActive": true,
     "artifact": {
       "artifactPath": "https://s3.amazonaws.com/presigned-url/app-release.aab",
       "internalTrackLink": "https://play.google.com/apps/testing/com.app"
@@ -830,16 +989,17 @@ GET /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>
     "storeType": "APP_STORE",
     "status": "LIVE",
     "version": "2.7.0",
-    "releaseType": "AUTOMATIC",
+    "releaseType": "AFTER_APPROVAL",
     "phasedRelease": true,
     "resetRating": false,
-    "rolloutPercent": 15,
+    "rolloutPercentage": 15,
     "releaseNotes": "Bug fixes and performance improvements",
     "submittedAt": "2025-12-14T10:00:00Z",
     "submittedBy": "prince@dream11.com",
     "statusUpdatedAt": "2025-12-14T12:00:00Z",
     "createdAt": "2025-12-14T10:00:00Z",
     "updatedAt": "2025-12-14T14:00:00Z",
+    "isActive": true,
     "artifact": {
       "testflightNumber": 56789
     },
@@ -870,20 +1030,21 @@ GET /api/v1/submissions/:submissionId?platform=<ANDROID|IOS>
 - `storeType`: PLAY_STORE or APP_STORE
 - `status`: Submission status (PENDING, IN_REVIEW, APPROVED, LIVE, PAUSED, REJECTED, HALTED, CANCELLED)
 - `version`: Version number
-- `rolloutPercent`: Current rollout percentage (0-100)
+- `rolloutPercentage`: Current rollout percentage (0-100)
 - `releaseNotes`: Release notes for users
 - `submittedAt`: When submitted to store (null if PENDING)
 - `submittedBy`: Email of user who submitted (null if PENDING)
 - `statusUpdatedAt`: Last status change timestamp
 - `createdAt`: Submission creation timestamp
 - `updatedAt`: Last update timestamp
+- `isActive`: Boolean - `true` for current submission (PENDING, IN_REVIEW, APPROVED, LIVE, PAUSED, HALTED), `false` for historical submissions (REJECTED/CANCELLED after resubmission)
 
 **Android-Specific Fields:**
 - `versionCode`: Android version code (integer)
-- `inAppPriority`: In-app update priority (0-5)
+- `inAppUpdatePriority`: In-app update priority (0-5)
 
 **iOS-Specific Fields:**
-- `releaseType`: Always "AUTOMATIC" (display-only)
+- `releaseType`: Always "AFTER_APPROVAL" (display-only)
 - `phasedRelease`: Boolean - 7-day phased rollout enabled
 - `resetRating`: Boolean - Reset app rating with this version
 
@@ -919,7 +1080,7 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 **Request:**
 ```json
 {
-  "rolloutPercent": 25.5
+  "rolloutPercentage": 25.5
 }
 ```
 
@@ -930,6 +1091,15 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
 - ✅ Supports **decimal values** (e.g., 5.5, 27.3, 99.9)
 - ✅ Manual control of rollout percentage
 - 📝 Typical progression: 5% → 10% → 25% → 50% → 100%
+
+**✅ Correct iOS Behavior Matrix:**
+
+| phasedRelease | Rollout % | Can Update? | Can Pause? | Why? |
+|---------------|-----------|-------------|------------|------|
+| `true` | 1-99% | ✅ Yes (to 100%) | ✅ Yes | Phased release with controls |
+| `true` | 100% | ❌ No | ❌ No | Already complete |
+| `false` | 100% | ❌ No | ❌ No | Manual release (instant 100%, no controls) |
+| `false` | <100% | ❌ INVALID | ❌ INVALID | **This shouldn't exist!** (Prevented by validation) |
 
 **iOS with Manual Release (phasedRelease = false):**
 - ✅ **Always 100%** from the moment of release
@@ -948,15 +1118,15 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=<ANDROID|IOS>
   "success": true,
   "data": {
     "id": "sub_789",
-    "rolloutPercent": 25.5,
+    "rolloutPercentage": 25.5,
     "statusUpdatedAt": "2025-12-14T14:00:00Z"
   }
 }
 ```
 
 **Validation:**
-- **Android**: `0 <= rolloutPercent <= 100` (float, can increase or decrease)
-- **iOS Phased (phasedRelease = true)**: `rolloutPercent === 100` (can only skip to 100% to complete early)
+- **Android**: `0 <= rolloutPercentage <= 100` (float, can increase or decrease)
+- **iOS Phased (phasedRelease = true)**: `rolloutPercentage === 100` (can only skip to 100% to complete early)
 - **iOS Manual (phasedRelease = false)**: Returns `409` (already at 100%, no rollout needed)
 
 **Error Cases:**
@@ -985,10 +1155,10 @@ Create a completely new submission after rejection or cancellation. User provide
 
 **Fields to Copy (Auto-populated from previous submission):**
 - ✅ `releaseNotes` - Copy previous release notes
-- ✅ `inAppPriority` - Copy previous priority (Android only)
+- ✅ `inAppUpdatePriority` - Copy previous priority (Android only)
 - ✅ `phasedRelease` - Copy previous phased release setting (iOS only)
 - ✅ `resetRating` - Copy previous reset rating setting (iOS only)
-- ✅ `rolloutPercent` - Copy previous rollout percentage (Android only)
+- ✅ `rolloutPercentage` - Copy previous rollout percentage (Android only)
 
 **Fields to Reset (User must provide new):**
 - 🔄 `artifact` - **Must provide NEW artifact** (AAB file or TestFlight build number)
@@ -1008,8 +1178,8 @@ POST /api/v1/distributions/:distributionId/submissions
   "platform": "ANDROID",
   "version": "2.7.1",
   "aabFile": "<multipart file upload>",
-  "rolloutPercent": 5.0,
-  "inAppPriority": 1,
+  "rolloutPercentage": 5.0,
+  "inAppUpdatePriority": 1,
   "releaseNotes": "Fixed critical bugs from previous submission"
 }
 ```
@@ -1038,8 +1208,8 @@ POST /api/v1/distributions/:distributionId/submissions
 **Android-Specific:**
 - `versionCode`: `number` - Android version code (e.g., 271) (optional - extracted from AAB if not provided)
 - `aabFile`: AAB bundle file (multipart/form-data upload) (required)
-- `rolloutPercent`: `float` (0-100) - Initial rollout percentage (required)
-- `inAppPriority`: `number` (0-5) - In-app update priority (required)
+- `rolloutPercentage`: `float` (0-100) - Initial rollout percentage (required)
+- `inAppUpdatePriority`: `number` (0-5) - In-app update priority (required)
 
 **iOS-Specific:**
 - `testflightNumber`: `number` - TestFlight build number (required)
@@ -1062,14 +1232,15 @@ POST /api/v1/distributions/:distributionId/submissions
     "status": "IN_REVIEW",
     "version": "2.7.1",
     "versionCode": 271,
-    "rolloutPercent": 5.0,
-    "inAppPriority": 1,
+    "rolloutPercentage": 5.0,
+    "inAppUpdatePriority": 1,
     "releaseNotes": "Fixed critical bugs from previous submission",
     "submittedAt": "2025-12-14T15:00:00Z",
     "submittedBy": "prince@dream11.com",
     "statusUpdatedAt": "2025-12-14T15:00:00Z",
     "createdAt": "2025-12-14T15:00:00Z",
     "updatedAt": "2025-12-14T15:00:00Z",
+    "isActive": true,
     "artifact": {
       "artifactPath": "https://s3.amazonaws.com/new-build/app-release-v2.7.1.aab"
     },
@@ -1091,16 +1262,17 @@ POST /api/v1/distributions/:distributionId/submissions
     "storeType": "APP_STORE",
     "status": "IN_REVIEW",
     "version": "2.7.1",
-    "releaseType": "AUTOMATIC",
+    "releaseType": "AFTER_APPROVAL",
     "phasedRelease": true,
     "resetRating": false,
-    "rolloutPercent": 0.0,
+    "rolloutPercentage": 0.0,
     "releaseNotes": "Fixed issues from rejected build",
     "submittedAt": "2025-12-14T15:00:00Z",
     "submittedBy": "prince@dream11.com",
     "statusUpdatedAt": "2025-12-14T15:00:00Z",
     "createdAt": "2025-12-14T15:00:00Z",
     "updatedAt": "2025-12-14T15:00:00Z",
+    "isActive": true,
     "artifact": {
       "testflightNumber": 56790
     },
@@ -1297,7 +1469,7 @@ CREATE TABLE android_submission_builds (
     id VARCHAR(255) PRIMARY KEY,
     distributionId VARCHAR(255) NOT NULL,
     buildId VARCHAR(255) NOT NULL,
-    isCurrent BOOLEAN DEFAULT TRUE,
+    isCurrent BOOLEAN DEFAULT TRUE,  -- Maps to isActive in API responses
     
     -- Version
     version VARCHAR(20) NOT NULL,
@@ -1314,11 +1486,11 @@ CREATE TABLE android_submission_builds (
     
     -- Status
     status ENUM('PENDING', 'IN_REVIEW', 'APPROVED', 'LIVE', 'REJECTED', 'HALTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
-    rolloutPercent DECIMAL(5,2) NOT NULL DEFAULT 0.0,
+    rolloutPercentage DECIMAL(5,2) NOT NULL DEFAULT 0.0,
     
     -- Metadata
     releaseNotes TEXT NULL,
-    inAppPriority INT NULL,
+    inAppUpdatePriority INT NULL,
     createdBy VARCHAR(50) NOT NULL,
     actionHistory JSON NULL,  -- Audit trail: [{action, createdBy, createdAt, reason}]
     
@@ -1343,7 +1515,7 @@ CREATE TABLE ios_submission_builds (
     id VARCHAR(255) PRIMARY KEY,
     distributionId VARCHAR(255) NOT NULL,
     buildId VARCHAR(255) NOT NULL,
-    isCurrent BOOLEAN DEFAULT TRUE,
+    isCurrent BOOLEAN DEFAULT TRUE,  -- Maps to isActive in API responses
     
     -- Version
     testflightNumber VARCHAR(255) NULL,  -- Renamed from testflightBuildNumber
@@ -1354,11 +1526,11 @@ CREATE TABLE ios_submission_builds (
     
     -- Store
     storeType VARCHAR(20) NOT NULL DEFAULT 'APP_STORE',
-    releaseType VARCHAR(20) NOT NULL DEFAULT 'AUTOMATIC',
+    releaseType VARCHAR(20) NOT NULL DEFAULT 'AFTER_APPROVAL',
     
     -- Status
     status ENUM('PENDING', 'IN_REVIEW', 'APPROVED', 'LIVE', 'PAUSED', 'REJECTED', 'HALTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
-    rolloutPercent DECIMAL(5,2) NOT NULL DEFAULT 0.0,
+    rolloutPercentage DECIMAL(5,2) NOT NULL DEFAULT 0.0,
     
     -- Metadata
     releaseNotes TEXT NULL,
@@ -1458,6 +1630,54 @@ CREATE TABLE ios_submission_builds (
 - List endpoint with 1000+ distributions
 - Concurrent rollout updates
 - Polling endpoint performance
+
+---
+
+## Architectural Clarifications (Important!)
+
+### What's Included vs What's NOT
+
+#### ✅ **Artifacts Belong to Submissions**
+```json
+{
+  "distribution": {
+    "id": "dist_123",
+    "submissions": [
+      {
+        "id": "sub_123",
+        "platform": "ANDROID",
+        "artifact": {               // ← Artifact HERE (per submission)
+          "artifactPath": "...",
+          "internalTrackLink": "..."
+        }
+      }
+    ]
+  }
+}
+```
+- ✅ Each submission has its own `artifact` object
+- ❌ Distribution does NOT have an `artifacts` field
+- ✅ Access via: `submission.artifact`
+
+#### ✅ **Action History is Auto-Populated**
+- Backend automatically logs: PAUSED, RESUMED, CANCELLED, HALTED
+- `status` field = current state (e.g., "LIVE")
+- `actionHistory` array = audit trail of actions taken
+- Example: After RESUME, `status` = "LIVE" but `actionHistory` logs ["PAUSED", "RESUMED"]
+
+#### ✅ **releaseId Usage Pattern**
+- **List endpoint** (`GET /api/v1/distributions`): 
+  - ❌ Does NOT include `releaseId`
+  - ✅ Only includes `distributionId` (from `id` field)
+- **Detail endpoint** (`GET /api/v1/releases/:releaseId/distribution`):
+  - ✅ Includes both `id` (distributionId) and `releaseId`
+  - Use `releaseId` for initial fetch, then use `distributionId` for everything else
+
+#### 🔴 **Rejection Details (Not Yet Implemented)**
+- Current: Only `status: "REJECTED"` is available
+- Future: Will add `rejectionReason` and `rejectionDetails` fields
+- Frontend: Has hardcoded fallback until backend implements
+- No blocker for testing
 
 ---
 

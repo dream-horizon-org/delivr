@@ -6,10 +6,10 @@
  */
 
 import type {
-  BuildUploadStatus,
-  Platform,
-  SubmissionStatus,
-  WarningSeverity,
+    BuildUploadStatus,
+    Platform,
+    SubmissionStatus,
+    WarningSeverity,
 } from '~/types/distribution.types';
 import { DistributionStatus } from '~/types/distribution.types';
 
@@ -190,11 +190,11 @@ export const ANDROID_TRACKS = [
 ] as const;
 
 /**
- * iOS Release Type - Always "AUTOMATIC" per API spec
+ * iOS Release Type - Always "AFTER_APPROVAL" per API spec
  * This is a display-only field, non-editable
- * @deprecated Do not use - iOS release type is always AUTOMATIC
+ * @deprecated Do not use - iOS release type is always AFTER_APPROVAL
  */
-export const IOS_RELEASE_TYPE_AUTOMATIC = 'AUTOMATIC' as const;
+export const IOS_RELEASE_TYPE_AUTOMATIC = 'AFTER_APPROVAL' as const;
 
 /**
  * Android Update Priority Levels
@@ -270,6 +270,7 @@ export const DISTRIBUTION_UI_LABELS = {
   // iOS Form Labels
   IOS_RELEASE_TYPE: 'Release Type',
   IOS_RELEASE_TYPE_DESC: 'When should the app be released',
+  IOS_RELEASE_TYPE_AFTER_APPROVAL: 'After Approval',
   IOS_PHASED_RELEASE: 'Enable Phased Release',
   IOS_PHASED_RELEASE_DESC: 'Gradually release to users over 7 days',
   IOS_RESET_RATING: 'Reset App Rating',
@@ -497,7 +498,7 @@ export const DIALOG_ICON_SIZES = {
 export const DIALOG_UI = {
   // Halt Rollout Dialog
   HALT: {
-    WARNING_TITLE: 'Emergency Halt - Irreversible Action',
+    WARNING_TITLE: 'Irreversible Action',
     WARNING_MESSAGE: 'Halting will immediately stop the rollout and require a new hotfix release. This action cannot be undone.',
     SEVERITY_LABEL: 'Severity Level',
     REASON_LABEL: 'Reason for halting',
@@ -517,8 +518,9 @@ export const DIALOG_UI = {
     CONFIRMATION: (platform: string, percentage: number) => 
       `Pause the ${platform} rollout at ${percentage}%?`,
     DESCRIPTION: 'The rollout will stop at the current percentage. New users will not receive this update until resumed.',
-    REASON_LABEL: 'Reason (optional)',
-    REASON_PLACEHOLDER: 'Why are you pausing the rollout?',
+    REASON_LABEL: 'Reason for pausing',
+    REASON_PLACEHOLDER: 'e.g., Found potential issue, need to investigate',
+    REASON_REQUIRED: 'Please provide a reason for pausing the rollout',
   },
   
   // Resume Rollout Dialog
@@ -528,6 +530,12 @@ export const DIALOG_UI = {
     DESCRIPTION: 'The rollout will continue from where it was paused. You can increase the percentage after resuming.',
     PAUSED_REASON_LABEL: 'Paused reason',
     NOTE: 'The rollout will resume at the same percentage where it was paused.',
+  },
+  
+  // Update Rollout Dialog
+  UPDATE_ROLLOUT: {
+    WARNING_TITLE: 'Irreversible Increase',
+    WARNING_MESSAGE: 'Rollout can only be increased, never decreased. This action cannot be undone.',
   },
   
   // Manual Approval Dialog
@@ -544,10 +552,11 @@ export const DIALOG_UI = {
   // Cancel Submission Dialog
   CANCEL_SUBMISSION: {
     CONFIRMATION: (platform: string, version: string) =>
-      `Are you sure you want to cancel your ${platform} submission (version ${version})?`,
-    DESCRIPTION: 'This action will stop the submission process.',
-    REASON_LABEL: 'Reason for cancellation (Optional)',
+      `Cancel ${platform} submission for version ${version}?`,
+    DESCRIPTION: 'This submission will be cancelled and removed from the store review process. You will need to manually create a new submission with all details if you want to submit again.',
+    REASON_LABEL: 'Reason for cancellation',
     REASON_PLACEHOLDER: 'e.g., Found a critical bug, need to update details',
+    REASON_REQUIRED: 'Please provide a reason for cancellation',
   },
   
   // Retry Submission Dialog
@@ -566,8 +575,8 @@ export const DIALOG_UI = {
   
   // Exposure Control Dialog
   EXPOSURE_CONTROL: {
-    CURRENT_RELEASE_INFO: (platform: string, version: string, rolloutPercent: number) =>
-      `${platform} release v${version} is currently at ${rolloutPercent}% rollout.`,
+    CURRENT_RELEASE_INFO: (platform: string, version: string, rolloutPercentage: number) =>
+      `${platform} release v${version} is currently at ${rolloutPercentage}% rollout.`,
     IMPACT_LABEL: 'Impact:',
     ACTION_PROMPT: 'Choose how to proceed:',
     DESCRIPTION: 'Control the percentage of users who will receive this update.',
@@ -632,7 +641,7 @@ export const DISTRIBUTIONS_LIST_UI = {
   ERROR_PREFIX: 'Error:',
   RETRY_BUTTON: 'Retry',
   SUBMIT_BUTTON: 'Submit',
-  VIEW_BUTTON: 'View',
+  VIEW_BUTTON: 'Open', // Changed from "View" for clarity
   MANAGE_BUTTON: 'Manage',
   MODAL_TITLE: 'Submit to App Stores',
   TABLE_HEADERS: {
@@ -644,8 +653,8 @@ export const DISTRIBUTIONS_LIST_UI = {
     ACTIONS: 'Actions',
   },
   STATS_TITLES: {
-    TOTAL: 'Total Distributions',
-    ROLLING_OUT: 'Rolling Out',
+    TOTAL_DISTRIBUTIONS: 'Total Distributions',
+    TOTAL_SUBMISSIONS: 'Total Submissions',
     IN_REVIEW: 'In Review',
     RELEASED: 'Released',
   },
@@ -699,8 +708,21 @@ export const EMPTY_STATE_MESSAGES = {
 } as const;
 
 // ============================================================================
-// STORE URLS
+// STORE URLS & NAMES
 // ============================================================================
+
+/**
+ * Store Display Names by Platform
+ */
+export const STORE_NAMES: Record<Platform, string> = {
+  ANDROID: 'Play Store',
+  IOS: 'App Store',
+} as const;
+
+export const STORE_TYPE_NAMES: Record<'PLAY_STORE' | 'APP_STORE', string> = {
+  PLAY_STORE: 'Google Play Store',
+  APP_STORE: 'Apple App Store',
+} as const;
 
 /**
  * Store Console URLs by Platform
@@ -785,19 +807,63 @@ export const DISTRIBUTION_MANAGEMENT_UI = {
   ERROR_TITLE: 'Failed to Load Distribution',
   ERROR_NOT_FOUND: 'Distribution not found',
   
+  // Detail Page Sections
+  SECTIONS: {
+    LATEST_ANDROID_SUBMISSION: 'Active Submission',
+    LATEST_IOS_SUBMISSION: 'Active Submission',
+    ANDROID_SUBMISSION_HISTORY: 'Submission History',
+    IOS_SUBMISSION_HISTORY: 'Submission History',
+    ANDROID_ACTIVITY_HISTORY: 'Activity History',
+    IOS_ACTIVITY_HISTORY: 'Activity History',
+  },
+
+  // Empty States
+  EMPTY_STATES: {
+    NO_ACTIVE_ANDROID_SUBMISSION: 'No active Android submission.',
+    NO_ACTIVE_IOS_SUBMISSION: 'No active iOS submission.',
+    NO_HISTORICAL_ANDROID_SUBMISSIONS: 'No historical Android submissions.',
+    NO_HISTORICAL_IOS_SUBMISSIONS: 'No historical iOS submissions.',
+    NO_ANDROID_ACTIVITY_HISTORY: 'No Android activity history.',
+    NO_IOS_ACTIVITY_HISTORY: 'No iOS activity history.',
+  },
+  
   LABELS: {
     BRANCH: 'Branch',
     LAST_UPDATED: 'Last Updated',
+    STATUS_UPDATED: 'Status Updated',
+    CREATED_AT: 'Created At',
     SUBMITTED_AT: 'Submitted At',
     SUBMITTED: 'Submitted',
+    SUBMITTED_BY: 'Submitted By',
     UPDATED: 'Updated',
+    ROLLOUT_PROGRESS: 'Rollout Progress',
+    IN_APP_PRIORITY: 'In-App Priority',
+    RELEASE_TYPE: 'Release Type',
+    IOS_RELEASE_TYPE_AFTER_APPROVAL: 'After Approval',
+    BUILD_ARTIFACTS: 'Build Artifacts',
+    RELEASE_NOTES: 'Release Notes',
+    AAB_FILE: 'AAB File',
+    TESTFLIGHT_BUILD: 'TestFlight Build',
+    INTERNAL_TRACK_LINK: 'Internal Track Link',
+    DOWNLOAD: 'Download',
+    OPEN: 'Open',
+    PHASED_RELEASE: 'Phased Release',
+    MANUAL_RELEASE: 'Manual Release',
+    IOS_PHASED_ROLLOUT_NOTE: 'Automatic 7-day phased rollout by Apple',
   },
   
   BUTTONS: {
     BACK: 'Back',
     BACK_TO_DISTRIBUTIONS: 'Back to Distributions',
     SUBMIT_TO_STORES: 'Submit to Stores',
+    PROMOTE: 'Promote',
     VIEW_DETAILS: 'View Details & Manage',
+    UPDATE_ROLLOUT: 'Update Rollout',
+    PAUSE_ROLLOUT: 'Pause Rollout',
+    RESUME_ROLLOUT: 'Resume Rollout',
+    CANCEL_SUBMISSION: 'Cancel Submission',
+    RESUBMIT: 'Resubmit',
+    EMERGENCY_HALT: 'Emergency Halt',
   },
 } as const;
 
@@ -808,6 +874,7 @@ export const DISTRIBUTION_MANAGEMENT_ICON_SIZES = {
   EMPTY_STATE: 30,
   ERROR_STATE: 30,
   BACK_BUTTON: 16,
+  LINK_ICON: 16,
 } as const;
 
 // ============================================================================

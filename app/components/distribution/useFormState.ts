@@ -11,7 +11,7 @@ type FormState = {
   // Note: androidTrack removed - not used per API spec (submissions go directly to production)
   androidRollout: number;
   androidPriority: number;
-  // Note: iosReleaseType removed - always "AUTOMATIC" per API spec (non-editable)
+  // Note: iosReleaseType removed - always "AFTER_APPROVAL" per API spec (non-editable)
   iosPhasedRelease: boolean;
   iosResetRating: boolean;
   releaseNotes: string;
@@ -28,7 +28,7 @@ export function useFormState(availablePlatforms: Platform[]) {
     // Note: androidTrack removed - not used per API spec
     androidRollout: 100,
     androidPriority: 0,  // Per API Spec: default 0
-    // Note: iosReleaseType removed - always "AUTOMATIC" per API spec
+    // Note: iosReleaseType removed - always "AFTER_APPROVAL" per API spec
     iosPhasedRelease: true,
     iosResetRating: false,  // Per API Spec: default false
     releaseNotes: '',

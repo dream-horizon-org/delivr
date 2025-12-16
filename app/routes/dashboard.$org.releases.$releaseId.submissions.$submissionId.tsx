@@ -5,35 +5,35 @@
  */
 
 import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Container,
-  Divider,
-  Group,
-  Loader,
-  Modal,
-  NumberInput,
-  Paper,
-  Progress,
-  Stack,
-  Text,
-  Textarea,
-  ThemeIcon,
-  Title
+    Alert,
+    Badge,
+    Button,
+    Card,
+    Container,
+    Divider,
+    Group,
+    Loader,
+    Modal,
+    NumberInput,
+    Paper,
+    Progress,
+    Stack,
+    Text,
+    Textarea,
+    ThemeIcon,
+    Title
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useFetcher, useLoaderData, useNavigation } from '@remix-run/react';
 import {
-  IconAlertCircle,
-  IconArrowLeft,
-  IconBrandAndroid,
-  IconBrandApple,
-  IconPlayerPause,
-  IconRotateClockwise,
-  IconX
+    IconAlertCircle,
+    IconArrowLeft,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconPlayerPause,
+    IconRotateClockwise,
+    IconX
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
@@ -41,11 +41,11 @@ import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
 import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
 import { ReSubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
-import { SUBMISSION_STATUS_LABELS } from '~/constants/distribution.constants';
+import { ROLLOUT_COMPLETE_PERCENT, SUBMISSION_STATUS_LABELS } from '~/constants/distribution.constants';
 import {
-  Platform,
-  SubmissionStatus,
-  type Submission,
+    Platform,
+    SubmissionStatus,
+    type Submission,
 } from '~/types/distribution.types';
 import { authenticateActionRequest, authenticateLoaderRequest, type AuthenticatedActionFunction } from '~/utils/authenticate';
 
@@ -107,7 +107,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   const formData = await request.formData();
-  const rolloutPercent = parseInt(formData.get('rolloutPercent') as string);
+  const rolloutPercentage = parseInt(formData.get('rolloutPercentage') as string);
   const platform = formData.get('platform') as Platform;
 
   if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
@@ -115,7 +115,7 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
   }
 
   try {
-    await RolloutService.updateRollout(submissionId, { rolloutPercent }, platform);
+    await RolloutService.updateRollout(submissionId, { rolloutPercentage }, platform);
     return json({ success: true });
   } catch (error) {
     return json({ error: 'Failed to update rollout' }, { status: 500 });
@@ -273,19 +273,19 @@ function SubmissionHeader({ submission, org }: { submission: Submission; org: st
 }
 
 function RolloutControlPanel({ submission }: { submission: Submission }) {
-  const [targetPercent, setTargetPercent] = useState(submission.rolloutPercent);
+  const [targetPercent, setTargetPercent] = useState(submission.rolloutPercentage);
   const fetcher = useFetcher();
   const isUpdating = fetcher.state === 'submitting';
 
   const handleUpdateRollout = useCallback(() => {
     fetcher.submit(
-      { _action: 'updateRollout', rolloutPercent: targetPercent.toString(), platform: submission.platform },
+      { _action: 'updateRollout', rolloutPercentage: targetPercent.toString(), platform: submission.platform },
       { method: 'post' }
     );
   }, [targetPercent, submission.platform, fetcher]);
 
   const canIncrease = submission.status === SubmissionStatus.LIVE && 
-                       submission.rolloutPercent < 100;
+                       submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT;
 
   if (!canIncrease) {
     return null;
@@ -304,9 +304,9 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
         <div>
           <Group justify="space-between" mb="xs">
             <Text size="sm" c="dimmed">Current Exposure</Text>
-            <Text size="lg" fw={700}>{submission.rolloutPercent}%</Text>
+            <Text size="lg" fw={700}>{submission.rolloutPercentage}%</Text>
           </Group>
-          <Progress value={submission.rolloutPercent} size="xl" color="blue" />
+          <Progress value={submission.rolloutPercentage} size="xl" color="blue" />
         </div>
 
         <NumberInput
@@ -314,7 +314,7 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
           description="Increase rollout to reach more users"
           value={targetPercent}
           onChange={(val) => setTargetPercent(Number(val))}
-          min={submission.rolloutPercent}
+          min={submission.rolloutPercentage}
           max={100}
           step={5}
           suffix="%"
@@ -323,7 +323,7 @@ function RolloutControlPanel({ submission }: { submission: Submission }) {
 
         <Button
           onClick={handleUpdateRollout}
-          disabled={targetPercent <= submission.rolloutPercent || isUpdating}
+          disabled={targetPercent <= submission.rolloutPercentage || isUpdating}
           loading={isUpdating}
           fullWidth
           color="blue"
@@ -521,7 +521,7 @@ export default function SubmissionDetailPage() {
         onClose={closeCancelDialog}
         submissionId={submission.id}
         platform={submission.platform === Platform.ANDROID ? 'Android' : 'iOS'}
-        version={submission.versionName}
+        version={submission.version}
         currentStatus={SUBMISSION_STATUS_LABELS[submission.status as SubmissionStatus]}
       />
     </Container>

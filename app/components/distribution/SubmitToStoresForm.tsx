@@ -10,23 +10,23 @@
  */
 
 import {
-  Alert,
-  Button,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  Textarea,
+    Alert,
+    Button,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    Textarea,
 } from '@mantine/core';
 import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import {
-  BUTTON_LABELS,
-  DISTRIBUTION_UI_LABELS,
-  ERROR_MESSAGES,
-  FORM_ICON_SIZES,
-  SUCCESS_MESSAGES,
-  WARNING_MESSAGES,
+    BUTTON_LABELS,
+    DISTRIBUTION_UI_LABELS,
+    ERROR_MESSAGES,
+    FORM_ICON_SIZES,
+    SUCCESS_MESSAGES,
+    WARNING_MESSAGES,
 } from '~/constants/distribution.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { AndroidOptions } from './AndroidOptions';
@@ -116,7 +116,7 @@ export function SubmitToStoresForm({
   }, [updateField]);
 
   // iOS option handlers - NO INLINE FUNCTIONS
-  // Note: iOS release type is always "AUTOMATIC" per API spec (non-editable)
+  // Note: iOS release type is always "AFTER_APPROVAL" per API spec (non-editable)
   const handleIOSPhasedReleaseChange = useCallback((value: boolean) => {
     updateField('iosPhasedRelease', value);
   }, [updateField]);
@@ -134,8 +134,8 @@ export function SubmitToStoresForm({
     if (androidSelected && androidSubmission) {
       try {
         const androidPayload = {
-          rolloutPercent: formState.androidRollout,
-          inAppPriority: formState.androidPriority,
+          rolloutPercentage: formState.androidRollout,
+          inAppUpdatePriority: formState.androidPriority,
           releaseNotes: formState.releaseNotes,
         };
         

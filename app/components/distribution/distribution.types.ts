@@ -188,7 +188,8 @@ export type PlatformSubmissionCardProps = BaseProps & WithPlatform & {
 // SUBMISSION COMPONENTS
 // ============================================================================
 
-export type SubmitToStoresFormProps = BaseProps & Closeable & WithReleaseId & {
+export type SubmitToStoresFormProps = BaseProps & Closeable & {
+  releaseId?: string; // Optional - only needed in Release Process, not in Distribution Management
   distributionId: string; // Required - needed for API calls
   submissions: Submission[] | SubmissionInDistribution[]; // Required - to get submission IDs for per-platform submit
   hasAndroidActiveRollout?: boolean;
@@ -231,7 +232,7 @@ export type RolloutProgressBarProps = BaseProps & {
 export type RolloutControlsProps = BaseProps & WithSubmissionId & WithPlatform & WithLoading & {
   currentPercentage: number;
   status: SubmissionStatus;
-  availableActions: AvailableAction<RolloutAction>[];
+  availableActions: AvailableAction[];
   phasedRelease?: boolean; // For iOS: true = phased (7-day), false = manual (immediate 100%)
   onUpdateRollout?: (percentage: number) => void;
   onPause?: (reason?: string) => void; // Optional reason for pause

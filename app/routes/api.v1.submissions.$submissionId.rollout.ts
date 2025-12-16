@@ -13,23 +13,21 @@
  */
 
 import { json } from '@remix-run/node';
-import type { ActionFunctionArgs } from '@remix-run/node';
-import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/authenticate';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-  createValidationError,
-  handleAxiosError,
-  isValidPercentage,
-  logApiError,
-  validateRequired,
-} from '~/utils/api-route-helpers';
-import {
-  ERROR_MESSAGES,
-  HTTP_STATUS,
-  LOG_CONTEXT,
-  VALIDATION,
+    ERROR_MESSAGES,
+    HTTP_STATUS,
+    LOG_CONTEXT,
+    VALIDATION,
 } from '~/constants/distribution-api.constants';
 import { Platform } from '~/types/distribution.types';
+import {
+    createValidationError,
+    handleAxiosError,
+    logApiError,
+    validateRequired
+} from '~/utils/api-route-helpers';
+import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/authenticate';
 
 /**
  * PATCH - Update rollout percentage
@@ -37,10 +35,23 @@ import { Platform } from '~/types/distribution.types';
  * Query Parameters:
  * - platform: ANDROID | IOS (required - for backend table identification)
  * 
+ * ✅ Correct iOS Behavior:
+ * ┌───────────────┬───────────┬──────────────┬────────────┐
+ * │ phasedRelease │ Rollout % │ Can Update?  │ Can Pause? │
+ * ├───────────────┼───────────┼──────────────┼────────────┤
+ * │ true          │ 1-99%     │ ✅ Yes       │ ✅ Yes     │
+ * │               │           │ (to 100%)    │            │
+ * │ true          │ 100%      │ ❌ No        │ ❌ No      │
+ * │ false         │ 100%      │ ❌ No        │ ❌ No      │
+ * │ false         │ <100%     │ ❌ INVALID   │ ❌ INVALID │
+ * └───────────────┴───────────┴──────────────┴────────────┘
+ * 
  * Platform-specific rules:
  * - Android: Any value 0-100 (supports decimals)
  * - iOS Phased: Only 100 (to complete early)
  * - iOS Manual: Not allowed (always 100%)
+ * 
+ * See: platform-rules.ts, LIVE_STATE_VERIFICATION.md
  */
 const updateRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -68,17 +79,17 @@ const updateRollout: AuthenticatedActionFunction = async ({ params, request, use
 
   try {
     const body = await request.json();
-    const { rolloutPercent } = body;
+    const { rolloutPercentage } = body;
 
     if (
-      typeof rolloutPercent !== 'number' ||
-      rolloutPercent < VALIDATION.MIN_PERCENTAGE ||
-      rolloutPercent > VALIDATION.MAX_PERCENTAGE
+      typeof rolloutPercentage !== 'number' ||
+      rolloutPercentage < VALIDATION.MIN_PERCENTAGE ||
+      rolloutPercentage > VALIDATION.MAX_PERCENTAGE
     ) {
       return createValidationError(ERROR_MESSAGES.PERCENTAGE_OUT_OF_RANGE);
     }
 
-    const requestData = { rolloutPercent };
+    const requestData = { rolloutPercentage };
     const response = await DistributionService.updateRollout(submissionId, requestData, platform as Platform);
 
     return json(response.data);
@@ -184,12 +195,13 @@ const resumeRollout: AuthenticatedActionFunction = async ({ params, request, use
  * PATCH - Emergency halt rollout
  * 
  * Query Parameters:
- * - platform: ANDROID | IOS (required - for backend table identification)
+ * - platform: Must be "ANDROID" (iOS does not support halt)
  * 
  * Request body:
  * - reason: string (required)
  * 
  * Note: Severity field was removed from spec. Only reason is required.
+ * Note: ANDROID ONLY - iOS does not support halt (uses pause/resume instead)
  */
 const haltRollout: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { submissionId } = params;
@@ -198,17 +210,17 @@ const haltRollout: AuthenticatedActionFunction = async ({ params, request, user 
     return createValidationError(ERROR_MESSAGES.SUBMISSION_ID_REQUIRED);
   }
 
-  // Extract and validate platform query parameter
+  // Extract and validate platform query parameter (ANDROID ONLY)
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
   
-  if (!platform || (platform !== Platform.ANDROID && platform !== Platform.IOS)) {
+  if (platform !== Platform.ANDROID) {
     return json(
       {
         success: false,
         error: {
           code: 'INVALID_PLATFORM',
-          message: 'Platform query parameter is required and must be either ANDROID or IOS',
+          message: 'Platform query parameter must be ANDROID. iOS does not support halt (use pause/resume instead).',
         },
       },
       { status: HTTP_STATUS.BAD_REQUEST }

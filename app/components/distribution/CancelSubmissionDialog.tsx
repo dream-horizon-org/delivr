@@ -15,6 +15,7 @@ import {
   Button,
   Group,
   Modal,
+  Paper,
   Stack,
   Text,
   Textarea,
@@ -28,7 +29,10 @@ import {
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
   DIALOG_UI,
+  PLATFORM_LABELS,
 } from '~/constants/distribution.constants';
+import { Platform } from '~/types/distribution.types';
+import { formatStatus } from '~/utils/distribution-ui.utils';
 
 type CancelSubmissionDialogProps = {
   opened: boolean;
@@ -59,17 +63,30 @@ export function CancelSubmissionDialog({
   const isSubmitting = fetcher.state === 'submitting';
 
   const confirmationText = useMemo(
-    () => DIALOG_UI.CANCEL_SUBMISSION.CONFIRMATION(platform, version),
+    () => DIALOG_UI.CANCEL_SUBMISSION.CONFIRMATION(PLATFORM_LABELS[platform as Platform], version),
     [platform, version]
   );
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setReason(e.currentTarget.value);
-  }, []);
+    if (validationError) {
+      setValidationError(null);
+    }
+  }, [validationError]);
 
   const handleCancel = useCallback(() => {
+    const trimmedReason = reason.trim();
+    
+    // Validate: reason is mandatory
+    if (!trimmedReason) {
+      setValidationError(DIALOG_UI.CANCEL_SUBMISSION.REASON_REQUIRED);
+      return;
+    }
+
     const payload = {
-      reason: reason.trim() || 'User cancelled submission',
+      reason: trimmedReason,
     };
 
     fetcher.submit(JSON.stringify(payload), {
@@ -81,6 +98,7 @@ export function CancelSubmissionDialog({
 
   const handleClose = useCallback(() => {
     setReason('');
+    setValidationError(null);
     onClose();
   }, [onClose]);
 
@@ -108,25 +126,25 @@ export function CancelSubmissionDialog({
       centered
     >
       <Stack gap="md">
-        <Alert
-          icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />}
-          color="orange"
-          variant="light"
-        >
-          <Text size="sm">{confirmationText}</Text>
-          <Text size="sm" mt="xs">
+        <Alert color="orange" variant="light">
+          <Text size="sm" fw={500}>
+            {confirmationText}
+          </Text>
+          <Text size="sm" mt="sm" c="dimmed">
             {DIALOG_UI.CANCEL_SUBMISSION.DESCRIPTION}
           </Text>
         </Alert>
 
-        <div>
-          <Text size="sm" fw={600} mb={4}>
-            Current Status
-          </Text>
-          <Text size="sm" c="dimmed">
-            {currentStatus}
-          </Text>
-        </div>
+        <Paper p="sm" withBorder>
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">
+              Current Status
+            </Text>
+            <Text size="sm" fw={500}>
+              {formatStatus(currentStatus)}
+            </Text>
+          </Group>
+        </Paper>
 
         <Textarea
           label={DIALOG_UI.CANCEL_SUBMISSION.REASON_LABEL}
@@ -136,23 +154,24 @@ export function CancelSubmissionDialog({
           minRows={3}
           maxRows={5}
           disabled={isSubmitting}
+          required
+          error={validationError}
         />
 
         <Group justify="flex-end" mt="md">
           <Button
-            variant="subtle"
+            variant="default"
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            {BUTTON_LABELS.KEEP_SUBMISSION}
+            Keep Submission
           </Button>
           <Button
             color="red"
             onClick={handleCancel}
             loading={isSubmitting}
-            leftSection={<IconX size={DIALOG_ICON_SIZES.ACTION} />}
           >
-            {BUTTON_LABELS.CANCEL}
+            Cancel Submission
           </Button>
         </Group>
       </Stack>

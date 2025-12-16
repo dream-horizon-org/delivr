@@ -1,9 +1,13 @@
 # Distribution Module - Complete UI Flow Specification
 
 **Document Version**: 2.0  
-**Last Updated**: December 14, 2025  
+**Last Updated**: December 15, 2025  
 **Status**: ✅ Production Ready - Aligned with API Spec  
 **Holy Grail Reference**: `DISTRIBUTION_API_SPEC.md`
+
+**Known Limitation:**
+- 🔴 **Rejection Details**: Backend not yet implemented - UI shows generic "Submission was rejected by the store" message
+- ✅ All other features working as designed (artifacts, action history, releaseId usage)
 
 ---
 
@@ -336,7 +340,7 @@ PAGE: Still on Release Details Page (just different tab content)
 │   │   └─ Release Notes: Textarea (editable)
 │   │
 │   └─ iOS Options (if selected)
-│       ├─ Release Type: "AUTOMATIC" (read-only, always AUTOMATIC)
+│       ├─ Release Type: "AFTER_APPROVAL" (read-only, always AFTER_APPROVAL)
 │       ├─ Phased Release: Checkbox (default: checked)
 │       ├─ Reset Rating: Checkbox (default: unchecked)
 │       └─ Release Notes: Textarea (editable)
@@ -1038,8 +1042,8 @@ type SubmitFormData = {
   
   // Android options (shown if Android PENDING)
   android?: {
-    rolloutPercent: number; // 0-100, supports decimals (e.g., 5.5, 27.3)
-    inAppPriority: 0 | 1 | 2 | 3 | 4 | 5;
+    rolloutPercentage: number; // 0-100, supports decimals (e.g., 5.5, 27.3)
+    inAppUpdatePriority: 0 | 1 | 2 | 3 | 4 | 5;
     releaseNotes: string;
   };
   
@@ -1048,7 +1052,7 @@ type SubmitFormData = {
     phasedRelease: boolean; // Enable 7-day phased rollout
     resetRating: boolean; // Reset app rating
     releaseNotes: string;
-    // releaseType is always "AUTOMATIC" (not shown in form)
+    // releaseType is always "AFTER_APPROVAL" (not shown in form)
   };
 };
 ```
@@ -1108,8 +1112,8 @@ type ReSubmissionFormData = {
   android?: {
     versionCode?: number; // Optional - extracted from AAB if not provided
     aabFile: File; // NEW AAB file upload (required for resubmission)
-    rolloutPercent: number; // Pre-filled, editable
-    inAppPriority: number; // Pre-filled, editable
+    rolloutPercentage: number; // Pre-filled, editable
+    inAppUpdatePriority: number; // Pre-filled, editable
     releaseNotes: string; // Pre-filled, editable
   };
   
@@ -1134,8 +1138,8 @@ const initialValues = {
   
   android: previousSubmission.platform === 'ANDROID' ? {
     // aabFile: user must provide NEW file
-    rolloutPercent: previousSubmission.rolloutPercent || 5,
-    inAppPriority: previousSubmission.inAppPriority || 0,
+    rolloutPercentage: previousSubmission.rolloutPercentage || 5,
+    inAppUpdatePriority: previousSubmission.inAppUpdatePriority || 0,
     releaseNotes: previousSubmission.releaseNotes || '',
   } : undefined,
   
@@ -1334,7 +1338,7 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 ```typescript
 // Update rollout to any %
 PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
-{ rolloutPercent: 27.3 }  // Supports decimals
+{ rolloutPercentage: 27.3 }  // Supports decimals
 ```
 
 ### 9.2 iOS - Phased Release
@@ -1349,7 +1353,7 @@ PATCH /api/v1/submissions/:submissionId/rollout?platform=ANDROID
 ```typescript
 // Complete early (skip to 100%)
 PATCH /api/v1/submissions/:submissionId/rollout?platform=IOS
-{ rolloutPercent: 100 }  // Only 100 allowed
+{ rolloutPercentage: 100 }  // Only 100 allowed
 
 // Pause
 PATCH /api/v1/submissions/:submissionId/rollout/pause?platform=IOS
@@ -1486,7 +1490,7 @@ GET /api/v1/distributions
    - Android: Any % (decimals supported)
    - iOS Phased: 100% only or automatic
    - iOS Manual: Always 100%
-9. **iOS releaseType** is always "AUTOMATIC" (read-only)
+9. **iOS releaseType** is always "AFTER_APPROVAL" (read-only)
 10. **Empty state** when no distributions exist
 
 ---

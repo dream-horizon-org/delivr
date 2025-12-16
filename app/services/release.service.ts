@@ -4,7 +4,7 @@
  * Used by React components, loaders, and actions
  */
 
-import type { Release } from '~/types/distribution.types';
+import type { Release } from '~/types/release';
 import { DistributionStatus } from '~/types/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPatch } from '~/utils/api-client';

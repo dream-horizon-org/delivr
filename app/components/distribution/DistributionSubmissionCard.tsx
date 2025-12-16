@@ -4,30 +4,31 @@
  */
 
 import {
-  Badge,
-  Button,
-  Card,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  ThemeIcon,
+    Badge,
+    Button,
+    Card,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    ThemeIcon,
 } from '@mantine/core';
 import { Link } from '@remix-run/react';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
-  DISTRIBUTION_MANAGEMENT_ICON_SIZES,
-  DISTRIBUTION_MANAGEMENT_LAYOUT,
-  DISTRIBUTION_MANAGEMENT_UI,
-  ROLLOUT_COMPLETE_PERCENT,
+    DISTRIBUTION_MANAGEMENT_ICON_SIZES,
+    DISTRIBUTION_MANAGEMENT_LAYOUT,
+    DISTRIBUTION_MANAGEMENT_UI,
+    ROLLOUT_COMPLETE_PERCENT,
+    STORE_NAMES,
 } from '~/constants/distribution.constants';
 import {
-  Platform,
-  SubmissionStatus,
-  type SubmissionInDistribution,
+    Platform,
+    SubmissionStatus,
+    type SubmissionInDistribution,
 } from '~/types/distribution.types';
-import { formatDate, getPlatformColor, getStatusColor } from '~/utils/distribution-ui.utils';
 import { getPlatformIcon } from '~/utils/distribution-icons.utils';
+import { formatDate, getPlatformColor, getStatusColor } from '~/utils/distribution-ui.utils';
 
 export type DistributionSubmissionCardProps = {
   submission: SubmissionInDistribution;
@@ -46,8 +47,8 @@ export function DistributionSubmissionCard({
   const isRollingOut = useMemo(
     () =>
       submission.status === SubmissionStatus.LIVE &&
-      submission.rolloutPercent < ROLLOUT_COMPLETE_PERCENT,
-    [submission.status, submission.rolloutPercent]
+      submission.rolloutPercentage < ROLLOUT_COMPLETE_PERCENT,
+    [submission.status, submission.rolloutPercentage]
   );
 
   const detailsUrl = useMemo(
@@ -68,12 +69,12 @@ export function DistributionSubmissionCard({
 
   const progressFillStyle = useMemo(
     () => ({
-      width: `${submission.rolloutPercent}%`,
+      width: `${submission.rolloutPercentage}%`,
       height: '100%',
       backgroundColor: 'var(--mantine-color-blue-6)',
       transition: 'width 0.3s ease',
     }),
-    [submission.rolloutPercent]
+    [submission.rolloutPercentage]
   );
 
   return (
@@ -97,7 +98,7 @@ export function DistributionSubmissionCard({
                 {platformName}
               </Text>
               <Text size="xs" c="dimmed">
-                {submission.storeType}
+                {STORE_NAMES[submission.platform]}
               </Text>
             </div>
           </Group>
@@ -118,7 +119,7 @@ export function DistributionSubmissionCard({
                 {DISTRIBUTION_MANAGEMENT_UI.ROLLOUT_PROGRESS_LABEL}
               </Text>
               <Text size="xs" fw={600}>
-                {submission.rolloutPercent}%
+                {submission.rolloutPercentage}%
               </Text>
             </Group>
             <div style={progressBarStyle}>
@@ -132,22 +133,12 @@ export function DistributionSubmissionCard({
         <Group justify="space-between">
           <div>
             <Text size="xs" c="dimmed">
-              {DISTRIBUTION_MANAGEMENT_UI.LABELS.SUBMITTED}
+              {DISTRIBUTION_MANAGEMENT_UI.LABELS.UPDATED}
             </Text>
             <Text size="sm" fw={500}>
-              {formatDate(submission.submittedAt)}
+              {formatDate(submission.statusUpdatedAt)}
             </Text>
           </div>
-          {submission.updatedAt && (
-            <div>
-              <Text size="xs" c="dimmed">
-                {DISTRIBUTION_MANAGEMENT_UI.LABELS.UPDATED}
-              </Text>
-              <Text size="sm" fw={500}>
-                {formatDate(submission.updatedAt)}
-              </Text>
-            </div>
-          )}
         </Group>
 
         <Button
