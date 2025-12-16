@@ -128,8 +128,10 @@ export const createCICDIntegrationModel = (sequelize: Sequelize) => {
       tableName: 'tenant_ci_cd_integrations',
       timestamps: true,
       indexes: [
-        { name: 'idx_ci_cd_provider', fields: ['providerType'] },
-        { name: 'idx_ci_cd_verification', fields: ['verificationStatus'] }
+        // Unique constraint: one integration type per tenant (also serves as composite index)
+        { name: 'uniq_tenant_provider', fields: ['tenantId', 'providerType'], unique: true }
+        // Note: Single-column indexes on tenantId/providerType/verificationStatus omitted
+        // because they are low-cardinality and the unique constraint covers tenant+provider queries
       ]
     }
   );

@@ -772,6 +772,11 @@ export class S3Storage implements storage.Storage {
     public cronicleService: CronicleService | null = null;
     public releaseRepository!: ReleaseRepository;  // Release repository
     public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
+    public releaseUploadsRepository!: ReleaseUploadsRepository;  // Manual build uploads repository
+    public platformMappingRepository!: ReleasePlatformTargetMappingRepository;  // Alias for releasePlatformTargetMappingRepository
+    public cronJobRepository!: CronJobRepository;  // Cron job repository
+    public releaseTaskRepository!: ReleaseTaskRepository;  // Release task repository
+    public regressionCycleRepository!: RegressionCycleRepository;  // Regression cycle repository
     public releaseCreationService!: ReleaseCreationService;
     public releaseRetrievalService!: ReleaseRetrievalService;
     public releaseVersionService!: ReleaseVersionService;
@@ -898,8 +903,12 @@ export class S3Storage implements storage.Storage {
           this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
           console.log("CI/CD Config Repository initialized");
           
-          // Initialize CI/CD Config Service
-          this.cicdConfigService = new CICDConfigService(this.cicdConfigRepository, this.cicdWorkflowRepository);
+          // Initialize CI/CD Config Service (with integration repo for triggering workflows)
+          this.cicdConfigService = new CICDConfigService(
+            this.cicdConfigRepository,
+            this.cicdWorkflowRepository,
+            this.cicdIntegrationRepository
+          );
           console.log("CI/CD Config Service initialized");
           
           
@@ -1035,18 +1044,32 @@ export class S3Storage implements storage.Storage {
           this.releasePlatformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(
             this.sequelize.models.PlatformTargetMapping
           );
-          const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
-          const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
-          const regressionCycleRepo = new RegressionCycleRepository(
-            this.sequelize.models.RegressionCycle
-          );
-          const buildRepo = new BuildRepository(
-            this.sequelize.models.Build
-          );
-          const releaseUploadsRepo = new ReleaseUploadsRepository(
+          // Alias for type guard compatibility
+          this.platformMappingRepository = this.releasePlatformTargetMappingRepository;
+          
+          // Initialize Release Uploads Repository (for manual build uploads)
+          this.releaseUploadsRepository = new ReleaseUploadsRepository(
             this.sequelize,
-            this.sequelize.models.ReleaseUpload as any
+            this.sequelize.models.ReleaseUpload as typeof import("../models/release/release-uploads.sequelize.model").ReleaseUploadModel
           );
+          console.log("Release Uploads Repository initialized");
+          
+          this.cronJobRepository = new CronJobRepository(this.sequelize.models.CronJob);
+          this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          this.regressionCycleRepository = new RegressionCycleRepository(this.sequelize.models.RegressionCycle);
+          console.log("Regression Cycle Repository initialized");
+          
+          // Initialize Build repository (for artifact listings/uploads) - moved before ReleaseRetrievalService
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
+          
+          // Local aliases for readability
+          const cronJobRepo = this.cronJobRepository;
+          const releaseTaskRepo = this.releaseTaskRepository;
+          const regressionCycleRepo = this.regressionCycleRepository;
+          const buildRepo = this.buildRepository;
+          const releaseUploadsRepo = this.releaseUploadsRepository;
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );
@@ -1076,7 +1099,8 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo,
             regressionCycleRepo,
             buildRepo,
-            releaseUploadsRepo
+            releaseUploadsRepo,
+            this.cicdWorkflowRepository
           );
           console.log("Release Retrieval Service initialized");
           
@@ -1124,11 +1148,6 @@ export class S3Storage implements storage.Storage {
             null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
-          
-          // Initialize Build repository (for artifact listings/uploads)
-          const buildModel = createBuildModel(this.sequelize);
-          this.buildRepository = new BuildRepository(buildModel);
-          console.log("Build Repository initialized");
           
           // return this.sequelize.sync();
         })

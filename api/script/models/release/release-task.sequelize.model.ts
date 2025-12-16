@@ -144,7 +144,14 @@ export const createReleaseTaskModel = (
     {
       tableName: 'release_tasks',
       timestamps: true,
-      underscored: false
+      underscored: false,
+      indexes: [
+        // Based on actual repository query patterns (verified from release-task.repository.ts):
+        // - findByReleaseId, findByReleaseIdAndStage, findByTaskType
+        { fields: ['releaseId'], name: 'idx_release_tasks_release' },
+        // - findByRegressionCycleId
+        { fields: ['regressionId'], name: 'idx_release_tasks_regression' }
+      ]
     }
   ) as ReleaseTaskModelType;
 

@@ -45,6 +45,7 @@ export type BuildAttributes = {
   queueLocation: string | null;
   workflowStatus: WorkflowStatus | null;
   ciRunType: CiRunType | null;
+  workflowId: string | null;
   taskId: string | null;
   internalTrackLink: string | null;
   testflightNumber: string | null;
@@ -178,6 +179,16 @@ export const createBuildModel = (
         field: 'ciRunType',
         comment: 'CI/CD provider type'
       },
+      workflowId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'workflowId',
+        references: {
+          model: 'tenant_ci_cd_workflows',
+          key: 'id'
+        },
+        comment: 'FK to tenant_ci_cd_workflows table - links build to specific workflow'
+      },
       taskId: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -206,27 +217,19 @@ export const createBuildModel = (
       timestamps: true,
       underscored: false,
       indexes: [
-        { fields: ['tenantId'] },
-        { fields: ['releaseId'] },
-        { fields: ['platform'] },
-        { fields: ['storeType'] },
-        { fields: ['regressionId'] },
-        { fields: ['taskId'] },
-        { fields: ['workflowStatus'] },
-        { fields: ['buildStage'] },
-        { 
-          fields: ['regressionId', 'platform'], 
-          name: 'idx_builds_regression_platform'
-        },
-        {
-          fields: ['taskId', 'platform'],
-          name: 'idx_builds_task_platform'
-        },
-        {
-          fields: ['taskId', 'queueLocation'],
-          unique: true,
-          name: 'idx_builds_task_queue_unique'
-        }
+        // Based on actual repository query patterns (verified from build.repository.ts):
+        // - findByReleaseId, findByReleaseAndPlatform, findCiCdBuildsByReleaseAndWorkflowStatus
+        { fields: ['releaseId'], name: 'idx_builds_release' },
+        // - findByRegressionId, findByRegressionAndPlatform
+        { fields: ['regressionId'], name: 'idx_builds_regression' },
+        // - findByTaskId, findByTaskAndPlatform, findPendingByTaskId, findFailedByTaskId
+        { fields: ['taskId'], name: 'idx_builds_task' },
+        // - findByCiRunId (callback lookup)
+        { fields: ['ciRunId'], name: 'idx_builds_ci_run_id' },
+        // - findByTaskAndQueueLocation (unique callback identifier)
+        { fields: ['taskId', 'queueLocation'], unique: true, name: 'idx_builds_task_queue_unique' },
+        // - workflow URL lookup (join with tenant_ci_cd_workflows)
+        { fields: ['workflowId'], name: 'idx_builds_workflow' }
       ]
     }
   ) as BuildModelType;

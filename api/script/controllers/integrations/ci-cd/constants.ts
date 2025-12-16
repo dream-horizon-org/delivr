@@ -3,6 +3,7 @@
  * Keep messages contextual to aid debugging and UI display.
  */
 export const ERROR_MESSAGES = {
+  TENANT_ID_REQUIRED: 'tenantId is required',
   MISSING_TOKEN_AND_SCM: 'Missing apiToken and no GitHub SCM integration found',
   INVALID_GITHUB_TOKEN: 'Invalid GitHub token',
   FAILED_VERIFY_GHA: 'Failed to verify GitHub Actions connection',
@@ -55,6 +56,7 @@ export const ERROR_MESSAGES = {
   WORKFLOW_SELECTION_REQUIRED: 'Provide workflowId or both workflowType and platform',
   WORKFLOW_UPDATE_FAILED: 'Failed to update workflow',
   WORKFLOW_DELETE_FAILED: 'Failed to delete workflow',
+  WORKFLOW_IN_USE_BY_CONFIG: 'Cannot delete workflow - it is referenced by one or more CI/CD configs',
   WORKFLOW_MIN_PARAMS_REQUIRED: 'workflowUrl is required',
 
   GHA_NO_TOKEN_AVAILABLE: 'No GitHub token available',
@@ -73,6 +75,7 @@ export const ERROR_MESSAGES = {
   INTEGRATION_FETCH_FAILED: 'Failed to fetch CI/CD integration',
   INTEGRATION_UPDATE_FAILED: 'Failed to update CI/CD integration',
   INTEGRATION_DELETE_FAILED: 'Failed to delete CI/CD integration',
+  INTEGRATION_HAS_WORKFLOWS: 'Cannot delete integration - it has associated workflows. Delete the workflows first.',
   OPERATION_NOT_SUPPORTED: 'Operation not supported for this CI/CD provider'
 } as const;
 

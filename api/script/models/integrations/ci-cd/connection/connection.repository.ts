@@ -78,14 +78,14 @@ export class CICDIntegrationRepository {
   ): Promise<TenantCICDIntegration | null> => {
     const record = await this.model.findByPk(id);
     if (!record) return null;
+    // Sequelize handles updatedAt automatically when timestamps: true
     await record.update({
       ...data,
       username: data.username ?? record.get('username'),
       apiToken: data.apiToken ?? record.get('apiToken'),
       headerName: data.headerName ?? record.get('headerName'),
       headerValue: data.headerValue ?? record.get('headerValue'),
-      providerConfig: data.providerConfig ?? record.get('providerConfig'),
-      updatedAt: new Date()
+      providerConfig: data.providerConfig ?? record.get('providerConfig')
     });
     return this.toPlainObject(record);
   };

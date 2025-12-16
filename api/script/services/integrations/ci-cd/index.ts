@@ -1,4 +1,5 @@
 export { CICDConfigService } from './config/config.service';
+export type { TriggerWorkflowByConfigInput, TriggerWorkflowResult } from './config/config.service';
 export { WorkflowService } from './workflows/workflow.service';
 export { GitHubActionsWorkflowService } from './workflows/github-actions-workflow.service';
 export { JenkinsWorkflowService } from './workflows/jenkins-workflow.service';

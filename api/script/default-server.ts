@@ -184,11 +184,13 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
             next();
           });
           
+          // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
+          // IMPORTANT: Mount BEFORE management routes since management uses fileUploadMiddleware
+          // which would consume multipart bodies for ALL routes if mounted first
+          app.use(api.releaseManagement({ storage: storage }));
+          
           // DOTA Management Routes (deployments, apps, packages) - NO AUTH in debug mode
           app.use(fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
-          
-          // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
-          app.use(api.releaseManagement({ storage: storage }));
           
           // Cron Job Routes (State Machine-based) - NO AUTH in debug mode
           app.use('/api/v1', api.cronJob({ storage: storage }));

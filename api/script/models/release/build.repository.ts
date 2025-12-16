@@ -37,6 +37,7 @@ export type CreateBuildDto = {
   queueLocation?: string | null;
   workflowStatus?: WorkflowStatus | null;
   ciRunType?: CiRunType | null;
+  workflowId?: string | null;
   taskId?: string | null;
   internalTrackLink?: string | null;
   testflightNumber?: string | null;
@@ -89,6 +90,7 @@ export class BuildRepository {
       queueLocation: data.queueLocation ?? null,
       workflowStatus: data.workflowStatus ?? null,
       ciRunType: data.ciRunType ?? null,
+      workflowId: data.workflowId ?? null,
       taskId: data.taskId ?? null,
       internalTrackLink: data.internalTrackLink ?? null,
       testflightNumber: data.testflightNumber ?? null
@@ -357,6 +359,7 @@ export class BuildRepository {
         queueLocation: d.queueLocation ?? null,
         workflowStatus: d.workflowStatus ?? null,
         ciRunType: d.ciRunType ?? null,
+        workflowId: d.workflowId ?? null,
         taskId: d.taskId ?? null,
         internalTrackLink: d.internalTrackLink ?? null,
         testflightNumber: d.testflightNumber ?? null
