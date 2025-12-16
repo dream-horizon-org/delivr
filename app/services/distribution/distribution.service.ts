@@ -22,15 +22,17 @@ export class DistributionService {
    * List all distributions (paginated)
    * Returns distributions with their submissions
    * 
+   * @param tenantId - Tenant/Organization ID (required)
    * @param page - Page number (1-indexed)
    * @param pageSize - Number of items per page
    */
   static async listDistributions(
+    tenantId: string,
     page: number = 1,
     pageSize: number = 10
   ): Promise<ApiResponse<DistributionsResponse>> {
     return apiGet<DistributionsResponse>(
-      `/api/v1/distributions?page=${page}&pageSize=${pageSize}`
+      `/api/v1/distributions?tenantId=${encodeURIComponent(tenantId)}&page=${page}&pageSize=${pageSize}`
     );
   }
 

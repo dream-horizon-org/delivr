@@ -533,16 +533,28 @@ Get paginated list of all distributions with submission summaries.
 
 **Endpoint:**
 ```
-GET /api/v1/distributions
+GET /api/v1/distributions?tenantId=<TENANT_ID>
 ```
 
 **Query Parameters:**
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
+| `tenantId` | string | **Yes** | - | Tenant/Organization ID (required for multi-tenant support) |
 | `page` | integer | No | 1 | Page number (1-indexed) |
 | `pageSize` | integer | No | 10 | Items per page (max: 100) |
 | `status` | string | No | - | Filter: PENDING, PARTIALLY_SUBMITTED, SUBMITTED, PARTIALLY_RELEASED, RELEASED |
 | `platform` | string | No | - | Filter: ANDROID, IOS |
+
+**Error Response (Missing tenantId):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "MISSING_TENANT_ID",
+    "message": "tenantId query parameter is required"
+  }
+}
+```
 
 **Response:**
 ```json

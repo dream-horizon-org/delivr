@@ -6,6 +6,7 @@
  * Includes aggregate stats calculated from ALL distributions (not just current page).
  * 
  * Query Parameters:
+ * - tenantId: Tenant/Organization ID (required)
  * - page: Page number (default: 1)
  * - pageSize: Items per page (default: 10, max: 100)
  * - status: Filter by distribution status (optional)
@@ -20,7 +21,6 @@ import { DistributionService } from '~/.server/services/Distribution';
 import {
   ERROR_MESSAGES,
   LOG_CONTEXT,
-  VALIDATION,
 } from '~/constants/distribution/distribution-api.constants';
 import {
   handleAxiosError,
@@ -37,6 +37,16 @@ export const loader = authenticateLoaderRequest(
     try {
       // Extract query parameters
       const url = new URL(request.url);
+      const tenantId = url.searchParams.get('tenantId');
+      
+      // tenantId is required
+      if (!tenantId) {
+        return json(
+          { success: false, error: { message: 'tenantId query parameter is required' } },
+          { status: 400 }
+        );
+      }
+      
       const page = Math.max(DEFAULT_PAGE, parseInt(url.searchParams.get('page') || String(DEFAULT_PAGE)));
       const pageSize = Math.min(
         MAX_PAGE_SIZE,
@@ -47,6 +57,7 @@ export const loader = authenticateLoaderRequest(
 
       // Call backend service
       const response = await DistributionService.listDistributions(
+        tenantId,
         page,
         pageSize,
         status,

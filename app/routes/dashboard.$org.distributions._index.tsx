@@ -74,7 +74,9 @@ export const loader = authenticateLoaderRequest(
     try {
       // Fetch from API with pagination params
       // Backend returns paginated response with distributions + submissions + stats
+      // org is the tenantId in this context
       const response = await DistributionService.listDistributions(
+        org,  // tenantId
         page,
         pageSize
       );

@@ -10,31 +10,31 @@
 import axios, { type AxiosResponse } from 'axios';
 import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import type {
-    APISuccessResponse,
-    ApprovalResponse,
-    BuildResponse,
-    BuildsResponse,
-    CreateResubmissionRequest,
-    DistributionsResponse,
-    DistributionStatusResponse,
-    DistributionWithSubmissions,
-    ExtraCommitsResponse,
-    HaltRolloutRequest,
-    ManualApprovalRequest,
-    PauseRolloutRequest,
-    Platform,
-    PMStatusResponse,
-    ReleaseStoresResponse,
-    RolloutUpdateResponse,
-    SubmissionResponse,
-    SubmissionsResponse,
-    SubmitSubmissionRequest,
-    SubmitToStoreRequest,
-    SubmitToStoreResponse,
-    UpdateRolloutRequest,
-    UploadAABResponse,
-    VerifyTestFlightRequest,
-    VerifyTestFlightResponse
+  APISuccessResponse,
+  ApprovalResponse,
+  BuildResponse,
+  BuildsResponse,
+  CreateResubmissionRequest,
+  DistributionsResponse,
+  DistributionStatusResponse,
+  DistributionWithSubmissions,
+  ExtraCommitsResponse,
+  HaltRolloutRequest,
+  ManualApprovalRequest,
+  PauseRolloutRequest,
+  Platform,
+  PMStatusResponse,
+  ReleaseStoresResponse,
+  RolloutUpdateResponse,
+  SubmissionResponse,
+  SubmissionsResponse,
+  SubmitSubmissionRequest,
+  SubmitToStoreRequest,
+  SubmitToStoreResponse,
+  UpdateRolloutRequest,
+  UploadAABResponse,
+  VerifyTestFlightRequest,
+  VerifyTestFlightResponse
 } from '~/types/distribution/distribution.types';
 
 class Distribution {
@@ -157,17 +157,21 @@ class Distribution {
    * List all active distributions across all releases (paginated)
    * Aggregates release + submission data from distribution, android_submissions, and ios_submissions tables
    * 
+   * @param tenantId - Tenant/Organization ID (required)
    * @param page - Page number (1-indexed)
    * @param pageSize - Number of items per page
+   * @param status - Filter by distribution status (optional)
+   * @param platform - Filter by platform (optional)
    * @returns Paginated list of distributions with their submissions
    */
   async listDistributions(
+    tenantId: string,
     page: number = 1,
     pageSize: number = 10,
     status?: string,
     platform?: string
   ) {
-    const params: Record<string, string | number> = { page, pageSize };
+    const params: Record<string, string | number> = { tenantId, page, pageSize };
     if (status) {
       params.status = status;
     }

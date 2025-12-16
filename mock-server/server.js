@@ -1223,9 +1223,16 @@ server.patch('/api/v1/submissions/:submissionId/rollout/halt', (req, res) => {
 // History feature not in API spec
 
 /**
- * GET /api/v1/distributions?page=1&pageSize=10
+ * GET /api/v1/distributions?tenantId=xxx&page=1&pageSize=10
  * List all distributions with pagination
  * ✅ 100% ALIGNED WITH DISTRIBUTION_API_SPEC.md
+ * 
+ * Query Parameters:
+ * - tenantId: Tenant/Organization ID (required)
+ * - page: Page number (default: 1)
+ * - pageSize: Items per page (default: 10, max: 100)
+ * - status: Filter by status (optional)
+ * - platform: Filter by platform (optional)
  * 
  * Returns ONLY latest submission per platform (not historical)
  * Stats calculated from ALL distributions (not just current page)
@@ -1233,14 +1240,26 @@ server.patch('/api/v1/submissions/:submissionId/rollout/halt', (req, res) => {
 server.get('/api/v1/distributions', (req, res) => {
   const db = router.db;
   
-  // Extract pagination params
+  // Extract query params
+  const tenantId = req.query.tenantId;
   const page = parseInt(req.query.page) || 1;
   const pageSize = Math.min(parseInt(req.query.pageSize) || 10, 100); // Max 100
   const statusFilter = req.query.status; // PENDING, PARTIALLY_SUBMITTED, SUBMITTED, PARTIALLY_RELEASED, RELEASED
   const platformFilter = req.query.platform; // ANDROID, IOS
   
-  // ✅ Query from actual database tables
-  const allDistributionsFromDb = db.get('store_distribution').value() || [];
+  // Validate tenantId
+  if (!tenantId) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'MISSING_TENANT_ID', message: 'tenantId query parameter is required' },
+    });
+  }
+  
+  console.log(`[distributions] Fetching distributions for tenant: ${tenantId}`);
+  
+  // ✅ Query from actual database tables and filter by tenantId
+  const allDistributionsFromDb = (db.get('store_distribution').value() || [])
+    .filter(d => d.tenantId === tenantId);
   const androidSubmissions = db.get('android_submission_builds').value() || [];
   const iosSubmissions = db.get('ios_submission_builds').value() || [];
   const releases = db.get('releases').value() || [];
