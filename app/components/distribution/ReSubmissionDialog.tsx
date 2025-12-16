@@ -9,36 +9,36 @@
  */
 
 import {
-    Alert,
-    Button,
-    Checkbox,
-    FileInput,
-    Group,
-    Modal,
-    NumberInput,
-    Select,
-    Stack,
-    Text,
-    Textarea,
-    TextInput,
-    ThemeIcon
+  Alert,
+  Button,
+  Checkbox,
+  FileInput,
+  Group,
+  Modal,
+  NumberInput,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  ThemeIcon
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import {
-    DIALOG_ICON_SIZES,
-    DIALOG_TITLES,
-    MAX_ROLLOUT_PERCENT,
-    MIN_ROLLOUT_PERCENT,
-    PLATFORM_LABELS
+  DIALOG_ICON_SIZES,
+  DIALOG_TITLES,
+  MAX_ROLLOUT_PERCENT,
+  MIN_ROLLOUT_PERCENT,
+  PLATFORM_LABELS
 } from '~/constants/distribution.constants';
 import {
-    AndroidSubmission,
-    IOSSubmission,
-    Platform,
-    type Submission
+  AndroidSubmission,
+  IOSSubmission,
+  Platform,
+  type Submission
 } from '~/types/distribution.types';
 import { ErrorAlert } from './ErrorRecovery';
 
@@ -190,13 +190,21 @@ export function ReSubmissionDialog({
     });
   }, [distributionId, fetcher]);
 
-  // Handle success
+  // Handle success - trigger revalidation, parent will close dialog after data is fresh
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data && onResubmitComplete) {
-      onResubmitComplete();
-      onClose();
+    if (fetcher.state === 'idle' && fetcher.data?.success) {
+      // Reset forms
+      if (isAndroid) {
+        androidForm.reset();
+      } else {
+        iosForm.reset();
+      }
+      // Trigger revalidation in parent - parent will close dialog after revalidation completes
+      onResubmitComplete?.();
+      // Note: Don't call onClose() here - let parent close after revalidation completes
     }
-  }, [fetcher.state, fetcher.data, onResubmitComplete, onClose]);
+    // On error, dialog stays open so user can see error message and retry
+  }, [fetcher.state, fetcher.data, isAndroid, androidForm, iosForm, onResubmitComplete]);
 
   const handleClose = useCallback(() => {
     if (isAndroid) {
