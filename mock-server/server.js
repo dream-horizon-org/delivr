@@ -22,7 +22,7 @@ const __dirname = path.dirname(__filename);
 
 // Create server
 const server = jsonServer.create();
-const router = jsonServer.router(path.join(__dirname, 'data', 'db.json'));
+const router = jsonServer.router(path.join(__dirname, 'data', 'db-distribution.json'));
 const middlewares = jsonServer.defaults();
 
 // ============================================================================
