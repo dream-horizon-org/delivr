@@ -12,8 +12,9 @@ import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks
 import { CodepushService } from '~/.server/services/Codepush';
 import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
+import { AuthErrorFallback } from '~/components/Auth/AuthErrorFallback';
 
-export const loader = authenticateLoaderRequest(async ({ user }) => {
+export const loader = authenticateLoaderRequest(async ({ user, request }) => {
   try {
     if (!user || !user.user || !user.user.id) {
       console.error('[Dashboard] Invalid user object:', user);
@@ -33,12 +34,28 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
     return json({
       user,
       initialSystemMetadata: enrichedData,
+      authError: null,
     });
   } catch (error: any) {
     console.error('[Dashboard] Error loading system metadata:', error.message);
+    
+    const status = error?.response?.status || error?.status;
+    if (status === 401) {
+      // Return error state - let user choose to retry or logout
+      return json({
+        user,
+        initialSystemMetadata: null,
+        authError: {
+          message: 'Your session has expired or you are no longer authenticated. Please log in again.',
+        },
+      });
+    }
+    
+    // For other errors, return null data (hooks will handle fallback)
     return json({
       user,
       initialSystemMetadata: null,
+      authError: null,
     });
   }
 });
@@ -46,15 +63,31 @@ export const loader = authenticateLoaderRequest(async ({ user }) => {
 export type DashboardLoaderData = {
   user: User;
   initialSystemMetadata: SystemMetadataBackend | null;
+  authError: {
+    message: string;
+  } | null;
 };
 
 export default function Dashboard() {
   const theme = useMantineTheme();
-  const { user } = useLoaderData<DashboardLoaderData>();
+  const { user, authError } = useLoaderData<DashboardLoaderData>();
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
   const { data: orgs = [], isLoading: orgsLoading } = useGetOrgList();
+  
+  // Show auth error if present
+  if (authError) {
+    return (
+      <SimpleTermsGuard>
+        <Flex h="100vh" direction="column" bg={theme.colors?.slate?.[0] || '#f8fafc'} align="center" justify="center" p={32}>
+          <Box style={{ maxWidth: 600, width: '100%' }}>
+            <AuthErrorFallback message={authError.message} />
+          </Box>
+        </Flex>
+      </SimpleTermsGuard>
+    );
+  }
 
   // Handle both /dashboard and /dashboard/ (with or without trailing slash)
   const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";

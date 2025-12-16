@@ -197,7 +197,7 @@ export const INFO_MESSAGES = {
   NO_PROVIDERS_CONNECTED: 'No CI/CD providers are connected. Connect Jenkins or GitHub Actions to create workflows.',
   SELECT_PLATFORM_FIRST: 'Select distribution targets in the previous step to continue.',
   NOT_SET: 'Not set',
-  PLANNED: 'PLANNED',
+  MINOR: 'MINOR',
   YES: 'Yes',
   NO: 'No',
   NO_WORKFLOWS_CONFIGURED: 'No workflows configured yet',

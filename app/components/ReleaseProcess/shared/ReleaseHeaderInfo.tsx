@@ -35,12 +35,12 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
   // Helper to get release type color (consistent with ReleaseCard)
   const getReleaseTypeColor = (type: string): string => {
     switch (type.toUpperCase()) {
-      case 'PLANNED':
+      case 'MAJOR':
+        return 'purple';
+      case 'MINOR':
         return 'blue';
       case 'HOTFIX':
         return 'red';
-      case 'UNPLANNED':
-        return 'purple';
       default:
         return 'brand';
     }

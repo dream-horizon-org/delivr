@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from "axios";
+import { apiGet } from "~/utils/api-client";
 import { route } from "routes-gen";
 import { TenantsResponse } from "~/.server/services/Codepush/types";
 
@@ -8,34 +8,18 @@ type Organization = {
   isAdmin: boolean;
 };
 
-// const data: Organization[] = [
-//   {
-//     id: "1",
-//     orgName: "TechCorp",
-//     isAdmin: true,
-//   },
-//   {
-//     id: "2",
-//     orgName: "InnovateX",
-//     isAdmin: false,
-//   },
-//   {
-//     id: "3",
-//     orgName: "CodeMaster",
-//     isAdmin: true,
-//   },
-//   {
-//     id: "4",
-//     orgName: "DevSolutions",
-//     isAdmin: false,
-//   },
-// ];
 
 export const getOrgList = async (): Promise<Organization[]> => {
-  const { data } = await axios.get<null, AxiosResponse<TenantsResponse>>(
+  // Use apiGet for relative requests to Remix routes (not direct backend calls)
+  const result = await apiGet<TenantsResponse>(
     route("/api/v1/tenants")
   );
-  return data.organisations.map((item) => {
+  
+  if (!result.success || !result.data) {
+    throw new Error(result.error || 'Failed to fetch organizations');
+  }
+  
+  return result.data.organisations.map((item) => {
     return {
       id: item.id,
       orgName: item.displayName,

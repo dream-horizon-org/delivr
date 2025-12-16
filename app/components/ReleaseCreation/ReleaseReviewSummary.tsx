@@ -45,7 +45,7 @@ export function ReleaseReviewSummary({
               Release Type
             </Text>
             <Badge variant="light" size="sm">
-              {state.type || 'PLANNED'}
+              {state.type || 'MINOR'}
             </Badge>
           </div>
 

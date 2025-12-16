@@ -53,6 +53,7 @@ async function apiRequest<T = unknown>(
   try {
     const response = await fetch(url, {
       ...fetchOptions,
+      credentials: 'include', // Send cookies with requests
       headers: {
         'Content-Type': 'application/json',
         ...headers,
@@ -88,6 +89,7 @@ async function apiRequest<T = unknown>(
 
     // If HTTP status is not OK, throw with best available message
     if (!response.ok) {
+      // Server-side loaders handle 401 redirects, client-side just throws error
       const messageFromParsed =
         (parsed && (parsed.error || parsed.message)) ||
         `Request failed with status ${response.status}`;

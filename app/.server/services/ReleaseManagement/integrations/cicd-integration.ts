@@ -13,7 +13,7 @@ import { githubActionsIntegrationService as GitHubActionsIntegrationService } fr
 // ============================================================================
 
 export type CICDProviderType = 'JENKINS' | 'GITHUB_ACTIONS';
-export type WorkflowType = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT' | 'PRODUCTION';
+export type WorkflowType = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT' | 'PRODUCTION' | 'AAB_BUILD';
 export type PlatformType = 'ANDROID' | 'IOS' | 'WEB';
 
 export interface JobParameter {

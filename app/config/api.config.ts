@@ -10,22 +10,24 @@
  * 
  * Environment variables (in .env):
  *   PORT=3000                                        # Frontend port (default: 3000, can be overridden)
- *   DELIVR_BACKEND_URL=http://localhost:3010         # Real backend URL
- *   DELIVR_MOCK_URL=http://localhost:4000            # Mock server URL (for Distribution)
- *   DELIVR_HYBRID_MODE=true                          # Hybrid mode (Distribution→mock, rest→backend)
+ *   VITE_DELIVR_BACKEND_URL=http://localhost:3010   # Real backend URL (must be prefixed with VITE_)
+ *   VITE_DELIVR_MOCK_URL=http://localhost:4000      # Mock server URL (must be prefixed with VITE_)
+ *   VITE_DELIVR_HYBRID_MODE=true                    # Hybrid mode (must be prefixed with VITE_)
+ * 
+ * Note: In Vite, environment variables must be prefixed with VITE_ to be accessible in client-side code
  */
 export const API_CONFIG = {
   // Base URL for real backend
-  BASE_URL: process.env.DELIVR_BACKEND_URL ?? 'http://localhost:3010',
+  BASE_URL: import.meta.env.VITE_DELIVR_BACKEND_URL ?? 'http://localhost:3010',
   
   // Mock server URL for Distribution module (while backend not ready)
-  MOCK_BASE_URL: process.env.DELIVR_MOCK_URL ?? 'http://localhost:4000',
+  MOCK_BASE_URL: import.meta.env.VITE_DELIVR_MOCK_URL ?? 'http://localhost:4000',
   
   // Mock mode flag - when true, ALL requests go to mock server
-  MOCK_MODE: process.env.DELIVR_MOCK_MODE === 'true',
+  MOCK_MODE: import.meta.env.VITE_DELIVR_MOCK_MODE === 'true',
   
   // Hybrid mode - Distribution APIs go to mock, everything else to real backend
-  HYBRID_MODE: process.env.DELIVR_HYBRID_MODE === 'true',
+  HYBRID_MODE: import.meta.env.VITE_DELIVR_HYBRID_MODE === 'true',
   
   // Request timeout (30 seconds)
   TIMEOUT: 30000,

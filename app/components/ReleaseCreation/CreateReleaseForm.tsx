@@ -65,7 +65,7 @@ export function CreateReleaseForm({
   const initialReleaseState: Partial<ReleaseCreationState> = isEditMode && existingRelease
     ? convertReleaseToFormState(existingRelease)
     : {
-    type: 'PLANNED',
+    type: 'MINOR',
     platformTargets: [],
     baseBranch: '',
     kickOffDate: '',
@@ -233,13 +233,13 @@ export function CreateReleaseForm({
     navigate(`/dashboard/${org}/releases/configure?clone=${configId}&returnTo=create`);
   };
 
-  // Clear error for a specific field when it's updated and validate in real-time
+  // Update state and clear errors for fields that are being updated
+  // Validation only happens on submit or blur, not on every state change
   const handleStateChange = (updates: Partial<ReleaseCreationState>) => {
-    // Update state first
-    const newState = { ...state, ...updates };
-    setState(newState);
+    // Update state
+    setState((prev) => ({ ...prev, ...updates }));
     
-    // Clear errors for fields that are being updated
+    // Clear errors for fields that are being updated (user is fixing them)
     const updatedFields = Object.keys(updates);
     const clearedErrors = { ...errors };
     
@@ -288,49 +288,39 @@ export function CreateReleaseForm({
       }
     });
     
-    // Validate updated fields in real-time (only for critical fields)
-    const criticalFields = ['baseBranch', 'branch', 'kickOffDate', 'kickOffTime', 'targetReleaseDate', 'targetReleaseTime', 'releaseConfigId', 'platformTargets'];
-    const hasCriticalUpdate = updatedFields.some(field => criticalFields.includes(field));
+    // Update errors (only cleared errors, no new validation)
+    setErrors(clearedErrors);
+  };
+
+  // Validate a specific field on blur
+  const handleFieldBlur = (fieldName: string) => {
+    const validation = validateReleaseCreationState(state);
+    const updatedErrors = { ...errors };
     
-    if (hasCriticalUpdate) {
-      // Quick validation for the updated field
-      const fieldValidation = validateReleaseCreationState(newState);
-      const relevantErrors: Record<string, string> = {};
-      
-      // Only keep errors for fields that were updated or depend on updated fields
-      updatedFields.forEach(field => {
-        if (fieldValidation.errors[field]) {
-          relevantErrors[field] = fieldValidation.errors[field];
-        }
-        // Also check dependent fields
-        if (field === 'kickOffDate' || field === 'kickOffTime') {
-          if (fieldValidation.errors.targetReleaseDate) {
-            relevantErrors.targetReleaseDate = fieldValidation.errors.targetReleaseDate;
-          }
-        }
-        if (field === 'targetReleaseDate' || field === 'targetReleaseTime') {
-          if (fieldValidation.errors.kickOffDate) {
-            relevantErrors.kickOffDate = fieldValidation.errors.kickOffDate;
-          }
-        }
-        // Platform targets errors
-        if (field === 'platformTargets') {
-          Object.keys(fieldValidation.errors).forEach(key => {
-            if (key.startsWith('platformTargets') || key.startsWith('version-')) {
-              relevantErrors[key] = fieldValidation.errors[key];
-            }
-          });
-        }
-      });
-      
-      // Merge with cleared errors
-      Object.keys(relevantErrors).forEach(key => {
-        clearedErrors[key] = relevantErrors[key];
-      });
+    // Update error for the blurred field
+    if (validation.errors[fieldName]) {
+      updatedErrors[fieldName] = validation.errors[fieldName];
+    } else {
+      // Clear error if field is now valid
+      delete updatedErrors[fieldName];
     }
     
-    // Update errors
-    setErrors(clearedErrors);
+    // Also validate dependent fields
+    if (fieldName === 'kickOffDate' || fieldName === 'kickOffTime') {
+      if (validation.errors.targetReleaseDate) {
+        updatedErrors.targetReleaseDate = validation.errors.targetReleaseDate;
+      } else if (updatedErrors.targetReleaseDate?.includes('after kickoff')) {
+        delete updatedErrors.targetReleaseDate;
+      }
+    }
+    
+    if (fieldName === 'targetReleaseDate' || fieldName === 'targetReleaseTime') {
+      if (validation.errors.kickOffDate) {
+        updatedErrors.kickOffDate = validation.errors.kickOffDate;
+      }
+    }
+    
+    setErrors(updatedErrors);
   };
 
   // Handle review and submit

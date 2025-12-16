@@ -29,12 +29,12 @@ export function formatReleaseDate(dateString: string | null): string {
  */
 export function getReleaseTypeGradient(type: string): string {
   switch (type) {
-    case RELEASE_TYPE.PLANNED:
+    case RELEASE_TYPE.MAJOR:
+      return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)';
+    case RELEASE_TYPE.MINOR:
       return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     case RELEASE_TYPE.HOTFIX:
       return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
-    case RELEASE_TYPE.UNPLANNED:
-      return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)';
     default:
       return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
   }
@@ -63,12 +63,12 @@ export function getStatusColor(status: string): string {
  */
 export function getTypeColor(type: string): string {
   switch (type) {
+    case RELEASE_TYPE.MAJOR:
+      return MANTINE_COLORS.PURPLE;
+    case RELEASE_TYPE.MINOR:
+      return MANTINE_COLORS.BLUE;
     case RELEASE_TYPE.HOTFIX:
       return MANTINE_COLORS.RED;
-    case RELEASE_TYPE.UNPLANNED:
-      return MANTINE_COLORS.PURPLE;
-    case RELEASE_TYPE.PLANNED:
-      return MANTINE_COLORS.BLUE;
     default:
       return MANTINE_COLORS.GRAY;
   }
