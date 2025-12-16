@@ -18,7 +18,7 @@ export const action = authenticateActionRequest({
 
     try {
       const body = await request.json();
-      const { botToken } = body;
+      const { botToken, _encrypted } = body;
 
       if (!botToken) {
         return json(
@@ -27,7 +27,8 @@ export const action = authenticateActionRequest({
         );
       }
 
-      if (!botToken.startsWith('xoxb-')) {
+      // Skip format validation if token is encrypted
+      if (!_encrypted && !botToken.startsWith('xoxb-')) {
         return json(
           { 
             success: false, 
@@ -38,13 +39,14 @@ export const action = authenticateActionRequest({
         );
       }
 
-      console.log(`[Slack-Verify] Verifying token for tenant: ${tenantId}`);
+      console.log(`[Slack-Verify] Verifying token for tenant: ${tenantId}, _encrypted: ${_encrypted}`);
 
 
       const result = await SlackIntegrationService.verifySlack({
         tenantId,
         botToken,
-        userId: user.user.id
+        userId: user.user.id,
+        _encrypted, // Forward encryption flag to backend
       });
 
       console.log(`[Slack-Verify] Verification result:`, {

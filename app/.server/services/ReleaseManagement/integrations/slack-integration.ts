@@ -19,6 +19,7 @@ export interface VerifySlackRequest {
   tenantId: string;
   botToken: string;
   userId: string;
+  _encrypted?: boolean; // Flag to indicate botToken is encrypted
 }
 
 export interface VerifySlackResponse {
@@ -49,6 +50,7 @@ export interface CreateSlackIntegrationRequest {
   workspaceName?: string;
   channels: SlackChannel[];
   userId: string;
+  _encrypted?: boolean; // Flag to indicate botToken is encrypted
 }
 
 export interface UpdateSlackIntegrationRequest {
@@ -59,6 +61,7 @@ export interface UpdateSlackIntegrationRequest {
   workspaceName?: string;
   channels?: SlackChannel[];
   userId: string;
+  _encrypted?: boolean; // Flag to indicate botToken is encrypted
 }
 
 export interface SlackIntegration {
@@ -91,12 +94,15 @@ export class SlackIntegrationServiceClass extends IntegrationService {
    */
   async verifySlack(data: VerifySlackRequest): Promise<VerifySlackResponse> {
     const endpoint = COMMUNICATION.slack.verify(data.tenantId);
-    this.logRequest('POST', endpoint);
+    this.logRequest('POST', endpoint, { _encrypted: data._encrypted });
     
     try {
       const result = await this.post<VerifySlackResponse>(
         endpoint,
-        { botToken: data.botToken },
+        { 
+          botToken: data.botToken,
+          _encrypted: data._encrypted, // Forward encryption flag
+        },
         data.userId
       );
 
@@ -127,7 +133,8 @@ export class SlackIntegrationServiceClass extends IntegrationService {
           botUserId: data.botUserId,
           workspaceId: data.workspaceId,
           workspaceName: data.workspaceName,
-          channels: data.channels
+          channels: data.channels,
+          _encrypted: data._encrypted, // Forward encryption flag
         },
         data.userId
       );
@@ -214,7 +221,8 @@ export class SlackIntegrationServiceClass extends IntegrationService {
           botUserId: data.botUserId,
           workspaceId: data.workspaceId,
           workspaceName: data.workspaceName,
-          channels: data.channels
+          channels: data.channels,
+          _encrypted: data._encrypted, // Forward encryption flag
         },
         data.userId
       );

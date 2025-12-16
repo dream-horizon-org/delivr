@@ -4,11 +4,14 @@ This folder contains all reference documents for the Release Process UI implemen
 
 ## Primary Documents
 
-### 1. **CLIENT_API_CONTRACT.md** ⭐ (Primary API Contract)
+### 1. **RELEASE_PROCESS_API_CONTRACT.md** ⭐ (Primary API Contract)
 - **Use this as the authoritative API contract**
 - Contains all API endpoints, request/response structures
 - Defines expected tasks for each stage (KICKOFF, REGRESSION, POST_REGRESSION)
 - Task types and enums definitions
+- Includes build management APIs (manual upload, TestFlight verification, artifacts listing)
+- Includes status APIs (test management, project management, cherry pick status)
+- Includes notification APIs and activity logs
 
 ### 2. **RELEASE_PROCESS_PLAN.md** (Main Implementation Plan)
 - Complete implementation plan with phases
@@ -29,23 +32,33 @@ This folder contains all reference documents for the Release Process UI implemen
 - Distribution stage implementation patterns
 - Distribution UI flow specifications
 
-## Supporting Documents
-
-### 6. **PHASE1_TESTING_GUIDE.md**
-- Testing guide for Phase 1 infrastructure
-- How to test API routing and mock server
-
-### 12. **PHASE2_INTEGRATION_SUMMARY.md**
-- Summary of Phase 2 component integration
-- Integration patterns and data flow
+### 6. **RELEASE_PROCESS_FLOW.md** (Comprehensive Flow Guide)
+- Complete understanding of release process flows, stages, transitions
+- Decision points and state transitions
+- Task execution flows and approval workflows
 
 ## Quick Reference
 
-**For API Contract**: Use `CLIENT_API_CONTRACT.md`  
+**For API Contract**: Use `RELEASE_PROCESS_API_CONTRACT.md`  
 **For Implementation Plan**: Use `RELEASE_PROCESS_PLAN.md`  
 **For Backend Patterns**: Use `RELEASE_STATUS_GUIDE.md`, `MANUAL_BUILD_UPLOAD_FLOW.md`, `DISTRIBUTION_UI_FLOW_SPEC.md`
 
-## KICKOFF Stage Tasks (from CLIENT_API_CONTRACT.md)
+## Archived Documents
+
+Historical, deprecated, and duplicate documents have been moved to `docs/release-process-archive/`:
+
+- **CLIENT_API_CONTRACT_UPDATED.md** - Deprecated (merged into RELEASE_PROCESS_API_CONTRACT.md)
+- **MANUAL_BUILD_UPLOAD_API.md** - Duplicate (merged into RELEASE_PROCESS_API_CONTRACT.md)
+- **MANUAL_BUILD_API.md** - Duplicate (merged into RELEASE_PROCESS_API_CONTRACT.md)
+- **TEST_CASES_COMPREHENSIVE.md** - Historical test cases
+- **RELEASE_PROCESS_IMPLEMENTATION_PLAN.md** - Old implementation plan (superseded by RELEASE_PROCESS_PLAN.md)
+- **PHASE2_INTEGRATION_SUMMARY.md** - Historical phase summary
+- **PHASE1_TESTING_GUIDE.md** - Historical testing guide
+- **MOCK_RELEASE_UPDATE_SUMMARY.md** - Historical update summary
+- **BACKEND_CONTRACT_UPDATE_SUMMARY.md** - Historical contract update
+- **BACKEND_CONTRACT_ANALYSIS.md** - Historical analysis
+
+## KICKOFF Stage Tasks (from RELEASE_PROCESS_API_CONTRACT.md)
 
 According to the API contract, KICKOFF stage should have these 5 tasks:
 

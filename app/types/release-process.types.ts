@@ -16,15 +16,92 @@ import type {
 } from './release-process-enums';
 
 /**
+ * Task Output Types - Union type for task-specific output structures
+ * Each task type has its own output format (flat structure, no nested layers)
+ */
+
+// Fork Branch Task Output
+export interface ForkBranchTaskOutput {
+  branchName: string;
+  branchUrl: string;
+}
+
+// Project Management Task Output (flattened - no projectManagement wrapper)
+export interface ProjectManagementTaskOutput {
+  platforms: Array<{
+    platform: string;
+    ticketUrl: string;
+  }>;
+}
+
+// Test Management Task Output (flattened - no testManagement wrapper)
+export interface TestManagementTaskOutput {
+  platforms: Array<{
+    platform: string;
+    runId: string;
+    runUrl: string;
+  }>;
+}
+
+// RC Tag Task Output
+export interface CreateRcTagTaskOutput {
+  tagName: string;
+  tagUrl: string;
+}
+
+// Release Notes Task Output (tagUrl only)
+export interface ReleaseNotesTaskOutput {
+  tagUrl: string;
+}
+
+// Release Tag Task Output
+export interface CreateReleaseTagTaskOutput {
+  tagName: string;
+  tagUrl: string;
+}
+
+// Final Release Notes Task Output (tagUrl only)
+export interface FinalReleaseNotesTaskOutput {
+  tagUrl: string;
+}
+
+// Build Task Output (for CI/CD build tasks)
+// jobUrl is available when task starts running (IN_PROGRESS, AWAITING_CALLBACK, etc.)
+// Special case: Unlike other tasks, build tasks can have output even when IN_PROGRESS
+export interface BuildTaskOutput {
+  jobUrl?: string;        // CI/CD job URL (e.g., Jenkins job URL, GitHub Actions workflow URL)
+}
+
+// Tasks with no output (or minimal output)
+export type EmptyTaskOutput = null | { error?: string };
+
+/**
+ * Union type for all task outputs
+ * Each task type maps to its specific output interface
+ */
+export type TaskOutput =
+  | ForkBranchTaskOutput
+  | ProjectManagementTaskOutput
+  | TestManagementTaskOutput
+  | CreateRcTagTaskOutput
+  | ReleaseNotesTaskOutput
+  | CreateReleaseTagTaskOutput
+  | FinalReleaseNotesTaskOutput
+  | BuildTaskOutput
+  | EmptyTaskOutput;
+
+/**
  * Task - Matches backend contract exactly
- * Task-specific metadata is stored in externalData
+ * Note: Backend API contract uses `taskStage` and `status`, but our implementation uses `stage` and `taskStatus`
+ * The mock server maps between these field names for compatibility
+ * Task-specific output is stored in `output` field (replaces `externalData`)
  */
 export interface Task {
   id: string;                              // Primary key (UUID)
   taskId: string;                          // Unique task identifier
   taskType: TaskType;
-  stage: TaskStage;
-  taskStatus: TaskStatus;
+  stage: TaskStage;                        // Backend contract uses `taskStage`, mock server maps it
+  taskStatus: TaskStatus;                  // Backend contract uses `status`, mock server maps it
   taskConclusion: TaskConclusion;
   accountId: string | null;
   regressionId: string | null;             // FK to regression cycle (if regression task)
@@ -32,43 +109,61 @@ export interface Task {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;               // External system ID (e.g., Jira ticket ID)
-  externalData: Record<string, unknown> | null;
-  branch: string | null;
+  output: TaskOutput | null;               // Task-specific output (union type based on taskType)
+  builds: BuildInfo[];                     // Builds linked to this task (builds.taskId = task.id). Always present, empty array if no builds.
+  branch?: string | null;                  // Branch name (optional, only for branch-related tasks)
   createdAt: string;                       // ISO 8601
   updatedAt: string;                       // ISO 8601
 }
 
-/**
- * TaskInfo - Legacy alias for Task (for backward compatibility during migration)
- * @deprecated Use Task instead
- */
-export type TaskInfo = Task;
 
 /**
  * BuildInfo - Matches backend contract exactly
+ * Used for Kickoff, Regression, and Pre-Release build tasks
+ * 
+ * For Kickoff/Regression tasks:
+ * - Contains artifactPath for download links
+ * - Used to display build artifacts by platform
+ * 
+ * For Pre-Release tasks:
+ * - iOS: Contains testflightNumber for TestFlight link
+ * - Android: Contains internalTrackLink for Play Store Internal Track link
  */
 export interface BuildInfo {
+  // ============================================================================
+  // MANDATORY: Available in BOTH builds and uploads
+  // ============================================================================
   id: string;
   tenantId: string;
   releaseId: string;
   platform: Platform;
-  storeType: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
-  buildNumber: string | null;
-  artifactVersionName: string | null;
-  artifactPath: string | null;
-  regressionId: string | null;          // FK to regression cycle
-  ciRunId: string | null;
-  buildUploadStatus: 'PENDING' | 'UPLOADED' | 'FAILED';
-  buildType: 'MANUAL' | 'CI_CD';
   buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
-  queueLocation: string | null;
-  workflowStatus: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
-  ciRunType: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
-  taskId: string | null;                // Reference to release_tasks table
+  artifactPath: string | null;
   internalTrackLink: string | null;     // Play Store Internal Track Link
   testflightNumber: string | null;      // TestFlight build number
   createdAt: string;                    // ISO 8601
   updatedAt: string;                    // ISO 8601
+
+  // ============================================================================
+  // OPTIONAL: Only in builds table (from CI/CD or consumed manual uploads)
+  // ============================================================================
+  buildType?: 'MANUAL' | 'CI_CD';
+  buildUploadStatus?: 'PENDING' | 'UPLOADED' | 'FAILED';
+  storeType?: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
+  buildNumber?: string | null;
+  artifactVersionName?: string | null;
+  regressionId?: string | null;         // FK to regression cycle
+  ciRunId?: string | null;
+  queueLocation?: string | null;
+  workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
+  ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  taskId?: string | null;               // Reference to release_tasks table
+
+  // ============================================================================
+  // OPTIONAL: Only in uploads table (unused manual uploads)
+  // ============================================================================
+  isUsed?: boolean;                     // Whether consumed by a task
+  usedByTaskId?: string | null;         // FK to release_tasks.id if consumed
 }
 
 /**
@@ -111,7 +206,7 @@ export interface ApprovalStatus {
 
 /**
  * Base Stage Response - Common fields for all stage APIs
- * Matches backend contract for KICKOFF and POST_REGRESSION
+ * Matches backend contract for KICKOFF and PRE_RELEASE
  */
 export interface StageTasksResponse {
   success: true;
@@ -119,6 +214,7 @@ export interface StageTasksResponse {
   releaseId: string;
   tasks: Task[];
   stageStatus: StageStatus;
+  uploadedBuilds: BuildInfo[];  // Staging builds not yet consumed by tasks
 }
 
 /**
@@ -143,15 +239,15 @@ export interface RegressionStageResponse {
   cycles: RegressionCycle[];
   currentCycle: RegressionCycle | null;
   approvalStatus: ApprovalStatus;
-  availableBuilds: BuildInfo[];
+  uploadedBuilds: BuildInfo[];  // Builds uploaded for upcoming slot (not yet consumed by cycle)
   upcomingSlot: RegressionSlot[] | null;
 }
 
 /**
- * Post-Regression Stage Response
+ * Pre-Release Stage Response
  */
-export interface PostRegressionStageResponse extends StageTasksResponse {
-  stage: TaskStage.POST_REGRESSION;
+export interface PreReleaseStageResponse extends StageTasksResponse {
+  stage: TaskStage.PRE_RELEASE;
 }
 
 /**
@@ -166,8 +262,13 @@ export interface RetryTaskRequest {
  */
 export interface RetryTaskResponse {
   success: true;
-  message: string;                      // e.g., "Task queued for retry"
-  task: Task;                           // Updated task with status = PENDING
+  message: string;                      // "Task retry initiated. Cron will re-execute on next tick."
+  data: {
+    taskId: string;                     // Task UUID
+    releaseId: string;                  // Release UUID (primary key)
+    previousStatus: string;             // Previous task status (should be "FAILED")
+    newStatus: string;                  // New task status (should be "PENDING")
+  };
 }
 
 /**
@@ -180,13 +281,50 @@ export interface BuildUploadRequest {
 }
 
 /**
- * Build Upload Response
+ * Build Upload Response - Matches API contract
  */
 export interface BuildUploadResponse {
   success: boolean;
-  buildId: string;
-  message: string;
-  build: BuildInfo;
+  data: {
+    uploadId: string;
+    platform: string;
+    stage: string;
+    downloadUrl: string;
+    internalTrackLink: string | null;
+    uploadedPlatforms: string[];
+    missingPlatforms: string[];
+    allPlatformsReady: boolean;
+  };
+}
+
+/**
+ * Build Artifact - From list artifacts API
+ */
+export interface BuildArtifact {
+  id: string;
+  artifactPath: string | null;
+  downloadUrl: string | null;
+  artifactVersionName: string;
+  buildNumber: string | null;
+  releaseId: string;
+  platform: string;
+  storeType: string | null;
+  buildStage: string;
+  buildType: string;
+  buildUploadStatus: string;
+  workflowStatus: string | null;
+  regressionId: string | null;
+  ciRunId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * List Build Artifacts Response
+ */
+export interface ListBuildArtifactsResponse {
+  success: boolean;
+  data: BuildArtifact[];
 }
 
 /**
@@ -202,7 +340,7 @@ export interface GetTestManagementStatusResponse {
   version: string;
   hasTestRun: boolean;
   runId: string | null;                 // This is the testRunId
-  status?: string;
+  status?: string;                      // 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PASSED' (PASSED is used by component)
   runLink?: string;
   total?: number;
   testResults?: {
@@ -216,6 +354,9 @@ export interface GetTestManagementStatusResponse {
     threshold?: number;
     thresholdPassed?: boolean;
   };
+  readyForApproval?: boolean;           // Extra: status === COMPLETED && thresholdPassed
+  message: string;                      // Extra: Descriptive message
+  error?: string;                       // Extra: Error message if fetch failed
 }
 
 /**
@@ -227,7 +368,7 @@ export type TestManagementStatusResult = {
   version: string;
   hasTestRun: boolean;
   runId: string | null;
-  status?: string;
+  status?: string;                      // 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PASSED'
   runLink?: string;
   total?: number;
   testResults?: {
@@ -241,6 +382,9 @@ export type TestManagementStatusResult = {
     threshold?: number;
     thresholdPassed?: boolean;
   };
+  readyForApproval?: boolean;
+  message: string;
+  error?: string;
 };
 
 /**
@@ -316,13 +460,12 @@ export type ProjectManagementStatusResponse =
   | GetProjectManagementStatusAllPlatformsResponse;
 
 /**
- * Cherry Pick Status Response - Matches backend contract
+ * Cherry Pick Status Response - Matches backend contract exactly
  */
 export interface CherryPickStatusResponse {
   success: true;
   releaseId: string;
-  latestReleaseTag: string;
-  commitIdsMatch: boolean;  // Whether branch head commit == tag commit
+  cherryPickAvailable: boolean;  // true = cherry picks exist, false = commits match
 }
 
 /**
@@ -343,30 +486,19 @@ export interface ApproveRegressionStageResponse {
   releaseId: string;
   approvedAt: string;                   // ISO 8601
   approvedBy: string;
-  nextStage: 'POST_REGRESSION';
+  nextStage: 'PRE_RELEASE';
 }
 
-/**
- * Approve Regression Request - Legacy alias (for backward compatibility)
- * @deprecated Use ApproveRegressionStageRequest instead
- */
-export type ApproveRegressionRequest = ApproveRegressionStageRequest;
 
 /**
- * Approve Regression Response - Legacy alias (for backward compatibility)
- * @deprecated Use ApproveRegressionStageResponse instead
+ * Complete Pre-Release Request
  */
-export type ApproveRegressionResponse = ApproveRegressionStageResponse;
-
-/**
- * Complete Post-Regression Request
- */
-export interface CompletePostRegressionRequest {
+export interface CompletePreReleaseRequest {
   notes?: string;
 }
 
 /**
- * Complete Post-Regression Response - Matches backend contract
+ * Complete Pre-Release Response - Matches backend contract
  */
 export interface CompletePreReleaseResponse {
   success: true;
@@ -376,11 +508,6 @@ export interface CompletePreReleaseResponse {
   nextStage: 'RELEASE_SUBMISSION';
 }
 
-/**
- * Complete Post-Regression Response - Legacy alias (for backward compatibility)
- * @deprecated Use CompletePreReleaseResponse instead
- */
-export type CompletePostRegressionResponse = CompletePreReleaseResponse;
 
 /**
  * Post Slack Message Request
@@ -421,17 +548,6 @@ export interface ActivityLogsResponse {
   activityLogs: ActivityLog[];
 }
 
-/**
- * Activity Log Entry - Legacy alias (for backward compatibility)
- * @deprecated Use ActivityLog instead
- */
-export type ActivityLogEntry = ActivityLog;
-
-/**
- * Activity Log Response - Legacy alias (for backward compatibility)
- * @deprecated Use ActivityLogsResponse instead
- */
-export type ActivityLogResponse = ActivityLogsResponse;
 
 /**
  * Phase - Detailed release phase
@@ -489,7 +605,7 @@ export interface ReleaseDetails {
   // Release metadata
   type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
-  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
+  currentActiveStage: 'PRE_KICKOFF' | 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE' | 'RELEASE_SUBMISSION' | 'RELEASE' | null;
   releasePhase: Phase;                     // Detailed phase
   
   // Branch information
@@ -512,6 +628,11 @@ export interface ReleaseDetails {
   // Ownership
   createdByAccountId: string;
   releasePilotAccountId: string | null;
+  releasePilot?: {
+    id: string;
+    email: string;
+    name: string;
+  } | null;
   lastUpdatedByAccountId: string;
   
   // Timestamps
@@ -582,16 +703,11 @@ export interface NotificationsResponse {
 
 /**
  * Message Type Enum - Values based on notification_type DB enum
+ * Supported manual message types for Slack notifications
  */
 export type MessageTypeEnum = 
-  | 'RELEASE_KICKOFF'
-  | 'REGRESSION_SLOT_REMINDER'
-  | 'REGRESSION_COMPLETE'
-  | 'PRE_RELEASE_CHERRY_PICKS_REMINDER'
-  | 'RELEASE_APPROVED'
-  | 'RELEASE_SUBMITTED'
-  // ... other notification types
-  ;
+  | 'test-results-summary'
+  | 'pre-kickoff-reminder';
 
 /**
  * Notification Request - Matches backend contract from API #21

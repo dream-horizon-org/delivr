@@ -6,7 +6,7 @@
 import { memo } from 'react';
 import { Stack, Paper, Text } from '@mantine/core';
 import { ReleaseCard } from './ReleaseCard';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 interface ReleasesTabPanelProps {
   releases: BackendReleaseResponse[];

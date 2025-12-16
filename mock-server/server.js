@@ -13,6 +13,7 @@
 import jsonServer from 'json-server';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
 import distributionMiddleware from './middleware/distribution.middleware.js';
 import createReleaseProcessMiddleware from './middleware/release-process.middleware.js';
 
@@ -31,7 +32,41 @@ const middlewares = jsonServer.defaults();
 // Default middlewares (CORS, logger, static, etc.)
 server.use(middlewares);
 
-// Body parser
+// Configure multer for file uploads (multipart/form-data)
+// Only process multipart requests, skip others
+const upload = multer({
+  storage: multer.memoryStorage(), // Store in memory for mock server
+  limits: {
+    fileSize: 200 * 1024 * 1024, // 200MB limit
+  },
+});
+
+// Multer middleware for file upload routes
+// This must come BEFORE jsonServer.bodyParser to handle multipart/form-data
+server.use((req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  
+  // Only process multipart requests
+  if (contentType.includes('multipart/form-data')) {
+    // Use .any() to accept any field name (both files and regular fields)
+    upload.any()(req, res, (err) => {
+      if (err) {
+        console.error('[Multer] Error processing file upload:', err);
+        return res.status(400).json({
+          success: false,
+          error: err.message || 'File upload error',
+        });
+      }
+      
+      next();
+    });
+  } else {
+    // For non-multipart requests, continue to body parser
+    next();
+  }
+});
+
+// Body parser (for JSON requests)
 server.use(jsonServer.bodyParser);
 
 // Request logger
@@ -49,6 +84,22 @@ server.use(createReleaseProcessMiddleware(router));
 // ============================================================================
 // CUSTOM ROUTES
 // ============================================================================
+
+/**
+ * Helper function to get mock account details
+ * In a real scenario, this would fetch from accounts collection
+ */
+function getAccountDetails(accountId) {
+  if (!accountId) return null;
+  
+  // Mock account data - in real server this would come from accounts table
+  // For now, generate mock data based on accountId
+  return {
+    id: accountId,
+    email: `user-${accountId.substring(0, 8)}@example.com`,
+    name: `User ${accountId.substring(0, 8)}`
+  };
+}
 
 // Helper function to transform release to backend format
 // Matches BackendReleaseResponse interface and backend contract
@@ -89,6 +140,13 @@ function transformRelease(release, tenantId) {
       transformed.releasePilotAccountId = transformed.createdByAccountId;
     }
     
+    // Add releasePilot account details if releasePilotAccountId exists
+    if (transformed.releasePilotAccountId) {
+      transformed.releasePilot = getAccountDetails(transformed.releasePilotAccountId);
+    } else {
+      transformed.releasePilot = null;
+    }
+    
     // Remove old/legacy fields that shouldn't be in response (only if they exist)
     // Use hasOwnProperty to check, not 'in' operator, to avoid prototype chain issues
     if (transformed.hasOwnProperty('createdBy')) delete transformed.createdBy;
@@ -111,7 +169,7 @@ function transformRelease(release, tenantId) {
     releaseId: release.releaseId || release.id,
     releaseConfigId: release.releaseConfigId || null,
     tenantId: tenantId,
-    type: release.type || 'PLANNED',
+    type: release.type || 'MINOR',
     status: release.status || 'IN_PROGRESS',
     releasePhase: release.releasePhase || null,
     branch: release.branch || null,
@@ -137,6 +195,8 @@ function transformRelease(release, tenantId) {
     preCreatedBuilds: release.preCreatedBuilds || null,
     createdByAccountId: release.createdByAccountId || release.createdBy || '4JCGF-VeXg',
     releasePilotAccountId: release.releasePilotAccountId || release.createdByAccountId || release.createdBy || null,
+    releasePilot: release.releasePilotAccountId ? getAccountDetails(release.releasePilotAccountId) : 
+                   (release.createdByAccountId || release.createdBy ? getAccountDetails(release.createdByAccountId || release.createdBy) : null),
     lastUpdatedByAccountId: release.lastUpdatedByAccountId || release.lastUpdatedBy || '4JCGF-VeXg',
     createdAt: release.createdAt || new Date().toISOString(),
     updatedAt: release.updatedAt || new Date().toISOString(),

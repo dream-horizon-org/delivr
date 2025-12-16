@@ -104,55 +104,28 @@ export function ReleaseDetailsForm({
     }
   }, [config, defaultBranch]);
 
-  // Pre-fill platformTargets from config (only targets that are in config)
+  // Filter platformTargets to only include targets that exist in config
+  // This handles cases where a draft had targets that are no longer in the current config
   useEffect(() => {
-    if (config) {
+    if (config && state.platformTargets && state.platformTargets.length > 0) {
       const configTargets = config.targets || [];
       
-      // If no platformTargets in state, pre-fill from config
-      if (!state.platformTargets || state.platformTargets.length === 0) {
-        const defaultVersion = latestVersion ? incrementVersion(latestVersion) : 'v1.0.0';
-        const versions: Record<Platform, string> = {
-          ANDROID: defaultVersion,
-          IOS: defaultVersion,
-        };
-        const platformTargets = convertConfigTargetsToPlatformTargets(configTargets, versions);
+      // Filter out any platformTargets that are not in config
+      const validTargets = state.platformTargets.filter((pt) => 
+        configTargets.includes(pt.target)
+      );
+      
+      // Only update if some targets were filtered out
+      if (validTargets.length !== state.platformTargets.length) {
         onChange({
           ...state,
-          platformTargets,
+          platformTargets: validTargets,
         });
-      } else {
-        // Filter out any platformTargets that are not in config
-        const validTargets = state.platformTargets.filter((pt) => 
-          configTargets.includes(pt.target)
-        );
-        
-        // If all were filtered out or count changed, update state
-        if (validTargets.length !== state.platformTargets.length) {
-          // If all were filtered, pre-fill from config
-          if (validTargets.length === 0 && configTargets.length > 0) {
-      const defaultVersion = latestVersion ? incrementVersion(latestVersion) : 'v1.0.0';
-      const versions: Record<Platform, string> = {
-        ANDROID: defaultVersion,
-        IOS: defaultVersion,
-      };
-            const platformTargets = convertConfigTargetsToPlatformTargets(configTargets, versions);
-      onChange({
-        ...state,
-        platformTargets,
-      });
-          } else if (validTargets.length > 0) {
-            // Keep only valid targets
-            onChange({
-              ...state,
-              platformTargets: validTargets,
-            });
-          }
-        }
       }
     }
+    // NOTE: We no longer pre-fill - user must explicitly select platforms
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config?.targets, latestVersion]);
+  }, [config?.targets]);
 
   // Pre-fill release type from config or default to PLANNED
   useEffect(() => {
@@ -200,7 +173,7 @@ export function ReleaseDetailsForm({
           </Text>
           {state.type && (
             <Badge size="lg" variant="light" color="blue">
-              {state.type === RELEASE_TYPE_CONSTANTS.PLANNED && 'Planned Release'}
+              {state.type === RELEASE_TYPE_CONSTANTS.MINOR && 'Minor Release'}
               {state.type === RELEASE_TYPE_CONSTANTS.HOTFIX && 'Hotfix'}
               {state.type === 'UNPLANNED' && 'Unplanned'}
             </Badge>

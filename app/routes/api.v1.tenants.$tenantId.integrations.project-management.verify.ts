@@ -35,6 +35,7 @@ const verifyPMCredentials = async ({
     if (body.username) config.email = body.username;
     if (body.apiToken) config.apiToken = body.apiToken;
     if (body.jiraType) config.jiraType = body.jiraType;
+    if (body._encrypted) config._encrypted = body._encrypted; // Forward encryption flag
 
     // Validate required fields
     if (!config.baseUrl) {
@@ -52,7 +53,8 @@ const verifyPMCredentials = async ({
       baseUrl: config.baseUrl,
       email: config.email,
       jiraType: config.jiraType,
-      apiToken: '[REDACTED]'
+      apiToken: '[REDACTED]',
+      _encrypted: config._encrypted
     });
 
     const result = await ProjectManagementIntegrationService.verifyCredentials(

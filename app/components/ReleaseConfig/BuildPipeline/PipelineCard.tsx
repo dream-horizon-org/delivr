@@ -14,6 +14,7 @@ const environmentColors: Record<BuildEnvironment, string> = {
   [BUILD_ENVIRONMENTS.PRE_REGRESSION]: 'blue',
   [BUILD_ENVIRONMENTS.REGRESSION]: 'green',
   [BUILD_ENVIRONMENTS.TESTFLIGHT]: 'orange',
+  [BUILD_ENVIRONMENTS.AAB_BUILD]: 'teal',
 };
 
 export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) {
@@ -59,6 +60,12 @@ export function PipelineCard({ pipeline, onEdit, onDelete }: PipelineCardProps) 
             >
               {ENVIRONMENT_LABELS[pipeline.environment]}
             </Badge>
+            
+            {pipeline.environment === BUILD_ENVIRONMENTS.AAB_BUILD && (
+              <Badge size="sm" variant="outline" color="gray">
+                .aab
+              </Badge>
+            )}
             
             <Badge size="sm" variant="outline" color="gray">
               {providerLabel}

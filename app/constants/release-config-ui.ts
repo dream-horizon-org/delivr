@@ -33,7 +33,7 @@ export const ENVIRONMENT_LABELS = {
   REGRESSION: 'Regression',
   TESTFLIGHT: 'TestFlight',
   PRODUCTION: 'Production',
-  AAB_BUILD: 'AAB Build',
+  AAB_BUILD: 'Playstore Build',
 } as const;
 
 // ============================================================================
@@ -94,7 +94,7 @@ export const STATUS_LABELS = {
 export const PIPELINE_CATEGORY_LABELS = {
   PRE_REGRESSION_ANDROID: 'Android Pre-Regression Build',
   REGRESSION_ANDROID: 'Android Regression Build',
-  AAB_BUILD_ANDROID: 'Android AAB Build',
+  AAB_BUILD_ANDROID: 'Playstore Build',
   PRE_REGRESSION_IOS: 'iOS Pre-Regression Build',
   REGRESSION_IOS: 'iOS Regression Build',
   TESTFLIGHT_IOS: 'iOS TestFlight Build',
@@ -103,7 +103,7 @@ export const PIPELINE_CATEGORY_LABELS = {
 export const PIPELINE_CATEGORY_DESCRIPTIONS = {
   PRE_REGRESSION_ANDROID: 'Build for pre-regression testing on Android',
   REGRESSION_ANDROID: 'Build for regression testing on Android',
-  AAB_BUILD_ANDROID: 'AAB build for Android releases',
+  AAB_BUILD_ANDROID: 'Playstore build for Android releases',
   PRE_REGRESSION_IOS: 'Build for pre-regression testing on iOS',
   REGRESSION_IOS: 'Build for regression testing on iOS',
   TESTFLIGHT_IOS: 'Build for TestFlight distribution on iOS',
@@ -616,7 +616,7 @@ export const CONFIG_LIST_LABELS = {
   STATUS_ARCHIVED: 'Archived',
   
   // Release Type Options
-  TYPE_PLANNED: 'Planned',
+  TYPE_MINOR: 'Minor',
   TYPE_HOTFIX: 'Hotfix',
   TYPE_MAJOR: 'Major',
   
@@ -643,7 +643,7 @@ export const CONFIG_STATUS = {
 // ============================================================================
 
 export const RELEASE_TYPE = {
-  PLANNED: 'PLANNED',
+  MINOR: 'MINOR',
   HOTFIX: 'HOTFIX',
   MAJOR: 'MAJOR',
 } as const;

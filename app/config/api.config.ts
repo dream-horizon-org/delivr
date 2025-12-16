@@ -80,16 +80,17 @@ export const RELEASE_PROCESS_API_PATTERNS = [
   '/api/v1/tenants/*/releases/*/tasks',               // Get Stage Tasks (API #2) - with ?stage= query param
   '/api/v1/tenants/*/releases/*/tasks/*/retry',      // Retry Task (API #8)
   '/api/v1/tenants/*/releases/*/builds',            // Get All Builds (API #14)
-  '/api/v1/tenants/*/releases/*/builds/upload',      // Upload Build (API #15)
+  '/api/v1/tenants/*/releases/*/stages/*/builds/*',  // Upload Build (API #15) - Backend route: /stages/:stage/builds/:platform
   '/api/v1/tenants/*/releases/*/builds/*',           // Delete Build (API #16)
   '/api/v1/tenants/*/releases/*/test-management-run-status',  // Test Management Status (API #17)
   '/api/v1/tenants/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
   '/api/v1/tenants/*/releases/*/check-cherry-pick-status',  // Cherry Pick Status (API #19)
-  '/api/v1/tenants/*/releases/*/stages/regression/approve',  // Approve Regression (API #10)
-  '/api/v1/tenants/*/releases/*/stages/post-regression/complete',  // Complete Post-Regression (API #12)
+  '/api/v1/tenants/*/releases/*/trigger-pre-release',  // Approve Regression (API #11)
+  '/api/v1/tenants/*/releases/*/stages/pre-release/complete',  // Complete Pre-Release (API #12)
   '/api/v1/tenants/*/releases/*/notifications',       // Get Notifications (API #20)
   '/api/v1/tenants/*/releases/*/notify',              // Send Notification (API #21)
   '/api/v1/tenants/*/releases/*/activity-logs',       // Activity Logs (API #23)
+  '/api/v1/tenants/*/releases/*/pause-resume',        // Pause/Resume Release (API #29, #30)
 ] as const;
 
 /**

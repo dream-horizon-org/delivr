@@ -57,7 +57,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // CREATE
     if (method === 'POST') {
       const body = await request.json();
-      const { displayName, hostUrl, username, apiToken, providerConfig } = body;
+      const { displayName, hostUrl, username, apiToken, providerConfig, _encrypted } = body;
 
       if (!hostUrl || !username || !apiToken) {
         return json(
@@ -65,6 +65,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
           { status: 400 }
         );
       }
+
+      console.log('[Jenkins Create] _encrypted:', _encrypted);
 
       const result = await JenkinsIntegrationService.createIntegration({
         tenantId,
@@ -74,6 +76,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         apiToken,
         providerConfig,
         userId,
+        _encrypted, // Forward encryption flag to backend
       });
 
       if (result.success) {
@@ -86,7 +89,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // UPDATE
     if (method === 'PATCH') {
       const body = await request.json();
-      const { integrationId, displayName, hostUrl, username, apiToken, providerConfig } = body;
+      const { integrationId, displayName, hostUrl, username, apiToken, providerConfig, _encrypted } = body;
+
+      console.log('[Jenkins Update] _encrypted:', _encrypted);
 
       const result = await JenkinsIntegrationService.updateIntegration({
         tenantId,
@@ -97,6 +102,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         apiToken,
         providerConfig,
         userId,
+        _encrypted, // Forward encryption flag to backend
       });
 
       if (result.success) {

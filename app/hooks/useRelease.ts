@@ -7,7 +7,7 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { apiGet } from '~/utils/api-client';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 interface ReleaseResponse {
   success: boolean;

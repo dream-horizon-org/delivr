@@ -145,10 +145,7 @@ export function PlatformTargetsSelector({
       onChange([...platformTargets, newPlatformTarget]);
     } else {
       // Remove platform-target combination
-      // But ensure at least 1 remains
-      if (platformTargets.length <= 1) {
-        return; // Prevent removing the last one
-      }
+      // Allow removing even the last one - validation will catch if none selected on submit
       onChange(platformTargets.filter((pt) => pt.target !== target));
     }
   };
@@ -162,21 +159,8 @@ export function PlatformTargetsSelector({
     );
   };
 
-  // Pre-fill from config on mount or when config changes
-  useEffect(() => {
-    if (config && platformTargets.length === 0) {
-      const versions: Record<Platform, string> = {
-        ANDROID: defaultVersion,
-        IOS: defaultVersion,
-      };
-      const preFilled = convertConfigTargetsToPlatformTargets(
-        config.targets,
-        versions
-      );
-      onChange(preFilled);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config, defaultVersion]); // Only run when config or defaultVersion changes
+  // NOTE: We no longer pre-fill from config - user must explicitly select platforms
+  // This allows user to choose which platforms they want for this specific release
 
   // Validation: Check if at least 1 platform target is selected
   const hasMinimumSelection = platformTargets.length >= 1;

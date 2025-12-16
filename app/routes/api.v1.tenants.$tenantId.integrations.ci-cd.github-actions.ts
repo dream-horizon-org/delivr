@@ -50,7 +50,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // POST - Create new integration
     if (method === 'POST') {
       const body = await request.json();
-      const { displayName, apiToken, hostUrl } = body;
+      const { displayName, apiToken, hostUrl, _encrypted } = body;
 
       const result = await GitHubActionsIntegrationService.createIntegration(
         tenantId,
@@ -59,6 +59,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           displayName,
           apiToken,
           hostUrl,
+          _encrypted, // Forward encryption flag to backend
         }
       );
 
@@ -68,7 +69,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // PATCH - Update existing integration
     if (method === 'PATCH') {
       const body = await request.json();
-      const { integrationId, displayName, apiToken, hostUrl } = body;
+      const { integrationId, displayName, apiToken, hostUrl, _encrypted } = body;
 
       const result = await GitHubActionsIntegrationService.updateIntegration(
         tenantId,
@@ -78,6 +79,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           displayName,
           apiToken,
           hostUrl,
+          _encrypted, // Forward encryption flag to backend
         }
       );
 

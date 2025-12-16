@@ -113,25 +113,35 @@ export function CreateReleaseForm({
 
   // Ensure platformTargets only contain targets from selected config
   useEffect(() => {
-    if (selectedConfig && state.platformTargets && state.platformTargets.length > 0) {
-      const configTargets = selectedConfig.targets || [];
-      const validTargets = state.platformTargets.filter((pt) => 
+    if (!selectedConfig?.targets) return;
+    
+    const configTargets = selectedConfig.targets;
+    
+    setState((prev) => {
+      if (!prev.platformTargets || prev.platformTargets.length === 0) {
+        return prev; // Let pre-fill logic handle empty state
+      }
+      
+      const validTargets = prev.platformTargets.filter((pt) => 
         configTargets.includes(pt.target)
       );
       
-      // If any targets were filtered out, update state
-      if (validTargets.length !== state.platformTargets.length) {
-        // If all were filtered out, we'll let the pre-fill logic handle it
-        // Otherwise, keep only valid targets
-        if (validTargets.length > 0) {
-          setState({
-            ...state,
-            platformTargets: validTargets,
-          });
-        }
+      // If no targets were filtered out, no change needed
+      if (validTargets.length === prev.platformTargets.length) {
+        return prev;
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      
+      // If all were filtered out, let pre-fill logic handle it
+      if (validTargets.length === 0) {
+        return prev;
+      }
+      
+      // Keep only valid targets
+      return {
+        ...prev,
+        platformTargets: validTargets,
+      };
+    });
   }, [selectedConfig?.targets]);
   // Cron config: use user-provided values if available, otherwise auto-derive from config
   const getCronConfig = (): Partial<CronConfig> => {
@@ -168,35 +178,50 @@ export function CreateReleaseForm({
     };
   };
 
-  // Restore selectedConfigId from draft, existing release, or use default
+  // Restore selectedConfigId from draft, existing release, or use default (runs only once on mount)
   useEffect(() => {
+    // Only run this logic once on mount or when key dependencies change
     if (isEditMode && existingRelease?.releaseConfigId) {
       // In edit mode, use the release's config ID
       setSelectedConfigId(existingRelease.releaseConfigId);
     } else if (isDraftRestored && state.releaseConfigId) {
-    // Restore from draft first
+      // Restore from draft first
       setSelectedConfigId(state.releaseConfigId);
-    } else if (defaultReleaseConfig && !selectedConfigId) {
+    } else if (defaultReleaseConfig) {
       // Fallback to default config if no draft
+      console.log('[CreateReleaseForm] Auto-selecting default config:', defaultReleaseConfig.id, defaultReleaseConfig.name);
       setSelectedConfigId(defaultReleaseConfig.id);
     }
-  }, [isEditMode, existingRelease, isDraftRestored, state.releaseConfigId, defaultReleaseConfig, selectedConfigId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, existingRelease?.releaseConfigId, isDraftRestored, state.releaseConfigId, defaultReleaseConfig?.id]);
 
   // Load the full configuration when a config is selected
   useEffect(() => {
     if (selectedConfigId) {
       const config = configurations.find((c) => c.id === selectedConfigId);
       if (config) {
-        setSelectedConfig(config);
-        setState((prev) => ({
-          ...prev,
-          releaseConfigId: config.id,
-        }));
+        // Only update if config actually changed (prevent flickering)
+        setSelectedConfig((prev) => {
+          // Check if config is actually different
+          if (prev?.id === config.id) {
+            return prev; // Don't trigger re-render if same config
+          }
+          return config;
+        });
+        
+        // Only update state if releaseConfigId is different
+        if (state.releaseConfigId !== config.id) {
+          setState((prev) => ({
+            ...prev,
+            releaseConfigId: config.id,
+          }));
+        }
       }
     } else {
       setSelectedConfig(undefined);
     }
-  }, [selectedConfigId, configurations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConfigId, configurations.length]); // Use configurations.length instead of full array
 
   // Handler to create new configuration
   const handleCreateNewConfig = () => {
@@ -397,24 +422,30 @@ export function CreateReleaseForm({
         await onUpdate(updateRequest);
       } else {
         // Create mode: convert to create request
-      const backendRequest = convertStateToBackendRequest(state as ReleaseCreationState);
+        // Pass the release type from the selected config (MAJOR/MINOR/HOTFIX)
+        const configReleaseType = selectedConfig?.releaseType;
+        const backendRequest = convertStateToBackendRequest(
+          state as ReleaseCreationState,
+          configReleaseType
+        );
 
-      console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
+        console.log('[CreateRelease] Backend Request:', JSON.stringify(backendRequest, null, 2));
+        console.log('[CreateRelease] Using release type from config:', configReleaseType);
 
-      // Add cron config (auto-generated from config)
-      const cronConfig = getCronConfig();
-      if (Object.keys(cronConfig).length > 0) {
-        backendRequest.cronConfig = cronConfig as CronConfig;
-      }
+        // Add cron config (auto-generated from config)
+        const cronConfig = getCronConfig();
+        if (Object.keys(cronConfig).length > 0) {
+          backendRequest.cronConfig = cronConfig as CronConfig;
+        }
 
-      console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
+        console.log('[CreateRelease] Submitting to backend:', JSON.stringify(backendRequest, null, 2));
 
-      await onSubmit(backendRequest);
+        await onSubmit(backendRequest);
 
-      // Mark draft as successfully saved (prevents auto-save on unmount)
-      markSaveSuccessful();
-      showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
-      setReviewModalOpened(false);
+        // Mark draft as successfully saved (prevents auto-save on unmount)
+        markSaveSuccessful();
+        showSuccessToast(RELEASE_MESSAGES.CREATE_SUCCESS);
+        setReviewModalOpened(false);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : (isEditMode ? 'Failed to update release' : 'Failed to create release');

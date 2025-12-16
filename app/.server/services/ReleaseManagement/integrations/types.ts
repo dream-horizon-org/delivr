@@ -12,7 +12,7 @@
 
 export enum ReleaseType {
   HOTFIX = 'HOTFIX',
-  PLANNED = 'PLANNED',
+  MINOR = 'MINOR',
   MAJOR = 'MAJOR'
 }
 
@@ -398,4 +398,5 @@ export interface CreateSCMIntegrationRequest {
   branch?: string;
   status: 'VALID' | 'INVALID' | 'PENDING';
   isActive: boolean;
+  _encrypted?: boolean;
 }

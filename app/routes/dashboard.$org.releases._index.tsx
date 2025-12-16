@@ -10,15 +10,25 @@
  * - Displays release cards with backend data
  */
 
+import { useEffect } from 'react';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
 import { Container } from '@mantine/core';
+import { useMemo } from 'react';
 import { useReleases } from '~/hooks/useReleases';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { PageError } from '~/components/Common/PageError';
 import { ReleasesListHeader } from '~/components/Releases/ReleasesListHeader';
+import { ReleasesFilter } from '~/components/Releases/ReleasesFilter';
 import { ReleasesTabs } from '~/components/Releases/ReleasesTabs';
 import { RELEASE_TABS } from '~/constants/release-tabs';
+import {
+  BUILD_MODE_FILTERS,
+  STAGE_FILTERS,
+  STAGE_FILTER_TO_PHASES,
+  type BuildModeFilter,
+  type StageFilter,
+} from '~/constants/release-filters';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { listReleases } from '~/.server/services/ReleaseManagement';
 import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
@@ -27,7 +37,7 @@ import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagemen
  * Server-side loader to fetch initial releases
  * Provides data for fast first load, React Query handles caching
  */
-export const loader = authenticateLoaderRequest(async ({ params, user }) => {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org: tenantId } = params;
 
   if (!tenantId) {
@@ -36,6 +46,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
 
   try {
     const userId = user.user.id;
+    
+    // Check if this is a fresh request after creating/updating a release
+    const url = new URL(request.url);
+    const hasRefreshParam = url.searchParams.has('refresh');
+    
     const result = await listReleases(tenantId, userId, { includeTasks: false });
 
     if (!result.success) {
@@ -58,9 +73,11 @@ export const loader = authenticateLoaderRequest(async ({ params, user }) => {
       initialReleases: result.releases || [],
     }, {
       headers: {
-        // Browser caches for 2 minutes
-        // After 2 minutes, serves stale while revalidating for 5 minutes
-        'Cache-Control': 'private, max-age=120, stale-while-revalidate=300',
+        // If refresh param is present (after create/update), don't cache
+        // Otherwise, cache for 30 seconds (reduced from 2 minutes for fresher data)
+        'Cache-Control': hasRefreshParam 
+          ? 'no-cache, no-store, must-revalidate' 
+          : 'private, max-age=30, stale-while-revalidate=60',
       },
     });
   } catch (error: any) {
@@ -88,7 +105,11 @@ export type ReleasesListLoaderData = {
 export default function ReleasesListPage() {
   const { org, initialReleases } = useLoaderData<ReleasesListLoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || RELEASE_TABS.UPCOMING;
+  const activeTab = searchParams.get('tab') || RELEASE_TABS.ACTIVE;
+  
+  // Get filter values from URL params
+  const buildMode = (searchParams.get('buildMode') || BUILD_MODE_FILTERS.ALL) as BuildModeFilter;
+  const stage = (searchParams.get('stage') || STAGE_FILTERS.ALL) as StageFilter;
 
   // Use React Query with initialData from server-side loader
   const {
@@ -105,10 +126,85 @@ export default function ReleasesListPage() {
     },
   });
 
+  // Filter function
+  const filterReleases = useMemo(() => {
+    return (releases: BackendReleaseResponse[]): BackendReleaseResponse[] => {
+      return releases.filter((release) => {
+        // Filter by build mode
+        if (buildMode !== BUILD_MODE_FILTERS.ALL) {
+          const isManual = release.hasManualBuildUpload;
+          if (buildMode === BUILD_MODE_FILTERS.MANUAL && !isManual) {
+            return false;
+          }
+          if (buildMode === BUILD_MODE_FILTERS.CI_CD && isManual) {
+            return false;
+          }
+        }
+
+        // Filter by stage
+        if (stage !== STAGE_FILTERS.ALL) {
+          const allowedPhases = STAGE_FILTER_TO_PHASES[stage];
+          const releasePhase = release.releasePhase;
+          
+          if (!releasePhase) {
+            return false; // No phase means not started, exclude unless ALL
+          }
+          
+          if (allowedPhases.length > 0 && !allowedPhases.includes(releasePhase)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    };
+  }, [buildMode, stage]);
+
+  // Apply filters to releases
+  const filteredUpcoming = useMemo(() => filterReleases(upcoming), [upcoming, filterReleases]);
+  const filteredActive = useMemo(() => filterReleases(active), [active, filterReleases]);
+  const filteredCompleted = useMemo(() => filterReleases(completed), [completed, filterReleases]);
+
   const handleTabChange = (value: string | null) => {
     if (value) {
-      setSearchParams({ tab: value });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', value);
+      setSearchParams(newParams);
     }
+  };
+
+  const handleBuildModeChange = (value: BuildModeFilter) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === BUILD_MODE_FILTERS.ALL) {
+      newParams.delete('buildMode');
+    } else {
+      newParams.set('buildMode', value);
+    }
+    
+    // If both filters are now "ALL", switch to active tab
+    const currentStage = newParams.get('stage') || STAGE_FILTERS.ALL;
+    if (value === BUILD_MODE_FILTERS.ALL && currentStage === STAGE_FILTERS.ALL) {
+      newParams.set('tab', RELEASE_TABS.ACTIVE);
+    }
+    
+    setSearchParams(newParams);
+  };
+
+  const handleStageChange = (value: StageFilter) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === STAGE_FILTERS.ALL) {
+      newParams.delete('stage');
+    } else {
+      newParams.set('stage', value);
+    }
+    
+    // If both filters are now "ALL", switch to active tab
+    const currentBuildMode = newParams.get('buildMode') || BUILD_MODE_FILTERS.ALL;
+    if (value === STAGE_FILTERS.ALL && currentBuildMode === BUILD_MODE_FILTERS.ALL) {
+      newParams.set('tab', RELEASE_TABS.ACTIVE);
+    }
+    
+    setSearchParams(newParams);
   };
 
   // Only show loader if we don't have initialData and are actually loading
@@ -127,10 +223,18 @@ export default function ReleasesListPage() {
         <ReleasesTabs
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          upcoming={upcoming}
-          active={active}
-          completed={completed}
+          upcoming={filteredUpcoming}
+          active={filteredActive}
+          completed={filteredCompleted}
           org={org}
+          leftSection={
+            <ReleasesFilter
+              buildMode={buildMode}
+              stage={stage}
+              onBuildModeChange={handleBuildModeChange}
+              onStageChange={handleStageChange}
+            />
+          }
         />
       )}
     </Container>

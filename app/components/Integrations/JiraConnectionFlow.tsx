@@ -2,7 +2,7 @@
  * Jira Project Management Connection Flow Component
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
@@ -23,6 +23,7 @@ import { JIRA_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/constan
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 
 interface JiraConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -71,6 +72,14 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
   const [isConnecting, setIsConnecting] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const markTouched = (field: string) => {
@@ -87,18 +96,26 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
     setIsVerifying(true);
     setError(null);
     setIsVerified(false);
-    isInFlowRef.current = true;
+    isInFlowRef.current = true; // Prevent draft save during verify
+
 
     try {
+      // Encrypt the API token before sending
+      const encryptedApiToken = await encrypt(formData.apiToken);
+      
+      const verifyPayload = {
+        hostUrl: formData.hostUrl,
+        email: formData.email,
+        apiToken: encryptedApiToken,
+        jiraType: formData.jiraType,
+        _encrypted: true, // Flag to indicate encryption
+      };
       const result = await apiPost<{ verified: boolean }>(
         `/api/v1/tenants/${tenantId}/integrations/project-management/verify?providerType=JIRA`,
-        {
-          hostUrl: formData.hostUrl,
-          email: formData.email,
-          apiToken: formData.apiToken,
-          jiraType: formData.jiraType,
-        }
+        verifyPayload
       );
+
+      console.log('[JiraConnectionFlow] Verification result:', result);
 
       if (result.data?.verified || result.success) {
         setIsVerified(true);
@@ -128,13 +145,17 @@ export function JiraConnectionFlow({ onConnect, onCancel, isEditMode = false, ex
       };
 
       if (formData.apiToken) {
-        payload.apiToken = formData.apiToken;
+        // Encrypt the API token before sending
+        const encryptedApiToken = await encrypt(formData.apiToken);
+        payload.apiToken = encryptedApiToken;
+        payload._encrypted = true; // Flag to indicate encryption
       } else if (!isEditMode) {
         setError('API Token is required');
         setIsConnecting(false);
         return;
       }
 
+      // For updates, include integrationId as query parameter
       const endpoint = isEditMode && existingData?.id
         ? `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA&integrationId=${existingData.id}`
         : `/api/v1/tenants/${tenantId}/integrations/project-management?providerType=JIRA`;

@@ -4,7 +4,7 @@
  * Contains all action buttons: Edit, Pause/Resume, Activity Log, Post Slack Message
  */
 
-import { Button, Group, Modal, Paper, ScrollArea, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, Paper, ScrollArea, Select, Stack, Text } from '@mantine/core';
 import {
   IconEdit,
   IconHistory,
@@ -14,14 +14,15 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import {
   BUTTON_LABELS,
 } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
-import { useActivityLogs, useSendNotification } from '~/hooks/useReleaseProcess';
+import { useActivityLogs, useSendNotification, usePauseResumeRelease } from '~/hooks/useReleaseProcess';
 import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import type { MessageTypeEnum, ActivityLog } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
@@ -43,6 +44,7 @@ export function ReleaseProcessActionsSidebar({
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [activityLogModalOpened, setActivityLogModalOpened] = useState(false);
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
+  const [selectedMessageType, setSelectedMessageType] = useState<MessageTypeEnum | null>(null);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
   const queryClient = useQueryClient();
 
@@ -78,30 +80,20 @@ export function ReleaseProcessActionsSidebar({
       setEditModalOpened(false);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to update release');
-      console.error('[ReleaseProcessActionsSidebar] Update error:', errorMessage, error);
+      // Error is already handled by toast notification in calling code
       throw new Error(errorMessage);
     }
   };
 
+  // Pause/Resume hook
+  const pauseResumeMutation = usePauseResumeRelease(org, release.id);
+
   // Handle pause/resume
   const handlePauseResume = async () => {
     try {
-      const newCronStatus = isPaused ? 'RUNNING' : 'PAUSED';
-      const result = await apiPatch<{ success: boolean; release?: BackendReleaseResponse; error?: string }>(
-        `/api/v1/tenants/${org}/releases/${release.id}`,
-        {
-          cronJob: {
-            ...release.cronJob,
-            cronStatus: newCronStatus,
-          },
-        }
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update release status');
-      }
-
-      await invalidateReleases(queryClient, org);
+      const action = isPaused ? 'resume' : 'pause';
+      await pauseResumeMutation.mutateAsync({ action });
+      
       showSuccessToast({
         message: isPaused ? 'Release resumed successfully' : 'Release paused successfully',
       });
@@ -128,13 +120,19 @@ export function ReleaseProcessActionsSidebar({
   };
 
   // Handle send notification (Slack message)
-  const handleSendNotification = async (messageType: string) => {
+  const handleSendNotification = async () => {
+    if (!selectedMessageType) {
+      showErrorToast({ message: 'Please select a message type' });
+      return;
+    }
+
     try {
       await sendNotificationMutation.mutateAsync({
-        messageType: messageType as any,
+        messageType: selectedMessageType,
       });
       showSuccessToast({ message: 'Notification sent successfully' });
       setSlackMessageModalOpened(false);
+      setSelectedMessageType(null);
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to send notification');
       showErrorToast({ message: errorMessage });
@@ -218,22 +216,19 @@ export function ReleaseProcessActionsSidebar({
             <Text c="dimmed">Loading activity logs...</Text>
           ) : activityLogs?.activityLogs && activityLogs.activityLogs.length > 0 ? (
             <Stack gap="sm">
-              {activityLogs.activityLogs.map((log: any) => (
+              {activityLogs.activityLogs.map((log: ActivityLog) => (
                 <Paper key={log.id} p="sm" withBorder>
                   <Group justify="space-between" mb="xs">
                     <Text size="sm" fw={500}>
-                      {log.action}
+                      {log.type}
                     </Text>
                     <Text size="xs" c="dimmed">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {new Date(log.updatedAt).toLocaleString()}
                     </Text>
                   </Group>
-                  <Text size="xs" c="dimmed">
-                    Stage: {log.stage} • Task: {log.taskType || 'N/A'}
-                  </Text>
-                  {log.performedBy && (
+                  {log.updatedBy && (
                     <Text size="xs" c="dimmed" mt="xs">
-                      By: {log.performedBy}
+                      By: {log.updatedBy}
                     </Text>
                   )}
                 </Paper>
@@ -248,7 +243,10 @@ export function ReleaseProcessActionsSidebar({
       {/* Post Slack Message Modal */}
       <Modal
         opened={slackMessageModalOpened}
-        onClose={() => setSlackMessageModalOpened(false)}
+        onClose={() => {
+          setSlackMessageModalOpened(false);
+          setSelectedMessageType(null);
+        }}
         title={BUTTON_LABELS.POST_SLACK_MESSAGE}
         size="md"
       >
@@ -256,18 +254,46 @@ export function ReleaseProcessActionsSidebar({
           <Text size="sm" c="dimmed">
             Select a message type to send to Slack:
           </Text>
-          <Group>
+          <Select
+            label="Message Type"
+            placeholder="Choose a message type"
+            data={[
+              {
+                value: BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.value,
+                label: BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.label,
+              },
+              {
+                value: BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.value,
+                label: BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.label,
+              },
+            ]}
+            value={selectedMessageType}
+            onChange={(value: string | null) => setSelectedMessageType(value as MessageTypeEnum | null)}
+            required
+          />
+          {selectedMessageType && (
+            <Text size="xs" c="dimmed">
+              {selectedMessageType === BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.value
+                ? BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.description
+                : BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.description}
+            </Text>
+          )}
+          <Group justify="flex-end" mt="md">
             <Button
-              variant="outline"
-              onClick={() => handleSendNotification('REGRESSION_BUILD_READY')}
+              variant="subtle"
+              onClick={() => {
+                setSlackMessageModalOpened(false);
+                setSelectedMessageType(null);
+              }}
             >
-              Regression Build Ready
+              Cancel
             </Button>
             <Button
-              variant="outline"
-              onClick={() => handleSendNotification('POST_REGRESSION_BUILD_READY')}
+              onClick={handleSendNotification}
+              loading={sendNotificationMutation.isLoading}
+              disabled={!selectedMessageType}
             >
-              Post-Regression Build Ready
+              Send Message
             </Button>
           </Group>
         </Stack>
@@ -297,4 +323,5 @@ export function ReleaseProcessActionsSidebar({
     </>
   );
 }
+
 
