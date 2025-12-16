@@ -19,6 +19,14 @@ import {
   createSubmissionActionHistoryModel,
   createDistributionModel
 } from "../models/distribution";
+import {
+  ReleaseRepository,
+  BuildRepository,
+  ReleasePlatformTargetMappingRepository,
+  createReleaseModel,
+  createBuildModel,
+  createPlatformTargetMappingModel
+} from "../models/release";
 import { SubmissionService } from "../services/distribution";
 import { DistributionService } from "../services/distribution/distribution.service";
 import { createSubmissionController } from "../controllers/distribution";
@@ -63,6 +71,15 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   const iosSubmissionRepository = new IosSubmissionBuildRepository(iosSubmissionModel);
   const actionHistoryRepository = new SubmissionActionHistoryRepository(actionHistoryModel);
 
+  // Initialize release-related repositories for createDistributionFromRelease
+  const releaseModel = createReleaseModel(sequelize);
+  const buildModel = createBuildModel(sequelize);
+  const platformTargetMappingModel = createPlatformTargetMappingModel(sequelize);
+
+  const releaseRepository = new ReleaseRepository(releaseModel);
+  const buildRepository = new BuildRepository(buildModel);
+  const platformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(platformTargetMappingModel);
+
   // Initialize services
   // Note: AppleAppStoreConnectService is created dynamically per-request from integration credentials
   // The service automatically:
@@ -87,7 +104,10 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
     distributionRepository,
     iosSubmissionRepository,
     androidSubmissionRepository,
-    actionHistoryRepository
+    actionHistoryRepository,
+    releaseRepository,
+    buildRepository,
+    platformTargetMappingRepository
   );
   const distributionController = createDistributionController(distributionService, storage);
 

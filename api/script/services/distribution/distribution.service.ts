@@ -3,16 +3,25 @@
  * Business logic for distribution operations
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import { DistributionRepository } from '~models/distribution';
 import { IosSubmissionBuildRepository } from '~models/distribution';
 import { AndroidSubmissionBuildRepository } from '~models/distribution';
 import { SubmissionActionHistoryRepository } from '~models/distribution';
+import { ReleaseRepository, BuildRepository, ReleasePlatformTargetMappingRepository } from '~models/release';
+import type { Build } from '~models/release';
 import type { Distribution, DistributionFilters } from '~types/distribution/distribution.interface';
 import type { IosSubmissionBuild } from '~types/distribution/ios-submission.interface';
 import type { AndroidSubmissionBuild } from '~types/distribution/android-submission.interface';
 import type { SubmissionActionHistory } from '~types/distribution/submission-action-history.interface';
 import { SUBMISSION_PLATFORM } from '~types/distribution/submission.constants';
 import type { DistributionStatus } from '~types/distribution/distribution.constants';
+import { 
+  BUILD_PLATFORM, 
+  STORE_TYPE, 
+  BUILD_STAGE, 
+  BUILD_UPLOAD_STATUS 
+} from '~types/release-management/builds/build.constants';
 
 /**
  * Formatted submission response (matches API contract)
@@ -98,7 +107,10 @@ export class DistributionService {
     private readonly distributionRepository: DistributionRepository,
     private readonly iosSubmissionRepository: IosSubmissionBuildRepository,
     private readonly androidSubmissionRepository: AndroidSubmissionBuildRepository,
-    private readonly actionHistoryRepository: SubmissionActionHistoryRepository
+    private readonly actionHistoryRepository: SubmissionActionHistoryRepository,
+    private readonly releaseRepository: ReleaseRepository,
+    private readonly buildRepository: BuildRepository,
+    private readonly platformTargetMappingRepository: ReleasePlatformTargetMappingRepository
   ) {}
 
   /**
@@ -557,6 +569,230 @@ export class DistributionService {
         releasedSubmissions
       }
     };
+  }
+
+  /**
+   * Create distribution and submissions from release builds
+   * 
+   * This function:
+   * 1. Validates releaseId and tenantId exist in releases table
+   * 2. Gets platform & target mappings from release_platforms_targets_mapping
+   * 3. Creates a distribution entry with platform & store type mappings
+   * 4. Creates Android/iOS submission entries based on builds table data
+   * 5. Validates that all configured platforms have corresponding submissions
+   * 6. Rolls back (deletes distribution) if any platform is missing a submission
+   * 
+   * @param releaseId - Release ID to create distribution for
+   * @param tenantId - Tenant ID to validate against release
+   * @returns Object with distributionId and message on success, or distributionId: null and error on failure
+   */
+  async createDistributionFromRelease(
+    releaseId: string,
+    tenantId: string
+  ): Promise<{ distributionId: string | null; message?: string; error?: string }> {
+    try {
+      // Step 1: Validate releaseId and tenantId exist in releases table
+      const release = await this.releaseRepository.findById(releaseId);
+      if (!release) {
+        return {
+          distributionId: null,
+          error: `Release with id ${releaseId} not found`
+        };
+      }
+      
+      if (release.tenantId !== tenantId) {
+        return {
+          distributionId: null,
+          error: `Release ${releaseId} does not belong to tenant ${tenantId}`
+        };
+      }
+
+      // Step 2: Get platform & target mappings from release_platforms_targets_mapping
+      const platformTargetMappings = await this.platformTargetMappingRepository.getByReleaseId(releaseId);
+      
+      if (platformTargetMappings.length === 0) {
+        return {
+          distributionId: null,
+          error: `No platform-target mappings found for release ${releaseId}`
+        };
+      }
+
+      // Extract unique platforms and store types from mappings
+      const platforms = [...new Set(platformTargetMappings.map(m => m.platform))] as Array<'ANDROID' | 'IOS' | 'WEB'>;
+      const storeTypes = [...new Set(platformTargetMappings.map(m => m.target))] as Array<'PLAY_STORE' | 'APP_STORE' | 'WEB'>;
+
+      // Filter out WEB platform and store type
+      const filteredPlatforms = platforms.filter(p => p !== BUILD_PLATFORM.WEB) as Array<'ANDROID' | 'IOS'>;
+      const filteredStoreTypes = storeTypes.filter(s => s !== STORE_TYPE.WEB) as Array<'PLAY_STORE' | 'APP_STORE'>;
+
+      if (filteredPlatforms.length === 0) {
+        return {
+          distributionId: null,
+          error: `No valid platforms (${BUILD_PLATFORM.ANDROID}/${BUILD_PLATFORM.IOS}) found for release ${releaseId}`
+        };
+      }
+
+      // Step 3: Create distribution entry
+      const distributionId = uuidv4();
+      const distribution = await this.distributionRepository.create({
+        id: distributionId,
+        tenantId,
+        releaseId,
+        branch: release.branch ?? 'master',
+        configuredListOfPlatforms: filteredPlatforms,
+        configuredListOfStoreTypes: filteredStoreTypes,
+        status: 'PENDING'
+      });
+
+      // Step 4: Create submissions based on platforms
+      // Track which platforms had submissions created successfully
+      const createdSubmissions: { android: boolean; ios: boolean } = {
+        android: false,
+        ios: false
+      };
+
+      const submissionErrors: string[] = [];
+
+      for (const mapping of platformTargetMappings) {
+        // Skip WEB platform/target
+        if (mapping.platform === BUILD_PLATFORM.WEB || mapping.target === STORE_TYPE.WEB) {
+          continue;
+        }
+
+        // Map target to storeType
+        const storeType = mapping.target === STORE_TYPE.PLAY_STORE ? STORE_TYPE.PLAY_STORE : 
+                         mapping.target === STORE_TYPE.APP_STORE ? STORE_TYPE.APP_STORE : null;
+        
+        if (!storeType) {
+          continue; // Skip if target is not PLAY_STORE or APP_STORE
+        }
+
+        if (mapping.platform === BUILD_PLATFORM.ANDROID) {
+          try {
+            // Get Android build data from builds table
+            // Query: releaseId, tenantId, platform='ANDROID', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
+            const androidBuilds = await this.buildRepository.findBuilds({
+              releaseId,
+              tenantId,
+              platform: BUILD_PLATFORM.ANDROID,
+              storeType: storeType,
+              buildStage: BUILD_STAGE.PRE_RELEASE,
+              buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+            });
+
+            if (androidBuilds.length > 0) {
+              const build = androidBuilds[0];
+              
+              // Extract versionCode from buildNumber (buildNumber is typically the versionCode as string)
+              const versionCode = build.buildNumber ? parseInt(build.buildNumber, 10) : 0;
+              
+              // Create Android submission
+              await this.androidSubmissionRepository.create({
+                id: uuidv4(),
+                distributionId: distribution.id,
+                internalTrackLink: build.internalTrackLink ?? null,
+                artifactPath: build.artifactPath ?? '',
+                version: build.artifactVersionName ?? mapping.version,
+                versionCode: versionCode || 0,
+                buildType: build.buildType,
+                storeType: storeType,
+                status: 'PENDING',
+                isActive: true
+              });
+              
+              createdSubmissions.android = true;
+            } else {
+              submissionErrors.push(`No Android build found for release ${releaseId} with storeType ${storeType}, buildStage ${BUILD_STAGE.PRE_RELEASE}, and buildUploadStatus ${BUILD_UPLOAD_STATUS.UPLOADED}`);
+            }
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            submissionErrors.push(`Failed to create Android submission: ${errorMessage}`);
+          }
+        } else if (mapping.platform === BUILD_PLATFORM.IOS) {
+          try {
+            // Get iOS build data from builds table
+            // Query: releaseId, tenantId, platform='IOS', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
+            const iosBuilds = await this.buildRepository.findBuilds({
+              releaseId,
+              tenantId,
+              platform: BUILD_PLATFORM.IOS,
+              storeType: storeType,
+              buildStage: BUILD_STAGE.PRE_RELEASE,
+              buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
+            });
+
+            if (iosBuilds.length > 0) {
+              const build = iosBuilds[0];
+              
+              // Create iOS submission
+              await this.iosSubmissionRepository.create({
+                id: uuidv4(),
+                distributionId: distribution.id,
+                testflightNumber: build.testflightNumber ?? '',
+                version: build.artifactVersionName ?? mapping.version,
+                buildType: build.buildType,
+                storeType: storeType,
+                status: 'PENDING',
+                releaseType: 'AFTER_APPROVAL',
+                isActive: true
+              });
+              
+              createdSubmissions.ios = true;
+            } else {
+              submissionErrors.push(`No iOS build found for release ${releaseId} with storeType ${storeType}, buildStage ${BUILD_STAGE.PRE_RELEASE}, and buildUploadStatus ${BUILD_UPLOAD_STATUS.UPLOADED}`);
+            }
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            submissionErrors.push(`Failed to create iOS submission: ${errorMessage}`);
+          }
+        }
+      }
+
+      // Step 5: Validate that all configured platforms have corresponding submissions
+      const missingPlatforms: string[] = [];
+      
+      if (filteredPlatforms.includes(BUILD_PLATFORM.ANDROID) && !createdSubmissions.android) {
+        missingPlatforms.push(BUILD_PLATFORM.ANDROID);
+      }
+      
+      if (filteredPlatforms.includes(BUILD_PLATFORM.IOS) && !createdSubmissions.ios) {
+        missingPlatforms.push(BUILD_PLATFORM.IOS);
+      }
+
+      // If any platform is missing a submission, rollback (delete distribution)
+      if (missingPlatforms.length > 0 || submissionErrors.length > 0) {
+        // Delete the distribution that was created
+        await this.distributionRepository.delete(distribution.id);
+        
+        // Build error message
+        const errorMessages: string[] = [];
+        
+        if (missingPlatforms.length > 0) {
+          errorMessages.push(`Missing submissions for platform(s): ${missingPlatforms.join(', ')}`);
+        }
+        
+        if (submissionErrors.length > 0) {
+          errorMessages.push(...submissionErrors);
+        }
+        
+        return {
+          distributionId: null,
+          error: errorMessages.join('; ')
+        };
+      }
+
+      return {
+        distributionId: distribution.id,
+        message: 'Distribution created successfully from release'
+      };
+    } catch (error: unknown) {
+      // Handle unexpected errors (database errors, etc.)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return {
+        distributionId: null,
+        error: `Failed to create distribution: ${errorMessage}`
+      };
+    }
   }
 }
 
