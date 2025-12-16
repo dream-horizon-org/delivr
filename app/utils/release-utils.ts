@@ -95,7 +95,7 @@ export function getTaskStatusColor(status: string): string {
  * Derive UI active status from backend release data
  * Calculated at runtime based on:
  * - kickOffDate for UPCOMING
- * - status and cronJob.cronStatus for RUNNING/PAUSED
+ * - status and cronJob.pauseType for RUNNING/PAUSED
  * - status for COMPLETED
  * 
  * @param release - Backend release response
@@ -109,8 +109,9 @@ export function getReleaseActiveStatus(release: BackendReleaseResponse): typeof 
     return RELEASE_ACTIVE_STATUS.COMPLETED;
   }
   
-  // Check if cronJob is paused
-  if (release.cronJob?.cronStatus === 'PAUSED') {
+  // Check if cronJob is paused - use pauseType (backend keeps cronStatus=RUNNING)
+  const pauseType = release.cronJob?.pauseType;
+  if (pauseType && pauseType !== 'NONE') {
     return RELEASE_ACTIVE_STATUS.PAUSED;
   }
   

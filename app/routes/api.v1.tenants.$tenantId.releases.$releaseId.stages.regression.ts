@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching regression stage for release:', releaseId);
-      const response = await ReleaseProcessService.getRegressionStage(tenantId, releaseId);
+      const response = await ReleaseProcessService.getRegressionStage(tenantId, releaseId, user.user.id);
       console.log('[BFF] Regression stage response:', response.data);
       
       // Backend returns { success: true, stage: 'REGRESSION', releaseId, tasks, stageStatus, cycles, currentCycle, approvalStatus, availableBuilds, upcomingSlot }

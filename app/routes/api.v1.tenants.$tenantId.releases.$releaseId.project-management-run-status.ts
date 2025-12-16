@@ -40,6 +40,7 @@ export const loader = authenticateLoaderRequest(
       const response = await ReleaseProcessService.getProjectManagementStatus(
         tenantId,
         releaseId,
+        user.user.id,
         platform as Platform | undefined
       );
       console.log('[BFF] Project management status response:', response.data);

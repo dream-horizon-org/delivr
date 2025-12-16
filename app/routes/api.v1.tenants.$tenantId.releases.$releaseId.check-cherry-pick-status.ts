@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching cherry pick status for release:', releaseId);
-      const response = await ReleaseProcessService.getCherryPickStatus(tenantId, releaseId);
+      const response = await ReleaseProcessService.getCherryPickStatus(tenantId, releaseId, user.user.id);
       console.log('[BFF] Cherry pick status response:', response.data);
       
       // Backend returns { success: true, releaseId, latestReleaseTag, commitIdsMatch }

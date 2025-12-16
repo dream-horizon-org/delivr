@@ -38,7 +38,7 @@ const retryTask: AuthenticatedActionFunction = async ({ params, request, user })
   }
 
   try {
-    const response = await ReleaseProcessService.retryTask(tenantId, releaseId, taskId);
+    const response = await ReleaseProcessService.retryTask(tenantId, releaseId, taskId, user.user.id);
     
     // Axios response structure: response.data contains the actual response body
     return json(response.data as RetryTaskResponse);

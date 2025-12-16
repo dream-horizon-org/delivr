@@ -74,7 +74,8 @@ const verifyTestFlight: AuthenticatedActionFunction = async ({ params, request, 
       {
         testflightBuildNumber,
         versionName,
-      }
+      },
+      user.user.id
     );
 
     console.log('[BFF] TestFlight verification response:', response.data);

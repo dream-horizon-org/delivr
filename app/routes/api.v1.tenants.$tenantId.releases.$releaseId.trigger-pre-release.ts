@@ -39,7 +39,7 @@ const approveRegressionStage: AuthenticatedActionFunction = async ({ params, req
     const body = await request.json() as ApproveRegressionStageRequest;
 
     console.log('[BFF] Approving regression stage for release:', releaseId, body);
-    const response = await ReleaseProcessService.approveRegressionStage(tenantId, releaseId, body);
+    const response = await ReleaseProcessService.approveRegressionStage(tenantId, releaseId, body, user.user.id);
     
     // Axios response structure: response.data contains the actual response body
     console.log('[BFF] Regression stage approval response:', response.data);

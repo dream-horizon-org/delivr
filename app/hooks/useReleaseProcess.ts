@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage } from '~/utils/api-client';
 import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-enums';
+import { filterValidTaskTypes } from '~/utils/task-filtering';
 import type {
   KickoffStageResponse,
   RegressionStageResponse,
@@ -77,7 +78,13 @@ export function useKickoffStage(tenantId?: string, releaseId?: string) {
         throw new Error(errorMsg);
       }
 
-      return result.data;
+      // Filter out unknown task types
+      const filteredData = {
+        ...result.data,
+        tasks: filterValidTaskTypes(result.data.tasks || []),
+      };
+
+      return filteredData;
     },
     {
       enabled: isEnabled,
@@ -118,7 +125,13 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
         throw new Error(result.error || 'Failed to fetch regression stage');
       }
 
-      return result.data;
+      // Filter out unknown task types
+      const filteredData = {
+        ...result.data,
+        tasks: filterValidTaskTypes(result.data.tasks || []),
+      };
+
+      return filteredData;
     },
     {
       enabled: isEnabled,
@@ -150,7 +163,13 @@ export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
         throw new Error(result.error || 'Failed to fetch pre-release stage');
       }
 
-      return result.data;
+      // Filter out unknown task types
+      const filteredData = {
+        ...result.data,
+        tasks: filterValidTaskTypes(result.data.tasks || []),
+      };
+
+      return filteredData;
     },
     {
       enabled: !!tenantId && !!releaseId,
