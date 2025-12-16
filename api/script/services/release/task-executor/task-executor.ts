@@ -1359,7 +1359,8 @@ export class TaskExecutor {
           platform: platformName,
           version: mapping.version ?? getReleaseVersion(release, platformMappings),
           branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-          regressionId: task.regressionId
+          regressionId: task.regressionId,
+          buildType: CICD_JOB_BUILD_TYPE.AUTOMATION
         }
       );
 
