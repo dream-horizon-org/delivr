@@ -324,7 +324,7 @@ export function decryptConfigFields<T extends Record<string, any>>(
         const encryptionKey = process.env.ENCRYPTION_KEY;
         if (encryptionKey) {
           try {
-            const layer1Decrypted = decryptFrontendWithPBKDF2(value, encryptionKey, field);
+            const layer1Decrypted = decryptFrontendWithPBKDF2(value, encryptionKey);
             decryptedConfig[field] = layer1Decrypted;
             continue;
           } catch (layer1Error) {
@@ -396,7 +396,7 @@ export function decryptFromFrontend(encryptedData: string): string {
  * @param fieldName - Field name for logging (optional)
  * @returns Decrypted plaintext string
  */
-function decryptFrontendWithPBKDF2(encryptedData: string, masterKey: string, fieldName?: string): string {  
+function decryptFrontendWithPBKDF2(encryptedData: string, masterKey: string): string {  
   // Validate format: must be salt:iv:authTag:ciphertext (4 parts with colons)
   if (!isBackendEncrypted(encryptedData)) {
     throw new Error('Invalid frontend encryption format: expected salt:iv:authTag:ciphertext (4 parts with colons). ' +
@@ -479,7 +479,7 @@ export function decryptIfEncrypted(value: string, fieldName?: string): string {
   // Frontend uses PBKDF2 format: salt:iv:authTag:ciphertext
   if (isBackendEncrypted(value)) {
     try {
-      const decrypted = decryptFrontendWithPBKDF2(value, encryptionKey, fieldName);
+      const decrypted = decryptFrontendWithPBKDF2(value, encryptionKey);
       return decrypted;
     } catch (error) {
       // Return original value - may cause validation to fail if truly encrypted
