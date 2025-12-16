@@ -369,6 +369,11 @@ export function CreateReleaseForm({
           if (state.targetReleaseDate) {
             updateState.targetReleaseDate = state.targetReleaseDate;
             updateState.targetReleaseTime = state.targetReleaseTime;
+            
+            // Include delayReason if provided (required when extending targetReleaseDate)
+            if (state.delayReason !== undefined) {
+              updateState.delayReason = state.delayReason;
+            }
           }
           // Platform target mappings (versions)
           if (state.platformTargets) {
@@ -381,12 +386,10 @@ export function CreateReleaseForm({
               version: pt.version,
             }));
           }
-          // Regression slots - always include to ensure backend updates/deletes slots
+          // Regression slots - already in backend format (absolute dates)
+          // Always include to ensure backend updates/deletes slots
           // Even if empty array, backend needs to know to clear all slots
-          updateState.upcomingRegressions = (state.regressionBuildSlots || []).map(slot => ({
-            date: slot.date,
-            config: slot.config,
-          }));
+          updateState.upcomingRegressions = state.regressionBuildSlots || [];
           // Cron config
           const cronConfig = getCronConfig();
           if (Object.keys(cronConfig).length > 0) {
@@ -397,13 +400,15 @@ export function CreateReleaseForm({
           if (state.targetReleaseDate) {
             updateState.targetReleaseDate = state.targetReleaseDate;
             updateState.targetReleaseTime = state.targetReleaseTime;
+            
+            // Include delayReason if provided (required when extending targetReleaseDate)
+            if (state.delayReason !== undefined) {
+              updateState.delayReason = state.delayReason;
+            }
           }
-          // Regression slots (can add new ones)
+          // Regression slots (can add new ones) - already in backend format
           if (state.regressionBuildSlots) {
-            updateState.upcomingRegressions = state.regressionBuildSlots.map(slot => ({
-              date: slot.date,
-              config: slot.config,
-            }));
+            updateState.upcomingRegressions = state.regressionBuildSlots;
           }
         }
 
