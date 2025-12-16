@@ -3,6 +3,8 @@ import { TaskExecutor } from '../../script/services/release/task-executor/task-e
 import { MockSCMService } from './mock-scm-service';
 import { CICDIntegrationRepository } from '../../script/models/integrations/ci-cd/connection/connection.repository';
 import { CICDWorkflowRepository } from '../../script/models/integrations/ci-cd/workflow/workflow.repository';
+import { CICDConfigRepository } from '../../script/models/integrations/ci-cd/config/config.repository';
+import { CICDConfigService } from '../../script/services/integrations/ci-cd/config/config.service';
 import { ProjectManagementTicketService } from '../../script/services/integrations/project-management/ticket/ticket.service';
 import { ProjectManagementConfigRepository } from '../../script/models/integrations/project-management/configuration/configuration.repository';
 import { ProjectManagementIntegrationRepository } from '../../script/models/integrations/project-management/integration/integration.repository';
@@ -70,6 +72,9 @@ export function createTaskExecutorForTests(sequelize: Sequelize): TaskExecutor {
   
   const cicdIntegrationRepository = new CICDIntegrationRepository(cicdIntegrationModel);
   const cicdWorkflowRepository = new CICDWorkflowRepository(cicdWorkflowModel);
+  const cicdConfigModel = sequelize.models.CICDConfig as any;
+  const cicdConfigRepository = new CICDConfigRepository(cicdConfigModel);
+  const cicdConfigService = new CICDConfigService(cicdConfigRepository, cicdWorkflowRepository, cicdIntegrationRepository);
   
   const pmConfigRepository = new ProjectManagementConfigRepository(pmConfigModel);
   const pmIntegrationRepository = new ProjectManagementIntegrationRepository(pmIntegrationModel);
@@ -102,11 +107,12 @@ export function createTaskExecutorForTests(sequelize: Sequelize): TaskExecutor {
   const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, releaseUploadModel as any);
 
   // Create and cache TaskExecutor (singleton for performance)
-  // TaskExecutor requires 9-10 arguments: 7 services + 2-3 repositories (releaseUploadsRepo optional)
+  // TaskExecutor requires 11 arguments: 8 services + 3 repositories
   cachedTestTaskExecutor = new TaskExecutor(
     scmService,
     cicdIntegrationRepository,
     cicdWorkflowRepository,
+    cicdConfigService,
     pmTicketService,
     testRunService,
     slackService as any,  // MessagingService placeholder

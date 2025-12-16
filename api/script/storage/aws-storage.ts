@@ -814,8 +814,12 @@ export class S3Storage implements storage.Storage {
           this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
           console.log("CI/CD Config Repository initialized");
           
-          // Initialize CI/CD Config Service
-          this.cicdConfigService = new CICDConfigService(this.cicdConfigRepository, this.cicdWorkflowRepository);
+          // Initialize CI/CD Config Service (with integration repo for triggering workflows)
+          this.cicdConfigService = new CICDConfigService(
+            this.cicdConfigRepository,
+            this.cicdWorkflowRepository,
+            this.cicdIntegrationRepository
+          );
           console.log("CI/CD Config Service initialized");
           
           

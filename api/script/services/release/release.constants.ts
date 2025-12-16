@@ -87,3 +87,16 @@ export const RELEASE_DEFAULTS = {
   FALLBACK_VERSION: '0.0.0'        // Fallback version when no version can be determined
 } as const;
 
+/**
+ * CI/CD Job Build Types - passed as jobParameters.buildType to workflows
+ * These values are used by CI/CD providers to identify the type of build requested
+ */
+export const CICD_JOB_BUILD_TYPE = {
+  PRE_REGRESSION: 'PRE_REGRESSION',
+  REGRESSION: 'REGRESSION',
+  TESTFLIGHT: 'TESTFLIGHT',
+  AAB: 'AAB'
+} as const;
+
+export type CICDJobBuildType = typeof CICD_JOB_BUILD_TYPE[keyof typeof CICD_JOB_BUILD_TYPE];
+

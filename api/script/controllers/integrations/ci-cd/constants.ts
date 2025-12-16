@@ -3,6 +3,7 @@
  * Keep messages contextual to aid debugging and UI display.
  */
 export const ERROR_MESSAGES = {
+  TENANT_ID_REQUIRED: 'tenantId is required',
   MISSING_TOKEN_AND_SCM: 'Missing apiToken and no GitHub SCM integration found',
   INVALID_GITHUB_TOKEN: 'Invalid GitHub token',
   FAILED_VERIFY_GHA: 'Failed to verify GitHub Actions connection',

@@ -19,6 +19,7 @@ import { hasSequelize } from '../../../types/release/api-types';
 import { SCMService } from '../../integrations/scm/scm.service';
 import { CICDIntegrationRepository } from '../../../models/integrations/ci-cd/connection/connection.repository';
 import { CICDWorkflowRepository } from '../../../models/integrations/ci-cd/workflow/workflow.repository';
+import { CICDConfigService } from '../../integrations/ci-cd/config/config.service';
 import { GitHubActionsWorkflowService } from '../../integrations/ci-cd/workflows/github-actions-workflow.service';
 import { JenkinsWorkflowService } from '../../integrations/ci-cd/workflows/jenkins-workflow.service';
 import { CICDProviderType } from '../../../types/integrations/ci-cd/connection.interface';
@@ -28,9 +29,9 @@ import { Platform } from '../../../types/integrations/project-management/platfor
 import { TestManagementRunService } from '../../integrations/test-management/test-run/test-run.service';
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
-import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS } from '../release.constants';
+import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS, CICD_JOB_BUILD_TYPE } from '../release.constants';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
-import type { PlatformName } from '../../../models/release/release.interface';
+import { PlatformName } from '../../../models/release/release.interface';
 import {
   BUILD_PLATFORM,
   BUILD_STAGE,
@@ -147,11 +148,13 @@ export class TaskExecutor {
   private releaseRepo: ReleaseRepository;
   private sequelize: Sequelize;
   private releaseUploadsRepo: ReleaseUploadsRepository | null;
+  private cicdConfigService: CICDConfigService;
 
   constructor(
     private scmService: SCMService,
     private cicdIntegrationRepository: CICDIntegrationRepository,
     private cicdWorkflowRepository: CICDWorkflowRepository,
+    cicdConfigService: CICDConfigService,
     private pmTicketService: ProjectManagementTicketService,
     private testRunService: TestManagementRunService,
     private messagingService: MessagingService | null,
@@ -163,6 +166,7 @@ export class TaskExecutor {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
     this.releaseUploadsRepo = releaseUploadsRepo ?? null;
+    this.cicdConfigService = cicdConfigService;
     
     // Initialize Sequelize instance (validate once at construction)
     const storage = getStorage();
@@ -193,6 +197,8 @@ export class TaskExecutor {
   /**
    * Get the appropriate workflow service based on provider type
    * Looks up workflow to determine provider, then instantiates correct service
+   * 
+   * @deprecated Use triggerWorkflowByConfig instead - workflowId is actually configId
    */
   private async getWorkflowService(workflowId: string): Promise<GitHubActionsWorkflowService | JenkinsWorkflowService> {
     // Look up workflow to get provider type
@@ -219,6 +225,34 @@ export class TaskExecutor {
       default:
         throw new Error(RELEASE_ERROR_MESSAGES.CICD_PROVIDER_UNSUPPORTED(workflow.providerType));
     }
+  }
+
+  /**
+   * Trigger a workflow by config ID, platform, and workflow type.
+   * 
+   * This is the correct method to use for triggering CI/CD workflows.
+   * The config contains multiple workflows for different platforms/types,
+   * and this method resolves the correct workflow to trigger.
+   */
+  private async triggerWorkflowByConfigId(
+    configId: string,
+    tenantId: string,
+    platform: string,
+    workflowType: WorkflowType,
+    jobParameters: Record<string, unknown>
+  ): Promise<{ queueLocation: string; workflowId: string }> {
+    const result = await this.cicdConfigService.triggerWorkflowByConfig({
+      configId,
+      tenantId,
+      platform,
+      workflowType,
+      jobParameters
+    });
+
+    return {
+      queueLocation: result.queueLocation,
+      workflowId: result.workflowId
+    };
   }
 
   /**
@@ -840,13 +874,12 @@ export class TaskExecutor {
     // CI/CD MODE: Trigger CI/CD pipeline
     // ========================================================================
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
+    const ciConfigId = releaseConfig.ciConfigId;
 
-    if (!workflowId) {
+    if (!ciConfigId) {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
-    const workflowService = await this.getWorkflowService(workflowId);
     const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
@@ -859,17 +892,18 @@ export class TaskExecutor {
       const platformName = mapping.platform;
       const targetName = mapping.target;
 
-      const result = await workflowService.trigger(tenantId, {
-        workflowId: workflowId,
-        workflowType: WorkflowType.PRE_REGRESSION_BUILD,
-        platform: platformName,
-        jobParameters: {
+      const result = await this.triggerWorkflowByConfigId(
+        ciConfigId,
+        tenantId,
+        platformName,
+        WorkflowType.PRE_REGRESSION_BUILD,
+        {
           platform: platformName,
           version: mapping.version ?? getReleaseVersion(release, platformMappings),
           branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-          buildType: 'pre-regression'
+          buildType: CICD_JOB_BUILD_TYPE.PRE_REGRESSION
         }
-      });
+      );
 
       const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
@@ -1211,13 +1245,12 @@ export class TaskExecutor {
     // CI/CD MODE: Trigger CI/CD pipeline
     // ========================================================================
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
+    const ciConfigId = releaseConfig.ciConfigId;
 
-    if (!workflowId) {
+    if (!ciConfigId) {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
-    const workflowService = await this.getWorkflowService(workflowId);
     const BuildModel = this.sequelize.models.Build;
 
     if (!BuildModel) {
@@ -1230,18 +1263,19 @@ export class TaskExecutor {
       const platformName = mapping.platform;
       const targetName = mapping.target;
 
-      const result = await workflowService.trigger(tenantId, {
-        workflowId: workflowId,
-        workflowType: WorkflowType.REGRESSION_BUILD,
-        platform: platformName,
-        jobParameters: {
+      const result = await this.triggerWorkflowByConfigId(
+        ciConfigId,
+        tenantId,
+        platformName,
+        WorkflowType.REGRESSION_BUILD,
+        {
           platform: platformName,
           version: mapping.version ?? getReleaseVersion(release, platformMappings),
           branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
-          buildType: 'regression',
+          buildType: CICD_JOB_BUILD_TYPE.REGRESSION,
           regressionId: task.regressionId
         }
-      });
+      );
 
       const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
       const buildId = uuidv4();
@@ -1296,7 +1330,7 @@ export class TaskExecutor {
 
     // Get release configuration
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
+    const ciConfigId = releaseConfig.ciConfigId;
     
     // Get platforms from platformTargetMappings (new schema uses ENUMs)
     const platformMappings = context.platformTargetMappings || [];
@@ -1305,13 +1339,10 @@ export class TaskExecutor {
       return '';
     }
 
-    // CI/CD workflow must be configured if this task exists
-    if (!workflowId) {
+    // CI/CD config must be configured if this task exists
+    if (!ciConfigId) {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
-
-    // Get the appropriate workflow service
-    const workflowService = await this.getWorkflowService(workflowId);
 
     const runIds: string[] = [];
 
@@ -1319,19 +1350,20 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
 
-      const result = await workflowService.trigger(tenantId, {
-        workflowId: workflowId,
-        workflowType: WorkflowType.AUTOMATION_BUILD,
-        platform: platformName,
-        jobParameters: {
+      const result = await this.triggerWorkflowByConfigId(
+        ciConfigId,
+        tenantId,
+        platformName,
+        WorkflowType.AUTOMATION_BUILD,
+        {
           platform: platformName,
-          version: mapping.version || getReleaseVersion(release, platformMappings),
-          branch: release.branch || `release/v${getReleaseVersion(release, platformMappings)}`,
+          version: mapping.version ?? getReleaseVersion(release, platformMappings),
+          branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
           regressionId: task.regressionId
         }
-      });
+      );
 
-      runIds.push(result.queueLocation || `run-${Date.now()}`);
+      runIds.push(result.queueLocation ?? `run-${Date.now()}`);
     }
 
     // Category A: Return raw string
@@ -1633,14 +1665,14 @@ export class TaskExecutor {
 
     // Verify iOS platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings || [];
-    const hasIOS = platformMappings.some(m => m.platform === 'IOS');
+    const hasIOS = platformMappings.some(m => m.platform === BUILD_PLATFORM.IOS);
 
     if (!hasIOS) {
         throw new Error(RELEASE_ERROR_MESSAGES.IOS_PLATFORM_REQUIRED);
     }
 
     // Get iOS mapping for version
-    const iosMapping = platformMappings.find(m => m.platform === 'IOS');
+    const iosMapping = platformMappings.find(m => m.platform === BUILD_PLATFORM.IOS);
 
     // ========================================================================
     // MANUAL MODE: Check release_uploads table for IOS build
@@ -1656,7 +1688,7 @@ export class TaskExecutor {
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
         context.releaseId,
         'PRE_RELEASE',
-        ['IOS' as PlatformName]
+        [PlatformName.IOS]
       );
 
       console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (TestFlight): allReady=${readiness.allReady}`);
@@ -1674,7 +1706,7 @@ export class TaskExecutor {
       const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'PRE_RELEASE');
       const BuildModel = this.sequelize.models.Build;
       
-      const iosUpload = uploads.find(u => u.platform === 'IOS');
+      const iosUpload = uploads.find(u => u.platform === BUILD_PLATFORM.IOS);
       if (iosUpload && BuildModel) {
         // Mark upload as used
         await this.releaseUploadsRepo.markAsUsed(iosUpload.id, task.id, null);
@@ -1713,31 +1745,29 @@ export class TaskExecutor {
     // CI/CD MODE: Trigger CI/CD pipeline
     // ========================================================================
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
+    const ciConfigId = releaseConfig.ciConfigId;
 
-    // CI/CD workflow must be configured if this task exists
-    if (!workflowId) {
+    // CI/CD config must be configured if this task exists
+    if (!ciConfigId) {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
-    // Get the appropriate workflow service
-    const workflowService = await this.getWorkflowService(workflowId);
-
     // Create TestFlight build for iOS platform
-    const result = await workflowService.trigger(tenantId, {
-      workflowId: workflowId,
-      workflowType: WorkflowType.TEST_FLIGHT_BUILD,
-      platform: 'IOS',
-      jobParameters: {
-        platform: 'IOS',
-        version: iosMapping?.version || getReleaseVersion(release, platformMappings),
-        branch: release.branch || `release/v${getReleaseVersion(release, platformMappings)}`,
-        buildType: 'testflight'
+    const result = await this.triggerWorkflowByConfigId(
+      ciConfigId,
+      tenantId,
+      BUILD_PLATFORM.IOS,
+      WorkflowType.TEST_FLIGHT_BUILD,
+      {
+        platform: BUILD_PLATFORM.IOS,
+        version: iosMapping?.version ?? getReleaseVersion(release, platformMappings),
+        branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
+        buildType: CICD_JOB_BUILD_TYPE.TESTFLIGHT
       }
-    });
+    );
 
     // Category A: Return raw string
-    return result.queueLocation || `testflight-${Date.now()}`;
+    return result.queueLocation ?? `testflight-${Date.now()}`;
   }
 
   /**
@@ -1757,14 +1787,14 @@ export class TaskExecutor {
 
     // Verify ANDROID platform exists using platformTargetMappings
     const platformMappings = context.platformTargetMappings || [];
-    const hasAndroid = platformMappings.some(m => m.platform === 'ANDROID');
+    const hasAndroid = platformMappings.some(m => m.platform === BUILD_PLATFORM.ANDROID);
 
     if (!hasAndroid) {
       throw new Error('CREATE_AAB_BUILD task requires ANDROID platform, but no ANDROID platform found');
     }
 
     // Get ANDROID mapping for version
-    const androidMapping = platformMappings.find(m => m.platform === 'ANDROID');
+    const androidMapping = platformMappings.find(m => m.platform === BUILD_PLATFORM.ANDROID);
 
     // ========================================================================
     // MANUAL MODE: Check release_uploads table for ANDROID build
@@ -1780,7 +1810,7 @@ export class TaskExecutor {
       const readiness = await this.releaseUploadsRepo.checkAllPlatformsReady(
         context.releaseId,
         'PRE_RELEASE',
-        ['ANDROID' as PlatformName]
+        [PlatformName.ANDROID]
       );
 
       console.log(`[TaskExecutor] Manual mode check for PRE_RELEASE (AAB): allReady=${readiness.allReady}`);
@@ -1798,7 +1828,7 @@ export class TaskExecutor {
       const uploads = await this.releaseUploadsRepo.findUnused(context.releaseId, 'PRE_RELEASE');
       const BuildModel = this.sequelize.models.Build;
       
-      const androidUpload = uploads.find(u => u.platform === 'ANDROID');
+      const androidUpload = uploads.find(u => u.platform === BUILD_PLATFORM.ANDROID);
       if (androidUpload && BuildModel) {
         // Mark upload as used
         await this.releaseUploadsRepo.markAsUsed(androidUpload.id, task.id, null);
@@ -1837,31 +1867,29 @@ export class TaskExecutor {
     // CI/CD MODE: Trigger CI/CD pipeline
     // ========================================================================
     const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const workflowId = releaseConfig.ciConfigId;
+    const ciConfigId = releaseConfig.ciConfigId;
 
-    // CI/CD workflow must be configured if this task exists
-    if (!workflowId) {
+    // CI/CD config must be configured if this task exists
+    if (!ciConfigId) {
       throw new Error(RELEASE_ERROR_MESSAGES.CICD_WORKFLOW_NOT_CONFIGURED);
     }
 
-    // Get the appropriate workflow service
-    const workflowService = await this.getWorkflowService(workflowId);
-
     // Create AAB build for Android platform
-    const result = await workflowService.trigger(tenantId, {
-      workflowId: workflowId,
-      workflowType: WorkflowType.AAB_BUILD,
-      platform: 'ANDROID',
-      jobParameters: {
-        platform: 'ANDROID',
-        version: androidMapping?.version || getReleaseVersion(release, platformMappings),
-        branch: release.branch || `release/v${getReleaseVersion(release, platformMappings)}`,
-        buildType: 'aab'
+    const result = await this.triggerWorkflowByConfigId(
+      ciConfigId,
+      tenantId,
+      BUILD_PLATFORM.ANDROID,
+      WorkflowType.AAB_BUILD,
+      {
+        platform: BUILD_PLATFORM.ANDROID,
+        version: androidMapping?.version ?? getReleaseVersion(release, platformMappings),
+        branch: release.branch ?? `release/v${getReleaseVersion(release, platformMappings)}`,
+        buildType: CICD_JOB_BUILD_TYPE.AAB
       }
-    });
+    );
 
     // Category A: Return raw string
-    return result.queueLocation || `aab-${Date.now()}`;
+    return result.queueLocation ?? `aab-${Date.now()}`;
   }
 
   /**

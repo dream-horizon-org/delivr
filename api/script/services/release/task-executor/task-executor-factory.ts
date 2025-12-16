@@ -14,6 +14,8 @@ import { TaskExecutor } from './task-executor';
 import { SCMService } from '../../integrations/scm/scm.service';
 import { CICDIntegrationRepository } from '../../../models/integrations/ci-cd/connection/connection.repository';
 import { CICDWorkflowRepository } from '../../../models/integrations/ci-cd/workflow/workflow.repository';
+import { CICDConfigRepository } from '../../../models/integrations/ci-cd/config/config.repository';
+import { CICDConfigService } from '../../integrations/ci-cd/config/config.service';
 import { ProjectManagementTicketService } from '../../integrations/project-management/ticket/ticket.service';
 import { ProjectManagementConfigRepository } from '../../../models/integrations/project-management/configuration/configuration.repository';
 import { ProjectManagementIntegrationRepository } from '../../../models/integrations/project-management/integration/integration.repository';
@@ -68,6 +70,7 @@ export function getTaskExecutor(): TaskExecutor {
   // Instantiate repositories
   const cicdIntegrationRepo = new CICDIntegrationRepository(sequelize.models.CICDIntegrationModel as any);
   const cicdWorkflowRepo = new CICDWorkflowRepository(sequelize.models.CICDWorkflowModel as any);
+  const cicdConfigRepo = new CICDConfigRepository(sequelize.models.CICDConfig as any);
   const pmConfigRepo = new ProjectManagementConfigRepository(sequelize.models.ProjectManagementConfig);
   const pmIntegrationRepo = new ProjectManagementIntegrationRepository(sequelize.models.ProjectManagementIntegrationModel as any);
   const tmConfigRepo = new TestManagementConfigRepository(sequelize.models.TestManagementConfig);
@@ -76,6 +79,9 @@ export function getTaskExecutor(): TaskExecutor {
   
   // Instantiate services
   const scmService = new SCMService();
+  
+  // CI/CD Config Service (for triggering workflows by config ID)
+  const cicdConfigService = new CICDConfigService(cicdConfigRepo, cicdWorkflowRepo, cicdIntegrationRepo);
   
   const pmTicketService = new ProjectManagementTicketService(pmConfigRepo, pmIntegrationRepo);
   const testRunService = new TestManagementRunService(tmConfigRepo, tmIntegrationRepo);
@@ -95,11 +101,12 @@ export function getTaskExecutor(): TaskExecutor {
   const releaseRepo = new ReleaseRepository(ReleaseModel);
   const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
   
-  // Create TaskExecutor with all 10 dependencies (including releaseUploadsRepo)
+  // Create TaskExecutor with all 11 dependencies (including cicdConfigService and releaseUploadsRepo)
   taskExecutorInstance = new TaskExecutor(
     scmService,
     cicdIntegrationRepo,
     cicdWorkflowRepo,
+    cicdConfigService,
     pmTicketService,
     testRunService,
     messagingService,
