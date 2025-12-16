@@ -368,6 +368,16 @@ class ReleaseProcess {
       `/api/releases/${releaseId}/cron/start`
     );
   }
+
+  /**
+   * Archive release - Matches backend implementation
+   * PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+   */
+  async archiveRelease(tenantId: string, releaseId: string) {
+    return this.__client.put<null, AxiosResponse<{ success: boolean; message: string }>>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/archive`
+    );
+  }
 }
 
 export const ReleaseProcessService = new ReleaseProcess();

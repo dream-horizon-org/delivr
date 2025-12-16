@@ -6,7 +6,7 @@
 
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { apiGet, apiPost, apiDelete, getApiErrorMessage } from '~/utils/api-client';
+import { apiGet, apiPost, apiPut, apiDelete, getApiErrorMessage } from '~/utils/api-client';
 import { TaskStage, Platform, BuildUploadStage } from '~/types/release-process-enums';
 import type {
   KickoffStageResponse,
@@ -356,7 +356,12 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
  * Get test management status
  * Backend contract: GET /test-management-run-status?platform={platform}
  */
-export function useTestManagementStatus(tenantId?: string, releaseId?: string, platform?: Platform) {
+export function useTestManagementStatus(
+  tenantId?: string, 
+  releaseId?: string, 
+  platform?: Platform,
+  enabled: boolean = true // NEW: Add enabled parameter
+) {
   return useQuery<TestManagementStatusResponse, Error>(
     QUERY_KEYS.testManagementStatus(tenantId || '', releaseId || '', platform),
     async () => {
@@ -376,10 +381,10 @@ export function useTestManagementStatus(tenantId?: string, releaseId?: string, p
       return result.data;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
       staleTime: 30 * 1000, // 30 seconds
       cacheTime: 2 * 60 * 1000, // 2 minutes
-      refetchInterval: 30 * 1000, // Poll every 30 seconds
+      refetchInterval: enabled ? 30 * 1000 : false, // NEW: Only poll if enabled
       retry: 1,
     }
   );
@@ -389,7 +394,12 @@ export function useTestManagementStatus(tenantId?: string, releaseId?: string, p
  * Get project management status
  * Backend contract: GET /project-management-run-status?platform={platform}
  */
-export function useProjectManagementStatus(tenantId?: string, releaseId?: string, platform?: Platform) {
+export function useProjectManagementStatus(
+  tenantId?: string, 
+  releaseId?: string, 
+  platform?: Platform,
+  enabled: boolean = true // NEW: Add enabled parameter
+) {
   return useQuery<ProjectManagementStatusResponse, Error>(
     QUERY_KEYS.projectManagementStatus(tenantId || '', releaseId || ''),
     async () => {
@@ -409,10 +419,10 @@ export function useProjectManagementStatus(tenantId?: string, releaseId?: string
       return result.data;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: enabled && !!tenantId && !!releaseId, // NEW: Use enabled parameter
       staleTime: 30 * 1000,
       cacheTime: 2 * 60 * 1000,
-      refetchInterval: 30 * 1000,
+      refetchInterval: enabled ? 30 * 1000 : false, // NEW: Only poll if enabled
       retry: 1,
     }
   );
@@ -729,6 +739,49 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
 
       if (!result.success || !result.data) {
         throw new Error(result.error || `Failed to ${action} release`);
+      }
+
+      return result.data;
+    },
+    {
+      onSuccess: () => {
+        // Invalidate release queries to refresh data
+        queryClient.invalidateQueries(['releases', tenantId]);
+        queryClient.invalidateQueries(['release', tenantId, releaseId]);
+        queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
+      },
+    }
+  );
+}
+
+/**
+ * Archive release
+ * PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+ * Backend implementation: PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+ * 
+ * @param tenantId - Tenant UUID
+ * @param releaseId - Release UUID
+ * @returns Mutation that accepts no parameters
+ */
+export function useArchiveRelease(tenantId?: string, releaseId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { success: boolean; message: string },
+    Error,
+    void
+  >(
+    async () => {
+      if (!tenantId || !releaseId) {
+        throw new Error('tenantId and releaseId are required');
+      }
+
+      const result = await apiPut<{ success: boolean; message: string }>(
+        `/api/v1/tenants/${tenantId}/releases/${releaseId}/archive`
+      );
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to archive release');
       }
 
       return result.data;

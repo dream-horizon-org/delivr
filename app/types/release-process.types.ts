@@ -68,8 +68,12 @@ export interface FinalReleaseNotesTaskOutput {
 // Build Task Output (for CI/CD build tasks)
 // jobUrl is available when task starts running (IN_PROGRESS, AWAITING_CALLBACK, etc.)
 // Special case: Unlike other tasks, build tasks can have output even when IN_PROGRESS
+// Supports multi-platform builds where each platform has its own CI/CD job URL
 export interface BuildTaskOutput {
-  jobUrl?: string;        // CI/CD job URL (e.g., Jenkins job URL, GitHub Actions workflow URL)
+  platforms: Array<{
+    platform: string;  // 'ANDROID' | 'IOS' | 'WEB'
+    jobUrl: string;    // CI/CD job URL for this platform
+  }>;
 }
 
 // Tasks with no output (or minimal output)

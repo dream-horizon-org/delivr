@@ -9,6 +9,8 @@ import { IconCheck, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { usePreReleaseStage, useProjectManagementStatus, useCompletePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
+import { useConfig } from '~/contexts/ConfigContext';
+import { useRelease } from '~/hooks/useRelease';
 import type { Task } from '~/types/release-process.types';
 import { TaskStage, TaskStatus } from '~/types/release-process-enums';
 import { validateStageProps } from '~/utils/prop-validation';
@@ -31,6 +33,23 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
 
   const { data, isLoading, error, refetch } = usePreReleaseStage(tenantId, releaseId);
   
+  // Get release data to access releaseConfigId
+  const { release } = useRelease(tenantId, releaseId);
+  
+  // Get cached release configs from ConfigContext
+  const { releaseConfigs } = useConfig();
+  
+  // Find the release config for this release
+  const releaseConfig = release?.releaseConfigId 
+    ? releaseConfigs.find((c) => c.id === release.releaseConfigId)
+    : null;
+  
+  // Check if Project Management is configured and enabled
+  const hasProjectManagement = !!(
+    releaseConfig?.projectManagementConfig?.enabled && 
+    releaseConfig.projectManagementConfig
+  );
+  
   // Use shared task handlers
   const { handleRetry } = useTaskHandlers({
     tenantId,
@@ -42,8 +61,14 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
   // Cherry-pick status is already displayed in IntegrationsStatusSidebar
   // No need to show ExtraCommitsWarning here as cherry-pick status is handled in sidebar
 
-  // Fetch project management status using the correct API contract endpoint
-  const projectManagementStatus = useProjectManagementStatus(tenantId, releaseId);
+  // Fetch project management status - only if configured
+  const projectManagementStatus = useProjectManagementStatus(
+    tenantId,
+    releaseId,
+    undefined, // No platform filter
+    hasProjectManagement // Only enable if PM is configured
+  );
+  
   const completeMutation = useCompletePreReleaseStage(tenantId, releaseId);
   const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
@@ -78,35 +103,46 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
         : undefined,
     });
 
-    // Project Management requirement (platform-wise)
-    if (projectManagementStatus.data) {
-      if ('platforms' in projectManagementStatus.data) {
-        const allPlatformsCompleted = projectManagementStatus.data.platforms.every(
-          (platform) => platform.isCompleted === true
-        );
+    // Project Management requirement - only if configured
+    if (hasProjectManagement) {
+      if (projectManagementStatus.data) {
+        if ('platforms' in projectManagementStatus.data) {
+          const allPlatformsCompleted = projectManagementStatus.data.platforms.every(
+            (platform) => platform.isCompleted === true
+          );
+          reqs.push({
+            label: 'Project Management',
+            passed: allPlatformsCompleted,
+            message: allPlatformsCompleted
+              ? undefined
+              : 'Some platforms have incomplete tickets.',
+          });
+        } else {
+          reqs.push({
+            label: 'Project Management',
+            passed: projectManagementStatus.data.isCompleted === true,
+          });
+        }
+      } else if (projectManagementStatus.isLoading) {
+        // Still loading - show as pending
         reqs.push({
           label: 'Project Management',
-          passed: allPlatformsCompleted,
-          message: allPlatformsCompleted
-            ? undefined
-            : 'Some platforms have incomplete tickets.',
+          passed: false,
+          message: 'Loading...',
         });
-      } else {
+      } else if (projectManagementStatus.error) {
+        // Error loading - show as failed
         reqs.push({
           label: 'Project Management',
-          passed: projectManagementStatus.data.isCompleted === true,
+          passed: false,
+          message: 'Error loading status',
         });
       }
-    } else if (!projectManagementStatus.isLoading) {
-      // No PM integration configured
-      reqs.push({
-        label: 'Project Management',
-        passed: true, // No PM integration means no requirement
-      });
     }
+    // If PM is not configured, don't add it to requirements (it's not required)
 
     return reqs;
-  }, [tasks, projectManagementStatus.data, projectManagementStatus.isLoading]);
+  }, [tasks, hasProjectManagement, projectManagementStatus.data, projectManagementStatus.isLoading, projectManagementStatus.error]);
 
   const passedCount = useMemo(() => {
     return requirements.filter((r) => r.passed).length;
@@ -159,8 +195,8 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
         uploadedBuilds={uploadedBuilds}
       />
 
-      {/* Approval Section */}
-      {(projectManagementStatus.data || projectManagementStatus.isLoading) && (
+      {/* Approval Section - Show if PM is configured OR if there are other requirements */}
+      {(hasProjectManagement || requirements.length > 0) && (
         <StageApprovalSection
           title="Pre-Release Approval"
           canApprove={canPromote}
@@ -194,7 +230,7 @@ export function PreReleaseStage({ tenantId, releaseId, className }: PreReleaseSt
                 </Group>
               ))}
               {/* Show platform details for PM if available */}
-              {projectManagementStatus.data && 'platforms' in projectManagementStatus.data && (
+              {hasProjectManagement && projectManagementStatus.data && 'platforms' in projectManagementStatus.data && (
                 <Stack gap="xs" mt="sm" pl="md">
                   {projectManagementStatus.data.platforms.map((platform, idx) => (
                     <Group key={idx} gap="xs" justify="space-between">

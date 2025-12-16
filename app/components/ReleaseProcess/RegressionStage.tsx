@@ -16,6 +16,8 @@ import {
   useApproveRegression,
 } from '~/hooks/useReleaseProcess';
 import { useTaskHandlers } from '~/hooks/useTaskHandlers';
+import { useConfig } from '~/contexts/ConfigContext';
+import { useRelease } from '~/hooks/useRelease';
 import { validateStageProps } from '~/utils/prop-validation';
 import { handleStageError } from '~/utils/stage-error-handling';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
@@ -35,6 +37,24 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   validateStageProps({ tenantId, releaseId }, 'RegressionStage');
 
   const { data, isLoading, error, refetch } = useRegressionStage(tenantId, releaseId);
+  
+  // Get release data to access releaseConfigId
+  const { release } = useRelease(tenantId, releaseId);
+  
+  // Get cached release configs from ConfigContext
+  const { releaseConfigs } = useConfig();
+  
+  // Find the release config for this release
+  const releaseConfig = release?.releaseConfigId 
+    ? releaseConfigs.find((c) => c.id === release.releaseConfigId)
+    : null;
+  
+  // Check if Test Management is configured and enabled
+  const hasTestManagement = !!(
+    releaseConfig?.testManagementConfig?.enabled && 
+    releaseConfig.testManagementConfig
+  );
+  
   const approveMutation = useApproveRegression(tenantId, releaseId);
   const [approvalModalOpened, setApprovalModalOpened] = useState(false);
 
@@ -87,27 +107,38 @@ export function RegressionStage({ tenantId, releaseId, className }: RegressionSt
   const approvalRequirements = approvalStatus?.approvalRequirements;
 
   // Transform approvalRequirements to ApprovalRequirement[]
+  // Only include Test Management if it's configured
   const requirements: ApprovalRequirement[] = useMemo(() => {
     if (!approvalRequirements) return [];
     
-    return [
-      {
+    const reqs: ApprovalRequirement[] = [];
+    
+    // Test Management requirement - only if configured
+    if (hasTestManagement) {
+      reqs.push({
         label: 'Test Management',
         passed: approvalRequirements.testManagementPassed,
-      },
-      {
-        label: 'Cherry Pick Status',
-        passed: approvalRequirements.cherryPickStatusOk,
-        message: approvalRequirements.cherryPickStatusOk
-          ? undefined
-          : 'New cherry picks found. Add regression slot to test changes.',
-      },
-      {
-        label: 'All Cycles Completed',
-        passed: approvalRequirements.cyclesCompleted,
-      },
-    ];
-  }, [approvalRequirements]);
+      });
+    }
+    // If Test Management is not configured, don't add it to requirements (it's not required)
+    
+    // Cherry Pick Status - always required
+    reqs.push({
+      label: 'Cherry Pick Status',
+      passed: approvalRequirements.cherryPickStatusOk,
+      message: approvalRequirements.cherryPickStatusOk
+        ? undefined
+        : 'New cherry picks found. Add regression slot to test changes.',
+    });
+    
+    // All Cycles Completed - always required
+    reqs.push({
+      label: 'All Cycles Completed',
+      passed: approvalRequirements.cyclesCompleted,
+    });
+    
+    return reqs;
+  }, [approvalRequirements, hasTestManagement]);
 
   const passedCount = useMemo(() => {
     return requirements.filter((r) => r.passed).length;
