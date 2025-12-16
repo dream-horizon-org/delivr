@@ -35,6 +35,7 @@ type FormattedSubmission =
       statusUpdatedAt: Date;
       createdAt: Date;
       updatedAt: Date;
+      isActive: boolean;
       artifact: {
         testflightNumber: string;
       };
@@ -61,6 +62,7 @@ type FormattedSubmission =
       statusUpdatedAt: Date;
       createdAt: Date;
       updatedAt: Date;
+      isActive: boolean;
       artifact: {
         artifactPath: string;
         internalTrackLink: string | null;
@@ -149,6 +151,7 @@ export class DistributionService {
         statusUpdatedAt: submission.statusUpdatedAt,
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt,
+        isActive: submission.isActive,
         artifact: {
           testflightNumber: submission.testflightNumber
         },
@@ -180,6 +183,7 @@ export class DistributionService {
         statusUpdatedAt: submission.statusUpdatedAt,
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt,
+        isActive: submission.isActive,
         artifact: {
           artifactPath: submission.artifactPath,
           internalTrackLink: submission.internalTrackLink
@@ -260,6 +264,7 @@ export class DistributionService {
         statusUpdatedAt: submission.statusUpdatedAt,
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt,
+        isActive: submission.isActive,
         artifact: {
           testflightNumber: submission.testflightNumber
         },
@@ -291,6 +296,7 @@ export class DistributionService {
         statusUpdatedAt: submission.statusUpdatedAt,
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt,
+        isActive: submission.isActive,
         artifact: {
           artifactPath: submission.artifactPath,
           internalTrackLink: submission.internalTrackLink
@@ -405,6 +411,7 @@ export class DistributionService {
           createdAt: Date;
           updatedAt: Date;
           statusUpdatedAt: Date;
+          isActive: boolean;
         }> = [];
 
         if (androidSubmission && (!normalizedPlatform || normalizedPlatform === 'ANDROID')) {
@@ -416,7 +423,8 @@ export class DistributionService {
             rolloutPercentage: androidSubmission.rolloutPercentage ?? 0,
             createdAt: androidSubmission.createdAt,
             updatedAt: androidSubmission.updatedAt,
-            statusUpdatedAt: androidSubmission.statusUpdatedAt
+            statusUpdatedAt: androidSubmission.statusUpdatedAt,
+            isActive: androidSubmission.isActive
           });
         }
 
@@ -429,7 +437,8 @@ export class DistributionService {
             rolloutPercentage: iosSubmission.rolloutPercentage ?? 0,
             createdAt: iosSubmission.createdAt,
             updatedAt: iosSubmission.updatedAt,
-            statusUpdatedAt: iosSubmission.statusUpdatedAt
+            statusUpdatedAt: iosSubmission.statusUpdatedAt,
+            isActive: iosSubmission.isActive
           });
         }
 
@@ -475,6 +484,7 @@ export class DistributionService {
         createdAt: Date;
         updatedAt: Date;
         statusUpdatedAt: Date;
+        isActive: boolean;
       }>;
     }>;
 
