@@ -1058,8 +1058,18 @@ export class S3Storage implements storage.Storage {
           this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
           this.regressionCycleRepository = new RegressionCycleRepository(this.sequelize.models.RegressionCycle);
           console.log("Regression Cycle Repository initialized");
+          
+          // Initialize Build repository (for artifact listings/uploads) - moved before ReleaseRetrievalService
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
+          
+          // Local aliases for readability
           const cronJobRepo = this.cronJobRepository;
           const releaseTaskRepo = this.releaseTaskRepository;
+          const regressionCycleRepo = this.regressionCycleRepository;
+          const buildRepo = this.buildRepository;
+          const releaseUploadsRepo = this.releaseUploadsRepository;
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );
@@ -1089,7 +1099,8 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo,
             regressionCycleRepo,
             buildRepo,
-            releaseUploadsRepo
+            releaseUploadsRepo,
+            this.cicdWorkflowRepository
           );
           console.log("Release Retrieval Service initialized");
           
@@ -1137,11 +1148,6 @@ export class S3Storage implements storage.Storage {
             null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
-          
-          // Initialize Build repository (for artifact listings/uploads)
-          const buildModel = createBuildModel(this.sequelize);
-          this.buildRepository = new BuildRepository(buildModel);
-          console.log("Build Repository initialized");
           
           // return this.sequelize.sync();
         })
