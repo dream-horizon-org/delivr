@@ -359,7 +359,7 @@ export function ConfigurationWizard({
             style={{
               position: 'sticky',
               top: 24,
-              maxHeight: 'calc(100vh - 200px)',
+              maxHeight: 'calc(100vh - 100px)',
               overflowY: 'auto',
               backgroundColor: theme.white,
             }}

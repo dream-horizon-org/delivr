@@ -35,7 +35,6 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
           else if (subItem.path === `/dashboard/${org.id}/releases/`) {
             isSubItemActive =
               location.pathname.includes("/releases") &&
-              !location.pathname.includes("/releases/setup") &&
               !location.pathname.includes("/releases/settings") &&
               !location.pathname.includes("/releases/configure") &&
               !location.pathname.includes("/releases/workflows") &&
@@ -59,5 +58,6 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
     </Box>
   );
 }
+
 
 

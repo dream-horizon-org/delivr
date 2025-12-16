@@ -173,7 +173,7 @@ export function ReleaseDetailsForm({
           </Text>
           {state.type && (
             <Badge size="lg" variant="light" color="blue">
-              {state.type === RELEASE_TYPE_CONSTANTS.PLANNED && 'Planned Release'}
+              {state.type === RELEASE_TYPE_CONSTANTS.MINOR && 'Minor Release'}
               {state.type === RELEASE_TYPE_CONSTANTS.HOTFIX && 'Hotfix'}
               {state.type === 'UNPLANNED' && 'Unplanned'}
             </Badge>

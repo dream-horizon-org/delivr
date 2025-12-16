@@ -7,27 +7,31 @@
  * Uses real backend API calls for release CRUD operations
  * 
  * Supports mock mode via DELIVR_MOCK_MODE=true or DELIVR_HYBRID_MODE=true
+ * In HYBRID_MODE, Release Process APIs (including /tenants/{tenantId}/releases) go to mock server
  */
 
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 
 /**
- * Get the base URL for Release Management APIs
- * - If DELIVR_MOCK_MODE=true → use mock server for ALL APIs
- * - If DELIVR_HYBRID_MODE=true → use mock server for releases (testing)
+ * Determine the base URL for Release Management APIs
+ * - If DELIVR_MOCK_MODE=true → use mock server (full mock mode)
+ * - If DELIVR_HYBRID_MODE=true → use mock server (Release Process APIs in hybrid mode)
  * - Otherwise → use real backend
  */
 function getReleaseManagementBaseURL(): string {
   const isMockMode = process.env.DELIVR_MOCK_MODE === 'true';
   const isHybridMode = process.env.DELIVR_HYBRID_MODE === 'true';
   const mockURL = process.env.DELIVR_MOCK_URL || 'http://localhost:4000';
-  const backendURL = process.env.BACKEND_API_URL || 'http://localhost:3010';
+  const backendURL = process.env.DELIVR_BACKEND_URL || 
+                     process.env.BACKEND_API_URL || 
+                     'http://localhost:3010';
   
   if (isMockMode || isHybridMode) {
-    console.log('[ReleaseManagement] Using mock server:', mockURL);
+    console.log('[ReleaseManagementService] Using mock server:', mockURL);
     return mockURL;
   }
   
+  console.log('[ReleaseManagementService] Using real backend:', backendURL);
   return backendURL;
 }
 
@@ -36,13 +40,16 @@ const BACKEND_API_URL = getReleaseManagementBaseURL();
 /**
  * Backend release response structure
  */
+import type { Phase, ReleaseStatus, CronStatus, PauseType } from '~/types/release-process-enums';
+
 export interface BackendReleaseResponse {
   id: string;
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
   type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  status: ReleaseStatus;  // Updated: Use enum - matches API #1: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED'
+  releasePhase?: Phase;   // NEW: From API #1 - detailed phase
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null;
@@ -58,7 +65,12 @@ export interface BackendReleaseResponse {
   lastUpdatedBy: string;
   createdAt: string;
   updatedAt: string;
-  cronJob?: any;
+  cronJob?: {
+    cronStatus: CronStatus;
+    pauseType: PauseType;
+    // ... other cronJob fields if needed
+    [key: string]: unknown;
+  };
   tasks?: any[];
 }
 

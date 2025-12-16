@@ -7,90 +7,34 @@
  * - Verification status feedback
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { useFetcher } from '@remix-run/react';
-import { 
-  Stack, 
-  Group, 
-  Text, 
-  Button, 
-  TextInput,
+import {
   Alert,
+  Button,
+  Group,
   Paper,
+  Stack,
+  Text,
+  TextInput,
 } from '@mantine/core';
-import { IconCheck, IconAlertCircle, IconBrandApple } from '@tabler/icons-react';
-import { 
+import { IconAlertCircle, IconBrandApple, IconCheck } from '@tabler/icons-react';
+import { useCallback, useEffect } from 'react';
+import {
   BUTTON_LABELS,
   VALIDATION_RULES,
 } from '~/constants/distribution.constants';
-import type { BuildOperationResponse } from '~/types/distribution.types';
 import type { VerifyTestFlightFormProps } from './distribution.types';
-
-// ============================================================================
-// HELPER HOOKS
-// ============================================================================
-
-function useVerifyState() {
-  const [buildNumber, setBuildNumber] = useState('');
-  const [versionName, setVersionName] = useState('');
-  const [validationErrors, setValidationErrors] = useState<{
-    buildNumber?: string;
-    versionName?: string;
-  }>({});
-  
-  const fetcher = useFetcher<BuildOperationResponse>();
-  
-  const isVerifying = fetcher.state === 'submitting';
-  const verifyError = fetcher.data?.error?.message ?? null;
-  const verifySuccess = fetcher.data?.success === true;
-
-  const validate = useCallback((): boolean => {
-    const errors: { buildNumber?: string; versionName?: string } = {};
-    
-    // Validate build number
-    if (!buildNumber.trim()) {
-      errors.buildNumber = 'Build number is required';
-    } else if (!VALIDATION_RULES.TESTFLIGHT_BUILD_NUMBER.PATTERN.test(buildNumber)) {
-      errors.buildNumber = 'Build number must be numeric';
-    }
-    
-    // Validate version name
-    if (!versionName.trim()) {
-      errors.versionName = 'Version name is required';
-    } else if (!VALIDATION_RULES.VERSION_NAME.PATTERN.test(versionName)) {
-      errors.versionName = `Version must match format ${VALIDATION_RULES.VERSION_NAME.EXAMPLE}`;
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [buildNumber, versionName]);
-
-  const clearForm = useCallback(() => {
-    setBuildNumber('');
-    setVersionName('');
-    setValidationErrors({});
-  }, []);
-
-  return {
-    buildNumber,
-    setBuildNumber,
-    versionName,
-    setVersionName,
-    validationErrors,
-    isVerifying,
-    verifyError,
-    verifySuccess,
-    fetcher,
-    validate,
-    clearForm,
-  };
-}
+import { useVerifyState } from './useVerifyState';
 
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
-function VerificationSuccess({ buildNumber, versionName }: { buildNumber: string; versionName: string }) {
+type VerificationSuccessProps = {
+  buildNumber: string;
+  versionName: string;
+};
+
+function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessProps) {
   return (
     <Paper p="md" withBorder radius="md" className="border-green-500 bg-green-50">
       <Group gap="sm">
@@ -132,6 +76,14 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
     fetcher,
     validate,
   } = useVerifyState();
+
+  const handleBuildNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setBuildNumber(e.target.value);
+  }, [setBuildNumber]);
+
+  const handleVersionNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setVersionName(e.target.value);
+  }, [setVersionName]);
 
   // Pre-fill expected version if provided
   useEffect(() => {
@@ -202,7 +154,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
             description="The build number shown in App Store Connect / TestFlight"
             placeholder="e.g., 17965"
             value={buildNumber}
-            onChange={(e) => setBuildNumber(e.target.value)}
+            onChange={handleBuildNumberChange}
             error={validationErrors.buildNumber}
             disabled={isVerifying}
             required
@@ -214,7 +166,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
             description="The version string (must match release version)"
             placeholder={VALIDATION_RULES.VERSION_NAME.EXAMPLE}
             value={versionName}
-            onChange={(e) => setVersionName(e.target.value)}
+            onChange={handleVersionNameChange}
             error={validationErrors.versionName}
             disabled={isVerifying}
             required

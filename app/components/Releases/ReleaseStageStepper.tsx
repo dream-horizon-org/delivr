@@ -1,147 +1,170 @@
 /**
  * Release Stage Stepper Component
  * Shows the current stage of a release in a stepper UI
- * Steps are directly clickable for navigation
+ * Steps are directly clickable to switch between stages
  * 
- * NOTE: Stage configuration and current stage index should come from API
- * This component is a pure UI component that renders based on props
+ * Updated for Release Process: Kickoff → Regression → Post-Regression
  */
 
 import { Group, Paper, Stepper, Text, Tooltip } from '@mantine/core';
-import { useNavigate } from '@remix-run/react';
 import type { Icon } from '@tabler/icons-react';
 import {
     IconCheck,
-    IconCode,
     IconGitBranch,
     IconLock,
-    IconPackage,
     IconRocket,
     IconTestPipe,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo } from 'react';
+import { STAGE_LABELS } from '~/constants/release-process-ui';
+import type { TaskStage } from '~/types/release-process-enums';
+import { TaskStage as TaskStageEnum } from '~/types/release-process-enums';
 
-// Stage definition type - can be extended from API
+// Stage definition type
 export interface ReleaseStage {
-  key: string;
+  key: TaskStage;
   label: string;
   description: string;
   iconName: string;
   isNavigable: boolean;
-  navigationPath?: string; // Where to navigate when clicked
 }
 
-// Default icon mapping - icons are not serializable from API
+// Icon mapping
 const ICON_MAP: Record<string, Icon> = {
-  code: IconCode,
-  test: IconTestPipe,
   branch: IconGitBranch,
-  package: IconPackage,
+  test: IconTestPipe,
   rocket: IconRocket,
 };
 
-// Simplified stages for Pre-Release/Distribution testing
-// Full stages (Development → QA → Regression → Pre-Release → Distribution) 
-// will be implemented by colleague working on release process
-const DEFAULT_STAGES: ReleaseStage[] = [
-  { key: 'PENDING', label: 'Pending', description: 'Prior stages complete', iconName: 'code', isNavigable: false },
-  { key: 'PRE_RELEASE', label: 'Pre-Release', description: 'Build preparation & PM approval', iconName: 'package', isNavigable: true, navigationPath: 'distribution?tab=pre-release' },
-  { key: 'DISTRIBUTION', label: 'Distribution', description: 'Store submission & rollout', iconName: 'rocket', isNavigable: true, navigationPath: 'distribution?tab=distribution' },
+// Release Process Stages (PreKickoff is NOT in stepper - shown separately when NOT_STARTED)
+const RELEASE_PROCESS_STAGES: ReleaseStage[] = [
+  { 
+    key: TaskStageEnum.KICKOFF, 
+    label: STAGE_LABELS.KICKOFF, 
+    description: 'Initial setup and branch creation', 
+    iconName: 'branch', 
+    isNavigable: true 
+  },
+  { 
+    key: TaskStageEnum.REGRESSION, 
+    label: STAGE_LABELS.REGRESSION, 
+    description: 'Testing and regression cycles', 
+    iconName: 'test', 
+    isNavigable: true 
+  },
+  { 
+    key: TaskStageEnum.PRE_RELEASE, 
+    label: STAGE_LABELS.PRE_RELEASE, 
+    description: 'Final preparation before submission', 
+    iconName: 'rocket', 
+    isNavigable: true 
+  },
+  { 
+    key: TaskStageEnum.DISTRIBUTION, 
+    label: STAGE_LABELS.DISTRIBUTION, 
+    description: 'Submit to stores and manage distribution', 
+    iconName: 'rocket', 
+    isNavigable: true 
+  },
 ];
 
-// Simplified status mapping for testing
-// Maps release statuses to simplified 3-stage UI
-const STATUS_TO_STAGE_INDEX: Record<string, number> = {
-  // All prior stages map to "Pending" (index 0)
-  'IN_PROGRESS': 0,
-  'REGRESSION': 0,
-  // Pre-Release stage (index 1)
-  'PRE_RELEASE': 1,
-  // Distribution stage (index 2)
-  'READY_FOR_SUBMISSION': 2,
-  'COMPLETED': 3, // Completed (beyond last step)
-  'ARCHIVED': 3,
-};
-
-function getStageIndexFromStatus(status: string): number {
-  return STATUS_TO_STAGE_INDEX[status] ?? 0;
+// Map TaskStage to stage index
+function getStageIndex(stage: TaskStage | null | undefined): number {
+  if (!stage) return -1; // NOT_STARTED (not in stepper)
+  
+  switch (stage) {
+    case TaskStageEnum.KICKOFF:
+      return 0;
+    case TaskStageEnum.REGRESSION:
+      return 1;
+    case TaskStageEnum.PRE_RELEASE:
+      return 2;
+    case TaskStageEnum.DISTRIBUTION:
+      return 3;
+    default:
+      return -1;
+  }
 }
 
 interface ReleaseStageStepperProps {
   releaseId: string;
   org: string;
   releaseBranch?: string;
-  // API-driven props
-  releaseStatus?: string;           // Current status from API
-  currentStageIndex?: number;       // Direct stage index (preferred, from API)
-  stages?: ReleaseStage[];          // Custom stages from API (optional)
+  currentStage: TaskStage | null;        // Current stage from phase determination
+  selectedStage?: TaskStage | null;      // Currently selected/viewing stage
+  onStageSelect?: (stage: TaskStage | null) => void; // Callback when stage is clicked
 }
 
 export const ReleaseStageStepper = memo(function ReleaseStageStepper({
   releaseId,
   org,
   releaseBranch,
-  releaseStatus,
-  currentStageIndex: providedStageIndex,
-  stages: providedStages,
+  currentStage,
+  selectedStage,
+  onStageSelect,
 }: ReleaseStageStepperProps) {
-  const navigate = useNavigate();
+  const stages = RELEASE_PROCESS_STAGES;
   
-  // Use provided stages or default
-  const stages = providedStages ?? DEFAULT_STAGES;
-  
-  // Determine current stage index
-  // Prefer explicit index, then derive from status, then default to 0
+  // Determine current stage index based on actual current stage
   const currentStageIndex = useMemo(() => {
-    if (providedStageIndex !== undefined) return providedStageIndex;
-    if (releaseStatus) return getStageIndexFromStatus(releaseStatus);
-    return 0;
-  }, [providedStageIndex, releaseStatus]);
+    return getStageIndex(currentStage);
+  }, [currentStage]);
 
-  // Handle step click - navigate to the step's path if accessible
+  // Determine selected stage index (for highlighting)
+  const selectedStageIndex = useMemo(() => {
+    if (selectedStage === null) return -1; // NOT_STARTED (not in stepper)
+    return getStageIndex(selectedStage);
+  }, [selectedStage]);
+
+  // Handle step click - call onStageSelect callback
   const handleStepClick = useCallback((stepIndex: number) => {
     const stage = stages[stepIndex];
     
-    // Only navigate if:
+    // Only allow navigation if:
     // 1. The step is accessible (current or past)
-    // 2. The stage is navigable (has a navigation path)
-    const isAccessible = stepIndex <= currentStageIndex;
+    // 2. The stage is navigable
+    const isAccessible = stepIndex <= currentStageIndex || currentStageIndex === -1;
     
-    if (isAccessible && stage.isNavigable && stage.navigationPath) {
-      navigate(`/dashboard/${org}/releases/${releaseId}/${stage.navigationPath}`);
+    if (isAccessible && stage.isNavigable && onStageSelect) {
+      // All stages in stepper are TaskStage enum values
+      onStageSelect(stage.key as TaskStage);
     }
-  }, [stages, currentStageIndex, navigate, org, releaseId]);
+  }, [stages, currentStageIndex, onStageSelect]);
+
+  console.log('stages', stages, currentStageIndex, selectedStageIndex);
 
   return (
     <Paper shadow="sm" p="lg" radius="md" withBorder className="mb-6">
-      <Group justify="space-between" align="center" mb="md">
+      {/* <Group justify="space-between" align="center" mb="md">
         <Text fw={600} size="lg">Release Progress</Text>
         {releaseBranch && (
           <Text size="sm" c="dimmed" className="font-mono">
             {releaseBranch}
           </Text>
         )}
-      </Group>
+      </Group> */}
 
       <Stepper
-        active={currentStageIndex}
-        onStepClick={handleStepClick}
+        active={selectedStageIndex >= 0 ? selectedStageIndex : 0}
+        onStepClick={onStageSelect ? handleStepClick : undefined}
         size="sm"
         styles={{
           step: {
-            cursor: 'pointer',
+            cursor: onStageSelect ? 'pointer' : 'default',
           },
           stepIcon: {
-            cursor: 'pointer',
+            cursor: onStageSelect ? 'pointer' : 'default',
           },
         }}
       >
         {stages.map((stage, index) => {
-          const isComplete = index < currentStageIndex;
+          // Handle NOT_STARTED case (currentStageIndex === -1)
+          const isComplete = currentStageIndex >= 0 && index < currentStageIndex;
           const isCurrent = index === currentStageIndex;
-          const isAccessible = index <= currentStageIndex;
-          const canNavigate = isAccessible && stage.isNavigable && stage.navigationPath;
-          const StageIcon = ICON_MAP[stage.iconName] ?? IconCode;
+          const isSelected = index === selectedStageIndex;
+          const isAccessible = currentStageIndex === -1 || index <= currentStageIndex;
+          const canNavigate = isAccessible && stage.isNavigable && onStageSelect;
+          const StageIcon = ICON_MAP[stage.iconName] ?? IconGitBranch;
 
           const stepContent = (
             <Stepper.Step
@@ -157,7 +180,7 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
                   <StageIcon size={16} />
                 )
               }
-              color={isComplete ? 'green' : isCurrent ? 'blue' : 'gray'}
+              color={isComplete ? 'green' : isSelected ? 'blue' : isCurrent ? 'blue' : 'gray'}
               completedIcon={<IconCheck size={16} />}
               style={{
                 cursor: canNavigate ? 'pointer' : 'default',
@@ -165,19 +188,6 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
             />
           );
 
-          // Wrap with tooltip for clickable steps
-          if (canNavigate) {
-            return (
-              <Tooltip 
-                key={stage.key} 
-                label={`Click to view ${stage.label}`}
-                position="bottom"
-                withArrow
-              >
-                {stepContent}
-              </Tooltip>
-            );
-          }
 
           // For non-navigable steps, show why
           if (!isAccessible) {
@@ -188,7 +198,7 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
                 position="bottom"
                 withArrow
               >
-                {stepContent}
+                <span>{stepContent}</span>
               </Tooltip>
             );
           }
@@ -197,12 +207,6 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
         })}
       </Stepper>
 
-      {/* Hint text for user */}
-      {currentStageIndex >= 1 && (
-        <Text size="xs" c="dimmed" ta="center" mt="md">
-          Click on a stage above to view its details
-        </Text>
-      )}
     </Paper>
   );
 });

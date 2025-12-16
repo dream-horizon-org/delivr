@@ -34,6 +34,7 @@ import {
   IconTarget,
   IconEye,
   IconGitBranch,
+  IconTrain,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigurationListItemProps } from '~/types/release-config-props';
@@ -51,7 +52,7 @@ const getStatusDisplay = (config: any) => {
 };
 
 const releaseTypeColors: Record<string, string> = {
-  PLANNED: 'blue',
+  MINOR: 'blue',
   HOTFIX: 'orange',
   MAJOR: 'red',
 };
@@ -130,6 +131,16 @@ export function ConfigurationListItem({
               <Badge size="sm" variant="light" color={releaseTypeColor}>
                 {config.releaseType}
               </Badge>
+              {config.releaseSchedule && (
+                <Badge 
+                  size="sm" 
+                  variant="light" 
+                  color="indigo"
+                  leftSection={<IconTrain size={12} />}
+                >
+                  Release Train
+                </Badge>
+              )}
             </Group>
           </Box>
 
@@ -160,10 +171,6 @@ export function ConfigurationListItem({
                   borderRadius: theme.radius.sm,
                   fontSize: theme.fontSizes.sm,
                   fontWeight: 500,
-                  '&[data-hovered]': {
-                    backgroundColor: theme.colors.slate[0],
-                    color: theme.colors.slate[9],
-                  },
                 },
                 itemLabel: {
                   fontSize: theme.fontSizes.sm,
@@ -203,19 +210,7 @@ export function ConfigurationListItem({
                   leftSection={<IconArchive size={16} stroke={1.5} />}
                   onClick={onArchive}
                   disabled={!isDraft && config.isActive === false}
-                  styles={{
-                    item: {
-                      color: theme.colors.red[7],
-                      '&[data-hovered]': {
-                        backgroundColor: theme.colors.red[0],
-                        color: theme.colors.red[8],
-                      },
-                      '&[data-disabled]': {
-                        opacity: 0.5,
-                        color: theme.colors.slate[5],
-                      },
-                    },
-                  }}
+                  color="red"
                 >
                   {isDraft ? 'Delete Draft' : 'Archive'}
                 </Menu.Item>
@@ -285,7 +280,7 @@ export function ConfigurationListItem({
                 p="xs"
                 radius="sm"
                 style={{
-                  backgroundColor: theme.colors.indigo,
+                  backgroundColor: theme.colors.indigo[0],
                   border: `1px solid ${theme.other.borders.brand}`,
                 }}
               >

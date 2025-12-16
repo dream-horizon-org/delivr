@@ -24,7 +24,6 @@ import {
 } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
-  IconPlus,
   IconPencil,
   IconTrash,
   IconServer,
@@ -35,7 +34,7 @@ import {
 } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { WorkflowPreviewModal } from './WorkflowPreviewModal';
-import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { PLATFORMS, BUILD_PROVIDERS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
 
 export interface WorkflowListProps {
@@ -113,12 +112,16 @@ export function WorkflowList({
   };
 
   const getWorkflowTypeLabel = (workflowType: string) => {
+    // Map backend workflow types to frontend environment labels
     const mapping: Record<string, string> = {
-      PRE_REGRESSION: 'Pre-Regression',
-      REGRESSION: 'Regression',
-      TESTFLIGHT: 'TestFlight',
+      PRE_REGRESSION_BUILD: ENVIRONMENT_LABELS.PRE_REGRESSION,
+      REGRESSION_BUILD: ENVIRONMENT_LABELS.REGRESSION,
+      TEST_FLIGHT_BUILD: ENVIRONMENT_LABELS.TESTFLIGHT,
+      AAB_BUILD: ENVIRONMENT_LABELS.AAB_BUILD,
+      PRE_REGRESSION: ENVIRONMENT_LABELS.PRE_REGRESSION,
+      REGRESSION: ENVIRONMENT_LABELS.REGRESSION,
+      TESTFLIGHT: ENVIRONMENT_LABELS.TESTFLIGHT,
       PRODUCTION: 'Production',
-      AAB_BUILD: 'AAB Build',
     };
     return mapping[workflowType] || workflowType;
   };
@@ -142,26 +145,6 @@ export function WorkflowList({
 
   return (
     <Stack gap="lg">
-      {/* Header */}
-      <Group justify="space-between" align="flex-start">
-        <Box>
-          <Text size="lg" fw={600} c={theme.colors.slate[9]} mb={4}>
-            CI/CD Pipelines
-          </Text>
-          <Text size="sm" c={theme.colors.slate[5]}>
-            Manage your Jenkins and GitHub Actions workflows
-          </Text>
-        </Box>
-        <Button
-          component={Link}
-          to={`/dashboard/${tenantId}/releases/workflows/new`}
-          color="brand"
-          leftSection={<IconPlus size={16} />}
-          disabled={!hasAnyIntegration}
-        >
-          Add Workflow
-        </Button>
-      </Group>
 
       {/* No Integrations Alert */}
       {!hasAnyIntegration && (
@@ -243,6 +226,11 @@ export function WorkflowList({
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
+                          {(workflow.workflowType === 'AAB_BUILD' || workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD) && (
+                            <Badge size="sm" variant="outline" color="gray">
+                              .aab
+                            </Badge>
+                          )}
                         </Group>
                         <Text
                           size="xs"
@@ -270,9 +258,6 @@ export function WorkflowList({
                             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                             borderRadius: theme.radius.sm,
                             fontSize: theme.fontSizes.sm,
-                            '&[data-hovered]': {
-                              backgroundColor: theme.colors.slate[0],
-                            },
                           },
                         }}
                       >
@@ -300,15 +285,7 @@ export function WorkflowList({
                               <Menu.Item
                                 leftSection={<IconTrash size={16} stroke={1.5} />}
                                 onClick={() => handleDeleteClick(workflow)}
-                                styles={{
-                                  item: {
-                                    color: theme.colors.red[7],
-                                    '&[data-hovered]': {
-                                      backgroundColor: theme.colors.red[0],
-                                      color: theme.colors.red[8],
-                                    },
-                                  },
-                                }}
+                                color="red"
                               >
                                 Delete
                               </Menu.Item>
@@ -375,6 +352,11 @@ export function WorkflowList({
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
+                          {(workflow.workflowType === 'AAB_BUILD' || workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD) && (
+                            <Badge size="sm" variant="outline" color="gray">
+                              .aab
+                            </Badge>
+                          )}
                         </Group>
                         <Text
                           size="xs"
@@ -402,9 +384,6 @@ export function WorkflowList({
                             padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                             borderRadius: theme.radius.sm,
                             fontSize: theme.fontSizes.sm,
-                            '&[data-hovered]': {
-                              backgroundColor: theme.colors.slate[0],
-                            },
                           },
                         }}
                       >
@@ -432,15 +411,7 @@ export function WorkflowList({
                               <Menu.Item
                                 leftSection={<IconTrash size={16} stroke={1.5} />}
                                 onClick={() => handleDeleteClick(workflow)}
-                                styles={{
-                                  item: {
-                                    color: theme.colors.red[7],
-                                    '&[data-hovered]': {
-                                      backgroundColor: theme.colors.red[0],
-                                      color: theme.colors.red[8],
-                                    },
-                                  },
-                                }}
+                                color="red"
                               >
                                 Delete
                               </Menu.Item>

@@ -8,7 +8,7 @@ import { Link } from '@remix-run/react';
 import { IconArrowLeft, IconEdit } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import { useQueryClient } from 'react-query';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';

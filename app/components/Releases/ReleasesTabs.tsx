@@ -3,11 +3,11 @@
  * Tab navigation and panels for releases list
  */
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import { Tabs } from '@mantine/core';
 import { RELEASE_TAB_CONFIGS } from '~/constants/release-tabs';
 import { ReleasesTabPanel } from './ReleasesTabPanel';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 interface ReleasesTabsProps {
   activeTab: string;
@@ -16,6 +16,7 @@ interface ReleasesTabsProps {
   active: BackendReleaseResponse[]; // Includes both RUNNING and PAUSED
   completed: BackendReleaseResponse[];
   org: string;
+  leftSection?: ReactNode;
 }
 
 export const ReleasesTabs = memo(function ReleasesTabs({
@@ -25,6 +26,7 @@ export const ReleasesTabs = memo(function ReleasesTabs({
   active,
   completed,
   org,
+  leftSection,
 }: ReleasesTabsProps) {
   const tabDataMap = useMemo(
     () => ({
@@ -37,22 +39,25 @@ export const ReleasesTabs = memo(function ReleasesTabs({
 
   return (
     <Tabs value={activeTab} onChange={onTabChange}>
-      <Tabs.List className="mb-6">
-        {RELEASE_TAB_CONFIGS.map((tabConfig) => {
-          const releases = tabDataMap[tabConfig.value];
-          const Icon = tabConfig.icon;
+      <div className="flex items-center justify-between mb-6">
+        {leftSection || <div style={{ flex: 1 }} />}
+        <Tabs.List>
+          {RELEASE_TAB_CONFIGS.map((tabConfig) => {
+            const releases = tabDataMap[tabConfig.value];
+            const Icon = tabConfig.icon;
 
-          return (
-            <Tabs.Tab
-              key={tabConfig.value}
-              value={tabConfig.value}
-              leftSection={<Icon size={16} />}
-            >
-              {tabConfig.label} ({releases.length})
-            </Tabs.Tab>
-          );
-        })}
-      </Tabs.List>
+            return (
+              <Tabs.Tab
+                key={tabConfig.value}
+                value={tabConfig.value}
+                leftSection={<Icon size={16} />}
+              >
+                {tabConfig.label} ({releases.length})
+              </Tabs.Tab>
+            );
+          })}
+        </Tabs.List>
+      </div>
 
       {RELEASE_TAB_CONFIGS.map((tabConfig) => {
         const releases = tabDataMap[tabConfig.value];

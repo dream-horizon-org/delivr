@@ -12,247 +12,37 @@
 import {
   Alert,
   Button,
-  Checkbox,
   Divider,
   Group,
-  Paper,
-  Select,
-  Slider,
   Stack,
   Text,
   Textarea,
 } from '@mantine/core';
-import { useFetcher } from '@remix-run/react';
-import { IconAlertCircle, IconBrandAndroid, IconBrandApple, IconRocket } from '@tabler/icons-react';
-import { useCallback, useState } from 'react';
+import { IconAlertCircle, IconRocket } from '@tabler/icons-react';
+import { useCallback } from 'react';
 import {
-  ANDROID_TRACKS,
   BUTTON_LABELS,
-  IOS_RELEASE_TYPES,
-  ROLLOUT_PRESETS,
+  DISTRIBUTION_UI_LABELS,
 } from '~/constants/distribution.constants';
-import { Platform, type SubmitToStoresActionResponse } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution.types';
+import { AndroidOptions } from './AndroidOptions';
 import type { SubmitToStoresFormProps } from './distribution.types';
-
-// ============================================================================
-// HELPER HOOKS
-// ============================================================================
-
-type FormState = {
-  selectedPlatforms: Platform[];
-  androidTrack: string;
-  androidRollout: number;
-  androidPriority: number;  // Per API Spec: 0-5, default 0
-  iosReleaseType: string;
-  iosPhasedRelease: boolean;
-  releaseNotes: string;
-};
-
-function useFormState(availablePlatforms: Platform[]) {
-  const [formState, setFormState] = useState<FormState>({
-    selectedPlatforms: [...availablePlatforms],
-    androidTrack: 'PRODUCTION',
-    androidRollout: 100,
-    androidPriority: 0,  // Per API Spec: default 0
-    iosReleaseType: 'AFTER_APPROVAL',
-    iosPhasedRelease: true,
-    releaseNotes: '',
-  });
-
-  const fetcher = useFetcher<SubmitToStoresActionResponse>();
-  const isSubmitting = fetcher.state === 'submitting';
-  const submitError = fetcher.data?.error?.message ?? null;
-  const submitSuccess = fetcher.data?.success === true;
-
-  const updateField = useCallback(<K extends keyof FormState>(
-    field: K, 
-    value: FormState[K]
-  ) => {
-    setFormState(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  const togglePlatform = useCallback((platform: Platform) => {
-    setFormState(prev => ({
-      ...prev,
-      selectedPlatforms: prev.selectedPlatforms.includes(platform)
-        ? prev.selectedPlatforms.filter(p => p !== platform)
-        : [...prev.selectedPlatforms, platform],
-    }));
-  }, []);
-
-  return {
-    formState,
-    updateField,
-    togglePlatform,
-    fetcher,
-    isSubmitting,
-    submitError,
-    submitSuccess,
-  };
-}
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-function PlatformCheckbox({ 
-  platform, 
-  checked, 
-  disabled,
-  onChange 
-}: { 
-  platform: Platform;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-}) {
-  const isAndroid = platform === Platform.ANDROID;
-  
-  return (
-    <Checkbox
-      checked={checked}
-      onChange={onChange}
-      disabled={disabled}
-      label={
-        <Group gap="xs">
-          {isAndroid ? <IconBrandAndroid size={16} /> : <IconBrandApple size={16} />}
-          <Text size="sm">{isAndroid ? 'Google Play Store' : 'Apple App Store'}</Text>
-        </Group>
-      }
-    />
-  );
-}
-
-// Per API Spec: priority 0-5
-const ANDROID_PRIORITIES = [
-  { value: '0', label: '0 - Default' },
-  { value: '1', label: '1 - Low' },
-  { value: '2', label: '2 - Medium-Low' },
-  { value: '3', label: '3 - Medium' },
-  { value: '4', label: '4 - Medium-High' },
-  { value: '5', label: '5 - High' },
-];
-
-function AndroidOptions({ 
-  track, 
-  rollout,
-  priority,
-  onTrackChange,
-  onRolloutChange,
-  onPriorityChange,
-  disabled,
-}: { 
-  track: string;
-  rollout: number;
-  priority: number;
-  onTrackChange: (value: string) => void;
-  onRolloutChange: (value: number) => void;
-  onPriorityChange: (value: number) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Paper p="md" withBorder radius="md" bg="green.0">
-      <Group gap="xs" mb="md">
-        <IconBrandAndroid size={18} className="text-green-600" />
-        <Text fw={500} size="sm">Android Options</Text>
-      </Group>
-      
-      <Stack gap="md">
-        <Select
-          label="Release Track"
-          description="Which track to release to"
-          value={track}
-          onChange={(v) => v && onTrackChange(v)}
-          data={ANDROID_TRACKS.map(t => ({ value: t.value, label: t.label }))}
-          disabled={disabled}
-        />
-
-        <Select
-          label="Update Priority"
-          description="How urgently users should update (0-5)"
-          value={String(priority)}
-          onChange={(v) => v && onPriorityChange(Number(v))}
-          data={ANDROID_PRIORITIES}
-          disabled={disabled}
-        />
-
-        <div>
-          <Text size="sm" fw={500} mb="xs">Initial Rollout Percentage</Text>
-          <Text size="xs" c="dimmed" mb="sm">
-            Start with a lower percentage for staged rollouts
-          </Text>
-          <Slider
-            value={rollout}
-            onChange={onRolloutChange}
-            min={1}
-            max={100}
-            marks={ROLLOUT_PRESETS.map(p => ({ value: p, label: `${p}%` }))}
-            disabled={disabled}
-          />
-          <Text size="sm" ta="center" mt="sm" fw={500}>
-            {rollout}%
-          </Text>
-        </div>
-      </Stack>
-    </Paper>
-  );
-}
-
-function IOSOptions({ 
-  releaseType, 
-  phasedRelease,
-  onReleaseTypeChange,
-  onPhasedReleaseChange,
-  disabled,
-}: { 
-  releaseType: string;
-  phasedRelease: boolean;
-  onReleaseTypeChange: (value: string) => void;
-  onPhasedReleaseChange: (value: boolean) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Paper p="md" withBorder radius="md" bg="blue.0">
-      <Group gap="xs" mb="md">
-        <IconBrandApple size={18} className="text-blue-600" />
-        <Text fw={500} size="sm">iOS Options</Text>
-      </Group>
-      
-      <Stack gap="md">
-        <Select
-          label="Release Type"
-          description="When should the app be released"
-          value={releaseType}
-          onChange={(v) => v && onReleaseTypeChange(v)}
-          data={IOS_RELEASE_TYPES.map(t => ({ value: t.value, label: t.label }))}
-          disabled={disabled}
-        />
-
-        <Checkbox
-          label="Enable Phased Release"
-          description="Gradually release to users over 7 days"
-          checked={phasedRelease}
-          onChange={(e) => onPhasedReleaseChange(e.currentTarget.checked)}
-          disabled={disabled}
-        />
-      </Stack>
-    </Paper>
-  );
-}
+import { IOSOptions } from './IOSOptions';
+import { PlatformCheckbox } from './PlatformCheckbox';
+import { useFormState } from './useFormState';
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
-export function SubmitToStoresForm(props: SubmitToStoresFormProps) {
-  const { 
-    releaseId, 
-    availablePlatforms,
-    hasAndroidActiveRollout,
-    onSubmitComplete, 
-    onClose,
-    className,
-  } = props;
+export function SubmitToStoresForm({
+  releaseId,
+  availablePlatforms,
+  hasAndroidActiveRollout,
+  onSubmitComplete,
+  onClose,
+  className,
+}: SubmitToStoresFormProps) {
 
   const {
     formState,
@@ -269,6 +59,20 @@ export function SubmitToStoresForm(props: SubmitToStoresFormProps) {
   const androidSelected = formState.selectedPlatforms.includes(Platform.ANDROID);
   const iosSelected = formState.selectedPlatforms.includes(Platform.IOS);
   const canSubmit = formState.selectedPlatforms.length > 0;
+
+  // Platform toggle handlers
+  const handleToggleAndroid = useCallback(() => {
+    togglePlatform(Platform.ANDROID);
+  }, [togglePlatform]);
+
+  const handleToggleIOS = useCallback(() => {
+    togglePlatform(Platform.IOS);
+  }, [togglePlatform]);
+
+  // Release notes handler
+  const handleReleaseNotesChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    updateField('releaseNotes', event.currentTarget.value);
+  }, [updateField]);
 
   // Handle submission
   const handleSubmit = useCallback(() => {
@@ -344,13 +148,13 @@ export function SubmitToStoresForm(props: SubmitToStoresFormProps) {
         <>
           {/* Platform Selection */}
           <div>
-            <Text fw={500} size="sm" mb="sm">Select Platforms</Text>
+            <Text fw={500} size="sm" mb="sm">{DISTRIBUTION_UI_LABELS.SELECT_PLATFORMS}</Text>
             <Stack gap="sm">
               {hasAndroid && (
                 <PlatformCheckbox
                   platform={Platform.ANDROID}
                   checked={androidSelected}
-                  onChange={() => togglePlatform(Platform.ANDROID)}
+                  onChange={handleToggleAndroid}
                   disabled={isSubmitting}
                 />
               )}
@@ -358,7 +162,7 @@ export function SubmitToStoresForm(props: SubmitToStoresFormProps) {
                 <PlatformCheckbox
                   platform={Platform.IOS}
                   checked={iosSelected}
-                  onChange={() => togglePlatform(Platform.IOS)}
+                  onChange={handleToggleIOS}
                   disabled={isSubmitting}
                 />
               )}
@@ -395,11 +199,11 @@ export function SubmitToStoresForm(props: SubmitToStoresFormProps) {
             <>
               <Divider />
               <Textarea
-                label="Release Notes"
-                description="What's new in this version"
-                placeholder="Bug fixes and performance improvements..."
+                label={DISTRIBUTION_UI_LABELS.RELEASE_NOTES}
+                description={DISTRIBUTION_UI_LABELS.RELEASE_NOTES_DESC}
+                placeholder={DISTRIBUTION_UI_LABELS.RELEASE_NOTES_PLACEHOLDER}
                 value={formState.releaseNotes}
-                onChange={(e) => updateField('releaseNotes', e.target.value)}
+                onChange={handleReleaseNotesChange}
                 minRows={3}
                 disabled={isSubmitting}
               />

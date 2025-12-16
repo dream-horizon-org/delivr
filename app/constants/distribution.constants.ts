@@ -9,8 +9,23 @@ import type {
   BuildUploadStatus,
   Platform,
   ReleaseStatus,
+  SubmissionHistoryEventType,
   SubmissionStatus,
+  WarningSeverity,
 } from '~/types/distribution.types';
+
+// ============================================================================
+// ROLLOUT PERCENTAGES
+// ============================================================================
+
+/** Minimum rollout percentage (0%) */
+export const MIN_ROLLOUT_PERCENT = 0;
+
+/** Maximum rollout percentage (100%) */
+export const MAX_ROLLOUT_PERCENT = 100;
+
+/** Complete rollout percentage (100%) - Used to check if rollout is complete */
+export const ROLLOUT_COMPLETE_PERCENT = 100;
 
 // ============================================================================
 // STATUS LABELS
@@ -72,6 +87,18 @@ export const RELEASE_STATUS_COLORS: Record<ReleaseStatus, string> = {
  */
 export const SUBMISSION_STATUS_COLORS: Record<SubmissionStatus, string> = {
   IN_REVIEW: 'yellow',
+  APPROVED: 'green',
+  LIVE: 'green',
+  REJECTED: 'red',
+  HALTED: 'red',
+} as const;
+
+/**
+ * Submission Status Colors (for progress bars)
+ * Note: Different from badge colors - progress bars use blue for active/in-progress state
+ */
+export const SUBMISSION_PROGRESS_COLORS: Record<SubmissionStatus, string> = {
+  IN_REVIEW: 'blue',
   APPROVED: 'green',
   LIVE: 'green',
   REJECTED: 'red',
@@ -145,6 +172,19 @@ export const IOS_RELEASE_TYPES = [
   { value: 'SCHEDULED', label: 'Scheduled Release' },
 ] as const;
 
+/**
+ * Android Update Priority Levels
+ * Per API Spec: priority 0-5 (https://developer.android.com/google/play/developer-api)
+ */
+export const ANDROID_PRIORITIES = [
+  { value: '0', label: '0 - Default' },
+  { value: '1', label: '1 - Low' },
+  { value: '2', label: '2 - Medium-Low' },
+  { value: '3', label: '3 - Medium' },
+  { value: '4', label: '4 - Medium-High' },
+  { value: '5', label: '5 - High' },
+] as const;
+
 // ============================================================================
 // SEVERITY LEVELS
 // ============================================================================
@@ -157,6 +197,15 @@ export const HALT_SEVERITY_LEVELS = [
   { value: 'HIGH', label: 'High', color: 'orange' },
   { value: 'MEDIUM', label: 'Medium', color: 'yellow' },
 ] as const;
+
+/**
+ * Warning Severity Colors
+ */
+export const WARNING_SEVERITY_COLORS: Record<WarningSeverity, string> = {
+  ERROR: 'red',
+  WARNING: 'orange',
+  INFO: 'yellow',
+} as const;
 
 // ============================================================================
 // POLLING INTERVALS
@@ -171,6 +220,93 @@ export const STATUS_POLLING_INTERVAL = 10000;
  * Maximum polling duration (5 minutes)
  */
 export const MAX_POLLING_DURATION = 5 * 60 * 1000;
+
+// ============================================================================
+// UI TEXT - Form Labels and Headings
+// ============================================================================
+
+/**
+ * Distribution UI Labels
+ * All form labels, headings, and section titles used in distribution components
+ */
+export const DISTRIBUTION_UI_LABELS = {
+  // Platform Options Headings
+  ANDROID_OPTIONS: 'Android Options',
+  IOS_OPTIONS: 'iOS Options',
+  SELECT_PLATFORMS: 'Select Platforms',
+  
+  // Android Form Labels
+  ANDROID_RELEASE_TRACK: 'Release Track',
+  ANDROID_RELEASE_TRACK_DESC: 'Which track to release to',
+  ANDROID_UPDATE_PRIORITY: 'Update Priority',
+  ANDROID_UPDATE_PRIORITY_DESC: 'How urgently users should update (0-5)',
+  ANDROID_ROLLOUT_PERCENTAGE: 'Initial Rollout Percentage',
+  ANDROID_ROLLOUT_PERCENTAGE_DESC: 'Start with a lower percentage for staged rollouts',
+  
+  // iOS Form Labels
+  IOS_RELEASE_TYPE: 'Release Type',
+  IOS_RELEASE_TYPE_DESC: 'When should the app be released',
+  IOS_PHASED_RELEASE: 'Enable Phased Release',
+  IOS_PHASED_RELEASE_DESC: 'Gradually release to users over 7 days',
+  
+  // Common Form Labels
+  RELEASE_NOTES: 'Release Notes',
+  RELEASE_NOTES_DESC: "What's new in this version",
+  RELEASE_NOTES_PLACEHOLDER: 'Bug fixes and performance improvements...',
+  
+  // TestFlight Form Labels
+  TESTFLIGHT_BUILD_NUMBER: 'TestFlight Build Number',
+  TESTFLIGHT_BUILD_NUMBER_DESC: 'The build number shown in App Store Connect / TestFlight',
+  TESTFLIGHT_BUILD_NUMBER_PLACEHOLDER: 'e.g., 17965',
+  VERSION_NAME: 'Version Name',
+  VERSION_NAME_DESC: 'The version string (must match release version)',
+  
+  // AAB Upload Form Labels
+  AAB_FILE_LABEL: 'Android App Bundle (.aab)',
+  AAB_FILE_DESC: 'Upload your signed Android App Bundle',
+  AAB_DRAG_DROP: 'Drag and drop your .aab file here, or click to browse',
+  AAB_METADATA_LABEL: 'Version Metadata (optional)',
+  AAB_METADATA_DESC: 'Additional version information',
+  
+  // Dialog Titles
+  PAUSE_ROLLOUT_TITLE: 'Pause Rollout',
+  RESUME_ROLLOUT_TITLE: 'Resume Rollout',
+  HALT_ROLLOUT_TITLE: 'Emergency Halt Rollout',
+  MANUAL_APPROVAL_TITLE: 'Approve for Submission',
+  
+  // Dialog Fields
+  REASON_OPTIONAL: 'Reason (optional)',
+  REASON_REQUIRED: 'Reason for Halt',
+  REASON_HALT_DESC: 'Describe the issue that requires halting this rollout',
+  REASON_HALT_PLACEHOLDER: 'e.g., Critical crash affecting login flow for users on Android 12+',
+  COMMENTS_OPTIONAL: 'Comments (Optional)',
+  COMMENTS_APPROVAL_DESC: 'Add any notes about this approval',
+  COMMENTS_APPROVAL_PLACEHOLDER: 'e.g., Approved after QA sign-off',
+  
+  // Badge Labels
+  APPROVED: 'Approved',
+  APPROVAL_BLOCKED: 'Approval Blocked',
+  
+  // Button Labels (Extra Commits Warning)
+  ACKNOWLEDGED: 'Acknowledged',
+  PROCEED_ANYWAY: 'Proceed Anyway',
+  
+  // Build Details Labels
+  VERSION_LABEL: 'Version:',
+  BUILT_VIA_LABEL: 'Built via:',
+  TESTFLIGHT_LABEL: 'TestFlight:',
+  INTERNAL_TESTING_LINK: 'Internal Testing Link',
+  VIEW_CI_JOB: 'View CI Job',
+  RETRY_BUILD: 'Retry Build',
+  READY_FOR_DISTRIBUTION: 'Ready for Distribution',
+  BUILD_QUEUED: 'Build queued, waiting to start...',
+  BUILD_IN_PROGRESS: 'Build in progress...',
+  
+  // Empty State Messages
+  NO_BUILD_UPLOADED: (platform: string) => `No ${platform} build uploaded yet.`,
+  WAITING_FOR_CICD: (platform: string) => `Waiting for CI/CD to build ${platform}...`,
+  CI_BUILD_AUTO_START: 'CI build will start automatically',
+} as const;
 
 // ============================================================================
 // TOAST MESSAGES
@@ -278,6 +414,31 @@ export const EMPTY_STATE_MESSAGES = {
 } as const;
 
 // ============================================================================
+// STORE URLS
+// ============================================================================
+
+/**
+ * Store Console URLs by Platform
+ */
+export const STORE_URLS: Record<Platform, string> = {
+  ANDROID: 'https://play.google.com/console',
+  IOS: 'https://appstoreconnect.apple.com',
+} as const;
+
+// ============================================================================
+// UI SIZE MAPPINGS
+// ============================================================================
+
+/**
+ * Progress bar height by size variant
+ */
+export const PROGRESS_BAR_HEIGHTS = {
+  sm: 6,
+  md: 10,
+  lg: 16,
+} as const;
+
+// ============================================================================
 // VALIDATION
 // ============================================================================
 
@@ -299,5 +460,55 @@ export const VALIDATION_RULES = {
     PATTERN: /^\d+\.\d+\.\d+$/,
     EXAMPLE: '2.5.0',
   },
+} as const;
+
+// ============================================================================
+// ROLLOUT STATUS COLORS & LABELS
+// ============================================================================
+
+/** Rollout status to color mapping */
+export const ROLLOUT_STATUS_COLORS = {
+  complete: 'green',
+  active: 'blue',
+  paused: 'yellow',
+  halted: 'red',
+} as const;
+
+/** Rollout status to label mapping */
+export const ROLLOUT_STATUS_LABELS = {
+  complete: 'Complete',
+  active: 'Active',
+  paused: 'Paused',
+  halted: 'Halted',
+} as const;
+
+// ============================================================================
+// EVENT HISTORY COLORS & LABELS
+// ============================================================================
+
+/** Event type to color mapping */
+export const EVENT_COLORS: Record<SubmissionHistoryEventType, string> = {
+  SUBMITTED: 'blue',
+  APPROVED: 'green',
+  ROLLOUT_RESUMED: 'green',
+  REJECTED: 'red',
+  ROLLOUT_HALTED: 'red',
+  ROLLOUT_PAUSED: 'yellow',
+  ROLLOUT_UPDATED: 'cyan',
+  RETRY_ATTEMPTED: 'orange',
+  STATUS_CHANGED: 'gray',
+} as const;
+
+/** Event type to label mapping */
+export const EVENT_LABELS: Record<SubmissionHistoryEventType, string> = {
+  SUBMITTED: 'Submitted',
+  STATUS_CHANGED: 'Status Changed',
+  ROLLOUT_UPDATED: 'Rollout Updated',
+  ROLLOUT_PAUSED: 'Rollout Paused',
+  ROLLOUT_RESUMED: 'Rollout Resumed',
+  ROLLOUT_HALTED: 'Rollout Halted',
+  REJECTED: 'Rejected',
+  APPROVED: 'Approved',
+  RETRY_ATTEMPTED: 'Retry Attempted',
 } as const;
 

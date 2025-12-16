@@ -10,23 +10,24 @@
 
 import { Badge, Button, Card, Group, Stack, Text, ThemeIcon, Timeline } from '@mantine/core';
 import {
-    IconAlertOctagon,
-    IconCheck,
-    IconHistory,
-    IconPlayerPause,
-    IconPlayerPlay,
-    IconRefresh,
-    IconSend,
-    IconTrendingUp,
-    IconX,
+  IconAlertOctagon,
+  IconCheck,
+  IconHistory,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconRefresh,
+  IconSend,
+  IconTrendingUp,
+  IconX,
 } from '@tabler/icons-react';
-import type { SubmissionHistoryEvent, SubmissionHistoryEventType } from '~/types/distribution.types';
+import type { SubmissionHistoryEvent } from '~/types/distribution.types';
+import { SubmissionHistoryEventType } from '~/types/distribution.types';
 import type { SubmissionHistoryPanelProps } from './distribution.types';
 import {
-    formatDateTime,
-    getEventColor,
-    getEventLabel,
-    getRolloutPercentageDisplay,
+  formatDateTime,
+  getEventColor,
+  getEventLabel,
+  getRolloutPercentageDisplay,
 } from './distribution.utils';
 
 // ============================================================================
@@ -52,7 +53,11 @@ function getEventIcon(eventType: SubmissionHistoryEventType) {
 // SUB-COMPONENTS
 // ============================================================================
 
-function EventItem({ event }: { event: SubmissionHistoryEvent }) {
+type EventItemProps = {
+  event: SubmissionHistoryEvent;
+};
+
+function EventItem({ event }: EventItemProps) {
   const color = getEventColor(event.eventType);
   
   return (
@@ -95,7 +100,7 @@ function EventItem({ event }: { event: SubmissionHistoryEvent }) {
         )}
 
         {/* State Change */}
-        {event.eventType === 'ROLLOUT_UPDATED' && event.newState && (
+        {event.eventType === SubmissionHistoryEventType.ROLLOUT_UPDATED && event.newState && (
           <Text size="xs">
             <Text span c="dimmed">New percentage:</Text>{' '}
             {getRolloutPercentageDisplay(event.newState)}

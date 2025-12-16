@@ -9,7 +9,7 @@ import {
   Paper,
   Group,
 } from "@mantine/core";
-import { IconRocket, IconBuildingSkyscraper, IconCheck } from "@tabler/icons-react";
+import { IconBuildingSkyscraper, IconCheck } from "@tabler/icons-react";
 import { useNavigate } from "@remix-run/react";
 import { route } from "routes-gen";
 import { CreateOrgModal } from "~/components/Pages/components/OrgsPage/components/CreateOrgModal";
@@ -29,21 +29,7 @@ export default function GettingStartedPage() {
 
   return (
     <Box bg="white" mih="100vh">
-      {/* Header */}
-      <Box style={{ borderBottom: `1px solid ${theme.colors.slate[2]}` }} py="md">
-        <Container size="xl">
-          <Group gap="sm">
-            <ThemeIcon size="lg" color="brand" variant="light" radius="md">
-              <IconRocket size={20} />
-            </ThemeIcon>
-            <Text fw={700} size="lg" c="slate.9">
-              Delivr
-            </Text>
-          </Group>
-        </Container>
-      </Box>
-
-      {/* Main Content */}
+      {/* Main Content - Header is already provided by parent layout */}
       <Container size="sm" py={80}>
         <Stack gap="xl" align="center">
           {/* Hero Section */}

@@ -4,15 +4,15 @@
  * GET  /api/v1/releases/:releaseId/distribute - Get distribution status for release
  */
 
+import type { LoaderFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import type { LoaderFunctionArgs, ActionFunctionArgs } from '@remix-run/node';
-import {
-  authenticateLoaderRequest,
-  authenticateActionRequest,
-  AuthenticatedActionFunction,
-} from '~/utils/authenticate';
-import { DistributionService } from '~/.server/services/Distribution';
 import type { User } from '~/.server/services/Auth/Auth.interface';
+import { DistributionService } from '~/.server/services/Distribution';
+import {
+  ERROR_MESSAGES,
+  LOG_CONTEXT,
+} from '~/constants/distribution-api.constants';
+import { Platform } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -20,9 +20,10 @@ import {
   validateRequired,
 } from '~/utils/api-route-helpers';
 import {
-  ERROR_MESSAGES,
-  LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+  authenticateActionRequest,
+  AuthenticatedActionFunction,
+  authenticateLoaderRequest,
+} from '~/utils/authenticate';
 
 /**
  * GET - Get distribution status for a release
@@ -48,11 +49,11 @@ export const loader = authenticateLoaderRequest(
 /**
  * Validate platforms array
  */
-function validatePlatforms(platforms: unknown): platforms is Array<'ANDROID' | 'IOS'> {
+function validatePlatforms(platforms: unknown): platforms is Platform[] {
   return (
     Array.isArray(platforms) &&
     platforms.length > 0 &&
-    platforms.every((p) => p === 'ANDROID' || p === 'IOS')
+    platforms.every((p) => p === Platform.ANDROID || p === Platform.IOS)
   );
 }
 
@@ -76,7 +77,7 @@ const submitToStores: AuthenticatedActionFunction = async ({ params, request, us
 
     const requestData = {
       releaseId,
-      platforms,
+      platforms: platforms as Platform[],
       android,
       ios,
     };

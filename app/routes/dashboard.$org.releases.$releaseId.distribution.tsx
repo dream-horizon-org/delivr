@@ -5,30 +5,22 @@
  * Route: /dashboard/:org/releases/:releaseId/distribution
  */
 
-import { Badge, Button, Card, Container, Group, Modal, Stack, Tabs, Text, Title } from '@mantine/core';
+import { Container, Modal, Tabs } from '@mantine/core';
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
-import { Link, useFetcher, useLoaderData, useNavigate, useRevalidator, useSearchParams } from '@remix-run/react';
-import { IconCheck, IconExternalLink, IconRocket } from '@tabler/icons-react';
+import { useFetcher, useLoaderData, useNavigate, useRevalidator, useSearchParams } from '@remix-run/react';
+import { IconCheck, IconRocket } from '@tabler/icons-react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-  BuildStatusCard,
-  DistributionStatusPanel,
-  ExtraCommitsWarning,
   ManualApprovalDialog,
-  PMApprovalStatus,
-  ReleaseCompleteView,
-  SubmissionStatusCard,
   SubmitToStoresForm,
   UploadAABForm,
-  VerifyTestFlightForm,
+  VerifyTestFlightForm
 } from '~/components/distribution';
 import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution-api.constants';
 import {
-  BUTTON_LABELS,
   DIALOG_TITLES,
-  RELEASE_STATUS_COLORS,
-  RELEASE_STATUS_LABELS,
+  ROLLOUT_COMPLETE_PERCENT
 } from '~/constants/distribution.constants';
 import { useDistribution } from '~/hooks/useDistribution';
 import { usePreRelease } from '~/hooks/usePreRelease';
@@ -41,7 +33,7 @@ import type {
   PMStatusResponse,
   SubmissionsResponse,
 } from '~/types/distribution.types';
-import { Platform, ReleaseStatus, SubmissionStatus } from '~/types/distribution.types';
+import { Platform, ReleaseStatus } from '~/types/distribution.types';
 import {
   createValidationError,
   handleAxiosError,
@@ -311,7 +303,7 @@ export default function DistributionPage() {
   const hasAndroidActiveRollout = 
     data.distributionStatus.data.platforms.android?.submitted === true &&
     data.distributionStatus.data.platforms.android?.exposurePercent > 0 &&
-    data.distributionStatus.data.platforms.android?.exposurePercent < 100;
+    data.distributionStatus.data.platforms.android?.exposurePercent < ROLLOUT_COMPLETE_PERCENT;
 
   return (
     <Container size="xl" className="py-8">
@@ -412,236 +404,10 @@ export default function DistributionPage() {
 }
 
 // ============================================================================
-// SUB-COMPONENTS (extracted, not inline)
+// SUB-COMPONENTS - Imported from _components folder
 // ============================================================================
 
-type PageHeaderProps = {
-  releaseId: string;
-  currentStatus: ReleaseStatus;
-};
+import { DistributionPageHeader as PageHeader } from './_components/DistributionPageHeader';
+import { DistributionTab } from './_components/DistributionTab';
+import { PreReleaseTab } from './_components/PreReleaseTab';
 
-function PageHeader({ releaseId, currentStatus }: PageHeaderProps) {
-  return (
-    <Group justify="space-between" mb="xl">
-      <div>
-        <Title order={1}>Distribution</Title>
-        <Text c="dimmed" mt="xs">Release {releaseId}</Text>
-      </div>
-      <Badge color={RELEASE_STATUS_COLORS[currentStatus]} variant="light" size="xl">
-        {RELEASE_STATUS_LABELS[currentStatus]}
-      </Badge>
-    </Group>
-  );
-}
-
-type PreReleaseTabProps = {
-  preRelease: ReturnType<typeof usePreRelease>;
-  extraCommitsData: ExtraCommitsResponse['data'];
-  pmStatusData: PMStatusResponse['data'];
-  approveFetcherState: string;
-  onOpenSubmitDialog: () => void;
-};
-
-function PreReleaseTab({
-  preRelease,
-  extraCommitsData,
-  pmStatusData,
-  approveFetcherState,
-  onOpenSubmitDialog,
-}: PreReleaseTabProps) {
-  return (
-    <Stack gap="lg">
-      {preRelease.hasExtraCommits && (
-        <ExtraCommitsWarning
-          extraCommits={extraCommitsData}
-          canDismiss
-          onProceed={preRelease.acknowledgeExtraCommits}
-        />
-      )}
-
-      <div>
-        <Title order={3} mb="md">Build Status</Title>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <BuildStatusCard
-            platform={Platform.ANDROID}
-            build={preRelease.androidBuild}
-            buildStrategy={preRelease.buildStrategy}
-            onUploadRequested={preRelease.openUploadDialog}
-          />
-          <BuildStatusCard
-            platform={Platform.IOS}
-            build={preRelease.iosBuild}
-            buildStrategy={preRelease.buildStrategy}
-            onVerifyRequested={preRelease.openVerifyDialog}
-          />
-        </div>
-      </div>
-
-      <div>
-        <Title order={3} mb="md">Approval</Title>
-        <PMApprovalStatus
-          pmStatus={pmStatusData}
-          isApproving={approveFetcherState === 'submitting'}
-          onApproveRequested={preRelease.openApprovalDialog}
-        />
-      </div>
-
-      <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Group justify="space-between">
-          <div>
-            <Text fw={600}>Ready for Distribution?</Text>
-            <Text size="sm" c="dimmed">
-              {preRelease.canPromote 
-                ? 'All requirements met. You can proceed to store submission.'
-                : preRelease.promotionBlockedReason}
-            </Text>
-          </div>
-          <Button
-            size="lg"
-            disabled={!preRelease.canPromote}
-            leftSection={<IconRocket size={18} />}
-            onClick={onOpenSubmitDialog}
-          >
-            {BUTTON_LABELS.PROMOTE_TO_DISTRIBUTION}
-          </Button>
-        </Group>
-      </Card>
-    </Stack>
-  );
-}
-
-type DistributionTabProps = {
-  distribution: ReturnType<typeof useDistribution>;
-  distributionStatusData: DistributionStatusResponse['data'];
-  org: string;
-  releaseId: string;
-};
-
-function DistributionTab({
-  distribution,
-  distributionStatusData,
-  org,
-  releaseId,
-}: DistributionTabProps) {
-  return (
-    <Stack gap="lg">
-      <DistributionStatusPanel status={distributionStatusData} />
-
-      {/* Open in Distribution Management Button */}
-      {distribution.hasSubmissions && (
-        <Card shadow="sm" padding="md" radius="md" withBorder>
-          <Group justify="space-between">
-            <div>
-              <Text fw={600} size="sm">
-                Need to manage rollout or retry submissions?
-              </Text>
-              <Text size="xs" c="dimmed">
-                Access full distribution management with rollout controls, pause/resume, and more.
-              </Text>
-            </div>
-            <Button
-              component={Link}
-              to={`/dashboard/${org}/distributions/${releaseId}`}
-              variant="light"
-              leftSection={<IconExternalLink size={16} />}
-            >
-              Open in Distribution Management
-            </Button>
-          </Group>
-        </Card>
-      )}
-
-      <div>
-        <Group justify="space-between" mb="md">
-          <Title order={3}>Store Submissions</Title>
-          {distribution.canSubmitToStores && distribution.availablePlatforms.length > 0 && (
-            <Button leftSection={<IconRocket size={16} />} onClick={distribution.openSubmitDialog}>
-              Submit to Stores
-            </Button>
-          )}
-        </Group>
-
-        {distribution.hasSubmissions ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {distribution.submissions.map((submission) => (
-                <SubmissionStatusCard
-                  key={submission.id}
-                  submission={submission}
-                  org={org}
-                  releaseId={releaseId}
-                />
-              ))}
-            </div>
-            
-            {/* Release Complete View (if all platforms at 100%) */}
-            {distribution.submissions.every(
-              (s) => s.submissionStatus === SubmissionStatus.LIVE && s.exposurePercent === 100
-            ) && (
-              <ReleaseCompleteView
-                releaseVersion={distributionStatusData.releaseVersion}
-                platforms={distribution.submissions.map((s) => ({
-                  platform: s.platform,
-                  versionName: s.versionName,
-                  exposurePercent: s.exposurePercent,
-                  submittedAt: s.submittedAt,
-                  releasedAt: s.releasedAt,
-                }))}
-                completedAt={
-                  distribution.submissions.reduce((latest, s) => {
-                    const releasedAt = s.releasedAt;
-                    if (!releasedAt) return latest;
-                    if (!latest) return releasedAt;
-                    return new Date(releasedAt) > new Date(latest) ? releasedAt : latest;
-                  }, null as string | null) || new Date().toISOString()
-                }
-              />
-            )}
-          </>
-        ) : (
-          <EmptySubmissionsCard
-            showButton={distribution.availablePlatforms.length > 0}
-            onSubmit={distribution.openSubmitDialog}
-          />
-        )}
-      </div>
-
-      {distribution.hasRejections && <RejectionWarningCard />}
-    </Stack>
-  );
-}
-
-type EmptySubmissionsCardProps = {
-  showButton: boolean;
-  onSubmit: () => void;
-};
-
-function EmptySubmissionsCard({ showButton, onSubmit }: EmptySubmissionsCardProps) {
-  return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Stack align="center" py="xl">
-        <IconRocket size={48} className="text-gray-300" />
-        <Text c="dimmed" ta="center">
-          No submissions yet. Submit your builds to the app stores to start distribution.
-        </Text>
-        {showButton && (
-          <Button mt="md" leftSection={<IconRocket size={16} />} onClick={onSubmit}>
-            Submit to Stores
-          </Button>
-        )}
-      </Stack>
-    </Card>
-  );
-}
-
-function RejectionWarningCard() {
-  return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder className="border-red-300 bg-red-50">
-      <Title order={4} c="red.7" mb="sm">⚠️ Submission Rejected</Title>
-      <Text size="sm" c="red.7">
-        One or more submissions were rejected by the store. Please review the rejection details 
-        and submit a corrected build.
-      </Text>
-    </Card>
-  );
-}

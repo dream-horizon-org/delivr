@@ -16,7 +16,6 @@ import {
   Slider,
   Stack,
   Text,
-  Tooltip
 } from '@mantine/core';
 import {
   IconAlertOctagon,
@@ -25,141 +24,37 @@ import {
   IconPlayerPlay,
   IconTrendingUp,
 } from '@tabler/icons-react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
   BUTTON_LABELS,
   MAX_ROLLOUT_PERCENTAGE,
-  ROLLOUT_PRESETS,
+  ROLLOUT_COMPLETE_PERCENT,
 } from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
+import { ActionButton } from './ActionButton';
+import { PresetButtons } from './PresetButtons';
 import { RolloutProgressBar } from './RolloutProgressBar';
 import type { RolloutControlsProps } from './distribution.types';
 import { deriveActionAvailability } from './distribution.utils';
-
-// ============================================================================
-// LOCAL HOOK - Uses useState/useCallback (valid React hook)
-// ============================================================================
-
-function useRolloutState(currentPercentage: number) {
-  const [targetPercentage, setTargetPercentage] = useState(currentPercentage);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  const handleSliderChange = useCallback((value: number) => {
-    setTargetPercentage(value);
-    setHasChanges(value !== currentPercentage);
-  }, [currentPercentage]);
-
-  const selectPreset = useCallback((preset: number) => {
-    setTargetPercentage(preset);
-    setHasChanges(preset !== currentPercentage);
-  }, [currentPercentage]);
-
-  const resetChanges = useCallback(() => {
-    setTargetPercentage(currentPercentage);
-    setHasChanges(false);
-  }, [currentPercentage]);
-
-  return {
-    targetPercentage,
-    hasChanges,
-    handleSliderChange,
-    selectPreset,
-    resetChanges,
-  };
-}
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-function PresetButtons({ 
-  currentPercentage,
-  targetPercentage,
-  onSelect,
-  disabled,
-}: { 
-  currentPercentage: number;
-  targetPercentage: number;
-  onSelect: (preset: number) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Group gap="xs">
-      {ROLLOUT_PRESETS.filter(p => p > currentPercentage).map((preset) => (
-        <Button
-          key={preset}
-          variant={targetPercentage === preset ? 'filled' : 'light'}
-          size="xs"
-          onClick={() => onSelect(preset)}
-          disabled={disabled}
-        >
-          {preset}%
-        </Button>
-      ))}
-    </Group>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  color,
-  onClick,
-  disabled,
-  loading,
-  tooltip,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-  tooltip?: string;
-}) {
-  const button = (
-    <Button
-      variant="light"
-      color={color}
-      size="sm"
-      leftSection={icon}
-      onClick={onClick}
-      disabled={disabled}
-      loading={loading}
-    >
-      {label}
-    </Button>
-  );
-
-  if (tooltip && disabled) {
-    return (
-      <Tooltip label={tooltip} withArrow>
-        <span>{button}</span>
-      </Tooltip>
-    );
-  }
-
-  return button;
-}
+import { useRolloutState } from './useRolloutState';
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
-export function RolloutControls(props: RolloutControlsProps) {
-  const { 
-    submissionId,
-    currentPercentage, 
-    status,
-    platform,
-    isLoading,
-    onUpdateRollout,
-    onPause,
-    onResume,
-    onHalt,
-    className,
-  } = props;
-
+export function RolloutControls({
+  submissionId,
+  currentPercentage,
+  status,
+  platform,
+  availableActions,
+  isLoading,
+  onUpdateRollout,
+  onPause,
+  onResume,
+  onHalt,
+  className,
+}: RolloutControlsProps) {
   const {
     targetPercentage,
     hasChanges,
@@ -179,7 +74,7 @@ export function RolloutControls(props: RolloutControlsProps) {
     haltReason,
     supportsRollout,
     isComplete,
-  } = deriveActionAvailability(props.availableActions, status, platform);
+  } = deriveActionAvailability(availableActions, status, platform, currentPercentage);
 
   const handleUpdateClick = useCallback(() => {
     if (onUpdateRollout && hasChanges) {
@@ -190,7 +85,7 @@ export function RolloutControls(props: RolloutControlsProps) {
 
   // Get rollout status for progress bar
   const getRolloutStatus = () => {
-    if (isComplete || currentPercentage === 100) return 'complete';
+    if (isComplete || currentPercentage === ROLLOUT_COMPLETE_PERCENT) return 'complete';
     if (canResume) return 'paused';
     return 'active';
   };
@@ -220,7 +115,7 @@ export function RolloutControls(props: RolloutControlsProps) {
         {/* Progress Bar */}
         <RolloutProgressBar
           percentage={currentPercentage}
-          targetPercentage={hasChanges ? targetPercentage : undefined}
+          {...(hasChanges && { targetPercentage })}
           status={getRolloutStatus()}
           showLabel
           size="md"

@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from "axios";
+import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 import { User } from "../Auth/Auth.interface";
 import {
   AcceptTermsRequest,
@@ -49,7 +50,7 @@ import {
 
 class Codepush {
   private __client = axios.create({
-    baseURL: process.env.DELIVR_BACKEND_URL || process.env.BACKEND_API_URL || 'http://localhost:3010',
+    baseURL: getBackendBaseURL(),
     timeout: 10000,
   });
 

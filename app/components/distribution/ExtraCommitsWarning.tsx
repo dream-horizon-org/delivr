@@ -7,61 +7,45 @@
  * - Options to proceed or create new regression
  */
 
-import { useState, useCallback } from 'react';
-import { 
-  Alert, 
-  Stack, 
-  Group, 
-  Text, 
-  Button, 
+import {
+  Alert,
   Badge,
-  Paper,
-  Collapse,
+  Button,
   Code,
+  Collapse,
+  Group,
+  Paper,
+  Stack,
+  Text,
 } from '@mantine/core';
-import { 
-  IconAlertTriangle, 
-  IconGitCommit, 
-  IconChevronDown, 
+import {
+  IconAlertTriangle,
+  IconChevronDown,
   IconChevronUp,
+  IconGitCommit,
   IconRefresh,
 } from '@tabler/icons-react';
-import { BUTTON_LABELS, DIALOG_TITLES } from '~/constants/distribution.constants';
+import { useCallback } from 'react';
+import {
+  DIALOG_TITLES,
+  DISTRIBUTION_UI_LABELS,
+  WARNING_SEVERITY_COLORS,
+} from '~/constants/distribution.constants';
+import { WarningSeverity } from '~/types/distribution.types';
 import type { ExtraCommitsWarningProps } from './distribution.types';
-
-// ============================================================================
-// HELPER HOOKS
-// ============================================================================
-
-function useWarningState() {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [hasAcknowledged, setHasAcknowledged] = useState(false);
-
-  const toggleExpanded = useCallback(() => {
-    setIsExpanded(prev => !prev);
-  }, []);
-
-  const acknowledge = useCallback(() => {
-    setHasAcknowledged(true);
-  }, []);
-
-  return {
-    isExpanded,
-    hasAcknowledged,
-    toggleExpanded,
-    acknowledge,
-  };
-}
+import { useWarningState } from './useWarningState';
 
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
+type CommitItemProps = {
+  commit: { sha: string; author: string; message: string; timestamp: string };
+};
+
 function CommitItem({ 
   commit 
-}: { 
-  commit: { sha: string; author: string; message: string; timestamp: string };
-}) {
+}: CommitItemProps) {
   return (
     <Paper p="sm" withBorder radius="sm">
       <Group gap="xs" wrap="nowrap">
@@ -85,11 +69,13 @@ function CommitItem({
   );
 }
 
+type CommitsListProps = {
+  commits: NonNullable<ExtraCommitsWarningProps['extraCommits']['extraCommits']>;
+};
+
 function CommitsList({ 
   commits 
-}: { 
-  commits: NonNullable<ExtraCommitsWarningProps['extraCommits']['extraCommits']>;
-}) {
+}: CommitsListProps) {
   return (
     <Stack gap="sm">
       {commits.map((commit) => (
@@ -132,13 +118,21 @@ export function ExtraCommitsWarning(props: ExtraCommitsWarningProps) {
     currentHeadCommit,
   } = extraCommits;
 
-  const severityColor = warning?.severity === 'ERROR' 
-    ? 'red' 
-    : warning?.severity === 'WARNING' 
-      ? 'orange' 
-      : 'yellow';
+  const severityColor = warning?.severity 
+    ? WARNING_SEVERITY_COLORS[warning.severity]
+    : WARNING_SEVERITY_COLORS[WarningSeverity.INFO];
 
   const hasCommitDetails = commits && commits.length > 0;
+  const showRecommendation = warning && warning.recommendation;
+  const showCreateRegressionButton = onCreateRegression !== undefined;
+  const showProceedButtons = canDismiss && onProceed !== undefined;
+  const showProceedButton = showProceedButtons && !hasAcknowledged;
+  const showAcknowledgedMessage = showProceedButtons && hasAcknowledged;
+
+  const handleProceed = useCallback(() => {
+    acknowledge();
+    onProceed?.();
+  }, [acknowledge, onProceed]);
 
   return (
     <Alert
@@ -194,15 +188,15 @@ export function ExtraCommitsWarning(props: ExtraCommitsWarningProps) {
         )}
 
         {/* Recommendation */}
-        {warning?.recommendation && (
+        {showRecommendation && (
           <Text size="sm" c="dimmed" fs="italic">
-            💡 {warning.recommendation}
+            💡 {warning!.recommendation}
           </Text>
         )}
 
         {/* Action Buttons */}
         <Group gap="sm" mt="sm">
-          {onCreateRegression && (
+          {showCreateRegressionButton && (
             <Button
               variant="light"
               color={severityColor}
@@ -214,24 +208,21 @@ export function ExtraCommitsWarning(props: ExtraCommitsWarningProps) {
             </Button>
           )}
 
-          {(canDismiss || onProceed) && (
+          {showProceedButton && (
             <Button
               variant="outline"
               color={severityColor}
               size="sm"
-              onClick={() => {
-                acknowledge();
-                onProceed?.();
-              }}
+              onClick={handleProceed}
               disabled={hasAcknowledged}
             >
-              {hasAcknowledged ? 'Acknowledged' : 'Proceed Anyway'}
+              {hasAcknowledged ? DISTRIBUTION_UI_LABELS.ACKNOWLEDGED : DISTRIBUTION_UI_LABELS.PROCEED_ANYWAY}
             </Button>
           )}
         </Group>
 
         {/* Acknowledged State */}
-        {hasAcknowledged && (
+        {showAcknowledgedMessage && (
           <Text size="xs" c="green.7" fs="italic">
             ✓ You have acknowledged this warning. Distribution will proceed with untested code.
           </Text>

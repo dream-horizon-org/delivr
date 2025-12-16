@@ -13,15 +13,6 @@
  * Different from Release Page Distribution Tab (which is read-only monitoring)
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
-import {
-  Link,
-  useFetcher,
-  useLoaderData,
-  useNavigate,
-  useRevalidator,
-} from '@remix-run/react';
 import {
   Badge,
   Breadcrumbs,
@@ -36,35 +27,38 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core';
+import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/node';
 import {
-  IconArrowLeft,
+  Link,
+  useFetcher,
+  useLoaderData,
+  useNavigate,
+  useRevalidator,
+} from '@remix-run/react';
+import {
   IconBrandAndroid,
   IconBrandApple,
-  IconRefresh,
-  IconRocket,
+  IconRefresh
 } from '@tabler/icons-react';
+import { useCallback, useEffect, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import ReleaseService from '~/.server/services/ReleaseManagement';
 import {
   HaltRolloutDialog,
   PauseRolloutDialog,
-  RejectedSubmissionView,
   ReSubmissionDialog,
   ResumeRolloutDialog,
-  RolloutControls,
   SubmissionHistoryPanel,
-  SubmitToStoresForm,
+  SubmitToStoresForm
 } from '~/components/distribution';
+import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution-api.constants';
 import {
-  BUTTON_LABELS,
   PLATFORM_LABELS,
   RELEASE_STATUS_COLORS,
   RELEASE_STATUS_LABELS,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
+  SUBMISSION_STATUS_COLORS
 } from '~/constants/distribution.constants';
-import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution-api.constants';
 import type {
   AndroidSubmitOptions,
   HaltSeverity,
@@ -128,22 +122,27 @@ export const loader = authenticateLoaderRequest(
       ]);
 
       if (!releaseResponse.success || !releaseResponse.release) {
-        throw new Response(releaseResponse.error || 'Release not found', { status: 404 });
+        throw new Response(releaseResponse.error ?? 'Release not found', { status: 404 });
       }
 
       const release = releaseResponse.release;
 
+      // Extract platforms from platformTargetMappings
+      const platforms = Array.from(new Set(
+        release.platformTargetMappings?.map((pt: any) => pt.platform as Platform) ?? []
+      ));
+
       return json<LoaderData>({
         release: {
           id: release.id,
-          version: release.version,
-          platforms: release.platforms as Platform[],
+          version: release.releaseId, // Use releaseId as version
+          platforms,
           status: release.status as ReleaseStatus,
           releaseStatus: release.status as ReleaseStatus,
-          branch: release.branch,
-          targetReleaseDate: release.targetReleaseDate,
-          createdAt: release.createdAt,
-          updatedAt: release.updatedAt,
+          branch: release.branch ?? '',
+          ...(release.targetReleaseDate && { targetReleaseDate: release.targetReleaseDate }),
+          createdAt: release.createdAt ?? new Date().toISOString(),
+          updatedAt: release.updatedAt ?? new Date().toISOString(),
         },
         submissions: submissionsResponse.data.data.submissions,
         org,
@@ -537,7 +536,7 @@ export default function DistributionManagementPage() {
             currentPercentage={selectedSubmission.exposurePercent}
             onConfirm={(reason) => {
               fetcher.submit(
-                { intent: 'pause', submissionId: selectedSubmission.id, reason: reason || '' },
+                { intent: 'pause', submissionId: selectedSubmission.id, reason: reason ?? '' },
                 { method: 'post' }
               );
               setIsPauseDialogOpen(false);
@@ -572,17 +571,17 @@ export default function DistributionManagementPage() {
               );
               setIsHaltDialogOpen(false);
             }}
-            isSubmitting={fetcher.state === 'submitting'}
+            isHalting={fetcher.state === 'submitting'}
           />
 
           <ReSubmissionDialog
             opened={isRetryDialogOpen}
             onClose={() => setIsRetryDialogOpen(false)}
             platform={selectedSubmission.platform}
-            versionName={selectedSubmission.versionName}
-            versionCode={selectedSubmission.versionCode}
-            rejectionReason={selectedSubmission.rejectionReason}
-            rejectionDetails={selectedSubmission.rejectionDetails}
+            submissionId={selectedSubmission.id}
+            currentValues={{
+              releaseNotes: selectedSubmission.releaseNotes ?? '',
+            }}
             onSubmit={(formData) => {
               fetcher.submit(
                 { intent: 'retry', submissionId: selectedSubmission.id, updates: JSON.stringify(formData) },
@@ -590,7 +589,7 @@ export default function DistributionManagementPage() {
               );
               setIsRetryDialogOpen(false);
             }}
-            isSubmitting={fetcher.state === 'submitting'}
+            isLoading={fetcher.state === 'submitting'}
           />
 
           <Modal
@@ -606,8 +605,6 @@ export default function DistributionManagementPage() {
               </Stack>
             ) : historyData ? (
               <SubmissionHistoryPanel
-                platform={selectedSubmission.platform}
-                versionName={selectedSubmission.versionName}
                 events={historyData.events}
                 hasMore={historyData.pagination.hasMore}
                 isLoadingMore={false}
@@ -629,228 +626,8 @@ export default function DistributionManagementPage() {
 }
 
 // ============================================================================
-// SUB-COMPONENTS
+// SUB-COMPONENTS - Imported from _components folder
 // ============================================================================
 
-type PlatformTabContentProps = {
-  platform: Platform;
-  submission: Submission | undefined;
-  onOpenSubmitDialog: () => void;
-  onOpenPauseDialog: (submission: Submission) => void;
-  onOpenResumeDialog: (submission: Submission) => void;
-  onOpenHaltDialog: (submission: Submission) => void;
-  onOpenRetryDialog: (submission: Submission) => void;
-  onOpenHistoryPanel: (submission: Submission) => void;
-  fetcher: ReturnType<typeof useFetcher>;
-};
-
-function PlatformTabContent(props: PlatformTabContentProps) {
-  const {
-    platform,
-    submission,
-    onOpenSubmitDialog,
-    onOpenPauseDialog,
-    onOpenResumeDialog,
-    onOpenHaltDialog,
-    onOpenRetryDialog,
-    onOpenHistoryPanel,
-    fetcher,
-  } = props;
-
-  const storeName = platform === Platform.ANDROID ? 'Google Play Store' : 'Apple App Store';
-
-  // No submission yet
-  if (!submission) {
-    return (
-      <Card shadow="sm" padding="xl" radius="md" withBorder>
-        <Stack align="center" gap="md" py="xl">
-          <ThemeIcon
-            size={64}
-            radius="xl"
-            variant="light"
-            color={platform === Platform.ANDROID ? 'green' : 'blue'}
-          >
-            {platform === Platform.ANDROID ? (
-              <IconBrandAndroid size={32} />
-            ) : (
-              <IconBrandApple size={32} />
-            )}
-          </ThemeIcon>
-          <div style={{ textAlign: 'center' }}>
-            <Text size="lg" fw={600} mb="xs">
-              No submission yet for {PLATFORM_LABELS[platform]}
-            </Text>
-            <Text c="dimmed">Ready to submit this release to {storeName}</Text>
-          </div>
-          <Button
-            leftSection={<IconRocket size={16} />}
-            onClick={onOpenSubmitDialog}
-            size="md"
-            mt="md"
-          >
-            Submit to {storeName}
-          </Button>
-        </Stack>
-      </Card>
-    );
-  }
-
-  // Has submission - show full management
-  return (
-    <Stack gap="lg">
-      {/* Submission Status Card */}
-      <SubmissionManagementCard
-        submission={submission}
-        onPause={() => onOpenPauseDialog(submission)}
-        onResume={() => onOpenResumeDialog(submission)}
-        onHalt={() => onOpenHaltDialog(submission)}
-        onRetry={() => onOpenRetryDialog(submission)}
-        onViewHistory={() => onOpenHistoryPanel(submission)}
-      />
-
-      {/* Rollout Controls (if applicable) */}
-      {(submission.submissionStatus === SubmissionStatus.APPROVED ||
-        (submission.submissionStatus === SubmissionStatus.LIVE &&
-          submission.exposurePercent < 100)) &&
-        platform === Platform.ANDROID && (
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Title order={4} mb="md">
-              Rollout Controls
-            </Title>
-            <RolloutControls
-              submissionId={submission.id}
-              platform={submission.platform}
-              currentPercentage={submission.exposurePercent}
-              onUpdatePercentage={(percentage) => {
-                fetcher.submit(
-                  { intent: 'updateRollout', submissionId: submission.id, percentage: String(percentage) },
-                  { method: 'post' }
-                );
-              }}
-              onPause={() => onOpenPauseDialog(submission)}
-              onHalt={() => onOpenHaltDialog(submission)}
-              isLoading={false}
-            />
-          </Card>
-        )}
-
-      {/* Rejected View */}
-      {submission.submissionStatus === SubmissionStatus.REJECTED && submission.rejectionReason && (
-        <RejectedSubmissionView
-          platform={submission.platform}
-          submissionId={submission.id}
-          versionName={submission.versionName}
-          rejectionReason={submission.rejectionReason}
-          rejectionDetails={submission.rejectionDetails}
-          onFixMetadata={() => onOpenRetryDialog(submission)}
-          onUploadNewBuild={() => onOpenRetryDialog(submission)}
-        />
-      )}
-    </Stack>
-  );
-}
-
-// ============================================================================
-// SUBMISSION MANAGEMENT CARD (Full Actions)
-// ============================================================================
-
-type SubmissionManagementCardProps = {
-  submission: Submission;
-  onPause: () => void;
-  onResume: () => void;
-  onHalt: () => void;
-  onRetry: () => void;
-  onViewHistory: () => void;
-};
-
-function SubmissionManagementCard(props: SubmissionManagementCardProps) {
-  const { submission, onPause, onResume, onHalt, onRetry, onViewHistory } = props;
-
-  const isPaused = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === 0;
-  const isRejected = submission.submissionStatus === SubmissionStatus.REJECTED;
-  const isInReview = submission.submissionStatus === SubmissionStatus.IN_REVIEW;
-  const isComplete = submission.submissionStatus === SubmissionStatus.LIVE && submission.exposurePercent === 100;
-
-  return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Stack gap="md">
-        {/* Header */}
-        <Group justify="space-between">
-          <div>
-            <Group gap="sm" mb="xs">
-              <Text fw={600} size="lg">
-                {submission.versionName} ({submission.versionCode})
-              </Text>
-              <Badge
-                color={SUBMISSION_STATUS_COLORS[submission.submissionStatus]}
-                variant="light"
-                size="lg"
-              >
-                {SUBMISSION_STATUS_LABELS[submission.submissionStatus]}
-              </Badge>
-            </Group>
-            {submission.track && (
-              <Text size="sm" c="dimmed">
-                Track: {submission.track}
-              </Text>
-            )}
-          </div>
-        </Group>
-
-        {/* Timeline */}
-        {submission.submittedAt && (
-          <Group gap="lg">
-            <Group gap="xs">
-              <Text size="sm" c="dimmed">
-                Submitted:
-              </Text>
-              <Text size="sm">{new Date(submission.submittedAt).toLocaleString()}</Text>
-            </Group>
-            {submission.approvedAt && (
-              <Group gap="xs">
-                <Text size="sm" c="dimmed">
-                  Approved:
-                </Text>
-                <Text size="sm">{new Date(submission.approvedAt).toLocaleString()}</Text>
-              </Group>
-            )}
-          </Group>
-        )}
-
-        {/* Action Buttons */}
-        <Group gap="sm" mt="md">
-          {isRejected && (
-            <Button onClick={onRetry} color="blue">
-              Fix & Re-Submit
-            </Button>
-          )}
-
-          {!isInReview && !isRejected && !isComplete && (
-            <>
-              {isPaused ? (
-                <Button onClick={onResume} color="green">
-                  Resume Rollout
-                </Button>
-              ) : (
-                <Button onClick={onPause} variant="light">
-                  Pause Rollout
-                </Button>
-              )}
-            </>
-          )}
-
-          {!isComplete && (
-            <Button onClick={onHalt} color="red" variant="light">
-              Emergency Halt
-            </Button>
-          )}
-
-          <Button onClick={onViewHistory} variant="subtle">
-            View History
-          </Button>
-        </Group>
-      </Stack>
-    </Card>
-  );
-}
+import { PlatformTabContent } from './_components/PlatformTabContent';
 

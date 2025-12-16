@@ -1,10 +1,11 @@
 import { json } from '@remix-run/node';
+import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
+import type { CreateSCMIntegrationRequest } from '~/.server/services/ReleaseManagement/integrations/types';
 import {
-  authenticateLoaderRequest,
   authenticateActionRequest,
+  authenticateLoaderRequest,
   type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
-import { SCMIntegrationService } from '~/.server/services/ReleaseManagement/integrations';
 
 /**
  * GET - Fetch SCM integration for tenant
@@ -68,31 +69,41 @@ const createSCMIntegration: AuthenticatedActionFunction = async ({ request, para
     }
 
     console.log(`[Frontend-Create-Route] Calling SCMIntegrationService.createSCMIntegration`);
+    
+    const requestData: CreateSCMIntegrationRequest = {
+      tenantId,
+      scmType,
+      owner,
+      repo,
+      accessToken,
+      displayName: displayName || `${owner}/${repo}`,
+      branch,
+      status: 'VALID',
+      isActive: true,
+      _encrypted, // Forward encryption flag to backend
+    };
+    
     const integration = await SCMIntegrationService.createSCMIntegration(
       tenantId,
       user.user.id,
-      {
-        tenantId,
-        scmType,
-        owner,
-        repo,
-        accessToken,
-        displayName: displayName || `${owner}/${repo}`,
-        branch,
-        status: 'VALID',
-        isActive: true,
-        _encrypted, // Forward encryption flag to backend
-      } as any
+      requestData
+
     );
 
     console.log(`[Frontend-Create-Route] Successfully created integration:`, integration?.id);
     return json({ integration }, { status: 201 });
   } catch (error) {
     console.error('[Frontend-Create-Route] Create SCM integration error:', error);
-    console.error('[Frontend-Create-Route] Error details:', {
+    
+    const errorDetails: { message: string; stack?: string } = {
       message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    };
+    
+    if (error instanceof Error && error.stack) {
+      errorDetails.stack = error.stack;
+    }
+    
+    console.error('[Frontend-Create-Route] Error details:', errorDetails);
     return json(
       {
         error: error instanceof Error ? error.message : 'Failed to create SCM integration',

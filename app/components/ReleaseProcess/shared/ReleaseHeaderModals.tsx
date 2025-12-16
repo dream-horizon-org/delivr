@@ -1,0 +1,185 @@
+/**
+ * ReleaseHeaderModals Component
+ * All modals used in the release header (Edit, Activity Logs, Slack Message, Pause Confirmation)
+ */
+
+import { Button, Group, Modal, ScrollArea, Select, Stack, Text } from '@mantine/core';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
+import { CreateReleaseForm } from '~/components/ReleaseCreation/CreateReleaseForm';
+import { ActivityLogsDrawer } from '../ActivityLogsDrawer';
+import { BUTTON_LABELS } from '~/constants/release-process-ui';
+import type { MessageTypeEnum } from '~/types/release-process.types';
+import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
+import { useSendNotification, usePauseResumeRelease } from '~/hooks/useReleaseProcess';
+import { getApiErrorMessage } from '~/utils/api-client';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
+
+interface ReleaseHeaderModalsProps {
+  release: BackendReleaseResponse;
+  org: string;
+  editModalOpened: boolean;
+  activityDrawerOpened: boolean;
+  slackMessageModalOpened: boolean;
+  pauseConfirmModalOpened: boolean;
+  selectedMessageType: MessageTypeEnum | null;
+  onEditModalClose: () => void;
+  onActivityDrawerClose: () => void;
+  onSlackMessageModalClose: () => void;
+  onPauseConfirmModalClose: () => void;
+  onSelectedMessageTypeChange: (value: MessageTypeEnum | null) => void;
+  onUpdate: (updateRequest: UpdateReleaseBackendRequest) => Promise<void>;
+  onPauseResume: () => Promise<void>;
+  onUpdateCallback?: () => void;
+}
+
+export function ReleaseHeaderModals({
+  release,
+  org,
+  editModalOpened,
+  activityDrawerOpened,
+  slackMessageModalOpened,
+  pauseConfirmModalOpened,
+  selectedMessageType,
+  onEditModalClose,
+  onActivityDrawerClose,
+  onSlackMessageModalClose,
+  onPauseConfirmModalClose,
+  onSelectedMessageTypeChange,
+  onUpdate,
+  onPauseResume,
+  onUpdateCallback,
+}: ReleaseHeaderModalsProps) {
+  const sendNotificationMutation = useSendNotification(org, release.id);
+
+  const handleSendNotification = async () => {
+    if (!selectedMessageType) {
+      showErrorToast({ message: 'Please select a message type' });
+      return;
+    }
+
+    try {
+      await sendNotificationMutation.mutateAsync({
+        messageType: selectedMessageType,
+      });
+      showSuccessToast({ message: 'Notification sent successfully' });
+      onSlackMessageModalClose();
+      onSelectedMessageTypeChange(null);
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to send notification');
+      showErrorToast({ message: errorMessage });
+    }
+  };
+
+  return (
+    <>
+      {/* Edit Release Modal */}
+      <Modal
+        opened={editModalOpened}
+        onClose={onEditModalClose}
+        title={BUTTON_LABELS.EDIT_RELEASE}
+        size="xl"
+        scrollAreaComponent={ScrollArea.Autosize}
+      >
+        <CreateReleaseForm
+          org={org}
+          userId={release.createdBy || ''}
+          onSubmit={async () => {}}
+          existingRelease={release}
+          isEditMode={true}
+          onUpdate={onUpdate}
+          onCancel={onEditModalClose}
+        />
+      </Modal>
+
+      {/* Activity Logs Drawer */}
+      <ActivityLogsDrawer
+        opened={activityDrawerOpened}
+        onClose={onActivityDrawerClose}
+        tenantId={org}
+        releaseId={release.id}
+      />
+
+      {/* Post Slack Message Modal */}
+      <Modal
+        opened={slackMessageModalOpened}
+        onClose={() => {
+          onSlackMessageModalClose();
+          onSelectedMessageTypeChange(null);
+        }}
+        title={BUTTON_LABELS.POST_SLACK_MESSAGE}
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Select a message type to send to Slack:
+          </Text>
+          <Select
+            label="Message Type"
+            placeholder="Choose a message type"
+            data={[
+              {
+                value: BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.value,
+                label: BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.label,
+              },
+              {
+                value: BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.value,
+                label: BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.label,
+              },
+            ]}
+            value={selectedMessageType}
+            onChange={(value) => onSelectedMessageTypeChange(value as MessageTypeEnum | null)}
+            required
+          />
+          {selectedMessageType && (
+            <Text size="xs" c="dimmed">
+              {selectedMessageType === BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.value
+                ? BUTTON_LABELS.SLACK_MESSAGE_TYPES.TEST_RESULTS_SUMMARY.description
+                : BUTTON_LABELS.SLACK_MESSAGE_TYPES.PRE_KICKOFF_REMINDER.description}
+            </Text>
+          )}
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              onClick={() => {
+                onSlackMessageModalClose();
+                onSelectedMessageTypeChange(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendNotification}
+              loading={sendNotificationMutation.isLoading}
+              disabled={!selectedMessageType}
+            >
+              Send Message
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Pause Confirmation Modal */}
+      <Modal
+        opened={pauseConfirmModalOpened}
+        onClose={onPauseConfirmModalClose}
+        title="Confirm Pause"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to pause this release? The release process will stop until you resume it.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={onPauseConfirmModalClose}>
+              Cancel
+            </Button>
+            <Button color="orange" onClick={onPauseResume}>
+              Pause Release
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
+  );
+}
+

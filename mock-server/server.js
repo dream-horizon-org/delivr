@@ -13,7 +13,9 @@
 import jsonServer from 'json-server';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
 import distributionMiddleware from './middleware/distribution.middleware.js';
+import createReleaseProcessMiddleware from './middleware/release-process.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,7 +32,41 @@ const middlewares = jsonServer.defaults();
 // Default middlewares (CORS, logger, static, etc.)
 server.use(middlewares);
 
-// Body parser
+// Configure multer for file uploads (multipart/form-data)
+// Only process multipart requests, skip others
+const upload = multer({
+  storage: multer.memoryStorage(), // Store in memory for mock server
+  limits: {
+    fileSize: 200 * 1024 * 1024, // 200MB limit
+  },
+});
+
+// Multer middleware for file upload routes
+// This must come BEFORE jsonServer.bodyParser to handle multipart/form-data
+server.use((req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  
+  // Only process multipart requests
+  if (contentType.includes('multipart/form-data')) {
+    // Use .any() to accept any field name (both files and regular fields)
+    upload.any()(req, res, (err) => {
+      if (err) {
+        console.error('[Multer] Error processing file upload:', err);
+        return res.status(400).json({
+          success: false,
+          error: err.message || 'File upload error',
+        });
+      }
+      
+      next();
+    });
+  } else {
+    // For non-multipart requests, continue to body parser
+    next();
+  }
+});
+
+// Body parser (for JSON requests)
 server.use(jsonServer.bodyParser);
 
 // Request logger
@@ -42,47 +78,146 @@ server.use((req, res, next) => {
 // Custom distribution middleware (handles complex scenarios)
 server.use(distributionMiddleware);
 
+// Custom release process middleware (handles release process APIs)
+server.use(createReleaseProcessMiddleware(router));
+
 // ============================================================================
 // CUSTOM ROUTES
 // ============================================================================
 
+/**
+ * Helper function to get mock account details
+ * In a real scenario, this would fetch from accounts collection
+ */
+function getAccountDetails(accountId) {
+  if (!accountId) return null;
+  
+  // Mock account data - in real server this would come from accounts table
+  // For now, generate mock data based on accountId
+  return {
+    id: accountId,
+    email: `user-${accountId.substring(0, 8)}@example.com`,
+    name: `User ${accountId.substring(0, 8)}`
+  };
+}
+
 // Helper function to transform release to backend format
+// Matches BackendReleaseResponse interface and backend contract
 function transformRelease(release, tenantId) {
+  // Check if release is in new format by looking for new format fields
+  // New format has: releasePhase, cronJob, createdByAccountId, or platformTargetMappings array
+  // Also check if releaseId is different from id (new format indicator)
+  const isNewFormat = 
+    release.releasePhase !== undefined || // Has releasePhase
+    release.cronJob !== undefined || // Has cronJob
+    release.createdByAccountId !== undefined || // Has new account ID fields
+    (release.platformTargetMappings !== undefined && Array.isArray(release.platformTargetMappings)) || // Has platformTargetMappings array (even if empty)
+    (release.releaseId && release.releaseId !== release.id); // releaseId exists and is different from id
+
+  if (isNewFormat) {
+    // Already in new format - preserve ALL fields exactly as they are in db.json
+    // This includes empty arrays, null values, etc.
+    const transformed = JSON.parse(JSON.stringify(release)); // Deep clone to preserve everything
+    
+    // Debug: Log to verify platformTargetMappings is preserved
+    if (transformed.platformTargetMappings) {
+      console.log(`[transformRelease] Preserving platformTargetMappings: ${transformed.platformTargetMappings.length} items`);
+    } else {
+      console.log(`[transformRelease] WARNING: platformTargetMappings is missing or undefined in release ${release.id}`);
+    }
+    
+    // Only override tenantId to match request
+    transformed.tenantId = tenantId;
+    
+    // Ensure account ID fields use new format (fallback to old if needed, but don't overwrite if already set)
+    if (!transformed.createdByAccountId && transformed.createdBy) {
+      transformed.createdByAccountId = transformed.createdBy;
+    }
+    if (!transformed.lastUpdatedByAccountId && transformed.lastUpdatedBy) {
+      transformed.lastUpdatedByAccountId = transformed.lastUpdatedBy;
+    }
+    if (transformed.releasePilotAccountId === undefined && transformed.createdByAccountId) {
+      transformed.releasePilotAccountId = transformed.createdByAccountId;
+    }
+    
+    // Add releasePilot account details if releasePilotAccountId exists
+    if (transformed.releasePilotAccountId) {
+      transformed.releasePilot = getAccountDetails(transformed.releasePilotAccountId);
+    } else {
+      transformed.releasePilot = null;
+    }
+    
+    // Remove old/legacy fields that shouldn't be in response (only if they exist)
+    // Use hasOwnProperty to check, not 'in' operator, to avoid prototype chain issues
+    if (transformed.hasOwnProperty('createdBy')) delete transformed.createdBy;
+    if (transformed.hasOwnProperty('lastUpdatedBy')) delete transformed.lastUpdatedBy;
+    if (transformed.hasOwnProperty('regressionComplete')) delete transformed.regressionComplete;
+    if (transformed.hasOwnProperty('version')) delete transformed.version;
+    if (transformed.hasOwnProperty('platforms')) delete transformed.platforms;
+    if (transformed.hasOwnProperty('stage1Status')) delete transformed.stage1Status;
+    if (transformed.hasOwnProperty('stage2Status')) delete transformed.stage2Status;
+    if (transformed.hasOwnProperty('stage3Status')) delete transformed.stage3Status;
+    
+    // Ensure all required fields exist (even if null/empty) to match backend contract
+    // Don't add defaults - preserve null/empty as-is from db.json
+    return transformed;
+  }
+
+  // Legacy format - transform to new format
   return {
     id: release.id,
-    releaseId: release.id,
+    releaseId: release.releaseId || release.id,
     releaseConfigId: release.releaseConfigId || null,
     tenantId: tenantId,
-    type: release.type || 'PLANNED',
+    type: release.type || 'MINOR',
     status: release.status || 'IN_PROGRESS',
-    branch: release.branch || `release/${release.version}`,
+    releasePhase: release.releasePhase || null,
+    branch: release.branch || null,
     baseBranch: release.baseBranch || 'main',
-    baseReleaseId: null,
-    platformTargetMappings: release.platforms?.map(p => ({ platform: p })) || [],
-    kickOffReminderDate: null,
-    kickOffDate: release.kickOffDate || release.createdAt,
+    baseReleaseId: release.baseReleaseId || null,
+    platformTargetMappings: release.platformTargetMappings || (release.platforms && release.platforms.length > 0 ? release.platforms.map((platform, idx) => ({
+      id: `mapping-${release.id}-${idx}`,
+      releaseId: release.id,
+      platform: platform,
+      target: platform === 'ANDROID' ? 'PLAY_STORE' : platform === 'IOS' ? 'APP_STORE' : 'WEB',
+      version: release.version ? `v${release.version}` : null,
+      projectManagementRunId: null,
+      testManagementRunId: null,
+      createdAt: release.createdAt || new Date().toISOString(),
+      updatedAt: release.updatedAt || new Date().toISOString(),
+    })) : []),
+    kickOffReminderDate: release.kickOffReminderDate || null,
+    kickOffDate: release.kickOffDate || release.createdAt || null,
     targetReleaseDate: release.targetReleaseDate || null,
-    releaseDate: release.status === 'RELEASED' ? release.updatedAt : null,
-    hasManualBuildUpload: true,
-    customIntegrationConfigs: null,
-    preCreatedBuilds: null,
-    createdBy: 'mock-user',
-    lastUpdatedBy: 'mock-user',
-    createdAt: release.createdAt,
-    updatedAt: release.updatedAt,
-    regressionComplete: release.regressionComplete || false,
+    releaseDate: release.releaseDate || null,
+    hasManualBuildUpload: release.hasManualBuildUpload !== undefined ? release.hasManualBuildUpload : false,
+    customIntegrationConfigs: release.customIntegrationConfigs || null,
+    preCreatedBuilds: release.preCreatedBuilds || null,
+    createdByAccountId: release.createdByAccountId || release.createdBy || '4JCGF-VeXg',
+    releasePilotAccountId: release.releasePilotAccountId || release.createdByAccountId || release.createdBy || null,
+    releasePilot: release.releasePilotAccountId ? getAccountDetails(release.releasePilotAccountId) : 
+                   (release.createdByAccountId || release.createdBy ? getAccountDetails(release.createdByAccountId || release.createdBy) : null),
+    lastUpdatedByAccountId: release.lastUpdatedByAccountId || release.lastUpdatedBy || '4JCGF-VeXg',
+    createdAt: release.createdAt || new Date().toISOString(),
+    updatedAt: release.updatedAt || new Date().toISOString(),
+    cronJob: release.cronJob || null,
     tasks: release.tasks || [],
   };
 }
 
 /**
  * GET /tenants/:tenantId/releases/:releaseId
- * Get single release by ID
+ * Get single release by ID (can be either 'id' or 'releaseId' field)
  */
 server.get('/tenants/:tenantId/releases/:releaseId', (req, res) => {
   const { tenantId, releaseId } = req.params;
   const db = router.db;
-  const release = db.get('releases').find({ id: releaseId }).value();
+  
+  // Try to find by 'id' first, then by 'releaseId' field
+  let release = db.get('releases').find({ id: releaseId }).value();
+  if (!release) {
+    release = db.get('releases').find({ releaseId: releaseId }).value();
+  }
   
   if (!release) {
     return res.status(404).json({
@@ -91,9 +226,27 @@ server.get('/tenants/:tenantId/releases/:releaseId', (req, res) => {
     });
   }
   
+  // Debug: Log the release found
+  console.log(`[GET /tenants/:tenantId/releases/:releaseId] Found release:`, {
+    id: release.id,
+    releaseId: release.releaseId,
+    hasPlatformTargetMappings: Array.isArray(release.platformTargetMappings),
+    platformTargetMappingsLength: release.platformTargetMappings?.length || 0,
+  });
+  
+  const transformed = transformRelease(release, tenantId);
+  
+  // Debug: Log after transformation
+  console.log(`[GET /tenants/:tenantId/releases/:releaseId] Transformed release:`, {
+    id: transformed.id,
+    releaseId: transformed.releaseId,
+    hasPlatformTargetMappings: Array.isArray(transformed.platformTargetMappings),
+    platformTargetMappingsLength: transformed.platformTargetMappings?.length || 0,
+  });
+  
   res.json({
     success: true,
-    release: transformRelease(release, tenantId),
+    release: transformed,
   });
 });
 
@@ -105,8 +258,33 @@ server.get('/tenants/:tenantId/releases', (req, res) => {
   const db = router.db;
   const releases = db.get('releases').value() || [];
   
+  // Debug: Log first release to see what we're working with
+  if (releases.length > 0) {
+    console.log(`[GET /tenants/:tenantId/releases] First release from db:`, {
+      id: releases[0].id,
+      releaseId: releases[0].releaseId,
+      hasReleasePhase: releases[0].releasePhase !== undefined,
+      hasCronJob: releases[0].cronJob !== undefined,
+      hasCreatedByAccountId: releases[0].createdByAccountId !== undefined,
+      hasPlatformTargetMappings: Array.isArray(releases[0].platformTargetMappings),
+      platformTargetMappingsLength: releases[0].platformTargetMappings?.length || 0,
+    });
+  }
+  
   // Transform to match backend response format
-  const transformedReleases = releases.map(release => transformRelease(release, req.params.tenantId));
+  const transformedReleases = releases.map(release => {
+    const transformed = transformRelease(release, req.params.tenantId);
+    // Debug: Log after transformation
+    if (release.id === releases[0]?.id) {
+      console.log(`[GET /tenants/:tenantId/releases] After transform:`, {
+        id: transformed.id,
+        releaseId: transformed.releaseId,
+        hasPlatformTargetMappings: Array.isArray(transformed.platformTargetMappings),
+        platformTargetMappingsLength: transformed.platformTargetMappings?.length || 0,
+      });
+    }
+    return transformed;
+  });
   
   res.json({
     success: true,
@@ -328,6 +506,57 @@ server.post('/api/v1/releases/:releaseId/builds/verify-testflight', (req, res) =
       build: newBuild,
       verified: true,
     },
+  });
+});
+
+/**
+ * POST /api/v1/releases/:releaseId/builds/:buildId/retry
+ * Retry failed build (triggers CI/CD workflow)
+ */
+server.post('/api/v1/releases/:releaseId/builds/:buildId/retry', (req, res) => {
+  const { releaseId, buildId } = req.params;
+  const db = router.db;
+  
+  const build = db.get('builds')
+    .find({ id: buildId, releaseId })
+    .value();
+  
+  if (!build) {
+    return res.status(404).json({
+      success: false,
+      error: { message: 'Build not found' },
+    });
+  }
+  
+  // Update build status to trigger retry
+  const updatedBuild = {
+    ...build,
+    buildUploadStatus: 'UPLOADING',
+    workflowStatus: 'QUEUED',
+    updatedAt: new Date().toISOString(),
+  };
+  
+  db.get('builds')
+    .find({ id: buildId })
+    .assign(updatedBuild)
+    .write();
+  
+  // Simulate async CI/CD workflow - after 3 seconds, mark as UPLOADED
+  setTimeout(() => {
+    db.get('builds')
+      .find({ id: buildId })
+      .assign({
+        buildUploadStatus: 'UPLOADED',
+        workflowStatus: 'COMPLETED',
+        updatedAt: new Date().toISOString(),
+      })
+      .write();
+  }, 3000);
+  
+  res.json({
+    success: true,
+    data: updatedBuild,
+    message: 'Build retry triggered successfully',
   });
 });
 

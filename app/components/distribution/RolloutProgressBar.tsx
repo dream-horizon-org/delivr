@@ -9,11 +9,12 @@
 
 import { Group, Progress, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertOctagon, IconCheck, IconPlayerPause, IconTrendingUp } from '@tabler/icons-react';
-import type { RolloutProgressBarProps, RolloutStatus, SizeVariant } from './distribution.types';
+import { PROGRESS_BAR_HEIGHTS } from '~/constants/distribution.constants';
+import type { RolloutProgressBarProps, RolloutStatus } from './distribution.types';
 import { getRolloutStatusColor, getRolloutStatusLabel } from './distribution.utils';
 
 // ============================================================================
-// LOCAL HELPERS - Returns JSX or component-specific (must stay here)
+// LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
 function getStatusIcon(status: RolloutStatus) {
@@ -24,15 +25,6 @@ function getStatusIcon(status: RolloutStatus) {
     halted: <IconAlertOctagon size={14} />,
   };
   return iconMap[status];
-}
-
-function getProgressHeight(size: SizeVariant = 'md'): number {
-  const heightMap: Record<SizeVariant, number> = {
-    sm: 6,
-    md: 10,
-    lg: 16,
-  };
-  return heightMap[size];
 }
 
 // ============================================================================
@@ -50,7 +42,7 @@ export function RolloutProgressBar(props: RolloutProgressBarProps) {
   } = props;
 
   const color = getRolloutStatusColor(status);
-  const height = getProgressHeight(size);
+  const height = PROGRESS_BAR_HEIGHTS[size];
   const isAnimated = status === 'active' && targetPercentage !== undefined && targetPercentage > percentage;
 
   return (

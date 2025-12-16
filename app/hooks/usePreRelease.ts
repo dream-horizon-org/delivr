@@ -8,15 +8,14 @@
  * - Promotion readiness
  */
 
-import { useMemo, useState, useCallback } from 'react';
-import type { 
-  Build, 
-  BuildUploadStatus,
-  PMApprovalStatus,
-  ExtraCommitsData,
+import { useCallback, useMemo, useState } from 'react';
+import type {
+  Build,
   BuildsSummary,
+  ExtraCommitsData,
+  PMApprovalStatus
 } from '~/types/distribution.types';
-import { Platform, BuildStrategy, BuildUploadStatus as BuildStatus } from '~/types/distribution.types';
+import { ApproverRole, BuildUploadStatus as BuildStatus, BuildStrategy, Platform } from '~/types/distribution.types';
 
 // ============================================================================
 // TYPES
@@ -44,7 +43,7 @@ type UsePreReleaseReturn = {
   // Approval state
   isApproved: boolean;
   requiresManualApproval: boolean;
-  approverRole: 'RELEASE_LEAD' | 'RELEASE_PILOT';
+  approverRole: ApproverRole;
   
   // Warnings
   hasExtraCommits: boolean;
@@ -128,7 +127,7 @@ export function usePreRelease(params: UsePreReleaseParams): UsePreReleaseReturn 
   // Approval state
   const isApproved = pmStatus.approved;
   const requiresManualApproval = pmStatus.requiresManualApproval ?? !pmStatus.hasPmIntegration;
-  const approverRole = pmStatus.approver ?? 'RELEASE_LEAD';
+  const approverRole = pmStatus.approver ?? ApproverRole.RELEASE_LEAD;
 
   // Extra commits
   const hasExtraCommits = extraCommits.hasExtraCommits;

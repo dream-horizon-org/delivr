@@ -41,10 +41,6 @@ export const loader = authenticateLoaderRequest(async ({ request, params, user }
       throw new Error('Organization not found in response');
     }
 
-    // 🔧 HARDCODED: Override setupComplete to always be true for development
-    if (organisation?.releaseManagement) {
-      organisation.releaseManagement.setupComplete = true;
-    }
 
     // Extract tenant config from organisation response
     const config = organisation?.releaseManagement?.config;

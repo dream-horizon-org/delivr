@@ -21,8 +21,6 @@ interface TenantInfoResponse {
         allowedReleaseTypes: string[];
         customSettings: any;
       };
-      setupComplete?: boolean;
-      setupSteps?: any;
       integrations?: any[];
     };
   };

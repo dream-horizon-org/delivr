@@ -12,7 +12,7 @@
 
 export enum ReleaseType {
   HOTFIX = 'HOTFIX',
-  PLANNED = 'PLANNED',
+  MINOR = 'MINOR',
   MAJOR = 'MAJOR'
 }
 
@@ -386,4 +386,17 @@ export interface VerifySCMResponse {
     private: boolean;
   };
   error?: string;
+}
+
+export interface CreateSCMIntegrationRequest {
+  tenantId: string;
+  scmType: 'GITHUB' | 'GITLAB' | 'BITBUCKET';
+  owner: string;
+  repo: string;
+  accessToken: string;
+  displayName?: string;
+  branch?: string;
+  status: 'VALID' | 'INVALID' | 'PENDING';
+  isActive: boolean;
+  _encrypted?: boolean;
 }

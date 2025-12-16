@@ -78,7 +78,7 @@ export interface TestManagementConfig {
 
 export interface CheckmatePlatformConfiguration {
   // Platform is a global system constant (not distribution-specific)
-  platform: 'ANDROID' | 'IOS';
+  platform: Platform;
   projectId?: number; // Platform-specific project ID
   sectionIds?: number[];
   labelIds?: number[];
@@ -250,7 +250,7 @@ export interface ReleaseConfiguration {
   // Configuration metadata
   name: string; // e.g., "Standard Release Configuration", "Hotfix Configuration"
   description?: string;
-  releaseType: 'PLANNED' | 'HOTFIX' | 'MAJOR'; // Match backend enum
+  releaseType: 'MINOR' | 'HOTFIX' | 'MAJOR'; // Match backend enum
   isDefault: boolean;
   
   // Default base branch (from SCM integration)

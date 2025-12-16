@@ -8,9 +8,9 @@ import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-r
 import { requireUserId } from '~/.server/services/Auth';
 import { ReleaseConfigService } from '~/.server/services/ReleaseConfig';
 import type { ReleaseConfiguration } from '~/types/release-config';
-import { 
-  transformToPlatformTargetsArray,
+import {
   transformFromPlatformTargetsArray,
+  transformToPlatformTargetsArray,
   type PlatformTarget,
 } from '~/utils/platform-mapper';
 
@@ -44,12 +44,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const platformTargets = transformToPlatformTargetsArray(config.targets);
     
     // Create backend payload with platformTargets
+    const { platforms: _platforms, targets: _targets, ...restConfig } = config as any;
     const backendConfig = {
-      ...config,
+      ...restConfig,
       platformTargets,
-      // Remove old fields that are replaced by platformTargets
-      platforms: undefined,
-      targets: undefined,
     };
 
     console.log('[BFF] Transformed platformTargets:', platformTargets);
@@ -66,7 +64,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   } catch (error: any) {
     console.error('[BFF] Create error:', error);
     return json(
-      { success: false, error: error.message || 'Internal server error' },
+      { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }
     );
   }
@@ -107,14 +105,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         };
       }
       return config;
-    }) || [];
+    }) ?? [];
 
-    // console.log('[BFF] List successful:', transformedConfigs.length, 'configs');
+    console.log('[BFF] List successful:', transformedConfigs.length, 'configs (active:', transformedConfigs.filter((c: any) => c.isActive).length + ', archived:', transformedConfigs.filter((c: any) => !c.isActive).length + ')');
+    
     return json({ success: true, data: transformedConfigs }, { status: 200 });
   } catch (error: any) {
-    console.error('[BFF] List error:', error);
+    console.error('[BFF] List error:', error.message || error);
     return json(
-      { success: false, error: error.message || 'Internal server error' },
+      { success: false, error: error.message ?? 'Internal server error' },
       { status: 500 }
     );
   }

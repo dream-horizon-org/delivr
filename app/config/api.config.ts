@@ -9,7 +9,7 @@
  * API Base Configuration
  * 
  * Environment variables (in .env):
- *   PORT=3001                                        # Frontend port
+ *   PORT=3000                                        # Frontend port (default: 3000, can be overridden)
  *   DELIVR_BACKEND_URL=http://localhost:3010         # Real backend URL
  *   DELIVR_MOCK_URL=http://localhost:4000            # Mock server URL (for Distribution)
  *   DELIVR_HYBRID_MODE=true                          # Hybrid mode (Distribution→mock, rest→backend)
@@ -69,6 +69,28 @@ export const DISTRIBUTION_API_PATTERNS = [
 ] as const;
 
 /**
+ * Release Process API patterns that should go to mock server in hybrid mode
+ * Updated to match backend contract endpoints
+ */
+export const RELEASE_PROCESS_API_PATTERNS = [
+  '/api/v1/tenants/*/releases/*',                    // Get Release Details (API #1)
+  '/api/v1/tenants/*/releases/*/tasks',               // Get Stage Tasks (API #2) - with ?stage= query param
+  '/api/v1/tenants/*/releases/*/tasks/*/retry',      // Retry Task (API #8)
+  '/api/v1/tenants/*/releases/*/builds',            // Get All Builds (API #14)
+  '/api/v1/tenants/*/releases/*/stages/*/builds/*',  // Upload Build (API #15) - Backend route: /stages/:stage/builds/:platform
+  '/api/v1/tenants/*/releases/*/builds/*',           // Delete Build (API #16)
+  '/api/v1/tenants/*/releases/*/test-management-run-status',  // Test Management Status (API #17)
+  '/api/v1/tenants/*/releases/*/project-management-run-status',  // Project Management Status (API #18)
+  '/api/v1/tenants/*/releases/*/check-cherry-pick-status',  // Cherry Pick Status (API #19)
+  '/api/v1/tenants/*/releases/*/trigger-pre-release',  // Approve Regression (API #11)
+  '/api/v1/tenants/*/releases/*/stages/pre-release/complete',  // Complete Pre-Release (API #12)
+  '/api/v1/tenants/*/releases/*/notifications',       // Get Notifications (API #20)
+  '/api/v1/tenants/*/releases/*/notify',              // Send Notification (API #21)
+  '/api/v1/tenants/*/releases/*/activity-logs',       // Activity Logs (API #23)
+  '/api/v1/tenants/*/releases/*/pause-resume',        // Pause/Resume Release (API #29, #30)
+] as const;
+
+/**
  * Check if a URL matches Distribution API patterns
  */
 export function isDistributionAPI(url: string): boolean {
@@ -86,6 +108,23 @@ export function isDistributionAPI(url: string): boolean {
 }
 
 /**
+ * Check if a URL matches Release Process API patterns
+ */
+export function isReleaseProcessAPI(url: string): boolean {
+  // Normalize URL (remove base URL if present)
+  const path = url.replace(/^https?:\/\/[^/]+/, '');
+  
+  return RELEASE_PROCESS_API_PATTERNS.some(pattern => {
+    // Convert pattern to regex: /api/v1/tenants/*/releases/*/stages/* -> /api/v1/tenants/[^/]+/releases/[^/]+/stages/[^/]+
+    const regexPattern = pattern
+      .replace(/\*/g, '[^/]+')
+      .replace(/\//g, '\\/');
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(path);
+  });
+}
+
+/**
  * Get the appropriate base URL for a request
  */
 export function getBaseURLForRequest(url: string): string {
@@ -94,9 +133,11 @@ export function getBaseURLForRequest(url: string): string {
     return API_CONFIG.MOCK_BASE_URL;
   }
   
-  // Hybrid mode - Distribution APIs go to mock, everything else to real backend
-  if (API_CONFIG.HYBRID_MODE && isDistributionAPI(url)) {
-    return API_CONFIG.MOCK_BASE_URL;
+  // Hybrid mode - Distribution and Release Process APIs go to mock, everything else to real backend
+  if (API_CONFIG.HYBRID_MODE) {
+    if (isDistributionAPI(url) || isReleaseProcessAPI(url)) {
+      return API_CONFIG.MOCK_BASE_URL;
+    }
   }
   
   // Default - use real backend

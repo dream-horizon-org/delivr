@@ -4,19 +4,18 @@
  */
 
 import { json } from '@remix-run/node';
-import type { ActionFunctionArgs } from '@remix-run/node';
-import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/authenticate';
 import { DistributionService } from '~/.server/services/Distribution';
+import {
+  ERROR_MESSAGES,
+  LOG_CONTEXT,
+} from '~/constants/distribution-api.constants';
 import {
   createValidationError,
   handleAxiosError,
   logApiError,
   validateRequired,
 } from '~/utils/api-route-helpers';
-import {
-  ERROR_MESSAGES,
-  LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+import { authenticateActionRequest, AuthenticatedActionFunction } from '~/utils/authenticate';
 
 const uploadAAB: AuthenticatedActionFunction = async ({ params, request, user }) => {
   const { releaseId } = params;
@@ -36,10 +35,9 @@ const uploadAAB: AuthenticatedActionFunction = async ({ params, request, user })
     const versionName = formData.get('versionName') as string | null;
     const versionCode = formData.get('versionCode') as string | null;
 
-    // Convert File to Buffer
+    // Convert File to Blob for backend upload
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
 
     const metadata = {
       ...(versionName && { versionName }),

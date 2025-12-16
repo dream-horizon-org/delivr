@@ -66,13 +66,18 @@ export default function CreateReleasePage() {
       const responseData = result.data as { release?: { id: string } } | undefined;
       const release = responseData?.release;
       
+      // Invalidate React Query cache to trigger refetch
       await invalidateReleases(queryClient, org);
+      
+      // Add a cache-busting timestamp to ensure Remix loader re-runs
+      // This forces the browser to bypass cached loader data
+      const cacheBuster = Date.now();
 
       // Navigate to release detail page on success
       if (release?.id) {
-        navigate(`/dashboard/${org}/releases/${release.id}`);
+        navigate(`/dashboard/${org}/releases/${release.id}?refresh=${cacheBuster}`);
       } else {
-        navigate(`/dashboard/${org}/releases`);
+        navigate(`/dashboard/${org}/releases?refresh=${cacheBuster}`);
       }
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Failed to create release');

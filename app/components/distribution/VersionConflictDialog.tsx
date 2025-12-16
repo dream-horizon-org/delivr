@@ -15,7 +15,7 @@ import { Platform } from '~/types/distribution.types';
 export type VersionConflictDetails = {
   platform: Platform;
   version: string;
-  existingStatus: 'LIVE' | 'IN_REVIEW' | 'DRAFT';
+  existingStatus: 'LIVE' | 'IN_REVIEW' | 'DRAFT'; // Note: DRAFT not in SubmissionStatus enum
   resolution: {
     title: string;
     options: Array<{
@@ -49,7 +49,7 @@ export function VersionConflictDialog({
   const availableOptions = conflict.resolution.options.filter((option) => {
     // Handle conditional availability (e.g., DELETE_DRAFT only if status is DRAFT)
     if (option.availableIf) {
-      if (option.availableIf.includes('DRAFT') && conflict.existingStatus !== 'DRAFT') {
+      if (option.availableIf.includes('DRAFT') && conflict.existingStatus !== 'DRAFT') { // DRAFT is special status not in enum
         return false;
       }
     }

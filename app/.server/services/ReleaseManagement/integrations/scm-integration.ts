@@ -3,8 +3,12 @@
  * Handles all SCM-related API calls to the backend
  */
 
-import { IntegrationService } from './base-integration';
 import { SCM } from './api-routes';
+import { IntegrationService } from './base-integration';
+import type {
+  CreateSCMIntegrationRequest,
+  SCMIntegration,
+} from './types';
 
 export interface Branch {
   name: string;
@@ -73,14 +77,14 @@ class SCMIntegrationServiceClass extends IntegrationService {
    * Create SCM integration
    * Backend uses provider-specific routes (e.g., /tenants/:tenantId/integrations/scm/github)
    */
-  async createSCMIntegration(tenantId: string, userId: string, data: any): Promise<any> {
+  async createSCMIntegration(tenantId: string, userId: string, data: CreateSCMIntegrationRequest): Promise<SCMIntegration> {
     // Determine provider type from data or use default (GitHub)
     const scmType = data.scmType || 'GITHUB';
     const endpoint = SCM.create(tenantId, scmType);
     this.logRequest('POST', endpoint, { ...data, accessToken: '[REDACTED]' });
     
     try {
-      const result = await this.post<any>(
+      const result = await this.post<SCMIntegration>(
         endpoint,
         data,
         userId
@@ -88,7 +92,7 @@ class SCMIntegrationServiceClass extends IntegrationService {
       
       this.logResponse('POST', endpoint, true);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       this.logResponse('POST', endpoint, false);
       throw this.handleError(error);
     }

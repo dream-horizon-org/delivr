@@ -5,13 +5,14 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { getBackendBaseURL } from '~/.server/utils/base-url.utils';
 
 export abstract class IntegrationService {
   protected client: AxiosInstance;
   protected baseUrl: string;
 
   constructor() {
-    this.baseUrl = process.env.DELIVR_BACKEND_URL || process.env.BACKEND_API_URL || 'http://localhost:3010';
+    this.baseUrl = getBackendBaseURL();
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,

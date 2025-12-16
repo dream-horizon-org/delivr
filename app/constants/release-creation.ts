@@ -9,7 +9,7 @@
 
 // Release type options for release creation
 export const RELEASE_TYPES = [
-  { value: 'PLANNED', label: 'Planned Release' },
+  { value: 'MINOR', label: 'Minor Release' },
   { value: 'HOTFIX', label: 'Hotfix' },
   { value: 'PATCH', label: 'Patch' },
 ] as const;

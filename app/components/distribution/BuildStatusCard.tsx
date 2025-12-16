@@ -9,182 +9,17 @@
  * - Per-platform status (Android can succeed while iOS fails)
  */
 
-import { Anchor, Badge, Button, Card, Group, Loader, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
-import { IconBrandAndroid, IconBrandApple, IconCheck, IconClock, IconExternalLink, IconRefresh, IconUpload, IconX } from '@tabler/icons-react';
-import { BUTTON_LABELS, PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { BuildStrategy, BuildUploadStatus, Platform, WorkflowStatus } from '~/types/distribution.types';
+import { Anchor, Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core';
+import { IconExternalLink, IconRefresh, IconUpload } from '@tabler/icons-react';
+import { useCallback } from 'react';
+import { DISTRIBUTION_UI_LABELS, PLATFORM_LABELS } from '~/constants/distribution.constants';
+import { BuildStrategy, WorkflowStatus } from '~/types/distribution.types';
+import { BuildDetails } from './BuildDetails';
+import { BuildEmptyState } from './BuildEmptyState';
 import type { BuildStatusCardProps } from './distribution.types';
 import { deriveBuildState } from './distribution.utils';
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-function PlatformIcon({ platform }: { platform: Platform }) {
-  const isAndroid = platform === Platform.ANDROID;
-  
-  return (
-    <ThemeIcon 
-      size="lg" 
-      radius="md" 
-      variant="light" 
-      color={isAndroid ? 'green' : 'blue'}
-    >
-      {isAndroid ? <IconBrandAndroid size={20} /> : <IconBrandApple size={20} />}
-    </ThemeIcon>
-  );
-}
-
-function StatusIcon({ status }: { status: BuildUploadStatus | null }) {
-  if (!status) {
-    return <IconClock size={16} className="text-gray-400" />;
-  }
-
-  switch (status) {
-    case BuildUploadStatus.UPLOADED:
-      return <IconCheck size={16} className="text-green-500" />;
-    case BuildUploadStatus.UPLOADING:
-      return <IconClock size={16} className="text-blue-500" />;
-    case BuildUploadStatus.FAILED:
-      return <IconX size={16} className="text-red-500" />;
-    case BuildUploadStatus.PENDING:
-    default:
-      return <IconClock size={16} className="text-gray-400" />;
-  }
-}
-
-function CIJobStatus({ build }: { build: NonNullable<BuildStatusCardProps['build']> }) {
-  const workflowStatus = build.workflowStatus;
-  
-  if (!workflowStatus) return null;
-  
-  const getStatusColor = (status: WorkflowStatus) => {
-    switch (status) {
-      case WorkflowStatus.COMPLETED: return 'green';
-      case WorkflowStatus.RUNNING: return 'blue';
-      case WorkflowStatus.QUEUED: return 'yellow';
-      case WorkflowStatus.FAILED: return 'red';
-      default: return 'gray';
-    }
-  };
-  
-  const getStatusIcon = (status: WorkflowStatus) => {
-    switch (status) {
-      case WorkflowStatus.COMPLETED: return <IconCheck size={12} />;
-      case WorkflowStatus.RUNNING: return <Loader size={12} />;
-      case WorkflowStatus.QUEUED: return <IconClock size={12} />;
-      case WorkflowStatus.FAILED: return <IconX size={12} />;
-      default: return null;
-    }
-  };
-  
-  return (
-    <Group gap="xs">
-      <Text size="sm" c="dimmed">CI Status:</Text>
-      <Badge 
-        size="sm" 
-        variant="light" 
-        color={getStatusColor(workflowStatus)}
-        leftSection={getStatusIcon(workflowStatus)}
-      >
-        {workflowStatus}
-      </Badge>
-    </Group>
-  );
-}
-
-function BuildDetails({ build, isAndroid }: { build: NonNullable<BuildStatusCardProps['build']>; isAndroid: boolean }) {
-  const isCICD = build.buildStrategy === BuildStrategy.CICD;
-  
-  return (
-    <Stack gap="xs">
-      <Group gap="xs">
-        <Text size="sm" c="dimmed">Version:</Text>
-        <Text size="sm" fw={500}>{build.versionName}</Text>
-        <Text size="xs" c="dimmed">({build.versionCode})</Text>
-      </Group>
-      
-      {isCICD && build.ciRunType && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">Built via:</Text>
-          <Text size="sm">{build.ciRunType}</Text>
-        </Group>
-      )}
-      
-      {/* CI Job Status - only for CICD builds */}
-      {isCICD && <CIJobStatus build={build} />}
-
-      {isAndroid && build.internalTrackLink && (
-        <Anchor
-          href={build.internalTrackLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          size="sm"
-        >
-          <Group gap={4}>
-            <IconExternalLink size={14} />
-            Internal Testing Link
-          </Group>
-        </Anchor>
-      )}
-
-      {!isAndroid && build.testflightNumber && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">TestFlight:</Text>
-          <Text size="sm">Build #{build.testflightNumber}</Text>
-        </Group>
-      )}
-    </Stack>
-  );
-}
-
-function EmptyState({ 
-  platform, 
-  isManualMode, 
-  onUpload, 
-  onVerify,
-}: { 
-  platform: Platform;
-  isManualMode: boolean;
-  onUpload?: () => void;
-  onVerify?: () => void;
-}) {
-  const isAndroid = platform === Platform.ANDROID;
-  
-  return (
-    <Stack gap="md" align="center" py="md">
-      <Text c="dimmed" size="sm" ta="center">
-        {isManualMode 
-          ? `No ${PLATFORM_LABELS[platform]} build uploaded yet.`
-          : `Waiting for CI/CD to build ${PLATFORM_LABELS[platform]}...`
-        }
-      </Text>
-      
-      {isManualMode ? (
-        <Button
-          variant="light"
-          leftSection={<IconUpload size={16} />}
-          onClick={isAndroid ? onUpload : onVerify}
-        >
-          {isAndroid ? BUTTON_LABELS.UPLOAD : BUTTON_LABELS.VERIFY}
-        </Button>
-      ) : (
-        // CICD mode: Builds are auto-triggered by Release Orchestrator
-        // Frontend just tracks status - no trigger button needed
-        <Badge color="blue" variant="light" size="lg">
-          <Group gap={6}>
-            <Loader size={12} />
-            <Text size="sm">CI build will start automatically</Text>
-          </Group>
-        </Badge>
-      )}
-    </Stack>
-  );
-}
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
+import { PlatformIcon } from './PlatformIcon';
+import { StatusIcon } from './StatusIcon';
 
 export function BuildStatusCard(props: BuildStatusCardProps) {
   const { 
@@ -194,6 +29,7 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
     buildStrategy,
     onUploadRequested, 
     onVerifyRequested,
+    onRetryBuild,
     ciRetryUrl,
     className,
   } = props;
@@ -219,6 +55,20 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
   
   // Get CI run URL for retry (user clicks to retry in their CI system)
   const ciRunUrl = ciRetryUrl || build?.ciRunUrl;
+
+  const handleRetryBuild = useCallback(() => {
+    if (build?.id && onRetryBuild) {
+      onRetryBuild(build.id);
+    }
+  }, [build?.id, onRetryBuild]);
+
+  // Visibility flags for conditional rendering
+  const showCIProgress = isCIRunning || isCIQueued;
+  const showUploadProgress = isUploading;
+  const showReadyBadge = isUploaded;
+  const showManualRetry = isFailed && isManualMode;
+  const showCICDRetry = isCIFailed && isCICD && !!build && !!onRetryBuild;
+  const showCIRunLink = !!ciRunUrl;
 
   return (
     <Card 
@@ -258,30 +108,30 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
           <BuildDetails build={build} isAndroid={isAndroid} />
           
           {/* CI Job Running Progress */}
-          {(isCIRunning || isCIQueued) && (
+          {showCIProgress && (
             <Stack gap="xs" mt="md">
               <Progress value={isCIRunning ? 50 : 10} animated striped />
               <Text size="xs" c="dimmed" ta="center">
-                {isCIQueued ? 'Build queued, waiting to start...' : 'Build in progress...'}
+                {isCIQueued ? DISTRIBUTION_UI_LABELS.BUILD_QUEUED : DISTRIBUTION_UI_LABELS.BUILD_IN_PROGRESS}
               </Text>
             </Stack>
           )}
           
           {/* Upload Progress (if uploading) */}
-          {isUploading && (
+          {showUploadProgress && (
             <Progress value={75} animated striped mt="md" />
           )}
 
           {/* Action Buttons */}
           <Group mt="md" gap="sm">
-            {isUploaded && (
+            {showReadyBadge && (
               <Badge color="green" variant="filled" size="sm">
-                Ready for Distribution
+                {DISTRIBUTION_UI_LABELS.READY_FOR_DISTRIBUTION}
               </Badge>
             )}
 
             {/* Manual mode: Retry upload/verify */}
-            {isFailed && isManualMode && (
+            {showManualRetry && (
               <Button
                 variant="light"
                 color="red"
@@ -293,27 +143,38 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
               </Button>
             )}
             
-            {/* CICD mode: Link to CI system to retry (we don't retry, CI system does) */}
-            {isCIFailed && isCICD && ciRunUrl && (
+            {/* CICD mode: Retry build via API (triggers CI/CD workflow) */}
+            {showCICDRetry && (
+              <Button
+                variant="light"
+                color="red"
+                size="xs"
+                leftSection={<IconRefresh size={14} />}
+                onClick={handleRetryBuild}
+                loading={isLoading}
+              >
+                {DISTRIBUTION_UI_LABELS.RETRY_BUILD}
+              </Button>
+            )}
+            
+            {/* Link to view CI run */}
+            {showCIRunLink && (
               <Anchor
                 href={ciRunUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                size="xs"
               >
-                <Button
-                  variant="light"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconRefresh size={14} />}
-                >
-                  Retry in CI System
-                </Button>
+                <Group gap={4}>
+                  <IconExternalLink size={12} />
+                  {DISTRIBUTION_UI_LABELS.VIEW_CI_JOB}
+                </Group>
               </Anchor>
             )}
           </Group>
         </>
       ) : (
-        <EmptyState 
+        <BuildEmptyState 
           platform={platform}
           isManualMode={isManualMode}
           onUpload={onUploadRequested}
