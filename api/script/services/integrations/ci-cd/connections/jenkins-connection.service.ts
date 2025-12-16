@@ -4,7 +4,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 import type { JenkinsProviderContract, JenkinsVerifyParams } from '../providers/jenkins/jenkins.interface';
 import { PROVIDER_DEFAULTS, ERROR_MESSAGES } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
-import { decryptIfEncrypted, decryptFromStorage, encryptForStorage } from '~utils/encryption';
+import { decryptFromStorage, encryptForStorage } from '~utils/encryption';
 
 type CreateInput = {
   displayName?: string;
@@ -95,27 +95,15 @@ export class JenkinsConnectionService extends ConnectionService<CreateInput> {
       updateData.lastVerifiedAt = new Date();
       updateData.verificationError = ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED;
     } else {
-      // Decrypt the token before verification (same approach as GitHub Actions)
-      // Try decryptFromStorage first (handles backend format), then fallback to decryptIfEncrypted (handles frontend format)
+      // Decrypt the token before verification
+      // tokenToUse can be either:
+      // 1. updateData.apiToken (from frontend, already backend-encrypted by adapter - Layer 2)
+      // 2. storedToken (from database, backend-encrypted - Layer 2)
+      // Both are Layer 2 format, so only decryptFromStorage() is needed
       let decryptedToken: string | undefined;
       try {
-       
-        // Try decryptFromStorage first (handles backend storage format: salt:iv:authTag:ciphertext)
-        try {
-          decryptedToken = decryptFromStorage(tokenToUse);
-          
-        } catch (storageError: any) {
-          // If decryptFromStorage fails, try decryptIfEncrypted (handles frontend format)
-          
-          decryptedToken = decryptIfEncrypted(tokenToUse, 'apiToken');
-          // If decryptIfEncrypted returns the same value, decryption actually failed
-          if (decryptedToken === tokenToUse) {
-            throw new Error('Token could not be decrypted with either method');
-          }
-         
-        }
+        decryptedToken = decryptFromStorage(tokenToUse);
       } catch (error: any) {
-        
         updateData.verificationStatus = VerificationStatus.INVALID;
         updateData.lastVerifiedAt = new Date();
         updateData.verificationError = 'Failed to decrypt token for verification';

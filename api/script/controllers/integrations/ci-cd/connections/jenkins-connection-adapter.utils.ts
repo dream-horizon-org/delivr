@@ -2,7 +2,7 @@ import { JenkinsConnectionService } from "~services/integrations/ci-cd";
 import { ERROR_MESSAGES, PROVIDER_DEFAULTS } from "../constants";
 import type { ConnectionAdapter, VerifyResult } from "./connection-adapter.utils";
 import type { UpdateCICDIntegrationDto, SafeCICDIntegration } from "~types/integrations/ci-cd/connection.interface";
-import { decryptIfEncrypted, decryptFields, decrypt, encryptForStorage } from "~utils/encryption";
+import { decryptIfEncrypted, decryptFields, encryptForStorage } from "~utils/encryption";
 
 export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
   const service = new JenkinsConnectionService();
@@ -20,22 +20,10 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
       return { isValid: false, message: ERROR_MESSAGES.JENKINS_VERIFY_REQUIRED } as VerifyResult;
     }
     
-    // Decrypt apiToken if encrypted from frontend
-    let decryptedToken: string;
-    if (_encrypted) {
-      try {
-        decryptedToken = decrypt(apiToken);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown decryption error';
-        return { 
-          isValid: false, 
-          message: `Failed to decrypt API token: ${errorMessage}. Please verify ENCRYPTION_KEY is set correctly.` 
-        } as VerifyResult;
-      }
-    } else {
-      // Not encrypted, use as-is
-      decryptedToken = apiToken;
-    }
+    // Decrypt apiToken if encrypted from frontend (Layer 1)
+    const decryptedToken = _encrypted 
+      ? decryptIfEncrypted(apiToken, 'apiToken')
+      : apiToken;
     
     const result = await service.verifyConnection({ hostUrl, username, apiToken: decryptedToken, useCrumb, crumbPath });
     return result;
@@ -55,18 +43,10 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
       throw new Error(ERROR_MESSAGES.JENKINS_CREATE_REQUIRED);
     }
     
-    // Decrypt frontend-encrypted value if needed, then encrypt with backend storage key
-    let decryptedToken: string;
-    if (_encrypted) {
-      try {
-        decryptedToken = decrypt(apiToken);
-      } catch (error) {
-        throw new Error(`Failed to decrypt API token: ${error instanceof Error ? error.message : 'Unknown error'}. Please verify ENCRYPTION_KEY is set correctly.`);
-      }
-    } else {
-      // Not encrypted, use as-is
-      decryptedToken = apiToken;
-    }
+    // Decrypt frontend-encrypted value if needed (Layer 1), then encrypt with backend storage key (Layer 2)
+    const decryptedToken = _encrypted 
+      ? decryptIfEncrypted(apiToken, 'apiToken')
+      : apiToken;
     
     // Encrypt with backend storage key for database storage
     const backendEncryptedApiToken = encryptForStorage(decryptedToken);
@@ -87,20 +67,10 @@ export const createJenkinsConnectionAdapter = (): ConnectionAdapter => {
     
     if (hasToken) {
       
-      let decryptedToken: string;
-      if (_encrypted) {
-        try {
-          // Directly call decrypt() which throws on failure, ensuring we don't use encrypted value
-          decryptedToken = decrypt(processedUpdateData.apiToken);
-          
-        } catch (error) {
-          
-          throw new Error(`Failed to decrypt API token: ${error instanceof Error ? error.message : 'Unknown error'}. Please verify ENCRYPTION_KEY is set correctly.`);
-        }
-      } else {
-        // Not encrypted, use as-is
-        decryptedToken = processedUpdateData.apiToken;
-      }
+      // Decrypt frontend-encrypted value if needed (Layer 1)
+      const decryptedToken = _encrypted 
+        ? decryptIfEncrypted(processedUpdateData.apiToken, 'apiToken')
+        : processedUpdateData.apiToken;
       // Encrypt with backend storage key for database storage
       processedUpdateData.apiToken = encryptForStorage(decryptedToken);
     } else {

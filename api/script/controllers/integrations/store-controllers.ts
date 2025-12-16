@@ -36,7 +36,7 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { createReleaseModel } from '~models/release/release.sequelize.model';
-import { decrypt, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
+import { decryptIfEncrypted, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -174,35 +174,24 @@ const verifyAppStoreConnect = async (
 
     // Decrypt private key if encrypted (check if it's not a PEM format)
     if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
-      try {
-        console.log('[AppStore] Encrypted privateKeyPem detected, attempting decryption...');
-        const decrypted = decrypt(privateKeyPem);
-        
-        // Verify decryption worked (should now start with -----BEGIN)
-        if (!decrypted.startsWith('-----BEGIN')) {
-          return {
-            isValid: false,
-            message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
-            details: {
-              error: 'Decryption did not produce valid PEM format',
-              hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
-            },
-          };
-        }
-        
-        privateKeyPem = decrypted;
-        console.log('[AppStore] Private key decrypted successfully');
-      } catch (error) {
-        console.error('[AppStore] Failed to decrypt privateKeyPem:', error);
+      console.log('[AppStore] Encrypted privateKeyPem detected, attempting decryption...');
+      // Decrypt frontend-encrypted value (Layer 1)
+      const decrypted = decryptIfEncrypted(privateKeyPem, 'privateKeyPem');
+      
+      // Verify decryption worked (should now start with -----BEGIN)
+      if (!decrypted.startsWith('-----BEGIN')) {
         return {
           isValid: false,
-          message: 'Failed to decrypt private key. ENCRYPTION_KEY may be missing or incorrect.',
+          message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
           details: {
-            error: error instanceof Error ? error.message : 'Unknown decryption error',
-            hint: 'Check backend .env file for ENCRYPTION_KEY',
+            error: 'Decryption did not produce valid PEM format',
+            hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
           },
         };
       }
+      
+      privateKeyPem = decrypted;
+      console.log('[AppStore] Private key decrypted successfully');
     }
 
     // Validate required fields
@@ -364,21 +353,12 @@ const verifyGooglePlayStore = async (
     if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
       console.log('[PlayStore] Encrypted private_key detected, attempting decryption...');
       console.log('[PlayStore] Encrypted key length:', serviceAccountJson.private_key.length);
-      try {
-        const decrypted = decrypt(serviceAccountJson.private_key);
-        console.log('[PlayStore] Decryption successful, decrypted key length:', decrypted.length);
-        serviceAccountJson.private_key = decrypted;
-        // Remove the encryption flag
-        delete serviceAccountJson._encrypted;
-      } catch (error) {
-        console.error('[PlayStore] Failed to decrypt service account private_key:', error);
-        delete serviceAccountJson._encrypted;
-        return {
-          isValid: false,
-          message: `Failed to decrypt private_key: ${error instanceof Error ? error.message : 'Unknown decryption error'}`,
-          details: { error: String(error) },
-        };
-      }
+      // Decrypt frontend-encrypted value (Layer 1)
+      const decrypted = decryptIfEncrypted(serviceAccountJson.private_key, 'private_key');
+      console.log('[PlayStore] Decryption successful, decrypted key length:', decrypted.length);
+      serviceAccountJson.private_key = decrypted;
+      // Remove the encryption flag
+      delete serviceAccountJson._encrypted;
     }
 
     // Validate required fields
@@ -820,13 +800,8 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       // Decrypt privateKeyPem if it's frontend-encrypted (not in PEM format)
       let privateKeyPem = appStorePayload.privateKeyPem;
       if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
-        try {
-          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
-          privateKeyPem = decrypt(appStorePayload.privateKeyPem);
-        } catch (error) {
-          console.error('[Store] Failed to decrypt privateKeyPem before storage:', error);
-          // If decryption fails, use as-is (might already be plaintext or backend-encrypted)
-        }
+        // Decrypt using frontend encryption key (ENCRYPTION_KEY) - Layer 1
+        privateKeyPem = decryptIfEncrypted(appStorePayload.privateKeyPem, 'privateKeyPem');
       }
       
       // Create credential payload with plaintext values
@@ -853,15 +828,9 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       
       // Decrypt private_key if it's frontend-encrypted
       if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
-        try {
-          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
-          serviceAccountJson.private_key = decrypt(serviceAccountJson.private_key);
-          delete serviceAccountJson._encrypted;
-        } catch (error) {
-          console.error('[Store] Failed to decrypt private_key before storage:', error);
-          // If decryption fails, use as-is
-          delete serviceAccountJson._encrypted;
-        }
+        // Decrypt using frontend encryption key (ENCRYPTION_KEY) - Layer 1
+        serviceAccountJson.private_key = decryptIfEncrypted(serviceAccountJson.private_key, 'private_key');
+        delete serviceAccountJson._encrypted;
       }
       
       // Create credential payload with plaintext values

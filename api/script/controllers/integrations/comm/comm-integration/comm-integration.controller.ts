@@ -15,7 +15,7 @@ import {
   successResponse,
   validationErrorResponse
 } from '~utils/response.utils';
-import { decryptIfEncrypted, decryptFields, encryptForStorage } from '~utils/encryption';
+import { decryptIfEncrypted, decryptFields, encryptForStorage, decryptFromStorage, isBackendEncrypted } from '~utils/encryption';
 import { 
   COMM_INTEGRATION_ERROR_MESSAGES, 
   COMM_INTEGRATION_SUCCESS_MESSAGES,
@@ -153,8 +153,11 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      // Decrypt the stored token before making API calls
-      const decryptedToken = decryptIfEncrypted(botToken, 'slackBotToken');
+      // Repository already decrypts token using decryptFromStorage() when includeToken=true
+      // If still encrypted (error case), decrypt using Layer 2; otherwise use as-is (already plaintext)
+      const decryptedToken = isBackendEncrypted(botToken) 
+        ? decryptFromStorage(botToken)  // Layer 2 - from DB (error case: repository decryption failed)
+        : botToken;  // Already plaintext (repository successfully decrypted it)
 
       // Fetch channels using the decrypted token
       const channelsResult = await service.fetchChannels('SLACK' as any, decryptedToken);
@@ -380,8 +383,12 @@ const verifyIntegrationHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      // Decrypt the stored token before verification
-      const decryptedToken = decryptIfEncrypted(integration.slackBotToken, 'slackBotToken');
+      // Repository already decrypts token using decryptFromStorage() when includeToken=true
+      // If still encrypted (error case), decrypt using Layer 2; otherwise use as-is (already plaintext)
+      const botToken = integration.slackBotToken;
+      const decryptedToken = botToken && isBackendEncrypted(botToken)
+        ? decryptFromStorage(botToken)  // Layer 2 - from DB (error case: repository decryption failed)
+        : botToken;  // Already plaintext (repository successfully decrypted it) or undefined
       
       // Verify using the decrypted token
       const verificationResult = await service.verifyCredentials('SLACK' as any, decryptedToken);

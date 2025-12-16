@@ -4,7 +4,7 @@ import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAVerifyParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
 import * as shortid from 'shortid';
-import { decryptIfEncrypted, decryptFromStorage } from '~utils/encryption';
+import { decryptFromStorage } from '~utils/encryption';
 
 type CreateInput = {
   displayName?: string;
@@ -82,13 +82,14 @@ export class GitHubActionsConnectionService extends ConnectionService<CreateInpu
       updateData.verificationError = ERROR_MESSAGES.MISSING_TOKEN_AND_SCM;
     } else {
       // Decrypt the token before verification
-      // updateData.apiToken is now backend-encrypted (from adapter), storedToken might be either format
-      // decryptFromStorage handles both backend and frontend formats
+      // tokenToCheck can be either:
+      // 1. updateData.apiToken (from frontend, already backend-encrypted by adapter - Layer 2)
+      // 2. storedToken (from database, backend-encrypted - Layer 2)
+      // Both are Layer 2 format, so only decryptFromStorage() is needed
       let decryptedToken: string | undefined;
       try {
         decryptedToken = decryptFromStorage(tokenToCheck);
       } catch (error: any) {
-        //console.error('[GitHub Actions] Failed to decrypt token for verification:', error.message);
         updateData.verificationStatus = VerificationStatus.INVALID;
         updateData.lastVerifiedAt = new Date();
         updateData.verificationError = 'Failed to decrypt token for verification';
