@@ -398,4 +398,5 @@ export interface CreateSCMIntegrationRequest {
   branch?: string;
   status: 'VALID' | 'INVALID' | 'PENDING';
   isActive: boolean;
+  _encrypted?: boolean;
 }
