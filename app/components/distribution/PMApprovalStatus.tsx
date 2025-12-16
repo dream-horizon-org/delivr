@@ -10,6 +10,11 @@
 import { Card, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconUserCheck } from '@tabler/icons-react';
 import { ApproverRole } from '~/types/distribution.types';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { ApprovedBadge } from './ApprovedBadge';
 import { BlockedMessage } from './BlockedMessage';
 import type { PMApprovalStatusProps } from './distribution.types';
@@ -44,21 +49,21 @@ export function PMApprovalStatus(props: PMApprovalStatusProps) {
   return (
     <Card 
       shadow="sm" 
-      padding="lg" 
-      radius="md" 
+      padding={DS_SPACING.LG}
+      radius={DS_SPACING.BORDER_RADIUS}
       withBorder 
       className={className}
       data-testid="pm-approval-status"
     >
       {/* Header */}
-      <Group justify="space-between" mb="md">
-        <Group gap="sm">
-          <ThemeIcon size="lg" radius="md" variant="light" color="violet">
+      <Group justify="space-between" mb={DS_SPACING.MD}>
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon size="lg" radius={DS_SPACING.BORDER_RADIUS} variant="light" color={DS_COLORS.STATUS.INFO}>
             <IconUserCheck size={20} />
           </ThemeIcon>
           <div>
-            <Text fw={600}>PM Approval</Text>
-            <Text size="xs" c="dimmed">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>PM Approval</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {hasIntegration ? 'Jira Integration' : 'Manual Approval'}
             </Text>
           </div>
@@ -72,7 +77,7 @@ export function PMApprovalStatus(props: PMApprovalStatusProps) {
       </Group>
 
       {/* Content */}
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         {/* Blocked message */}
         {showBlockedMessage && (
           <BlockedMessage reason={blockedReason!} />
@@ -94,12 +99,12 @@ export function PMApprovalStatus(props: PMApprovalStatusProps) {
 
         {/* Approved message */}
         {isApproved && pmStatus.approvedAt && (
-          <Paper p="md" withBorder radius="md" bg="green.0">
-            <Group gap="sm">
-              <IconCheck size={20} className="text-green-600" />
+          <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.SUCCESS}>
+            <Group gap={DS_SPACING.SM}>
+              <IconCheck size={20} style={{ color: DS_COLORS.STATUS.SUCCESS }} />
               <div>
-                <Text fw={500} c="green.7">Release Approved</Text>
-                <Text size="sm" c="dimmed">
+                <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} c={DS_COLORS.STATUS.SUCCESS}>Release Approved</Text>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
                   Approved on {new Date(pmStatus.approvedAt).toLocaleDateString()}
                 </Text>
               </div>

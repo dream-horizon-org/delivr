@@ -34,6 +34,11 @@ import {
   FORM_ICON_SIZES,
   PLATFORM_LABELS,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform } from '~/types/distribution.types';
 
 type BuildUploadSelectorProps = {
@@ -131,10 +136,10 @@ export function BuildUploadSelector({
   }, []);
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Stack gap="md">
+    <Card shadow="sm" padding="lg" radius={DS_SPACING.BORDER_RADIUS} withBorder>
+      <Stack gap={DS_SPACING.MD}>
         <Group>
-          <ThemeIcon size="xl" variant="light" color={platformColor} radius="md">
+          <ThemeIcon size={DS_TYPOGRAPHY.SIZE.XL} variant="light" color={platformColor} radius={DS_SPACING.BORDER_RADIUS}>
             {isAndroid ? (
               <IconBrandAndroid size={DIALOG_ICON_SIZES.TITLE} />
             ) : (
@@ -142,10 +147,10 @@ export function BuildUploadSelector({
             )}
           </ThemeIcon>
           <div>
-            <Text fw={600} size="lg">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={DS_TYPOGRAPHY.SIZE.LG}>
               {DISTRIBUTION_UI_LABELS.UPLOAD_NEW_BUILD(platformLabel)}
             </Text>
-            <Text size="sm" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
               {isAndroid
                 ? DISTRIBUTION_UI_LABELS.UPLOAD_AAB_FILE
                 : DISTRIBUTION_UI_LABELS.PROVIDE_TESTFLIGHT_BUILD}
@@ -156,10 +161,10 @@ export function BuildUploadSelector({
         <Alert
           icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />}
           title={DISTRIBUTION_UI_LABELS.DIRECT_TO_PRODUCTION}
-          color="orange"
+          color={DS_COLORS.STATUS.WARNING}
           variant="light"
         >
-          <Text size="sm">{DISTRIBUTION_UI_LABELS.DIRECT_TO_PRODUCTION_DESC}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{DISTRIBUTION_UI_LABELS.DIRECT_TO_PRODUCTION_DESC}</Text>
         </Alert>
 
         {isAndroid ? (
@@ -177,8 +182,8 @@ export function BuildUploadSelector({
             />
 
             {aabFile && (
-              <Group gap="xs">
-                <Text size="sm" c="dimmed">
+              <Group gap={DS_SPACING.XS}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
                   {DISTRIBUTION_UI_LABELS.SELECTED_FILE}: {aabFile.name} ({formatFileSize(aabFile.size)} MB)
                 </Text>
               </Group>
@@ -189,7 +194,7 @@ export function BuildUploadSelector({
               onClick={handleAabUpload}
               disabled={!aabFile || disabled}
               loading={isUploading}
-              color="green"
+              color={DS_COLORS.STATUS.SUCCESS}
               fullWidth
             >
               {BUTTON_LABELS.UPLOAD_AAB}
@@ -208,7 +213,7 @@ export function BuildUploadSelector({
               required
             />
 
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD_DESC}
             </Text>
 
@@ -217,7 +222,7 @@ export function BuildUploadSelector({
               onClick={handleTestflightVerify}
               disabled={!testflightNumber.trim() || disabled}  // Renamed from testflightBuildNumber
               loading={isUploading}
-              color="blue"
+              color={DS_COLORS.ACTION.PRIMARY}
               fullWidth
             >
               {BUTTON_LABELS.VERIFY_AND_USE}
@@ -229,12 +234,12 @@ export function BuildUploadSelector({
           <Alert
             icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />}
             title={DISTRIBUTION_UI_LABELS.ERROR_TITLE}
-            color="red"
+            color={DS_COLORS.STATUS.ERROR}
             variant="light"
             withCloseButton
             onClose={handleClearError}
           >
-            <Text size="sm">{uploadError}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM}>{uploadError}</Text>
           </Alert>
         )}
       </Stack>

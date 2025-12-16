@@ -25,6 +25,12 @@ import { useFetcher } from '@remix-run/react';
 import { IconBrandApple, IconRocket } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { STORE_TYPE_NAMES } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+  DS_COMPONENTS,
+} from '~/constants/distribution-design.constants';
 import { type IOSSubmission } from '~/types/distribution.types';
 import { ErrorAlert } from './ErrorRecovery';
 
@@ -89,14 +95,14 @@ export function PromoteIOSSubmissionDialog({
 
   // Handle successful submission
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data?.success) {
+    if (fetcher.state === 'idle' && (fetcher.data as any)?.success) {
       form.reset();
       onPromoteComplete?.();
     }
   }, [fetcher.state, fetcher.data, form, onPromoteComplete]);
 
   const isSubmitting = fetcher.state === 'submitting';
-  const error = fetcher.data?.error;
+  const error = (fetcher.data as any)?.error;
 
   // Check if form is valid for submit button
   const isFormValid = form.values.releaseNotes.trim().length > 0;
@@ -106,7 +112,7 @@ export function PromoteIOSSubmissionDialog({
       opened={opened}
       onClose={onClose}
       title={
-        <Group gap="sm">
+        <Group gap={DS_SPACING.SM}>
           <IconRocket size={24} />
           <Title order={3}>Submit to App Store</Title>
         </Group>
@@ -115,47 +121,47 @@ export function PromoteIOSSubmissionDialog({
       centered
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="lg">
+        <Stack gap={DS_SPACING.LG}>
           {/* Error Alert */}
-          {error && <ErrorAlert error={error} title="Submission Failed" />}
+          {error && <ErrorAlert error={error} />}
 
           <Divider label="Build Information" labelPosition="center" />
 
           {/* Read-Only Section */}
-          <Paper p="md" withBorder className="bg-white">
-            <Stack gap="sm">
+          <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.CARD}>
+            <Stack gap={DS_SPACING.SM}>
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Platform
                 </Text>
-                <Badge size="lg" leftSection={<IconBrandApple size={14} />}>
+                <Badge size="lg" leftSection={<IconBrandApple size={14} />} color={DS_COLORS.PLATFORM.IOS}>
                   IOS
                 </Badge>
               </Group>
 
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Store Type
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                   {STORE_TYPE_NAMES[submission.storeType]}
                 </Text>
               </Group>
 
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Version
                 </Text>
-                <Text size="sm" fw={500} className="font-mono">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="font-mono">
                   {submission.version}
                 </Text>
               </Group>
 
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Release Type
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                   After Approval
                 </Text>
               </Group>
@@ -163,13 +169,13 @@ export function PromoteIOSSubmissionDialog({
               {/* Artifact Info */}
               {submission.artifact && 'testflightNumber' in submission.artifact && (
                 <>
-                  <Divider my="xs" />
+                  <Divider my={DS_SPACING.XS} />
 
                   <Group justify="space-between" align="center">
-                    <Text size="sm" fw={600} c="dark">
+                    <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                       TestFlight Build
                     </Text>
-                    <Badge size="lg" variant="light" color="blue" className="font-mono">
+                    <Badge size="lg" variant="light" color={DS_COLORS.PLATFORM.IOS} className="font-mono">
                       #{submission.artifact.testflightNumber}
                     </Badge>
                   </Group>
@@ -181,7 +187,7 @@ export function PromoteIOSSubmissionDialog({
           <Divider label="Submission Details" labelPosition="center" />
 
           {/* Editable Section */}
-          <Stack gap="md">
+          <Stack gap={DS_SPACING.MD}>
             {/* Phased Release */}
             <Checkbox
               label="Enable Phased Release"
@@ -209,8 +215,13 @@ export function PromoteIOSSubmissionDialog({
           </Stack>
 
           {/* Actions */}
-          <Group justify="flex-end" gap="sm" mt="lg">
-            <Button variant="subtle" onClick={onClose} disabled={isSubmitting}>
+          <Group justify="flex-end" gap={DS_SPACING.SM} mt={DS_SPACING.LG}>
+            <Button 
+              variant="subtle" 
+              onClick={onClose} 
+              disabled={isSubmitting}
+              radius={DS_SPACING.BORDER_RADIUS}
+            >
               Cancel
             </Button>
             <Button
@@ -218,7 +229,8 @@ export function PromoteIOSSubmissionDialog({
               loading={isSubmitting}
               disabled={!isFormValid || isSubmitting}
               leftSection={<IconRocket size={16} />}
-              color="cyan"
+              color={DS_COLORS.ACTION.PRIMARY}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               Submit to App Store
             </Button>

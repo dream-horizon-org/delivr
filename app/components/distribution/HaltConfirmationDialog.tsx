@@ -27,6 +27,11 @@ import {
   DIALOG_ICON_SIZES,
   DIALOG_UI,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 
 // ============================================================================
 // TYPES
@@ -105,33 +110,34 @@ export function HaltConfirmationDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="red" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.ERROR} variant="light" size="lg" radius={DS_SPACING.BORDER_RADIUS}>
             <IconAlertOctagon size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600} c="red.9">
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.STATUS.ERROR}>
             {DIALOG_UI.HALT.WARNING_TITLE}
           </Text>
         </Group>
       }
-      size="lg"
+      size="md"
       centered
       closeOnClickOutside={false}
       closeOnEscape={!isLoading}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="md">
+        <Stack gap={DS_SPACING.MD}>
           {/* Warning Alert */}
           <Alert
-            color="red"
+            color={DS_COLORS.STATUS.ERROR}
             variant="light"
             icon={<IconAlertTriangle size={DIALOG_ICON_SIZES.ALERT} />}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
-            <Stack gap="xs">
-              <Text size="sm" fw={600}>
+            <Stack gap={DS_SPACING.XS}>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
                 {DIALOG_UI.HALT.WARNING_MESSAGE}
               </Text>
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                 Platform: {platform} | Version: {version}
               </Text>
             </Stack>
@@ -139,21 +145,21 @@ export function HaltConfirmationDialog({
 
           {/* Consequences List */}
           <div>
-            <Text size="sm" fw={600} mb="xs">
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
               {DIALOG_UI.HALT.CONSEQUENCE_TITLE}
             </Text>
             <List
-              spacing="xs"
-              size="sm"
+              spacing={DS_SPACING.XS}
+              size={DS_TYPOGRAPHY.SIZE.SM}
               icon={
-                <ThemeIcon color="red" size={20} radius="xl" variant="light">
+                <ThemeIcon color={DS_COLORS.STATUS.ERROR} size={20} radius="xl" variant="light">
                   <IconX size={12} />
                 </ThemeIcon>
               }
             >
               {DIALOG_UI.HALT.CONSEQUENCE_ITEMS.map((item, index) => (
                 <List.Item key={index}>
-                  <Text size="sm">{item}</Text>
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM}>{item}</Text>
                 </List.Item>
               ))}
             </List>
@@ -182,19 +188,21 @@ export function HaltConfirmationDialog({
           />
 
           {/* Action Buttons */}
-          <Group justify="flex-end" mt="md">
+          <Group justify="flex-end" mt={DS_SPACING.LG}>
             <Button
               variant="subtle"
               onClick={handleClose}
               disabled={isLoading}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {BUTTON_LABELS.CANCEL}
             </Button>
             <Button
               type="submit"
-              color="red"
+              color={DS_COLORS.STATUS.ERROR}
               loading={isLoading}
               leftSection={<IconAlertOctagon size={DIALOG_ICON_SIZES.ACTION} />}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {BUTTON_LABELS.HALT_ROLLOUT}
             </Button>

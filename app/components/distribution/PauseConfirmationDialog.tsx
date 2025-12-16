@@ -23,6 +23,11 @@ import {
   DIALOG_ICON_SIZES,
   DIALOG_UI,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 
 // ============================================================================
 // TYPES
@@ -66,11 +71,11 @@ export function PauseConfirmationDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="yellow" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg" radius={DS_SPACING.BORDER_RADIUS}>
             <IconPlayerPause size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
             {BUTTON_LABELS.PAUSE_ROLLOUT}
           </Text>
         </Group>
@@ -79,13 +84,13 @@ export function PauseConfirmationDialog({
       centered
       closeOnEscape={!isLoading}
     >
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         {/* Confirmation Message */}
         <div>
-          <Text size="md" fw={500} mb="xs">
+          <Text size={DS_TYPOGRAPHY.SIZE.MD} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
             {DIALOG_UI.PAUSE.CONFIRMATION(platform, currentPercentage)}
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
             {DIALOG_UI.PAUSE.DESCRIPTION}
           </Text>
         </div>
@@ -101,19 +106,21 @@ export function PauseConfirmationDialog({
         />
 
         {/* Action Buttons */}
-        <Group justify="flex-end" mt="md">
+        <Group justify="flex-end" mt={DS_SPACING.LG}>
           <Button
             variant="subtle"
             onClick={handleClose}
             disabled={isLoading}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
-            color="yellow"
+            color={DS_COLORS.STATUS.WARNING}
             loading={isLoading}
             onClick={handleConfirm}
             leftSection={<IconPlayerPause size={DIALOG_ICON_SIZES.ACTION} />}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {BUTTON_LABELS.PAUSE}
           </Button>

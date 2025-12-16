@@ -25,6 +25,11 @@ import {
   SUBMISSION_STATUS_COLORS,
   SUBMISSION_STATUS_LABELS,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import type { PlatformSubmissionCardProps } from './distribution.types';
 import { PlatformIcon } from './PlatformIcon';
@@ -72,18 +77,18 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
     <Card 
       shadow="sm" 
       padding="lg" 
-      radius="md" 
+      radius={DS_SPACING.BORDER_RADIUS} 
       withBorder 
       className={className}
       data-testid={`submission-card-${platform.toLowerCase()}`}
     >
       {/* Header */}
-      <Group justify="space-between" mb="md">
-        <Group gap="sm">
+      <Group justify="space-between" mb={DS_SPACING.MD}>
+        <Group gap={DS_SPACING.SM}>
           <PlatformIcon platform={platform} />
           <div>
-            <Text fw={600}>{PLATFORM_LABELS[platform]}</Text>
-            <Text size="xs" c="dimmed">{storeName}</Text>
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{PLATFORM_LABELS[platform]}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>{storeName}</Text>
           </div>
         </Group>
         
@@ -106,18 +111,18 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
           {/* Rejection Warning - Not in API spec, but keeping for now */}
           {isRejected && (
             <div className="mt-3 p-2 bg-red-50 rounded border border-red-200">
-              <Text size="xs" c="red.7" fw={500}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c="red.7" fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                 Rejection detected
               </Text>
             </div>
           )}
 
           {/* Actions */}
-          <Group mt="md" gap="sm">
+          <Group mt={DS_SPACING.MD} gap={DS_SPACING.SM}>
             {onViewDetails && (
               <Button
                 variant="light"
-                size="xs"
+                size={DS_TYPOGRAPHY.SIZE.XS}
                 leftSection={<IconEye size={14} />}
                 onClick={onViewDetails}
               >
@@ -128,8 +133,8 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
             {isRejected && onRetry && (
               <Button
                 variant="light"
-                color="red"
-                size="xs"
+                color={DS_COLORS.STATUS.ERROR}
+                size={DS_TYPOGRAPHY.SIZE.XS}
                 leftSection={<IconRefresh size={14} />}
                 onClick={onRetry}
                 loading={isSubmitting}
@@ -142,7 +147,7 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
               href={STORE_URLS[platform]}
               target="_blank"
               rel="noopener noreferrer"
-              size="xs"
+              size={DS_TYPOGRAPHY.SIZE.XS}
             >
               <Group gap={4}>
                 <IconExternalLink size={12} />

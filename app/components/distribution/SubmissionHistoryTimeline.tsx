@@ -21,6 +21,11 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { SUBMISSION_STATUS_COLORS } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform, type Submission, SubmissionStatus } from '~/types/distribution.types';
 import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
 
@@ -69,69 +74,69 @@ export function SubmissionHistoryTimeline({
             </div>
           }
           title={
-            <Group gap="sm" mb="xs">
-              <Text fw={600} size="md">
+            <Group gap={DS_SPACING.SM} mb={DS_SPACING.XS}>
+              <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={DS_TYPOGRAPHY.SIZE.MD}>
                 {submission.version}
               </Text>
               {isAndroid && 'versionCode' in submission && (
-                <Text size="sm" c="dimmed" className="font-mono">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED} className="font-mono">
                   ({submission.versionCode})
                 </Text>
               )}
               <Badge
-                size="md"
+                size={DS_TYPOGRAPHY.SIZE.MD}
                 color={SUBMISSION_STATUS_COLORS[submission.status]}
                 variant="light"
-                radius="sm"
+                radius={DS_SPACING.BORDER_RADIUS}
               >
                 {formatStatus(submission.status)}
               </Badge>
             </Group>
           }
         >
-          <Paper p="md" radius="md" withBorder className="bg-gray-50 mb-4">
-            <Stack gap="sm">
+          <Paper p={DS_SPACING.MD} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gray-50 mb-4">
+            <Stack gap={DS_SPACING.SM}>
               {/* Timestamps */}
-              <Group gap="md">
+              <Group gap={DS_SPACING.MD}>
                 {submission.submittedAt && (
-                  <Text size="xs" c="dimmed">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                     <strong>Submitted:</strong> {formatDateTime(submission.submittedAt)}
                   </Text>
                 )}
-                <Text size="xs" c="dimmed">
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                   <strong>Updated:</strong> {formatDateTime(submission.statusUpdatedAt)}
                 </Text>
               </Group>
 
               {/* Submitted By */}
               {submission.submittedBy && (
-                <Text size="xs" c="dimmed">
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                   <strong>By:</strong> {submission.submittedBy}
                 </Text>
               )}
 
               {/* Platform-Specific Info */}
-              <Group gap="md">
+              <Group gap={DS_SPACING.MD}>
                 {isAndroid && 'inAppUpdatePriority' in submission && (
-                  <Text size="xs" c="dimmed">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                     <strong>Priority:</strong> {submission.inAppUpdatePriority}/5
                   </Text>
                 )}
                 {!isAndroid && 'phasedRelease' in submission && (
-                  <Text size="xs" c="dimmed">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                     <strong>Release:</strong>{' '}
                     {submission.phasedRelease ? 'Phased' : 'Manual'}
                   </Text>
                 )}
-                <Text size="xs" c="dimmed">
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                   <strong>Rollout:</strong> {submission.rolloutPercentage}%
                 </Text>
               </Group>
 
               {/* Release Notes (if present) */}
               {submission.releaseNotes && (
-                <Paper p="xs" radius="sm" withBorder className="bg-white">
-                  <Text size="xs" className="line-clamp-2">
+                <Paper p={DS_SPACING.XS} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-white">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} className="line-clamp-2">
                     {submission.releaseNotes}
                   </Text>
                 </Paper>
@@ -139,8 +144,8 @@ export function SubmissionHistoryTimeline({
 
               {/* Rejection Reason (for REJECTED status) */}
               {submission.status === SubmissionStatus.REJECTED && 'rejectionReason' in submission && submission.rejectionReason && (
-                <Paper p="xs" radius="sm" withBorder className="bg-red-50 border-red-200">
-                  <Text size="xs" c="red.7">
+                <Paper p={DS_SPACING.XS} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-red-50 border-red-200">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c="red.7">
                     <strong>Rejection Reason:</strong> {submission.rejectionReason}
                   </Text>
                 </Paper>
@@ -148,8 +153,8 @@ export function SubmissionHistoryTimeline({
 
               {/* Cancellation Reason (from action history for CANCELLED status) */}
               {submission.status === SubmissionStatus.CANCELLED && submission.actionHistory && submission.actionHistory.length > 0 && (
-                <Paper p="xs" radius="sm" withBorder className="bg-gray-100 border-gray-300">
-                  <Text size="xs" c="dimmed">
+                <Paper p={DS_SPACING.XS} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gray-100 border-gray-300">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                     <strong>Cancellation Reason:</strong>{' '}
                     {submission.actionHistory.find(h => h.action === 'CANCELLED')?.reason || 'User cancelled submission'}
                   </Text>
@@ -158,7 +163,7 @@ export function SubmissionHistoryTimeline({
 
               {/* Artifacts (Links) */}
               {submission.artifact && (
-                <Group gap="xs">
+                <Group gap={DS_SPACING.XS}>
                   {isAndroid && 'artifactPath' in submission.artifact && (
                     <>
                       <Tooltip label="Download AAB">
@@ -170,7 +175,7 @@ export function SubmissionHistoryTimeline({
                         >
                           <Group gap={4}>
                             <IconDownload size={12} />
-                            <Text size="xs">AAB</Text>
+                            <Text size={DS_TYPOGRAPHY.SIZE.XS}>AAB</Text>
                           </Group>
                         </a>
                       </Tooltip>
@@ -184,7 +189,7 @@ export function SubmissionHistoryTimeline({
                           >
                             <Group gap={4}>
                               <IconExternalLink size={12} />
-                              <Text size="xs">Testing</Text>
+                              <Text size={DS_TYPOGRAPHY.SIZE.XS}>Testing</Text>
                             </Group>
                           </a>
                         </Tooltip>
@@ -192,7 +197,7 @@ export function SubmissionHistoryTimeline({
                     </>
                   )}
                   {!isAndroid && 'testflightNumber' in submission.artifact && (
-                    <Text size="xs" c="dimmed">
+                    <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                       <strong>TestFlight:</strong> #{submission.artifact.testflightNumber}
                     </Text>
                   )}

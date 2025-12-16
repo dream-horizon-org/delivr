@@ -23,6 +23,11 @@ import {
     STORE_NAMES,
 } from '~/constants/distribution.constants';
 import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
+import {
     Platform,
     SubmissionStatus,
     type SubmissionInDistribution,
@@ -78,15 +83,15 @@ export function DistributionSubmissionCard({
   );
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Stack gap="md">
+    <Card shadow="sm" padding="lg" radius={DS_SPACING.BORDER_RADIUS} withBorder>
+      <Stack gap={DS_SPACING.MD}>
         <Group justify="space-between" align="flex-start">
           <Group>
             <ThemeIcon
-              size="xl"
+              size={DS_TYPOGRAPHY.SIZE.XL}
               variant="light"
               color={platformColor}
-              radius="md"
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {getPlatformIcon(
                 submission.platform,
@@ -94,10 +99,10 @@ export function DistributionSubmissionCard({
               )}
             </ThemeIcon>
             <div>
-              <Text fw={600} size="lg">
+              <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={DS_TYPOGRAPHY.SIZE.LG}>
                 {platformName}
               </Text>
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                 {STORE_NAMES[submission.platform]}
               </Text>
             </div>
@@ -105,8 +110,8 @@ export function DistributionSubmissionCard({
           <Badge
             color={getStatusColor(submission.status)}
             variant="light"
-            size="lg"
-            radius="sm"
+            size={DS_TYPOGRAPHY.SIZE.LG}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {submission.status.replace(/_/g, ' ')}
           </Badge>
@@ -115,10 +120,10 @@ export function DistributionSubmissionCard({
         {isRollingOut && (
           <div>
             <Group justify="space-between" mb={4}>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
                 {DISTRIBUTION_MANAGEMENT_UI.ROLLOUT_PROGRESS_LABEL}
               </Text>
-              <Text size="xs" fw={600}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
                 {submission.rolloutPercentage}%
               </Text>
             </Group>
@@ -132,10 +137,10 @@ export function DistributionSubmissionCard({
 
         <Group justify="space-between">
           <div>
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {DISTRIBUTION_MANAGEMENT_UI.LABELS.UPDATED}
             </Text>
-            <Text size="sm" fw={500}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
               {formatDate(submission.statusUpdatedAt)}
             </Text>
           </div>
@@ -145,9 +150,9 @@ export function DistributionSubmissionCard({
           component={Link}
           to={detailsUrl}
           variant="light"
-          color="blue"
+          color={DS_COLORS.ACTION.PRIMARY}
           fullWidth
-          radius="sm"
+          radius={DS_SPACING.BORDER_RADIUS}
         >
           {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.VIEW_DETAILS}
         </Button>

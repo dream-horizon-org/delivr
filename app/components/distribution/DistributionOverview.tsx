@@ -18,6 +18,11 @@ import {
   DISTRIBUTION_MANAGEMENT_ICON_SIZES,
   DISTRIBUTION_MANAGEMENT_UI,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import type { DistributionEntry, DistributionWithSubmissions } from '~/types/distribution.types';
 import { formatDate, formatStatus, getStatusColor } from '~/utils/distribution-ui.utils';
 
@@ -32,20 +37,20 @@ export function DistributionOverview({ distribution }: DistributionOverviewProps
     : 'N/A';
     
   return (
-    <Paper shadow="sm" p="lg" radius="md" withBorder>
-      <Stack gap="md">
+    <Paper shadow="sm" p={DS_SPACING.LG} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+      <Stack gap={DS_SPACING.MD}>
         <Group justify="space-between" align="flex-start">
           <div>
             <Title order={3}>{DISTRIBUTION_MANAGEMENT_UI.OVERVIEW_TITLE}</Title>
-            <Text size="sm" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
               {DISTRIBUTION_MANAGEMENT_UI.RELEASE_VERSION(displayVersion)}
             </Text>
           </div>
           <Badge
             color={getStatusColor(distribution.status)}
             variant="dot"
-            size="lg"
-            radius="sm"
+            size={DS_TYPOGRAPHY.SIZE.LG}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {formatStatus(distribution.status)}
           </Badge>
@@ -54,28 +59,28 @@ export function DistributionOverview({ distribution }: DistributionOverviewProps
         <Divider />
 
         <Group>
-          <ThemeIcon size="lg" variant="light" color="gray" radius="sm">
+          <ThemeIcon size={DS_TYPOGRAPHY.SIZE.LG} variant="light" color="gray" radius={DS_SPACING.BORDER_RADIUS}>
             <IconGitBranch size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.DETAIL} />
           </ThemeIcon>
           <div>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
               {DISTRIBUTION_MANAGEMENT_UI.LABELS.BRANCH}
             </Text>
-            <Text size="sm" fw={500}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
               {distribution.branch}
             </Text>
           </div>
         </Group>
 
         <Group>
-          <ThemeIcon size="lg" variant="light" color="gray" radius="sm">
+          <ThemeIcon size={DS_TYPOGRAPHY.SIZE.LG} variant="light" color="gray" radius={DS_SPACING.BORDER_RADIUS}>
             <IconCalendar size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.DETAIL} />
           </ThemeIcon>
           <div>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
               {DISTRIBUTION_MANAGEMENT_UI.LABELS.LAST_UPDATED}
             </Text>
-            <Text size="sm" fw={500}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
               {'updatedAt' in distribution ? formatDate(distribution.updatedAt) : formatDate(distribution.statusUpdatedAt)}
             </Text>
           </div>
@@ -83,14 +88,14 @@ export function DistributionOverview({ distribution }: DistributionOverviewProps
 
         {'createdAt' in distribution && distribution.createdAt && (
           <Group>
-            <ThemeIcon size="lg" variant="light" color="blue" radius="sm">
+            <ThemeIcon size={DS_TYPOGRAPHY.SIZE.LG} variant="light" color={DS_COLORS.STATUS.INFO} radius={DS_SPACING.BORDER_RADIUS}>
               <IconClock size={DISTRIBUTION_MANAGEMENT_ICON_SIZES.DETAIL} />
             </ThemeIcon>
             <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
                 Created At
               </Text>
-              <Text size="sm" fw={500}>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                 {formatDate(distribution.createdAt)}
               </Text>
             </div>

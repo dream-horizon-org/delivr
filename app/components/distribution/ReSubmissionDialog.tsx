@@ -35,6 +35,11 @@ import {
   PLATFORM_LABELS
 } from '~/constants/distribution.constants';
 import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
+import {
   AndroidSubmission,
   IOSSubmission,
   Platform,
@@ -220,11 +225,11 @@ export function ReSubmissionDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="blue" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.ACTION.PRIMARY} variant="light" size="lg" radius={DS_SPACING.BORDER_RADIUS}>
             <IconEdit size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
             {DIALOG_TITLES.RESUBMIT} {platformLabel}
           </Text>
         </Group>
@@ -232,9 +237,9 @@ export function ReSubmissionDialog({
       size="lg"
     >
       <form onSubmit={isAndroid ? androidForm.onSubmit(handleAndroidSubmit) : iosForm.onSubmit(handleIOSSubmit)}>
-        <Stack gap="md">
+        <Stack gap={DS_SPACING.MD}>
           {/* Info Alert */}
-          <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
+          <Alert color={DS_COLORS.ACTION.PRIMARY} variant="light" icon={<IconAlertCircle size={16} />} radius={DS_SPACING.BORDER_RADIUS}>
             {isAndroid 
               ? 'This will create a new production submission with the provided AAB file.'
               : 'This will create a new production submission with the provided TestFlight build.'}
@@ -351,7 +356,7 @@ export function ReSubmissionDialog({
           )}
 
           {/* Action Buttons */}
-          <Group justify="flex-end" mt="md">
+          <Group justify="flex-end" mt={DS_SPACING.LG}>
             <Button 
               variant="subtle" 
               onClick={handleClose} 
@@ -363,7 +368,8 @@ export function ReSubmissionDialog({
               type="submit" 
               loading={isSubmitting}
               leftSection={<IconUpload size={DIALOG_ICON_SIZES.ACTION} />}
-              color="cyan"
+              color={DS_COLORS.ACTION.PRIMARY}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               Submit
             </Button>

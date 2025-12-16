@@ -9,6 +9,14 @@ import { Button, Group, Modal, Radio, Stack, Text, ThemeIcon } from '@mantine/co
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  DIST_BUTTON_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
+import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_UI,
@@ -110,30 +118,30 @@ export function VersionConflictDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="orange" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg">
             <IconAlertTriangle size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{conflict.resolution.title}</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{conflict.resolution.title}</Text>
         </Group>
       }
-      size="md"
+      {...DIST_MODAL_PROPS.DEFAULT}
     >
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
+      <Stack gap={DS_SPACING.MD}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
           Version <strong>{conflict.version}</strong> already exists in{' '}
           {platformLabel} store.
         </Text>
 
-        <Text size="sm" c="dimmed">
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
           {DIALOG_UI.VERSION_CONFLICT.DESCRIPTION}
         </Text>
 
         <div>
-          <Text size="sm" fw={600} mb={4}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} mb={DS_SPACING.XS}>
             Current Status
           </Text>
-          <Text size="sm">{statusDisplay}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{statusDisplay}</Text>
         </div>
 
         <Radio.Group
@@ -141,16 +149,16 @@ export function VersionConflictDialog({
           onChange={handleActionChange}
           label="Choose how to resolve this conflict:"
         >
-          <Stack gap="sm" mt="xs">
+          <Stack gap={DS_SPACING.SM} mt={DS_SPACING.XS}>
             {availableOptions.map((option) => (
               <Radio
                 key={option.action}
                 value={option.action}
                 label={
-                  <Group gap="xs">
-                    <Text size="sm">{option.label}</Text>
+                  <Group gap={DS_SPACING.XS}>
+                    <Text size={DS_TYPOGRAPHY.SIZE.SM}>{option.label}</Text>
                     {option.recommended && (
-                      <Text size="xs" c="green" fw={500}>
+                      <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.SUCCESS} fw={DIST_FONT_WEIGHTS.MEDIUM}>
                         (Recommended)
                       </Text>
                     )}
@@ -162,15 +170,16 @@ export function VersionConflictDialog({
           </Stack>
         </Radio.Group>
 
-        <Group justify="flex-end" mt="md">
-          <Button variant="subtle" onClick={handleClose} disabled={isLoading}>
+        <Group justify="flex-end" mt={DS_SPACING.MD}>
+          <Button {...DIST_BUTTON_PROPS.SUBTLE} onClick={handleClose} disabled={isLoading}>
             {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
+            {...DIST_BUTTON_PROPS.PRIMARY}
             onClick={handleSubmit}
             disabled={!selectedAction}
             loading={isLoading}
-            color="blue"
+            color={DS_COLORS.ACTION.PRIMARY}
           >
             {BUTTON_LABELS.PROCEED}
           </Button>

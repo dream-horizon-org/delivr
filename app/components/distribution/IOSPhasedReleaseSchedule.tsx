@@ -21,6 +21,11 @@ import {
 } from '@mantine/core';
 import { IconCheck, IconClock } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 
 // ============================================================================
 // TYPES
@@ -62,26 +67,26 @@ export function IOSPhasedReleaseSchedule({
   }, [currentDay]);
 
   return (
-    <Paper p="md" withBorder radius="md" bg="blue.0" className={className}>
-      <Stack gap="md">
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg="blue.0" className={className}>
+      <Stack gap={DS_SPACING.MD}>
         {/* Header */}
         <div>
-          <Group justify="space-between" mb="xs">
-            <Text fw={600} size="sm">
+          <Group justify="space-between" mb={DS_SPACING.XS}>
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={DS_TYPOGRAPHY.SIZE.SM}>
               iOS Phased Release Schedule
             </Text>
-            <Badge size="sm" variant="light" color="blue">
+            <Badge size={DS_TYPOGRAPHY.SIZE.SM} variant="light" color={DS_COLORS.ACTION.PRIMARY}>
               Day {currentDay} of 7
             </Badge>
           </Group>
-          <Text size="xs" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
             Apple automatically increases rollout over 7 days
           </Text>
         </div>
 
         {/* 7-Segment Progress Bar */}
         <Box>
-          <Progress.Root size="xl" radius="md">
+          <Progress.Root size={DS_TYPOGRAPHY.SIZE.XL} radius={DS_SPACING.BORDER_RADIUS}>
             {PHASED_SCHEDULE.map((day, index) => {
               const isComplete = day.day < currentDay;
               const isCurrent = day.day === currentDay;
@@ -121,11 +126,11 @@ export function IOSPhasedReleaseSchedule({
           </Progress.Root>
           
           {/* Day Labels */}
-          <Group justify="space-between" mt="xs">
+          <Group justify="space-between" mt={DS_SPACING.XS}>
             {PHASED_SCHEDULE.map((day) => (
               <Text
                 key={day.day}
-                size="xs"
+                size={DS_TYPOGRAPHY.SIZE.XS}
                 c={day.day === currentDay ? 'blue.9' : 'dimmed'}
                 fw={day.day === currentDay ? 600 : 400}
                 style={{ width: `${(1/7) * 100}%`, textAlign: 'center' }}
@@ -137,15 +142,15 @@ export function IOSPhasedReleaseSchedule({
         </Box>
 
         {/* Current Status */}
-        <Paper p="sm" radius="md" bg="white" withBorder>
+        <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} bg="white" withBorder>
           <Group justify="space-between">
             <div>
-              <Text size="xs" c="dimmed" mb={4}>Current Rollout</Text>
-              <Text size="lg" fw={700} c="blue.9">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} mb={4}>Current Rollout</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c="blue.9">
                 {currentPercentage.toFixed(1)}%
               </Text>
             </div>
-            <ThemeIcon size="xl" radius="md" variant="light" color="blue">
+            <ThemeIcon size={DS_TYPOGRAPHY.SIZE.XL} radius={DS_SPACING.BORDER_RADIUS} variant="light" color={DS_COLORS.ACTION.PRIMARY}>
               <IconClock size={24} />
             </ThemeIcon>
           </Group>
@@ -153,7 +158,7 @@ export function IOSPhasedReleaseSchedule({
 
         {/* Schedule Table */}
         <div>
-          <Text size="sm" fw={600} mb="xs">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
             Complete Schedule
           </Text>
           <Table
@@ -165,13 +170,13 @@ export function IOSPhasedReleaseSchedule({
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>
-                  <Text size="xs" fw={600}>Day</Text>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>Day</Text>
                 </Table.Th>
                 <Table.Th>
-                  <Text size="xs" fw={600}>Rollout %</Text>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>Rollout %</Text>
                 </Table.Th>
                 <Table.Th>
-                  <Text size="xs" fw={600}>Status</Text>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>Status</Text>
                 </Table.Th>
               </Table.Tr>
             </Table.Thead>
@@ -192,7 +197,7 @@ export function IOSPhasedReleaseSchedule({
                   >
                     <Table.Td>
                       <Text
-                        size="sm"
+                        size={DS_TYPOGRAPHY.SIZE.SM}
                         fw={isCurrent ? 600 : 400}
                         c={isCurrent ? 'blue.9' : undefined}
                       >
@@ -200,8 +205,8 @@ export function IOSPhasedReleaseSchedule({
                       </Text>
                     </Table.Td>
                     <Table.Td>
-                      <Group gap="xs">
-                        <Text size="sm" fw={500}>
+                      <Group gap={DS_SPACING.XS}>
+                        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                           {day.description}
                         </Text>
                       </Group>
@@ -209,21 +214,21 @@ export function IOSPhasedReleaseSchedule({
                     <Table.Td>
                       {isComplete && (
                         <Badge
-                          size="sm"
+                          size={DS_TYPOGRAPHY.SIZE.SM}
                           variant="light"
-                          color="green"
+                          color={DS_COLORS.STATUS.SUCCESS}
                           leftSection={<IconCheck size={12} />}
                         >
                           Complete
                         </Badge>
                       )}
                       {isCurrent && (
-                        <Badge size="sm" variant="filled" color="blue">
+                        <Badge size={DS_TYPOGRAPHY.SIZE.SM} variant="filled" color={DS_COLORS.ACTION.PRIMARY}>
                           Active
                         </Badge>
                       )}
                       {isPending && (
-                        <Badge size="sm" variant="light" color="gray">
+                        <Badge size={DS_TYPOGRAPHY.SIZE.SM} variant="light" color={DS_COLORS.STATUS.MUTED}>
                           Pending
                         </Badge>
                       )}
@@ -236,7 +241,7 @@ export function IOSPhasedReleaseSchedule({
         </div>
 
         {/* Info Note */}
-        <Text size="xs" c="dimmed" fs="italic">
+        <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} fs="italic">
           💡 You can complete early at any time to immediately release to 100%, 
           or pause the rollout if issues arise.
         </Text>

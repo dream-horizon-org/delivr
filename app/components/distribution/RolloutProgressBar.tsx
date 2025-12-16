@@ -9,6 +9,14 @@
 
 import { Group, Progress, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertOctagon, IconCheck, IconPlayerPause, IconTrendingUp } from '@tabler/icons-react';
+import {
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_ICON_SIZES,
+  DIST_PROGRESS_PROPS,
+  DS_SPACING,
+  DS_COLORS,
+} from '~/constants/distribution-design.constants';
 import { PROGRESS_BAR_HEIGHTS } from '~/constants/distribution.constants';
 import { RolloutDisplayStatus } from '~/types/distribution.types';
 import type { RolloutProgressBarProps } from './distribution.types';
@@ -20,10 +28,10 @@ import { getRolloutStatusColor, getRolloutStatusLabel } from './distribution.uti
 
 function getStatusIcon(status: RolloutDisplayStatus) {
   const iconMap: Record<RolloutDisplayStatus, React.ReactNode> = {
-    [RolloutDisplayStatus.COMPLETE]: <IconCheck size={14} />,
-    [RolloutDisplayStatus.ACTIVE]: <IconTrendingUp size={14} />,
-    [RolloutDisplayStatus.PAUSED]: <IconPlayerPause size={14} />,
-    [RolloutDisplayStatus.HALTED]: <IconAlertOctagon size={14} />,
+    [RolloutDisplayStatus.COMPLETE]: <IconCheck size={DIST_ICON_SIZES.SM} />,
+    [RolloutDisplayStatus.ACTIVE]: <IconTrendingUp size={DIST_ICON_SIZES.SM} />,
+    [RolloutDisplayStatus.PAUSED]: <IconPlayerPause size={DIST_ICON_SIZES.SM} />,
+    [RolloutDisplayStatus.HALTED]: <IconAlertOctagon size={DIST_ICON_SIZES.SM} />,
   };
   return iconMap[status];
 }
@@ -50,19 +58,19 @@ export function RolloutProgressBar(props: RolloutProgressBarProps) {
     <div className={className} data-testid="rollout-progress-bar">
       {/* Label */}
       {showLabel && (
-        <Group justify="space-between" mb="xs">
-          <Group gap="xs">
+        <Group justify="space-between" mb={DS_SPACING.XS}>
+          <Group gap={DS_SPACING.XS}>
             <ThemeIcon size="xs" color={color} variant="light" radius="xl">
               {getStatusIcon(status)}
             </ThemeIcon>
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
               Rollout - {getRolloutStatusLabel(status)}
             </Text>
           </Group>
-          <Text size="sm" fw={600}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD}>
             {percentage}%
             {targetPercentage && targetPercentage !== percentage && (
-              <Text span size="xs" c="dimmed"> → {targetPercentage}%</Text>
+              <Text span size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}> → {targetPercentage}%</Text>
             )}
           </Text>
         </Group>
@@ -80,13 +88,13 @@ export function RolloutProgressBar(props: RolloutProgressBarProps) {
 
       {/* Milestone Markers */}
       {size !== 'sm' && (
-        <Group justify="space-between" mt={4}>
+        <Group justify="space-between" mt={DS_SPACING.XS}>
           {[0, 25, 50, 75, 100].map((milestone) => (
             <Text 
               key={milestone} 
-              size="xs" 
-              c={percentage >= milestone ? color : 'dimmed'}
-              fw={percentage >= milestone ? 500 : 400}
+              size={DS_TYPOGRAPHY.SIZE.XS}
+              c={percentage >= milestone ? color : DS_COLORS.TEXT.SECONDARY}
+              fw={percentage >= milestone ? DIST_FONT_WEIGHTS.MEDIUM : DIST_FONT_WEIGHTS.NORMAL}
             >
               {milestone}%
             </Text>

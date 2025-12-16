@@ -3,6 +3,7 @@
  */
 
 import { IconCheck, IconClock, IconX } from '@tabler/icons-react';
+import { DIST_ICON_SIZES } from '~/constants/distribution-design.constants';
 import { BuildUploadStatus } from '~/types/distribution.types';
 
 type StatusIconProps = {
@@ -11,19 +12,19 @@ type StatusIconProps = {
 
 export function StatusIcon({ status }: StatusIconProps) {
   if (!status) {
-    return <IconClock size={16} className="text-gray-400" />;
+    return <IconClock size={DIST_ICON_SIZES.MD} className="text-gray-400" />;
   }
 
   switch (status) {
     case BuildUploadStatus.UPLOADED:
-      return <IconCheck size={16} className="text-green-500" />;
+      return <IconCheck size={DIST_ICON_SIZES.MD} className="text-green-500" />;
     case BuildUploadStatus.UPLOADING:
-      return <IconClock size={16} className="text-blue-500" />;
+      return <IconClock size={DIST_ICON_SIZES.MD} className="text-blue-500" />;
     case BuildUploadStatus.FAILED:
-      return <IconX size={16} className="text-red-500" />;
+      return <IconX size={DIST_ICON_SIZES.MD} className="text-red-500" />;
     case BuildUploadStatus.PENDING:
     default:
-      return <IconClock size={16} className="text-gray-400" />;
+      return <IconClock size={DIST_ICON_SIZES.MD} className="text-gray-400" />;
   }
 }
 

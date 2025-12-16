@@ -4,15 +4,19 @@
 
 import { Badge } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
+import {
+  DIST_BADGE_PROPS,
+  DS_COLORS,
+  DIST_ICON_SIZES,
+} from '~/constants/distribution-design.constants';
 import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution.constants';
 
 export function ApprovedBadge() {
   return (
     <Badge 
-      color="green" 
-      variant="light" 
-      leftSection={<IconCheck size={14} />}
-      size="lg"
+      {...DIST_BADGE_PROPS.LARGE}
+      color={DS_COLORS.STATUS.SUCCESS}
+      leftSection={<IconCheck size={DIST_ICON_SIZES.SM} />}
     >
       {DISTRIBUTION_UI_LABELS.APPROVED}
     </Badge>

@@ -13,6 +13,11 @@ import { Anchor, Badge, Button, Card, Group, Progress, Stack, Text } from '@mant
 import { IconExternalLink, IconRefresh, IconUpload } from '@tabler/icons-react';
 import { useCallback } from 'react';
 import { DISTRIBUTION_UI_LABELS, PLATFORM_LABELS } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { BuildStrategy, WorkflowStatus } from '~/types/distribution.types';
 import { BuildDetails } from './BuildDetails';
 import { BuildEmptyState } from './BuildEmptyState';
@@ -74,18 +79,18 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
     <Card 
       shadow="sm" 
       padding="lg" 
-      radius="md" 
+      radius={DS_SPACING.BORDER_RADIUS} 
       withBorder 
       className={className}
       data-testid={`build-status-card-${platform.toLowerCase()}`}
     >
       {/* Header */}
-      <Group justify="space-between" mb="md">
-        <Group gap="sm">
+      <Group justify="space-between" mb={DS_SPACING.MD}>
+        <Group gap={DS_SPACING.SM}>
           <PlatformIcon platform={platform} />
           <div>
-            <Text fw={600}>{PLATFORM_LABELS[platform]}</Text>
-            <Text size="xs" c="dimmed">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{PLATFORM_LABELS[platform]}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {isManualMode ? 'Manual Upload' : 'CI/CD Build'}
             </Text>
           </div>
@@ -102,16 +107,16 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
 
       {/* Content */}
       {isLoading ? (
-        <Progress value={50} animated striped mb="md" />
+        <Progress value={50} animated striped mb={DS_SPACING.MD} />
       ) : hasBuild && build ? (
         <>
           <BuildDetails build={build} isAndroid={isAndroid} />
           
           {/* CI Job Running Progress */}
           {showCIProgress && (
-            <Stack gap="xs" mt="md">
+            <Stack gap={DS_SPACING.XS} mt={DS_SPACING.MD}>
               <Progress value={isCIRunning ? 50 : 10} animated striped />
-              <Text size="xs" c="dimmed" ta="center">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} ta="center">
                 {isCIQueued ? DISTRIBUTION_UI_LABELS.BUILD_QUEUED : DISTRIBUTION_UI_LABELS.BUILD_IN_PROGRESS}
               </Text>
             </Stack>
@@ -119,13 +124,13 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
           
           {/* Upload Progress (if uploading) */}
           {showUploadProgress && (
-            <Progress value={75} animated striped mt="md" />
+            <Progress value={75} animated striped mt={DS_SPACING.MD} />
           )}
 
           {/* Action Buttons */}
-          <Group mt="md" gap="sm">
+          <Group mt={DS_SPACING.MD} gap={DS_SPACING.SM}>
             {showReadyBadge && (
-              <Badge color="green" variant="filled" size="sm">
+              <Badge color={DS_COLORS.STATUS.SUCCESS} variant="filled" size={DS_TYPOGRAPHY.SIZE.SM}>
                 {DISTRIBUTION_UI_LABELS.READY_FOR_DISTRIBUTION}
               </Badge>
             )}
@@ -134,8 +139,8 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
             {showManualRetry && (
               <Button
                 variant="light"
-                color="red"
-                size="xs"
+                color={DS_COLORS.STATUS.ERROR}
+                size={DS_TYPOGRAPHY.SIZE.XS}
                 leftSection={<IconUpload size={14} />}
                 onClick={isAndroid ? onUploadRequested : onVerifyRequested}
               >
@@ -147,8 +152,8 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
             {showCICDRetry && (
               <Button
                 variant="light"
-                color="red"
-                size="xs"
+                color={DS_COLORS.STATUS.ERROR}
+                size={DS_TYPOGRAPHY.SIZE.XS}
                 leftSection={<IconRefresh size={14} />}
                 onClick={handleRetryBuild}
                 loading={isLoading}
@@ -163,7 +168,7 @@ export function BuildStatusCard(props: BuildStatusCardProps) {
                 href={ciRunUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                size="xs"
+                size={DS_TYPOGRAPHY.SIZE.XS}
               >
                 <Group gap={4}>
                   <IconExternalLink size={12} />

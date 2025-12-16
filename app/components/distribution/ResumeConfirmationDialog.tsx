@@ -23,6 +23,11 @@ import {
     DIALOG_ICON_SIZES,
     DIALOG_UI,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 
 // ============================================================================
 // TYPES
@@ -60,11 +65,11 @@ export function ResumeConfirmationDialog({
       opened={opened}
       onClose={onClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="green" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.SUCCESS} variant="light" size="lg" radius={DS_SPACING.BORDER_RADIUS}>
             <IconPlayerPlay size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
             {BUTTON_LABELS.RESUME_ROLLOUT}
           </Text>
         </Group>
@@ -73,13 +78,13 @@ export function ResumeConfirmationDialog({
       centered
       closeOnEscape={!isLoading}
     >
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         {/* Confirmation Message */}
         <div>
-          <Text size="md" fw={500} mb="xs">
+          <Text size={DS_TYPOGRAPHY.SIZE.MD} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
             {DIALOG_UI.RESUME.CONFIRMATION(platform, currentPercentage)}
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
             {DIALOG_UI.RESUME.DESCRIPTION}
           </Text>
         </div>
@@ -87,38 +92,41 @@ export function ResumeConfirmationDialog({
         {/* Paused Reason (if available) */}
         {pausedReason && (
           <Alert
-            color="yellow"
+            color={DS_COLORS.STATUS.WARNING}
             variant="light"
             icon={<IconInfoCircle size={DIALOG_ICON_SIZES.ALERT} />}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
-            <Stack gap={4}>
-              <Text size="xs" fw={600} tt="uppercase">
+            <Stack gap={DS_SPACING.XXS}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} tt="uppercase">
                 {DIALOG_UI.RESUME.PAUSED_REASON_LABEL}
               </Text>
-              <Text size="sm">{pausedReason}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM}>{pausedReason}</Text>
             </Stack>
           </Alert>
         )}
 
         {/* Info Note */}
-        <Text size="xs" c="dimmed" fs="italic">
+        <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} fs="italic">
           {DIALOG_UI.RESUME.NOTE}
         </Text>
 
         {/* Action Buttons */}
-        <Group justify="flex-end" mt="md">
+        <Group justify="flex-end" mt={DS_SPACING.LG}>
           <Button
             variant="subtle"
             onClick={onClose}
             disabled={isLoading}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
-            color="green"
+            color={DS_COLORS.STATUS.SUCCESS}
             loading={isLoading}
             onClick={handleConfirm}
             leftSection={<IconPlayerPlay size={DIALOG_ICON_SIZES.ACTION} />}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {BUTTON_LABELS.RESUME}
           </Button>

@@ -24,6 +24,11 @@ import {
   BUTTON_LABELS,
   MAX_AAB_FILE_SIZE_LABEL
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import type { UploadAABFormProps } from './distribution.types';
 import { getDropZoneClassName } from './getDropZoneClassName';
 import { useUploadState } from './useUploadState';
@@ -42,20 +47,20 @@ function FilePreview({ file, onClear }: FilePreviewProps) {
   const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
   
   return (
-    <Paper p="md" withBorder radius="md">
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS}>
       <Group justify="space-between">
-        <Group gap="sm">
+        <Group gap={DS_SPACING.SM}>
           <IconFile size={24} className="text-green-600" />
           <div>
-            <Text size="sm" fw={500}>{file.name}</Text>
-            <Text size="xs" c="dimmed">{fileSizeMB} MB</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>{file.name}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>{fileSizeMB} MB</Text>
           </div>
         </Group>
         
         <Button
           variant="subtle"
-          color="red"
-          size="xs"
+          color={DS_COLORS.STATUS.ERROR}
+          size={DS_TYPOGRAPHY.SIZE.XS}
           onClick={onClear}
           aria-label="Remove selected file"
         >
@@ -142,7 +147,7 @@ function FileDropZone({
         className="hidden"
       />
       
-      <Stack align="center" gap="md">
+      <Stack align="center" gap={DS_SPACING.MD}>
         {isDragging ? (
           <IconUpload size={52} className="text-blue-500" stroke={1.5} />
         ) : (
@@ -150,10 +155,10 @@ function FileDropZone({
         )}
         
         <div>
-          <Text size="lg" fw={500}>
+          <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
             Drag Android AAB file here or click to select
           </Text>
-          <Text size="sm" c="dimmed" mt="xs">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED} mt={DS_SPACING.XS}>
             File should be a valid signed .aab file, max {MAX_AAB_FILE_SIZE_LABEL}
           </Text>
         </div>
@@ -214,12 +219,12 @@ export function UploadAABForm(props: UploadAABFormProps) {
   const displayError = validationError ?? uploadError;
 
   return (
-    <Stack gap="md" className={className}>
+    <Stack gap={DS_SPACING.MD} className={className}>
       {/* Error Alert */}
       {displayError && (
         <Alert 
           icon={<IconAlertCircle size={16} />} 
-          color="red" 
+          color={DS_COLORS.STATUS.ERROR} 
           title="Upload Error"
           variant="light"
         >
@@ -230,7 +235,7 @@ export function UploadAABForm(props: UploadAABFormProps) {
       {/* Success Alert */}
       {uploadSuccess && (
         <Alert 
-          color="green" 
+          color={DS_COLORS.STATUS.SUCCESS} 
           title="Upload Successful"
           variant="light"
         >
@@ -255,14 +260,14 @@ export function UploadAABForm(props: UploadAABFormProps) {
 
           {/* Upload Progress */}
           {isUploading && (
-            <Stack gap="xs">
-              <Text size="sm" c="dimmed">Uploading...</Text>
+            <Stack gap={DS_SPACING.XS}>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Uploading...</Text>
               <Progress value={100} animated striped />
             </Stack>
           )}
 
           {/* Action Buttons */}
-          <Group justify="flex-end" mt="md">
+          <Group justify="flex-end" mt={DS_SPACING.LG}>
             {onClose && (
               <Button 
                 variant="subtle" 

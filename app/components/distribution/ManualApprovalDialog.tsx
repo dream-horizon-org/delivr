@@ -21,6 +21,16 @@ import {
 import { IconAlertTriangle, IconUserCheck } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  DIST_ALERT_PROPS,
+  DIST_BUTTON_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_INPUT_PROPS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
+import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
@@ -79,37 +89,35 @@ export function ManualApprovalDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="orange" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg">
             <IconUserCheck size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{DIALOG_TITLES.PM_APPROVAL}</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{DIALOG_TITLES.PM_APPROVAL}</Text>
         </Group>
       }
-      size="md"
-      centered
+      {...DIST_MODAL_PROPS.DEFAULT}
     >
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         {/* Warning Alert */}
         <Alert 
-          icon={<IconAlertTriangle size={DIALOG_ICON_SIZES.ALERT} />} 
-          color="orange" 
-          variant="light"
+          {...DIST_ALERT_PROPS.WARNING}
+          icon={<IconAlertTriangle size={DIALOG_ICON_SIZES.ALERT} />}
         >
-          <Stack gap="xs">
-            <Text size="sm" fw={500}>
+          <Stack gap={DS_SPACING.XS}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>
               {DIALOG_UI.MANUAL_APPROVAL.WARNING_TITLE}
             </Text>
-            <Text size="sm">{warningMessage}</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM}>{warningMessage}</Text>
           </Stack>
         </Alert>
 
         {/* Release Info */}
         <div>
-          <Text size="sm" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
             {DIALOG_UI.MANUAL_APPROVAL.RELEASE_ID_LABEL}
           </Text>
-          <Text size="sm" fw={500}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>
             {releaseId}
           </Text>
         </div>
@@ -122,6 +130,7 @@ export function ManualApprovalDialog({
           onChange={handleCommentsChange}
           minRows={3}
           disabled={isApproving}
+          {...DIST_INPUT_PROPS.DEFAULT}
         />
 
         {/* Acknowledgment Checkbox */}
@@ -133,20 +142,21 @@ export function ManualApprovalDialog({
         />
 
         {/* Action Buttons */}
-        <Group justify="flex-end" mt="md">
+        <Group justify="flex-end" mt={DS_SPACING.LG}>
           <Button 
-            variant="subtle" 
+            {...DIST_BUTTON_PROPS.SUBTLE}
             onClick={handleClose}
             disabled={isApproving}
           >
             {BUTTON_LABELS.CANCEL}
           </Button>
           <Button 
-            color="orange" 
+            color={DS_COLORS.STATUS.WARNING}
             onClick={handleApprove}
             disabled={!acknowledged}
             loading={isApproving}
             leftSection={<IconUserCheck size={DIALOG_ICON_SIZES.ACTION} />}
+            {...DIST_BUTTON_PROPS.PRIMARY}
           >
             {BUTTON_LABELS.APPROVE}
           </Button>

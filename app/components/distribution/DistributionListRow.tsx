@@ -13,6 +13,11 @@ import {
   DISTRIBUTIONS_LIST_UI,
 } from '~/constants/distribution.constants';
 import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
+import {
   Platform,
   SubmissionStatus,
   type DistributionEntry
@@ -33,15 +38,15 @@ export function DistributionListRow({
   // Get submission status color
   const getSubmissionColor = (status: SubmissionStatus): string => {
     switch (status) {
-      case SubmissionStatus.LIVE: return 'green';
-      case SubmissionStatus.IN_REVIEW: return 'yellow';
-      case SubmissionStatus.APPROVED: return 'blue';
-      case SubmissionStatus.REJECTED: return 'red';
-      case SubmissionStatus.PAUSED: return 'orange';
-      case SubmissionStatus.HALTED: return 'red';
-      case SubmissionStatus.CANCELLED: return 'gray';
-      case SubmissionStatus.PENDING: return 'gray';
-      default: return 'gray';
+      case SubmissionStatus.LIVE: return DS_COLORS.STATUS.SUCCESS;
+      case SubmissionStatus.IN_REVIEW: return DS_COLORS.STATUS.WARNING;
+      case SubmissionStatus.APPROVED: return DS_COLORS.STATUS.INFO;
+      case SubmissionStatus.REJECTED: return DS_COLORS.STATUS.ERROR;
+      case SubmissionStatus.PAUSED: return DS_COLORS.STATUS.WARNING;
+      case SubmissionStatus.HALTED: return DS_COLORS.STATUS.ERROR;
+      case SubmissionStatus.CANCELLED: return DS_COLORS.STATUS.MUTED;
+      case SubmissionStatus.PENDING: return DS_COLORS.STATUS.MUTED;
+      default: return DS_COLORS.STATUS.MUTED;
     }
   };
   
@@ -53,9 +58,9 @@ export function DistributionListRow({
           component={Link}
           to={`/dashboard/${org}/releases/${distribution.releaseId}`}
           prefetch="none"
-          size="sm"
-          fw={600}
-          c="blue"
+          size={DS_TYPOGRAPHY.SIZE.SM}
+          fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}
+          c={DS_COLORS.ACTION.PRIMARY}
           style={{ textDecoration: 'none', cursor: 'pointer' }}
           className="hover:underline"
         >
@@ -65,7 +70,7 @@ export function DistributionListRow({
 
       {/* Platforms */}
       <Table.Td>
-        <Group gap="sm">
+        <Group gap={DS_SPACING.XS}>
           {distribution.platforms.map((platform) => {
             const submission = distribution.submissions.find(
               (s) => s.platform === platform
@@ -89,7 +94,7 @@ export function DistributionListRow({
                       variant="light"
                       color={statusColor}
                       size="lg"
-                      radius="sm"
+                      radius={DS_SPACING.BORDER_RADIUS}
                       leftSection={getPlatformIcon(platform, DISTRIBUTIONS_LIST_ICON_SIZES.PLATFORM_BADGE)}
                     >
                       {submission.rolloutPercentage}%
@@ -108,9 +113,9 @@ export function DistributionListRow({
                 >
                   <Badge
                     variant="outline"
-                    color="gray"
+                    color={DS_COLORS.STATUS.MUTED}
                     size="lg"
-                    radius="sm"
+                    radius={DS_SPACING.BORDER_RADIUS}
                     style={{ cursor: 'pointer', opacity: 0.4 }}
                     leftSection={getPlatformIcon(platform, DISTRIBUTIONS_LIST_ICON_SIZES.PLATFORM_BADGE)}
                   >
@@ -129,7 +134,7 @@ export function DistributionListRow({
           color={DISTRIBUTION_STATUS_COLORS[distribution.status]}
           variant="dot"
           size="lg"
-          radius="sm"
+          radius={DS_SPACING.BORDER_RADIUS}
         >
           {formatStatus(distribution.status)}
         </Badge>
@@ -137,32 +142,29 @@ export function DistributionListRow({
 
       {/* Created */}
       <Table.Td>
-        <Text size="sm" c="dimmed">
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
           {formatDateTime(distribution.createdAt)}
         </Text>
       </Table.Td>
 
       {/* Last Updated */}
       <Table.Td>
-        <Group gap={6}>
-          <IconClock size={DISTRIBUTIONS_LIST_ICON_SIZES.CLOCK_ICON} color="gray" />
-          <Text size="sm" fw={500}>
-            {formatDateTime(distribution.statusUpdatedAt)}
-          </Text>
-        </Group>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
+          {formatDateTime(distribution.statusUpdatedAt)}
+        </Text>
       </Table.Td>
 
       {/* Actions */}
       <Table.Td>
-        <Group gap="xs">
+        <Group gap={DS_SPACING.XS}>
           <Button
             component={Link}
             to={`/dashboard/${org}/distributions/${distribution.id}`}
             prefetch="none"
             variant="outline"
-            color="blue"
+            color={DS_COLORS.ACTION.PRIMARY}
             size="sm"
-            radius="sm"
+            radius={DS_SPACING.BORDER_RADIUS}
             w={DISTRIBUTIONS_LIST_LAYOUT.ACTION_BUTTON_WIDTH}
             leftSection={
               <IconEye size={DISTRIBUTIONS_LIST_ICON_SIZES.ACTION_BUTTON} />

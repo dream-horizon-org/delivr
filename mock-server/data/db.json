@@ -1,1232 +1,1575 @@
 {
   "releases": [
     {
-      "id": "rel_live_001",
+      "id": "rel_1_0_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.0.0",
+      "branch": "release/1.0.0",
+      "createdAt": "2025-12-01T06:32:03.374Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_1_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.1.0",
+      "branch": "release/1.1.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_2_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.2.0",
+      "branch": "release/1.2.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_3_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.3.0",
+      "branch": "release/1.3.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_4_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.4.0",
+      "branch": "release/1.4.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_5_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.5.0",
+      "branch": "release/1.5.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_6_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.6.0",
+      "branch": "release/1.6.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_7_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.7.0",
+      "branch": "release/1.7.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_1_8_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "1.8.0",
+      "branch": "release/1.8.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_0_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.0.0",
+      "branch": "release/2.0.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_1_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.1.0",
+      "branch": "release/2.1.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_2_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.2.0",
+      "branch": "release/2.2.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_3_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.3.0",
+      "branch": "release/2.3.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_4_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.4.0",
+      "branch": "release/2.4.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_5_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.5.0",
+      "branch": "release/2.5.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_2_6_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "2.6.0",
+      "branch": "release/2.6.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_0_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.0.0",
+      "branch": "release/3.0.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_1_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.1.0",
+      "branch": "release/3.1.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_2_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.2.0",
+      "branch": "release/3.2.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_3_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.3.0",
+      "branch": "release/3.3.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_4_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.4.0",
+      "branch": "release/3.4.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_5_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.5.0",
+      "branch": "release/3.5.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_6_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.6.0",
+      "branch": "release/3.6.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_7_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.7.0",
+      "branch": "release/3.7.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_8_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.8.0",
+      "branch": "release/3.8.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_3_9_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "3.9.0",
+      "branch": "release/3.9.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_4_0_0",
+      "tenantId": "EkgmIbgGQx",
+      "version": "4.0.0",
+      "branch": "release/4.0.0",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
+    },
+    {
+      "id": "rel_4_1_0",
       "tenantId": "EkgmIbgGQx",
       "version": "4.1.0",
       "branch": "release/4.1.0",
-      "createdAt": "2025-11-20T21:32:06.831Z",
-      "updatedAt": "2025-11-21T21:32:06.833Z"
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "rel_live_002",
+      "id": "rel_4_2_0",
       "tenantId": "EkgmIbgGQx",
       "version": "4.2.0",
       "branch": "release/4.2.0",
-      "createdAt": "2025-11-21T21:32:06.833Z",
-      "updatedAt": "2025-11-22T21:32:06.833Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "rel_live_003",
+      "id": "rel_4_3_0",
       "tenantId": "EkgmIbgGQx",
       "version": "4.3.0",
       "branch": "release/4.3.0",
-      "createdAt": "2025-11-22T21:32:06.833Z",
-      "updatedAt": "2025-11-23T21:32:06.833Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "rel_live_004",
+      "id": "rel_4_4_0",
       "tenantId": "EkgmIbgGQx",
       "version": "4.4.0",
       "branch": "release/4.4.0",
-      "createdAt": "2025-11-23T21:32:06.833Z",
-      "updatedAt": "2025-11-24T21:32:06.833Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "rel_live_005",
+      "id": "rel_4_5_0",
       "tenantId": "EkgmIbgGQx",
       "version": "4.5.0",
       "branch": "release/4.5.0",
-      "createdAt": "2025-11-24T21:32:06.833Z",
-      "updatedAt": "2025-11-25T21:32:06.833Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "rel_live_006",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.6.0",
-      "branch": "release/4.6.0",
-      "createdAt": "2025-11-25T21:32:06.833Z",
-      "updatedAt": "2025-11-26T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_007",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.7.0",
-      "branch": "release/4.7.0",
-      "createdAt": "2025-11-26T21:32:06.833Z",
-      "updatedAt": "2025-11-27T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_008",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.8.0",
-      "branch": "release/4.8.0",
-      "createdAt": "2025-11-27T21:32:06.833Z",
-      "updatedAt": "2025-11-28T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_009",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.9.0",
-      "branch": "release/4.9.0",
-      "createdAt": "2025-11-28T21:32:06.833Z",
-      "updatedAt": "2025-11-29T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_010",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.10.0",
-      "branch": "release/4.10.0",
-      "createdAt": "2025-11-29T21:32:06.833Z",
-      "updatedAt": "2025-11-30T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_011",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.11.0",
-      "branch": "release/4.11.0",
-      "createdAt": "2025-11-30T21:32:06.833Z",
-      "updatedAt": "2025-12-01T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_012",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.12.0",
-      "branch": "release/4.12.0",
-      "createdAt": "2025-12-01T21:32:06.833Z",
-      "updatedAt": "2025-12-02T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_013",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.13.0",
-      "branch": "release/4.13.0",
-      "createdAt": "2025-12-02T21:32:06.833Z",
-      "updatedAt": "2025-12-03T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_014",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.14.0",
-      "branch": "release/4.14.0",
-      "createdAt": "2025-12-03T21:32:06.833Z",
-      "updatedAt": "2025-12-04T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_015",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.15.0",
-      "branch": "release/4.15.0",
-      "createdAt": "2025-12-04T21:32:06.833Z",
-      "updatedAt": "2025-12-05T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_016",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.16.0",
-      "branch": "release/4.16.0",
-      "createdAt": "2025-12-05T21:32:06.833Z",
-      "updatedAt": "2025-12-06T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_017",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.17.0",
-      "branch": "release/4.17.0",
-      "createdAt": "2025-12-06T21:32:06.833Z",
-      "updatedAt": "2025-12-07T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_018",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.18.0",
-      "branch": "release/4.18.0",
-      "createdAt": "2025-12-07T21:32:06.833Z",
-      "updatedAt": "2025-12-08T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_019",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.19.0",
-      "branch": "release/4.19.0",
-      "createdAt": "2025-12-08T21:32:06.833Z",
-      "updatedAt": "2025-12-09T21:32:06.833Z"
-    },
-    {
-      "id": "rel_live_020",
-      "tenantId": "EkgmIbgGQx",
-      "version": "4.20.0",
-      "branch": "release/4.20.0",
-      "createdAt": "2025-12-09T21:32:06.833Z",
-      "updatedAt": "2025-12-10T21:32:06.833Z"
-    },
-    {
-      "id": "rel_rejected_android",
+      "id": "rel_5_0_0",
       "tenantId": "EkgmIbgGQx",
       "version": "5.0.0",
       "branch": "release/5.0.0",
-      "createdAt": "2025-12-13T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "rel_cancelled_ios",
+      "id": "rel_5_1_0",
       "tenantId": "EkgmIbgGQx",
       "version": "5.1.0",
       "branch": "release/5.1.0",
-      "createdAt": "2025-12-11T10:00:00.000Z",
-      "updatedAt": "2025-12-14T10:00:00.000Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "rel_both_rejected",
+      "id": "rel_5_2_0",
       "tenantId": "EkgmIbgGQx",
       "version": "5.2.0",
       "branch": "release/5.2.0",
-      "createdAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-16T10:00:00.000Z"
-    },
-    {
-      "id": "rel_multi_resubmit",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.3.0",
-      "branch": "release/5.3.0",
-      "createdAt": "2025-12-06T10:00:00.000Z",
-      "updatedAt": "2025-12-16T10:00:00.000Z"
-    },
-    {
-      "id": "rel_cancelled_android",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.4.0",
-      "branch": "release/5.4.0",
-      "createdAt": "2025-12-08T10:00:00.000Z",
-      "updatedAt": "2025-12-10T10:00:00.000Z"
-    },
-    {
-      "id": "rel_rejected_ios",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.5.0",
-      "branch": "release/5.5.0",
-      "createdAt": "2025-12-04T10:00:00.000Z",
-      "updatedAt": "2025-12-06T10:00:00.000Z"
-    },
-    {
-      "id": "rel_cancelled_resub_android",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.6.0",
-      "branch": "release/5.6.0",
-      "createdAt": "2025-12-06T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
-    },
-    {
-      "id": "rel_rejected_resub_android",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.7.0",
-      "branch": "release/5.7.0",
-      "createdAt": "2025-12-02T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
-    },
-    {
-      "id": "rel_cancelled_resub_ios",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.8.0",
-      "branch": "release/5.8.0",
-      "createdAt": "2025-12-07T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
-    },
-    {
-      "id": "rel_rejected_resub_ios",
-      "tenantId": "EkgmIbgGQx",
-      "version": "5.9.0",
-      "branch": "release/5.9.0",
-      "createdAt": "2025-12-03T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
-    },
-    {
-      "id": "rel_android_live_ios_rejected",
-      "tenantId": "EkgmIbgGQx",
-      "version": "6.0.0",
-      "branch": "release/6.0.0",
-      "createdAt": "2025-11-26T10:00:00.000Z",
-      "updatedAt": "2025-12-11T10:00:00.000Z"
-    },
-    {
-      "id": "rel_android_cancelled_ios_live",
-      "tenantId": "EkgmIbgGQx",
-      "version": "6.1.0",
-      "branch": "release/6.1.0",
-      "createdAt": "2025-12-01T10:00:00.000Z",
-      "updatedAt": "2025-12-13T10:00:00.000Z"
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     }
   ],
   "store_distribution": [
     {
-      "id": "dist_live_001",
-      "releaseId": "rel_live_001",
+      "id": "dist_001",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-20T21:32:06.833Z",
-      "updatedAt": "2025-11-22T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-22T21:32:06.833Z"
+      "releaseId": "rel_1_0_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_002",
-      "releaseId": "rel_live_002",
+      "id": "dist_002",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-21T21:32:06.833Z",
-      "updatedAt": "2025-11-23T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-23T21:32:06.833Z"
+      "releaseId": "rel_1_1_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_003",
-      "releaseId": "rel_live_003",
+      "id": "dist_003",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-22T21:32:06.833Z",
-      "updatedAt": "2025-11-24T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-24T21:32:06.833Z"
+      "releaseId": "rel_1_2_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_004",
-      "releaseId": "rel_live_004",
+      "id": "dist_004",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-23T21:32:06.833Z",
-      "updatedAt": "2025-11-25T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-25T21:32:06.833Z"
+      "releaseId": "rel_1_3_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_005",
-      "releaseId": "rel_live_005",
+      "id": "dist_005",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-24T21:32:06.833Z",
-      "updatedAt": "2025-11-26T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-26T21:32:06.833Z"
+      "releaseId": "rel_1_4_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_006",
-      "releaseId": "rel_live_006",
+      "id": "dist_006",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-25T21:32:06.833Z",
-      "updatedAt": "2025-11-27T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-27T21:32:06.833Z"
+      "releaseId": "rel_1_5_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_007",
-      "releaseId": "rel_live_007",
+      "id": "dist_007",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-26T21:32:06.833Z",
-      "updatedAt": "2025-11-28T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-28T21:32:06.833Z"
+      "releaseId": "rel_1_6_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_008",
-      "releaseId": "rel_live_008",
+      "id": "dist_008",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-27T21:32:06.833Z",
-      "updatedAt": "2025-11-29T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-29T21:32:06.833Z"
+      "releaseId": "rel_1_7_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_009",
-      "releaseId": "rel_live_009",
+      "id": "dist_009",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-28T21:32:06.833Z",
-      "updatedAt": "2025-11-30T21:32:06.833Z",
-      "statusUpdatedAt": "2025-11-30T21:32:06.833Z"
+      "releaseId": "rel_1_8_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_010",
-      "releaseId": "rel_live_010",
+      "id": "dist_010",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-29T21:32:06.833Z",
-      "updatedAt": "2025-12-01T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-01T21:32:06.833Z"
+      "releaseId": "rel_2_0_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_011",
-      "releaseId": "rel_live_011",
+      "id": "dist_011",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-11-30T21:32:06.833Z",
-      "updatedAt": "2025-12-02T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-02T21:32:06.833Z"
+      "releaseId": "rel_2_1_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_012",
-      "releaseId": "rel_live_012",
+      "id": "dist_012",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-01T21:32:06.833Z",
-      "updatedAt": "2025-12-03T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-03T21:32:06.833Z"
+      "releaseId": "rel_2_2_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_013",
-      "releaseId": "rel_live_013",
+      "id": "dist_013",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-02T21:32:06.833Z",
-      "updatedAt": "2025-12-04T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-04T21:32:06.833Z"
+      "releaseId": "rel_2_3_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_014",
-      "releaseId": "rel_live_014",
+      "id": "dist_014",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-03T21:32:06.833Z",
-      "updatedAt": "2025-12-05T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-05T21:32:06.833Z"
+      "releaseId": "rel_2_4_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_015",
-      "releaseId": "rel_live_015",
+      "id": "dist_015",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-04T21:32:06.833Z",
-      "updatedAt": "2025-12-06T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-06T21:32:06.833Z"
+      "releaseId": "rel_2_5_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_016",
-      "releaseId": "rel_live_016",
+      "id": "dist_016",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-05T21:32:06.833Z",
-      "updatedAt": "2025-12-07T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-07T21:32:06.833Z"
+      "releaseId": "rel_2_6_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_017",
-      "releaseId": "rel_live_017",
+      "id": "dist_017",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-06T21:32:06.833Z",
-      "updatedAt": "2025-12-08T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-08T21:32:06.833Z"
+      "releaseId": "rel_3_0_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_018",
-      "releaseId": "rel_live_018",
+      "id": "dist_018",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-07T21:32:06.833Z",
-      "updatedAt": "2025-12-09T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-09T21:32:06.833Z"
+      "releaseId": "rel_3_1_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_019",
-      "releaseId": "rel_live_019",
+      "id": "dist_019",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-08T21:32:06.833Z",
-      "updatedAt": "2025-12-10T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-10T21:32:06.833Z"
+      "releaseId": "rel_3_2_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_live_020",
-      "releaseId": "rel_live_020",
+      "id": "dist_020",
       "tenantId": "EkgmIbgGQx",
-      "status": "RELEASED",
-      "createdAt": "2025-12-09T21:32:06.833Z",
-      "updatedAt": "2025-12-11T21:32:06.833Z",
-      "statusUpdatedAt": "2025-12-11T21:32:06.833Z"
+      "releaseId": "rel_3_3_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_rejected_android",
+      "id": "dist_021",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_rejected_android",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-13T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
+      "releaseId": "rel_3_4_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_cancelled_ios",
+      "id": "dist_022",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_cancelled_ios",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-11T10:00:00.000Z",
-      "updatedAt": "2025-12-14T10:00:00.000Z"
+      "releaseId": "rel_3_5_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_both_rejected",
+      "id": "dist_023",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_both_rejected",
-      "status": "PARTIALLY_RELEASED",
-      "createdAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-16T10:00:00.000Z"
+      "releaseId": "rel_3_6_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_multi_resubmit",
+      "id": "dist_024",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_multi_resubmit",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-06T10:00:00.000Z",
-      "updatedAt": "2025-12-16T10:00:00.000Z"
+      "releaseId": "rel_3_7_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_cancelled_android",
+      "id": "dist_025",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_cancelled_android",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-08T10:00:00.000Z",
-      "updatedAt": "2025-12-10T10:00:00.000Z"
+      "releaseId": "rel_3_8_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_rejected_ios",
+      "id": "dist_026",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_rejected_ios",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-04T10:00:00.000Z",
-      "updatedAt": "2025-12-06T10:00:00.000Z"
+      "releaseId": "rel_3_9_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_cancelled_resub_android",
+      "id": "dist_027",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_cancelled_resub_android",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-06T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
+      "releaseId": "rel_4_0_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_rejected_resub_android",
+      "id": "dist_028",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_rejected_resub_android",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-02T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
+      "releaseId": "rel_4_1_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z"
     },
     {
-      "id": "dist_cancelled_resub_ios",
+      "id": "dist_029",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_cancelled_resub_ios",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-07T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
+      "releaseId": "rel_4_2_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "dist_rejected_resub_ios",
+      "id": "dist_030",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_rejected_resub_ios",
-      "status": "SUBMITTED",
-      "createdAt": "2025-12-03T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z"
+      "releaseId": "rel_4_3_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "dist_android_live_ios_rejected",
+      "id": "dist_031",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_android_live_ios_rejected",
-      "status": "PARTIALLY_RELEASED",
-      "createdAt": "2025-11-26T10:00:00.000Z",
-      "updatedAt": "2025-12-11T10:00:00.000Z"
+      "releaseId": "rel_4_4_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     },
     {
-      "id": "dist_android_cancelled_ios_live",
+      "id": "dist_032",
       "tenantId": "EkgmIbgGQx",
-      "releaseId": "rel_android_cancelled_ios_live",
-      "status": "PARTIALLY_RELEASED",
-      "createdAt": "2025-12-01T10:00:00.000Z",
-      "updatedAt": "2025-12-13T10:00:00.000Z"
+      "releaseId": "rel_4_5_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
+    },
+    {
+      "id": "dist_033",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_5_0_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
+    },
+    {
+      "id": "dist_034",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_5_1_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
+    },
+    {
+      "id": "dist_035",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_5_2_0",
+      "status": "PENDING",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z"
     }
   ],
   "android_submission_builds": [
     {
-      "id": "asb_live_001",
-      "distributionId": "dist_live_001",
-      "releaseId": "rel_live_001",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_001",
+      "distributionId": "dist_001",
+      "version": "1.0.0",
       "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.1.0",
-      "versionCode": 401,
-      "rolloutPercentage": 5,
-      "inAppUpdatePriority": 1,
-      "releaseNotes": "Release 4.1.0 - 4.1.0 - Android LIVE at 5%",
-      "artifactPath": "s3://builds/android/4.1.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-11-21T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-22T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-20T21:32:06.833Z",
-      "updatedAt": "2025-11-22T21:32:06.833Z",
-      "actionHistory": "[]",
+      "versionCode": 10000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.0.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.0.0-0.aab",
         "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "PENDING"
     },
     {
-      "id": "asb_live_002",
-      "distributionId": "dist_live_002",
-      "releaseId": "rel_live_002",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_002",
+      "distributionId": "dist_002",
+      "version": "1.1.0",
       "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.2.0",
-      "versionCode": 402,
-      "rolloutPercentage": 25,
-      "inAppUpdatePriority": 2,
-      "releaseNotes": "Release 4.2.0 - 4.2.0 - Android LIVE at 25%",
-      "artifactPath": "s3://builds/android/4.2.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-11-22T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-23T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-21T21:32:06.833Z",
-      "updatedAt": "2025-11-23T21:32:06.833Z",
-      "actionHistory": [
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "dev@dream11.com",
-          "reason": "Initial gradual rollout to monitor stability",
-          "createdAt": "2025-12-10T22:06:20.612Z",
-          "previousRolloutPercentage": 5,
-          "newRolloutPercentage": 10
-        },
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "qa@dream11.com",
-          "reason": "No critical issues reported, increasing rollout",
-          "createdAt": "2025-12-11T19:06:20.613Z",
-          "previousRolloutPercentage": 10,
-          "newRolloutPercentage": 25
-        }
-      ],
+      "versionCode": 11000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.1.0 - Attempt 1",
+      "submittedAt": "2025-12-15T18:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.1.0-0.aab",
         "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "IN_REVIEW"
     },
     {
-      "id": "asb_live_003",
-      "distributionId": "dist_live_003",
-      "releaseId": "rel_live_003",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_003",
+      "distributionId": "dist_003",
+      "version": "1.2.0",
       "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.3.0",
-      "versionCode": 403,
+      "versionCode": 12000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.2.0 - Attempt 1",
+      "submittedAt": "2025-12-14T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.2.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "APPROVED"
+    },
+    {
+      "id": "asb_004",
+      "distributionId": "dist_004",
+      "version": "1.3.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 13000,
       "rolloutPercentage": 50,
       "inAppUpdatePriority": 3,
-      "releaseNotes": "Release 4.3.0 - 4.3.0 - Android LIVE at 50%",
-      "artifactPath": "s3://builds/android/4.3.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-11-23T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-24T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-22T21:32:06.833Z",
-      "updatedAt": "2025-11-24T21:32:06.833Z",
+      "releaseNotes": "Android 1.3.0 - Attempt 1",
+      "submittedAt": "2025-12-09T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.3.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
       "actionHistory": [
         {
           "action": "UPDATE_ROLLOUT",
-          "createdBy": "release@dream11.com",
-          "reason": "Fast rollout approved after successful beta testing",
-          "createdAt": "2025-12-12T18:06:20.616Z",
-          "previousRolloutPercentage": 10,
-          "newRolloutPercentage": 30
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_005",
+      "distributionId": "dist_005",
+      "version": "1.4.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 14000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.4.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.4.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "App crashes on startup"
+    },
+    {
+      "id": "asb_006",
+      "distributionId": "dist_005",
+      "version": "1.4.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 14001,
+      "rolloutPercentage": 100,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.4.0 - Attempt 2",
+      "submittedAt": "2025-12-11T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-14T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.4.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-13T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
         },
         {
           "action": "UPDATE_ROLLOUT",
-          "createdBy": "release@dream11.com",
-          "reason": "All metrics green, pushing to 50%",
-          "createdAt": "2025-12-12T22:06:20.616Z",
-          "previousRolloutPercentage": 30,
+          "createdAt": "2025-12-14T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-15T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_007",
+      "distributionId": "dist_006",
+      "version": "1.5.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 15000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.5.0 - Attempt 1",
+      "submittedAt": "2025-12-01T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-02T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.5.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Privacy policy missing"
+    },
+    {
+      "id": "asb_008",
+      "distributionId": "dist_006",
+      "version": "1.5.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 15001,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.5.0 - Attempt 2",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-05T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.5.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Still missing required permissions"
+    },
+    {
+      "id": "asb_009",
+      "distributionId": "dist_006",
+      "version": "1.5.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 15002,
+      "rolloutPercentage": 75,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.5.0 - Attempt 3",
+      "submittedAt": "2025-12-08T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-13T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.5.0-2.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
           "newRolloutPercentage": 50
         }
       ],
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
+      "isCurrent": true,
+      "status": "LIVE"
     },
     {
-      "id": "asb_live_004",
-      "distributionId": "dist_live_004",
-      "releaseId": "rel_live_004",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_010",
+      "distributionId": "dist_007",
+      "version": "1.6.0",
       "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.4.0",
-      "versionCode": 404,
-      "rolloutPercentage": 75.5,
-      "inAppUpdatePriority": 4,
-      "releaseNotes": "Release 4.4.0 - 4.4.0 - Android LIVE at 75.5%",
-      "artifactPath": "s3://builds/android/4.4.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-11-24T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-25T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-23T21:32:06.833Z",
-      "updatedAt": "2025-11-25T21:32:06.833Z",
+      "versionCode": 16000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.6.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-07T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.6.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
       "actionHistory": [
         {
-          "action": "UPDATE_ROLLOUT",
+          "action": "CANCELLED",
+          "createdAt": "2025-12-07T06:32:03.375Z",
           "createdBy": "dev@dream11.com",
-          "reason": "Precise rollout control for A/B testing",
-          "createdAt": "2025-12-09T20:06:20.616Z",
-          "previousRolloutPercentage": 50,
-          "newRolloutPercentage": 65.5
-        },
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "release@dream11.com",
-          "reason": "A/B test successful, expanding further",
-          "createdAt": "2025-12-10T16:06:20.616Z",
-          "previousRolloutPercentage": 65.5,
-          "newRolloutPercentage": 75.5
+          "reason": "Cancelled by developer - wrong build"
         }
       ],
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
+      "isCurrent": false,
+      "status": "CANCELLED"
     },
     {
-      "id": "asb_live_005",
-      "distributionId": "dist_live_005",
-      "releaseId": "rel_live_005",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_011",
+      "distributionId": "dist_007",
+      "version": "1.6.0",
       "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.5.0",
-      "versionCode": 405,
-      "rolloutPercentage": 100,
-      "inAppUpdatePriority": 5,
-      "releaseNotes": "Release 4.5.0 - 4.5.0 - Android LIVE at 100%",
-      "artifactPath": "s3://builds/android/4.5.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-11-25T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-26T21:32:06.833Z",
+      "versionCode": 16001,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.6.0 - Attempt 2",
+      "submittedAt": "2025-12-10T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.6.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
       "isCurrent": true,
-      "createdAt": "2025-11-24T21:32:06.833Z",
-      "updatedAt": "2025-11-26T21:32:06.833Z",
-      "actionHistory": "[]",
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
+      "status": "IN_REVIEW"
     },
     {
-      "id": "asb_live_012",
-      "distributionId": "dist_live_012",
-      "releaseId": "rel_live_012",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_012",
+      "distributionId": "dist_008",
+      "version": "1.7.0",
       "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.12.0",
-      "versionCode": 412,
-      "rolloutPercentage": 10,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Release 4.12.0 - 4.12.0 - Both LIVE, Android 10%, iOS Phased 25%",
-      "artifactPath": "s3://builds/android/4.12.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-02T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-03T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-01T21:32:06.833Z",
-      "updatedAt": "2025-12-03T21:32:06.833Z",
-      "actionHistory": [
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "dev@dream11.com",
-          "reason": "Starting with conservative 5%",
-          "createdAt": "2025-12-11T14:06:20.616Z",
-          "previousRolloutPercentage": 5,
-          "newRolloutPercentage": 10
-        }
-      ],
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_live_013",
-      "distributionId": "dist_live_013",
-      "releaseId": "rel_live_013",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.13.0",
-      "versionCode": 413,
-      "rolloutPercentage": 50,
-      "inAppUpdatePriority": 1,
-      "releaseNotes": "Release 4.13.0 - 4.13.0 - Both LIVE, Android 50%, iOS Manual 100%",
-      "artifactPath": "s3://builds/android/4.13.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-03T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-04T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-02T21:32:06.833Z",
-      "updatedAt": "2025-12-04T21:32:06.833Z",
-      "actionHistory": "[]",
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_live_014",
-      "distributionId": "dist_live_014",
-      "releaseId": "rel_live_014",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.14.0",
-      "versionCode": 414,
-      "rolloutPercentage": 100,
-      "inAppUpdatePriority": 2,
-      "releaseNotes": "Release 4.14.0 - 4.14.0 - Both LIVE at 100%",
-      "artifactPath": "s3://builds/android/4.14.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-04T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-05T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-03T21:32:06.833Z",
-      "updatedAt": "2025-12-05T21:32:06.833Z",
-      "actionHistory": "[]",
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_live_015",
-      "distributionId": "dist_live_015",
-      "releaseId": "rel_live_015",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "PLAY_STORE",
-      "status": "HALTED",
-      "version": "4.15.0",
-      "versionCode": 415,
+      "versionCode": 17000,
       "rolloutPercentage": 35,
       "inAppUpdatePriority": 3,
-      "releaseNotes": "Release 4.15.0 - 4.15.0 - Android HALTED at 35%",
-      "artifactPath": "s3://builds/android/4.15.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-05T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-06T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-04T21:32:06.833Z",
-      "updatedAt": "2025-12-06T21:32:06.833Z",
+      "releaseNotes": "Android 1.7.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-16T04:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.7.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
       "actionHistory": [
         {
+          "action": "PAUSED",
+          "createdAt": "2025-12-16T04:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Critical bug detected, investigating"
+        },
+        {
           "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
           "createdBy": "dev@dream11.com",
-          "reason": "Initial rollout to small user base",
-          "createdAt": "2025-12-08T16:06:20.616Z",
+          "reason": "Gradual rollout increase",
           "previousRolloutPercentage": 5,
-          "newRolloutPercentage": 15
-        },
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "dev@dream11.com",
-          "reason": "Monitoring performance metrics",
-          "createdAt": "2025-12-09T14:06:20.616Z",
-          "previousRolloutPercentage": 15,
-          "newRolloutPercentage": 25
-        },
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "qa@dream11.com",
-          "reason": "Expanding rollout after positive feedback",
-          "createdAt": "2025-12-10T20:06:20.616Z",
-          "previousRolloutPercentage": 25,
-          "newRolloutPercentage": 35
-        },
-        {
-          "action": "HALTED",
-          "createdBy": "prince@dream11.com",
-          "reason": "Critical crash detected in payment flow affecting 2.5% of users. Halting immediately to prevent further impact.",
-          "createdAt": "2025-12-11T12:06:20.616Z",
-          "previousRolloutPercentage": 35,
-          "newRolloutPercentage": null
+          "newRolloutPercentage": 20
         }
       ],
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_live_017",
-      "distributionId": "dist_live_017",
-      "releaseId": "rel_live_017",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.17.0",
-      "versionCode": 417,
-      "rolloutPercentage": 75,
-      "inAppUpdatePriority": 5,
-      "releaseNotes": "Release 4.17.0 - 4.17.0 - Android LIVE 75%, iOS PAUSED 30%",
-      "artifactPath": "s3://builds/android/4.17.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-07T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-08T21:32:06.833Z",
       "isCurrent": true,
-      "createdAt": "2025-12-06T21:32:06.833Z",
-      "updatedAt": "2025-12-08T21:32:06.833Z",
-      "actionHistory": "[]",
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
+      "status": "PAUSED"
     },
     {
-      "id": "asb_live_018",
-      "distributionId": "dist_live_018",
-      "releaseId": "rel_live_018",
-      "tenantId": "EkgmIbgGQx",
+      "id": "asb_013",
+      "distributionId": "dist_009",
+      "version": "1.8.0",
       "storeType": "PLAY_STORE",
-      "status": "HALTED",
-      "version": "4.18.0",
-      "versionCode": 418,
+      "versionCode": 18000,
       "rolloutPercentage": 60,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Release 4.18.0 - 4.18.0 - Android HALTED 60%, iOS LIVE 100%",
-      "artifactPath": "s3://builds/android/4.18.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-08T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-09T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-07T21:32:06.833Z",
-      "updatedAt": "2025-12-09T21:32:06.833Z",
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 1.8.0 - Attempt 1",
+      "submittedAt": "2025-12-08T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-16T05:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.8.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
       "actionHistory": [
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "dev@dream11.com",
-          "reason": "Gradual rollout strategy",
-          "createdAt": "2025-12-09T21:06:20.616Z",
-          "previousRolloutPercentage": 10,
-          "newRolloutPercentage": 30
-        },
-        {
-          "action": "UPDATE_ROLLOUT",
-          "createdBy": "release@dream11.com",
-          "reason": "Scaling up after successful initial phase",
-          "createdAt": "2025-12-10T18:06:20.616Z",
-          "previousRolloutPercentage": 30,
-          "newRolloutPercentage": 60
-        },
         {
           "action": "HALTED",
-          "createdBy": "qa@dream11.com",
-          "reason": "ANR (Application Not Responding) reports spiking on Android 12 devices. Halting rollout for investigation.",
-          "createdAt": "2025-12-11T16:06:20.616Z",
-          "previousRolloutPercentage": 60,
-          "newRolloutPercentage": null
-        }
-      ],
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_live_019",
-      "distributionId": "dist_live_019",
-      "releaseId": "rel_live_019",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.19.0",
-      "versionCode": 419,
-      "rolloutPercentage": 12.5,
-      "inAppUpdatePriority": 1,
-      "releaseNotes": "Release 4.19.0 - 4.19.0 - Android LIVE at 12.5%",
-      "artifactPath": "s3://builds/android/4.19.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-09T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-10T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-08T21:32:06.833Z",
-      "updatedAt": "2025-12-10T21:32:06.833Z",
-      "actionHistory": "[]",
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_live_020",
-      "distributionId": "dist_live_020",
-      "releaseId": "rel_live_020",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "PLAY_STORE",
-      "status": "LIVE",
-      "version": "4.20.0",
-      "versionCode": 420,
-      "rolloutPercentage": 33.3,
-      "inAppUpdatePriority": 2,
-      "releaseNotes": "Release 4.20.0 - 4.20.0 - Android LIVE at 33.3%",
-      "artifactPath": "s3://builds/android/4.20.0/app-release.aab",
-      "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy",
-      "submittedAt": "2025-12-10T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-11T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-09T21:32:06.833Z",
-      "updatedAt": "2025-12-11T21:32:06.833Z",
-      "actionHistory": "[]",
-      "artifact": {
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      }
-    },
-    {
-      "id": "asb_rejected_001",
-      "distributionId": "dist_rejected_android",
-      "version": "5.0.0",
-      "versionCode": 500,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Major new features and improvements",
-      "submittedAt": "2025-12-14T10:00:00.000Z",
-      "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-15T10:00:00.000Z",
-      "createdAt": "2025-12-13T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-500.aab",
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      },
-      "actionHistory": [],
-      "isCurrent": false,
-      "status": "REJECTED",
-      "rejectionReason": "The app crashes on launch. Please fix the critical bug and resubmit."
-    },
-    {
-      "id": "asb_both_rejected_v1",
-      "distributionId": "dist_both_rejected",
-      "version": "5.2.0",
-      "versionCode": 520,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Critical bug fixes",
-      "submittedAt": "2025-12-10T10:00:00.000Z",
-      "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-12T10:00:00.000Z",
-      "createdAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-12T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-520.aab",
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      },
-      "actionHistory": [],
-      "isCurrent": false,
-      "status": "REJECTED",
-      "rejectionReason": "App violates Google Play policies. Please review and fix."
-    },
-    {
-      "id": "asb_multi_v1",
-      "distributionId": "dist_multi_resubmit",
-      "version": "5.3.0",
-      "versionCode": 530,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "New release",
-      "submittedAt": "2025-12-07T10:00:00.000Z",
-      "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-09T10:00:00.000Z",
-      "createdAt": "2025-12-06T10:00:00.000Z",
-      "updatedAt": "2025-12-09T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-530-v1.aab",
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      },
-      "actionHistory": [],
-      "isCurrent": false,
-      "status": "REJECTED",
-      "rejectionReason": "Missing required permissions declaration"
-    },
-    {
-      "id": "asb_multi_v2",
-      "distributionId": "dist_multi_resubmit",
-      "version": "5.3.0",
-      "versionCode": 531,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Fixed permissions issue",
-      "submittedAt": "2025-12-10T10:00:00.000Z",
-      "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-12T10:00:00.000Z",
-      "createdAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-12T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-531-v2.aab"
-      },
-      "actionHistory": [
-        {
-          "action": "CANCELLED",
-          "createdAt": "2025-12-12T10:00:00.000Z",
-          "createdBy": "dev@dream11.com",
-          "reason": "Found another bug during review, pulling back"
-        }
-      ],
-      "isCurrent": false,
-      "status": "CANCELLED"
-    },
-    {
-      "id": "asb_multi_v3_current",
-      "distributionId": "dist_multi_resubmit",
-      "version": "5.3.0",
-      "versionCode": 532,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "All issues fixed, ready for release",
-      "submittedAt": "2025-12-14T10:00:00.000Z",
-      "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-14T10:00:00.000Z",
-      "createdAt": "2025-12-13T10:00:00.000Z",
-      "updatedAt": "2025-12-14T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-532-v3.aab"
-      },
-      "actionHistory": [],
-      "isCurrent": true,
-      "status": "IN_REVIEW"
-    },
-    {
-      "id": "asb_cancelled_001",
-      "distributionId": "dist_cancelled_android",
-      "version": "5.4.0",
-      "versionCode": 540,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Android feature update",
-      "submittedAt": "2025-12-09T10:00:00.000Z",
-      "submittedBy": "android-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-10T10:00:00.000Z",
-      "createdAt": "2025-12-08T10:00:00.000Z",
-      "updatedAt": "2025-12-10T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-540.aab",
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      },
-      "actionHistory": [
-        {
-          "action": "CANCELLED",
-          "createdAt": "2025-12-10T10:00:00.000Z",
-          "createdBy": "android-dev@dream11.com",
-          "reason": "Found a memory leak in the new feature, pulling back for fix"
-        }
-      ],
-      "isCurrent": false,
-      "status": "CANCELLED"
-    },
-    {
-      "id": "asb_cancel_resub_v1",
-      "distributionId": "dist_cancelled_resub_android",
-      "version": "5.6.0",
-      "versionCode": 560,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Feature release attempt 1",
-      "submittedAt": "2025-12-08T10:00:00.000Z",
-      "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-10T10:00:00.000Z",
-      "createdAt": "2025-12-06T10:00:00.000Z",
-      "updatedAt": "2025-12-10T10:00:00.000Z",
-      "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-560-v1.aab",
-        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
-      },
-      "actionHistory": [
-        {
-          "action": "CANCELLED",
+          "createdAt": "2025-12-16T05:32:03.375Z",
           "createdBy": "prince@dream11.com",
-          "reason": "Found critical bug in build after submission. Need to fix and resubmit.",
-          "createdAt": "2025-12-13T18:06:20.616Z",
-          "previousRolloutPercentage": null,
-          "newRolloutPercentage": null
+          "reason": "Emergency halt - severe crash issue"
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        }
+      ],
+      "isCurrent": true,
+      "status": "HALTED"
+    },
+    {
+      "id": "asb_014",
+      "distributionId": "dist_017",
+      "version": "3.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 30000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.0.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.0.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "PENDING"
+    },
+    {
+      "id": "asb_015",
+      "distributionId": "dist_018",
+      "version": "3.1.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 31000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.1.0 - Attempt 1",
+      "submittedAt": "2025-12-15T20:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.1.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "IN_REVIEW"
+    },
+    {
+      "id": "asb_016",
+      "distributionId": "dist_019",
+      "version": "3.2.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 32000,
+      "rolloutPercentage": 100,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.2.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.2.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_017",
+      "distributionId": "dist_020",
+      "version": "3.3.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 33000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.3.0 - Attempt 1",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-06T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.3.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Security vulnerabilities found"
+    },
+    {
+      "id": "asb_018",
+      "distributionId": "dist_020",
+      "version": "3.3.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 33001,
+      "rolloutPercentage": 75,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.3.0 - Attempt 2",
+      "submittedAt": "2025-12-09T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.3.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-12T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_019",
+      "distributionId": "dist_021",
+      "version": "3.4.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 34000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.4.0 - Attempt 1",
+      "submittedAt": "2025-11-26T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-28T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.4.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Copyrighted content"
+    },
+    {
+      "id": "asb_020",
+      "distributionId": "dist_021",
+      "version": "3.4.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 34001,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.4.0 - Attempt 2",
+      "submittedAt": "2025-12-01T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-02T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.4.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "CANCELLED",
+          "createdAt": "2025-12-02T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Cancelled by developer - wrong build"
         }
       ],
       "isCurrent": false,
       "status": "CANCELLED"
     },
     {
-      "id": "asb_cancel_resub_v2",
-      "distributionId": "dist_cancelled_resub_android",
-      "version": "5.6.0",
-      "versionCode": 561,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Feature release attempt 2 - fixed crash",
-      "submittedAt": "2025-12-15T10:00:00.000Z",
+      "id": "asb_021",
+      "distributionId": "dist_021",
+      "version": "3.4.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 34002,
+      "rolloutPercentage": 100,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.4.0 - Attempt 3",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
       "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-15T10:00:00.000Z",
-      "createdAt": "2025-12-14T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z",
+      "statusUpdatedAt": "2025-12-12T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-561-v2.aab"
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.4.0-2.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
       },
-      "actionHistory": [],
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
       "isCurrent": true,
-      "status": "IN_REVIEW"
+      "status": "LIVE"
     },
     {
-      "id": "asb_reject_resub_v1",
-      "distributionId": "dist_rejected_resub_android",
-      "version": "5.7.0",
-      "versionCode": 570,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "New feature implementation",
-      "submittedAt": "2025-12-04T10:00:00.000Z",
-      "submittedBy": "android-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-08T10:00:00.000Z",
-      "createdAt": "2025-12-02T10:00:00.000Z",
-      "updatedAt": "2025-12-08T10:00:00.000Z",
+      "id": "asb_022",
+      "distributionId": "dist_022",
+      "version": "3.5.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 35000,
+      "rolloutPercentage": 90,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.5.0 - Attempt 1",
+      "submittedAt": "2025-12-02T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-15T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-570-v1.aab",
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.5.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-04T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-05T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-06T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 90
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_023",
+      "distributionId": "dist_023",
+      "version": "3.6.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 36000,
+      "rolloutPercentage": 40,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.6.0 - Attempt 1",
+      "submittedAt": "2025-12-08T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-16T01:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.6.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "PAUSED",
+          "createdAt": "2025-12-16T01:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Critical bug detected, investigating"
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "PAUSED"
+    },
+    {
+      "id": "asb_024",
+      "distributionId": "dist_024",
+      "version": "3.7.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 37000,
+      "rolloutPercentage": 100,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.7.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.7.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_025",
+      "distributionId": "dist_025",
+      "version": "3.8.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 38000,
+      "rolloutPercentage": 55,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.8.0 - Attempt 1",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-16T06:02:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.8.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "HALTED",
+          "createdAt": "2025-12-16T06:02:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Emergency halt - severe crash issue"
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-06T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-07T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        }
+      ],
+      "isCurrent": true,
+      "status": "HALTED"
+    },
+    {
+      "id": "asb_026",
+      "distributionId": "dist_026",
+      "version": "3.9.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 39000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.9.0 - Attempt 1",
+      "submittedAt": "2025-12-01T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-03T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.9.0-0.aab",
         "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
       },
       "actionHistory": [],
       "isCurrent": false,
       "status": "REJECTED",
-      "rejectionReason": "App contains policy violation: Inappropriate content found in user-generated section"
+      "rejectionReason": "Target API level too low"
     },
     {
-      "id": "asb_reject_resub_v2",
-      "distributionId": "dist_rejected_resub_android",
-      "version": "5.7.0",
-      "versionCode": 571,
-      "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Fixed policy violation - added content moderation",
-      "submittedAt": "2025-12-15T10:00:00.000Z",
-      "submittedBy": "android-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-15T10:00:00.000Z",
-      "createdAt": "2025-12-14T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z",
+      "id": "asb_027",
+      "distributionId": "dist_026",
+      "version": "3.9.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 39001,
+      "rolloutPercentage": 50,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 3.9.0 - Attempt 2",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-571-v2.aab"
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-3.9.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_028",
+      "distributionId": "dist_027",
+      "version": "4.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 40000,
+      "rolloutPercentage": 33.3,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 4.0.0 - Attempt 1",
+      "submittedAt": "2025-12-08T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-4.0.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_029",
+      "distributionId": "dist_028",
+      "version": "4.1.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 41000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 4.1.0 - Attempt 1",
+      "submittedAt": "2025-12-16T06:17:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-4.1.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
       },
       "actionHistory": [],
       "isCurrent": true,
       "status": "IN_REVIEW"
     },
     {
-      "id": "asb_android_live_ios_rejected",
-      "distributionId": "dist_android_live_ios_rejected",
-      "version": "6.0.0",
-      "versionCode": 600,
+      "id": "asb_030",
+      "distributionId": "dist_029",
+      "version": "4.2.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 42000,
       "rolloutPercentage": 100,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Major feature release",
-      "submittedAt": "2025-11-28T10:00:00.000Z",
-      "submittedBy": "android-team@dream11.com",
-      "statusUpdatedAt": "2025-12-06T10:00:00.000Z",
-      "createdAt": "2025-11-26T10:00:00.000Z",
-      "updatedAt": "2025-12-06T10:00:00.000Z",
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 4.2.0 - Attempt 1",
+      "submittedAt": "2025-10-17T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-01T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-600.aab",
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-4.2.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-10-19T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-10-20T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-10-21T06:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_031",
+      "distributionId": "dist_030",
+      "version": "4.3.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 43000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 4.3.0 - Attempt 1",
+      "submittedAt": "2025-12-13T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-15T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-4.3.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "App violates data collection policies"
+    },
+    {
+      "id": "asb_032",
+      "distributionId": "dist_032",
+      "version": "4.5.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 45000,
+      "rolloutPercentage": 12.5,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 4.5.0 - Attempt 1",
+      "submittedAt": "2025-12-10T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-4.5.0-0.aab",
         "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
       },
       "actionHistory": [],
@@ -1234,539 +1577,1224 @@
       "status": "LIVE"
     },
     {
-      "id": "asb_android_cancelled_ios_live",
-      "distributionId": "dist_android_cancelled_ios_live",
-      "version": "6.1.0",
-      "versionCode": 610,
+      "id": "asb_033",
+      "distributionId": "dist_033",
+      "version": "5.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 50000,
       "rolloutPercentage": 0,
-      "inAppUpdatePriority": 0,
-      "releaseNotes": "Performance improvements",
-      "submittedAt": "2025-12-03T10:00:00.000Z",
-      "submittedBy": "android-team@dream11.com",
-      "statusUpdatedAt": "2025-12-06T10:00:00.000Z",
-      "createdAt": "2025-12-01T10:00:00.000Z",
-      "updatedAt": "2025-12-06T10:00:00.000Z",
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.0.0 - Attempt 1",
+      "submittedAt": "2025-11-16T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-17T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "artifactPath": "https://s3.amazonaws.com/builds/app-release-610.aab",
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.0.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Issue 1"
+    },
+    {
+      "id": "asb_034",
+      "distributionId": "dist_033",
+      "version": "5.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 50001,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.0.0 - Attempt 2",
+      "submittedAt": "2025-11-21T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-22T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.0.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Issue 2"
+    },
+    {
+      "id": "asb_035",
+      "distributionId": "dist_033",
+      "version": "5.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 50002,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.0.0 - Attempt 3",
+      "submittedAt": "2025-11-26T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-27T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.0.0-2.aab",
         "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
       },
       "actionHistory": [
         {
           "action": "CANCELLED",
-          "createdAt": "2025-12-06T10:00:00.000Z",
-          "createdBy": "android-team@dream11.com",
-          "reason": "Critical performance regression detected in testing"
+          "createdAt": "2025-11-27T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Cancelled by developer - wrong build"
         }
       ],
       "isCurrent": false,
       "status": "CANCELLED"
+    },
+    {
+      "id": "asb_036",
+      "distributionId": "dist_033",
+      "version": "5.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 50003,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.0.0 - Attempt 4",
+      "submittedAt": "2025-12-01T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-02T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.0.0-3.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Issue 3"
+    },
+    {
+      "id": "asb_037",
+      "distributionId": "dist_033",
+      "version": "5.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 50004,
+      "rolloutPercentage": 100,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.0.0 - Attempt 5",
+      "submittedAt": "2025-12-06T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-16T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.0.0-4.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_038",
+      "distributionId": "dist_035",
+      "version": "5.2.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 52000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.2.0 - Attempt 1",
+      "submittedAt": "2025-12-08T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.2.0-0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Permissions issue"
+    },
+    {
+      "id": "asb_039",
+      "distributionId": "dist_035",
+      "version": "5.2.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 52001,
+      "rolloutPercentage": 25,
+      "inAppUpdatePriority": 3,
+      "releaseNotes": "Android 5.2.0 - Attempt 2",
+      "submittedAt": "2025-12-13T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-5.2.0-1.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-15T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
     }
   ],
   "ios_submission_builds": [
     {
-      "id": "isb_live_006",
-      "distributionId": "dist_live_006",
-      "releaseId": "rel_live_006",
-      "tenantId": "EkgmIbgGQx",
+      "id": "isb_001",
+      "distributionId": "dist_010",
+      "version": "2.0.0",
       "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.6.0",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
-      "rolloutPercentage": 1,
-      "releaseNotes": "Release 4.6.0 - 4.6.0 - iOS Phased LIVE at 1%",
-      "testflightNumber": 50006,
-      "submittedAt": "2025-11-26T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-27T21:32:06.833Z",
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 2.0.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
       "isCurrent": true,
-      "createdAt": "2025-11-25T21:32:06.833Z",
-      "updatedAt": "2025-11-27T21:32:06.833Z",
-      "actionHistory": "[]"
+      "status": "PENDING"
     },
     {
-      "id": "isb_live_007",
-      "distributionId": "dist_live_007",
-      "releaseId": "rel_live_007",
-      "tenantId": "EkgmIbgGQx",
+      "id": "isb_002",
+      "distributionId": "dist_011",
+      "version": "2.1.0",
       "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.7.0",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
-      "rolloutPercentage": 15,
-      "releaseNotes": "Release 4.7.0 - 4.7.0 - iOS Phased LIVE at 15%",
-      "testflightNumber": 50007,
-      "submittedAt": "2025-11-27T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-28T21:32:06.833Z",
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 2.1.0 - Attempt 1",
+      "submittedAt": "2025-12-15T12:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
       "isCurrent": true,
-      "createdAt": "2025-11-26T21:32:06.833Z",
-      "updatedAt": "2025-11-28T21:32:06.833Z",
-      "actionHistory": "[]"
+      "status": "IN_REVIEW"
     },
     {
-      "id": "isb_live_008",
-      "distributionId": "dist_live_008",
-      "releaseId": "rel_live_008",
-      "tenantId": "EkgmIbgGQx",
+      "id": "isb_003",
+      "distributionId": "dist_012",
+      "version": "2.2.0",
       "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.8.0",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 50,
-      "releaseNotes": "Release 4.8.0 - 4.8.0 - iOS Phased LIVE at 50%",
-      "testflightNumber": 50008,
-      "submittedAt": "2025-11-28T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-29T21:32:06.833Z",
+      "releaseNotes": "iOS 2.2.0 - Attempt 1",
+      "submittedAt": "2025-12-09T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
       "isCurrent": true,
-      "createdAt": "2025-11-27T21:32:06.833Z",
-      "updatedAt": "2025-11-29T21:32:06.833Z",
-      "actionHistory": "[]"
+      "status": "LIVE"
     },
     {
-      "id": "isb_live_009",
-      "distributionId": "dist_live_009",
-      "releaseId": "rel_live_009",
-      "tenantId": "EkgmIbgGQx",
+      "id": "isb_004",
+      "distributionId": "dist_013",
+      "version": "2.3.0",
       "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.9.0",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 2.3.0 - Attempt 1",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-06T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Guideline 4.3 - Design: Spam"
+    },
+    {
+      "id": "isb_005",
+      "distributionId": "dist_013",
+      "version": "2.3.0",
+      "storeType": "APP_STORE",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 85,
-      "releaseNotes": "Release 4.9.0 - 4.9.0 - iOS Phased LIVE at 85%",
-      "testflightNumber": 50009,
-      "submittedAt": "2025-11-29T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-11-30T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-28T21:32:06.833Z",
-      "updatedAt": "2025-11-30T21:32:06.833Z",
-      "actionHistory": "[]"
-    },
-    {
-      "id": "isb_live_010",
-      "distributionId": "dist_live_010",
-      "releaseId": "rel_live_010",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.10.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 100,
-      "releaseNotes": "Release 4.10.0 - 4.10.0 - iOS Phased Completed Early to 100%",
-      "testflightNumber": 50010,
-      "submittedAt": "2025-11-30T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-01T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-29T21:32:06.833Z",
-      "updatedAt": "2025-12-01T21:32:06.833Z",
-      "actionHistory": "[]"
-    },
-    {
-      "id": "isb_live_011",
-      "distributionId": "dist_live_011",
-      "releaseId": "rel_live_011",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.11.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": false,
-      "resetRating": false,
-      "rolloutPercentage": 100,
-      "releaseNotes": "Release 4.11.0 - 4.11.0 - iOS Manual LIVE at 100%",
-      "testflightNumber": 50011,
-      "submittedAt": "2025-12-01T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-02T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-11-30T21:32:06.833Z",
-      "updatedAt": "2025-12-02T21:32:06.833Z",
-      "actionHistory": "[]"
-    },
-    {
-      "id": "isb_live_012",
-      "distributionId": "dist_live_012",
-      "releaseId": "rel_live_012",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.12.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 25,
-      "releaseNotes": "Release 4.12.0 - 4.12.0 - Both LIVE, Android 10%, iOS Phased 25%",
-      "testflightNumber": 50012,
-      "submittedAt": "2025-12-02T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-03T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-01T21:32:06.833Z",
-      "updatedAt": "2025-12-03T21:32:06.833Z",
+      "releaseNotes": "iOS 2.3.0 - Attempt 2",
+      "submittedAt": "2025-12-09T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-14T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1001",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
       "actionHistory": [
         {
-          "action": "PAUSED",
-          "createdBy": "qa@dream11.com",
-          "reason": "App Store metrics showing increased crashes on iOS 15 devices. Pausing for investigation.",
-          "createdAt": "2025-12-10T18:06:20.616Z",
-          "previousRolloutPercentage": 15,
-          "newRolloutPercentage": null
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
         },
         {
-          "action": "RESUMED",
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-12T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-13T06:32:03.375Z",
           "createdBy": "prince@dream11.com",
-          "reason": "Hotfix deployed and verified. Crash rate back to normal. Resuming phased release.",
-          "createdAt": "2025-12-11T14:06:20.616Z",
-          "previousRolloutPercentage": null,
-          "newRolloutPercentage": 25
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 85
         }
-      ]
-    },
-    {
-      "id": "isb_live_013",
-      "distributionId": "dist_live_013",
-      "releaseId": "rel_live_013",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.13.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": false,
-      "resetRating": false,
-      "rolloutPercentage": 100,
-      "releaseNotes": "Release 4.13.0 - 4.13.0 - Both LIVE, Android 50%, iOS Manual 100%",
-      "testflightNumber": 50013,
-      "submittedAt": "2025-12-03T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-04T21:32:06.833Z",
+      ],
       "isCurrent": true,
-      "createdAt": "2025-12-02T21:32:06.833Z",
-      "updatedAt": "2025-12-04T21:32:06.833Z",
-      "actionHistory": "[]"
+      "status": "LIVE"
     },
     {
-      "id": "isb_live_014",
-      "distributionId": "dist_live_014",
-      "releaseId": "rel_live_014",
-      "tenantId": "EkgmIbgGQx",
+      "id": "isb_006",
+      "distributionId": "dist_014",
+      "version": "2.4.0",
       "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.14.0",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 2.4.0 - Attempt 1",
+      "submittedAt": "2025-11-26T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-28T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Misleading app description"
+    },
+    {
+      "id": "isb_007",
+      "distributionId": "dist_014",
+      "version": "2.4.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 2.4.0 - Attempt 2",
+      "submittedAt": "2025-12-01T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-02T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1001",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "CANCELLED",
+          "createdAt": "2025-12-02T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Cancelled by developer - wrong build"
+        }
+      ],
+      "isCurrent": false,
+      "status": "CANCELLED"
+    },
+    {
+      "id": "isb_008",
+      "distributionId": "dist_014",
+      "version": "2.4.0",
+      "storeType": "APP_STORE",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 100,
-      "releaseNotes": "Release 4.14.0 - 4.14.0 - Both LIVE at 100%",
-      "testflightNumber": 50014,
-      "submittedAt": "2025-12-04T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-05T21:32:06.833Z",
+      "releaseNotes": "iOS 2.4.0 - Attempt 3",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-13T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1002",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
       "isCurrent": true,
-      "createdAt": "2025-12-03T21:32:06.833Z",
-      "updatedAt": "2025-12-05T21:32:06.833Z",
-      "actionHistory": "[]"
+      "status": "LIVE"
     },
     {
-      "id": "isb_live_016",
-      "distributionId": "dist_live_016",
-      "releaseId": "rel_live_016",
-      "tenantId": "EkgmIbgGQx",
+      "id": "isb_009",
+      "distributionId": "dist_015",
+      "version": "2.5.0",
       "storeType": "APP_STORE",
-      "status": "PAUSED",
-      "version": "4.16.0",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 45,
-      "releaseNotes": "Release 4.16.0 - 4.16.0 - iOS Phased PAUSED at 45%",
-      "testflightNumber": 50016,
-      "submittedAt": "2025-12-06T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-07T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-05T21:32:06.833Z",
-      "updatedAt": "2025-12-07T21:32:06.833Z",
-      "actionHistory": [
-        {
-          "action": "PAUSED",
-          "createdBy": "prince@dream11.com",
-          "reason": "Detected UI rendering issues on iOS 16. Pausing phased release to investigate.",
-          "createdAt": "2025-12-12T20:06:20.616Z",
-          "previousRolloutPercentage": 45,
-          "newRolloutPercentage": null
-        }
-      ]
-    },
-    {
-      "id": "isb_live_017",
-      "distributionId": "dist_live_017",
-      "releaseId": "rel_live_017",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "APP_STORE",
-      "status": "PAUSED",
-      "version": "4.17.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 30,
-      "releaseNotes": "Release 4.17.0 - 4.17.0 - Android LIVE 75%, iOS PAUSED 30%",
-      "testflightNumber": 50017,
-      "submittedAt": "2025-12-07T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-08T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-06T21:32:06.833Z",
-      "updatedAt": "2025-12-08T21:32:06.833Z",
-      "actionHistory": [
-        {
-          "action": "PAUSED",
-          "createdBy": "qa@dream11.com",
-          "reason": "User reports of crashes on iPad devices during onboarding flow. Pausing to fix.",
-          "createdAt": "2025-12-13T16:06:20.616Z",
-          "previousRolloutPercentage": 30,
-          "newRolloutPercentage": null
-        }
-      ]
-    },
-    {
-      "id": "isb_live_018",
-      "distributionId": "dist_live_018",
-      "releaseId": "rel_live_018",
-      "tenantId": "EkgmIbgGQx",
-      "storeType": "APP_STORE",
-      "status": "LIVE",
-      "version": "4.18.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": false,
-      "resetRating": false,
-      "rolloutPercentage": 100,
-      "releaseNotes": "Release 4.18.0 - 4.18.0 - Android HALTED 60%, iOS LIVE 100%",
-      "testflightNumber": 50018,
-      "submittedAt": "2025-12-08T21:32:06.833Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-09T21:32:06.833Z",
-      "isCurrent": true,
-      "createdAt": "2025-12-07T21:32:06.833Z",
-      "updatedAt": "2025-12-09T21:32:06.833Z",
-      "actionHistory": "[]"
-    },
-    {
-      "id": "isb_cancelled_001",
-      "distributionId": "dist_cancelled_ios",
-      "version": "5.1.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 0,
-      "releaseNotes": "Performance improvements and bug fixes",
-      "submittedAt": "2025-12-12T10:00:00.000Z",
-      "submittedBy": "prince@dream11.com",
-      "statusUpdatedAt": "2025-12-14T10:00:00.000Z",
-      "createdAt": "2025-12-11T10:00:00.000Z",
-      "updatedAt": "2025-12-14T10:00:00.000Z",
-      "artifact": {
-        "testflightNumber": 98765
-      },
-      "actionHistory": [
-        {
-          "action": "CANCELLED",
-          "createdAt": "2025-12-14T10:00:00.000Z",
-          "createdBy": "prince@dream11.com",
-          "reason": "Found a critical bug, need to fix before releasing"
-        }
-      ],
-      "isCurrent": false,
-      "status": "CANCELLED"
-    },
-    {
-      "id": "isb_both_rejected_v1",
-      "distributionId": "dist_both_rejected",
-      "version": "5.2.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 100,
-      "releaseNotes": "Critical bug fixes",
-      "submittedAt": "2025-12-10T10:00:00.000Z",
+      "releaseNotes": "iOS 2.5.0 - Attempt 1",
+      "submittedAt": "2025-12-07T06:32:03.375Z",
       "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-13T10:00:00.000Z",
-      "createdAt": "2025-12-09T10:00:00.000Z",
-      "updatedAt": "2025-12-13T10:00:00.000Z",
+      "statusUpdatedAt": "2025-12-16T03:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightNumber": 98766
-      },
-      "isCurrent": true,
-      "status": "LIVE",
-      "actionHistory": []
-    },
-    {
-      "id": "isb_rejected_001",
-      "distributionId": "dist_rejected_ios",
-      "version": "5.5.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 0,
-      "releaseNotes": "iOS feature update with new capabilities",
-      "submittedAt": "2025-12-05T10:00:00.000Z",
-      "submittedBy": "ios-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-06T10:00:00.000Z",
-      "createdAt": "2025-12-04T10:00:00.000Z",
-      "updatedAt": "2025-12-06T10:00:00.000Z",
-      "artifact": {
-        "testflightNumber": 99001
-      },
-      "actionHistory": [],
-      "isCurrent": false,
-      "status": "REJECTED",
-      "rejectionReason": "App violates Guideline 4.2 - Minimum Functionality. The app lacks sufficient content and features."
-    },
-    {
-      "id": "isb_cancel_resub_v1",
-      "distributionId": "dist_cancelled_resub_ios",
-      "version": "5.8.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": true,
-      "resetRating": false,
-      "rolloutPercentage": 0,
-      "releaseNotes": "iOS feature update attempt 1",
-      "submittedAt": "2025-12-09T10:00:00.000Z",
-      "submittedBy": "ios-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-11T10:00:00.000Z",
-      "createdAt": "2025-12-07T10:00:00.000Z",
-      "updatedAt": "2025-12-11T10:00:00.000Z",
-      "artifact": {
-        "testflightNumber": 99100
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
         {
-          "action": "CANCELLED",
-          "createdAt": "2025-12-11T10:00:00.000Z",
-          "createdBy": "ios-dev@dream11.com",
-          "reason": "Found UI bug in iPad layout, pulling back"
+          "action": "PAUSED",
+          "createdAt": "2025-12-16T03:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Critical bug detected, investigating"
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
         }
       ],
-      "isCurrent": false,
-      "status": "CANCELLED"
+      "isCurrent": true,
+      "status": "PAUSED"
     },
     {
-      "id": "isb_cancel_resub_v2",
-      "distributionId": "dist_cancelled_resub_ios",
-      "version": "5.8.0",
+      "id": "isb_010",
+      "distributionId": "dist_016",
+      "version": "2.6.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": false,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 2.6.0 - Attempt 1",
+      "submittedAt": "2025-12-11T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-13T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-14T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-15T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_011",
+      "distributionId": "dist_017",
+      "version": "3.0.0",
+      "storeType": "APP_STORE",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 0,
-      "releaseNotes": "iOS feature update attempt 2 - fixed iPad UI",
-      "submittedAt": "2025-12-15T10:00:00.000Z",
-      "submittedBy": "ios-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-15T10:00:00.000Z",
-      "createdAt": "2025-12-14T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z",
+      "releaseNotes": "iOS 3.0.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightNumber": 99101
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "PENDING"
+    },
+    {
+      "id": "isb_012",
+      "distributionId": "dist_018",
+      "version": "3.1.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 3.1.0 - Attempt 1",
+      "submittedAt": "2025-12-15T22:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
       "isCurrent": true,
       "status": "IN_REVIEW"
     },
     {
-      "id": "isb_reject_resub_v1",
-      "distributionId": "dist_rejected_resub_ios",
-      "version": "5.9.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": false,
-      "resetRating": false,
-      "rolloutPercentage": 0,
-      "releaseNotes": "Major iOS update",
-      "submittedAt": "2025-12-05T10:00:00.000Z",
-      "submittedBy": "ios-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-09T10:00:00.000Z",
-      "createdAt": "2025-12-03T10:00:00.000Z",
-      "updatedAt": "2025-12-09T10:00:00.000Z",
-      "artifact": {
-        "testflightNumber": 99200
-      },
-      "actionHistory": [],
-      "isCurrent": false,
-      "status": "REJECTED",
-      "rejectionReason": "Guideline 2.3.1 - Performance: The app exhibits significant performance issues including crashes and slow response times"
-    },
-    {
-      "id": "isb_reject_resub_v2",
-      "distributionId": "dist_rejected_resub_ios",
-      "version": "5.9.0",
-      "releaseType": "AFTER_APPROVAL",
-      "phasedRelease": false,
-      "resetRating": false,
-      "rolloutPercentage": 0,
-      "releaseNotes": "Fixed performance issues and crashes",
-      "submittedAt": "2025-12-15T10:00:00.000Z",
-      "submittedBy": "ios-dev@dream11.com",
-      "statusUpdatedAt": "2025-12-15T10:00:00.000Z",
-      "createdAt": "2025-12-14T10:00:00.000Z",
-      "updatedAt": "2025-12-15T10:00:00.000Z",
-      "artifact": {
-        "testflightNumber": 99201
-      },
-      "actionHistory": [],
-      "isCurrent": true,
-      "status": "IN_REVIEW"
-    },
-    {
-      "id": "isb_android_live_ios_rejected",
-      "distributionId": "dist_android_live_ios_rejected",
-      "version": "6.0.0",
+      "id": "isb_013",
+      "distributionId": "dist_019",
+      "version": "3.2.0",
+      "storeType": "APP_STORE",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 0,
-      "releaseNotes": "Major feature release",
-      "submittedAt": "2025-11-28T10:00:00.000Z",
-      "submittedBy": "ios-team@dream11.com",
-      "statusUpdatedAt": "2025-12-11T10:00:00.000Z",
-      "createdAt": "2025-11-26T10:00:00.000Z",
-      "updatedAt": "2025-12-11T10:00:00.000Z",
+      "releaseNotes": "iOS 3.2.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-09T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightNumber": 99500
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
       "isCurrent": false,
       "status": "REJECTED",
-      "rejectionReason": "Guideline 5.1.1 - Data Collection: Your app requires users to provide personal information but does not explain how this information will be used."
+      "rejectionReason": "Binary was invalid"
     },
     {
-      "id": "isb_android_cancelled_ios_live",
-      "distributionId": "dist_android_cancelled_ios_live",
-      "version": "6.1.0",
+      "id": "isb_014",
+      "distributionId": "dist_019",
+      "version": "3.2.0",
+      "storeType": "APP_STORE",
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 50,
-      "releaseNotes": "Performance improvements",
-      "submittedAt": "2025-12-03T10:00:00.000Z",
-      "submittedBy": "ios-team@dream11.com",
-      "statusUpdatedAt": "2025-12-13T10:00:00.000Z",
-      "createdAt": "2025-12-01T10:00:00.000Z",
-      "updatedAt": "2025-12-13T10:00:00.000Z",
+      "releaseNotes": "iOS 3.2.0 - Attempt 2",
+      "submittedAt": "2025-12-11T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightNumber": 99600
+        "testflightBuildNumber": "1001",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-13T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_015",
+      "distributionId": "dist_020",
+      "version": "3.3.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 3.3.0 - Attempt 1",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-06T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-07T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_016",
+      "distributionId": "dist_021",
+      "version": "3.4.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 3.4.0 - Attempt 1",
+      "submittedAt": "2025-11-26T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-11-29T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Minimum functionality"
+    },
+    {
+      "id": "isb_017",
+      "distributionId": "dist_021",
+      "version": "3.4.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": false,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 3.4.0 - Attempt 2",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1001",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-06T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-07T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_018",
+      "distributionId": "dist_022",
+      "version": "3.5.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 85,
+      "releaseNotes": "iOS 3.5.0 - Attempt 1",
+      "submittedAt": "2025-12-02T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-14T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-04T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-05T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-06T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 85
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_019",
+      "distributionId": "dist_023",
+      "version": "3.6.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 3.6.0 - Attempt 1",
+      "submittedAt": "2025-12-08T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-11T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-12T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_020",
+      "distributionId": "dist_024",
+      "version": "3.7.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 30,
+      "releaseNotes": "iOS 3.7.0 - Attempt 1",
+      "submittedAt": "2025-12-06T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-16T02:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "PAUSED",
+          "createdAt": "2025-12-16T02:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Critical bug detected, investigating"
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "PAUSED"
+    },
+    {
+      "id": "isb_021",
+      "distributionId": "dist_025",
+      "version": "3.8.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 3.8.0 - Attempt 1",
+      "submittedAt": "2025-12-04T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-06T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-07T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_022",
+      "distributionId": "dist_026",
+      "version": "3.9.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 3.9.0 - Attempt 1",
+      "submittedAt": "2025-12-01T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-04T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "Missing required features"
+    },
+    {
+      "id": "isb_023",
+      "distributionId": "dist_026",
+      "version": "3.9.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 50,
+      "releaseNotes": "iOS 3.9.0 - Attempt 2",
+      "submittedAt": "2025-12-07T06:32:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.375Z",
+      "createdAt": "2025-12-01T06:32:03.375Z",
+      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "artifact": {
+        "testflightBuildNumber": "1001",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.375Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_024",
+      "distributionId": "dist_028",
+      "version": "4.1.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 4.1.0 - Attempt 1",
+      "submittedAt": "2025-12-16T06:22:03.375Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
       "isCurrent": true,
+      "status": "IN_REVIEW"
+    },
+    {
+      "id": "isb_025",
+      "distributionId": "dist_029",
+      "version": "4.2.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 4.2.0 - Attempt 1",
+      "submittedAt": "2025-10-17T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-10-27T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-10-19T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-10-20T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-10-21T06:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
       "status": "LIVE"
+    },
+    {
+      "id": "isb_026",
+      "distributionId": "dist_031",
+      "version": "4.4.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 4.4.0 - Attempt 1",
+      "submittedAt": "2025-12-14T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-15T18:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "CANCELLED",
+          "createdAt": "2025-12-15T18:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Cancelled by developer - wrong build"
+        }
+      ],
+      "isCurrent": false,
+      "status": "CANCELLED"
+    },
+    {
+      "id": "isb_027",
+      "distributionId": "dist_032",
+      "version": "4.5.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": false,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "iOS 4.5.0 - Attempt 1",
+      "submittedAt": "2025-12-10T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-12T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-13T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-14T06:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_028",
+      "distributionId": "dist_034",
+      "version": "5.1.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 100,
+      "releaseNotes": "Started at 1%, gradually increased to 100%",
+      "submittedAt": "2025-12-06T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-08T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-08T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 5,
+          "newRolloutPercentage": 20
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-09T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "No issues detected, continuing rollout",
+          "previousRolloutPercentage": 20,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-10T06:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Metrics look good, increasing to final percentage",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_029",
+      "distributionId": "dist_035",
+      "version": "5.2.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 5.2.0 - Attempt 1",
+      "submittedAt": "2025-12-08T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-10T06:32:03.376Z",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-15T06:32:03.376Z",
+      "artifact": {
+        "testflightBuildNumber": "1000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": false,
+      "status": "REJECTED",
+      "rejectionReason": "UI issue"
     }
   ]
 }

@@ -34,6 +34,11 @@ import {
     ROLLOUT_CONTROLS_ICON_SIZES,
     ROLLOUT_CONTROLS_UI,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform } from '~/types/distribution.types';
 import { getPlatformRolloutLabel, getRolloutStatus } from '~/utils/distribution-ui.utils';
 import {
@@ -200,37 +205,37 @@ export function RolloutControls({
     <Card 
       shadow="sm" 
       padding="lg" 
-      radius="md" 
+      radius={DS_SPACING.BORDER_RADIUS} 
       withBorder 
       className={className}
       data-testid="rollout-controls"
     >
       {/* Header */}
-      <Group justify="space-between" mb="md">
-        <Text fw={600}>{ROLLOUT_CONTROLS_UI.TITLE}</Text>
+      <Group justify="space-between" mb={DS_SPACING.MD}>
+        <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{ROLLOUT_CONTROLS_UI.TITLE}</Text>
         <Badge 
           color={supportsRollout ? 'blue' : 'gray'} 
           variant="light"
-          size="sm"
+          size={DS_TYPOGRAPHY.SIZE.SM}
         >
           {platformLabel}
         </Badge>
       </Group>
 
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         {/* Progress Bar */}
         <RolloutProgressBar
           percentage={currentPercentage}
           {...(hasChanges && { targetPercentage })}
           status={rolloutStatus}
           showLabel
-          size="md"
+          size={DS_TYPOGRAPHY.SIZE.MD}
         />
 
         {/* Android Slider - Decimal support */}
         {controlType === 'slider' && canUpdate && !isComplete && (
           <div>
-            <Text size="sm" fw={500} mb="xs">
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
               {ROLLOUT_CONTROLS_UI.ADJUST_LABEL}
             </Text>
             
@@ -245,7 +250,7 @@ export function RolloutControls({
               precision={platformRules.allowsDecimals ? 1 : 0}
             />
 
-            <Group justify="space-between" mt="md">
+            <Group justify="space-between" mt={DS_SPACING.MD}>
               <PresetButtons
                 currentPercentage={currentPercentage}
                 targetPercentage={targetPercentage}
@@ -254,17 +259,17 @@ export function RolloutControls({
               />
 
               {hasChanges && (
-                <Group gap="xs">
+                <Group gap={DS_SPACING.XS}>
                   <Button
                     variant="subtle"
-                    size="xs"
+                    size={DS_TYPOGRAPHY.SIZE.XS}
                     onClick={resetChanges}
                     disabled={isLoading}
                   >
                     {BUTTON_LABELS.CANCEL}
                   </Button>
                   <Button
-                    size="xs"
+                    size={DS_TYPOGRAPHY.SIZE.XS}
                     leftSection={
                       <IconTrendingUp size={ROLLOUT_CONTROLS_ICON_SIZES.UPDATE_BUTTON} />
                     }
@@ -281,18 +286,18 @@ export function RolloutControls({
 
         {/* iOS Phased Release - Complete Early (100% only) */}
         {controlType === 'complete-early' && canUpdate && !isComplete && (
-          <Stack gap="md">
+          <Stack gap={DS_SPACING.MD}>
             <Group justify="space-between">
               <div>
-                <Text size="sm" fw={500}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                   iOS Phased Release
                 </Text>
-                <Text size="xs" c="dimmed">
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                   Day {iosPhasedDay} of 7-day automatic rollout
                 </Text>
               </div>
               <Button
-                size="sm"
+                size={DS_TYPOGRAPHY.SIZE.SM}
                 leftSection={<IconCheck size={16} />}
                 onClick={handleCompleteEarlyClick}
                 loading={isLoading}
@@ -313,10 +318,10 @@ export function RolloutControls({
         {/* iOS Manual Release - Read-only */}
         {controlType === 'readonly' && (
           <div>
-            <Text size="sm" fw={500} mb="xs">
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
               iOS Manual Release
             </Text>
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {platformDescription}
             </Text>
           </div>
@@ -325,16 +330,16 @@ export function RolloutControls({
         {/* Action Buttons */}
         {!isComplete && (
           <>
-            <Divider mt="sm" />
+            <Divider mt={DS_SPACING.SM} />
             
-            <Group gap="sm">
+            <Group gap={DS_SPACING.SM}>
               {canPause && (
                 <ActionButton
                   icon={
                     <IconPlayerPause size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
                   }
                   label={BUTTON_LABELS.PAUSE}
-                  color="yellow"
+                  color={DS_COLORS.STATUS.WARNING}
                   onClick={handlePauseClick}
                   disabled={isLoading}
                   loading={isLoading}
@@ -348,7 +353,7 @@ export function RolloutControls({
                     <IconPlayerPlay size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
                   }
                   label={BUTTON_LABELS.RESUME}
-                  color="green"
+                  color={DS_COLORS.STATUS.SUCCESS}
                   onClick={handleResumeClick}
                   disabled={isLoading}
                   loading={isLoading}
@@ -362,7 +367,7 @@ export function RolloutControls({
                     <IconAlertOctagon size={ROLLOUT_CONTROLS_ICON_SIZES.ACTION_BUTTON} />
                   }
                   label={BUTTON_LABELS.HALT}
-                  color="red"
+                  color={DS_COLORS.STATUS.ERROR}
                   onClick={handleHaltClick}
                   disabled={isLoading}
                   tooltip={haltReason}
@@ -375,20 +380,20 @@ export function RolloutControls({
         {/* Complete State */}
         {isComplete && (
           <Paper
-            p="md"
-            radius="md"
+            p={DS_SPACING.MD}
+            radius={DS_SPACING.BORDER_RADIUS}
             withBorder
             style={{
               backgroundColor: 'var(--mantine-color-green-0)',
               borderColor: 'var(--mantine-color-green-3)',
             }}
           >
-            <Group gap="sm">
+            <Group gap={DS_SPACING.SM}>
               <IconCheck
                 size={ROLLOUT_CONTROLS_ICON_SIZES.COMPLETE_BADGE}
                 color="var(--mantine-color-green-7)"
               />
-              <Text size="sm" c="green.7">
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} c="green.7">
                 {ROLLOUT_CONTROLS_UI.COMPLETE_MESSAGE}
               </Text>
             </Group>

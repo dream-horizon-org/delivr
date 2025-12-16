@@ -9,6 +9,15 @@ import { Alert, Button, Group, Modal, Radio, Stack, Text, ThemeIcon } from '@man
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  DIST_ALERT_PROPS,
+  DIST_BUTTON_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
+import {
     BUTTON_LABELS,
     DIALOG_ICON_SIZES,
     DIALOG_UI,
@@ -100,31 +109,29 @@ export function ExposureControlDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="orange" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg">
             <IconAlertTriangle size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{conflict.resolution.title}</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{conflict.resolution.title}</Text>
         </Group>
       }
-      size="lg"
-      centered
+      {...DIST_MODAL_PROPS.LARGE}
     >
-      <Stack gap="lg">
+      <Stack gap={DS_SPACING.LG}>
         {/* Current rollout info */}
         <Alert 
-          icon={<IconInfoCircle size={DIALOG_ICON_SIZES.ALERT} />} 
-          color="blue" 
-          variant="light"
+          {...DIST_ALERT_PROPS.INFO}
+          icon={<IconInfoCircle size={DIALOG_ICON_SIZES.ALERT} />}
         >
-          <Text size="sm">{currentReleaseInfo}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{currentReleaseInfo}</Text>
         </Alert>
 
-        <Text size="sm" c="dimmed">
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
           {conflict.resolution.message}
         </Text>
 
-        <Text size="sm" fw={500} c="orange">
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM} c={DS_COLORS.STATUS.WARNING}>
           {DIALOG_UI.EXPOSURE_CONTROL.IMPACT_LABEL} {conflict.resolution.impact}
         </Text>
 
@@ -133,23 +140,23 @@ export function ExposureControlDialog({
           onChange={handleActionChange}
           label={DIALOG_UI.EXPOSURE_CONTROL.ACTION_PROMPT}
         >
-          <Stack gap="sm" mt="xs">
+          <Stack gap={DS_SPACING.SM} mt={DS_SPACING.XS}>
             {conflict.resolution.options.map((option) => (
               <Radio
                 key={option.action}
                 value={option.action}
                 label={
                   <Stack gap={2}>
-                    <Group gap="xs">
-                      <Text size="sm">{option.label}</Text>
+                    <Group gap={DS_SPACING.XS}>
+                      <Text size={DS_TYPOGRAPHY.SIZE.SM}>{option.label}</Text>
                       {option.recommended && (
-                        <Text size="xs" c="green" fw={500}>
+                        <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.SUCCESS} fw={DIST_FONT_WEIGHTS.MEDIUM}>
                           (Recommended)
                         </Text>
                       )}
                     </Group>
                     {option.warning && (
-                      <Text size="xs" c="orange">
+                      <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.WARNING}>
                         ⚠️ {option.warning}
                       </Text>
                     )}
@@ -163,20 +170,21 @@ export function ExposureControlDialog({
 
         {/* Show warning for selected option */}
         {selectedOption?.warning && (
-          <Alert color="orange" variant="light">
-            <Text size="sm">{selectedOption.warning}</Text>
+          <Alert {...DIST_ALERT_PROPS.WARNING}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM}>{selectedOption.warning}</Text>
           </Alert>
         )}
 
-        <Group justify="flex-end" mt="xl">
+        <Group justify="flex-end" mt={DS_SPACING.XL}>
           <Button 
-            variant="subtle" 
+            {...DIST_BUTTON_PROPS.SUBTLE}
             onClick={handleClose} 
             disabled={isLoading}
           >
             {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
+            {...DIST_BUTTON_PROPS.PRIMARY}
             onClick={handleSubmit}
             disabled={!selectedAction}
             loading={isLoading}

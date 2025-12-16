@@ -30,6 +30,12 @@ import {
   MIN_ROLLOUT_PERCENT,
   STORE_TYPE_NAMES,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+  DS_COMPONENTS,
+} from '~/constants/distribution-design.constants';
 import { type AndroidSubmission } from '~/types/distribution.types';
 import { ErrorAlert } from './ErrorRecovery';
 
@@ -108,14 +114,14 @@ export function PromoteAndroidSubmissionDialog({
 
   // Handle successful submission
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data?.success) {
+    if (fetcher.state === 'idle' && (fetcher.data as any)?.success) {
       form.reset();
       onPromoteComplete?.();
     }
   }, [fetcher.state, fetcher.data, form, onPromoteComplete]);
 
   const isSubmitting = fetcher.state === 'submitting';
-  const error = fetcher.data?.error;
+  const error = (fetcher.data as any)?.error;
 
   // Check if form is valid for submit button
   const isFormValid =
@@ -134,7 +140,7 @@ export function PromoteAndroidSubmissionDialog({
       opened={opened}
       onClose={onClose}
       title={
-        <Group gap="sm">
+        <Group gap={DS_SPACING.SM}>
           <IconRocket size={24} />
           <Title order={3}>Submit to Play Store</Title>
         </Group>
@@ -143,47 +149,47 @@ export function PromoteAndroidSubmissionDialog({
       centered
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="lg">
+        <Stack gap={DS_SPACING.LG}>
           {/* Error Alert */}
-          {error && <ErrorAlert error={error} title="Submission Failed" />}
+          {error && <ErrorAlert error={error} />}
 
           <Divider label="Build Information" labelPosition="center" />
 
           {/* Read-Only Section */}
-          <Paper p="md" withBorder className="bg-white">
-            <Stack gap="sm">
+          <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.CARD}>
+            <Stack gap={DS_SPACING.SM}>
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Platform
                 </Text>
-                <Badge size="lg" leftSection={<IconBrandAndroid size={14} />}>
+                <Badge size="lg" leftSection={<IconBrandAndroid size={14} />} color={DS_COLORS.PLATFORM.ANDROID}>
                   ANDROID
                 </Badge>
               </Group>
 
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Store Type
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                   {STORE_TYPE_NAMES[submission.storeType]}
                 </Text>
               </Group>
 
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Version
                 </Text>
-                <Text size="sm" fw={500} className="font-mono">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="font-mono">
                   {submission.version}
                 </Text>
               </Group>
 
               <Group justify="space-between" align="center">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   Version Code
                 </Text>
-                <Text size="sm" fw={500} className="font-mono">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="font-mono">
                   {submission.versionCode}
                 </Text>
               </Group>
@@ -191,11 +197,11 @@ export function PromoteAndroidSubmissionDialog({
               {/* Artifact Info */}
               {submission.artifact && (
                 <>
-                  <Divider my="xs" />
+                  <Divider my={DS_SPACING.XS} />
 
                   {submission.artifact.artifactPath && (
                     <Group justify="space-between" align="center">
-                      <Text size="sm" fw={600} c="dark">
+                      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                         AAB File
                       </Text>
                       <Button
@@ -205,6 +211,7 @@ export function PromoteAndroidSubmissionDialog({
                         variant="subtle"
                         size="xs"
                         leftSection={<IconDownload size={14} />}
+                        radius={DS_SPACING.BORDER_RADIUS}
                       >
                         Download
                       </Button>
@@ -213,7 +220,7 @@ export function PromoteAndroidSubmissionDialog({
 
                   {submission.artifact.internalTrackLink && (
                     <Group justify="space-between" align="center">
-                      <Text size="sm" fw={600} c="dark">
+                      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                         Internal Track Link
                       </Text>
                       <Button
@@ -223,6 +230,7 @@ export function PromoteAndroidSubmissionDialog({
                         variant="subtle"
                         size="xs"
                         rightSection={<IconExternalLink size={14} />}
+                        radius={DS_SPACING.BORDER_RADIUS}
                       >
                         Open
                       </Button>
@@ -236,7 +244,7 @@ export function PromoteAndroidSubmissionDialog({
           <Divider label="Submission Details" labelPosition="center" />
 
           {/* Editable Section */}
-          <Stack gap="md">
+          <Stack gap={DS_SPACING.MD}>
             {/* Rollout Percentage */}
             <NumberInput
               label="Initial Rollout Percentage"
@@ -283,8 +291,13 @@ export function PromoteAndroidSubmissionDialog({
           </Stack>
 
           {/* Actions */}
-          <Group justify="flex-end" gap="sm" mt="lg">
-            <Button variant="subtle" onClick={onClose} disabled={isSubmitting}>
+          <Group justify="flex-end" gap={DS_SPACING.SM} mt={DS_SPACING.LG}>
+            <Button 
+              variant="subtle" 
+              onClick={onClose} 
+              disabled={isSubmitting}
+              radius={DS_SPACING.BORDER_RADIUS}
+            >
               Cancel
             </Button>
             <Button
@@ -292,7 +305,8 @@ export function PromoteAndroidSubmissionDialog({
               loading={isSubmitting}
               disabled={!isFormValid || isSubmitting}
               leftSection={<IconRocket size={16} />}
-              color="cyan"
+              color={DS_COLORS.ACTION.PRIMARY}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               Submit to Play Store
             </Button>

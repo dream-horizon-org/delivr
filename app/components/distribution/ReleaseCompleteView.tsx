@@ -7,6 +7,16 @@
 
 import { Anchor, Badge, Card, Group, Stack, Text, ThemeIcon, Timeline } from '@mantine/core';
 import { IconBrandAndroid, IconBrandApple, IconCheck, IconConfetti, IconExternalLink } from '@tabler/icons-react';
+import {
+  DIST_BADGE_PROPS,
+  DIST_CARD_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_ICON_PROPS,
+  DIST_ICON_SIZES,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
 import { PLATFORM_LABELS } from '~/constants/distribution.constants';
 import { Platform } from '~/types/distribution.types';
 import { formatDateTime } from '~/utils/distribution-ui.utils';
@@ -34,57 +44,55 @@ export function ReleaseCompleteView({
   totalDuration,
 }: ReleaseCompleteViewProps) {
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder>
-      <Stack gap="lg">
+    <Card {...DIST_CARD_PROPS.DEFAULT}>
+      <Stack gap={DS_SPACING.LG}>
         {/* Header - Celebration */}
         <Group justify="center">
-          <ThemeIcon size={60} radius="xl" color="green" variant="light">
+          <ThemeIcon size={60} radius="xl" color={DS_COLORS.STATUS.SUCCESS} variant="light">
             <IconConfetti size={32} />
           </ThemeIcon>
         </Group>
 
-        <Stack gap={4} align="center">
-          <Text size="xl" fw={700} c="green">
+        <Stack gap={DS_SPACING.XS} align="center">
+          <Text size={DS_TYPOGRAPHY.SIZE.XL} fw={DIST_FONT_WEIGHTS.BOLD} c={DS_COLORS.STATUS.SUCCESS}>
             🎉 Release Complete!
           </Text>
-          <Text size="lg" fw={500}>
+          <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DIST_FONT_WEIGHTS.MEDIUM}>
             Version {releaseVersion}
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
             Successfully released to all platforms
           </Text>
         </Stack>
 
         {/* Platform Summary */}
-        <Stack gap="md">
+        <Stack gap={DS_SPACING.MD}>
           {platforms.map((platform) => (
-            <Card key={platform.platform} withBorder padding="sm">
+            <Card key={platform.platform} {...DIST_CARD_PROPS.COMPACT}>
               <Group justify="space-between">
-                <Group gap="sm">
+                <Group gap={DS_SPACING.SM}>
                   <ThemeIcon
-                    size="lg"
-                    radius="md"
-                    variant="light"
-                    color={platform.platform === Platform.ANDROID ? 'green' : 'blue'}
+                    {...DIST_ICON_PROPS.LARGE}
+                    color={platform.platform === Platform.ANDROID ? DS_COLORS.PLATFORM.ANDROID : DS_COLORS.PLATFORM.IOS}
                   >
                     {platform.platform === Platform.ANDROID ? (
-                      <IconBrandAndroid size={20} />
+                      <IconBrandAndroid size={DIST_ICON_SIZES.XL} />
                     ) : (
-                      <IconBrandApple size={20} />
+                      <IconBrandApple size={DIST_ICON_SIZES.XL} />
                     )}
                   </ThemeIcon>
                   <div>
-                    <Text fw={500}>{PLATFORM_LABELS[platform.platform]}</Text>
-                    <Text size="xs" c="dimmed">
+                    <Text fw={DIST_FONT_WEIGHTS.MEDIUM}>{PLATFORM_LABELS[platform.platform]}</Text>
+                    <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
                       v{platform.versionName}
                     </Text>
                   </div>
                 </Group>
 
-                <Group gap="md">
-                  <Badge color="green" variant="filled" size="lg">
-                    <Group gap={4}>
-                      <IconCheck size={14} />
+                <Group gap={DS_SPACING.MD}>
+                  <Badge color={DS_COLORS.STATUS.SUCCESS} {...DIST_BADGE_PROPS.LARGE}>
+                    <Group gap={DS_SPACING.XS}>
+                      <IconCheck size={DIST_ICON_SIZES.SM} />
                       {platform.rolloutPercentage}%
                     </Group>
                   </Badge>
@@ -94,10 +102,10 @@ export function ReleaseCompleteView({
                       href={platform.storeLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      size="sm"
+                      size={DS_TYPOGRAPHY.SIZE.SM}
                     >
-                      <Group gap={4}>
-                        <IconExternalLink size={14} />
+                      <Group gap={DS_SPACING.XS}>
+                        <IconExternalLink size={DIST_ICON_SIZES.SM} />
                         View in Store
                       </Group>
                     </Anchor>
@@ -112,13 +120,13 @@ export function ReleaseCompleteView({
         <Timeline active={-1} bulletSize={20} lineWidth={2}>
           {platforms[0]?.submittedAt && (
             <Timeline.Item title="Submitted">
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
                 {formatDateTime(platforms[0].submittedAt)}
               </Text>
             </Timeline.Item>
           )}
           <Timeline.Item title="Released">
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
               {formatDateTime(completedAt)}
             </Text>
           </Timeline.Item>
@@ -126,7 +134,7 @@ export function ReleaseCompleteView({
 
         {/* Summary */}
         {totalDuration && (
-          <Text size="sm" c="dimmed" ta="center">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY} ta="center">
             Total time: {totalDuration}
           </Text>
         )}

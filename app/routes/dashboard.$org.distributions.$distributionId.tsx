@@ -566,21 +566,26 @@ export default function DistributionDetailPage() {
   if (error || !distribution.id) {
     return (
       <Container size="lg" className="py-8">
+        {/* Back Button - Same style as success state */}
+        <Group mb="lg">
+          <Button
+            component={Link}
+            to={`/dashboard/${org}/distributions`}
+            variant="subtle"
+            color="gray"
+            leftSection={<IconArrowLeft size={16} />}
+            size="sm"
+            preventScrollReset
+          >
+            Back to Distributions
+          </Button>
+        </Group>
+        
         <ErrorState
           error={error || 'Distribution not found'}
           onRetry={() => window.location.reload()}
           title="Failed to Load Distribution"
         />
-        <Group justify="center" mt="xl">
-          <Button
-            component={Link}
-            to={`/dashboard/${org}/distributions`}
-            variant="filled"
-            leftSection={<IconArrowLeft size={16} />}
-          >
-            Back to Distributions
-          </Button>
-        </Group>
       </Container>
     );
   }
@@ -605,6 +610,7 @@ export default function DistributionDetailPage() {
           color="gray"
           leftSection={<IconArrowLeft size={16} />}
           size="sm"
+          preventScrollReset
         >
           Back to Distributions
         </Button>

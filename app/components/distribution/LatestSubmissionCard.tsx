@@ -32,6 +32,11 @@ import {
   ROLLOUT_COMPLETE_PERCENT,
   SUBMISSION_STATUS_COLORS
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform, type Submission, SubmissionStatus } from '~/types/distribution.types';
 import { getPlatformIcon } from '~/utils/distribution-icons.utils';
 import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
@@ -114,21 +119,21 @@ export function LatestSubmissionCard({
   const canResubmit = isRejected || isCancelled;
 
   return (
-    <Card shadow="md" padding="xl" radius="md" withBorder className="bg-gradient-to-br from-white to-gray-50">
-      <Stack gap="lg">
+    <Card shadow="md" padding={DS_SPACING.XL} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gradient-to-br from-white to-gray-50">
+      <Stack gap={DS_SPACING.LG}>
         {/* Header */}
         <Group justify="space-between" align="flex-start">
-          <Group gap="md">
+          <Group gap={DS_SPACING.MD}>
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100">
               {getPlatformIcon(submission.platform, 24)}
             </div>
             <div>
-              <Group gap="xs" mb={4} align="baseline">
+              <Group gap={DS_SPACING.XS} mb={4} align="baseline">
                 <Title order={3} className="text-gray-800">
                   {submission.version}
                 </Title>
                 {isAndroid && 'versionCode' in submission && (
-                  <Text size="xs" c="dimmed" className="font-mono" opacity={0.6}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} className="font-mono" opacity={0.6}>
                     Version Code: {submission.versionCode}
                   </Text>
                 )}
@@ -137,7 +142,7 @@ export function LatestSubmissionCard({
                 size="lg"
                 color={SUBMISSION_STATUS_COLORS[submission.status]}
                 variant="filled"
-                radius="sm"
+                radius={DS_SPACING.BORDER_RADIUS}
               >
                 {formatStatus(submission.status)}
               </Badge>
@@ -145,14 +150,14 @@ export function LatestSubmissionCard({
           </Group>
 
           {/* Quick Actions */}
-          <Group gap="xs">
+          <Group gap={DS_SPACING.XS}>
             {canUpdateRollout && onUpdateRollout && (
               <Tooltip label="Update Rollout">
                 <ActionIcon
                   variant="light"
-                  color="blue"
+                  color={DS_COLORS.ACTION.PRIMARY}
                   size="lg"
-                  radius="md"
+                  radius={DS_SPACING.BORDER_RADIUS}
                   onClick={onUpdateRollout}
                 >
                   <IconRocket size={18} />
@@ -161,14 +166,14 @@ export function LatestSubmissionCard({
             )}
             {canPause && onPause && (
               <Tooltip label="Pause Rollout">
-                <ActionIcon variant="light" color="orange" size="lg" radius="md" onClick={onPause}>
+                <ActionIcon variant="light" color={DS_COLORS.STATUS.WARNING} size="lg" radius={DS_SPACING.BORDER_RADIUS} onClick={onPause}>
                   <IconPlayerPause size={18} />
                 </ActionIcon>
               </Tooltip>
             )}
             {canResume && onResume && (
               <Tooltip label="Resume Rollout">
-                <ActionIcon variant="light" color="green" size="lg" radius="md" onClick={onResume}>
+                <ActionIcon variant="light" color={DS_COLORS.STATUS.SUCCESS} size="lg" radius={DS_SPACING.BORDER_RADIUS} onClick={onResume}>
                   <IconPlayerPlay size={18} />
                 </ActionIcon>
               </Tooltip>
@@ -180,26 +185,26 @@ export function LatestSubmissionCard({
 
         {/* Rollout Progress */}
         {(isLive || isPaused) && (
-          <Paper p="md" radius="md" withBorder className="bg-gradient-to-br from-cyan-50 to-blue-50">
-            <Stack gap="xs">
+          <Paper p={DS_SPACING.MD} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gradient-to-br from-cyan-50 to-blue-50">
+            <Stack gap={DS_SPACING.XS}>
               <Group justify="space-between">
-                <Text size="sm" fw={600} c="dark">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
                   {LABELS.ROLLOUT_PROGRESS}
                 </Text>
-                <Text size="lg" fw={700} c={isComplete ? 'teal' : 'cyan'}>
+                <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c={isComplete ? DS_COLORS.STATUS.SUCCESS : DS_COLORS.ACTION.PRIMARY}>
                   {rolloutPercentage}%
                 </Text>
               </Group>
               <Progress
                 value={rolloutPercentage}
                 size="lg"
-                radius="xl"
-                color={isComplete ? 'teal' : 'cyan'}
+                radius={DS_SPACING.BORDER_RADIUS}
+                color={isComplete ? DS_COLORS.STATUS.SUCCESS : DS_COLORS.ACTION.PRIMARY}
                 striped={!isComplete}
                 animated={!isComplete}
               />
               {phasedRelease && !isComplete && (
-                <Text size="xs" c="dimmed" className="text-center mt-1">
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} className="text-center mt-1">
                   {LABELS.IOS_PHASED_ROLLOUT_NOTE}
                 </Text>
               )}
@@ -210,22 +215,22 @@ export function LatestSubmissionCard({
         {/* Submission Info Grid */}
         <div className="grid grid-cols-2 gap-4">
           {/* Created At (always show) */}
-          <Paper p="sm" radius="md" withBorder>
-            <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+          <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
               {LABELS.CREATED_AT}
             </Text>
-            <Text size="sm" fw={500}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
               {formatDateTime(submission.createdAt)}
             </Text>
           </Paper>
 
           {/* Submitted At (only show if actually submitted) */}
           {submission.submittedAt && (
-            <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+            <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                 {LABELS.SUBMITTED_AT}
               </Text>
-              <Text size="sm" fw={500}>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                 {formatDateTime(submission.submittedAt)}
               </Text>
             </Paper>
@@ -233,11 +238,11 @@ export function LatestSubmissionCard({
 
           {/* Submitted By */}
           {submission.submittedBy && (
-            <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+            <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                 {LABELS.SUBMITTED_BY}
               </Text>
-              <Text size="sm" fw={500} className="truncate">
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="truncate">
                 {submission.submittedBy}
               </Text>
             </Paper>
@@ -245,11 +250,11 @@ export function LatestSubmissionCard({
 
           {/* Status Updated (only show for non-PENDING) */}
           {!isPending && (
-            <Paper p="sm" radius="md" withBorder>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+            <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                 {LABELS.STATUS_UPDATED}
               </Text>
-              <Text size="sm" fw={500}>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                 {formatDateTime(submission.statusUpdatedAt)}
               </Text>
             </Paper>
@@ -259,22 +264,22 @@ export function LatestSubmissionCard({
           {isAndroid && !isPending && (
             <>
               {/* Rollout Percentage */}
-              <Paper p="sm" radius="md" withBorder>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+              <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                   {LABELS.ROLLOUT_PROGRESS}
                 </Text>
-                <Text size="sm" fw={500}>
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                   {submission.rolloutPercentage}%
                 </Text>
               </Paper>
 
               {/* In-App Update Priority */}
               {'inAppUpdatePriority' in submission && (
-                <Paper p="sm" radius="md" withBorder>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+                <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                     {LABELS.IN_APP_PRIORITY}
                   </Text>
-                  <Text size="sm" fw={500}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {submission.inAppUpdatePriority} / 5
                   </Text>
                 </Paper>
@@ -287,11 +292,11 @@ export function LatestSubmissionCard({
             <>
               {/* Rollout Percentage (show for LIVE/PAUSED statuses) */}
               {(isLive || isPaused) && (
-                <Paper p="sm" radius="md" withBorder>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+                <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                     {LABELS.ROLLOUT_PROGRESS}
                   </Text>
-                  <Text size="sm" fw={500}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {submission.rolloutPercentage}%
                   </Text>
                 </Paper>
@@ -299,11 +304,11 @@ export function LatestSubmissionCard({
 
               {/* Release Type (always "After Approval" - even for PENDING) */}
               {'releaseType' in submission && (
-                <Paper p="sm" radius="md" withBorder>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+                <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                     {LABELS.RELEASE_TYPE}
                   </Text>
-                  <Text size="sm" fw={500}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {LABELS.IOS_RELEASE_TYPE_AFTER_APPROVAL}
                   </Text>
                 </Paper>
@@ -311,11 +316,11 @@ export function LatestSubmissionCard({
 
               {/* Phased Release (only show after submission, when user has chosen) */}
               {!isPending && 'phasedRelease' in submission && submission.phasedRelease !== null && (
-                <Paper p="sm" radius="md" withBorder>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+                <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                     Phased Release
                   </Text>
-                  <Text size="sm" fw={500}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {submission.phasedRelease ? 'Enabled' : 'Disabled'}
                   </Text>
                 </Paper>
@@ -323,11 +328,11 @@ export function LatestSubmissionCard({
 
               {/* Reset Rating (only show after submission, when user has chosen) */}
               {!isPending && 'resetRating' in submission && submission.resetRating !== null && (
-                <Paper p="sm" radius="md" withBorder>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={4}>
+                <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} withBorder>
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={4}>
                     Reset Rating
                   </Text>
-                  <Text size="sm" fw={500}>
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {submission.resetRating ? 'Enabled' : 'Disabled'}
                   </Text>
                 </Paper>
@@ -340,12 +345,12 @@ export function LatestSubmissionCard({
         {submission.artifact && (
           <>
             <Divider label={LABELS.BUILD_ARTIFACTS} labelPosition="center" />
-            <Paper p="md" radius="md" withBorder className="bg-gray-50">
-              <Stack gap="sm">
+            <Paper p={DS_SPACING.MD} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gray-50">
+              <Stack gap={DS_SPACING.SM}>
                 {isAndroid && 'artifactPath' in submission.artifact && (
                   <>
                     <Group justify="space-between">
-                      <Text size="sm" fw={500}>
+                      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                         {LABELS.AAB_FILE}
                       </Text>
                       <Button
@@ -355,13 +360,14 @@ export function LatestSubmissionCard({
                         variant="light"
                         size="xs"
                         leftSection={<IconDownload size={14} />}
+                        radius={DS_SPACING.BORDER_RADIUS}
                       >
                         {LABELS.DOWNLOAD}
                       </Button>
                     </Group>
                     {submission.artifact.internalTrackLink && (
                       <Group justify="space-between">
-                        <Text size="sm" fw={500}>
+                        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                           {LABELS.INTERNAL_TRACK_LINK}
                         </Text>
                         <Button
@@ -371,6 +377,7 @@ export function LatestSubmissionCard({
                           variant="light"
                           size="xs"
                           rightSection={<IconExternalLink size={14} />}
+                          radius={DS_SPACING.BORDER_RADIUS}
                         >
                           Open
                         </Button>
@@ -380,10 +387,10 @@ export function LatestSubmissionCard({
                 )}
                 {isIOS && 'testflightNumber' in submission.artifact && (
                   <Group justify="space-between">
-                    <Text size="sm" fw={500}>
+                    <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                       {LABELS.TESTFLIGHT_BUILD}
                     </Text>
-                    <Badge size="lg" variant="light" color="blue" className="font-mono">
+                    <Badge size="lg" variant="light" color={DS_COLORS.PLATFORM.IOS} className="font-mono">
                       #{submission.artifact.testflightNumber}
                     </Badge>
                   </Group>
@@ -397,8 +404,8 @@ export function LatestSubmissionCard({
         {submission.releaseNotes && (
           <>
             <Divider label={LABELS.RELEASE_NOTES} labelPosition="center" />
-            <Paper p="md" radius="md" withBorder className="bg-gray-50">
-              <Text size="sm" className="whitespace-pre-wrap">
+            <Paper p={DS_SPACING.MD} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-gray-50">
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} className="whitespace-pre-wrap">
                 {submission.releaseNotes}
               </Text>
             </Paper>
@@ -407,13 +414,14 @@ export function LatestSubmissionCard({
 
         {/* Action Buttons */}
         <Divider />
-        <Group justify="flex-end" gap="sm">
+        <Group justify="flex-end" gap={DS_SPACING.SM}>
           {isPending && onPromote && (
             <Button
               variant="filled"
-              color="cyan"
+              color={DS_COLORS.ACTION.PRIMARY}
               leftSection={<IconRocket size={16} />}
               onClick={onPromote}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.PROMOTE}
             </Button>
@@ -422,9 +430,10 @@ export function LatestSubmissionCard({
           {canCancel && onCancel && (
             <Button
               variant="light"
-              color="red"
+              color={DS_COLORS.STATUS.ERROR}
               leftSection={<IconX size={16} />}
               onClick={onCancel}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.CANCEL_SUBMISSION}
             </Button>
@@ -433,9 +442,10 @@ export function LatestSubmissionCard({
           {canResubmit && onResubmit && (
             <Button
               variant="filled"
-              color="blue"
+              color={DS_COLORS.ACTION.PRIMARY}
               leftSection={<IconRefresh size={16} />}
               onClick={onResubmit}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.RESUBMIT}
             </Button>
@@ -444,9 +454,10 @@ export function LatestSubmissionCard({
           {canUpdateRollout && onUpdateRollout && (
             <Button
               variant="filled"
-              color="blue"
+              color={DS_COLORS.ACTION.PRIMARY}
               leftSection={<IconRocket size={16} />}
               onClick={onUpdateRollout}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.UPDATE_ROLLOUT}
             </Button>
@@ -455,9 +466,10 @@ export function LatestSubmissionCard({
           {canPause && onPause && (
             <Button
               variant="light"
-              color="orange"
+              color={DS_COLORS.STATUS.WARNING}
               leftSection={<IconPlayerPause size={16} />}
               onClick={onPause}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.PAUSE_ROLLOUT}
             </Button>
@@ -466,9 +478,10 @@ export function LatestSubmissionCard({
           {canResume && onResume && (
             <Button
               variant="filled"
-              color="green"
+              color={DS_COLORS.STATUS.SUCCESS}
               leftSection={<IconPlayerPlay size={16} />}
               onClick={onResume}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.RESUME_ROLLOUT}
             </Button>
@@ -477,9 +490,10 @@ export function LatestSubmissionCard({
           {canHalt && onHalt && (
             <Button
               variant="light"
-              color="red"
+              color={DS_COLORS.STATUS.ERROR}
               leftSection={<IconAlertTriangle size={16} />}
               onClick={onHalt}
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               {DISTRIBUTION_MANAGEMENT_UI.BUTTONS.EMERGENCY_HALT}
             </Button>

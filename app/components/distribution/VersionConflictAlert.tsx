@@ -16,6 +16,11 @@ import {
 import { IconAlertCircle } from '@tabler/icons-react';
 import { Link } from '@remix-run/react';
 import { STORE_NAMES } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform } from '~/types/distribution.types';
 
 type VersionConflictAlertProps = {
@@ -38,27 +43,29 @@ export function VersionConflictAlert({
     <Alert
       icon={<IconAlertCircle size={20} />}
       title="Version Conflict"
-      color="orange"
+      color={DS_COLORS.STATUS.WARNING}
       variant="light"
+      radius={DS_SPACING.BORDER_RADIUS}
     >
-      <Stack gap="sm">
-        <Text size="sm">
+      <Stack gap={DS_SPACING.SM}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM}>
           Version <strong>{version}</strong> already exists in {platformName} with status{' '}
           <strong>{existingStatus}</strong>.
         </Text>
 
-        <Text size="sm" c="dimmed">
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
           You have the following options:
         </Text>
 
-        <Stack gap="xs" mt="xs">
+        <Stack gap={DS_SPACING.XS} mt={DS_SPACING.XS}>
           <Button
             component={Link}
             to={`/dashboard/${org}/releases/new`}
             variant="light"
-            color="blue"
+            color={DS_COLORS.ACTION.PRIMARY}
             size="sm"
             fullWidth
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             Create New Release with Incremented Version
           </Button>
@@ -74,16 +81,17 @@ export function VersionConflictAlert({
               target="_blank"
               rel="noopener noreferrer"
               variant="outline"
-              color="orange"
+              color={DS_COLORS.STATUS.WARNING}
               size="sm"
               fullWidth
+              radius={DS_SPACING.BORDER_RADIUS}
             >
               Delete Draft in {platformName} Console
             </Button>
           )}
         </Stack>
 
-        <Text size="xs" c="dimmed" mt="xs">
+        <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} mt={DS_SPACING.XS}>
           <strong>Recommended:</strong> Create a new release with an incremented version number
           (e.g., {getIncrementedVersion(version)}).
         </Text>

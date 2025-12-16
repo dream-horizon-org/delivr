@@ -7,6 +7,16 @@
 import { Badge, Checkbox, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { IconBrandApple } from '@tabler/icons-react';
 import { useCallback } from 'react';
+import {
+  DIST_BADGE_PROPS,
+  DIST_CARD_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_ICON_SIZES,
+  DIST_INPUT_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
 import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES } from '~/constants/distribution.constants';
 
 type IOSOptionsProps = {
@@ -33,13 +43,13 @@ export function IOSOptions({
   }, [onResetRatingChange]);
 
   return (
-    <Paper p="md" withBorder radius="md" bg="blue.0">
-      <Group gap="xs" mb="md">
-        <IconBrandApple size={FORM_ICON_SIZES.INPUT} className="text-blue-600" />
-        <Text fw={500} size="sm">{DISTRIBUTION_UI_LABELS.IOS_OPTIONS}</Text>
+    <Paper {...DIST_CARD_PROPS.COMPACT} bg={DS_COLORS.BACKGROUND.INFO} p={DS_SPACING.MD}>
+      <Group gap={DS_SPACING.XS} mb={DS_SPACING.MD}>
+        <IconBrandApple size={DIST_ICON_SIZES.LG} className="text-blue-600" />
+        <Text fw={DIST_FONT_WEIGHTS.MEDIUM} size={DS_TYPOGRAPHY.SIZE.SM}>{DISTRIBUTION_UI_LABELS.IOS_OPTIONS}</Text>
       </Group>
       
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         {/* Release Type - Display only (always AFTER_APPROVAL per API spec) */}
         <TextInput
           label={DISTRIBUTION_UI_LABELS.IOS_RELEASE_TYPE}
@@ -47,7 +57,8 @@ export function IOSOptions({
           value="AFTER_APPROVAL"
           readOnly
           disabled
-          rightSection={<Badge size="xs" variant="light" color="blue">Default</Badge>}
+          rightSection={<Badge {...DIST_BADGE_PROPS.DEFAULT} color={DS_COLORS.STATUS.INFO}>Default</Badge>}
+          {...DIST_INPUT_PROPS.DEFAULT}
         />
 
         <Checkbox

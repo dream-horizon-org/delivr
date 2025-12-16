@@ -46,6 +46,11 @@ import {
     ROLLOUT_COMPLETE_PERCENT,
     ROLLOUT_PRESETS
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform } from '~/types/distribution.types';
 
 export interface UpdateRolloutDialogProps {
@@ -156,31 +161,31 @@ export function UpdateRolloutDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="cyan" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.ACTION.PRIMARY} variant="light" size="lg" radius={DS_SPACING.BORDER_RADIUS}>
             <IconRocket size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{DIALOG_TITLES.UPDATE_ROLLOUT}</Text>
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{BUTTON_LABELS.UPDATE_ROLLOUT}</Text>
         </Group>
       }
       size="md"
       centered
     >
-      <Stack gap="lg">
+      <Stack gap={DS_SPACING.MD}>
         {/* Warning Alert - FIRST (matching Emergency Halt pattern) */}
         {!cannotUpdate && (
-          <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color="orange" variant="light">
-            <Stack gap="xs">
-              <Text size="sm" fw={600}>{DIALOG_UI.UPDATE_ROLLOUT.WARNING_TITLE}</Text>
-              <Text size="sm">{DIALOG_UI.UPDATE_ROLLOUT.WARNING_MESSAGE}</Text>
+          <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color={DS_COLORS.STATUS.WARNING} variant="light" radius={DS_SPACING.BORDER_RADIUS}>
+            <Stack gap={DS_SPACING.XS}>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{DIALOG_UI.UPDATE_ROLLOUT.WARNING_TITLE}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM}>{DIALOG_UI.UPDATE_ROLLOUT.WARNING_MESSAGE}</Text>
             </Stack>
           </Alert>
         )}
 
         {/* Cannot Update Warning (iOS Manual Release) */}
         {cannotUpdate && (
-          <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color="yellow" variant="light">
-            <Text size="sm">
+          <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color={DS_COLORS.STATUS.WARNING} variant="light" radius={DS_SPACING.BORDER_RADIUS}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM}>
               iOS manual releases are deployed at 100% immediately. No rollout control available.
             </Text>
           </Alert>
@@ -188,8 +193,8 @@ export function UpdateRolloutDialog({
 
         {/* iOS Phased Release Info */}
         {isIOSPhasedRelease && (
-          <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color="blue" variant="light">
-            <Text size="sm">
+          <Alert icon={<IconAlertCircle size={DIALOG_ICON_SIZES.ALERT} />} color={DS_COLORS.ACTION.PRIMARY} variant="light" radius={DS_SPACING.BORDER_RADIUS}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM}>
               iOS phased releases can only be updated to <strong>100%</strong> to complete rollout early.
               Apple automatically manages the 7-day phased rollout.
             </Text>
@@ -197,19 +202,19 @@ export function UpdateRolloutDialog({
         )}
 
         {/* Platform & Current Rollout - SECOND (matching Emergency Halt pattern) */}
-        <Paper p="sm" withBorder className="bg-white">
+        <Paper p={DS_SPACING.SM} withBorder bg={DS_COLORS.BACKGROUND.SURFACE} radius={DS_SPACING.BORDER_RADIUS}>
           <Group justify="space-between" align="center">
             <div>
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={2}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XXS}>
                 Platform
               </Text>
-              <Text size="sm" fw={500}>{platformLabel}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>{platformLabel}</Text>
             </div>
             <div className="text-right">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={600} mb={2}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} tt="uppercase" fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XXS}>
                 Current Rollout
               </Text>
-              <Text size="xl" fw={700} c="cyan">
+              <Text size={DS_TYPOGRAPHY.SIZE.XL} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c={DS_COLORS.ACTION.PRIMARY}>
                 {currentPercentage}%
               </Text>
             </div>
@@ -221,16 +226,17 @@ export function UpdateRolloutDialog({
 
             {/* Preset Buttons (Android) or 100% Confirmation (iOS Phased) */}
             <div>
-              <Text size="sm" fw={600} mb="xs">
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                 {isAndroid ? 'Quick Presets' : 'Complete Rollout'}
               </Text>
               {isAndroid && (
-                <Group gap="xs">
+                <Group gap={DS_SPACING.XS}>
                   {ROLLOUT_PRESETS.filter(p => p > currentPercentage).map((preset) => (
                     <Button
                       key={preset}
                       variant={rolloutPercentage === preset ? 'filled' : 'light'}
-                      color="cyan"
+                      color={DS_COLORS.ACTION.PRIMARY}
+                      radius={DS_SPACING.BORDER_RADIUS}
                       onClick={() => handlePresetClick(preset)}
                       disabled={isLoading}
                     >
@@ -240,7 +246,7 @@ export function UpdateRolloutDialog({
                 </Group>
               )}
               {isIOSPhasedRelease && (
-                <Paper p="md" withBorder className="bg-cyan-50">
+                <Paper p={DS_SPACING.MD} withBorder className="bg-cyan-50">
                   <Checkbox
                     checked={confirmComplete}
                     onChange={(e) => {
@@ -250,11 +256,11 @@ export function UpdateRolloutDialog({
                       }
                     }}
                     label={
-                      <Stack gap={4}>
-                        <Text size="sm" fw={600}>
+                      <Stack gap={DS_SPACING.XXS}>
+                        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
                           Release to 100% of users immediately
                         </Text>
-                        <Text size="xs" c="dimmed">
+                        <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                           This will make the app available to all users and cannot be undone.
                         </Text>
                       </Stack>
@@ -274,7 +280,7 @@ export function UpdateRolloutDialog({
                 onChange={(e) => handleCustomValueChange(e.target.value)}
                 error={validationError}
                 disabled={isLoading}
-                rightSection={<Text size="sm" c="dimmed">%</Text>}
+                rightSection={<Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>%</Text>}
                 type="text"
                 inputMode="decimal"
                 min={0}
@@ -285,7 +291,7 @@ export function UpdateRolloutDialog({
             {/* Slider (Android only) - Moved to bottom */}
             {isAndroid && (
               <div>
-                <Text size="sm" fw={600} mb="xs">
+                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} mb={DS_SPACING.XS}>
                   Adjust Rollout Percentage
                 </Text>
                 <div style={{ paddingLeft: '4px', paddingRight: '4px' }}>
@@ -298,7 +304,7 @@ export function UpdateRolloutDialog({
                     marks={ROLLOUT_PRESETS.filter(p => p > currentPercentage).map(p => ({ value: p, label: `${p}%` }))}
                     label={(value) => `${value}%`}
                     disabled={isLoading}
-                    color="cyan"
+                    color={DS_COLORS.ACTION.PRIMARY}
                   />
                 </div>
               </div>
@@ -307,7 +313,7 @@ export function UpdateRolloutDialog({
         )}
 
         {/* Action Buttons */}
-        <Group justify="flex-end" mt="xl">
+        <Group justify="flex-end" mt={DS_SPACING.LG}>
           <Button
             variant="subtle"
             onClick={handleClose}
@@ -317,7 +323,7 @@ export function UpdateRolloutDialog({
           </Button>
           {!cannotUpdate && (
             <Button
-              color="cyan"
+              color={DS_COLORS.ACTION.PRIMARY}
               onClick={handleConfirm}
               loading={isLoading}
               disabled={isIOSPhasedRelease && !confirmComplete}

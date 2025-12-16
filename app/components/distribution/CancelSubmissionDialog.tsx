@@ -25,6 +25,17 @@ import { IconAlertCircle, IconX } from '@tabler/icons-react';
 import { useFetcher } from '@remix-run/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  DIST_ALERT_PROPS,
+  DIST_BUTTON_PROPS,
+  DIST_CARD_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_INPUT_PROPS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
+import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
@@ -115,32 +126,31 @@ export function CancelSubmissionDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="orange" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg">
             <IconAlertCircle size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{DIALOG_TITLES.CANCEL_SUBMISSION}</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{DIALOG_TITLES.CANCEL_SUBMISSION}</Text>
         </Group>
       }
-      size="md"
-      centered
+      {...DIST_MODAL_PROPS.DEFAULT}
     >
-      <Stack gap="md">
-        <Alert color="orange" variant="light">
-          <Text size="sm" fw={500}>
+      <Stack gap={DS_SPACING.MD}>
+        <Alert {...DIST_ALERT_PROPS.WARNING}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>
             {confirmationText}
           </Text>
-          <Text size="sm" mt="sm" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} mt={DS_SPACING.SM} c={DS_COLORS.TEXT.SECONDARY}>
             {DIALOG_UI.CANCEL_SUBMISSION.DESCRIPTION}
           </Text>
         </Alert>
 
-        <Paper p="sm" withBorder>
+        <Paper {...DIST_CARD_PROPS.COMPACT} p={DS_SPACING.MD}>
           <Group justify="space-between">
-            <Text size="sm" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
               Current Status
             </Text>
-            <Text size="sm" fw={500}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>
               {formatStatus(currentStatus)}
             </Text>
           </Group>
@@ -156,13 +166,15 @@ export function CancelSubmissionDialog({
           disabled={isSubmitting}
           required
           error={validationError}
+          {...DIST_INPUT_PROPS.DEFAULT}
         />
 
-        <Group justify="flex-end" mt="md">
+        <Group justify="flex-end" mt={DS_SPACING.LG}>
           <Button
             variant="default"
             onClick={handleClose}
             disabled={isSubmitting}
+            size="sm"
           >
             Keep Submission
           </Button>
@@ -170,6 +182,7 @@ export function CancelSubmissionDialog({
             color="red"
             onClick={handleCancel}
             loading={isSubmitting}
+            size="sm"
           >
             Cancel Submission
           </Button>

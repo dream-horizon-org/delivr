@@ -46,6 +46,11 @@ import { useMemo } from 'react';
 import {
   SUBMISSION_STATUS_COLORS
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { SubmissionStatus, type Platform } from '~/types/distribution.types';
 
 // ============================================================================
@@ -95,15 +100,15 @@ function getEventIcon(action: string, toState?: string) {
 function getEventColor(action: string, toState?: string): string {
   // API actions are uppercase: PAUSED, RESUMED, CANCELLED, HALTED
   const upperAction = action.toUpperCase();
-  if (upperAction.includes('RESUMED')) return 'green';
-  if (upperAction.includes('HALTED')) return 'red';
-  if (upperAction.includes('PAUSED')) return 'yellow';
-  if (upperAction.includes('CANCELLED')) return 'gray';
+  if (upperAction.includes('RESUMED')) return DS_COLORS.STATUS.SUCCESS;
+  if (upperAction.includes('HALTED')) return DS_COLORS.STATUS.ERROR;
+  if (upperAction.includes('PAUSED')) return DS_COLORS.STATUS.WARNING;
+  if (upperAction.includes('CANCELLED')) return DS_COLORS.STATUS.MUTED;
   if (toState) {
     const statusColors: Record<string, string> = SUBMISSION_STATUS_COLORS;
-    return statusColors[toState as SubmissionStatus] || 'gray';
+    return statusColors[toState as SubmissionStatus] || DS_COLORS.STATUS.MUTED;
   }
-  return 'blue';
+  return DS_COLORS.ACTION.PRIMARY;
 }
 
 function getActorIcon(actorType: 'user' | 'store' | 'system') {
@@ -156,17 +161,17 @@ function EventItem({ event, isFirst }: EventItemProps) {
         </ThemeIcon>
       }
       title={
-        <Group gap="xs">
-          <Text size="sm" fw={isFirst ? 600 : 500}>
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={isFirst ? DS_TYPOGRAPHY.WEIGHT.SEMIBOLD : DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
             {event.action}
           </Text>
           {event.fromState && event.toState && (
-            <Group gap={4}>
-              <Badge size="xs" variant="outline">
+            <Group gap={DS_SPACING.XXS}>
+              <Badge size={DS_TYPOGRAPHY.SIZE.XS} variant="outline" radius={DS_SPACING.BORDER_RADIUS}>
                 {event.fromState}
               </Badge>
               <IconChevronRight size={12} />
-              <Badge size="xs" variant="light" color={color}>
+              <Badge size={DS_TYPOGRAPHY.SIZE.XS} variant="light" color={color} radius={DS_SPACING.BORDER_RADIUS}>
                 {event.toState}
               </Badge>
             </Group>
@@ -174,20 +179,20 @@ function EventItem({ event, isFirst }: EventItemProps) {
         </Group>
       }
     >
-      <Stack gap="xs" mt="xs">
+      <Stack gap={DS_SPACING.XS} mt={DS_SPACING.XS}>
         {/* Actor & Timestamp */}
-        <Group gap="xs">
-          <Group gap={4}>
+        <Group gap={DS_SPACING.XS}>
+          <Group gap={DS_SPACING.XXS}>
             {actorIcon}
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {event.actor}
             </Text>
           </Group>
-          <Text size="xs" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
             •
           </Text>
           <Tooltip label={new Date(event.timestamp).toLocaleString()}>
-            <Text size="xs" c="dimmed">
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {formatTimestamp(event.timestamp)}
             </Text>
           </Tooltip>
@@ -195,19 +200,19 @@ function EventItem({ event, isFirst }: EventItemProps) {
 
         {/* Metadata (if available) */}
         {event.metadata && (
-          <Paper p="xs" radius="sm" bg="gray.0" withBorder>
-            <Stack gap={4}>
+          <Paper p={DS_SPACING.XS} radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.SUBTLE} withBorder>
+            <Stack gap={DS_SPACING.XXS}>
               {event.metadata.previousValue !== undefined && event.metadata.newValue !== undefined && (
-                <Text size="xs">
-                  <Text span c="dimmed">Changed from </Text>
-                  <Text span fw={600}>{event.metadata.previousValue}</Text>
-                  <Text span c="dimmed"> to </Text>
-                  <Text span fw={600}>{event.metadata.newValue}</Text>
+                <Text size={DS_TYPOGRAPHY.SIZE.XS}>
+                  <Text span c={DS_COLORS.TEXT.MUTED}>Changed from </Text>
+                  <Text span fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{event.metadata.previousValue}</Text>
+                  <Text span c={DS_COLORS.TEXT.MUTED}> to </Text>
+                  <Text span fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>{event.metadata.newValue}</Text>
                 </Text>
               )}
               {event.metadata.reason && (
-                <Text size="xs">
-                  <Text span c="dimmed">Reason: </Text>
+                <Text size={DS_TYPOGRAPHY.SIZE.XS}>
+                  <Text span c={DS_COLORS.TEXT.MUTED}>Reason: </Text>
                   <Text span>{event.metadata.reason}</Text>
                 </Text>
               )}
@@ -243,39 +248,39 @@ export function SubmissionHistoryPanel({
       opened={opened}
       onClose={onClose}
       title={
-        <Stack gap={4}>
-          <Text fw={600} size="lg">Submission History</Text>
-          <Text size="xs" c="dimmed">
+        <Stack gap={DS_SPACING.XXS}>
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={DS_TYPOGRAPHY.SIZE.LG}>Submission History</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
             {platform} • Version {version}
           </Text>
         </Stack>
       }
       position="right"
       size="lg"
-      padding="md"
+      padding={DS_SPACING.MD}
     >
-      <Stack gap="lg">
+      <Stack gap={DS_SPACING.LG}>
         {/* Submission ID */}
-        <Paper p="sm" radius="md" bg="gray.0" withBorder>
-          <Text size="xs" c="dimmed" mb={4}>Submission ID</Text>
-          <Text size="sm" fw={500} ff="monospace">{submissionId}</Text>
+        <Paper p={DS_SPACING.SM} radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.SUBTLE} withBorder>
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} mb={DS_SPACING.XXS}>Submission ID</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} ff="monospace">{submissionId}</Text>
         </Paper>
 
         <Divider />
 
         {/* Timeline */}
         {isLoading ? (
-          <Stack align="center" gap="md" p="xl">
-            <Text size="sm" c="dimmed">Loading history...</Text>
+          <Stack align="center" gap={DS_SPACING.MD} p={DS_SPACING.XL}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Loading history...</Text>
           </Stack>
         ) : sortedEvents.length === 0 ? (
-          <Stack align="center" gap="md" p="xl">
-            <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+          <Stack align="center" gap={DS_SPACING.MD} p={DS_SPACING.XL}>
+            <ThemeIcon size={48} radius="xl" variant="light" color={DS_COLORS.STATUS.MUTED}>
               <IconClock size={24} />
             </ThemeIcon>
             <div style={{ textAlign: 'center' }}>
-              <Text size="sm" fw={500} mb={4}>No History Yet</Text>
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XXS}>No History Yet</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                 Events will appear here as the submission progresses
               </Text>
             </div>

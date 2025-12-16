@@ -4,20 +4,29 @@
  */
 
 import {
-  Badge,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  Timeline
+    Badge,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Timeline
 } from '@mantine/core';
 import {
-  IconAlertTriangle,
-  IconPlayerPause,
-  IconPlayerPlay,
-  IconTrendingUp,
-  IconX,
+    IconAlertTriangle,
+    IconPlayerPause,
+    IconPlayerPlay,
+    IconTrendingUp,
+    IconX,
 } from '@tabler/icons-react';
+import {
+    DIST_BADGE_PROPS,
+    DIST_CARD_PROPS,
+    DIST_FONT_WEIGHTS,
+    DIST_ICON_SIZES,
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import type { ActionHistoryEntry } from '~/types/distribution.types';
 import { formatDateTime } from '~/utils/distribution-ui.utils';
 
@@ -28,30 +37,30 @@ export interface ActivityHistoryLogProps {
 function getActionIcon(action: ActionHistoryEntry['action']) {
   switch (action) {
     case 'PAUSED':
-      return <IconPlayerPause size={16} className="text-orange-600" />;
+      return <IconPlayerPause size={DIST_ICON_SIZES.MD} className="text-orange-600" />;
     case 'RESUMED':
-      return <IconPlayerPlay size={16} className="text-green-600" />;
+      return <IconPlayerPlay size={DIST_ICON_SIZES.MD} className="text-green-600" />;
     case 'CANCELLED':
-      return <IconX size={16} className="text-gray-600" />;
+      return <IconX size={DIST_ICON_SIZES.MD} className="text-gray-600" />;
     case 'HALTED':
-      return <IconAlertTriangle size={16} className="text-red-600" />;
+      return <IconAlertTriangle size={DIST_ICON_SIZES.MD} className="text-red-600" />;
     case 'UPDATE_ROLLOUT':
-      return <IconTrendingUp size={16} className="text-blue-600" />;
+      return <IconTrendingUp size={DIST_ICON_SIZES.MD} className="text-blue-600" />;
   }
 }
 
 function getActionColor(action: ActionHistoryEntry['action']): string {
   switch (action) {
     case 'PAUSED':
-      return 'orange';
+      return DS_COLORS.STATUS.WARNING;
     case 'RESUMED':
-      return 'green';
+      return DS_COLORS.STATUS.SUCCESS;
     case 'CANCELLED':
-      return 'gray';
+      return DS_COLORS.STATUS.MUTED;
     case 'HALTED':
-      return 'red';
+      return DS_COLORS.STATUS.ERROR;
     case 'UPDATE_ROLLOUT':
-      return 'blue';
+      return DS_COLORS.STATUS.INFO;
   }
 }
 
@@ -106,46 +115,44 @@ export function ActivityHistoryLog({ actionHistory }: ActivityHistoryLogProps) {
             </div>
           }
           title={
-            <Group gap="sm" mb="xs">
+            <Group gap={DS_SPACING.SM} mb={DS_SPACING.XS}>
               <Badge
-                size="md"
+                {...DIST_BADGE_PROPS.DEFAULT}
                 color={getActionColor(entry.action)}
-                variant="light"
-                radius="sm"
               >
                 {getActionBadgeText(entry.action)}
               </Badge>
             </Group>
           }
         >
-          <Paper p="md" radius="md" withBorder className="bg-gray-50 mb-4">
-            <Stack gap="sm">
+          <Paper {...DIST_CARD_PROPS.COMPACT} className="bg-gray-50 mb-4" p={DS_SPACING.MD}>
+            <Stack gap={DS_SPACING.SM}>
               {/* Timestamp */}
-              <Group gap="md">
-                <Text size="xs" c="dimmed">
+              <Group gap={DS_SPACING.MD}>
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
                   <strong>When:</strong> {formatDateTime(entry.createdAt)}
                 </Text>
               </Group>
 
               {/* Performed By */}
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
                 <strong>By:</strong> {entry.createdBy}
               </Text>
 
               {/* Rollout Change (for UPDATE_ROLLOUT) */}
               {entry.action === 'UPDATE_ROLLOUT' && entry.previousRolloutPercentage !== undefined && (
-                <Text size="xs" c="dimmed">
+                <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY}>
                   <strong>Rollout Change:</strong> {entry.previousRolloutPercentage}% → {entry.newRolloutPercentage}%
                 </Text>
               )}
 
               {/* Reason */}
               {entry.reason && (
-                <Paper p="sm" radius="sm" withBorder className="bg-white">
-                  <Text size="sm" fw={500} mb={4}>
+                <Paper {...DIST_CARD_PROPS.NESTED} className="bg-white">
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM} mb={DS_SPACING.XS}>
                     Reason:
                   </Text>
-                  <Text size="sm" className="whitespace-pre-wrap">
+                  <Text size={DS_TYPOGRAPHY.SIZE.SM} className="whitespace-pre-wrap">
                     {entry.reason}
                   </Text>
                 </Paper>

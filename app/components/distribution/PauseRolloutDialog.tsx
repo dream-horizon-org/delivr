@@ -9,6 +9,15 @@ import { Button, Group, Modal, Stack, Text, Textarea, ThemeIcon } from '@mantine
 import { IconPlayerPause } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  DIST_BUTTON_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_INPUT_PROPS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution-design.constants';
+import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
@@ -73,19 +82,19 @@ export function PauseRolloutDialog({
       opened={opened}
       onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="yellow" variant="light" size="lg">
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg">
             <IconPlayerPause size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{DIALOG_TITLES.PAUSE_ROLLOUT}</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{DIALOG_TITLES.PAUSE_ROLLOUT}</Text>
         </Group>
       }
-      size="md"
+      {...DIST_MODAL_PROPS.DEFAULT}
     >
-      <Stack gap="md">
-        <Text size="sm">{confirmationText}</Text>
+      <Stack gap={DS_SPACING.MD}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM}>{confirmationText}</Text>
 
-        <Text size="sm" c="dimmed">
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
           {DIALOG_UI.PAUSE.DESCRIPTION}
         </Text>
 
@@ -98,17 +107,19 @@ export function PauseRolloutDialog({
           required
           error={validationError}
           minRows={3}
+          {...DIST_INPUT_PROPS.DEFAULT}
         />
 
-        <Group justify="flex-end" mt="md">
-          <Button variant="subtle" onClick={handleClose} disabled={isLoading}>
+        <Group justify="flex-end" mt={DS_SPACING.MD}>
+          <Button {...DIST_BUTTON_PROPS.SUBTLE} onClick={handleClose} disabled={isLoading}>
             {BUTTON_LABELS.CANCEL}
           </Button>
           <Button 
-            color="yellow" 
+            color={DS_COLORS.STATUS.WARNING}
             onClick={handleConfirm} 
             loading={isLoading}
             leftSection={<IconPlayerPause size={DIALOG_ICON_SIZES.ACTION} />}
+            {...DIST_BUTTON_PROPS.PRIMARY}
           >
             {BUTTON_LABELS.PAUSE_ROLLOUT}
           </Button>

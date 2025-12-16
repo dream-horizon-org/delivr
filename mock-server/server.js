@@ -1308,11 +1308,34 @@ server.get('/api/v1/distributions', (req, res) => {
         ? new Date(Math.max(...allDistSubmissions.map(s => new Date(s.statusUpdatedAt).getTime()))).toISOString()
         : dist.updatedAt;
       
+      // Calculate distribution status based on current submissions
+      let calculatedStatus = dist.status;
+      if (submissions.length === 0) {
+        calculatedStatus = 'PENDING';
+      } else if (submissions.length === 1) {
+        const sub = submissions[0];
+        if (sub.status === 'PENDING') calculatedStatus = 'PENDING';
+        else if (['APPROVED', 'LIVE', 'PAUSED', 'HALTED'].includes(sub.status)) calculatedStatus = 'RELEASED';
+        else calculatedStatus = 'SUBMITTED';
+      } else {
+        // Multiple platforms
+        const allPending = submissions.every(s => s.status === 'PENDING');
+        const allReleased = submissions.every(s => ['APPROVED', 'LIVE', 'PAUSED', 'HALTED'].includes(s.status));
+        const someReleased = submissions.some(s => ['APPROVED', 'LIVE', 'PAUSED', 'HALTED'].includes(s.status));
+        const allInReview = submissions.every(s => s.status === 'IN_REVIEW');
+        
+        if (allPending) calculatedStatus = 'PENDING';
+        else if (allReleased) calculatedStatus = 'RELEASED';
+        else if (someReleased) calculatedStatus = 'PARTIALLY_RELEASED';
+        else if (allInReview) calculatedStatus = 'SUBMITTED';
+        else calculatedStatus = 'PARTIALLY_SUBMITTED';
+      }
+      
       return {
         id: dist.id,
         releaseId: dist.releaseId, // ✅ Included for linking to release page
         branch: release?.branch || 'unknown',
-        status: dist.status, // ✅ Use status from distributions table (backend calculates)
+        status: calculatedStatus, // ✅ Calculate based on current submissions
         platforms, // ✅ Based on ALL submissions (current + historical)
         submissions, // ONLY current submissions per API spec
         createdAt: dist.createdAt,

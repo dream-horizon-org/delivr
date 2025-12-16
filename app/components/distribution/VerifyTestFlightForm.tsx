@@ -22,6 +22,11 @@ import {
   BUTTON_LABELS,
   VALIDATION_RULES,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import type { VerifyTestFlightFormProps } from './distribution.types';
 import { useVerifyState } from './useVerifyState';
 
@@ -36,12 +41,12 @@ type VerificationSuccessProps = {
 
 function VerificationSuccess({ buildNumber, versionName }: VerificationSuccessProps) {
   return (
-    <Paper p="md" withBorder radius="md" className="border-green-500 bg-green-50">
-      <Group gap="sm">
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} className="border-green-500 bg-green-50">
+      <Group gap={DS_SPACING.SM}>
         <IconCheck size={24} className="text-green-600" />
         <div>
-          <Text fw={500} c="green.7">TestFlight Build Verified</Text>
-          <Text size="sm" c="dimmed">
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} c="green.7">TestFlight Build Verified</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
             Build #{buildNumber} (v{versionName}) is ready for App Store submission.
           </Text>
         </div>
@@ -115,14 +120,14 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
   }
 
   return (
-    <Stack gap="md" className={className}>
+    <Stack gap={DS_SPACING.MD} className={className}>
       {/* Header Info */}
-      <Paper p="md" withBorder radius="md" bg="blue.0">
-        <Group gap="sm">
+      <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg="blue.0">
+        <Group gap={DS_SPACING.SM}>
           <IconBrandApple size={24} className="text-blue-600" />
           <div>
-            <Text fw={500}>Verify TestFlight Build</Text>
-            <Text size="sm" c="dimmed">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>Verify TestFlight Build</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
               Enter the TestFlight build number to verify it exists and is ready for App Store submission.
             </Text>
           </div>
@@ -133,7 +138,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
       {verifyError && (
         <Alert 
           icon={<IconAlertCircle size={16} />} 
-          color="red" 
+          color={DS_COLORS.STATUS.ERROR} 
           title="Verification Failed"
           variant="light"
         >
@@ -173,7 +178,7 @@ export function VerifyTestFlightForm(props: VerifyTestFlightFormProps) {
           />
 
           {/* Action Buttons */}
-          <Group justify="flex-end" mt="md">
+          <Group justify="flex-end" mt={DS_SPACING.LG}>
             {onClose && (
               <Button 
                 variant="subtle" 

@@ -5,6 +5,11 @@
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import type { Build } from '~/types/distribution.types';
 import { BuildStrategy } from '~/types/distribution.types';
 import { CIJobStatus } from './CIJobStatus';
@@ -22,17 +27,17 @@ export function BuildDetails({ build, isAndroid }: BuildDetailsProps) {
   const showTestFlightNumber = !isAndroid && !!build.testflightNumber;
   
   return (
-    <Stack gap="xs">
-      <Group gap="xs">
-        <Text size="sm" c="dimmed">{DISTRIBUTION_UI_LABELS.VERSION_LABEL}</Text>
-        <Text size="sm" fw={500}>{build.versionName}</Text>
-        <Text size="xs" c="dimmed">({build.versionCode})</Text>
+    <Stack gap={DS_SPACING.XS}>
+      <Group gap={DS_SPACING.XS}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>{DISTRIBUTION_UI_LABELS.VERSION_LABEL}</Text>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>{build.versionName}</Text>
+        <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>({build.versionCode})</Text>
       </Group>
       
       {showCIRunType && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">{DISTRIBUTION_UI_LABELS.BUILT_VIA_LABEL}</Text>
-          <Text size="sm">{build.ciRunType}</Text>
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>{DISTRIBUTION_UI_LABELS.BUILT_VIA_LABEL}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{build.ciRunType}</Text>
         </Group>
       )}
       
@@ -43,9 +48,9 @@ export function BuildDetails({ build, isAndroid }: BuildDetailsProps) {
           href={build.internalTrackLink!}
           target="_blank"
           rel="noopener noreferrer"
-          size="sm"
+          size={DS_TYPOGRAPHY.SIZE.SM}
         >
-          <Group gap={4}>
+          <Group gap={DS_SPACING.XXS}>
             <IconExternalLink size={14} />
             {DISTRIBUTION_UI_LABELS.INTERNAL_TESTING_LINK}
           </Group>
@@ -53,9 +58,9 @@ export function BuildDetails({ build, isAndroid }: BuildDetailsProps) {
       )}
 
       {showTestFlightNumber && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">{DISTRIBUTION_UI_LABELS.TESTFLIGHT_LABEL}</Text>
-          <Text size="sm">Build #{build.testflightNumber}</Text>
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>{DISTRIBUTION_UI_LABELS.TESTFLIGHT_LABEL}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>Build #{build.testflightNumber}</Text>
         </Group>
       )}
     </Stack>

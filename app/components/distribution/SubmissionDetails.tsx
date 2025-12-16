@@ -3,6 +3,11 @@
  */
 
 import { Group, Stack, Text } from '@mantine/core';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform, type Submission } from '~/types/distribution.types';
 
 type SubmissionDetailsProps = {
@@ -13,10 +18,10 @@ export function SubmissionDetails({
   submission 
 }: SubmissionDetailsProps) {
   return (
-    <Stack gap="xs">
-      <Group gap="xs">
-        <Text size="sm" c="dimmed">Version:</Text>
-        <Text size="sm" fw={500}>
+    <Stack gap={DS_SPACING.XS}>
+      <Group gap={DS_SPACING.XS}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Version:</Text>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
           {submission.version}
           {submission.platform === Platform.ANDROID && 'versionCode' in submission && ` (${submission.versionCode})`}
         </Text>
@@ -24,15 +29,15 @@ export function SubmissionDetails({
       
       {/* track field is not in API spec */}
 
-      <Group gap="xs">
-        <Text size="sm" c="dimmed">Exposure:</Text>
-        <Text size="sm" fw={500}>{submission.rolloutPercentage}%</Text>
+      <Group gap={DS_SPACING.XS}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Exposure:</Text>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>{submission.rolloutPercentage}%</Text>
       </Group>
 
       {submission.submittedAt && (
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">Submitted:</Text>
-          <Text size="sm">{new Date(submission.submittedAt).toLocaleDateString()}</Text>
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>Submitted:</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{new Date(submission.submittedAt).toLocaleDateString()}</Text>
         </Group>
       )}
     </Stack>

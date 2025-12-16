@@ -8,8 +8,8 @@ import type { useFetcher } from '@remix-run/react';
 import { IconBrandAndroid, IconBrandApple, IconRocket } from '@tabler/icons-react';
 import { RejectedSubmissionView, RolloutControls } from '~/components/distribution';
 import { PLATFORM_LABELS, ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution.constants';
-import type { AvailableAction, RolloutAction, Submission } from '~/types/distribution.types';
-import { Platform, SubmissionAction, SubmissionStatus } from '~/types/distribution.types';
+import type { Submission } from '~/types/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { SubmissionManagementCard } from './SubmissionManagementCard';
 
 export type PlatformTabContentProps = {
@@ -103,7 +103,7 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
           <RolloutControls
             submissionId={submission.id}
             platform={submission.platform}
-            phasedRelease={(submission.platform === Platform.IOS && 'phasedRelease' in submission) ? submission.phasedRelease : undefined}
+            phasedRelease={(submission.platform === Platform.IOS && 'phasedRelease' in submission) ? submission.phasedRelease ?? undefined : undefined}
             currentPercentage={submission.rolloutPercentage}
             status={submission.status}
             availableActions={[]}
@@ -126,18 +126,18 @@ export function PlatformTabContent(props: PlatformTabContentProps) {
       )}
 
       {/* Rejected View */}
+      {/* 
+        TODO: Replace with real data once backend implements rejection fields
+        Backend team notified - see docs/distribution/BACKEND_API_DATA_GAPS.md
+        Using hardcoded fallback until backend adds:
+        - submission.rejectionReason
+        - submission.rejectionDetails
+      */}
       {showRejectedView && (
         <RejectedSubmissionView
           platform={submission.platform}
           submissionId={submission.id}
           versionName={submission.version}
-          {/* 
-            TODO: Replace with real data once backend implements rejection fields
-            Backend team notified - see docs/distribution/BACKEND_API_DATA_GAPS.md
-            Using hardcoded fallback until backend adds:
-            - submission.rejectionReason
-            - submission.rejectionDetails
-          */}
           rejectionReason={'Submission was rejected by the store'}
           rejectionDetails={null}
           onFixMetadata={() => onOpenRetryDialog(submission)}

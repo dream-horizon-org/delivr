@@ -4,6 +4,11 @@
 
 import { ThemeIcon } from '@mantine/core';
 import { IconBrandAndroid, IconBrandApple } from '@tabler/icons-react';
+import {
+  DS_COLORS,
+  DIST_ICON_PROPS,
+  DIST_ICON_SIZES,
+} from '~/constants/distribution-design.constants';
 import { Platform } from '~/types/distribution.types';
 
 type PlatformIconProps = {
@@ -15,12 +20,10 @@ export function PlatformIcon({ platform }: PlatformIconProps) {
   
   return (
     <ThemeIcon 
-      size="lg" 
-      radius="md" 
-      variant="light" 
-      color={isAndroid ? 'green' : 'blue'}
+      {...DIST_ICON_PROPS.LARGE}
+      color={isAndroid ? DS_COLORS.PLATFORM.ANDROID : DS_COLORS.PLATFORM.IOS}
     >
-      {isAndroid ? <IconBrandAndroid size={20} /> : <IconBrandApple size={20} />}
+      {isAndroid ? <IconBrandAndroid size={DIST_ICON_SIZES.XL} /> : <IconBrandApple size={DIST_ICON_SIZES.XL} />}
     </ThemeIcon>
   );
 }

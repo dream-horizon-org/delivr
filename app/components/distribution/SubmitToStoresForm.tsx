@@ -28,6 +28,11 @@ import {
     SUCCESS_MESSAGES,
     WARNING_MESSAGES,
 } from '~/constants/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform, SubmissionStatus } from '~/types/distribution.types';
 import { AndroidOptions } from './AndroidOptions';
 import { ArtifactDisplay } from './ArtifactDisplay';
@@ -209,15 +214,16 @@ export function SubmitToStoresForm({
   }
 
   return (
-    <Stack gap="md" className={className}>
+    <Stack gap={DS_SPACING.MD} className={className}>
       {/* Active Rollout Warning */}
       {hasAndroidActiveRollout && (
         <Alert 
           icon={<IconAlertCircle size={FORM_ICON_SIZES.ALERT} />} 
-          color="orange" 
+          color={DS_COLORS.STATUS.WARNING}
           variant="light"
+          radius={DS_SPACING.BORDER_RADIUS}
         >
-          <Text size="sm">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>
             {WARNING_MESSAGES.ACTIVE_ANDROID_ROLLOUT}
           </Text>
         </Alert>
@@ -227,9 +233,10 @@ export function SubmitToStoresForm({
       {submitError && (
         <Alert 
           icon={<IconAlertCircle size={FORM_ICON_SIZES.ALERT} />} 
-          color="red" 
+          color={DS_COLORS.STATUS.ERROR}
           title={ERROR_MESSAGES.SUBMISSION_FAILED_TITLE}
           variant="light"
+          radius={DS_SPACING.BORDER_RADIUS}
         >
           {submitError}
         </Alert>
@@ -238,9 +245,10 @@ export function SubmitToStoresForm({
       {/* Success Alert */}
       {submitSuccess && (
         <Alert 
-          color="green" 
+          color={DS_COLORS.STATUS.SUCCESS}
           title={SUCCESS_MESSAGES.SUBMISSION_SUCCESSFUL_TITLE}
           variant="light"
+          radius={DS_SPACING.BORDER_RADIUS}
         >
           {SUCCESS_MESSAGES.SUBMISSION_SUCCESSFUL_MESSAGE}
         </Alert>
@@ -250,8 +258,8 @@ export function SubmitToStoresForm({
         <>
           {/* Platform Selection */}
           <div>
-            <Text fw={500} size="sm" mb="sm">{DISTRIBUTION_UI_LABELS.SELECT_PLATFORMS}</Text>
-            <Stack gap="sm">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} size={DS_TYPOGRAPHY.SIZE.SM} mb={DS_SPACING.SM}>{DISTRIBUTION_UI_LABELS.SELECT_PLATFORMS}</Text>
+            <Stack gap={DS_SPACING.SM}>
               {hasAndroid && (
                 <PlatformCheckbox
                   platform={Platform.ANDROID}
@@ -329,7 +337,7 @@ export function SubmitToStoresForm({
           )}
 
           {/* Action Buttons */}
-          <Group justify="flex-end" mt="md">
+          <Group justify="flex-end" mt={DS_SPACING.LG}>
             {onClose && (
               <Button 
                 variant="subtle" 

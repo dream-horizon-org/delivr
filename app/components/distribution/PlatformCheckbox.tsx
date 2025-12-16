@@ -5,6 +5,10 @@
 import { Checkbox, Group, Text } from '@mantine/core';
 import { IconBrandAndroid, IconBrandApple } from '@tabler/icons-react';
 import { FORM_ICON_SIZES } from '~/constants/distribution.constants';
+import {
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution-design.constants';
 import { Platform } from '~/types/distribution.types';
 
 type PlatformCheckboxProps = {
@@ -34,13 +38,13 @@ export function PlatformCheckbox({
       onChange={onChange}
       disabled={disabled}
       label={
-        <Group gap="xs">
+        <Group gap={DS_SPACING.XS}>
           {isAndroid ? (
             <IconBrandAndroid size={FORM_ICON_SIZES.BUTTON} />
           ) : (
             <IconBrandApple size={FORM_ICON_SIZES.BUTTON} />
           )}
-          <Text size="sm">{storeName}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{storeName}</Text>
         </Group>
       }
     />
