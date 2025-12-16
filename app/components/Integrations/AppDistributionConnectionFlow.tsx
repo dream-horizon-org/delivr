@@ -151,13 +151,16 @@ export function AppDistributionConnectionFlow({
         };
       }
 
+      const endpoint = `/api/v1/tenants/${tenantId}/distributions?action=verify`;
+      const requestBody = {
+        storeType,
+        platform,
+        payload,
+      };
+      
       const result = await apiPost<{ verified: boolean; message?: string; details?: any }>(
-        `/api/v1/tenants/${tenantId}/distributions?action=verify`,
-        {
-          storeType,
-          platform,
-          payload,
-        }
+        endpoint,
+        requestBody
       );
 
       // BFF returns: {success: true, data: {verified: true, message: "..."}}
@@ -237,24 +240,41 @@ export function AppDistributionConnectionFlow({
 
       let result;
       
+      // Prepare payload logging (hide sensitive data)
+      const logPayload = storeType === TARGET_PLATFORMS.PLAY_STORE
+        ? {
+            ...payload,
+            serviceAccountJson: payload.serviceAccountJson
+              ? {
+                  ...payload.serviceAccountJson,
+                  private_key: payload.serviceAccountJson.private_key
+                    ? `[ENCRYPTED: ${payload.serviceAccountJson.private_key.length} chars]`
+                    : '[NOT PROVIDED]',
+                }
+              : undefined,
+          }
+        : {
+            ...payload,
+            privateKeyPem: payload.privateKeyPem
+              ? `[ENCRYPTED: ${payload.privateKeyPem.length} chars]`
+              : '[NOT PROVIDED]',
+          };
+      
       if (isEditMode && existingData?.id) {
         // Update existing integration
-        console.log(`[${storeType}] Updating integration ${existingData.id}`);
-        result = await apiPatch(
-          `/api/v1/tenants/${tenantId}/distributions?integrationId=${existingData.id}`,
-          { payload }
-        );
+        const endpoint = `/api/v1/tenants/${tenantId}/distributions?integrationId=${existingData.id}`;
+        
+        
+        result = await apiPatch(endpoint, { payload });
       } else {
         // Create new integration
-        console.log(`[${storeType}] Creating new integration`);
-        result = await apiPost(
-          `/api/v1/tenants/${tenantId}/distributions`,
-          {
-            storeType,
-            platform,
-            payload,
-          }
-        );
+        const endpoint = `/api/v1/tenants/${tenantId}/distributions`;
+        
+        result = await apiPost(endpoint, {
+          storeType,
+          platform,
+          payload,
+        });
       }
 
       if (result.success) {

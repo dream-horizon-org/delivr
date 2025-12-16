@@ -90,8 +90,9 @@ class ProjectManagementIntegrationServiceClass extends IntegrationService {
         baseUrl: data.config.baseUrl,
         email: data.config.email,
         jiraType: data.config.jiraType,
-        apiToken: data.config.apiToken ? `[${data.config.apiToken.length} chars]` : '[MISSING]',
-        password: '[REDACTED]'
+        apiToken: data.config.apiToken ? `[${String(data.config.apiToken).length} chars]` : '[MISSING]',
+        password: '[REDACTED]',
+        _encrypted: data.config._encrypted, // Log encryption flag
       },
       userId: userId
     });

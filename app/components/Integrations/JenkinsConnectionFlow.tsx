@@ -3,7 +3,7 @@
  * Handles verification and connection of Jenkins integrations
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from '@remix-run/react';
 import {
   TextInput,
@@ -24,6 +24,7 @@ import { JENKINS_LABELS, ALERT_MESSAGES, INTEGRATION_MODAL_LABELS } from '~/cons
 import { ActionButtons } from './shared/ActionButtons';
 import { ConnectionAlert } from './shared/ConnectionAlert';
 import { useDraftStorage, generateStorageKey } from '~/hooks/useDraftStorage';
+import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 
 interface JenkinsConnectionFlowProps {
   onConnect: (data: any) => void;
@@ -85,6 +86,14 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
   const [isConnecting, setIsConnecting] = useState(false);
   const [verificationResult, setVerificationResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Check encryption configuration on mount
+  useEffect(() => {
+    if (!isEncryptionConfigured()) {
+      console.error('❌ VITE_ENCRYPTION_KEY is not configured!');
+      setError('Encryption is not configured. Please contact your system administrator.');
+    }
+  }, []);
   
   // Track touched fields for proper validation UX
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -113,21 +122,30 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
     setIsVerifying(true);
     setError(null);
     setVerificationResult(null);
-    isInFlowRef.current = true;
+    isInFlowRef.current = true; // Prevent draft save during verify
+    
 
     try {
-      const result = await apiPost<{ verified: boolean; message?: string }>(
-        `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}/verify`,
-        {
-          displayName: formData.displayName || undefined,
-          hostUrl: formData.hostUrl,
-          username: formData.username,
-          apiToken: formData.apiToken,
-          providerConfig: {
-            useCrumb: formData.useCrumb,
-            crumbPath: formData.crumbPath
-          }
+      // Encrypt the API token before sending
+      const encryptedApiToken = await encrypt(formData.apiToken);
+      
+      const verifyPayload = {
+        displayName: formData.displayName || undefined,
+        hostUrl: formData.hostUrl,
+        username: formData.username,
+        apiToken: encryptedApiToken,
+        _encrypted: true, // Flag to indicate encryption
+        providerConfig: {
+          useCrumb: formData.useCrumb,
+          crumbPath: formData.crumbPath
         }
+      };
+      
+      const endpoint = `/api/v1/tenants/${tenantId}/integrations/ci-cd/${BUILD_PROVIDERS.JENKINS.toLowerCase()}/verify`;
+      
+      const result = await apiPost<{ verified: boolean; message?: string }>(
+        endpoint,
+        verifyPayload
       );
 
       if (result.data?.verified) {
@@ -177,7 +195,14 @@ export function JenkinsConnectionFlow({ onConnect, onCancel, isEditMode = false,
       };
 
       if (formData.apiToken) {
-        payload.apiToken = formData.apiToken;
+        // Encrypt the API token before sending
+        const encryptedApiToken = await encrypt(formData.apiToken);
+        payload.apiToken = encryptedApiToken;
+        payload._encrypted = true; // Flag to indicate encryption
+      } else if (!isEditMode) {
+        setError('API Token is required');
+        setIsConnecting(false);
+        return;
       }
 
       if (isEditMode && existingData?.id) {

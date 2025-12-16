@@ -77,13 +77,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
         );
       }
 
+      console.log('[Test Management Create] _encrypted:', config._encrypted);
+
       const result = await CheckmateIntegrationService.createIntegration({
         tenantId,
         name,
         config: {
           baseUrl: config.baseUrl,
           authToken: config.authToken,
-          orgId: config.orgId
+          orgId: config.orgId,
+          _encrypted: config._encrypted, // Forward encryption flag
         },
         userId
       });
@@ -103,6 +106,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const body = await request.json();
       const { name, providerType, config } = body;
 
+      console.log('[Test Management Update] _encrypted:', config?._encrypted);
+
       // Build update payload - only include fields that are provided
       const updatePayload: UpdateCheckmateIntegrationRequest = {
         integrationId,
@@ -112,7 +117,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
           config: {
             ...(config.baseUrl && { baseUrl: config.baseUrl }),
             ...(config.authToken && { authToken: config.authToken }),
-            ...(config.orgId && { orgId: config.orgId })
+            ...(config.orgId && { orgId: config.orgId }),
+            ...(config._encrypted && { _encrypted: config._encrypted }) // Forward encryption flag
           }
         })
       };

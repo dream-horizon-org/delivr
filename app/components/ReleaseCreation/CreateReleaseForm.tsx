@@ -113,25 +113,35 @@ export function CreateReleaseForm({
 
   // Ensure platformTargets only contain targets from selected config
   useEffect(() => {
-    if (selectedConfig && state.platformTargets && state.platformTargets.length > 0) {
-      const configTargets = selectedConfig.targets || [];
-      const validTargets = state.platformTargets.filter((pt) => 
+    if (!selectedConfig?.targets) return;
+    
+    const configTargets = selectedConfig.targets;
+    
+    setState((prev) => {
+      if (!prev.platformTargets || prev.platformTargets.length === 0) {
+        return prev; // Let pre-fill logic handle empty state
+      }
+      
+      const validTargets = prev.platformTargets.filter((pt) => 
         configTargets.includes(pt.target)
       );
       
-      // If any targets were filtered out, update state
-      if (validTargets.length !== state.platformTargets.length) {
-        // If all were filtered out, we'll let the pre-fill logic handle it
-        // Otherwise, keep only valid targets
-        if (validTargets.length > 0) {
-          setState({
-            ...state,
-            platformTargets: validTargets,
-          });
-        }
+      // If no targets were filtered out, no change needed
+      if (validTargets.length === prev.platformTargets.length) {
+        return prev;
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      
+      // If all were filtered out, let pre-fill logic handle it
+      if (validTargets.length === 0) {
+        return prev;
+      }
+      
+      // Keep only valid targets
+      return {
+        ...prev,
+        platformTargets: validTargets,
+      };
+    });
   }, [selectedConfig?.targets]);
   // Cron config: use user-provided values if available, otherwise auto-derive from config
   const getCronConfig = (): Partial<CronConfig> => {
@@ -168,7 +178,7 @@ export function CreateReleaseForm({
     };
   };
 
-  // Restore selectedConfigId from draft, existing release, or use default
+  // Restore selectedConfigId from draft, existing release, or use default (runs only once on mount)
   useEffect(() => {
     // Only run this logic once on mount or when key dependencies change
     if (isEditMode && existingRelease?.releaseConfigId) {
@@ -177,7 +187,7 @@ export function CreateReleaseForm({
     } else if (isDraftRestored && state.releaseConfigId) {
       // Restore from draft first
       setSelectedConfigId(state.releaseConfigId);
-    } else if (defaultReleaseConfig && !selectedConfigId) {
+    } else if (defaultReleaseConfig) {
       // Fallback to default config if no draft
       console.log('[CreateReleaseForm] Auto-selecting default config:', defaultReleaseConfig.id, defaultReleaseConfig.name);
       setSelectedConfigId(defaultReleaseConfig.id);

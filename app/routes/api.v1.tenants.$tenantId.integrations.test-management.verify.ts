@@ -27,6 +27,7 @@ const verifyTestManagementCredentials = async ({
       baseUrl: body.baseUrl || body.config?.baseUrl,
       authToken: body.authToken || body.config?.authToken,
       orgId: body.orgId || body.config?.orgId,
+      _encrypted: body._encrypted || body.config?._encrypted, // Forward encryption flag
     };
 
     // Validate required fields
@@ -44,7 +45,8 @@ const verifyTestManagementCredentials = async ({
     console.log('[BFF-TestMgmt-Verify] Config:', { 
       baseUrl: config.baseUrl,
       orgId: config.orgId,
-      authToken: '[REDACTED]'
+      authToken: '[REDACTED]',
+      _encrypted: config._encrypted
     });
 
     const result = await CheckmateIntegrationService.verifyCredentials(
@@ -52,6 +54,7 @@ const verifyTestManagementCredentials = async ({
         baseUrl: config.baseUrl,
         authToken: config.authToken,
         orgId: config.orgId,
+        _encrypted: config._encrypted, // Forward encryption flag
       },
       user.user.id
     );
