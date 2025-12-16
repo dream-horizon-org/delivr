@@ -117,34 +117,28 @@ export class GitHubProvider implements SCMIntegration {
     return data.total_commits;
   }
 
-  async checkCherryPickStatus(tenantId: string, releaseId: string): Promise<boolean> {
-    const storage = getStorage() as unknown as { setupPromise?: Promise<void>; sequelize?: any };
-    if (storage && storage.setupPromise) {
-      await storage.setupPromise;
-    }
-    const sequelize = (storage as any).sequelize;
-    const hasSequelize = !!sequelize && !!sequelize.models && !!sequelize.models.release;
-    if (!hasSequelize) {
-      return false;
-    }
-    const ReleaseModel = sequelize.models.release;
-    const release = await ReleaseModel.findOne({ where: { id: releaseId, tenantId } });
-    if (!release) {
-      return false;
-    }
-    const data = release.dataValues || {};
-    const releaseBranch: string | undefined = data.branchRelease;
-    const releaseTag: string | undefined = data.releaseTag;
-    if (!releaseBranch || !releaseTag) {
-      return false;
-    }
+  /**
+   * Check if cherry picks are available (branch diverged from tag)
+   * 
+   * @param tenantId - Tenant ID (to fetch tenant-specific SCM config)
+   * @param branch - Branch name to check
+   * @param tag - Tag name to compare against
+   * @returns true if branch HEAD !== tag commit (cherry picks exist), false otherwise
+   */
+  async checkCherryPickStatus(tenantId: string, branch: string, tag: string): Promise<boolean> {
+    // Get tenant-specific client, owner, and repo
     const { client, owner, repo } = await this.getClientAndRepo(tenantId);
-    const branchResp = await client.rest.repos.getBranch({ owner, repo, branch: releaseBranch as string });
+    const branchResp = await client.rest.repos.getBranch({ owner, repo, branch });
     const branchHeadSha = branchResp.data?.commit?.sha ?? '';
-    const tagCommitSha = await this.resolveTagCommitSha(client, owner, repo, releaseTag as string);
+    
+    // Get tag commit SHA
+    const tagCommitSha = await this.resolveTagCommitSha(client, owner, repo, tag);
+    
     if (!tagCommitSha) {
       return false;
     }
+    
+    // Compare: cherry picks exist if branch HEAD differs from tag
     return branchHeadSha !== tagCommitSha;
   }
 

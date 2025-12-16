@@ -129,6 +129,18 @@ export class BuildRepository {
   }
 
   /**
+   * Find builds for a release and stage
+   * Used by API #2: Get Stage Tasks to fetch builds for all tasks in a stage
+   */
+  async findByReleaseIdAndStage(releaseId: string, buildStage: BuildStage): Promise<Build[]> {
+    const builds = await this.model.findAll({
+      where: { releaseId, buildStage },
+      order: [['createdAt', 'ASC']]
+    });
+    return builds.map((b) => this.toPlainObject(b));
+  }
+
+  /**
    * Find builds for a regression cycle
    */
   async findByRegressionId(regressionId: string): Promise<Build[]> {

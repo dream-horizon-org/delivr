@@ -14,7 +14,7 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import type { CronJobStateMachine } from '../cron-job-state-machine';
-import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName, type Release } from '~models/release/release.interface';
+import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, PlatformName, PauseType, type Release } from '~models/release/release.interface';
 import { getOrderedTasks, canExecuteTask, getTaskBlockReason, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { hasSequelize } from '~types/release/api-types';
@@ -336,21 +336,22 @@ export class KickoffState implements ICronJobState {
       console.log(`[KickoffState] ✅ Transitioned: Stage 1 → Stage 2 (automatic)`);
 
     } else {
-      // ⏸️ MANUAL MODE → Stop cron, wait for manual trigger
+      // ⏸️ MANUAL MODE → Set pauseType, keep scheduler running (state machine will skip)
       console.log(`[KickoffState] Stage 1 complete. Waiting for manual Stage 2 trigger (autoTransitionToStage2 = false)`);
 
-      // Update database: Mark Stage 1 COMPLETED, set cron to PAUSED
+      // Update database: Mark Stage 1 COMPLETED, set pauseType to AWAITING_STAGE_TRIGGER
+      // Note: Scheduler keeps running but state machine will skip execution
       await cronJobRepo.update(cronJob.id, {
         stage1Status: StageStatus.COMPLETED,
-        cronStatus: CronStatus.PAUSED
-        // Note: stage2Status stays PENDING
+        pauseType: PauseType.AWAITING_STAGE_TRIGGER
+        // Note: stage2Status stays PENDING, cronStatus stays RUNNING
       });
 
-      // Stop the cron job (no need to keep polling)
-      stopCronJob(releaseId);
+      // DON'T stop the cron job - state machine will check pauseType and skip
+      // This approach works with both setInterval and Cronicle (external scheduler)
 
       console.log(
-        `[KickoffState] ⏸️ Stage 1 complete. Cron job stopped. ` +
+        `[KickoffState] ⏸️ Stage 1 complete. Paused (AWAITING_STAGE_TRIGGER). ` +
         `Use POST /tenants/:tenantId/releases/${releaseId}/trigger-regression-testing to start Stage 2.`
       );
 

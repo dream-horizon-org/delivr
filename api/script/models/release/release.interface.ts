@@ -126,7 +126,7 @@ export enum CronStatus {
  */
 export enum PauseType {
   NONE = 'NONE',                             // Not paused
-  AWAITING_STAGE_TRIGGER = 'AWAITING_STAGE_TRIGGER', // Waiting for manual stage trigger
+  AWAITING_STAGE_TRIGGER = 'AWAITING_STAGE_TRIGGER', // Awaiting stage approval from user (manual stage trigger)
   USER_REQUESTED = 'USER_REQUESTED',         // User manually paused
   TASK_FAILURE = 'TASK_FAILURE'              // Paused due to critical task failure
 }
@@ -211,6 +211,7 @@ export interface Release {
   kickOffReminderDate: Date | null;
   kickOffDate: Date | null;
   targetReleaseDate: Date | null; // Target/planned release date
+  delayReason: string | null; // Reason for extending targetReleaseDate
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
   createdByAccountId: string;
@@ -254,6 +255,7 @@ export interface UpdateReleaseDto {
   kickOffDate?: Date | null;
   kickOffReminderDate?: Date | null;
   targetReleaseDate?: Date | null;
+  delayReason?: string | null;
   hasManualBuildUpload?: boolean;
   releasePilotAccountId?: string | null;
   lastUpdatedByAccountId?: string;

@@ -304,11 +304,8 @@ export class ReleaseManagementController {
         });
       }
 
-      return res.status(HTTP_STATUS.OK).json({
-        success: true,
-        tasks: result.tasks,
-        count: result.count
-      });
+      // Pass through the result as-is (handles both basic and REGRESSION responses)
+      return res.status(HTTP_STATUS.OK).json(result);
     } catch (error: unknown) {
       console.error('[Get Tasks] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -363,6 +360,14 @@ export class ReleaseManagementController {
       const tenantId = req.params.tenantId;
       const releaseId = req.params.releaseId;
 
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
       // Delegate to service
       const result = await this.cronJobService.triggerStage2(releaseId, tenantId);
 
@@ -390,16 +395,41 @@ export class ReleaseManagementController {
   };
 
   /**
-   * Trigger Stage 3 (Pre-Release)
+   * Trigger Stage 3 (Pre-Release) / Approve Regression Stage
    * POST /tenants/:tenantId/releases/:releaseId/trigger-pre-release
    */
   triggerPreRelease = async (req: Request, res: Response): Promise<Response> => {
     try {
       const tenantId = req.params.tenantId;
       const releaseId = req.params.releaseId;
+      
+      // Extract request body parameters
+      const { approvedBy, comments, forceApprove } = req.body;
+
+      // Validate required fields
+      if (!approvedBy) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'approvedBy is required'
+        });
+      }
+
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
 
       // Delegate to service
-      const result = await this.cronJobService.triggerStage3(releaseId, tenantId);
+      const result = await this.cronJobService.triggerStage3(
+        releaseId, 
+        tenantId, 
+        approvedBy,
+        comments,
+        forceApprove
+      );
 
       if (result.success === false) {
         return res.status(result.statusCode).json({
@@ -410,15 +440,18 @@ export class ReleaseManagementController {
 
       return res.status(HTTP_STATUS.OK).json({
         success: true,
-        message: 'Stage 3 (Pre-Release) triggered successfully',
-        release: result.data
+        message: 'Regression stage approved and Post-Regression stage triggered successfully',
+        releaseId: result.data.releaseId,
+        approvedAt: result.data.approvedAt,
+        approvedBy: result.data.approvedBy,
+        nextStage: result.data.nextStage
       });
     } catch (error: unknown) {
       console.error('[Trigger Pre-Release] Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
-        error: 'Failed to trigger pre-release',
+        error: 'Failed to approve regression stage',
         message: errorMessage
       });
     }
@@ -432,6 +465,14 @@ export class ReleaseManagementController {
     try {
       const releaseId = req.params.releaseId;
       const accountId = (req as any).account?.id || (req as any).user?.id;
+
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
 
       if (!accountId) {
         return res.status(HTTP_STATUS.UNAUTHORIZED).json({
@@ -497,6 +538,39 @@ export class ReleaseManagementController {
       return res.status(statusCode).json({
         success: false,
         error: error.message ?? 'Failed to check project management run status'
+      });
+    }
+  }
+
+  /**
+   * Check cherry pick status
+   * GET /tenants/:tenantId/releases/:releaseId/check-cherry-pick-status
+   */
+  checkCherryPickStatus = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { tenantId, releaseId } = req.params;
+
+      // Delegate to service
+      const result = await this.statusService.getCherryPickStatus(releaseId, tenantId);
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        ...result
+      });
+    } catch (error: any) {
+      console.error('[Check Cherry Pick Status] Error:', error);
+      
+      // Determine status code based on error message
+      let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+      if (error.message?.includes('not found')) {
+        statusCode = HTTP_STATUS.NOT_FOUND;
+      } else if (error.message?.includes('does not have') || error.message?.includes('not available')) {
+        statusCode = HTTP_STATUS.BAD_REQUEST;
+      }
+
+      return res.status(statusCode).json({
+        success: false,
+        error: error.message ?? 'Failed to check cherry pick status'
       });
     }
   }
@@ -757,6 +831,96 @@ export class ReleaseManagementController {
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: RELEASE_MANAGEMENT_ERROR_MESSAGES.FAILED_TO_UPLOAD_BUILD,
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Pause Release (User-Requested)
+   * 
+   * Sets pauseType to USER_REQUESTED. Scheduler keeps running but
+   * state machine will skip execution until resumed.
+   */
+  pauseRelease = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { tenantId, releaseId } = req.params;
+
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      // Delegate to CronJobService
+      const result = await this.cronJobService.pauseRelease(releaseId, tenantId);
+
+      if (result.success === false) {
+        const statusCode = result.statusCode ?? HTTP_STATUS.BAD_REQUEST;
+        return res.status(statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: result.data?.alreadyPaused 
+          ? 'Release is already paused'
+          : 'Release paused successfully',
+        data: result.data
+      });
+    } catch (error: unknown) {
+      console.error('[Pause Release] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to pause release',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Resume Release (User-Paused)
+   * 
+   * Sets pauseType back to NONE. Only allowed for releases
+   * that were paused by the user (pauseType = USER_REQUESTED).
+   */
+  resumeRelease = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { tenantId, releaseId } = req.params;
+
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      // Delegate to CronJobService
+      const result = await this.cronJobService.resumeRelease(releaseId, tenantId);
+
+      if (result.success === false) {
+        const statusCode = result.statusCode ?? HTTP_STATUS.BAD_REQUEST;
+        return res.status(statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Release resumed successfully',
+        data: result.data
+      });
+    } catch (error: unknown) {
+      console.error('[Resume Release] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to resume release',
         message: errorMessage
       });
     }

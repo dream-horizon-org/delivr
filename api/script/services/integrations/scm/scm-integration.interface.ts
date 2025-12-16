@@ -137,7 +137,8 @@ export interface SCMIntegration {
    */
   checkCherryPickStatus(
     tenantId: string,
-    releaseId: string
+    branch: string,
+    tag: string
   ): Promise<boolean>;
 }
 

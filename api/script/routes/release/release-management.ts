@@ -8,6 +8,7 @@ import { Request, Response, Router } from "express";
 import * as multer from "multer";
 import * as storageTypes from "../../storage/storage";
 import * as tenantPermissions from "../../middleware/tenant-permissions";
+import * as releasePermissions from "../../middleware/release-permissions";
 import { ReleaseManagementController } from "../../controllers/release/release-management.controller";
 
 import { verifyTestFlightBuild } from "../../controllers/release/testflight-verification.controller";
@@ -28,6 +29,19 @@ import {
   hasBuildCallbackDependencies,
   StorageWithReleaseServices
 } from "../../types/release/storage-with-services.interface";
+import { hasSequelize } from "../../types/release/api-types";
+import { DistributionService } from "../../services/distribution/distribution.service";
+import { createDistributionController } from "../../controllers/distribution/distribution.controller";
+import {
+  createDistributionModel,
+  DistributionRepository,
+  createIosSubmissionBuildModel,
+  IosSubmissionBuildRepository,
+  createAndroidSubmissionBuildModel,
+  AndroidSubmissionBuildRepository,
+  createSubmissionActionHistoryModel,
+  SubmissionActionHistoryRepository
+} from "../../models/distribution";
 
 // Multer configuration for file uploads (memory storage)
 const upload = multer({ 
@@ -67,6 +81,12 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   if (cronJobServiceUnavailable) {
     console.warn('[Release Orchestration Routes] CronJobService not available');
     return router;
+  }
+
+  // Inject ReleaseStatusService into CronJobService (for approval checks)
+  if (storageWithServices.releaseStatusService) {
+    cronJobService.setReleaseStatusService(storageWithServices.releaseStatusService);
+    console.log('[Release Management] ReleaseStatusService injected into CronJobService');
   }
 
   // Create ManualUploadService (optional - may not be available in all environments)
@@ -118,6 +138,29 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     buildCallbackController = new BuildCallbackController(buildCallbackService);
   }
 
+  // Initialize Distribution Service and Controller
+  let distributionController: ReturnType<typeof createDistributionController> | undefined;
+  if (hasSequelize(storage)) {
+    const distributionModel = createDistributionModel(storage.sequelize);
+    const iosSubmissionModel = createIosSubmissionBuildModel(storage.sequelize);
+    const androidSubmissionModel = createAndroidSubmissionBuildModel(storage.sequelize);
+    const actionHistoryModel = createSubmissionActionHistoryModel(storage.sequelize);
+
+    const distributionRepository = new DistributionRepository(distributionModel);
+    const iosSubmissionRepository = new IosSubmissionBuildRepository(iosSubmissionModel);
+    const androidSubmissionRepository = new AndroidSubmissionBuildRepository(androidSubmissionModel);
+    const actionHistoryRepository = new SubmissionActionHistoryRepository(actionHistoryModel);
+
+    const distributionService = new DistributionService(
+      distributionRepository,
+      iosSubmissionRepository,
+      androidSubmissionRepository,
+      actionHistoryRepository
+    );
+
+    distributionController = createDistributionController(distributionService);
+  }
+
   // ============================================================================
   // HEALTH CHECK
   // ============================================================================
@@ -146,6 +189,24 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     tenantPermissions.requireOwner({ storage }),
     controller.getRelease
   );
+
+  // Get distribution by release ID
+  if (distributionController) {
+    router.get(
+      "/releases/:releaseId/distribution",
+      releasePermissions.requireReleaseAccess({ storage }),
+      distributionController.getDistributionByReleaseId
+    );
+  }
+
+  // Get distribution by distribution ID
+  if (distributionController) {
+    router.get(
+      "/distributions/:distributionId",
+      releasePermissions.requireDistributionAccess({ storage }),
+      distributionController.getDistributionById
+    );
+  }
 
   // Get all releases for a tenant
   router.get(
@@ -244,33 +305,21 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   );
 
   // ============================================================================
-  // CRON JOB CONTROL
+  // RELEASE PAUSE/RESUME
   // ============================================================================
   
-  // Pause cron job
+  // Pause release (user-requested)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/cron/pause",
+    "/tenants/:tenantId/releases/:releaseId/pause",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.pauseCronJob
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Cron job pause endpoint coming soon"
-      });
-    }
+    controller.pauseRelease
   );
 
-  // Resume cron job
+  // Resume release (user-paused)
   router.post(
-    "/tenants/:tenantId/releases/:releaseId/cron/resume",
+    "/tenants/:tenantId/releases/:releaseId/resume",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.resumeCronJob
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Cron job resume endpoint coming soon"
-      });
-    }
+    controller.resumeRelease
   );
 
   // NOTE: Regression slot management (add/delete) is now handled through updateRelease API
@@ -411,13 +460,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   router.get(
     "/tenants/:tenantId/releases/:releaseId/check-cherry-pick-status",
     tenantPermissions.requireOwner({ storage }),
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Delegate to controller.checkCherryPickStatus
-      return res.status(501).json({
-        error: "Not implemented yet",
-        message: "Cherry pick status endpoint coming soon"
-      });
-    }
+    controller.checkCherryPickStatus
   );
 
   // Check project management run status

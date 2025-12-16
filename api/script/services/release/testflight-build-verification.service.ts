@@ -53,6 +53,17 @@ type Credentials = {
 };
 
 // ============================================================================
+// HELPER: Decrypt credentials from backend storage
+// ============================================================================
+
+const decryptCredentials = (encryptedBuffer: Buffer): string => {
+  // Convert Buffer to string (contains backend-encrypted value)
+  const encryptedString = encryptedBuffer.toString('utf-8');
+  // Decrypt using backend storage decryption
+  return decryptFromStorage(encryptedString);
+};
+
+// ============================================================================
 // SERVICE
 // ============================================================================
 
@@ -247,13 +258,22 @@ export class TestFlightBuildVerificationService {
       };
     }
 
+    // Read and decrypt existing credential payload from backend storage
     let credentialPayload: any;
     try {
-      // Decrypt the encrypted payload first
-      const encryptedString = credential.encryptedPayload.toString('utf-8');
-      const decryptedString = decryptFromStorage(encryptedString);
-      credentialPayload = JSON.parse(decryptedString);
-    } catch {
+      const buffer = credential.encryptedPayload;
+      
+      // Decrypt using backend storage decryption
+      let decryptedPayload: string;
+      if (Buffer.isBuffer(buffer)) {
+        decryptedPayload = decryptCredentials(buffer);
+      } else {
+        decryptedPayload = decryptFromStorage(String(buffer));
+      }
+      
+      // Parse decrypted JSON
+      credentialPayload = JSON.parse(decryptedPayload);
+    } catch (error) {
       return {
         success: false,
         errorCode: 'STORE_INTEGRATION_INVALID',

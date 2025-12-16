@@ -8,6 +8,7 @@ import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { BuildRepository } from '../../models/release/build.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
+import { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import { UpdateReleaseRequestBody } from '../../types/release/release.interface';
 import { 
   Release, 
@@ -20,9 +21,15 @@ import {
   TaskStatus,
   ReleaseStatus,
   PauseType,
-  TaskType
+  TaskType,
+  RegressionCycleStatus
 } from '../../models/release/release.interface';
 import { CronJobService } from './cron-job/cron-job.service';
+import { 
+  validateTargetDateChange, 
+  validateSlotsArray, 
+  logTargetDateChangeAudit 
+} from '../../controllers/release/release-validation';
 
 export interface UpdateReleasePayload {
   releaseId: string;
@@ -65,7 +72,8 @@ export class ReleaseUpdateService {
     private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
     private readonly cronJobService: CronJobService,
     private readonly taskRepository?: ReleaseTaskRepository,
-    private readonly buildRepository?: BuildRepository
+    private readonly buildRepository?: BuildRepository,
+    private readonly regressionCycleRepository?: RegressionCycleRepository
   ) {}
 
   // Repository getters for manual upload flow
@@ -117,10 +125,34 @@ export class ReleaseUpdateService {
         lastUpdatedByAccountId: accountId
       };
 
-      // Always allowed fields
-      if (updates.targetReleaseDate !== undefined) {
-        releaseUpdates.targetReleaseDate = updates.targetReleaseDate ? new Date(updates.targetReleaseDate) : null;
+      // Target Release Date - with validation
+      if (updates.targetReleaseDate !== undefined && currentRelease.targetReleaseDate) {
+        const newTargetDate = updates.targetReleaseDate ? new Date(updates.targetReleaseDate) : null;
+        
+        if (newTargetDate) {
+          // Get existing slots and their cycle statuses for validation
+          const existingSlots = await this.getExistingSlotsWithStatus(releaseId);
+          
+          const dateValidation = validateTargetDateChange({
+            oldDate: currentRelease.targetReleaseDate,
+            newDate: newTargetDate,
+            existingSlots,
+            delayReason: updates.delayReason
+          });
+          
+          if (!dateValidation.isValid) {
+            throw new Error(dateValidation.error ?? 'Target date validation failed');
+          }
+          
+          // Log audit if date changed
+          if (dateValidation.shouldLogAudit && dateValidation.auditInfo) {
+            logTargetDateChangeAudit(releaseId, dateValidation.auditInfo, accountId);
+          }
+        }
+        
+        releaseUpdates.targetReleaseDate = newTargetDate;
       }
+      // Note: No else branch needed - targetReleaseDate is mandatory at release creation
 
       // Conditionally allowed fields (before kickoff)
       const kickOffDate = currentRelease.kickOffDate;
@@ -297,6 +329,7 @@ export class ReleaseUpdateService {
    * Validation Rules:
    * 1. Stage 3 must be PENDING for any slot changes
    * 2. In Stage 2, cannot remove slots whose time has passed
+   * 3. All slot dates must be before targetReleaseDate
    * 
    * Side Effects:
    * - If slots are added and cron is not running, restart cron
@@ -314,6 +347,24 @@ export class ReleaseUpdateService {
       date: new Date(slot.date),
       config: slot.config || {}
     }));
+
+    // VALIDATION: All slot dates must be before targetReleaseDate
+    const release = await this.releaseRepository.findById(releaseId);
+    if (release?.targetReleaseDate) {
+      const slotsForValidation = parsedNewSlots.map((slot, index) => ({
+        id: `slot-${index}`,
+        date: new Date(slot.date).toISOString()
+      }));
+      
+      const slotsValidation = validateSlotsArray(slotsForValidation, release.targetReleaseDate);
+      if (!slotsValidation.isValid) {
+        const invalidDates = slotsValidation.invalidSlots.map(s => s.date).join(', ');
+        throw new Error(
+          `Slot dates must be before targetReleaseDate (${release.targetReleaseDate.toISOString()}). ` +
+          `Invalid slots: ${invalidDates}`
+        );
+      }
+    }
 
     // Detect changes by comparing dates
     const currentDates = new Set(currentSlots.map(s => new Date(s.date).toISOString()));
@@ -375,6 +426,39 @@ export class ReleaseUpdateService {
     }
     
     return slots;
+  }
+
+  /**
+   * Get existing slots with their regression cycle status
+   * Used for target date validation
+   */
+  private async getExistingSlotsWithStatus(
+    releaseId: string
+  ): Promise<Array<{ id: string; date: string; status?: RegressionCycleStatus }>> {
+    const cronJob = await this.cronJobRepository.findByReleaseId(releaseId);
+    if (!cronJob) return [];
+
+    const slots = this.parseRegressionSlots(cronJob.upcomingRegressions);
+    
+    // If we have regression cycle repository, enrich with actual cycle status
+    if (this.regressionCycleRepository) {
+      const cycles = await this.regressionCycleRepository.findByReleaseId(releaseId);
+      
+      return slots.map((slot, index) => {
+        // Match slot to cycle by index (cycles are created in order)
+        const cycle = cycles[index];
+        return {
+          id: `slot-${index}`,
+          date: new Date(slot.date).toISOString(),
+          status: cycle?.status as RegressionCycleStatus | undefined
+        };
+      });
+    }
+
+    return slots.map((slot, index) => ({
+      id: `slot-${index}`,
+      date: new Date(slot.date).toISOString()
+    }));
   }
 
   // ===========================================================================

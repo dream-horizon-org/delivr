@@ -14,7 +14,7 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
-import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
+import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus, PlatformName, PauseType } from '~models/release/release.interface';
 import { stopCronJob, startCronJob } from '~services/release/cron-job/cron-scheduler';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
@@ -441,13 +441,17 @@ export class RegressionState implements ICronJobState {
     } else {
       console.log(`[RegressionState] Stage 2 complete. Waiting for manual Stage 3 trigger (autoTransitionToStage3 = false)`);
       
+      // Update database: Mark Stage 2 COMPLETED, set pauseType to AWAITING_STAGE_TRIGGER
+      // Note: Scheduler keeps running but state machine will skip execution
       await cronJobRepo.update(cronJob.id, {
         stage2Status: StageStatus.COMPLETED,
-        cronStatus: CronStatus.PAUSED  // ← Bug fix: Set PAUSED when waiting for manual trigger
+        pauseType: PauseType.AWAITING_STAGE_TRIGGER
+        // Note: stage3Status stays PENDING, cronStatus stays RUNNING
       });
 
-      stopCronJob(releaseId);
-      console.log(`[RegressionState] ⏸️ Stage 2 complete. Manual transition required (use trigger-pre-release API)`);
+      // DON'T stop the cron job - state machine will check pauseType and skip
+      // This approach works with both setInterval and Cronicle (external scheduler)
+      console.log(`[RegressionState] ⏸️ Stage 2 complete. Paused (AWAITING_STAGE_TRIGGER). Use trigger-pre-release API to start Stage 3.`);
     }
   }
 
