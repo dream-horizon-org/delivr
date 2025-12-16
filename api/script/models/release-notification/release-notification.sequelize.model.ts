@@ -35,7 +35,7 @@ export const createReleaseNotificationModel = (
         allowNull: false
       },
       tenantId: {
-        type: DataTypes.CHAR(36),
+        type: DataTypes.UUID,
         allowNull: false,
         field: 'tenantId',
         references: {

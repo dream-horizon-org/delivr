@@ -62,7 +62,7 @@ export const createReleaseModel = (
         comment: 'FK to release_configurations table'
       },
       tenantId: {
-        type: DataTypes.CHAR(36),
+        type: DataTypes.UUID,
         allowNull: false,
         field: 'tenantId',
         references: {
