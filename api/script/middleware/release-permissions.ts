@@ -34,9 +34,19 @@ export async function getUserReleasePermission(
 ): Promise<{ permission: string; isCreator: boolean; source: string } | null> {
   try {
     const sequelize = (storage as any).sequelize;
+
+    console.log('[getUserReleasePermission] userId:', userId, 'releaseId:', releaseId);
+    console.log('[getUserReleasePermission] Available models:', Object.keys(sequelize.models));
     
     // Get release
     const release = await sequelize.models.Release.findByPk(releaseId);
+
+    console.log('[getUserReleasePermission] Release found:', !!release);
+    if (release) {
+      console.log('[getUserReleasePermission] createdByAccountId:', release.dataValues.createdByAccountId);
+      console.log('[getUserReleasePermission] releasePilotAccountId:', release.dataValues.releasePilotAccountId);
+      console.log('[getUserReleasePermission] tenantId:', release.dataValues.tenantId);
+    }
     
     if (!release) {
       return null;
@@ -92,6 +102,8 @@ export function requireReleaseAccess(config: ReleasePermissionConfig) {
   return async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
     const releaseId = req.params.releaseId || req.body.releaseId;
+
+    console.log('[requireReleaseAccess] userId:', userId, 'releaseId:', releaseId);
     
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });

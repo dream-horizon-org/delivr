@@ -89,11 +89,29 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
     androidSubmissionRepository,
     actionHistoryRepository
   );
-  const distributionController = createDistributionController(distributionService);
+  const distributionController = createDistributionController(distributionService, storage);
 
   // ============================================================================
-  // DISTRIBUTION - GET BY RELEASE ID OR DISTRIBUTION ID
+  // DISTRIBUTION - LIST, GET BY RELEASE ID OR DISTRIBUTION ID
   // ============================================================================
+
+  /**
+   * GET /distributions
+   * 
+   * List all distributions with pagination, filtering, and stats.
+   * 
+   * Query Parameters:
+   * - page: number (default: 1)
+   * - pageSize: number (default: 10, max: 100)
+   * - status: string (filter by distribution status)
+   * - platform: string (filter by platform: ANDROID or IOS)
+   * 
+   * Use Case: Distribution management page, view all distributions
+   */
+  router.get(
+    "/distributions",
+    distributionController.listDistributions
+  );
 
   /**
    * GET /releases/:releaseId/distribution

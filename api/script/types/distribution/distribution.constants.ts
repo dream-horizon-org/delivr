@@ -64,6 +64,7 @@ export const DISTRIBUTION_ERROR_MESSAGES = {
   INVALID_STORE_TYPES: `Distribution operation failed: store types must be one of: ${DISTRIBUTION_STORE_TYPES.join(', ')}`,
   INVALID_STATUS: `Distribution operation failed: status must be one of: ${DISTRIBUTION_STATUSES.join(', ')}`,
   DISTRIBUTION_NOT_FOUND: 'Distribution not found',
+  NO_DISTRIBUTIONS_FOR_TENANT: 'No Distribution exists for this tenant',
   CREATE_FAILED: 'Failed to create distribution',
   UPDATE_FAILED: 'Failed to update distribution',
   DELETE_FAILED: 'Failed to delete distribution'
