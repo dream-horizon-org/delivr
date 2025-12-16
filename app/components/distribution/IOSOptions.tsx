@@ -16,10 +16,10 @@ import {
   DIST_ICON_SIZES,
   DIST_INPUT_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
-import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES } from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution-design.constants';
+import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES } from '~/constants/distribution/distribution.constants';
 
-type IOSOptionsProps = {
+export type IOSOptionsProps = {
   phasedRelease: boolean;
   resetRating: boolean;
   onPhasedReleaseChange: (value: boolean) => void;

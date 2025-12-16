@@ -5,6 +5,7 @@
 
 import {
   ActionIcon,
+  Alert,
   Badge,
   Button,
   Card,
@@ -21,6 +22,7 @@ import {
   IconAlertTriangle,
   IconDownload,
   IconExternalLink,
+  IconInfoCircle,
   IconPlayerPause,
   IconPlayerPlay,
   IconRefresh,
@@ -28,18 +30,19 @@ import {
   IconX
 } from '@tabler/icons-react';
 import {
-  DISTRIBUTION_MANAGEMENT_UI,
-  ROLLOUT_COMPLETE_PERCENT,
-  SUBMISSION_STATUS_COLORS
-} from '~/constants/distribution.constants';
-import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform, type Submission, SubmissionStatus } from '~/types/distribution.types';
-import { getPlatformIcon } from '~/utils/distribution-icons.utils';
-import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
+} from '~/constants/distribution/distribution-design.constants';
+import {
+  DIALOG_UI,
+  DISTRIBUTION_MANAGEMENT_UI,
+  ROLLOUT_COMPLETE_PERCENT,
+  SUBMISSION_STATUS_COLORS
+} from '~/constants/distribution/distribution.constants';
+import { Platform, type Submission, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { getPlatformIcon } from '~/utils/distribution/distribution-icons.utils';
+import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 const { LABELS } = DISTRIBUTION_MANAGEMENT_UI;
 
@@ -182,6 +185,18 @@ export function LatestSubmissionCard({
         </Group>
 
         <Divider />
+
+        {/* iOS Phased Release Pause Warning */}
+        {isPaused && isIOS && phasedRelease && (
+          <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
+              {DIALOG_UI.PAUSE.WARNING_LINE1}
+            </Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
+              {DIALOG_UI.PAUSE.WARNING_LINE2}
+            </Text>
+          </Alert>
+        )}
 
         {/* Rollout Progress */}
         {(isLive || isPaused) && (

@@ -8,8 +8,8 @@ import {
   DIST_BADGE_PROPS,
   DS_COLORS,
   DIST_ICON_SIZES,
-} from '~/constants/distribution-design.constants';
-import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution-design.constants';
+import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution/distribution.constants';
 
 export function ApprovedBadge() {
   return (

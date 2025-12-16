@@ -16,14 +16,13 @@ import {
     SubmitToStoresForm,
     UploadAABForm,
     VerifyTestFlightForm
-} from '~/components/distribution';
-import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution-api.constants';
+} from '~/components/Distribution';
+import { ERROR_MESSAGES, LOG_CONTEXT } from '~/constants/distribution/distribution-api.constants';
 import {
     DIALOG_TITLES,
     ROLLOUT_COMPLETE_PERCENT
-} from '~/constants/distribution.constants';
-import { useDistribution } from '~/hooks/useDistribution';
-import { usePreRelease } from '~/hooks/usePreRelease';
+} from '~/constants/distribution/distribution.constants';
+import { useDistribution, usePreRelease } from '~/hooks/distribution';
 import type {
     AndroidSubmitOptions,
     BuildsResponse,
@@ -33,8 +32,8 @@ import type {
     IOSSubmitOptions,
     PMStatusResponse,
     SubmissionsResponse
-} from '~/types/distribution.types';
-import { DistributionStatus, Platform } from '~/types/distribution.types';
+} from '~/types/distribution/distribution.types';
+import { DistributionStatus, Platform } from '~/types/distribution/distribution.types';
 import {
     createValidationError,
     handleAxiosError,
@@ -410,7 +409,9 @@ export default function DistributionPage() {
 // SUB-COMPONENTS - Imported from _components folder
 // ============================================================================
 
-import { DistributionPageHeader as PageHeader } from './_components/DistributionPageHeader';
-import { DistributionTab } from './_components/DistributionTab';
-import { PreReleaseTab } from './_components/PreReleaseTab';
+import {
+  DistributionPageHeader as PageHeader,
+  DistributionTab,
+  PreReleaseTab
+} from '~/components/Distribution';
 

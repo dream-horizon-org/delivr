@@ -5,8 +5,8 @@
  * Temporarily pause rollout with optional reason
  */
 
-import { Button, Group, Modal, Stack, Text, Textarea, ThemeIcon } from '@mantine/core';
-import { IconPlayerPause } from '@tabler/icons-react';
+import { Alert, Button, Group, Modal, Stack, Text, Textarea, ThemeIcon } from '@mantine/core';
+import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import {
   DIST_BUTTON_PROPS,
@@ -16,15 +16,15 @@ import {
   DIST_INPUT_PROPS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
   DIALOG_UI,
   PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 export type PauseRolloutDialogProps = {
   opened: boolean;
@@ -92,6 +92,16 @@ export function PauseRolloutDialog({
       {...DIST_MODAL_PROPS.DEFAULT}
     >
       <Stack gap={DS_SPACING.MD}>
+        {/* 30-Day Pause Limit Warning */}
+        <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM} mb={DS_SPACING.XS}>
+            {DIALOG_UI.PAUSE.WARNING_LINE1}
+          </Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM}>
+            {DIALOG_UI.PAUSE.WARNING_LINE2}
+          </Text>
+        </Alert>
+
         <Text size={DS_TYPOGRAPHY.SIZE.SM}>{confirmationText}</Text>
 
         <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>

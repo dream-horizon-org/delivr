@@ -19,8 +19,8 @@ import {
     HTTP_STATUS,
     LOG_CONTEXT,
     VALIDATION,
-} from '~/constants/distribution-api.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-api.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 import {
     createValidationError,
     handleAxiosError,

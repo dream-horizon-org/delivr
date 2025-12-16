@@ -26,7 +26,7 @@
  * See also: LIVE_STATE_VERIFICATION.md
  */
 
-import { Platform } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // TYPES

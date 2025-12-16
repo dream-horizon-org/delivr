@@ -12,11 +12,11 @@ import {
   DIST_FONT_WEIGHTS,
   DS_SPACING,
   DS_COLORS,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   DISTRIBUTIONS_LIST_LAYOUT,
   DISTRIBUTIONS_LIST_UI,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 
 export function EmptyDistributions() {
   return (

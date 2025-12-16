@@ -12,32 +12,31 @@
 import { Anchor, Badge, Button, Card, Group, Progress, Stack, Text } from '@mantine/core';
 import { IconExternalLink, IconRefresh, IconUpload } from '@tabler/icons-react';
 import { useCallback } from 'react';
-import { DISTRIBUTION_UI_LABELS, PLATFORM_LABELS } from '~/constants/distribution.constants';
+import { DISTRIBUTION_UI_LABELS, PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { BuildStrategy, WorkflowStatus } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { BuildStrategy, WorkflowStatus } from '~/types/distribution/distribution.types';
 import { BuildDetails } from './BuildDetails';
 import { BuildEmptyState } from './BuildEmptyState';
-import type { BuildStatusCardProps } from './distribution.types';
-import { deriveBuildState } from './distribution.utils';
+import type { BuildStatusCardProps } from '~/types/distribution/distribution-component.types';
+import { deriveBuildState } from '~/utils/distribution';
 import { PlatformIcon } from './PlatformIcon';
 import { StatusIcon } from './StatusIcon';
 
-export function BuildStatusCard(props: BuildStatusCardProps) {
-  const { 
-    platform, 
-    build, 
-    isLoading, 
-    buildStrategy,
-    onUploadRequested, 
-    onVerifyRequested,
-    onRetryBuild,
-    ciRetryUrl,
-    className,
-  } = props;
+export function BuildStatusCard({ 
+  platform, 
+  build, 
+  isLoading, 
+  buildStrategy,
+  onUploadRequested, 
+  onVerifyRequested,
+  onRetryBuild,
+  ciRetryUrl,
+  className,
+}: BuildStatusCardProps) {
 
   const {
     hasBuild,

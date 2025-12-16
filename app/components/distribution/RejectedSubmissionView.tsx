@@ -9,14 +9,13 @@
 
 import { Alert, Button, Card, Group, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
-import { PLATFORM_LABELS } from '~/constants/distribution.constants';
+import { PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-  DS_COMPONENTS,
-} from '~/constants/distribution-design.constants';
-import { Platform, RejectionDetails } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform, RejectionDetails } from '~/types/distribution/distribution.types';
 
 export type RejectedSubmissionViewProps = {
   platform: Platform;

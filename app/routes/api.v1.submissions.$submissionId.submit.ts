@@ -19,9 +19,9 @@ import {
     ERROR_MESSAGES,
     HTTP_STATUS,
     LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
-import type { SubmitSubmissionRequest } from '~/types/distribution.types';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-api.constants';
+import type { SubmitSubmissionRequest } from '~/types/distribution/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
 import {
     createValidationError,
     handleAxiosError,

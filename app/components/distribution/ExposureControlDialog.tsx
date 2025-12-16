@@ -16,14 +16,14 @@ import {
   DIST_FONT_WEIGHTS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
     BUTTON_LABELS,
     DIALOG_ICON_SIZES,
     DIALOG_UI,
     PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution.constants';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 
 // Per API Spec - EXPOSURE_CONTROL_CONFLICT error details
 export type ExposureControlConflictDetails = {

@@ -34,18 +34,18 @@ import {
   DIST_INPUT_PROPS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
   DIALOG_UI,
   PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
-import { formatStatus } from '~/utils/distribution-ui.utils';
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
+import { formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
-type CancelSubmissionDialogProps = {
+export type CancelSubmissionDialogProps = {
   opened: boolean;
   onClose: () => void;
   submissionId: string;
@@ -179,10 +179,9 @@ export function CancelSubmissionDialog({
             Keep Submission
           </Button>
           <Button
-            color="red"
+            {...DIST_BUTTON_PROPS.DANGER}
             onClick={handleCancel}
             loading={isSubmitting}
-            size="sm"
           >
             Cancel Submission
           </Button>

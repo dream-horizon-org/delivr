@@ -8,10 +8,10 @@ import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import type { PMTicket } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import type { PMTicket } from '~/types/distribution/distribution.types';
 
-type JiraTicketInfoProps = {
+export type JiraTicketInfoProps = {
   ticket: PMTicket;
 };
 

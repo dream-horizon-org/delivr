@@ -8,48 +8,53 @@
  */
 
 import {
-  Badge,
-  Button,
-  Checkbox,
-  Divider,
-  Group,
-  Modal,
-  Paper,
-  Stack,
-  Text,
-  Textarea,
-  Title,
+    Badge,
+    Button,
+    Checkbox,
+    Divider,
+    Group,
+    Modal,
+    Paper,
+    Stack,
+    Text,
+    Textarea,
+    Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconBrandApple, IconRocket } from '@tabler/icons-react';
 import { useEffect } from 'react';
-import { STORE_TYPE_NAMES } from '~/constants/distribution.constants';
 import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
-  DS_COMPONENTS,
-} from '~/constants/distribution-design.constants';
-import { type IOSSubmission } from '~/types/distribution.types';
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import { STORE_TYPE_NAMES } from '~/constants/distribution/distribution.constants';
+import { type IOSSubmission } from '~/types/distribution/distribution.types';
+import {
+    isFetcherSubmitting,
+    isIOSPromoteFormValid,
+    parseFetcherResponse,
+    validateReleaseNotes,
+} from '~/utils/distribution';
 import { ErrorAlert } from './ErrorRecovery';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-interface PromoteIOSSubmissionDialogProps {
+export interface PromoteIOSSubmissionDialogProps {
   opened: boolean;
   onClose: () => void;
   submission: IOSSubmission;
   onPromoteComplete?: () => void;
 }
 
-type FormData = {
+interface IOSPromoteFormData {
   phasedRelease: boolean;
   resetRating: boolean;
   releaseNotes: string;
-};
+}
 
 // ============================================================================
 // COMPONENT
@@ -62,26 +67,29 @@ export function PromoteIOSSubmissionDialog({
   onPromoteComplete,
 }: PromoteIOSSubmissionDialogProps) {
   const fetcher = useFetcher();
+  const { isSuccess, error } = parseFetcherResponse(fetcher.data);
+  const isSubmitting = isFetcherSubmitting(fetcher.state);
 
-  // Form setup
-  const form = useForm<FormData>({
+  const form = useForm<IOSPromoteFormData>({
     initialValues: {
-      phasedRelease: true, // Default to phased release
-      resetRating: false, // Default to not reset rating
+      phasedRelease: true,
+      resetRating: false,
       releaseNotes: '',
     },
     validate: {
-      releaseNotes: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Release notes are required';
-        }
-        return null;
-      },
+      releaseNotes: validateReleaseNotes,
     },
   });
 
-  // Handle form submission
-  const handleSubmit = (values: FormData) => {
+  // Handle successful submission
+  useEffect(() => {
+    if (fetcher.state === 'idle' && isSuccess) {
+      form.reset();
+      onPromoteComplete?.();
+    }
+  }, [fetcher.state, isSuccess, form, onPromoteComplete]);
+
+  const handleSubmit = (values: IOSPromoteFormData) => {
     const formData = new FormData();
     formData.append('intent', 'promoteSubmission');
     formData.append('submissionId', submission.id);
@@ -89,23 +97,10 @@ export function PromoteIOSSubmissionDialog({
     formData.append('phasedRelease', String(values.phasedRelease));
     formData.append('resetRating', String(values.resetRating));
     formData.append('releaseNotes', values.releaseNotes);
-
     fetcher.submit(formData, { method: 'post' });
   };
 
-  // Handle successful submission
-  useEffect(() => {
-    if (fetcher.state === 'idle' && (fetcher.data as any)?.success) {
-      form.reset();
-      onPromoteComplete?.();
-    }
-  }, [fetcher.state, fetcher.data, form, onPromoteComplete]);
-
-  const isSubmitting = fetcher.state === 'submitting';
-  const error = (fetcher.data as any)?.error;
-
-  // Check if form is valid for submit button
-  const isFormValid = form.values.releaseNotes.trim().length > 0;
+  const isFormValid = isIOSPromoteFormValid(form.values);
 
   return (
     <Modal
@@ -122,122 +117,146 @@ export function PromoteIOSSubmissionDialog({
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap={DS_SPACING.LG}>
-          {/* Error Alert */}
           {error && <ErrorAlert error={error} />}
 
           <Divider label="Build Information" labelPosition="center" />
 
-          {/* Read-Only Section */}
-          <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.CARD}>
-            <Stack gap={DS_SPACING.SM}>
-              <Group justify="space-between" align="center">
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
-                  Platform
-                </Text>
-                <Badge size="lg" leftSection={<IconBrandApple size={14} />} color={DS_COLORS.PLATFORM.IOS}>
-                  IOS
-                </Badge>
-              </Group>
-
-              <Group justify="space-between" align="center">
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
-                  Store Type
-                </Text>
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
-                  {STORE_TYPE_NAMES[submission.storeType]}
-                </Text>
-              </Group>
-
-              <Group justify="space-between" align="center">
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
-                  Version
-                </Text>
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="font-mono">
-                  {submission.version}
-                </Text>
-              </Group>
-
-              <Group justify="space-between" align="center">
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
-                  Release Type
-                </Text>
-                <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
-                  After Approval
-                </Text>
-              </Group>
-
-              {/* Artifact Info */}
-              {submission.artifact && 'testflightNumber' in submission.artifact && (
-                <>
-                  <Divider my={DS_SPACING.XS} />
-
-                  <Group justify="space-between" align="center">
-                    <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
-                      TestFlight Build
-                    </Text>
-                    <Badge size="lg" variant="light" color={DS_COLORS.PLATFORM.IOS} className="font-mono">
-                      #{submission.artifact.testflightNumber}
-                    </Badge>
-                  </Group>
-                </>
-              )}
-            </Stack>
-          </Paper>
+          <BuildInfoSection submission={submission} />
 
           <Divider label="Submission Details" labelPosition="center" />
 
-          {/* Editable Section */}
-          <Stack gap={DS_SPACING.MD}>
-            {/* Phased Release */}
-            <Checkbox
-              label="Enable Phased Release"
-              description="7-day automatic rollout by Apple (can be paused/resumed)"
-              {...form.getInputProps('phasedRelease', { type: 'checkbox' })}
-            />
+          <SubmissionFormSection form={form} />
 
-            {/* Reset Rating */}
-            <Checkbox
-              label="Reset App Rating"
-              description="Reset app ratings to zero for this version"
-              {...form.getInputProps('resetRating', { type: 'checkbox' })}
-            />
-
-            {/* Release Notes */}
-            <Textarea
-              label="Release Notes"
-              description="What's new in this version (visible to users)"
-              placeholder="Enter release notes..."
-              minRows={4}
-              maxRows={8}
-              required
-              {...form.getInputProps('releaseNotes')}
-            />
-          </Stack>
-
-          {/* Actions */}
-          <Group justify="flex-end" gap={DS_SPACING.SM} mt={DS_SPACING.LG}>
-            <Button 
-              variant="subtle" 
-              onClick={onClose} 
-              disabled={isSubmitting}
-              radius={DS_SPACING.BORDER_RADIUS}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-              disabled={!isFormValid || isSubmitting}
-              leftSection={<IconRocket size={16} />}
-              color={DS_COLORS.ACTION.PRIMARY}
-              radius={DS_SPACING.BORDER_RADIUS}
-            >
-              Submit to App Store
-            </Button>
-          </Group>
+          <DialogActions
+            onClose={onClose}
+            isSubmitting={isSubmitting}
+            isFormValid={isFormValid}
+            submitLabel="Submit to App Store"
+          />
         </Stack>
       </form>
     </Modal>
   );
 }
 
+// ============================================================================
+// SUB-COMPONENTS (Presentation only)
+// ============================================================================
+
+function BuildInfoSection({ submission }: { submission: IOSSubmission }) {
+  return (
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.CARD}>
+      <Stack gap={DS_SPACING.SM}>
+        <InfoRow label="Platform">
+          <Badge size="lg" leftSection={<IconBrandApple size={14} />} color={DS_COLORS.PLATFORM.IOS}>
+            IOS
+          </Badge>
+        </InfoRow>
+
+        <InfoRow label="Store Type">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
+            {STORE_TYPE_NAMES[submission.storeType]}
+          </Text>
+        </InfoRow>
+
+        <InfoRow label="Version">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} className="font-mono">
+            {submission.version}
+          </Text>
+        </InfoRow>
+
+        <InfoRow label="Release Type">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
+            After Approval
+          </Text>
+        </InfoRow>
+
+        {submission.artifact && 'testflightNumber' in submission.artifact && (
+          <>
+            <Divider my={DS_SPACING.XS} />
+            <InfoRow label="TestFlight Build">
+              <Badge size="lg" variant="light" color={DS_COLORS.PLATFORM.IOS} className="font-mono">
+                #{submission.artifact.testflightNumber}
+              </Badge>
+            </InfoRow>
+          </>
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Group justify="space-between" align="center">
+      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
+        {label}
+      </Text>
+      {children}
+    </Group>
+  );
+}
+
+function SubmissionFormSection({ form }: { form: ReturnType<typeof useForm<IOSPromoteFormData>> }) {
+  return (
+    <Stack gap={DS_SPACING.MD}>
+      <Checkbox
+        label="Enable Phased Release"
+        description="7-day automatic rollout by Apple (can be paused/resumed)"
+        {...form.getInputProps('phasedRelease', { type: 'checkbox' })}
+      />
+
+      <Checkbox
+        label="Reset App Rating"
+        description="Reset app ratings to zero for this version"
+        {...form.getInputProps('resetRating', { type: 'checkbox' })}
+      />
+
+      <Textarea
+        label="Release Notes"
+        description="What's new in this version (visible to users)"
+        placeholder="Enter release notes..."
+        minRows={4}
+        maxRows={8}
+        withAsterisk
+        error={form.errors.releaseNotes}
+        {...form.getInputProps('releaseNotes')}
+      />
+    </Stack>
+  );
+}
+
+function DialogActions({
+  onClose,
+  isSubmitting,
+  isFormValid,
+  submitLabel,
+}: {
+  onClose: () => void;
+  isSubmitting: boolean;
+  isFormValid: boolean;
+  submitLabel: string;
+}) {
+  return (
+    <Group justify="flex-end" gap={DS_SPACING.SM} mt={DS_SPACING.LG}>
+      <Button
+        variant="subtle"
+        onClick={onClose}
+        disabled={isSubmitting}
+        radius={DS_SPACING.BORDER_RADIUS}
+      >
+        Cancel
+      </Button>
+      <Button
+        type="submit"
+        loading={isSubmitting}
+        disabled={!isFormValid || isSubmitting}
+        leftSection={<IconRocket size={16} />}
+        color={DS_COLORS.ACTION.PRIMARY}
+        radius={DS_SPACING.BORDER_RADIUS}
+      >
+        {submitLabel}
+      </Button>
+    </Group>
+  );
+}

@@ -11,45 +11,40 @@
 
 import { Badge, Button, Card, Group, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core';
 import {
-    IconBrandAndroid,
-    IconBrandApple,
-    IconCheck,
-    IconChevronRight,
-    IconClock,
-    IconHistory,
-    IconPlayerPause,
-    IconX,
+  IconBrandAndroid,
+  IconBrandApple,
+  IconCheck,
+  IconChevronRight,
+  IconClock,
+  IconHistory,
+  IconPlayerPause,
+  IconX,
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import {
   DIST_BADGE_PROPS,
   DIST_BUTTON_PROPS,
   DIST_CARD_PROPS,
-  DS_COLORS,
-  DS_TYPOGRAPHY,
   DIST_FONT_WEIGHTS,
   DIST_ICON_PROPS,
   DIST_ICON_SIZES,
+  DS_COLORS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
 import {
-    DISTRIBUTION_UI_LABELS,
-    PLATFORM_LABELS,
-    STORE_NAMES,
-    SUBMISSION_STATUS_COLORS,
-    SUBMISSION_STATUS_LABELS
-} from '~/constants/distribution.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
+  DISTRIBUTION_UI_LABELS,
+  PLATFORM_LABELS,
+  STORE_NAMES,
+  SUBMISSION_STATUS_COLORS,
+  SUBMISSION_STATUS_LABELS,
+  SUBMISSION_TIMELINE_LABEL_WIDTH,
+} from '~/constants/distribution/distribution.constants';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { getRolloutDisplayStatus } from '~/utils/distribution';
 import { RolloutProgressBar } from './RolloutProgressBar';
 import { SubmissionHistoryPanel, type HistoryEvent } from './SubmissionHistoryPanel';
-import type { SubmissionCardProps } from './distribution.types';
-import { getRolloutDisplayStatus } from './distribution.utils';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const TIMELINE_LABEL_WIDTH = 70;
+import type { SubmissionCardProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // LOCAL HELPER - Returns JSX (must stay in component file)
@@ -105,7 +100,7 @@ function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
     <Stack gap={DS_SPACING.XS}>
       {submittedAt && (
         <Group gap={DS_SPACING.XS}>
-          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY} w={TIMELINE_LABEL_WIDTH}>
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.SECONDARY} w={SUBMISSION_TIMELINE_LABEL_WIDTH}>
             {DISTRIBUTION_UI_LABELS.TIMELINE_SUBMITTED}
           </Text>
           <Text size={DS_TYPOGRAPHY.SIZE.XS}>{new Date(submittedAt).toLocaleDateString()}</Text>
@@ -120,13 +115,12 @@ function SubmissionTimeline({ submission }: SubmissionTimelineProps) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function SubmissionCard(props: SubmissionCardProps) {
-  const { 
-    submission, 
-    compact = false,
-    onClick,
-    className,
-  } = props;
+export function SubmissionCard({ 
+  submission, 
+  compact = false,
+  onClick,
+  className,
+}: SubmissionCardProps) {
 
   const {
     platform,

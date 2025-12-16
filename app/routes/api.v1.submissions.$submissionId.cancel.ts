@@ -17,7 +17,7 @@ import {
   ERROR_MESSAGES,
   HTTP_STATUS,
   LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+} from '~/constants/distribution/distribution-api.constants';
 import {
   createValidationError,
   handleAxiosError,
@@ -28,7 +28,7 @@ import {
   authenticateActionRequest,
   AuthenticatedActionFunction,
 } from '~/utils/authenticate';
-import { Platform } from '~/types/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
 
 /**
  * PATCH - Cancel a submission

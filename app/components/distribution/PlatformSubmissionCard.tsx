@@ -24,14 +24,14 @@ import {
   STORE_URLS,
   SUBMISSION_STATUS_COLORS,
   SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
-import type { PlatformSubmissionCardProps } from './distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
+import type { PlatformSubmissionCardProps } from '~/types/distribution/distribution-component.types';
 import { PlatformIcon } from './PlatformIcon';
 import { PlatformSubmissionEmptyState } from './PlatformSubmissionEmptyState';
 import { SubmissionDetails } from './SubmissionDetails';
@@ -58,15 +58,14 @@ function getStatusIcon(status: SubmissionStatus | null) {
   }
 }
 
-export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
-  const { 
-    platform, 
-    submission, 
-    isSubmitting,
-    onViewDetails,
-    onRetry,
-    className,
-  } = props;
+export function PlatformSubmissionCard({ 
+  platform, 
+  submission, 
+  isSubmitting,
+  onViewDetails,
+  onRetry,
+  className,
+}: PlatformSubmissionCardProps) {
 
   const hasSubmission = submission !== null;
   const isRejected = submission?.status === SubmissionStatus.REJECTED;
@@ -111,7 +110,7 @@ export function PlatformSubmissionCard(props: PlatformSubmissionCardProps) {
           {/* Rejection Warning - Not in API spec, but keeping for now */}
           {isRejected && (
             <div className="mt-3 p-2 bg-red-50 rounded border border-red-200">
-              <Text size={DS_TYPOGRAPHY.SIZE.XS} c="red.7" fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.ERROR} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                 Rejection detected
               </Text>
             </div>

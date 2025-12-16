@@ -4,14 +4,14 @@
 
 import { Group, Paper, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution.constants';
+import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 
-type BlockedMessageProps = {
+export type BlockedMessageProps = {
   reason: string;
 };
 

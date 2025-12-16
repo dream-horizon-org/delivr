@@ -31,11 +31,11 @@ import {
   getTaskStatusLabel,
   getTaskTypeLabel,
 } from '~/constants/release-process-ui';
-import { PMApprovalStatus } from '~/components/distribution';
+import { PMApprovalStatus } from '~/components/Distribution';
 import { useRelease } from '~/hooks/useRelease';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus, TaskType, BuildUploadStage, Platform } from '~/types/release-process-enums';
-import type { PMStatusResponse } from '~/types/distribution.types';
+import type { PMStatusResponse } from '~/types/distribution/distribution.types';
 import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 
 interface TaskCardProps {

@@ -4,15 +4,15 @@
 
 import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconUserCheck } from '@tabler/icons-react';
-import { BUTTON_LABELS } from '~/constants/distribution.constants';
+import { BUTTON_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { ApproverRole } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { ApproverRole } from '~/types/distribution/distribution.types';
 
-type ManualApprovalPromptProps = {
+export type ManualApprovalPromptProps = {
   approverRole: ApproverRole;
   onApprove?: () => void;
   isApproving?: boolean;

@@ -3,7 +3,7 @@
  */
 
 import { Button, Tooltip } from '@mantine/core';
-import { DIST_BUTTON_PROPS } from '~/constants/distribution-design.constants';
+import { DIST_BUTTON_PROPS } from '~/constants/distribution/distribution-design.constants';
 
 export type ActionButtonProps = {
   icon: React.ReactNode;

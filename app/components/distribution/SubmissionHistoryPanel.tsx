@@ -45,13 +45,13 @@ import {
 import { useMemo } from 'react';
 import {
   SUBMISSION_STATUS_COLORS
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { SubmissionStatus, type Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { SubmissionStatus, type Platform } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // TYPES

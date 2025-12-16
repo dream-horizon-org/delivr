@@ -23,21 +23,21 @@ import { useLoaderData, useNavigate, useNavigation, useRevalidator, useSearchPar
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
-import { DistributionListRow } from '~/components/distribution/DistributionListRow';
-import { DistributionStatsCards } from '~/components/distribution/DistributionStatsCards';
-import { EmptyDistributions } from '~/components/distribution/EmptyDistributions';
-import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
-import { SubmitToStoresForm } from '~/components/distribution/SubmitToStoresForm';
+import { DistributionListRow } from '~/components/Distribution/DistributionListRow';
+import { DistributionStatsCard } from '~/components/Distribution/DistributionStatsCard';
+import { EmptyDistributions } from '~/components/Distribution/EmptyDistributions';
+import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
+import { SubmitToStoresForm } from '~/components/Distribution/SubmitToStoresForm';
 import {
   DISTRIBUTIONS_LIST_LAYOUT,
   DISTRIBUTIONS_LIST_UI
-} from '~/constants/distribution.constants';
-import { useSubmitModalProps } from '~/hooks/useSubmitModalProps';
+} from '~/constants/distribution/distribution.constants';
+import { useSubmitModalProps } from '~/hooks/distribution';
 import {
   type DistributionEntry,
   type DistributionStats,
   type PaginationMeta,
-} from '~/types/distribution.types';
+} from '~/types/distribution/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { ErrorCategory, checkStaleData, type AppError } from '~/utils/error-handling';
 
@@ -238,7 +238,7 @@ export default function DistributionsListPage() {
       )}
 
       {/* Stats */}
-      {!isLoading && hasDistributions && <DistributionStatsCards stats={stats} />}
+      {!isLoading && hasDistributions && <DistributionStatsCard stats={stats} />}
 
       {/* Distributions Table */}
       {!isLoading && !hasDistributions && !error ? (

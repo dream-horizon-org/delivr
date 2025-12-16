@@ -3,10 +3,10 @@
  */
 
 import { IconCheck, IconClock, IconX } from '@tabler/icons-react';
-import { DIST_ICON_SIZES } from '~/constants/distribution-design.constants';
-import { BuildUploadStatus } from '~/types/distribution.types';
+import { DIST_ICON_SIZES } from '~/constants/distribution/distribution-design.constants';
+import { BuildUploadStatus } from '~/types/distribution/distribution.types';
 
-type StatusIconProps = {
+export type StatusIconProps = {
   status: BuildUploadStatus | null;
 };
 

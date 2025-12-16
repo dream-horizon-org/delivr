@@ -28,11 +28,11 @@ import {
   DIST_FONT_WEIGHTS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 
 // ============================================================================
 // TYPES

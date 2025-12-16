@@ -16,10 +16,10 @@ import {
   DIST_ICON_PROPS,
   DIST_ICON_SIZES,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
-import { PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
-import { formatDateTime } from '~/utils/distribution-ui.utils';
+} from '~/constants/distribution/distribution-design.constants';
+import { PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
+import { formatDateTime } from '~/utils/distribution/distribution-ui.utils';
 
 export type PlatformReleaseInfo = {
   platform: Platform;

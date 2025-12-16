@@ -21,8 +21,8 @@ import {
   ERROR_MESSAGES,
   HTTP_STATUS,
   LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-api.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 /**
  * GET - Get submission details

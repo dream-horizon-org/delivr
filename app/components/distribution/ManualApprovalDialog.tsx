@@ -29,15 +29,15 @@ import {
   DIST_INPUT_PROPS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
   DIALOG_UI,
-} from '~/constants/distribution.constants';
-import { ApproverRole } from '~/types/distribution.types';
-import type { ManualApprovalDialogProps } from './distribution.types';
+} from '~/constants/distribution/distribution.constants';
+import { ApproverRole } from '~/types/distribution/distribution.types';
+import type { ManualApprovalDialogProps } from '~/types/distribution/distribution-component.types';
 
 export function ManualApprovalDialog({
   opened,

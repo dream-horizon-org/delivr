@@ -22,12 +22,12 @@ import {
     BUTTON_LABELS,
     DIALOG_ICON_SIZES,
     DIALOG_UI,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 
 // ============================================================================
 // TYPES

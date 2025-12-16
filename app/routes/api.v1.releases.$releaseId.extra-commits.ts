@@ -17,7 +17,7 @@ import {
 import {
   ERROR_MESSAGES,
   LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+} from '~/constants/distribution/distribution-api.constants';
 
 export const loader = authenticateLoaderRequest(
   async ({ params, user }: LoaderFunctionArgs & { user: User }) => {

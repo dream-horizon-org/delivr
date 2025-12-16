@@ -5,7 +5,7 @@
  * Reference: docs/02-product-specs/distribution-api-specification.md (Section 6)
  */
 
-import type { Platform } from './distribution.types';
+import type { Platform } from './distribution/distribution.types';
 
 // ============================================================================
 // ERROR CATEGORIES

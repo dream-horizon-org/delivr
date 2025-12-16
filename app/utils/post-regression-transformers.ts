@@ -3,8 +3,8 @@
  * Transform task data to formats expected by Pre-Release components
  */
 
-import type { PMStatusResponse } from '~/types/distribution.types';
-import { ApproverRole } from '~/types/distribution.types';
+import type { PMStatusResponse } from '~/types/distribution/distribution.types';
+import { ApproverRole } from '~/types/distribution/distribution.types';
 import type { Task } from '~/types/release-process.types';
 
 /**

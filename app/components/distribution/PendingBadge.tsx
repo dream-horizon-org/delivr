@@ -8,9 +8,9 @@ import {
   DIST_BADGE_PROPS,
   DS_COLORS,
   DIST_ICON_SIZES,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 
-type PendingBadgeProps = {
+export type PendingBadgeProps = {
   status: string;
 };
 

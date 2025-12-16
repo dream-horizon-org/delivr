@@ -16,7 +16,7 @@ import { AppDistributionService } from '~/.server/services/ReleaseManagement/int
 import type {
   ConnectStoreRequest,
   VerifyStoreRequest,
-} from '~/types/app-distribution';
+} from '~/types/distribution/app-distribution';
 
 /**
  * GET - List all distributions for tenant

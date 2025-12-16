@@ -1,13 +1,14 @@
 /**
  * Distribution Module - Component Exports
  * 
- * All distribution-related components for Pre-Release and Distribution stages
+ * All distribution-related components for Pre-Release and Distribution stages.
+ * 
+ * NOTE: Hooks are in ~/hooks/distribution/
+ * NOTE: Utils are in ~/utils/distribution/
  */
 
 // ============================================================================
-// Pre-Release Stage Components (Week 3)
-// NOTE: These components are for PRE-RELEASE module use only
-// They are NOT part of the distribution management module
+// Pre-Release Stage Components
 // ============================================================================
 export { BuildStatusCard } from './BuildStatusCard';
 export { ExtraCommitsWarning } from './ExtraCommitsWarning';
@@ -17,7 +18,7 @@ export { UploadAABForm } from './UploadAABForm';
 export { VerifyTestFlightForm } from './VerifyTestFlightForm';
 
 // ============================================================================
-// Distribution Stage Components (Week 4-5)
+// Distribution Stage Components
 // ============================================================================
 export { ActionButton } from './ActionButton';
 export { DistributionStatusPanel } from './DistributionStatusPanel';
@@ -33,66 +34,70 @@ export { SubmissionStatusCard } from './SubmissionStatusCard';
 export { SubmitToStoresForm } from './SubmitToStoresForm';
 
 // ============================================================================
-// Conflict Resolution Dialogs (Per API Spec Section 4.7)
+// Conflict Resolution Dialogs
 // ============================================================================
 export { ExposureControlDialog } from './ExposureControlDialog';
 export { VersionConflictDialog } from './VersionConflictDialog';
 
 // ============================================================================
-// Rejection Recovery Components (Per API Spec Section 4.9, 4.11)
+// Rejection Recovery Components
 // ============================================================================
 export { RejectedSubmissionView } from './RejectedSubmissionView';
-export { ReSubmissionDialog } from './ReSubmissionDialog';
+export { ResubmissionDialog } from './ResubmissionDialog';
 
 // ============================================================================
-// Release Complete View (Per Spec Week 5)
+// Release Complete View
 // ============================================================================
 export { ReleaseCompleteView } from './ReleaseCompleteView';
 
 // ============================================================================
-// Utility Functions (Pure, testable helpers)
+// Page Layout Components (migrated from routes/_components)
 // ============================================================================
-export {
-  deriveActionAvailability, deriveApprovalState,
-  // State derivation functions
-  deriveBuildState,
-  // Date formatting
-  formatDate,
-  formatDateTime, getReleaseStatusColor,
-  // Display helpers
-  getRolloutDisplayStatus,
-  getRolloutStatusColor,
-  getRolloutStatusLabel
-} from './distribution.utils';
+export { DistributionPageHeader } from './DistributionPageHeader';
+export { DistributionTab } from './DistributionTab';
+export { EmptySubmissionsCard } from './EmptySubmissionsCard';
+export { PlatformTabContent } from './PlatformTabContent';
+export { PreReleaseTab } from './PreReleaseTab';
+export { RejectionWarningCard } from './RejectionWarningCard';
+export { SubmissionManagementCard } from './SubmissionManagementCard';
 
 // ============================================================================
 // Component Types
 // ============================================================================
 export type {
-  // Pre-Release Types (for pre-release module use only)
-  BuildStatusCardProps, BuildSummaryState,
-  // Distribution Types
-  DistributionStatusPanelProps, ExtraCommitsWarningProps, HaltRolloutDialogProps, ManualApprovalDialogProps, PlatformSubmissionCardProps, PMApprovalStatusProps, PreReleaseStageProps, RejectionDetailsCardProps, RolloutControlsProps, RolloutProgressBarProps, SubmissionCardProps,
-  SubmitToStoresFormProps, UploadAABFormProps,
-  VerifyTestFlightFormProps
-} from './distribution.types';
+  BuildStatusCardProps,
+  BuildSummaryState,
+  DistributionStatusPanelProps,
+  ExtraCommitsWarningProps,
+  HaltRolloutDialogProps,
+  ManualApprovalDialogProps,
+  PlatformSubmissionCardProps,
+  PMApprovalStatusProps,
+  PreReleaseStageProps,
+  RejectionDetailsCardProps,
+  RolloutControlsProps,
+  RolloutProgressBarProps,
+  SubmissionCardProps,
+  SubmitToStoresFormProps,
+  UploadAABFormProps,
+  VerifyTestFlightFormProps,
+  ActionAvailability,
+  ApprovalState,
+  BuildState,
+} from '~/types/distribution/distribution-component.types';
 
-// Conflict Resolution Dialog Types
 export type { ExposureControlConflictDetails, ExposureControlDialogProps } from './ExposureControlDialog';
 export type { VersionConflictDetails, VersionConflictDialogProps } from './VersionConflictDialog';
-
-// Rejection Recovery Types
 export type { RejectedSubmissionViewProps } from './RejectedSubmissionView';
-export type { ReSubmissionDialogProps } from './ReSubmissionDialog';
-
-// Rollout Dialog Types
+export type { ResubmissionDialogProps } from './ResubmissionDialog';
 export type { PauseRolloutDialogProps } from './PauseRolloutDialog';
 export type { ResumeRolloutDialogProps } from './ResumeRolloutDialog';
-
-// Release Complete Types
 export type { PlatformReleaseInfo, ReleaseCompleteViewProps } from './ReleaseCompleteView';
 
-// Utility types
-export type {
-  ActionAvailability, ApprovalState, BuildState
-} from './distribution.types';
+// Page Layout Component Types
+export type { DistributionPageHeaderProps } from './DistributionPageHeader';
+export type { DistributionTabProps } from './DistributionTab';
+export type { EmptySubmissionsCardProps } from './EmptySubmissionsCard';
+export type { PlatformTabContentProps } from './PlatformTabContent';
+export type { PreReleaseTabProps } from './PreReleaseTab';
+export type { SubmissionManagementCardProps } from './SubmissionManagementCard';

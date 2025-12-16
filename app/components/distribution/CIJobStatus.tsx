@@ -8,11 +8,11 @@ import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { WorkflowStatus } from '~/types/distribution.types';
-import type { Build } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { WorkflowStatus } from '~/types/distribution/distribution.types';
+import type { Build } from '~/types/distribution/distribution.types';
 
-type CIJobStatusProps = {
+export type CIJobStatusProps = {
   build: Build;
 };
 

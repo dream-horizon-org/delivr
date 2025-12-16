@@ -4,31 +4,31 @@
  */
 
 import {
-    Badge,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Timeline
+  Badge,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Timeline
 } from '@mantine/core';
 import {
-    IconAlertTriangle,
-    IconPlayerPause,
-    IconPlayerPlay,
-    IconTrendingUp,
-    IconX,
+  IconAlertTriangle,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconTrendingUp,
+  IconX,
 } from '@tabler/icons-react';
 import {
-    DIST_BADGE_PROPS,
-    DIST_CARD_PROPS,
-    DIST_FONT_WEIGHTS,
-    DIST_ICON_SIZES,
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import type { ActionHistoryEntry } from '~/types/distribution.types';
-import { formatDateTime } from '~/utils/distribution-ui.utils';
+  DIST_BADGE_PROPS,
+  DIST_CARD_PROPS,
+  DIST_FONT_WEIGHTS,
+  DIST_ICON_SIZES,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import type { ActionHistoryEntry } from '~/types/distribution/distribution.types';
+import { formatDateTime } from '~/utils/distribution/distribution-ui.utils';
 
 export interface ActivityHistoryLogProps {
   actionHistory: ActionHistoryEntry[];

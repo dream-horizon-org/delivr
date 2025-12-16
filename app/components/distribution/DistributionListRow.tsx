@@ -11,19 +11,19 @@ import {
   DISTRIBUTIONS_LIST_ICON_SIZES,
   DISTRIBUTIONS_LIST_LAYOUT,
   DISTRIBUTIONS_LIST_UI,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   Platform,
   SubmissionStatus,
   type DistributionEntry
-} from '~/types/distribution.types';
-import { getPlatformIcon } from '~/utils/distribution-icons.utils';
-import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
+} from '~/types/distribution/distribution.types';
+import { getPlatformIcon } from '~/utils/distribution/distribution-icons.utils';
+import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 export type DistributionListRowProps = {
   distribution: DistributionEntry;

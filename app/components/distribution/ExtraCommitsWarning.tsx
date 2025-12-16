@@ -30,15 +30,15 @@ import {
   DIALOG_TITLES,
   DISTRIBUTION_UI_LABELS,
   WARNING_SEVERITY_COLORS,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { WarningSeverity } from '~/types/distribution.types';
-import type { ExtraCommitsWarningProps } from './distribution.types';
-import { useWarningState } from './useWarningState';
+} from '~/constants/distribution/distribution-design.constants';
+import { WarningSeverity } from '~/types/distribution/distribution.types';
+import type { ExtraCommitsWarningProps } from '~/types/distribution/distribution-component.types';
+import { useWarningState } from '~/hooks/distribution';
 
 // ============================================================================
 // SUB-COMPONENTS
@@ -94,14 +94,13 @@ function CommitsList({
 // MAIN COMPONENT
 // ============================================================================
 
-export function ExtraCommitsWarning(props: ExtraCommitsWarningProps) {
-  const { 
-    extraCommits,
-    canDismiss,
-    onProceed,
-    onCreateRegression,
-    className,
-  } = props;
+export function ExtraCommitsWarning({ 
+  extraCommits,
+  canDismiss,
+  onProceed,
+  onCreateRegression,
+  className,
+}: ExtraCommitsWarningProps) {
 
   const {
     isExpanded,

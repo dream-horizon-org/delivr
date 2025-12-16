@@ -7,11 +7,11 @@ import {
   DS_TYPOGRAPHY,
   DS_SPACING,
   DS_COLORS,
-} from '~/constants/distribution-design.constants';
-import { Platform } from '~/types/distribution.types';
-import { PLATFORM_LABELS } from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform } from '~/types/distribution/distribution.types';
+import { PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
 
-type PlatformSubmissionEmptyStateProps = {
+export type PlatformSubmissionEmptyStateProps = {
   platform: Platform;
 };
 

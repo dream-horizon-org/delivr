@@ -33,14 +33,14 @@ import {
     ROLLOUT_COMPLETE_PERCENT,
     ROLLOUT_CONTROLS_ICON_SIZES,
     ROLLOUT_CONTROLS_UI,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform } from '~/types/distribution.types';
-import { getPlatformRolloutLabel, getRolloutStatus } from '~/utils/distribution-ui.utils';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform } from '~/types/distribution/distribution.types';
+import { getPlatformRolloutLabel, getRolloutStatus } from '~/utils/distribution/distribution-ui.utils';
 import {
     getIOSPhasedReleaseDay,
     getPlatformRolloutDescription,
@@ -55,9 +55,9 @@ import { PauseConfirmationDialog } from './PauseConfirmationDialog';
 import { PresetButtons } from './PresetButtons';
 import { ResumeConfirmationDialog } from './ResumeConfirmationDialog';
 import { RolloutProgressBar } from './RolloutProgressBar';
-import type { RolloutControlsProps } from './distribution.types';
-import { deriveActionAvailability } from './distribution.utils';
-import { useRolloutState } from './useRolloutState';
+import type { RolloutControlsProps } from '~/types/distribution/distribution-component.types';
+import { useRolloutState } from '~/hooks/distribution';
+import { deriveActionAvailability } from '~/utils/distribution';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -391,9 +391,9 @@ export function RolloutControls({
             <Group gap={DS_SPACING.SM}>
               <IconCheck
                 size={ROLLOUT_CONTROLS_ICON_SIZES.COMPLETE_BADGE}
-                color="var(--mantine-color-green-7)"
+                style={{ color: DS_COLORS.STATUS.SUCCESS }}
               />
-              <Text size={DS_TYPOGRAPHY.SIZE.SM} c="green.7">
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.STATUS.SUCCESS}>
                 {ROLLOUT_CONTROLS_UI.COMPLETE_MESSAGE}
               </Text>
             </Group>

@@ -35,7 +35,7 @@ import type {
     UploadAABResponse,
     VerifyTestFlightRequest,
     VerifyTestFlightResponse
-} from '~/types/distribution.types';
+} from '~/types/distribution/distribution.types';
 
 class Distribution {
   private __client = axios.create({

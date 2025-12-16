@@ -15,7 +15,7 @@ import { DistributionService } from '~/.server/services/Distribution';
 import {
   ERROR_MESSAGES,
   LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+} from '~/constants/distribution/distribution-api.constants';
 import {
   createValidationError,
   handleAxiosError,

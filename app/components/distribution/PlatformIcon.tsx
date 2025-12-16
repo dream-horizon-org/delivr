@@ -8,10 +8,10 @@ import {
   DS_COLORS,
   DIST_ICON_PROPS,
   DIST_ICON_SIZES,
-} from '~/constants/distribution-design.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
-type PlatformIconProps = {
+export type PlatformIconProps = {
   platform: Platform;
 };
 

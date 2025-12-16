@@ -4,8 +4,8 @@
  */
 
 import { json } from '@remix-run/node';
-import { HTTP_STATUS } from '~/constants/distribution-api.constants';
-import { Platform } from '~/types/distribution.types';
+import { HTTP_STATUS } from '~/constants/distribution/distribution-api.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 /**
  * Standard error response structure

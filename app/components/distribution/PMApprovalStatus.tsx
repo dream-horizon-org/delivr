@@ -9,27 +9,26 @@
 
 import { Card, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconUserCheck } from '@tabler/icons-react';
-import { ApproverRole } from '~/types/distribution.types';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
+import { ApproverRole } from '~/types/distribution/distribution.types';
+import { deriveApprovalState } from '~/utils/distribution';
 import { ApprovedBadge } from './ApprovedBadge';
 import { BlockedMessage } from './BlockedMessage';
-import type { PMApprovalStatusProps } from './distribution.types';
-import { deriveApprovalState } from './distribution.utils';
+import type { PMApprovalStatusProps } from '~/types/distribution/distribution-component.types';
 import { JiraTicketInfo } from './JiraTicketInfo';
 import { ManualApprovalPrompt } from './ManualApprovalPrompt';
 import { PendingBadge } from './PendingBadge';
 
-export function PMApprovalStatus(props: PMApprovalStatusProps) {
-  const { 
-    pmStatus, 
-    isApproving,
-    onApproveRequested,
-    className,
-  } = props;
+export function PMApprovalStatus({ 
+  pmStatus, 
+  isApproving,
+  onApproveRequested,
+  className,
+}: PMApprovalStatusProps) {
 
   const {
     hasIntegration,

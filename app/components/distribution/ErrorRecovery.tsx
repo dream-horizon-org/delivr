@@ -19,7 +19,7 @@ import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import type { AppError, ErrorCategory } from '~/utils/error-handling';
 
 // ============================================================================
@@ -137,7 +137,7 @@ export function ErrorAlert({
         
         {/* Error details (expandable) */}
         {showDetails && appError.details && (
-          <Paper p={DS_SPACING.XS} bg="gray.1" withBorder>
+          <Paper p={DS_SPACING.XS} bg={DS_COLORS.BACKGROUND.CARD} withBorder>
             <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>Error Details:</Text>
             <Code block>{JSON.stringify(appError.details, null, 2)}</Code>
           </Paper>

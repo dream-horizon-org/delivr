@@ -15,14 +15,14 @@ import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   ANDROID_PRIORITIES,
   DISTRIBUTION_UI_LABELS,
   ROLLOUT_PRESETS
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 
-type AndroidOptionsProps = {
+export type AndroidOptionsProps = {
   rollout: number;
   priority: number;
   onRolloutChange: (value: number) => void;

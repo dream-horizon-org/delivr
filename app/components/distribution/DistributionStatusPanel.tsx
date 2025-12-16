@@ -14,14 +14,14 @@ import {
     RELEASE_STATUS_COLORS,
     RELEASE_STATUS_LABELS,
     ROLLOUT_COMPLETE_PERCENT,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { DistributionStatus, Platform } from '~/types/distribution.types';
-import type { DistributionStatusPanelProps } from './distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { DistributionStatus, Platform } from '~/types/distribution/distribution.types';
+import type { DistributionStatusPanelProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // LOCAL HELPER (returns JSX, must stay in component file)
@@ -60,7 +60,14 @@ function PlatformProgressItem({
   percentage 
 }: PlatformProgressItemProps) {
   const isComplete = percentage === ROLLOUT_COMPLETE_PERCENT;
-  const statusColor = isComplete ? DS_COLORS.STATUS.SUCCESS : submitted ? DS_COLORS.ACTION.PRIMARY : DS_COLORS.STATUS.MUTED;
+  
+  // Determine status color based on submission state
+  const getStatusColor = () => {
+    if (isComplete) return DS_COLORS.STATUS.SUCCESS;
+    if (submitted) return DS_COLORS.ACTION.PRIMARY;
+    return DS_COLORS.STATUS.MUTED;
+  };
+  const statusColor = getStatusColor();
   
   return (
     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -129,8 +136,7 @@ function OverallProgress({ progress, status }: OverallProgressProps) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
-  const { status, isLoading, className } = props;
+export function DistributionStatusPanel({ status, isLoading, className }: DistributionStatusPanelProps) {
 
   const { 
     releaseStatus, 

@@ -14,7 +14,7 @@ import {
   ERROR_MESSAGES,
   SUCCESS_MESSAGES,
 } from '~/constants/release-process-ui';
-import { BuildsService } from '~/services/builds.service';
+import { BuildsService } from '~/services/distribution/builds.service';
 import { useManualBuildUpload } from '~/hooks/useReleaseProcess';
 import { useRelease } from '~/hooks/useRelease';
 import type { BuildUploadStage, Platform } from '~/types/release-process-enums';

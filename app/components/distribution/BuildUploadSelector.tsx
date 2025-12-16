@@ -9,39 +9,39 @@
  */
 
 import {
-  Alert,
-  Button,
-  Card,
-  FileInput,
-  Group,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
+    Alert,
+    Button,
+    Card,
+    FileInput,
+    Group,
+    Stack,
+    Text,
+    TextInput,
+    ThemeIcon,
 } from '@mantine/core';
 import {
-  IconAlertCircle,
-  IconBrandAndroid,
-  IconBrandApple,
-  IconFileUpload,
-  IconRocket,
+    IconAlertCircle,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconFileUpload,
+    IconRocket,
 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
-  BUTTON_LABELS,
-  DIALOG_ICON_SIZES,
-  DISTRIBUTION_UI_LABELS,
-  FORM_ICON_SIZES,
-  PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
 import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform } from '~/types/distribution.types';
+    BUTTON_LABELS,
+    DIALOG_ICON_SIZES,
+    DISTRIBUTION_UI_LABELS,
+    FORM_ICON_SIZES,
+    PLATFORM_LABELS,
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
-type BuildUploadSelectorProps = {
+export type BuildUploadSelectorProps = {
   platform: Platform;
   releaseId: string;
   onBuildReady: (buildId: string) => void;
@@ -89,7 +89,7 @@ export function BuildUploadSelector({
       if (data.success) {
         onBuildReady(data.data.build.id);
       } else {
-        setUploadError(data.error?.message || DISTRIBUTION_UI_LABELS.UPLOAD_FAILED);
+        setUploadError(data.error?.message ?? DISTRIBUTION_UI_LABELS.UPLOAD_FAILED);
       }
     } catch (error) {
       setUploadError(DISTRIBUTION_UI_LABELS.NETWORK_ERROR);
@@ -118,7 +118,7 @@ export function BuildUploadSelector({
       if (data.success) {
         onBuildReady(data.data.build.id);
       } else {
-        setUploadError(data.error?.message || DISTRIBUTION_UI_LABELS.VERIFICATION_FAILED);
+        setUploadError(data.error?.message ?? DISTRIBUTION_UI_LABELS.VERIFICATION_FAILED);
       }
     } catch (error) {
       setUploadError(DISTRIBUTION_UI_LABELS.NETWORK_ERROR);

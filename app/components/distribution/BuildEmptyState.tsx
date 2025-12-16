@@ -11,11 +11,11 @@ import {
   DS_TYPOGRAPHY,
   DIST_ICON_SIZES,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
-import { BUTTON_LABELS, DISTRIBUTION_UI_LABELS, PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { BUTTON_LABELS, DISTRIBUTION_UI_LABELS, PLATFORM_LABELS } from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
-type BuildEmptyStateProps = {
+export type BuildEmptyStateProps = {
   platform: Platform;
   isManualMode: boolean;
   onUpload?: () => void;

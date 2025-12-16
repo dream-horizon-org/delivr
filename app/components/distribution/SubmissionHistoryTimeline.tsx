@@ -20,14 +20,14 @@ import {
   IconExternalLink,
   IconX,
 } from '@tabler/icons-react';
-import { SUBMISSION_STATUS_COLORS } from '~/constants/distribution.constants';
+import { SUBMISSION_STATUS_COLORS } from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform, type Submission, SubmissionStatus } from '~/types/distribution.types';
-import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform, type Submission, SubmissionStatus } from '~/types/distribution/distribution.types';
+import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
 
 export interface SubmissionHistoryTimelineProps {
   submissions: Submission[];
@@ -145,7 +145,7 @@ export function SubmissionHistoryTimeline({
               {/* Rejection Reason (for REJECTED status) */}
               {submission.status === SubmissionStatus.REJECTED && 'rejectionReason' in submission && submission.rejectionReason && (
                 <Paper p={DS_SPACING.XS} radius={DS_SPACING.BORDER_RADIUS} withBorder className="bg-red-50 border-red-200">
-                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c="red.7">
+                  <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.ERROR}>
                     <strong>Rejection Reason:</strong> {submission.rejectionReason}
                   </Text>
                 </Paper>

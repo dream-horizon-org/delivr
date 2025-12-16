@@ -8,6 +8,7 @@
  */
 
 import {
+  Alert,
   Button,
   Group,
   Modal,
@@ -16,18 +17,18 @@ import {
   Textarea,
   ThemeIcon,
 } from '@mantine/core';
-import { IconPlayerPause } from '@tabler/icons-react';
+import { IconInfoCircle, IconPlayerPause } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_UI,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 
 // ============================================================================
 // TYPES
@@ -57,7 +58,12 @@ export function PauseConfirmationDialog({
   const [reason, setReason] = useState('');
 
   const handleConfirm = useCallback(() => {
-    onConfirm(reason.trim() || undefined);
+    const trimmedReason = reason.trim();
+    if (trimmedReason) {
+      onConfirm(trimmedReason);
+    } else {
+      onConfirm();
+    }
     setReason('');
   }, [onConfirm, reason]);
 
@@ -85,6 +91,16 @@ export function PauseConfirmationDialog({
       closeOnEscape={!isLoading}
     >
       <Stack gap={DS_SPACING.MD}>
+        {/* 30-Day Pause Limit Warning */}
+        <Alert color={DS_COLORS.STATUS.WARNING} variant="light" icon={<IconInfoCircle size={16} />}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>
+            {DIALOG_UI.PAUSE.WARNING_LINE1}
+          </Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
+            {DIALOG_UI.PAUSE.WARNING_LINE2}
+          </Text>
+        </Alert>
+
         {/* Confirmation Message */}
         <div>
           <Text size={DS_TYPOGRAPHY.SIZE.MD} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} mb={DS_SPACING.XS}>

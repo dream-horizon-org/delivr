@@ -279,6 +279,54 @@
       "branch": "release/5.2.0",
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z"
+    },
+    {
+      "id": "rel_android_only",
+      "tenantId": "EkgmIbgGQx",
+      "version": "6.0.0-android",
+      "branch": "release/6.0.0-android-only",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "rel_ios_only",
+      "tenantId": "EkgmIbgGQx",
+      "version": "6.0.0-ios",
+      "branch": "release/6.0.0-ios-only",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "rel_rejected_android",
+      "tenantId": "EkgmIbgGQx",
+      "version": "7.0.0",
+      "branch": "release/7.0.0-rejected",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "rel_rejected_ios",
+      "tenantId": "EkgmIbgGQx",
+      "version": "7.1.0",
+      "branch": "release/7.1.0-rejected",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "rel_cancelled_android",
+      "tenantId": "EkgmIbgGQx",
+      "version": "8.0.0",
+      "branch": "release/8.0.0-cancelled",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "rel_cancelled_ios",
+      "tenantId": "EkgmIbgGQx",
+      "version": "8.1.0",
+      "branch": "release/8.1.0-cancelled",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
     }
   ],
   "store_distribution": [
@@ -561,6 +609,54 @@
       "status": "PENDING",
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z"
+    },
+    {
+      "id": "dist_android_only",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_android_only",
+      "status": "RELEASED",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "dist_ios_only",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_ios_only",
+      "status": "PARTIALLY_RELEASED",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "dist_rejected_android",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_rejected_android",
+      "status": "REJECTED",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "dist_rejected_ios",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_rejected_ios",
+      "status": "REJECTED",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "dist_cancelled_android",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_cancelled_android",
+      "status": "CANCELLED",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
+    },
+    {
+      "id": "dist_cancelled_ios",
+      "tenantId": "EkgmIbgGQx",
+      "releaseId": "rel_cancelled_ios",
+      "status": "CANCELLED",
+      "createdAt": "2025-12-01T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z"
     }
   ],
   "android_submission_builds": [
@@ -616,12 +712,12 @@
       "versionCode": 12000,
       "rolloutPercentage": 0,
       "inAppUpdatePriority": 3,
-      "releaseNotes": "Android 1.2.0 - Attempt 1",
+      "releaseNotes": "Android 1.2.0 - APPROVED and waiting to start rollout",
       "submittedAt": "2025-12-14T06:32:03.375Z",
       "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "statusUpdatedAt": "2025-12-16T08:32:03.375Z",
       "createdAt": "2025-12-01T06:32:03.375Z",
-      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "updatedAt": "2025-12-16T08:32:03.375Z",
       "artifact": {
         "artifactPath": "https://s3.amazonaws.com/builds/app-release-1.2.0-0.aab",
         "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
@@ -1774,6 +1870,98 @@
       ],
       "isCurrent": true,
       "status": "LIVE"
+    },
+    {
+      "id": "asb_android_only",
+      "distributionId": "dist_android_only",
+      "version": "6.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 60000,
+      "rolloutPercentage": 100,
+      "inAppUpdatePriority": 5,
+      "releaseNotes": "Android-only release 6.0.0 - Fully released to all users",
+      "submittedAt": "2025-12-10T08:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-15T14:32:03.376Z",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-6.0.0-android-only.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-12T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Gradual rollout increase",
+          "previousRolloutPercentage": 10,
+          "newRolloutPercentage": 50
+        },
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-15T14:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "All metrics look good, going to 100%",
+          "previousRolloutPercentage": 50,
+          "newRolloutPercentage": 100
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "asb_rejected",
+      "distributionId": "dist_rejected_android",
+      "version": "7.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 70000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": null,
+      "releaseNotes": "Android 7.0.0 - New features and improvements",
+      "submittedAt": "2025-12-10T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-14T10:32:03.376Z",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-14T10:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-7.0.0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "REJECTED",
+      "rejectionReason": "App crashes on startup on Android 14 devices. Please fix the compatibility issue and resubmit."
+    },
+    {
+      "id": "asb_cancelled",
+      "distributionId": "dist_cancelled_android",
+      "version": "8.0.0",
+      "storeType": "PLAY_STORE",
+      "versionCode": 80000,
+      "rolloutPercentage": 0,
+      "inAppUpdatePriority": null,
+      "releaseNotes": "Android 8.0.0 - Major update",
+      "submittedAt": "2025-12-08T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-12T15:32:03.376Z",
+      "createdAt": "2025-12-08T06:32:03.376Z",
+      "updatedAt": "2025-12-12T15:32:03.376Z",
+      "artifact": {
+        "artifactPath": "https://s3.amazonaws.com/builds/app-release-8.0.0.aab",
+        "internalTrackLink": "https://play.google.com/apps/testing/com.dream11.fantasy"
+      },
+      "actionHistory": [
+        {
+          "action": "CANCELLED",
+          "createdAt": "2025-12-12T15:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Critical bug found in this version. Cancelling to prepare hotfix."
+        }
+      ],
+      "isCurrent": true,
+      "status": "CANCELLED",
+      "cancellationReason": "Critical bug found in this version. Cancelling to prepare hotfix."
     }
   ],
   "ios_submission_builds": [
@@ -1793,7 +1981,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -1816,7 +2004,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -1839,7 +2027,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -1871,7 +2059,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -1895,7 +2083,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1001",
+        "testflightNumber": "1001",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -1943,7 +2131,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -1967,7 +2155,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1001",
+        "testflightNumber": "1001",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -1997,7 +2185,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1002",
+        "testflightNumber": "1002",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2045,7 +2233,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2083,7 +2271,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2124,19 +2312,19 @@
       "phasedRelease": true,
       "resetRating": false,
       "rolloutPercentage": 0,
-      "releaseNotes": "iOS 3.0.0 - Attempt 1",
+      "releaseNotes": "iOS 3.0.0 - APPROVED and ready to release",
       "submittedAt": "2025-12-06T06:32:03.375Z",
       "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "statusUpdatedAt": "2025-12-16T09:32:03.375Z",
       "createdAt": "2025-12-01T06:32:03.375Z",
-      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "updatedAt": "2025-12-16T09:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
       "isCurrent": true,
-      "status": "PENDING"
+      "status": "APPROVED"
     },
     {
       "id": "isb_012",
@@ -2154,7 +2342,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -2177,7 +2365,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -2201,7 +2389,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1001",
+        "testflightNumber": "1001",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2233,7 +2421,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2281,7 +2469,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -2305,7 +2493,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1001",
+        "testflightNumber": "1001",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2353,7 +2541,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2401,7 +2589,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2449,7 +2637,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2479,15 +2667,15 @@
       "releaseType": "AFTER_APPROVAL",
       "phasedRelease": true,
       "resetRating": false,
-      "rolloutPercentage": 100,
-      "releaseNotes": "iOS 3.8.0 - Attempt 1",
+      "rolloutPercentage": 65,
+      "releaseNotes": "iOS 3.8.0 - HALTED due to critical crash",
       "submittedAt": "2025-12-04T06:32:03.375Z",
       "submittedBy": "dev@dream11.com",
-      "statusUpdatedAt": "2025-12-08T06:32:03.375Z",
+      "statusUpdatedAt": "2025-12-16T07:32:03.375Z",
       "createdAt": "2025-12-01T06:32:03.375Z",
-      "updatedAt": "2025-12-15T06:32:03.375Z",
+      "updatedAt": "2025-12-16T07:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2511,13 +2699,19 @@
           "action": "UPDATE_ROLLOUT",
           "createdAt": "2025-12-08T06:32:03.375Z",
           "createdBy": "prince@dream11.com",
-          "reason": "Metrics look good, increasing to final percentage",
+          "reason": "Metrics look good, continuing rollout",
           "previousRolloutPercentage": 50,
-          "newRolloutPercentage": 100
+          "newRolloutPercentage": 65
+        },
+        {
+          "action": "HALTED",
+          "createdAt": "2025-12-16T07:32:03.375Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Emergency halt - Critical crash detected in iOS 17.2 devices"
         }
       ],
       "isCurrent": true,
-      "status": "LIVE"
+      "status": "HALTED"
     },
     {
       "id": "isb_022",
@@ -2535,7 +2729,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -2559,7 +2753,7 @@
       "createdAt": "2025-12-01T06:32:03.375Z",
       "updatedAt": "2025-12-15T06:32:03.375Z",
       "artifact": {
-        "testflightBuildNumber": "1001",
+        "testflightNumber": "1001",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2591,7 +2785,7 @@
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
@@ -2614,7 +2808,7 @@
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2662,7 +2856,7 @@
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2692,7 +2886,7 @@
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2740,7 +2934,7 @@
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [
@@ -2788,13 +2982,100 @@
       "createdAt": "2025-12-01T06:32:03.376Z",
       "updatedAt": "2025-12-15T06:32:03.376Z",
       "artifact": {
-        "testflightBuildNumber": "1000",
+        "testflightNumber": "1000",
         "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
       },
       "actionHistory": [],
       "isCurrent": false,
       "status": "REJECTED",
       "rejectionReason": "UI issue"
+    },
+    {
+      "id": "isb_ios_only",
+      "distributionId": "dist_ios_only",
+      "version": "6.0.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 50,
+      "releaseNotes": "iOS-only release 6.0.0 - Phased release in progress",
+      "submittedAt": "2025-12-10T09:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-15T12:32:03.376Z",
+      "createdAt": "2025-12-10T06:32:03.376Z",
+      "updatedAt": "2025-12-16T06:32:03.376Z",
+      "artifact": {
+        "testflightNumber": "6000",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "UPDATE_ROLLOUT",
+          "createdAt": "2025-12-13T06:32:03.376Z",
+          "createdBy": "dev@dream11.com",
+          "reason": "Day 3 of phased release, metrics look good",
+          "previousRolloutPercentage": 10,
+          "newRolloutPercentage": 50
+        }
+      ],
+      "isCurrent": true,
+      "status": "LIVE"
+    },
+    {
+      "id": "isb_rejected",
+      "distributionId": "dist_rejected_ios",
+      "version": "7.1.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": true,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 7.1.0 - Performance improvements and bug fixes",
+      "submittedAt": "2025-12-09T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-13T08:32:03.376Z",
+      "createdAt": "2025-12-09T06:32:03.376Z",
+      "updatedAt": "2025-12-13T08:32:03.376Z",
+      "artifact": {
+        "testflightNumber": "7100",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [],
+      "isCurrent": true,
+      "status": "REJECTED",
+      "rejectionReason": "Guideline 2.3.7 - Your app uses location tracking but the purpose string does not sufficiently explain the use of location."
+    },
+    {
+      "id": "isb_cancelled",
+      "distributionId": "dist_cancelled_ios",
+      "version": "8.1.0",
+      "storeType": "APP_STORE",
+      "releaseType": "AFTER_APPROVAL",
+      "phasedRelease": false,
+      "resetRating": false,
+      "rolloutPercentage": 0,
+      "releaseNotes": "iOS 8.1.0 - New features",
+      "submittedAt": "2025-12-07T06:32:03.376Z",
+      "submittedBy": "dev@dream11.com",
+      "statusUpdatedAt": "2025-12-11T14:32:03.376Z",
+      "createdAt": "2025-12-07T06:32:03.376Z",
+      "updatedAt": "2025-12-11T14:32:03.376Z",
+      "artifact": {
+        "testflightNumber": "8100",
+        "testflightLink": "https://appstoreconnect.apple.com/apps/123456/testflight"
+      },
+      "actionHistory": [
+        {
+          "action": "CANCELLED",
+          "createdAt": "2025-12-11T14:32:03.376Z",
+          "createdBy": "prince@dream11.com",
+          "reason": "Found memory leak issue. Cancelling submission for hotfix."
+        }
+      ],
+      "isCurrent": true,
+      "status": "CANCELLED",
+      "cancellationReason": "Found memory leak issue. Cancelling submission for hotfix."
     }
   ]
 }

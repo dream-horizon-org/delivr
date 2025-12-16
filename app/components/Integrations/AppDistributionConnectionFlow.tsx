@@ -26,7 +26,7 @@ import type {
   Platform,
   PlayStorePayload,
   AppStorePayload,
-} from '~/types/app-distribution';
+} from '~/types/distribution/app-distribution';
 import { encrypt, isEncryptionConfigured } from '~/utils/encryption';
 import { TARGET_PLATFORMS } from '~/types/release-config-constants';
 import { DEBUG_LABELS } from '~/constants/integration-ui';

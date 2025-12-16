@@ -24,31 +24,31 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
-import { ActivityHistoryLog } from '~/components/distribution/ActivityHistoryLog';
-import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
-import { ErrorState, StaleDataWarning } from '~/components/distribution/ErrorRecovery';
-import { HaltRolloutDialog } from '~/components/distribution/HaltRolloutDialog';
-import { LatestSubmissionCard } from '~/components/distribution/LatestSubmissionCard';
-import { PauseRolloutDialog } from '~/components/distribution/PauseRolloutDialog';
-import { PromoteAndroidSubmissionDialog } from '~/components/distribution/PromoteAndroidSubmissionDialog';
-import { PromoteIOSSubmissionDialog } from '~/components/distribution/PromoteIOSSubmissionDialog';
-import { ReSubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
-import { ResumeRolloutDialog } from '~/components/distribution/ResumeRolloutDialog';
-import { SubmissionHistoryTimeline } from '~/components/distribution/SubmissionHistoryTimeline';
-import { UpdateRolloutDialog } from '~/components/distribution/UpdateRolloutDialog';
+import { ActivityHistoryLog } from '~/components/Distribution/ActivityHistoryLog';
+import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
+import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
+import { HaltRolloutDialog } from '~/components/Distribution/HaltRolloutDialog';
+import { LatestSubmissionCard } from '~/components/Distribution/LatestSubmissionCard';
+import { PauseRolloutDialog } from '~/components/Distribution/PauseRolloutDialog';
+import { PromoteAndroidSubmissionDialog } from '~/components/Distribution/PromoteAndroidSubmissionDialog';
+import { PromoteIOSSubmissionDialog } from '~/components/Distribution/PromoteIOSSubmissionDialog';
+import { ResubmissionDialog } from '~/components/Distribution/ResubmissionDialog';
+import { ResumeRolloutDialog } from '~/components/Distribution/ResumeRolloutDialog';
+import { SubmissionHistoryTimeline } from '~/components/Distribution/SubmissionHistoryTimeline';
+import { UpdateRolloutDialog } from '~/components/Distribution/UpdateRolloutDialog';
 import {
   DISTRIBUTION_MANAGEMENT_UI,
   DISTRIBUTION_STATUS_COLORS,
   SUBMISSION_STATUS_COLORS,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   Platform,
   SubmissionStatus,
   type DistributionDetail,
   type Submission,
-} from '~/types/distribution.types';
+} from '~/types/distribution/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { formatDateTime, formatStatus } from '~/utils/distribution-ui.utils';
+import { formatDateTime, formatStatus } from '~/utils/distribution/distribution-ui.utils';
 import { ErrorCategory, checkStaleData, type AppError } from '~/utils/error-handling';
 import { showErrorToast } from '~/utils/toast';
 
@@ -113,7 +113,19 @@ export const action = authenticateLoaderRequest(
         case 'promoteSubmission': {
           const releaseNotes = formData.get('releaseNotes') as string;
 
-          let submitRequest: any;
+          type AndroidSubmitRequest = {
+            rolloutPercentage: number;
+            inAppUpdatePriority: number;
+            releaseNotes: string;
+          };
+
+          type IOSSubmitRequest = {
+            phasedRelease: boolean;
+            resetRating: boolean;
+            releaseNotes: string;
+          };
+
+          let submitRequest: AndroidSubmitRequest | IOSSubmitRequest;
 
           if (platform === Platform.ANDROID) {
             const rolloutPercentage = parseFloat(formData.get('rolloutPercentage') as string);
@@ -988,7 +1000,7 @@ export default function DistributionDetailPage() {
 
           {/* Resubmit Dialog */}
           {selectedSubmission && (
-            <ReSubmissionDialog
+            <ResubmissionDialog
               opened={isResubmitDialogOpen}
               onClose={handleCloseDialogs}
               distributionId={distribution.id}

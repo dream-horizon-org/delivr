@@ -39,14 +39,14 @@ import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
 import { RolloutService } from '~/.server/services/Rollout';
-import { CancelSubmissionDialog } from '~/components/distribution/CancelSubmissionDialog';
-import { ReSubmissionDialog } from '~/components/distribution/ReSubmissionDialog';
-import { ROLLOUT_COMPLETE_PERCENT, SUBMISSION_STATUS_LABELS } from '~/constants/distribution.constants';
+import { CancelSubmissionDialog } from '~/components/Distribution/CancelSubmissionDialog';
+import { ResubmissionDialog } from '~/components/Distribution/ResubmissionDialog';
+import { ROLLOUT_COMPLETE_PERCENT, SUBMISSION_STATUS_LABELS } from '~/constants/distribution/distribution.constants';
 import {
     Platform,
     SubmissionStatus,
     type Submission,
-} from '~/types/distribution.types';
+} from '~/types/distribution/distribution.types';
 import { authenticateActionRequest, authenticateLoaderRequest, type AuthenticatedActionFunction } from '~/utils/authenticate';
 
 interface LoaderData {
@@ -508,7 +508,7 @@ export default function SubmissionDetailPage() {
       />
 
       {/* Resubmission Dialog */}
-      <ReSubmissionDialog
+      <ResubmissionDialog
         opened={retryDialogOpened}
         onClose={closeRetryDialog}
         distributionId={submission.distributionId}

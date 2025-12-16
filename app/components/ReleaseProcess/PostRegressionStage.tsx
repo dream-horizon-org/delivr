@@ -8,22 +8,22 @@ import { Alert, Button, Card, Group, Select, Stack, Text } from '@mantine/core';
 import { IconRocket } from '@tabler/icons-react';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ExtraCommitsWarning } from '~/components/distribution';
-import { ManualApprovalDialog } from '~/components/distribution';
+import { ExtraCommitsWarning } from '~/components/Distribution';
+import { ManualApprovalDialog } from '~/components/Distribution';
 import {
   ERROR_MESSAGES,
   POST_REGRESSION_LABELS,
   TASK_STATUS_LABELS,
 } from '~/constants/release-process-ui';
-import { DIALOG_TITLES } from '~/constants/distribution.constants';
+import { DIALOG_TITLES } from '~/constants/distribution/distribution.constants';
 import { usePostRegressionStage, useRetryTask, useCompletePostRegression } from '~/hooks/useReleaseProcess';
 import type { Task } from '~/types/release-process.types';
 import { TaskStatus, TaskType } from '~/types/release-process-enums';
 import { getApiErrorMessage } from '~/utils/api-client';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
 import { apiGet } from '~/utils/api-client';
-import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution.types';
-import { ApproverRole } from '~/types/distribution.types';
+import type { ExtraCommitsResponse, PMStatusResponse } from '~/types/distribution/distribution.types';
+import { ApproverRole } from '~/types/distribution/distribution.types';
 import { transformTaskToPMStatus } from '~/utils/post-regression-transformers';
 import { TaskCard } from './TaskCard';
 

@@ -4,24 +4,19 @@
 
 import { Checkbox, Group, Text } from '@mantine/core';
 import { IconBrandAndroid, IconBrandApple } from '@tabler/icons-react';
-import { FORM_ICON_SIZES } from '~/constants/distribution.constants';
+import { FORM_ICON_SIZES, STORE_DISPLAY_NAMES } from '~/constants/distribution/distribution.constants';
 import {
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
-type PlatformCheckboxProps = {
+export type PlatformCheckboxProps = {
   platform: Platform;
   checked: boolean;
   disabled?: boolean;
   onChange: () => void;
 };
-
-const STORE_NAMES = {
-  [Platform.ANDROID]: 'Google Play Store',
-  [Platform.IOS]: 'Apple App Store',
-} as const;
 
 export function PlatformCheckbox({ 
   platform, 
@@ -30,7 +25,7 @@ export function PlatformCheckbox({
   onChange 
 }: PlatformCheckboxProps) {
   const isAndroid = platform === Platform.ANDROID;
-  const storeName = STORE_NAMES[platform];
+  const storeName = STORE_DISPLAY_NAMES[platform];
   
   return (
     <Checkbox

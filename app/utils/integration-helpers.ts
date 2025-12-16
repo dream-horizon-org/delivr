@@ -4,7 +4,7 @@
  */
 
 import type { Integration } from '~/contexts/TenantContext';
-import type { PlayStorePayload, AppStorePayload } from '~/types/app-distribution';
+import type { PlayStorePayload, AppStorePayload } from '~/types/distribution/app-distribution';
 
 export interface AvailableIntegrations {
   jenkins: Array<{ id: string; name: string }>;

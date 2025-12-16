@@ -7,10 +7,10 @@ import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform, type Submission } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform, type Submission } from '~/types/distribution/distribution.types';
 
-type SubmissionDetailsProps = {
+export type SubmissionDetailsProps = {
   submission: Submission;
 };
 

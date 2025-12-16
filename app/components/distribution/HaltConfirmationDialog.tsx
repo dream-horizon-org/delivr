@@ -9,29 +9,30 @@
  */
 
 import {
-  Alert,
-  Button,
-  Group,
-  List,
-  Modal,
-  Stack,
-  Text,
-  Textarea,
-  ThemeIcon,
+    Alert,
+    Button,
+    Group,
+    List,
+    Modal,
+    Stack,
+    Text,
+    Textarea,
+    ThemeIcon,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertOctagon, IconAlertTriangle, IconX } from '@tabler/icons-react';
 import { useCallback } from 'react';
 import {
-  BUTTON_LABELS,
-  DIALOG_ICON_SIZES,
-  DIALOG_UI,
-} from '~/constants/distribution.constants';
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
 import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+    BUTTON_LABELS,
+    DIALOG_ICON_SIZES,
+    DIALOG_UI,
+    HALT_REASON_VALIDATION,
+} from '~/constants/distribution/distribution.constants';
 
 // ============================================================================
 // TYPES
@@ -49,13 +50,6 @@ export type HaltConfirmationDialogProps = {
 type HaltFormData = {
   reason: string;
 };
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const MIN_REASON_LENGTH = 10;
-const MAX_REASON_LENGTH = 1000;
 
 // ============================================================================
 // MAIN COMPONENT
@@ -78,11 +72,11 @@ export function HaltConfirmationDialog({
         if (!value || value.trim().length === 0) {
           return 'Reason is required';
         }
-        if (value.trim().length < MIN_REASON_LENGTH) {
-          return `Minimum ${MIN_REASON_LENGTH} characters required`;
+        if (value.trim().length < HALT_REASON_VALIDATION.MIN_LENGTH) {
+          return `Minimum ${HALT_REASON_VALIDATION.MIN_LENGTH} characters required`;
         }
-        if (value.length > MAX_REASON_LENGTH) {
-          return `Maximum ${MAX_REASON_LENGTH} characters allowed`;
+        if (value.length > HALT_REASON_VALIDATION.MAX_LENGTH) {
+          return `Maximum ${HALT_REASON_VALIDATION.MAX_LENGTH} characters allowed`;
         }
         return null;
       },
@@ -103,7 +97,7 @@ export function HaltConfirmationDialog({
   }, [form, onClose]);
 
   const characterCount = form.values.reason.length;
-  const isNearLimit = characterCount > MAX_REASON_LENGTH * 0.9;
+  const isNearLimit = characterCount > HALT_REASON_VALIDATION.MAX_LENGTH * 0.9;
 
   return (
     <Modal
@@ -169,9 +163,9 @@ export function HaltConfirmationDialog({
           <Textarea
             label={DIALOG_UI.HALT.REASON_LABEL}
             placeholder={DIALOG_UI.HALT.REASON_PLACEHOLDER}
-            description={`${characterCount} / ${MAX_REASON_LENGTH} characters ${
-              characterCount < MIN_REASON_LENGTH
-                ? `(minimum ${MIN_REASON_LENGTH})`
+            description={`${characterCount} / ${HALT_REASON_VALIDATION.MAX_LENGTH} characters ${
+              characterCount < HALT_REASON_VALIDATION.MIN_LENGTH
+                ? `(minimum ${HALT_REASON_VALIDATION.MIN_LENGTH})`
                 : ''
             }`}
             required

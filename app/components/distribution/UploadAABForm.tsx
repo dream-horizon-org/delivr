@@ -23,22 +23,22 @@ import { useCallback, useRef } from 'react';
 import {
   BUTTON_LABELS,
   MAX_AAB_FILE_SIZE_LABEL
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import type { UploadAABFormProps } from './distribution.types';
-import { getDropZoneClassName } from './getDropZoneClassName';
-import { useUploadState } from './useUploadState';
+} from '~/constants/distribution/distribution-design.constants';
+import type { UploadAABFormProps } from '~/types/distribution/distribution-component.types';
+import { useUploadState } from '~/hooks/distribution';
+import { getDropZoneClassName } from '~/utils/distribution';
 
 
 // ============================================================================
 // SUB-COMPONENTS
 // ============================================================================
 
-type FilePreviewProps = {
+export type FilePreviewProps = {
   file: File;
   onClear: () => void;
 };
@@ -72,7 +72,7 @@ function FilePreview({ file, onClear }: FilePreviewProps) {
 }
 
 
-type FileDropZoneProps = {
+export type FileDropZoneProps = {
   onFileSelect: (file: File | null) => void;
   disabled: boolean;
   isDragging: boolean;
@@ -171,14 +171,13 @@ function FileDropZone({
 // MAIN COMPONENT
 // ============================================================================
 
-export function UploadAABForm(props: UploadAABFormProps) {
-  const { 
-    releaseId, 
-    onUploadComplete, 
-    onUploadError, 
-    onClose,
-    className,
-  } = props;
+export function UploadAABForm({ 
+  releaseId, 
+  onUploadComplete, 
+  onUploadError, 
+  onClose,
+  className,
+}: UploadAABFormProps) {
 
   const {
     selectedFile,

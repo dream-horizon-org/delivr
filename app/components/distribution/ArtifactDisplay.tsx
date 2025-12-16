@@ -25,18 +25,19 @@ import {
   IconRocket,
 } from '@tabler/icons-react';
 import {
-  DIALOG_ICON_SIZES,
-  DISTRIBUTION_UI_LABELS,
-  PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import {
+  DEFAULT_AAB_ARTIFACT_NAME,
+  DIALOG_ICON_SIZES,
+  DISTRIBUTION_UI_LABELS,
+  PLATFORM_LABELS,
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
-type ArtifactDisplayProps = {
+export type ArtifactDisplayProps = {
   platform: Platform;
   // Android specific
   artifactName?: string;
@@ -52,8 +53,6 @@ const PLATFORM_COLORS = {
   [Platform.IOS]: DS_COLORS.PLATFORM.IOS,
 } as const;
 
-const DEFAULT_ARTIFACT_NAME = 'app-release.aab';
-
 export function ArtifactDisplay({
   platform,
   artifactName,
@@ -65,7 +64,7 @@ export function ArtifactDisplay({
   const isAndroid = platform === Platform.ANDROID;
   const platformColor = PLATFORM_COLORS[platform];
   const platformLabel = PLATFORM_LABELS[platform];
-  const displayArtifactName = artifactName || DEFAULT_ARTIFACT_NAME;
+  const displayArtifactName = artifactName ?? DEFAULT_AAB_ARTIFACT_NAME;
 
   return (
     <Card shadow="sm" padding="lg" radius={DS_SPACING.BORDER_RADIUS} withBorder>
@@ -101,7 +100,7 @@ export function ArtifactDisplay({
           <>
             {/* Android Artifact */}
             <Group gap={DS_SPACING.XS}>
-              <IconFileZip size={DIALOG_ICON_SIZES.TITLE} color="var(--mantine-color-gray-6)" />
+              <IconFileZip size={DIALOG_ICON_SIZES.TITLE} style={{ color: DS_COLORS.TEXT.MUTED }} />
               <div style={{ flex: 1 }}>
                 <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                   {displayArtifactName}
@@ -120,14 +119,14 @@ export function ArtifactDisplay({
             {/* Internal Testing Link */}
             {internalTrackLink && (
               <Group gap={DS_SPACING.XS}>
-                <IconExternalLink size={DIALOG_ICON_SIZES.TITLE} color="var(--mantine-color-green-6)" />
+                <IconExternalLink size={DIALOG_ICON_SIZES.TITLE} style={{ color: DS_COLORS.STATUS.SUCCESS }} />
                 <div style={{ flex: 1 }}>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {DISTRIBUTION_UI_LABELS.INTERNAL_TESTING}
                   </Text>
                   <Text
                     size={DS_TYPOGRAPHY.SIZE.XS}
-                    c="blue"
+                    c={DS_COLORS.ACTION.PRIMARY}
                     component="a"
                     href={internalTrackLink}  // Renamed from internalTestingLink
                     target="_blank"
@@ -144,10 +143,10 @@ export function ArtifactDisplay({
           <>
             {/* iOS TestFlight */}
             <Group gap={DS_SPACING.XS}>
-              <IconRocket size={DIALOG_ICON_SIZES.TITLE} color="var(--mantine-color-blue-6)" />
+              <IconRocket size={DIALOG_ICON_SIZES.TITLE} style={{ color: DS_COLORS.STATUS.INFO }} />
               <div style={{ flex: 1 }}>
                 <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
-                  {DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD(buildNumber || '')}
+                  {DISTRIBUTION_UI_LABELS.TESTFLIGHT_BUILD(buildNumber ?? '')}
                 </Text>
                 <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                   {DISTRIBUTION_UI_LABELS.READY_FOR_APPSTORE}
@@ -161,14 +160,14 @@ export function ArtifactDisplay({
             {/* TestFlight Link */}
             {testflightLink && (
               <Group gap={DS_SPACING.XS}>
-                <IconExternalLink size={DIALOG_ICON_SIZES.TITLE} color="var(--mantine-color-blue-6)" />
+                <IconExternalLink size={DIALOG_ICON_SIZES.TITLE} style={{ color: DS_COLORS.STATUS.INFO }} />
                 <div style={{ flex: 1 }}>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>
                     {DISTRIBUTION_UI_LABELS.TESTFLIGHT_TESTING}
                   </Text>
                   <Text
                     size={DS_TYPOGRAPHY.SIZE.XS}
-                    c="blue"
+                    c={DS_COLORS.ACTION.PRIMARY}
                     component="a"
                     href={testflightLink}
                     target="_blank"

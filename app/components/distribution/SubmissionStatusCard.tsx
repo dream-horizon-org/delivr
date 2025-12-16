@@ -32,20 +32,20 @@ import {
     SUBMISSION_PROGRESS_COLORS,
     SUBMISSION_STATUS_COLORS,
     SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import type { Submission } from '~/types/distribution.types';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import type { Submission } from '~/types/distribution/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type SubmissionStatusCardProps = {
+export type SubmissionStatusCardProps = {
   submission: Submission;
   org: string;
   distributionId: string;
@@ -92,8 +92,7 @@ function PlatformIcon({ platform }: PlatformIconProps) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
-  const { submission, org, distributionId, compact = false, className } = props;
+export function SubmissionStatusCard({ submission, org, distributionId, compact = false, className }: SubmissionStatusCardProps) {
 
   const {
     platform,

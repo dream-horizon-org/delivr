@@ -20,12 +20,12 @@ import {
     ERROR_MESSAGES,
     HTTP_STATUS,
     LOG_CONTEXT,
-} from '~/constants/distribution-api.constants';
+} from '~/constants/distribution/distribution-api.constants';
 import type {
     AndroidResubmissionRequest,
     IOSResubmissionRequest,
-} from '~/types/distribution.types';
-import { Platform } from '~/types/distribution.types';
+} from '~/types/distribution/distribution.types';
+import { Platform } from '~/types/distribution/distribution.types';
 import {
     createValidationError,
     handleAxiosError,

@@ -9,23 +9,24 @@
  */
 
 import {
-  Badge,
-  Box,
-  Group,
-  Paper,
-  Progress,
-  Stack,
-  Table,
-  Text,
-  ThemeIcon,
+    Badge,
+    Box,
+    Group,
+    Paper,
+    Progress,
+    Stack,
+    Table,
+    Text,
+    ThemeIcon,
 } from '@mantine/core';
 import { IconCheck, IconClock } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import { IOS_PHASED_RELEASE_SCHEDULE } from '~/constants/distribution/distribution.constants';
 
 // ============================================================================
 // TYPES
@@ -36,21 +37,6 @@ export type IOSPhasedReleaseScheduleProps = {
   currentPercentage: number; // Actual current percentage
   className?: string;
 };
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-// Apple's phased release schedule (approximate percentages)
-const PHASED_SCHEDULE = [
-  { day: 1, percentage: 1, label: 'Day 1', description: '~1% of users' },
-  { day: 2, percentage: 2, label: 'Day 2', description: '~2% of users' },
-  { day: 3, percentage: 5, label: 'Day 3', description: '~5% of users' },
-  { day: 4, percentage: 10, label: 'Day 4', description: '~10% of users' },
-  { day: 5, percentage: 20, label: 'Day 5', description: '~20% of users' },
-  { day: 6, percentage: 50, label: 'Day 6', description: '~50% of users' },
-  { day: 7, percentage: 100, label: 'Day 7', description: '100% of users' },
-] as const;
 
 // ============================================================================
 // MAIN COMPONENT
@@ -67,7 +53,7 @@ export function IOSPhasedReleaseSchedule({
   }, [currentDay]);
 
   return (
-    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg="blue.0" className={className}>
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.INFO_LIGHT} className={className}>
       <Stack gap={DS_SPACING.MD}>
         {/* Header */}
         <div>
@@ -87,7 +73,7 @@ export function IOSPhasedReleaseSchedule({
         {/* 7-Segment Progress Bar */}
         <Box>
           <Progress.Root size={DS_TYPOGRAPHY.SIZE.XL} radius={DS_SPACING.BORDER_RADIUS}>
-            {PHASED_SCHEDULE.map((day, index) => {
+            {IOS_PHASED_RELEASE_SCHEDULE.map((day, index) => {
               const isComplete = day.day < currentDay;
               const isCurrent = day.day === currentDay;
               const segmentWidth = (1 / 7) * 100;
@@ -127,7 +113,7 @@ export function IOSPhasedReleaseSchedule({
           
           {/* Day Labels */}
           <Group justify="space-between" mt={DS_SPACING.XS}>
-            {PHASED_SCHEDULE.map((day) => (
+            {IOS_PHASED_RELEASE_SCHEDULE.map((day) => (
               <Text
                 key={day.day}
                 size={DS_TYPOGRAPHY.SIZE.XS}
@@ -146,7 +132,7 @@ export function IOSPhasedReleaseSchedule({
           <Group justify="space-between">
             <div>
               <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} mb={4}>Current Rollout</Text>
-              <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c="blue.9">
+              <Text size={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD} c={DS_COLORS.STATUS.INFO}>
                 {currentPercentage.toFixed(1)}%
               </Text>
             </div>
@@ -181,7 +167,7 @@ export function IOSPhasedReleaseSchedule({
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {PHASED_SCHEDULE.map((day) => {
+              {IOS_PHASED_RELEASE_SCHEDULE.map((day) => {
                 const isComplete = day.day < currentDay;
                 const isCurrent = day.day === currentDay;
                 const isPending = day.day > currentDay;

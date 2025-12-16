@@ -15,14 +15,16 @@ import {
   DIST_FONT_WEIGHTS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_UI,
   PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+  VERSION_CONFLICT_STATUS_EMOJI,
+  VERSION_CONFLICT_STATUS_LABELS,
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 // Per API Spec - VERSION_EXISTS error details
 export type VersionConflictDetails = {
@@ -48,20 +50,6 @@ export type VersionConflictDialogProps = {
   isLoading?: boolean;
 };
 
-// Status emoji mapping
-const STATUS_EMOJI = {
-  LIVE: '🟢',
-  IN_REVIEW: '🟡',
-  DRAFT: '📝',
-} as const;
-
-// Status label mapping
-const STATUS_LABELS = {
-  LIVE: 'Live',
-  IN_REVIEW: 'In Review',
-  DRAFT: 'Draft',
-} as const;
-
 export function VersionConflictDialog({
   opened,
   onClose,
@@ -78,8 +66,8 @@ export function VersionConflictDialog({
 
   const statusDisplay = useMemo(() => {
     if (!conflict) return '';
-    const emoji = STATUS_EMOJI[conflict.existingStatus];
-    const label = STATUS_LABELS[conflict.existingStatus];
+    const emoji = VERSION_CONFLICT_STATUS_EMOJI[conflict.existingStatus];
+    const label = VERSION_CONFLICT_STATUS_LABELS[conflict.existingStatus];
     return `${emoji} ${label}`;
   }, [conflict]);
 

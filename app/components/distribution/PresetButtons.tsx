@@ -3,8 +3,8 @@
  */
 
 import { Button, Group } from '@mantine/core';
-import { ROLLOUT_PRESETS } from '~/constants/distribution.constants';
-import { DS_SPACING } from '~/constants/distribution-design.constants';
+import { ROLLOUT_PRESETS } from '~/constants/distribution/distribution.constants';
+import { DS_SPACING } from '~/constants/distribution/distribution-design.constants';
 
 export type PresetButtonsProps = {
   currentPercentage: number;

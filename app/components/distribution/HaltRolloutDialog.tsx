@@ -28,22 +28,22 @@ import {
   DIST_BADGE_PROPS,
   DIST_BUTTON_PROPS,
   DIST_CARD_PROPS,
-  DS_COLORS,
-  DS_TYPOGRAPHY,
   DIST_FONT_WEIGHTS,
   DIST_INPUT_PROPS,
   DIST_MODAL_PROPS,
+  DS_COLORS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
   DIALOG_UI,
   PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
-import type { HaltRolloutDialogProps } from './distribution.types';
+} from '~/constants/distribution/distribution.constants';
+import type { HaltRolloutDialogProps } from '~/types/distribution/distribution-component.types';
+import { Platform } from '~/types/distribution/distribution.types';
 
 export function HaltRolloutDialog({
   opened,
@@ -112,7 +112,7 @@ export function HaltRolloutDialog({
         {/* Platform Info */}
         <Paper {...DIST_CARD_PROPS.COMPACT} className="bg-white" p={DS_SPACING.MD}>
           <Group justify="space-between" align="center">
-            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} c="dark">Platform</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>Platform</Text>
             <Badge 
               {...DIST_BADGE_PROPS.LARGE}
               leftSection={<PlatformIcon size={DIALOG_ICON_SIZES.ALERT} />}

@@ -301,10 +301,11 @@ export function validateAndroidSubmission(data: {
 
 /**
  * Validate complete iOS submission data
+ * Per API spec: uses testflightNumber (not testflightBuildNumber)
  */
 export function validateIOSSubmission(data: {
   version: string;
-  testflightBuildNumber: number | null;
+  testflightNumber: number | null;
   phasedRelease: boolean;
   releaseNotes: string;
 }): { valid: boolean; errors: Record<string, string> } {
@@ -313,8 +314,8 @@ export function validateIOSSubmission(data: {
   const versionResult = validateVersion(data.version);
   if (!versionResult.valid) errors.version = versionResult.error!;
 
-  const buildResult = validateTestFlightBuildNumber(data.testflightBuildNumber);
-  if (!buildResult.valid) errors.testflightBuildNumber = buildResult.error!;
+  const buildResult = validateTestFlightBuildNumber(data.testflightNumber);
+  if (!buildResult.valid) errors.testflightNumber = buildResult.error!;
 
   const notesResult = validateReleaseNotes(data.releaseNotes);
   if (!notesResult.valid) errors.releaseNotes = notesResult.error!;

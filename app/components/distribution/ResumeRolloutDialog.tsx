@@ -15,15 +15,15 @@ import {
   DIST_FONT_WEIGHTS,
   DIST_MODAL_PROPS,
   DS_SPACING,
-} from '~/constants/distribution-design.constants';
+} from '~/constants/distribution/distribution-design.constants';
 import {
   BUTTON_LABELS,
   DIALOG_ICON_SIZES,
   DIALOG_TITLES,
   DIALOG_UI,
   PLATFORM_LABELS,
-} from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 export type ResumeRolloutDialogProps = {
   opened: boolean;

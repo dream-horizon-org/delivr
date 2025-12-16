@@ -4,17 +4,17 @@
 
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution.constants';
+import { DISTRIBUTION_UI_LABELS } from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import type { Build } from '~/types/distribution.types';
-import { BuildStrategy } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import type { Build } from '~/types/distribution/distribution.types';
+import { BuildStrategy } from '~/types/distribution/distribution.types';
 import { CIJobStatus } from './CIJobStatus';
 
-type BuildDetailsProps = {
+export type BuildDetailsProps = {
   build: Build;
   isAndroid: boolean;
 };

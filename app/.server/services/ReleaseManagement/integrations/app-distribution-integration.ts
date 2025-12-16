@@ -14,7 +14,7 @@ import type {
   ListDistributionsResponse,
   StoreType,
   Platform,
-} from '~/types/app-distribution';
+} from '~/types/distribution/app-distribution';
 
 class AppDistributionIntegrationService extends IntegrationService {
   /**

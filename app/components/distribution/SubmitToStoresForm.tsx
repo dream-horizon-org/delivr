@@ -27,19 +27,19 @@ import {
     FORM_ICON_SIZES,
     SUCCESS_MESSAGES,
     WARNING_MESSAGES,
-} from '~/constants/distribution.constants';
+} from '~/constants/distribution/distribution.constants';
 import {
   DS_COLORS,
   DS_SPACING,
   DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
+} from '~/constants/distribution/distribution-design.constants';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 import { AndroidOptions } from './AndroidOptions';
 import { ArtifactDisplay } from './ArtifactDisplay';
-import type { SubmitToStoresFormProps } from './distribution.types';
+import type { SubmitToStoresFormProps } from '~/types/distribution/distribution-component.types';
 import { IOSOptions } from './IOSOptions';
 import { PlatformCheckbox } from './PlatformCheckbox';
-import { useFormState } from './useFormState';
+import { useFormState } from '~/hooks/distribution';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -192,11 +192,10 @@ export function SubmitToStoresForm({
         onSubmitComplete();
       }
     } else if (succeeded.length > 0 && errors.length > 0) {
-      // Partial success - show warning
-      console.warn(`Partial submit: ${succeeded.join(', ')} succeeded. Errors: ${errors.join('; ')}`);
+      // Partial success - show warning in UI (errors already displayed via toast/notification)
+      // Note: Errors are handled by the submission logic and shown to user via UI notifications
     } else if (errors.length > 0) {
-      // Complete failure
-      console.error(`Submit failed: ${errors.join('; ')}`);
+      // Complete failure - errors already handled and shown to user via UI notifications
     }
   }, [
     formState,

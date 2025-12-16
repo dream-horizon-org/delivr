@@ -1,5 +1,5 @@
 /**
- * ReSubmissionDialog - Create NEW submission after rejection/cancellation
+ * ResubmissionDialog - Create NEW submission after rejection/cancellation
  * 
  * Per API Spec (PHASE_4_COMPONENT_INTEGRATION_SPEC.md):
  * - Creates completely NEW submission (new submissionId)
@@ -9,42 +9,42 @@
  */
 
 import {
-  Alert,
-  Button,
-  Checkbox,
-  FileInput,
-  Group,
-  Modal,
-  NumberInput,
-  Select,
-  Stack,
-  Text,
-  Textarea,
-  TextInput,
-  ThemeIcon
+    Alert,
+    Button,
+    Checkbox,
+    FileInput,
+    Group,
+    Modal,
+    NumberInput,
+    Select,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+    ThemeIcon
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import {
-  DIALOG_ICON_SIZES,
-  DIALOG_TITLES,
-  MAX_ROLLOUT_PERCENT,
-  MIN_ROLLOUT_PERCENT,
-  PLATFORM_LABELS
-} from '~/constants/distribution.constants';
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
 import {
-  DS_COLORS,
-  DS_SPACING,
-  DS_TYPOGRAPHY,
-} from '~/constants/distribution-design.constants';
+    DIALOG_ICON_SIZES,
+    DIALOG_TITLES,
+    MAX_ROLLOUT_PERCENT,
+    MIN_ROLLOUT_PERCENT,
+    PLATFORM_LABELS
+} from '~/constants/distribution/distribution.constants';
 import {
-  AndroidSubmission,
-  IOSSubmission,
-  Platform,
-  type Submission
-} from '~/types/distribution.types';
+    AndroidSubmission,
+    IOSSubmission,
+    Platform,
+    type Submission
+} from '~/types/distribution/distribution.types';
 import { ErrorAlert } from './ErrorRecovery';
 
 // ============================================================================
@@ -68,7 +68,7 @@ type IOSResubmissionFormData = {
   releaseNotes: string;
 };
 
-export type ReSubmissionDialogProps = {
+export type ResubmissionDialogProps = {
   opened: boolean;
   onClose: () => void;
   distributionId: string;
@@ -80,13 +80,13 @@ export type ReSubmissionDialogProps = {
 // MAIN COMPONENT
 // ============================================================================
 
-export function ReSubmissionDialog({
+export function ResubmissionDialog({
   opened,
   onClose,
   distributionId,
   previousSubmission,
   onResubmitComplete,
-}: ReSubmissionDialogProps) {
+}: ResubmissionDialogProps) {
   const fetcher = useFetcher<{ success?: boolean; error?: { message: string } }>();
   const isSubmitting = fetcher.state === 'submitting';
   const isAndroid = previousSubmission.platform === Platform.ANDROID;
@@ -99,15 +99,15 @@ export function ReSubmissionDialog({
   
   const androidForm = useForm<AndroidResubmissionFormData>({
     initialValues: {
-      version: previousSubmission.version || '',
+      version: previousSubmission.version ?? '',
       versionCode: androidSubmission?.versionCode,
       aabFile: null,
-      rolloutPercentage: previousSubmission.rolloutPercentage || 5,
+      rolloutPercentage: previousSubmission.rolloutPercentage ?? 5,
       inAppUpdatePriority: androidSubmission?.inAppUpdatePriority ?? 0,
-      releaseNotes: previousSubmission.releaseNotes || '',
+      releaseNotes: previousSubmission.releaseNotes ?? '',
     },
     validate: {
-      aabFile: (value) => (!value ? 'Please upload an AAB file' : null),
+      aabFile: (value) => (!value ? 'Please select an AAB file to upload' : null),
       version: (value) => {
         if (!value) return 'Version is required';
         // Semantic versioning validation (e.g., 2.7.1, 1.0.0, 3.2.1-beta)
@@ -117,14 +117,16 @@ export function ReSubmissionDialog({
         return null;
       },
       rolloutPercentage: (value) => {
-        if (value < MIN_ROLLOUT_PERCENT || value > MAX_ROLLOUT_PERCENT) return `Must be between ${MIN_ROLLOUT_PERCENT} and ${MAX_ROLLOUT_PERCENT}`;
+        if (value < MIN_ROLLOUT_PERCENT || value > MAX_ROLLOUT_PERCENT) {
+          return `Rollout percentage must be between ${MIN_ROLLOUT_PERCENT}% and ${MAX_ROLLOUT_PERCENT}%`;
+        }
         return null;
       },
       inAppUpdatePriority: (value) => {
-        if (value < 0 || value > 5) return 'Must be between 0 and 5';
+        if (value < 0 || value > 5) return 'Priority must be between 0 and 5';
         return null;
       },
-      releaseNotes: (value) => (!value ? 'Release notes are required' : null),
+      releaseNotes: (value) => (!value?.trim() ? 'Release notes are required' : null),
     },
   });
 
@@ -135,11 +137,11 @@ export function ReSubmissionDialog({
   
   const iosForm = useForm<IOSResubmissionFormData>({
     initialValues: {
-      version: previousSubmission.version || '',
+      version: previousSubmission.version ?? '',
       testflightNumber: null,  // Renamed from testflightBuildNumber
       phasedRelease: iosSubmission?.phasedRelease ?? true,
       resetRating: iosSubmission?.resetRating ?? false,
-      releaseNotes: previousSubmission.releaseNotes || '',
+      releaseNotes: previousSubmission.releaseNotes ?? '',
     },
     validate: {
       version: (value) => {
@@ -150,8 +152,12 @@ export function ReSubmissionDialog({
         }
         return null;
       },
-      testflightNumber: (value) => (!value ? 'TestFlight build number is required' : null),
-      releaseNotes: (value) => (!value ? 'Release notes are required' : null),
+      testflightNumber: (value) => {
+        if (!value) return 'Please enter a valid TestFlight build number';
+        if (value < 1) return 'TestFlight build number must be a positive number';
+        return null;
+      },
+      releaseNotes: (value) => (!value?.trim() ? 'Release notes are required' : null),
     },
   });
 
@@ -251,18 +257,20 @@ export function ReSubmissionDialog({
               label="Upload AAB File"
               placeholder="Select AAB file"
               accept=".aab"
-              required
+              withAsterisk
               disabled={isSubmitting}
               leftSection={<IconUpload size={16} />}
+              error={androidForm.errors.aabFile}
               {...androidForm.getInputProps('aabFile')}
             />
           ) : (
             <NumberInput
               label="TestFlight Build Number"
               placeholder="New TestFlight Build Number"
-              required
+              withAsterisk
               min={1}
               disabled={isSubmitting}
+              error={iosForm.errors.testflightNumber}
               {...iosForm.getInputProps('testflightNumber')}
             />
           )}
@@ -271,8 +279,9 @@ export function ReSubmissionDialog({
           <TextInput
             label="Version"
             placeholder="e.g., 2.7.1"
-            required
+            withAsterisk
             disabled={isSubmitting}
+            error={isAndroid ? androidForm.errors.version : iosForm.errors.version}
             {...(isAndroid ? androidForm.getInputProps('version') : iosForm.getInputProps('version'))}
           />
 
@@ -295,8 +304,9 @@ export function ReSubmissionDialog({
                 min={MIN_ROLLOUT_PERCENT}
                 max={MAX_ROLLOUT_PERCENT}
                 suffix="%"
-                required
+                withAsterisk
                 disabled={isSubmitting}
+                error={androidForm.errors.rolloutPercentage}
                 {...androidForm.getInputProps('rolloutPercentage')}
               />
 
@@ -312,10 +322,11 @@ export function ReSubmissionDialog({
                   { value: '4', label: '4 - Higher' },
                   { value: '5', label: '5 - Highest (Immediate)' },
                 ]}
-                required
+                withAsterisk
                 disabled={isSubmitting}
+                error={androidForm.errors.inAppUpdatePriority}
                 value={androidForm.values.inAppUpdatePriority.toString()}
-                onChange={(value) => androidForm.setFieldValue('inAppUpdatePriority', parseInt(value || '0'))}
+                onChange={(value) => androidForm.setFieldValue('inAppUpdatePriority', parseInt(value ?? '0'))}
               />
             </>
           ) : (
@@ -340,9 +351,10 @@ export function ReSubmissionDialog({
           <Textarea
             label="Release Notes"
             placeholder="What's new in this version?"
-            required
+            withAsterisk
             minRows={3}
             disabled={isSubmitting}
+            error={isAndroid ? androidForm.errors.releaseNotes : iosForm.errors.releaseNotes}
             {...(isAndroid ? androidForm.getInputProps('releaseNotes') : iosForm.getInputProps('releaseNotes'))}
           />
 

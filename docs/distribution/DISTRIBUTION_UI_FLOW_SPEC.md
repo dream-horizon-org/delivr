@@ -1204,6 +1204,11 @@ async function handleReSubmit(formData: ReSubmissionFormData) {
 │                                                              │
 │  Automatic 7-day phased rollout in progress                 │
 │                                                              │
+│  ⚠️  Pause Limit: You can pause for up to 30 days total    │
+│     (cumulative). Resume will continue from where you       │
+│     left off. After 30 days, phased release will           │
+│     automatically resume.                                   │
+│                                                              │
 │  Options:                                                    │
 │  [Complete Rollout Early (100%)] - Skip to 100% now         │
 │                                                              │

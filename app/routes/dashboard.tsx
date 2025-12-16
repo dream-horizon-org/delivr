@@ -10,7 +10,7 @@ import { HeaderUserButton } from "~/components/UserButton/HeaderUserButton";
 import { Sidebar } from "~/components/Pages/components/Sidebar/Sidebar";
 import { useGetOrgList } from "~/components/Pages/components/OrgListNavbar/hooks/useGetOrgList";
 import { CodepushService } from '~/.server/services/Codepush';
-import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/app-distribution';
+import { STORE_TYPES, ALLOWED_PLATFORMS } from '~/types/distribution/app-distribution';
 import type { SystemMetadataBackend } from '~/types/system-metadata';
 
 export const loader = authenticateLoaderRequest(async ({ user }) => {

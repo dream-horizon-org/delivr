@@ -10,17 +10,16 @@
 import { Group, Progress, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertOctagon, IconCheck, IconPlayerPause, IconTrendingUp } from '@tabler/icons-react';
 import {
-  DS_TYPOGRAPHY,
-  DIST_FONT_WEIGHTS,
-  DIST_ICON_SIZES,
-  DIST_PROGRESS_PROPS,
-  DS_SPACING,
-  DS_COLORS,
-} from '~/constants/distribution-design.constants';
-import { PROGRESS_BAR_HEIGHTS } from '~/constants/distribution.constants';
-import { RolloutDisplayStatus } from '~/types/distribution.types';
-import type { RolloutProgressBarProps } from './distribution.types';
-import { getRolloutStatusColor, getRolloutStatusLabel } from './distribution.utils';
+    DIST_FONT_WEIGHTS,
+    DIST_ICON_SIZES,
+    DS_COLORS,
+    DS_SPACING,
+    DS_TYPOGRAPHY
+} from '~/constants/distribution/distribution-design.constants';
+import { PROGRESS_BAR_HEIGHTS } from '~/constants/distribution/distribution.constants';
+import { RolloutDisplayStatus } from '~/types/distribution/distribution.types';
+import { getRolloutStatusColor, getRolloutStatusLabel } from '~/utils/distribution';
+import type { RolloutProgressBarProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // LOCAL HELPER (returns JSX, must stay in component file)
@@ -40,15 +39,14 @@ function getStatusIcon(status: RolloutDisplayStatus) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function RolloutProgressBar(props: RolloutProgressBarProps) {
-  const { 
-    percentage, 
-    targetPercentage,
-    status, 
-    showLabel = true,
-    size = 'md',
-    className,
-  } = props;
+export function RolloutProgressBar({ 
+  percentage, 
+  targetPercentage,
+  status, 
+  showLabel = true,
+  size = 'md',
+  className,
+}: RolloutProgressBarProps) {
 
   const color = getRolloutStatusColor(status);
   const height = PROGRESS_BAR_HEIGHTS[size];

@@ -21,7 +21,7 @@ import {
   ERROR_MESSAGES,
   LOG_CONTEXT,
   VALIDATION,
-} from '~/constants/distribution-api.constants';
+} from '~/constants/distribution/distribution-api.constants';
 import {
   handleAxiosError,
   logApiError,

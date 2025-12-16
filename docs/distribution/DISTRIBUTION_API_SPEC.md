@@ -107,13 +107,17 @@ PENDING → IN_REVIEW → APPROVED → LIVE
     - Automatic 7-day rollout by Apple
     - ✅ Can update to **100% only** (to complete early)
     - ✅ Can PAUSE/RESUME
+    - **Pause Limits**: Maximum **30 days total pause time** (cumulative across all pauses)
+    - **Pause Behavior**: Time paused is tracked cumulatively (e.g., pause for 10 days = 20 days remaining)
+    - **Resume Behavior**: Phased release resumes from the day/percentage where it was paused
+    - **Auto-Resume**: After 30 days of cumulative pause, the phased release will automatically resume
   - **Manual Release (phasedRelease = false)**: 
     - ✅ **Always 100%** immediately upon release
     - ❌ No rollout control needed (already at 100%)
     - ❌ Cannot pause
 - **Can Pause**: ✅ Yes (only if phased release enabled)
 - **Rollout Types**:
-  - Phased Release: Automatic rollout over 7 days, can skip to 100%, pausable
+  - Phased Release: Automatic rollout over 7 days, can skip to 100%, pausable (30-day cumulative pause limit, auto-resumes after limit)
   - Manual Release: Immediate 100%, no rollout control
 
 ---
