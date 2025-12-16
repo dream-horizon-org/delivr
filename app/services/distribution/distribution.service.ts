@@ -6,12 +6,12 @@
 
 import { ROLLOUT_COMPLETE_PERCENT } from '~/constants/distribution/distribution.constants';
 import type {
-    DistributionStatusResponse,
-    DistributionsResponse,
-    Submission,
-    SubmissionsResponse,
-    SubmitToStoreRequest,
-    SubmitToStoreResponse,
+  DistributionStatusResponse,
+  DistributionsResponse,
+  Submission,
+  SubmissionsResponse,
+  SubmitToStoreRequest,
+  SubmitToStoreResponse,
 } from '~/types/distribution/distribution.types';
 import { SubmissionStatus } from '~/types/distribution/distribution.types';
 import type { ApiResponse } from '~/utils/api-client';
