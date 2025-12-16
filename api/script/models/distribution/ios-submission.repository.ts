@@ -26,7 +26,7 @@ export class IosSubmissionBuildRepository {
       status: data.status ?? 'PENDING',
       releaseNotes: data.releaseNotes ?? null,
       phasedRelease: data.phasedRelease ?? null,
-      releaseType: data.releaseType ?? 'AUTOMATIC',
+      releaseType: data.releaseType ?? 'AFTER_APPROVAL',
       resetRating: data.resetRating ?? null,
       rolloutPercentage: data.rolloutPercentage ?? null,
       isActive: data.isActive ?? true,
