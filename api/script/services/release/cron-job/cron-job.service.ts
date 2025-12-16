@@ -479,6 +479,118 @@ export class CronJobService {
   }
 
   /**
+   * Complete a release
+   * 
+   * Marks the release as successfully COMPLETED and stops the cron job.
+   * This is typically called when Stage 4 (submission) finishes successfully
+   * or can be called manually via a callback API in the future.
+   * 
+   * Prerequisites:
+   * - Stage 4 (submission) must be IN_PROGRESS
+   * 
+   * Actions:
+   * - Validates stage4Status is IN_PROGRESS
+   * - Updates release status to COMPLETED
+   * - Updates stage4Status to COMPLETED
+   * - Sets cronStatus to COMPLETED (terminal state)
+   * - Deletes workflow polling jobs
+   * 
+   * @param releaseId - Release ID
+   * @param accountId - Account ID for audit trail
+   * @returns Success/failure result
+   */
+  async completeRelease(releaseId: string, accountId: string): Promise<CompleteReleaseResult> {
+    // Get release
+    const release = await this.releaseRepo.findById(releaseId);
+    if (!release) {
+      return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
+    }
+
+    // Check if already completed (idempotent)
+    if (release.status === 'COMPLETED') {
+      log.info('Release already completed', { releaseId });
+      return {
+        success: true,
+        data: {
+          releaseId,
+          status: 'COMPLETED',
+          alreadyCompleted: true,
+          cronJobStopped: false,
+          completedAt: release.updatedAt.toISOString()
+        }
+      };
+    }
+
+    // Get cron job (required)
+    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    if (!cronJob) {
+      return { 
+        success: false, 
+        error: `Cron job not found for release: ${releaseId}`, 
+        statusCode: 404 
+      };
+    }
+
+    // Validate: Stage 4 must be IN_PROGRESS
+    if (cronJob.stage4Status !== StageStatus.IN_PROGRESS) {
+      return {
+        success: false,
+        error: `Cannot complete release: Stage 4 must be IN_PROGRESS (current: ${cronJob.stage4Status})`,
+        statusCode: 400
+      };
+    }
+
+    // Update release status to COMPLETED
+    await this.releaseRepo.update(releaseId, {
+      status: 'COMPLETED',
+      lastUpdatedByAccountId: accountId
+    });
+
+    log.info('Release marked as COMPLETED', { releaseId });
+
+    // Update cron job: mark stage4 and cron as COMPLETED
+    let cronJobStopped = false;
+    
+    if (cronJob.cronStatus !== CronStatus.COMPLETED) {
+      await this.cronJobRepo.update(cronJob.id, {
+        stage4Status: StageStatus.COMPLETED,
+        cronStatus: CronStatus.COMPLETED,
+        cronStoppedAt: new Date()
+      });
+      log.info('Stage 4 and cron job completed successfully', { 
+        cronJobId: cronJob.id,
+        stage4Status: 'COMPLETED'
+      });
+      cronJobStopped = true;
+    } else {
+      // Already completed, just update stage4
+      await this.cronJobRepo.update(cronJob.id, {
+        stage4Status: StageStatus.COMPLETED
+      });
+      log.info('Stage 4 marked as COMPLETED (cron was already stopped)', { 
+        cronJobId: cronJob.id 
+      });
+    }
+
+    // NEW ARCHITECTURE: DB status update is sufficient.
+    // Global scheduler will skip this release since cronStatus = COMPLETED.
+
+    // Delete workflow polling Cronicle jobs (release is COMPLETED)
+    await this.deleteWorkflowPollingJobsIfEnabled(releaseId);
+
+    return {
+      success: true,
+      data: {
+        releaseId,
+        status: 'COMPLETED',
+        alreadyCompleted: false,
+        cronJobStopped,
+        completedAt: new Date().toISOString()
+      }
+    };
+  }
+
+  /**
    * Pause a release (user-requested)
    * 
    * Sets pauseType to USER_REQUESTED. Scheduler keeps running but
@@ -816,6 +928,21 @@ export type ResumeReleaseResult = {
   data: {
     releaseId: string;
     pauseType: string;
+  };
+} | {
+  success: false;
+  error: string;
+  statusCode: number;
+};
+
+type CompleteReleaseResult = {
+  success: true;
+  data: {
+    releaseId: string;
+    status: 'COMPLETED';
+    alreadyCompleted: boolean;
+    cronJobStopped: boolean;
+    completedAt: string;
   };
 } | {
   success: false;

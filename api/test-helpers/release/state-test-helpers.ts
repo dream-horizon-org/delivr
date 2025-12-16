@@ -372,7 +372,13 @@ export const createMockBuildRepo = () => {
  * Used for testing platform-specific operations
  */
 export const createMockPlatformMappingRepo = () => {
-  const findByReleaseIdMock = jest.fn();
+  // Default mock data: iOS and Android platforms
+  const defaultPlatformMappings = [
+    { platform: 'IOS', target: 'APP_STORE' },
+    { platform: 'ANDROID', target: 'PLAY_STORE' }
+  ];
+  
+  const findByReleaseIdMock = jest.fn().mockResolvedValue(defaultPlatformMappings);
 
   return {
     // Repository interface methods

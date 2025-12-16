@@ -257,7 +257,7 @@ export async function registerCronicleReleaseTick(
  * 
  * @internal Used by createGlobalSchedulerService
  */
-function createSchedulerDependencies(
+export function createSchedulerDependencies(
   sequelize: Sequelize,
   storage: Storage
 ): { cronJobRepo: CronJobRepository; stateMachineFactory: StateMachineFactory } {

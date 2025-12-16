@@ -238,29 +238,30 @@ describe('Enum Values Tests', () => {
       expect(values).toContain('CREATE_AAB_BUILD');
     });
 
-    // Existing Stage 1 tasks
+    // Stage 1 tasks (4 tasks )
     it('should have all Stage 1 tasks', () => {
-      expect(TaskType.PRE_KICK_OFF_REMINDER).toBe('PRE_KICK_OFF_REMINDER');
       expect(TaskType.FORK_BRANCH).toBe('FORK_BRANCH');
       expect(TaskType.CREATE_PROJECT_MANAGEMENT_TICKET).toBe('CREATE_PROJECT_MANAGEMENT_TICKET');
       expect(TaskType.CREATE_TEST_SUITE).toBe('CREATE_TEST_SUITE');
       expect(TaskType.TRIGGER_PRE_REGRESSION_BUILDS).toBe('TRIGGER_PRE_REGRESSION_BUILDS');
     });
 
-    // Existing Stage 2 tasks
+    // Stage 2 tasks (6 tasks - SEND_REGRESSION_BUILD_MESSAGE removed, handled by notification service)
     it('should have all Stage 2 tasks', () => {
       expect(TaskType.RESET_TEST_SUITE).toBe('RESET_TEST_SUITE');
       expect(TaskType.CREATE_RC_TAG).toBe('CREATE_RC_TAG');
       expect(TaskType.CREATE_RELEASE_NOTES).toBe('CREATE_RELEASE_NOTES');
       expect(TaskType.TRIGGER_REGRESSION_BUILDS).toBe('TRIGGER_REGRESSION_BUILDS');
+      expect(TaskType.TRIGGER_AUTOMATION_RUNS).toBe('TRIGGER_AUTOMATION_RUNS');
+      expect(TaskType.AUTOMATION_RUNS).toBe('AUTOMATION_RUNS');
     });
 
-    // Existing Stage 3 tasks
+    // Stage 3 tasks (4 tasks - comms tasks and CHECK_PROJECT_RELEASE_APPROVAL removed)
     it('should have all Stage 3 tasks', () => {
       expect(TaskType.CREATE_RELEASE_TAG).toBe('CREATE_RELEASE_TAG');
       expect(TaskType.CREATE_FINAL_RELEASE_NOTES).toBe('CREATE_FINAL_RELEASE_NOTES');
       expect(TaskType.TRIGGER_TEST_FLIGHT_BUILD).toBe('TRIGGER_TEST_FLIGHT_BUILD');
-      expect(TaskType.CHECK_PROJECT_RELEASE_APPROVAL).toBe('CHECK_PROJECT_RELEASE_APPROVAL');
+      expect(TaskType.CREATE_AAB_BUILD).toBe('CREATE_AAB_BUILD');
     });
   });
 

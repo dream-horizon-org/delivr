@@ -487,11 +487,9 @@ export class TaskExecutor {
     context: TaskExecutionContext
   ): Promise<unknown> {
     switch (taskType) {
+      // Stage 1 (Kickoff) tasks
       case TaskType.FORK_BRANCH:
         return await this.executeForkBranch(context);
-
-      case TaskType.PRE_KICK_OFF_REMINDER:
-        return await this.executePreKickOffReminder(context);
 
       case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
         return await this.executeCreateProjectManagementTicket(context);
@@ -513,10 +511,6 @@ export class TaskExecutor {
         // Stage 2: Regression cycle notes (has regressionId)
         return await this.executeCreateReleaseNotes(context);
 
-      case TaskType.CREATE_FINAL_RELEASE_NOTES:
-        // Stage 3: Final release notes (renamed from CREATE_GITHUB_RELEASE)
-        return await this.executeCreateFinalReleaseNotes(context);
-
       case TaskType.TRIGGER_REGRESSION_BUILDS:
         return await this.executeTriggerRegressionBuilds(context);
 
@@ -526,27 +520,21 @@ export class TaskExecutor {
       case TaskType.AUTOMATION_RUNS:
         return await this.executeAutomationRuns(context);
 
-      case TaskType.SEND_REGRESSION_BUILD_MESSAGE:
-        return await this.executeSendRegressionBuildMessage(context);
-
       // Stage 3 (Pre-Release) tasks
-      case TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER:
-        return await this.executePreReleaseCherryPicksReminder(context);
-
+      // Note: PRE_RELEASE_CHERRY_PICKS_REMINDER, SEND_PRE_RELEASE_MESSAGE removed - notifications handled by event system
+      // Note: CHECK_PROJECT_RELEASE_APPROVAL removed - no longer needed
       case TaskType.CREATE_RELEASE_TAG:
         return await this.executeCreateReleaseTag(context);
+
+      case TaskType.CREATE_FINAL_RELEASE_NOTES:
+        // Stage 3: Final release notes (renamed from CREATE_GITHUB_RELEASE)
+        return await this.executeCreateFinalReleaseNotes(context);
 
       case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
         return await this.executeTestFlightBuild(context);
 
       case TaskType.CREATE_AAB_BUILD:
         return await this.executeCreateAABBuild(context);
-
-      case TaskType.SEND_PRE_RELEASE_MESSAGE:
-        return await this.executeSendPreReleaseMessage(context);
-
-      case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
-        return await this.executeCheckProjectReleaseApproval(context);
 
       default:
         throw new Error(RELEASE_ERROR_MESSAGES.TASK_TYPE_NOT_IMPLEMENTED(taskType));
@@ -602,44 +590,7 @@ export class TaskExecutor {
     };
   }
 
-  /**
-   * Execute PRE_KICK_OFF_REMINDER task
-   * 
-   * Sends a reminder message via notification integration.
-   */
-  /**
-   * Execute PRE_KICK_OFF_REMINDER task (Category B)
-   * 
-   * Sends a reminder message via notification integration.
-   * Returns: Object with message details
-   */
-  private async executePreKickOffReminder(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] PRE_KICK_OFF_REMINDER: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    // TODO: Define Task enum value for pre-kickoff reminder in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] PRE_KICK_OFF_REMINDER: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
+  // Note: executePreKickOffReminder method removed - notifications handled by event system
 
   /**
    * Execute CREATE_PROJECT_MANAGEMENT_TICKET task (Category A)
@@ -1474,99 +1425,8 @@ export class TaskExecutor {
     };
   }
 
-  /**
-   * Execute SEND_REGRESSION_BUILD_MESSAGE task
-   * 
-   * Sends a notification message about regression builds.
-   */
-  /**
-   * Execute SEND_REGRESSION_BUILD_MESSAGE task (Category B)
-   * 
-   * Sends regression build notification.
-   * Returns: Object with message details
-   */
-  private async executeSendRegressionBuildMessage(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] SEND_REGRESSION_BUILD_MESSAGE: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    if (!task.regressionId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
-    }
-
-    // Get cycle tag
-    const RegressionCycleModel = this.sequelize.models.RegressionCycle;
-
-    if (!RegressionCycleModel) {
-        throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_MODEL_NOT_FOUND);
-    }
-
-    const cycle = await RegressionCycleModel.findByPk(task.regressionId);
-    if (!cycle) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
-    }
-
-    // TODO: Define Task enum value for regression builds message in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] SEND_REGRESSION_BUILD_MESSAGE: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
-
-  /**
-   * Execute PRE_RELEASE_CHERRY_PICKS_REMINDER task
-   * 
-   * Sends cherry picks reminder notification.
-   */
-  /**
-   * Execute PRE_RELEASE_CHERRY_PICKS_REMINDER task (Category B)
-   * 
-   * Sends cherry picks reminder notification.
-   * Returns: Object with message details
-   */
-  private async executePreReleaseCherryPicksReminder(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] PRE_RELEASE_CHERRY_PICKS_REMINDER: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    // TODO: Define Task enum value for cherry picks reminder in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] PRE_RELEASE_CHERRY_PICKS_REMINDER: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
+  // Note: executeSendRegressionBuildMessage method removed - notifications handled by event system
+  // Note: executePreReleaseCherryPicksReminder method removed - notifications handled by event system
 
   /**
    * Execute CREATE_RELEASE_TAG task
@@ -1939,114 +1799,8 @@ export class TaskExecutor {
     return result.queueLocation;
   }
 
-  /**
-   * Execute SEND_PRE_RELEASE_MESSAGE task
-   * 
-   * Sends pre-release notification (approval request message).
-   */
-  /**
-   * Execute SEND_PRE_RELEASE_MESSAGE task (Category B)
-   * 
-   * Sends pre-release notification.
-   * Returns: Object with message details
-   */
-  private async executeSendPreReleaseMessage(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] SEND_PRE_RELEASE_MESSAGE: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    // TODO: Define Task enum value for pre-release message in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] SEND_PRE_RELEASE_MESSAGE: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
-
-  /**
-   * Execute CHECK_PROJECT_RELEASE_APPROVAL task (renamed from ADD_L6_APPROVAL_CHECK)
-   * 
-   * Checks project management ticket approval status.
-   * Updates release status based on approval:
-   * - If approved: Release status → APPROVED
-   * - If not approved: Release status → PENDING_APPROVAL
-   */
-  /**
-   * Execute CHECK_PROJECT_RELEASE_APPROVAL task (Category B)
-   * 
-   * Checks project management ticket approval status.
-   * Returns: Object with approval status
-   */
-  private async executeCheckProjectReleaseApproval(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, tenantId: _tenantId, platformTargetMappings } = context;
-
-    // Get release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const pmConfigId = releaseConfig.projectManagementConfigId;
-    
-    if (!pmConfigId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.PM_INTEGRATION_NOT_CONFIGURED);
-    }
-
-    // Get JIRA ticket ID from CREATE_PROJECT_MANAGEMENT_TICKET task
-    const stage1Tasks = await this.releaseTaskRepo.findByReleaseIdAndStage(
-      context.releaseId,
-      TaskStage.KICKOFF
-    );
-    const createTicketTask = stage1Tasks.find(t => t.taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET);
-
-    if (!createTicketTask || !createTicketTask.externalId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.PM_TICKET_TASK_NOT_FOUND);
-    }
-
-    const ticketId = createTicketTask.externalId;
-
-    // For now, check first platform's ticket (TODO: might need to check all)
-    // Assuming ticketId format: "PROJ-123" or "PROJ-123,PROJ-124"
-    const firstTicketId = ticketId.split(',')[0];
-
-    // Check ticket approval status - integration returns status object
-    const ticketStatus = await this.pmTicketService.checkTicketStatus(
-      pmConfigId,
-      Platform.IOS, // TODO: Determine correct platform or check all platforms
-      firstTicketId
-    );
-
-    // Update release status based on approval
-    // Note: ReleaseStatus enum doesn't have APPROVED or PENDING_APPROVAL
-    // Store approval status in externalData for now
-    // The release workflow ends after Stage 3 completes regardless of approval status
-    // Approval status is stored in externalData.approved
-
-    // Category B: Return raw object
-    return {
-      ticketId: ticketId,
-      isCompleted: ticketStatus.isCompleted,
-      currentStatus: ticketStatus.currentStatus,
-      completedStatus: ticketStatus.completedStatus,
-      message: ticketStatus.message,
-      version: getReleaseVersion(release, platformTargetMappings),
-      timestamp: new Date().toISOString()
-    };
-  }
+  // Note: executeSendPreReleaseMessage method removed - notifications handled by event system
+  // Note: executeCheckProjectReleaseApproval method removed - no longer needed
 }
 
 

@@ -763,31 +763,32 @@ async function runChunk5TaskSequencingTests() {
     updatedAt: new Date()
   });
 
-  // Test 5.1: Task Ordering
+  // Test 5.1: Task Ordering (updated - PRE_KICK_OFF_REMINDER removed, using Stage 1 tasks)
   const start1 = Date.now();
   const tasks = [
     createMockTask(TaskType.CREATE_PROJECT_MANAGEMENT_TICKET),
     createMockTask(TaskType.FORK_BRANCH),
-    createMockTask(TaskType.PRE_KICK_OFF_REMINDER)
+    createMockTask(TaskType.CREATE_TEST_SUITE)
   ];
   const ordered = getOrderedTasks(tasks, TaskStage.KICKOFF);
-  const correctOrder = ordered[0].taskType === TaskType.PRE_KICK_OFF_REMINDER &&
-                      ordered[1].taskType === TaskType.FORK_BRANCH &&
-                      ordered[2].taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET;
+  // Stage 1 order: FORK_BRANCH, CREATE_PROJECT_MANAGEMENT_TICKET, CREATE_TEST_SUITE
+  const correctOrder = ordered[0].taskType === TaskType.FORK_BRANCH &&
+                      ordered[1].taskType === TaskType.CREATE_PROJECT_MANAGEMENT_TICKET &&
+                      ordered[2].taskType === TaskType.CREATE_TEST_SUITE;
   recordTestResult('Chunk 5', 'Task Ordering', correctOrder, Date.now() - start1);
 
-  // Test 5.2: isTaskRequired
+  // Test 5.2: isTaskRequired (updated - using TRIGGER_TEST_FLIGHT_BUILD with hasIOSPlatform)
   const start2 = Date.now();
   const config: OptionalTaskConfig = {
-    cronConfig: { kickOffReminder: true }
+    hasIOSPlatform: true
   };
-  const required = isTaskRequired(TaskType.PRE_KICK_OFF_REMINDER, config);
-  recordTestResult('Chunk 5', 'isTaskRequired: Optional Task', required === true, Date.now() - start2);
+  const required = isTaskRequired(TaskType.TRIGGER_TEST_FLIGHT_BUILD, config);
+  recordTestResult('Chunk 5', 'isTaskRequired: Platform Task', required === true, Date.now() - start2);
 
   // Test 5.3: arePreviousTasksComplete
   const start3 = Date.now();
-  const task0 = createMockTask(TaskType.PRE_KICK_OFF_REMINDER, TaskStatus.COMPLETED);
-  const task1 = createMockTask(TaskType.FORK_BRANCH, TaskStatus.PENDING);
+  const task0 = createMockTask(TaskType.FORK_BRANCH, TaskStatus.COMPLETED);
+  const task1 = createMockTask(TaskType.CREATE_PROJECT_MANAGEMENT_TICKET, TaskStatus.PENDING);
   const canExecute = arePreviousTasksComplete(task1, [task0, task1], TaskStage.KICKOFF);
   recordTestResult('Chunk 5', 'arePreviousTasksComplete: True', canExecute === true, Date.now() - start3);
 }

@@ -15,13 +15,14 @@ import type { ReleaseTask } from '../models/release/release.interface';
  * Defines the execution order of tasks within each stage
  */
 export const TASK_ORDER: Record<TaskStage, TaskType[]> = {
+  // Stage 1: 4 tasks (PRE_KICK_OFF_REMINDER removed - handled by notification service)
   [TaskStage.KICKOFF]: [
-    TaskType.PRE_KICK_OFF_REMINDER,
     TaskType.FORK_BRANCH,
     TaskType.CREATE_PROJECT_MANAGEMENT_TICKET,
     TaskType.CREATE_TEST_SUITE,
     TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
   ],
+  // Stage 2: 6 tasks (SEND_REGRESSION_BUILD_MESSAGE removed - handled by notification service)
   [TaskStage.REGRESSION]: [
     TaskType.RESET_TEST_SUITE, // Only for subsequent slots
     TaskType.CREATE_RC_TAG,
@@ -29,15 +30,13 @@ export const TASK_ORDER: Record<TaskStage, TaskType[]> = {
     TaskType.TRIGGER_REGRESSION_BUILDS,
     TaskType.TRIGGER_AUTOMATION_RUNS,
     TaskType.AUTOMATION_RUNS,
-    TaskType.SEND_REGRESSION_BUILD_MESSAGE,
   ],
+  // Stage 3: 4 tasks (comms tasks removed - handled by notification service, CHECK_PROJECT_RELEASE_APPROVAL removed)
   [TaskStage.PRE_RELEASE]: [
-    TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER,
     TaskType.CREATE_RELEASE_TAG,
     TaskType.CREATE_FINAL_RELEASE_NOTES,
     TaskType.TRIGGER_TEST_FLIGHT_BUILD,
-    TaskType.SEND_PRE_RELEASE_MESSAGE,
-    TaskType.CHECK_PROJECT_RELEASE_APPROVAL,
+    TaskType.CREATE_AAB_BUILD,
   ],
 };
 
@@ -48,15 +47,17 @@ export const TASK_ORDER: Record<TaskStage, TaskType[]> = {
 export interface OptionalTaskConfig {
   hasProjectManagementIntegration?: boolean;
   hasTestPlatformIntegration?: boolean;
-  hasIOSPlatform?: boolean; // For TRIGGER_TEST_FLIGHT_BUILD (only if iOS platform exists)
+  hasIOSPlatform?: boolean; // For TRIGGER_TEST_FLIGHT_BUILD (if iOS platform exists)
+  hasAndroidPlatform?: boolean; // For CREATE_AAB_BUILD (if Android platform exists)
   cronConfig?: {
-    kickOffReminder?: boolean;
+    kickOffReminder?: boolean; // Preserved for notification service (no longer creates task)
     preRegressionBuilds?: boolean;
     automationBuilds?: boolean;
     automationRuns?: boolean;
-    testFlightBuilds?: boolean; // For TRIGGER_TEST_FLIGHT_BUILD (must be true)
+    testFlightBuilds?: boolean; // Legacy - platform tasks no longer depend on this
+    aabBuilds?: boolean; // Legacy - platform tasks no longer depend on this
   };
-  targets?: string[]; // Legacy: For TRIGGER_TEST_FLIGHT_BUILD (deprecated, use hasIOSPlatform + cronConfig.testFlightBuilds)
+  targets?: string[]; // Legacy: Deprecated, use hasIOSPlatform/hasAndroidPlatform
   isSubsequentSlot?: boolean; // For RESET_TEST_SUITE (only for subsequent regression slots)
 }
 
@@ -77,9 +78,7 @@ export function isTaskRequired(
   }
 
   switch (taskType) {
-    case TaskType.PRE_KICK_OFF_REMINDER:
-      // Optional: Only if cronConfig.kickOffReminder is true
-      return config.cronConfig?.kickOffReminder === true;
+    // Note: PRE_KICK_OFF_REMINDER removed - notifications handled by event system
 
     case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
       // Optional: Only if project management integration is available
@@ -107,13 +106,14 @@ export function isTaskRequired(
       return config.cronConfig?.automationRuns === true;
 
     case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
-      // Optional: Only if iOS platform exists AND testFlightBuilds is enabled
-      // Check both hasIOSPlatform and cronConfig.testFlightBuilds (matching task creation logic)
-      return config.hasIOSPlatform === true && config.cronConfig?.testFlightBuilds === true;
+      // Platform task: Created if iOS platform exists (NOT optional based on cronConfig)
+      return config.hasIOSPlatform === true;
 
-    case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
-      // Optional: Only if JIRA integration is available
-      return config.hasProjectManagementIntegration === true;
+    case TaskType.CREATE_AAB_BUILD:
+      // Platform task: Created if Android platform exists (NOT optional based on cronConfig)
+      return config.hasAndroidPlatform === true;
+
+    // Note: CHECK_PROJECT_RELEASE_APPROVAL removed - no longer needed
 
     default:
       // All other tasks are always required

@@ -52,8 +52,8 @@ jest.mock('../../../script/utils/regression-cycle-creation', () => ({
   createRegressionCycleWithTasks: jest.fn(),
 }));
 jest.mock('../../../script/utils/task-creation', () => ({
-  createStage1Tasks: jest.fn(),
-  createStage3Tasks: jest.fn(),
+  createStage1Tasks: jest.fn().mockResolvedValue(['task-1', 'task-2']),
+  createStage3Tasks: jest.fn().mockResolvedValue(['task-3', 'task-4']),
 }));
 
 // ================================================================================
@@ -1098,7 +1098,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING),
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.PENDING),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.PENDING),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1168,7 +1168,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.COMPLETED),
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.COMPLETED),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.COMPLETED),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1201,7 +1201,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.COMPLETED),
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.PENDING),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.PENDING),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1296,8 +1296,8 @@ describe('Release Orchestration - Unit Tests', () => {
         });
         
         const mockTasks = [
-          createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING), // Optional
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.COMPLETED), // Required
+          createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.COMPLETED),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 

@@ -93,12 +93,13 @@ export class PreReleaseState implements ICronJobState {
         storage.sequelize
       );
       
-      // Check if release has iOS platform
+      // Check if release has iOS/Android platforms
       const platformMappingRepo = this.context.getPlatformMappingRepo();
       const platformMappings = platformMappingRepo 
         ? await platformMappingRepo.getByReleaseId(releaseId)
         : [];
-      const hasIOSPlatform = platformMappings.some(mapping => mapping.platform === 'IOS');
+      const hasIOSPlatform = platformMappings.some(mapping => mapping.platform === PlatformName.IOS);
+      const hasAndroidPlatform = platformMappings.some(mapping => mapping.platform === PlatformName.ANDROID);
 
       // Check if Stage 3 tasks exist, create them if not
       
@@ -106,13 +107,14 @@ export class PreReleaseState implements ICronJobState {
         console.log(`[${instanceId}] [PreReleaseState] No Stage 3 tasks found. Creating Stage 3 tasks...`);
 
         try {
-          console.log(`[${instanceId}] [PreReleaseState] Creating Stage 3 tasks with config: hasProjectManagementIntegration=${integrationAvailability.hasProjectManagementIntegration}, hasIOSPlatform=${hasIOSPlatform}`);
+          console.log(`[${instanceId}] [PreReleaseState] Creating Stage 3 tasks with config: hasProjectManagementIntegration=${integrationAvailability.hasProjectManagementIntegration}, hasIOSPlatform=${hasIOSPlatform}, hasAndroidPlatform=${hasAndroidPlatform}`);
           const createdTaskIds = await createStage3Tasks(releaseTaskRepo, {
             releaseId,
             accountId: release.createdByAccountId || 'system',
             cronConfig: cronJob.cronConfig ?? {},
             hasProjectManagementIntegration: integrationAvailability.hasProjectManagementIntegration,
-            hasIOSPlatform
+            hasIOSPlatform,
+            hasAndroidPlatform
           });
 
           console.log(`[${instanceId}] [PreReleaseState] Stage 3 tasks created: ${createdTaskIds.length} tasks`);
@@ -193,7 +195,8 @@ export class PreReleaseState implements ICronJobState {
         cronConfig: cronJob.cronConfig || {},
         hasProjectManagementIntegration: integrationAvailability.hasProjectManagementIntegration,
         hasTestPlatformIntegration: integrationAvailability.hasTestPlatformIntegration,
-        hasIOSPlatform
+        hasIOSPlatform,
+        hasAndroidPlatform
       };
 
       // Stage 3 tasks don't have time constraints
@@ -311,7 +314,6 @@ export class PreReleaseState implements ICronJobState {
 
     // Global scheduler will automatically exclude this release (cronStatus=COMPLETED)
     console.log(`[PreReleaseState] ✅ Workflow COMPLETED: Stage 3 done`);
-    console.log(`[PreReleaseState] Note: Release workflow ends here - no Stage 4. Submission tasks (SUBMIT_TO_TARGET) are manual APIs.`);
 
     // Delete workflow polling Cronicle jobs (release is COMPLETED)
     await this.deleteWorkflowPollingJobs(releaseId);

@@ -35,12 +35,12 @@ export interface CreateStage2TasksOptions {
 /**
  * Create Stage 1 (Kickoff) tasks
  * 
- * Tasks:
- * 1. PRE_KICK_OFF_REMINDER (optional - if cronConfig.kickOffReminder == true)
- * 2. FORK_BRANCH (always required)
- * 3. CREATE_PROJECT_MANAGEMENT_TICKET (only if project management integrated)
- * 4. CREATE_TEST_SUITE (only if test platform integrated)
- * 5. TRIGGER_PRE_REGRESSION_BUILDS (optional - if cronConfig.preRegressionBuilds == true)
+ * Tasks (4 tasks):
+ * 1. FORK_BRANCH (always required)
+ * 2. CREATE_PROJECT_MANAGEMENT_TICKET (only if project management integrated)
+ * 3. CREATE_TEST_SUITE (only if test platform integrated)
+ * 4. TRIGGER_PRE_REGRESSION_BUILDS (optional - if cronConfig.preRegressionBuilds == true)
+ * The kickOffReminder config is preserved for future notification service.
  */
 export async function createStage1Tasks(
   releaseTaskRepo: ReleaseTaskRepository,
@@ -49,21 +49,9 @@ export async function createStage1Tasks(
   const { releaseId, accountId, cronConfig, hasProjectManagementIntegration, hasTestPlatformIntegration } = options;
   const tasksToCreate: CreateReleaseTaskDto[] = [];
 
-  // 1. PRE_KICK_OFF_REMINDER (optional)
-  if (cronConfig.kickOffReminder === true) {
-    tasksToCreate.push({
-      id: uuidv4(),
-      releaseId,
-      taskType: TaskType.PRE_KICK_OFF_REMINDER,
-      stage: TaskStage.KICKOFF,
-      accountId,
-      isReleaseKickOffTask: true,
-      identifier: TaskIdentifier.PRE_REGRESSION,
-      taskId: `pre-kickoff-reminder-${releaseId}-${uuidv4()}`
-    });
-  }
+  // The cronConfig.kickOffReminder boolean is preserved for future use
 
-  // 2. FORK_BRANCH (always required)
+  // 1. FORK_BRANCH (always required)
   tasksToCreate.push({
     id: uuidv4(),
     releaseId,
@@ -75,7 +63,7 @@ export async function createStage1Tasks(
     taskId: `fork-branch-${releaseId}-${uuidv4()}`
   });
 
-  // 3. CREATE_PROJECT_MANAGEMENT_TICKET (only if project management integrated)
+  // 2. CREATE_PROJECT_MANAGEMENT_TICKET (only if project management integrated)
   if (hasProjectManagementIntegration === true) {
     tasksToCreate.push({
       id: uuidv4(),
@@ -89,7 +77,7 @@ export async function createStage1Tasks(
     });
   }
 
-  // 4. CREATE_TEST_SUITE (only if test platform integrated)
+  // 3. CREATE_TEST_SUITE (only if test platform integrated)
   if (hasTestPlatformIntegration === true) {
     tasksToCreate.push({
       id: uuidv4(),
@@ -103,7 +91,7 @@ export async function createStage1Tasks(
     });
   }
 
-  // 5. TRIGGER_PRE_REGRESSION_BUILDS (optional)
+  // 4. TRIGGER_PRE_REGRESSION_BUILDS (optional)
   if (cronConfig.preRegressionBuilds === true) {
     tasksToCreate.push({
       id: uuidv4(),
@@ -125,14 +113,13 @@ export async function createStage1Tasks(
 /**
  * Create Stage 2 (Regression) tasks for a regression cycle
  * 
- * Tasks (7 tasks):
+ * Tasks (6 tasks):
  * 1. RESET_TEST_SUITE (only for subsequent cycles - if isFirstCycle === false)
  * 2. CREATE_RC_TAG (always required)
  * 3. CREATE_RELEASE_NOTES (always required)
  * 4. TRIGGER_REGRESSION_BUILDS (always required)
  * 5. TRIGGER_AUTOMATION_RUNS (optional - if cronConfig.automationBuilds === true)
  * 6. AUTOMATION_RUNS (optional - if cronConfig.automationRuns === true)
- * 7. SEND_REGRESSION_BUILD_MESSAGE (always required)
  */
 export async function createStage2Tasks(
   releaseTaskRepo: ReleaseTaskRepository,
@@ -225,18 +212,6 @@ export async function createStage2Tasks(
     });
   }
 
-  // 7. SEND_REGRESSION_BUILD_MESSAGE (always required)
-  tasksToCreate.push({
-    id: uuidv4(),
-    releaseId,
-    regressionId,
-    taskType: TaskType.SEND_REGRESSION_BUILD_MESSAGE,
-    stage: TaskStage.REGRESSION,
-    accountId,
-    isRegressionSubTasks: true,
-    identifier: TaskIdentifier.REGRESSION,
-    taskId: `send-regression-build-message-${regressionId}-${uuidv4()}`
-  });
 
   // Bulk create tasks for efficiency
   const createdTasks = await releaseTaskRepo.bulkCreate(tasksToCreate);
@@ -248,40 +223,37 @@ export interface CreateStage3TasksOptions {
   accountId: string;
   cronConfig?: {
     testFlightBuilds?: boolean;
+    aabBuilds?: boolean;
   };
   hasProjectManagementIntegration?: boolean;
-  hasIOSPlatform?: boolean; // If true, include TRIGGER_TEST_FLIGHT_BUILD task (also requires cronConfig.testFlightBuilds === true)
+  hasIOSPlatform?: boolean; // If true, include TRIGGER_TEST_FLIGHT_BUILD task
+  hasAndroidPlatform?: boolean; // If true, include CREATE_AAB_BUILD task
 }
 
 /**
  * Create Stage 3 (Pre-Release) tasks
  * 
- * Tasks (6 tasks):
- * 1. PRE_RELEASE_CHERRY_PICKS_REMINDER (always required - first task)
- * 2. CREATE_RELEASE_TAG (always required)
- * 3. CREATE_FINAL_RELEASE_NOTES (always required - renamed from CREATE_GITHUB_RELEASE)
- * 4. TRIGGER_TEST_FLIGHT_BUILD (optional - only if hasIOSPlatform === true)
- * 5. SEND_PRE_RELEASE_MESSAGE (always required - 2nd last task)
- * 6. CHECK_PROJECT_RELEASE_APPROVAL (always required - last task, only if hasProjectManagementIntegration === true, renamed from ADD_L6_APPROVAL_CHECK)
+ * Tasks (4 tasks max):
+ * 1. CREATE_RELEASE_TAG (always required)
+ * 2. CREATE_FINAL_RELEASE_NOTES (always required)
+ * 3. TRIGGER_TEST_FLIGHT_BUILD (if hasIOSPlatform === true)
+ * 4. CREATE_AAB_BUILD (if hasAndroidPlatform === true)
+ * Platform tasks are NOT optional - if platform exists, task is created
  */
 export async function createStage3Tasks(
   releaseTaskRepo: ReleaseTaskRepository,
   options: CreateStage3TasksOptions
 ): Promise<string[]> {
-  const { releaseId, accountId, hasProjectManagementIntegration, hasIOSPlatform } = options;
+  const { releaseId, accountId, hasIOSPlatform, hasAndroidPlatform } = options;
   
   // Check if tasks already exist at the start (race condition prevention)
-  // With locks disabled, we have a single instance, but rapid successive calls can still happen
-  // Check for specific required base task types, not just count
   const existingTasksAtStart = await releaseTaskRepo.findByReleaseIdAndStage(releaseId, TaskStage.PRE_RELEASE);
   const existingTaskTypes = existingTasksAtStart.map(t => t.taskType);
   
   // Required base task types (always present)
   const requiredBaseTypes = [
-    TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER,
     TaskType.CREATE_RELEASE_TAG,
-    TaskType.CREATE_FINAL_RELEASE_NOTES,
-    TaskType.SEND_PRE_RELEASE_MESSAGE
+    TaskType.CREATE_FINAL_RELEASE_NOTES
   ];
   
   // Check if all required base tasks exist
@@ -294,17 +266,8 @@ export async function createStage3Tasks(
   
   const tasksToCreate: CreateReleaseTaskDto[] = [];
 
-  // 1. PRE_RELEASE_CHERRY_PICKS_REMINDER (always required - first task)
-  tasksToCreate.push({
-    id: uuidv4(),
-    releaseId,
-    taskType: TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER,
-    stage: TaskStage.PRE_RELEASE,
-    accountId,
-    taskId: `pre-release-cherry-picks-reminder-${releaseId}-${uuidv4()}`
-  });
 
-  // 2. CREATE_RELEASE_TAG (always required)
+  // 1. CREATE_RELEASE_TAG (always required)
   tasksToCreate.push({
     id: uuidv4(),
     releaseId,
@@ -314,7 +277,7 @@ export async function createStage3Tasks(
     taskId: `create-release-tag-${releaseId}-${uuidv4()}`
   });
 
-  // 3. CREATE_FINAL_RELEASE_NOTES (always required - renamed from CREATE_GITHUB_RELEASE)
+  // 2. CREATE_FINAL_RELEASE_NOTES (always required)
   tasksToCreate.push({
     id: uuidv4(),
     releaseId,
@@ -324,11 +287,8 @@ export async function createStage3Tasks(
     taskId: `create-final-release-notes-${releaseId}-${uuidv4()}`
   });
 
-  // 4. TRIGGER_TEST_FLIGHT_BUILD (optional - only if iOS platform exists AND cronConfig.testFlightBuilds === true)
-  const cronConfig = options.cronConfig || {};
-  const testFlightBuildsEnabled = cronConfig.testFlightBuilds === true;
-  
-  if (hasIOSPlatform === true && testFlightBuildsEnabled) {
+  // 3. TRIGGER_TEST_FLIGHT_BUILD (if iOS platform exists - NOT optional based on cronConfig)
+  if (hasIOSPlatform === true) {
     tasksToCreate.push({
       id: uuidv4(),
       releaseId,
@@ -339,25 +299,15 @@ export async function createStage3Tasks(
     });
   }
 
-  // 5. SEND_PRE_RELEASE_MESSAGE (always required - 2nd last task)
-  tasksToCreate.push({
-    id: uuidv4(),
-    releaseId,
-    taskType: TaskType.SEND_PRE_RELEASE_MESSAGE,
-    stage: TaskStage.PRE_RELEASE,
-    accountId,
-    taskId: `send-pre-release-message-${releaseId}-${uuidv4()}`
-  });
-
-  // 6. CHECK_PROJECT_RELEASE_APPROVAL (always required - last task, only if hasProjectManagementIntegration === true, renamed from ADD_L6_APPROVAL_CHECK)
-  if (hasProjectManagementIntegration === true) {
+  // 4. CREATE_AAB_BUILD (if Android platform exists - NOT optional based on cronConfig)
+  if (hasAndroidPlatform === true) {
     tasksToCreate.push({
       id: uuidv4(),
       releaseId,
-      taskType: TaskType.CHECK_PROJECT_RELEASE_APPROVAL,
+      taskType: TaskType.CREATE_AAB_BUILD,
       stage: TaskStage.PRE_RELEASE,
       accountId,
-      taskId: `check-project-release-approval-${releaseId}-${uuidv4()}`
+      taskId: `create-aab-build-${releaseId}-${uuidv4()}`
     });
   }
 

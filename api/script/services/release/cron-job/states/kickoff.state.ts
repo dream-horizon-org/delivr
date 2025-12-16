@@ -368,18 +368,17 @@ export class KickoffState implements ICronJobState {
    * Check if it's time to execute a specific task type
    * 
    * Some tasks have time constraints:
-   * - PRE_KICK_OFF_REMINDER: Only at kickoff reminder time
    * - FORK_BRANCH: Only at branch fork time
+   * 
+   * Note: PRE_KICK_OFF_REMINDER removed - notifications handled by event system
    */
   private isTimeToExecuteTask(taskType: string, release: Release, _config: OptionalTaskConfig): boolean {
     // Import time check functions
-    const { isKickOffReminderTime, isBranchForkTime } = require('~utils/time-utils');
+    const { isBranchForkTime } = require('~utils/time-utils');
     const { TaskType } = require('~models/release/release.interface');
     
     // Check task-specific time constraints
     switch (taskType) {
-      case TaskType.PRE_KICK_OFF_REMINDER:
-        return isKickOffReminderTime(release);
       
       case TaskType.FORK_BRANCH:
         return isBranchForkTime(release);
