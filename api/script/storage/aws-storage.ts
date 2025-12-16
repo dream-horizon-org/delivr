@@ -1082,14 +1082,19 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Creation Service initialized");
           
+          // Initialize Build repository (for artifact listings/uploads) - must be before ReleaseRetrievalService
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
+          
           this.releaseRetrievalService = new ReleaseRetrievalService(
             this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
             cronJobRepo,
             releaseTaskRepo,
-            regressionCycleRepo,
-            buildRepo,
-            releaseUploadsRepo
+            this.regressionCycleRepository,
+            this.buildRepository,
+            this.releaseUploadsRepository
           );
           console.log("Release Retrieval Service initialized");
           
@@ -1122,7 +1127,7 @@ export class S3Storage implements storage.Storage {
             this.testManagementRunService,
             scmService,
             this.releaseRepository,
-            regressionCycleRepo
+            this.regressionCycleRepository
           );
           console.log("Release Status Service initialized");
           
@@ -1137,11 +1142,6 @@ export class S3Storage implements storage.Storage {
             null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
-          
-          // Initialize Build repository (for artifact listings/uploads)
-          const buildModel = createBuildModel(this.sequelize);
-          this.buildRepository = new BuildRepository(buildModel);
-          console.log("Build Repository initialized");
           
           // return this.sequelize.sync();
         })
