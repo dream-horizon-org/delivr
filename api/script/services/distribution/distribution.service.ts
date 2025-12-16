@@ -16,6 +16,12 @@ import type { AndroidSubmissionBuild } from '~types/distribution/android-submiss
 import type { SubmissionActionHistory } from '~types/distribution/submission-action-history.interface';
 import { SUBMISSION_PLATFORM } from '~types/distribution/submission.constants';
 import type { DistributionStatus } from '~types/distribution/distribution.constants';
+import { 
+  BUILD_PLATFORM, 
+  STORE_TYPE, 
+  BUILD_STAGE, 
+  BUILD_UPLOAD_STATUS 
+} from '~types/release-management/builds/build.constants';
 
 /**
  * Formatted submission response (matches API contract)
@@ -616,13 +622,13 @@ export class DistributionService {
       const storeTypes = [...new Set(platformTargetMappings.map(m => m.target))] as Array<'PLAY_STORE' | 'APP_STORE' | 'WEB'>;
 
       // Filter out WEB platform and store type
-      const filteredPlatforms = platforms.filter(p => p !== 'WEB') as Array<'ANDROID' | 'IOS'>;
-      const filteredStoreTypes = storeTypes.filter(s => s !== 'WEB') as Array<'PLAY_STORE' | 'APP_STORE'>;
+      const filteredPlatforms = platforms.filter(p => p !== BUILD_PLATFORM.WEB) as Array<'ANDROID' | 'IOS'>;
+      const filteredStoreTypes = storeTypes.filter(s => s !== STORE_TYPE.WEB) as Array<'PLAY_STORE' | 'APP_STORE'>;
 
       if (filteredPlatforms.length === 0) {
         return {
           distributionId: null,
-          error: `No valid platforms (ANDROID/IOS) found for release ${releaseId}`
+          error: `No valid platforms (${BUILD_PLATFORM.ANDROID}/${BUILD_PLATFORM.IOS}) found for release ${releaseId}`
         };
       }
 
@@ -649,29 +655,29 @@ export class DistributionService {
 
       for (const mapping of platformTargetMappings) {
         // Skip WEB platform/target
-        if (mapping.platform === 'WEB' || mapping.target === 'WEB') {
+        if (mapping.platform === BUILD_PLATFORM.WEB || mapping.target === STORE_TYPE.WEB) {
           continue;
         }
 
         // Map target to storeType
-        const storeType = mapping.target === 'PLAY_STORE' ? 'PLAY_STORE' : 
-                         mapping.target === 'APP_STORE' ? 'APP_STORE' : null;
+        const storeType = mapping.target === STORE_TYPE.PLAY_STORE ? STORE_TYPE.PLAY_STORE : 
+                         mapping.target === STORE_TYPE.APP_STORE ? STORE_TYPE.APP_STORE : null;
         
         if (!storeType) {
           continue; // Skip if target is not PLAY_STORE or APP_STORE
         }
 
-        if (mapping.platform === 'ANDROID') {
+        if (mapping.platform === BUILD_PLATFORM.ANDROID) {
           try {
             // Get Android build data from builds table
             // Query: releaseId, tenantId, platform='ANDROID', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
             const androidBuilds = await this.buildRepository.findBuilds({
               releaseId,
               tenantId,
-              platform: 'ANDROID',
+              platform: BUILD_PLATFORM.ANDROID,
               storeType: storeType,
-              buildStage: 'PRE_RELEASE',
-              buildUploadStatus: 'UPLOADED'
+              buildStage: BUILD_STAGE.PRE_RELEASE,
+              buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
             });
 
             if (androidBuilds.length > 0) {
@@ -696,23 +702,23 @@ export class DistributionService {
               
               createdSubmissions.android = true;
             } else {
-              submissionErrors.push(`No Android build found for release ${releaseId} with storeType ${storeType}, buildStage PRE_RELEASE, and buildUploadStatus UPLOADED`);
+              submissionErrors.push(`No Android build found for release ${releaseId} with storeType ${storeType}, buildStage ${BUILD_STAGE.PRE_RELEASE}, and buildUploadStatus ${BUILD_UPLOAD_STATUS.UPLOADED}`);
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             submissionErrors.push(`Failed to create Android submission: ${errorMessage}`);
           }
-        } else if (mapping.platform === 'IOS') {
+        } else if (mapping.platform === BUILD_PLATFORM.IOS) {
           try {
             // Get iOS build data from builds table
             // Query: releaseId, tenantId, platform='IOS', storeType, buildStage='PRE_RELEASE', buildUploadStatus='UPLOADED'
             const iosBuilds = await this.buildRepository.findBuilds({
               releaseId,
               tenantId,
-              platform: 'IOS',
+              platform: BUILD_PLATFORM.IOS,
               storeType: storeType,
-              buildStage: 'PRE_RELEASE',
-              buildUploadStatus: 'UPLOADED'
+              buildStage: BUILD_STAGE.PRE_RELEASE,
+              buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED
             });
 
             if (iosBuilds.length > 0) {
@@ -733,7 +739,7 @@ export class DistributionService {
               
               createdSubmissions.ios = true;
             } else {
-              submissionErrors.push(`No iOS build found for release ${releaseId} with storeType ${storeType}, buildStage PRE_RELEASE, and buildUploadStatus UPLOADED`);
+              submissionErrors.push(`No iOS build found for release ${releaseId} with storeType ${storeType}, buildStage ${BUILD_STAGE.PRE_RELEASE}, and buildUploadStatus ${BUILD_UPLOAD_STATUS.UPLOADED}`);
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -745,12 +751,12 @@ export class DistributionService {
       // Step 5: Validate that all configured platforms have corresponding submissions
       const missingPlatforms: string[] = [];
       
-      if (filteredPlatforms.includes('ANDROID') && !createdSubmissions.android) {
-        missingPlatforms.push('ANDROID');
+      if (filteredPlatforms.includes(BUILD_PLATFORM.ANDROID) && !createdSubmissions.android) {
+        missingPlatforms.push(BUILD_PLATFORM.ANDROID);
       }
       
-      if (filteredPlatforms.includes('IOS') && !createdSubmissions.ios) {
-        missingPlatforms.push('IOS');
+      if (filteredPlatforms.includes(BUILD_PLATFORM.IOS) && !createdSubmissions.ios) {
+        missingPlatforms.push(BUILD_PLATFORM.IOS);
       }
 
       // If any platform is missing a submission, rollback (delete distribution)
