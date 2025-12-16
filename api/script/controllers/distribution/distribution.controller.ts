@@ -94,7 +94,7 @@ export const createDistributionController = (service: DistributionService, stora
       const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string, 10) : 10;
       const status = req.query.status as string | undefined;
       const platform = req.query.platform as string | undefined;
-      const tenantId = req.query.tenant as string | undefined;
+      const tenantId = req.query.tenantId as string | undefined;
 
       // Validate pagination
       if (page < 1) {
