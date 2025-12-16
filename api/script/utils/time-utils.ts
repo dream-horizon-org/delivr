@@ -12,7 +12,7 @@
  */
 export interface ReleaseForTimeCheck {
   kickOffReminderDate?: Date | string | null;
-  plannedDate: Date | string;
+  kickOffDate: Date | string | null;  // Schema uses kickOffDate, not plannedDate
   id: string;
 }
 
@@ -66,16 +66,16 @@ export function isKickOffReminderTime(release: ReleaseForTimeCheck): boolean {
 /**
  * Check if branch fork time has arrived
  * 
- * @param release - Release object with plannedDate
- * @returns true if current time is within 60 seconds of plannedDate
+ * @param release - Release object with kickOffDate
+ * @returns true if current time is within 60 seconds of kickOffDate
  */
 export function isBranchForkTime(release: ReleaseForTimeCheck): boolean {
-  if (!release.plannedDate) {
+  if (!release.kickOffDate) {
     return false;
   }
 
   const now = new Date();
-  const forkTime = new Date(release.plannedDate);
+  const forkTime = new Date(release.kickOffDate);
 
   // Check if fork time is valid
   if (isNaN(forkTime.getTime())) {

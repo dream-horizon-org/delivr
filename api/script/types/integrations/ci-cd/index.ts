@@ -18,6 +18,8 @@ export { WorkflowType } from './workflow.interface';
 
 export type {
   Platform,
+  WorkflowParameter,
+  WorkflowParameters,
   TenantCICDWorkflow,
   CreateWorkflowDto,
   UpdateWorkflowDto,

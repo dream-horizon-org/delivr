@@ -36,7 +36,7 @@ export class ReleaseConfigRepository {
       testManagementConfigId: data.testManagementConfigId ?? null,
       projectManagementConfigId: data.projectManagementConfigId ?? null,
       commsConfigId: data.commsConfigId ?? null,
-      scheduling: data.scheduling ?? null,
+      // NOTE: releaseScheduleId removed - schedule references config via release_schedules.releaseConfigId
       hasManualBuildUpload: data.hasManualBuildUpload ?? false,
       isActive: data.isActive ?? true,
       isDefault: data.isDefault ?? false,

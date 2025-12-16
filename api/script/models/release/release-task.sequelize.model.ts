@@ -10,9 +10,9 @@ export type ReleaseTaskAttributes = {
   releaseId: string;
   taskId: string | null; // Unique task identifier
   taskType: string; // Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)
-  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  taskStatus: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CALLBACK' | 'AWAITING_MANUAL_BUILD' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
   taskConclusion: 'success' | 'failure' | 'cancelled' | 'skipped' | null;
-  stage: 'KICKOFF' | 'REGRESSION' | 'POST_REGRESSION';
+  stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
   branch: string | null;
   isReleaseKickOffTask: boolean;
   isRegressionSubTasks: boolean;
@@ -63,10 +63,11 @@ export const createReleaseTaskModel = (
         comment: 'Type of task (e.g., CREATE_JIRA_EPIC, TRIGGER_BUILD)'
       },
       taskStatus: {
-        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'),
+        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'AWAITING_CALLBACK', 'AWAITING_MANUAL_BUILD', 'COMPLETED', 'FAILED', 'SKIPPED'),
         allowNull: false,
         defaultValue: 'PENDING',
-        field: 'taskStatus'
+        field: 'taskStatus',
+        comment: 'Task execution status (AWAITING_CALLBACK for CI/CD, AWAITING_MANUAL_BUILD for manual uploads, SKIPPED for platform-specific tasks)'
       },
       taskConclusion: {
         type: DataTypes.ENUM('success', 'failure', 'cancelled', 'skipped'),
@@ -74,7 +75,7 @@ export const createReleaseTaskModel = (
         field: 'taskConclusion'
       },
       stage: {
-        type: DataTypes.ENUM('KICKOFF', 'REGRESSION', 'POST_REGRESSION'),
+        type: DataTypes.ENUM('KICKOFF', 'REGRESSION', 'PRE_RELEASE'),
         allowNull: false,
         field: 'stage',
         comment: 'Which stage this task belongs to'
@@ -143,7 +144,14 @@ export const createReleaseTaskModel = (
     {
       tableName: 'release_tasks',
       timestamps: true,
-      underscored: false
+      underscored: false,
+      indexes: [
+        // Based on actual repository query patterns (verified from release-task.repository.ts):
+        // - findByReleaseId, findByReleaseIdAndStage, findByTaskType
+        { fields: ['releaseId'], name: 'idx_release_tasks_release' },
+        // - findByRegressionCycleId
+        { fields: ['regressionId'], name: 'idx_release_tasks_regression' }
+      ]
     }
   ) as ReleaseTaskModelType;
 

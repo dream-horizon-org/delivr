@@ -143,7 +143,7 @@ module Keys {
   }
 
   //function to mimic defer function in q package
-  function defer<T>() {
+  function _defer<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (reason?: any) => void;
   const promise = new Promise<T>((res, rej) => {
@@ -317,7 +317,7 @@ export class AzureStorage implements storage.Storage {
   }
 
 // NOTE: This method is not implemented for azure storage
-  public getAppOwnershipCount(accountId: string): Promise<number> {
+  public getAppOwnershipCount(_accountId: string): Promise<number> {
     return Promise.reject(
       storage.storageError(
         storage.ErrorCode.Other,
@@ -349,7 +349,7 @@ export class AzureStorage implements storage.Storage {
       .then(() => {
         return this.getAccount(accountId);
       })
-      .then((account: storage.Account) => {
+      .then((_account: storage.Account) => {
         return [];
       })
       .catch(AzureStorage.azureErrorHandler);
@@ -365,24 +365,24 @@ export class AzureStorage implements storage.Storage {
     return Promise.resolve(tenant);
   }
 
-  public removeTenant(accountId: string, tenantId: string): Promise<void> {
+  public removeTenant(_accountId: string, _tenantId: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
   // Tenant Collaborator Methods (stubs for azure-storage)
-  public getTenantCollaborators(tenantId: string): Promise<storage.CollaboratorMap> {
+  public getTenantCollaborators(_tenantId: string): Promise<storage.CollaboratorMap> {
     return Promise.resolve({});
   }
 
-  public addTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+  public addTenantCollaborator(_tenantId: string, _email: string, _permission: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
-  public updateTenantCollaborator(tenantId: string, email: string, permission: string): Promise<void> {
+  public updateTenantCollaborator(_tenantId: string, _email: string, _permission: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
-  public removeTenantCollaborator(tenantId: string, email: string): Promise<void> {
+  public removeTenantCollaborator(_tenantId: string, _email: string): Promise<void> {
     return Promise.resolve(<void>null);
   }
 
@@ -427,7 +427,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public getApp(accountId: string, appId: string, keepCollaboratorIds: boolean = false): Promise<storage.App> {
+  public getApp(accountId: string, appId: string, _keepCollaboratorIds: boolean = false): Promise<storage.App> {
     return this._setupPromise
       .then(() => {
         return this.retrieveByAppHierarchy(appId);
@@ -795,7 +795,7 @@ export class AzureStorage implements storage.Storage {
       .catch(AzureStorage.azureErrorHandler);
   }
 
-  public addBlob(blobId: string, stream: stream.Readable, streamLength: number): Promise<string> {
+  public addBlob(blobId: string, stream: stream.Readable, _streamLength: number): Promise<string> {
     return this._setupPromise
       .then(() => {
         return utils.streamToBuffer(stream);
@@ -1020,7 +1020,7 @@ export class AzureStorage implements storage.Storage {
         this._blobService = blobServiceClient;
       })
       .catch((error) => {
-        if (error.code == "ContainerAlreadyExists") {
+        if (error.code === "ContainerAlreadyExists") {
           this._tableClient = tableClient;
           this._blobService = blobServiceClient;
         } else {
@@ -1186,7 +1186,7 @@ export class AzureStorage implements storage.Storage {
     return this.getApp(accountId, appId, /*keepCollaboratorIds*/ true)
       .then((app: storage.App) => {
         const collaboratorMap: storage.CollaboratorMap = app.collaborators;
-        const requesterEmail: string = AzureStorage.getEmailForAccountId(collaboratorMap, accountId);
+        const _requesterEmail: string = AzureStorage.getEmailForAccountId(collaboratorMap, accountId);
 
         const removalPromises: Promise<void>[] = [];
 
@@ -1539,7 +1539,7 @@ export class AzureStorage implements storage.Storage {
       errorMessage = azureError.message;
     }
 
-    if (overrideMessage && overrideCondition == errorCodeRaw) {
+    if (overrideMessage && overrideCondition === errorCodeRaw) {
       errorMessage = overrideValue;
     }
 

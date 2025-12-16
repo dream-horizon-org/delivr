@@ -1,6 +1,6 @@
 import type { Sequelize } from 'sequelize';
 import { DataTypes, Model } from 'sequelize';
-import type { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd';
+import { TenantCICDWorkflow, CICDProviderType, Platform, WorkflowType } from '~types/integrations/ci-cd';
 
 export const createCICDWorkflowModel = (sequelize: Sequelize) => {
   class CICDWorkflowModel
@@ -38,7 +38,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
         onUpdate: 'CASCADE'
       },
       providerType: {
-        type: DataTypes.ENUM('JENKINS','GITHUB_ACTIONS','CIRCLE_CI','GITLAB_CI'),
+        type: DataTypes.ENUM(...Object.values(CICDProviderType)),
         allowNull: false
       },
       integrationId: {
@@ -67,7 +67,7 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
         comment: 'Normalized lowercase platform identifier'
       },
       workflowType: {
-        type: DataTypes.ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','CUSTOM'),
+        type: DataTypes.ENUM(...Object.values(WorkflowType)),
         allowNull: false,
         defaultValue: 'CUSTOM'
       },
@@ -98,11 +98,12 @@ export const createCICDWorkflowModel = (sequelize: Sequelize) => {
       tableName: 'tenant_ci_cd_workflows',
       timestamps: true,
       indexes: [
+        // Based on actual repository query patterns (verified from workflow.repository.ts):
+        // - findAll with tenantId filter (list workflows for tenant)
         { name: 'idx_wf_tenant', fields: ['tenantId'] },
-        { name: 'idx_wf_provider', fields: ['providerType'] },
-        { name: 'idx_wf_integration', fields: ['integrationId'] },
-        { name: 'idx_wf_platform', fields: ['platform'] },
-        { name: 'idx_wf_type', fields: ['workflowType'] }
+        // - findAll with integrationId filter (list workflows for integration, delete check)
+        { name: 'idx_wf_integration', fields: ['integrationId'] }
+        // Note: providerType, platform, workflowType are low-cardinality enums - no index needed
       ]
     }
   );

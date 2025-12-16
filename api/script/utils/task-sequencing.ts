@@ -7,8 +7,8 @@
  * Follows cursorrules: No 'any' types - use explicit types
  */
 
-import { TaskType, TaskStage, TaskStatus } from '../storage/release/release-models';
-import { ReleaseTaskRecord } from '../storage/release/release-tasks-dto';
+import { TaskType, TaskStage, TaskStatus } from '../models/release/release.interface';
+import type { ReleaseTask } from '../models/release/release.interface';
 
 /**
  * Task order configuration for each stage
@@ -31,12 +31,12 @@ export const TASK_ORDER: Record<TaskStage, TaskType[]> = {
     TaskType.AUTOMATION_RUNS,
     TaskType.SEND_REGRESSION_BUILD_MESSAGE,
   ],
-  [TaskStage.POST_REGRESSION]: [
+  [TaskStage.PRE_RELEASE]: [
     TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER,
     TaskType.CREATE_RELEASE_TAG,
     TaskType.CREATE_FINAL_RELEASE_NOTES,
     TaskType.TRIGGER_TEST_FLIGHT_BUILD,
-    TaskType.SEND_POST_REGRESSION_MESSAGE,
+    TaskType.SEND_PRE_RELEASE_MESSAGE,
     TaskType.CHECK_PROJECT_RELEASE_APPROVAL,
   ],
 };
@@ -46,7 +46,7 @@ export const TASK_ORDER: Record<TaskStage, TaskType[]> = {
  * Tasks that may not be required based on release/cron configuration
  */
 export interface OptionalTaskConfig {
-  hasJiraIntegration?: boolean;
+  hasProjectManagementIntegration?: boolean;
   hasTestPlatformIntegration?: boolean;
   hasIOSPlatform?: boolean; // For TRIGGER_TEST_FLIGHT_BUILD (only if iOS platform exists)
   cronConfig?: {
@@ -83,7 +83,7 @@ export function isTaskRequired(
 
     case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
       // Optional: Only if project management integration is available
-      return config.hasJiraIntegration === true;
+      return config.hasProjectManagementIntegration === true;
 
     case TaskType.CREATE_TEST_SUITE:
       // Optional: Only if test platform integration is available
@@ -94,12 +94,13 @@ export function isTaskRequired(
       return config.cronConfig?.preRegressionBuilds === true;
 
     case TaskType.RESET_TEST_SUITE:
-      // Optional: Only for subsequent regression slots (not the first one)
-      return config.isSubsequentSlot === true;
+      // Optional: Only for subsequent regression slots AND if test platform integration is available
+      // Must match task creation logic in createStage2Tasks
+      return config.isSubsequentSlot === true && config.hasTestPlatformIntegration === true;
 
     case TaskType.TRIGGER_AUTOMATION_RUNS:
-      // Optional: Only if automation is enabled
-      return config.cronConfig?.automationBuilds === true || config.cronConfig?.automationRuns === true;
+      // Optional: Only if automation builds is enabled
+      return config.cronConfig?.automationBuilds === true;
 
     case TaskType.AUTOMATION_RUNS:
       // Optional: Only if automation is enabled
@@ -112,7 +113,7 @@ export function isTaskRequired(
 
     case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
       // Optional: Only if JIRA integration is available
-      return config.hasJiraIntegration === true;
+      return config.hasProjectManagementIntegration === true;
 
     default:
       // All other tasks are always required
@@ -129,9 +130,9 @@ export function isTaskRequired(
  * @returns Tasks sorted by execution order
  */
 export function getOrderedTasks(
-  tasks: ReleaseTaskRecord[],
+  tasks: ReleaseTask[],
   stage: TaskStage
-): ReleaseTaskRecord[] {
+): ReleaseTask[] {
   const order = TASK_ORDER[stage];
   if (!order) {
     // If stage not found in TASK_ORDER, return tasks as-is
@@ -140,8 +141,8 @@ export function getOrderedTasks(
 
   // Sort tasks based on their position in TASK_ORDER
   return [...tasks].sort((a, b) => {
-    const orderA = order.indexOf(a.taskType as TaskType);
-    const orderB = order.indexOf(b.taskType as TaskType);
+    const orderA = order.indexOf(a.taskType);
+    const orderB = order.indexOf(b.taskType);
 
     // If task type not found in order, put it at the end
     if (orderA === -1 && orderB === -1) {
@@ -168,8 +169,8 @@ export function getOrderedTasks(
  * @returns true if all previous tasks are complete or not required
  */
 export function arePreviousTasksComplete(
-  task: ReleaseTaskRecord,
-  allTasks: ReleaseTaskRecord[],
+  task: ReleaseTask,
+  allTasks: ReleaseTask[],
   stage: TaskStage,
   config?: OptionalTaskConfig
 ): boolean {
@@ -179,7 +180,7 @@ export function arePreviousTasksComplete(
     return true;
   }
 
-  const taskIndex = order.indexOf(task.taskType as TaskType);
+  const taskIndex = order.indexOf(task.taskType);
   if (taskIndex === -1) {
     // Task not in order, assume no dependencies
     return true;
@@ -234,6 +235,76 @@ export function getTaskOrderIndex(taskType: TaskType, stage: TaskStage): number 
 }
 
 /**
+ * Reasons why a task cannot be executed
+ */
+export type TaskBlockReason = 
+  | 'ALREADY_COMPLETED'       // Task is COMPLETED
+  | 'ALREADY_SKIPPED'         // Task is SKIPPED
+  | 'AWAITING_CALLBACK'       // Task is waiting for CI/CD callback
+  | 'AWAITING_MANUAL_BUILD'   // Task is waiting for manual build upload
+  | 'IN_PROGRESS'             // Task is currently running
+  | 'NOT_REQUIRED'            // Task is optional and not configured
+  | 'PREVIOUS_INCOMPLETE'     // Previous tasks not complete yet
+  | 'NOT_TIME_YET'            // Time condition not met
+  | 'EXECUTABLE';             // Task can be executed
+
+/**
+ * Get the reason why a task cannot be executed
+ * Useful for improved logging
+ * 
+ * @param task - The task to check
+ * @param allTasks - All tasks in the stage (should be ordered)
+ * @param stage - The stage these tasks belong to
+ * @param config - Optional task configuration
+ * @param isTimeToExecute - Function to check if time-based task should execute
+ * @returns TaskBlockReason indicating why task cannot execute or 'EXECUTABLE' if it can
+ */
+export function getTaskBlockReason(
+  task: ReleaseTask,
+  allTasks: ReleaseTask[],
+  stage: TaskStage,
+  config?: OptionalTaskConfig,
+  isTimeToExecute?: (task: ReleaseTask) => boolean
+): TaskBlockReason {
+  // Check task status first (most common case)
+  switch (task.taskStatus) {
+    case TaskStatus.COMPLETED:
+      return 'ALREADY_COMPLETED';
+    case TaskStatus.SKIPPED:
+      return 'ALREADY_SKIPPED';
+    case TaskStatus.AWAITING_CALLBACK:
+      return 'AWAITING_CALLBACK';
+    case TaskStatus.AWAITING_MANUAL_BUILD:
+      return 'AWAITING_MANUAL_BUILD';
+    case TaskStatus.IN_PROGRESS:
+      return 'IN_PROGRESS';
+  }
+
+  // Task must be in PENDING or FAILED status to proceed
+  const isExecutableStatus = task.taskStatus === TaskStatus.PENDING || task.taskStatus === TaskStatus.FAILED;
+  if (!isExecutableStatus) {
+    return 'IN_PROGRESS'; // Fallback for unknown status
+  }
+
+  // Check if task is required
+  if (!isTaskRequired(task.taskType, config)) {
+    return 'NOT_REQUIRED';
+  }
+
+  // Check if previous tasks are complete
+  if (!arePreviousTasksComplete(task, allTasks, stage, config)) {
+    return 'PREVIOUS_INCOMPLETE';
+  }
+
+  // Check time-based execution (if function provided)
+  if (isTimeToExecute && !isTimeToExecute(task)) {
+    return 'NOT_TIME_YET';
+  }
+
+  return 'EXECUTABLE';
+}
+
+/**
  * Check if a task can be executed
  * Combines time-based checks, previous task completion, and task status
  * 
@@ -245,34 +316,12 @@ export function getTaskOrderIndex(taskType: TaskType, stage: TaskStage): number 
  * @returns true if task can be executed
  */
 export function canExecuteTask(
-  task: ReleaseTaskRecord,
-  allTasks: ReleaseTaskRecord[],
+  task: ReleaseTask,
+  allTasks: ReleaseTask[],
   stage: TaskStage,
   config?: OptionalTaskConfig,
-  isTimeToExecute?: (task: ReleaseTaskRecord) => boolean
+  isTimeToExecute?: (task: ReleaseTask) => boolean
 ): boolean {
-  // Task must be in PENDING status
-  if (task.taskStatus !== TaskStatus.PENDING) {
-    return false;
-  }
-
-  // Check if task is required
-  if (!isTaskRequired(task.taskType as TaskType, config)) {
-    return false;
-  }
-
-  // Check if previous tasks are complete
-  if (!arePreviousTasksComplete(task, allTasks, stage, config)) {
-    return false;
-  }
-
-  // Check time-based execution (if function provided)
-  if (isTimeToExecute) {
-    if (!isTimeToExecute(task)) {
-      return false;
-    }
-  }
-
-  return true;
+  return getTaskBlockReason(task, allTasks, stage, config, isTimeToExecute) === 'EXECUTABLE';
 }
 

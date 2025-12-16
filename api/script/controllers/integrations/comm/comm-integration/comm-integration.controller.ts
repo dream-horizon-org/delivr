@@ -15,6 +15,7 @@ import {
   successResponse,
   validationErrorResponse
 } from '~utils/response.utils';
+import { decryptIfEncrypted, decryptFields, encryptForStorage, decryptFromStorage, isBackendEncrypted } from '~utils/encryption';
 import { 
   COMM_INTEGRATION_ERROR_MESSAGES, 
   COMM_INTEGRATION_SUCCESS_MESSAGES,
@@ -34,9 +35,15 @@ import {
 const verifyTokenHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { botToken } = req.body;
-
-      const tokenError = validateBotToken(botToken);
+      const { botToken, _encrypted } = req.body;
+      // IMPORTANT: Decrypt FIRST if encrypted, then validate
+      // If token is encrypted (doesn't start with xoxb-), try to decrypt
+      const isEncrypted = _encrypted || (botToken && !botToken.startsWith('xoxb-'));
+      
+      const decryptedToken = isEncrypted 
+        ? decryptIfEncrypted(botToken, 'botToken')
+        : botToken;
+      const tokenError = validateBotToken(decryptedToken);
       if (tokenError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('botToken', tokenError)
@@ -44,7 +51,7 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      const verificationResult = await service.verifyCredentials('SLACK' as any, botToken);
+      const verificationResult = await service.verifyCredentials('SLACK' as any, decryptedToken);
 
       res.status(HTTP_STATUS.OK).json(successResponse({
         verified: verificationResult.success,
@@ -69,9 +76,14 @@ const verifyTokenHandler = (service: CommIntegrationService) =>
 const fetchChannelsHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { botToken } = req.body;
+      const { botToken, _encrypted } = req.body;
 
-      const tokenError = validateBotToken(botToken);
+      // IMPORTANT: Decrypt FIRST if encrypted, then validate
+      const decryptedToken = _encrypted 
+        ? decryptIfEncrypted(botToken, 'botToken')
+        : botToken;
+
+      const tokenError = validateBotToken(decryptedToken);
       if (tokenError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('botToken', tokenError)
@@ -79,7 +91,7 @@ const fetchChannelsHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      const channelsResult = await service.fetchChannels('SLACK' as any, botToken);
+      const channelsResult = await service.fetchChannels('SLACK' as any, decryptedToken);
 
       res.status(HTTP_STATUS.OK).json(successResponse({
         channels: channelsResult.channels ?? [],
@@ -141,8 +153,14 @@ const fetchChannelsByIntegrationIdHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      // Fetch channels using the stored token
-      const channelsResult = await service.fetchChannels('SLACK' as any, botToken);
+      // Repository already decrypts token using decryptFromStorage() when includeToken=true
+      // If still encrypted (error case), decrypt using Layer 2; otherwise use as-is (already plaintext)
+      const decryptedToken = isBackendEncrypted(botToken) 
+        ? decryptFromStorage(botToken)  // Layer 2 - from DB (error case: repository decryption failed)
+        : botToken;  // Already plaintext (repository successfully decrypted it)
+
+      // Fetch channels using the decrypted token
+      const channelsResult = await service.fetchChannels('SLACK' as any, decryptedToken);
 
       res.status(HTTP_STATUS.OK).json(successResponse({
         channels: channelsResult.channels ?? [],
@@ -166,9 +184,14 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { tenantId } = req.params;
-      const { botToken, botUserId, workspaceId, workspaceName } = req.body;
+      const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = req.body;
+      
+      // IMPORTANT: Decrypt FIRST for validation, but store encrypted value
+      const decryptedToken = _encrypted 
+        ? decryptIfEncrypted(botToken, 'botToken')
+        : botToken;
 
-      const tokenError = validateBotToken(botToken);
+      const tokenError = validateBotToken(decryptedToken);
       if (tokenError) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
           validationErrorResponse('botToken', tokenError)
@@ -200,10 +223,14 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
         return;
       }
 
+      // Double-layer encryption: Decrypt frontend-encrypted value, then encrypt with backend storage key
+      const { decrypted: decryptedData } = decryptFields({ botToken }, ['botToken']);
+      const backendEncryptedBotToken = encryptForStorage(decryptedData.botToken);
+      
       const data: CreateOrUpdateIntegrationDto = {
         tenantId,
         data: {
-          botToken,
+          botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
           workspaceId,
           workspaceName
@@ -217,9 +244,9 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
       let isNew = false;
       
       if (existing) {
-        // Update existing
+        // Update existing - store backend-encrypted value
         const updateData = {
-          slackBotToken: botToken,
+          slackBotToken: backendEncryptedBotToken, // Backend-encrypted value
           slackBotUserId: botUserId,
           slackWorkspaceId: workspaceId,
           slackWorkspaceName: workspaceName
@@ -227,9 +254,9 @@ const createOrUpdateIntegrationHandler = (service: CommIntegrationService) =>
         result = await service.updateIntegrationByTenant(tenantId, updateData);
         isNew = false;
       } else {
-        // Create new
+        // Create new - store backend-encrypted value
         result = await service.createIntegration(tenantId, 'SLACK' as any, {
-          botToken,
+          botToken: backendEncryptedBotToken, // Backend-encrypted value
           botUserId,
           workspaceId,
           workspaceName
@@ -356,8 +383,15 @@ const verifyIntegrationHandler = (service: CommIntegrationService) =>
         return;
       }
 
-      // Verify using the stored token
-      const verificationResult = await service.verifyCredentials('SLACK' as any, integration.slackBotToken);
+      // Repository already decrypts token using decryptFromStorage() when includeToken=true
+      // If still encrypted (error case), decrypt using Layer 2; otherwise use as-is (already plaintext)
+      const botToken = integration.slackBotToken;
+      const decryptedToken = botToken && isBackendEncrypted(botToken)
+        ? decryptFromStorage(botToken)  // Layer 2 - from DB (error case: repository decryption failed)
+        : botToken;  // Already plaintext (repository successfully decrypted it) or undefined
+      
+      // Verify using the decrypted token
+      const verificationResult = await service.verifyCredentials('SLACK' as any, decryptedToken);
 
       res.status(HTTP_STATUS.OK).json(successResponse({
         verified: verificationResult.success,
@@ -383,10 +417,16 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { tenantId } = req.params;
-      const { botToken, botUserId, workspaceId, workspaceName } = req.body;
+      const { botToken, botUserId, workspaceId, workspaceName, _encrypted } = req.body;
 
+      // IMPORTANT: Decrypt FIRST for validation if token is encrypted
       if (botToken) {
-        const tokenError = validateBotToken(botToken);
+        const isEncrypted = _encrypted || !botToken.startsWith('xoxb-');
+        const decryptedToken = isEncrypted 
+          ? decryptIfEncrypted(botToken, 'botToken')
+          : botToken;
+        
+        const tokenError = validateBotToken(decryptedToken);
         if (tokenError) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
             validationErrorResponse('botToken', tokenError)
@@ -425,8 +465,12 @@ const updateIntegrationHandler = (service: CommIntegrationService) =>
         }
       }
 
+      // Double-layer encryption: Decrypt frontend-encrypted value, then encrypt with backend storage key
       const updateData: any = {};
-      if (botToken) updateData.slackBotToken = botToken;
+      if (botToken) {
+        const { decrypted: decryptedData } = decryptFields({ botToken }, ['botToken']);
+        updateData.slackBotToken = encryptForStorage(decryptedData.botToken); // Backend-encrypted value
+      }
       if (botUserId) updateData.slackBotUserId = botUserId;
       if (workspaceId) updateData.slackWorkspaceId = workspaceId;
       if (workspaceName) updateData.slackWorkspaceName = workspaceName;

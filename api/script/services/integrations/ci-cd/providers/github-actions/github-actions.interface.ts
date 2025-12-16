@@ -45,7 +45,7 @@ export type GHARunStatusParams = {
   timeoutMs: number;
 };
 
-export type GHARunStatus = 'pending' | 'running' | 'completed';
+export type GHARunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export type GHAWorkflowDispatchParams = {
   token: string;

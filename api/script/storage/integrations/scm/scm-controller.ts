@@ -15,6 +15,7 @@ import {
   SafeSCMIntegration,
   VerificationStatus
 } from './scm-types';
+import { decryptFromStorage } from '../../../utils/encryption';
 
 // Create nanoid generator with custom alphabet (alphanumeric + underscore + hyphen)
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-', 21);
@@ -143,11 +144,11 @@ export class SCMIntegrationController {
 
   /**
    * Find active integration for tenant WITH TOKENS (for internal use only)
-   * ⚠️ WARNING: Returns full integration including accessToken
+   * ⚠️ WARNING: Returns full integration including accessToken (decrypted from backend storage)
    * Only use this for server-side operations that need to make API calls
    * 
    * @param tenantId - Tenant ID
-   * @returns First active integration with tokens or null
+   * @returns First active integration with decrypted tokens or null
    */
   async findActiveByTenantWithTokens(tenantId: string): Promise<TenantSCMIntegration | null> {
     const integration = await this.model.findOne({
@@ -159,7 +160,28 @@ export class SCMIntegrationController {
     });
 
     if (!integration) return null;
-    return integration.toJSON() as TenantSCMIntegration;
+    
+    const json = integration.toJSON() as TenantSCMIntegration;
+    
+    // Decrypt tokens from backend storage (handles both backend and frontend formats)
+    if (json.accessToken) {
+      try {
+        json.accessToken = decryptFromStorage(json.accessToken);
+      } catch (error: any) {
+        console.error('[SCM] Failed to decrypt accessToken, keeping encrypted value:', error.message);
+        // Keep encrypted value - might be corrupted or in unexpected format
+      }
+    }
+    if (json.webhookSecret) {
+      try {
+        json.webhookSecret = decryptFromStorage(json.webhookSecret);
+      } catch (error: any) {
+        console.error('[SCM] Failed to decrypt webhookSecret, keeping encrypted value:', error.message);
+        // Keep encrypted value - might be corrupted or in unexpected format
+      }
+    }
+    
+    return json;
   }
 
   // ==========================================================================

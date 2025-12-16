@@ -51,7 +51,7 @@ README_MERGE.md
 
 # Test helpers and consolidated test files
 api/test-all-consolidated.ts
-api/test-helpers/
+# api/test-helpers/  # Removed - test helpers are now tracked for release orchestration
 
 # Archive directory
 archive/
@@ -110,3 +110,4 @@ __queuestorage__
 .vscode/
 
 **/docs/**/*.md
+**/docs/**/*.json

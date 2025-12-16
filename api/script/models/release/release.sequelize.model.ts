@@ -10,14 +10,16 @@ export type ReleaseAttributes = {
   releaseId: string; // User-facing release ID (e.g., "REL-001")
   releaseConfigId: string | null; // FK to release_configurations table
   tenantId: string;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
+  type: 'MINOR' | 'HOTFIX' | 'MAJOR';
   branch: string | null; // Release branch name (e.g., "release/v1.0.0")
   baseBranch: string | null; // Base branch forked from (e.g., "master")
   baseReleaseId: string | null; // Parent release ID (for hotfixes)
+  releaseTag: string | null; // Final release tag (e.g., "v1.0.0_IOS_ANDROID")
   kickOffReminderDate: Date | null; // When to send kickoff reminder
   kickOffDate: Date | null; // When to start kickoff stage
   targetReleaseDate: Date | null; // Target/planned release date
+  delayReason: string | null; // Reason for extending targetReleaseDate
   releaseDate: Date | null; // Actual release date when marked as COMPLETED
   hasManualBuildUpload: boolean;
   createdByAccountId: string; // Account ID who created release
@@ -69,13 +71,14 @@ export const createReleaseModel = (
         }
       },
       status: {
-        type: DataTypes.ENUM('IN_PROGRESS', 'COMPLETED', 'ARCHIVED'),
+        type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'PAUSED', 'SUBMITTED', 'COMPLETED', 'ARCHIVED'),
         allowNull: false,
-        defaultValue: 'IN_PROGRESS',
-        field: 'status'
+        defaultValue: 'PENDING',
+        field: 'status',
+        comment: 'Release lifecycle status'
       },
       type: {
-        type: DataTypes.ENUM('PLANNED', 'HOTFIX', 'UNPLANNED'),
+        type: DataTypes.ENUM('MINOR', 'HOTFIX', 'MAJOR'),
         allowNull: false,
         field: 'type'
       },
@@ -97,6 +100,12 @@ export const createReleaseModel = (
         field: 'baseReleaseId',
         comment: 'Parent release ID (for hotfixes)'
       },
+      releaseTag: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'releaseTag',
+        comment: 'Final release tag (e.g., v1.0.0_IOS_ANDROID)'
+      },
       kickOffReminderDate: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -114,6 +123,12 @@ export const createReleaseModel = (
         allowNull: true,
         field: 'targetReleaseDate',
         comment: 'Target/planned release date'
+      },
+      delayReason: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        field: 'delayReason',
+        comment: 'Reason for extending targetReleaseDate'
       },
       releaseDate: {
         type: DataTypes.DATE,
@@ -151,7 +166,7 @@ export const createReleaseModel = (
       lastUpdatedByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'lastUpdatedByAccountId',
+        field: 'lastUpdateByAccountId', // DB column name (without 'd')
         references: {
           model: 'accounts',
           key: 'id'

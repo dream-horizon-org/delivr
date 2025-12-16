@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import { Sequelize } from 'sequelize';
 import * as storageTypes from '../../storage/storage';
-import { ReleaseType } from '../../storage/release/release-models';
+import { ReleaseType, Phase } from '../../models/release/release.interface';
 
 /**
  * Extended Storage interface that includes Sequelize instance
@@ -40,6 +40,19 @@ export interface ApiResponse<T = unknown> {
 }
 
 /**
+ * Active stage enum - simplified view of where the release is
+ * Null indicates terminal state (COMPLETED or ARCHIVED)
+ */
+export type ActiveStage = 
+  | 'PRE_KICKOFF'
+  | 'KICKOFF'
+  | 'REGRESSION'
+  | 'PRE_RELEASE'
+  | 'RELEASE_SUBMISSION'
+  | 'RELEASE'
+  | null;
+
+/**
  * Platform-Target-Version mapping for release creation
  */
 export interface PlatformTargetVersion {
@@ -49,6 +62,18 @@ export interface PlatformTargetVersion {
 }
 
 /**
+ * Lightweight release data with platform targets
+ * Used for scheduled release version bumping
+ */
+export type ReleaseWithPlatformTargets = {
+  id: string;
+  releaseId: string;
+  releaseConfigId: string | null;
+  tenantId: string;
+  platformTargets: PlatformTargetVersion[];
+};
+
+/**
  * Release creation payload (internal service layer)
  * Note: Uses Date objects (not strings) since this is internal to the service layer
  */
@@ -56,7 +81,7 @@ export interface CreateReleasePayload {
   tenantId: string;
   accountId: string;
   platformTargets: PlatformTargetVersion[]; // Array of platform-target-version combinations
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   releaseConfigId?: string;
   branch?: string;
   baseBranch?: string;
@@ -133,13 +158,16 @@ export interface CronJobResponse {
   stage1Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage2Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   stage3Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  stage4Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
   cronStatus: 'PENDING' | 'RUNNING' | 'PAUSED' | 'COMPLETED';
+  pauseType: 'NONE' | 'AWAITING_STAGE_TRIGGER' | 'USER_REQUESTED' | 'TASK_FAILURE';
   cronConfig: Record<string, unknown>;
   upcomingRegressions: any[] | null;
   cronCreatedAt: string;
   cronStoppedAt: string | null;
   cronCreatedByAccountId: string;
   autoTransitionToStage2: boolean;
+  autoTransitionToStage3: boolean;
   stageData: any;
 }
 
@@ -158,9 +186,10 @@ export interface ReleaseTaskResponse {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;
-  externalData: Record<string, unknown> | null;
+  output: import('./task-output.interface').TaskOutput | null;
   branch: string | null;
   regressionId: string | null;
+  builds: BuildInfoResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -173,8 +202,10 @@ export interface ReleaseResponseBody {
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
+  status: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
+  currentActiveStage?: ActiveStage;
+  releasePhase?: Phase;
   branch: string | null;
   baseBranch: string | null;
   baseReleaseId: string | null;
@@ -210,6 +241,143 @@ export interface SingleReleaseResponseBody {
 }
 
 /**
+ * Regression cycle response structure
+ */
+export interface RegressionCycleResponse {
+  id: string;
+  releaseId: string;
+  isLatest: boolean;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'ABANDONED';
+  cycleTag: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+/**
+ * Build info response structure
+ */
+export interface BuildInfoResponse {
+  // Mandatory fields (in both builds and uploads)
+  id: string;
+  tenantId: string;
+  releaseId: string;
+  platform: 'ANDROID' | 'IOS' | 'WEB';
+  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  artifactPath: string | null;
+  internalTrackLink: string | null;
+  testflightNumber: string | null;
+  createdAt: string;
+  updatedAt: string;
+
+  // Optional fields (only in builds table)
+  buildType?: 'MANUAL' | 'CI_CD';
+  buildUploadStatus?: 'PENDING' | 'UPLOADED' | 'FAILED';
+  storeType?: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
+  buildNumber?: string | null;
+  artifactVersionName?: string | null;
+  regressionId?: string | null;
+  ciRunId?: string | null;
+  queueLocation?: string | null;
+  workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
+  ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  taskId?: string | null;
+
+  // Optional fields (only in uploads table)
+  isUsed?: boolean;
+  usedByTaskId?: string | null;
+}
+
+/**
+ * Regression slot structure
+ */
+export interface RegressionSlotResponse {
+  date: string;
+  config: Record<string, unknown>;
+}
+
+/**
+ * KICKOFF stage tasks response
+ * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=KICKOFF
+ */
+export interface StageTasksResponseBody {
+  success: true;
+  stage: 'KICKOFF';
+  releaseId: string;
+  tasks: ReleaseTaskResponse[];
+  uploadedBuilds: BuildInfoResponse[];
+  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+}
+
+/**
+ * PRE_RELEASE stage tasks response - includes approval status
+ * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=PRE_RELEASE
+ */
+export interface PreReleaseStageTasksResponseBody {
+  success: true;
+  stage: 'PRE_RELEASE';
+  releaseId: string;
+  tasks: ReleaseTaskResponse[];
+  uploadedBuilds: BuildInfoResponse[];
+  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  approvalStatus: PreReleaseApprovalStatusResponse;
+}
+
+/**
+ * Approval status for PRE_RELEASE stage
+ * Indicates whether the stage can be approved based on project management status
+ */
+export interface PreReleaseApprovalStatusResponse {
+  canApprove: boolean;
+  approvalRequirements: {
+    projectManagementPassed: boolean;
+  };
+}
+
+/**
+ * Approval status for regression stage
+ * Indicates whether the regression stage can be approved
+ */
+export interface ApprovalStatusResponse {
+  canApprove: boolean;
+  approvalRequirements: {
+    testManagementPassed: boolean;
+    cherryPickStatusOk: boolean;
+    cyclesCompleted: boolean;
+  };
+}
+
+/**
+ * REGRESSION stage tasks response - includes additional fields
+ * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=REGRESSION
+ */
+export interface RegressionStageTasksResponseBody {
+  success: true;
+  stage: 'REGRESSION';
+  releaseId: string;
+  tasks: ReleaseTaskResponse[];
+  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  cycles: RegressionCycleResponse[];
+  uploadedBuilds: BuildInfoResponse[];
+  currentCycle: RegressionCycleResponse | null;
+  approvalStatus: ApprovalStatusResponse;
+  upcomingSlot: RegressionSlotResponse[] | null;
+}
+
+/**
+ * Error response for stage tasks
+ */
+export interface StageTasksErrorResponse {
+  success: false;
+  error: string;
+  statusCode: number;
+}
+
+/**
+ * Union type for stage tasks result
+ */
+export type StageTasksResult = StageTasksResponseBody | PreReleaseStageTasksResponseBody | RegressionStageTasksResponseBody | StageTasksErrorResponse;
+
+/**
  * Update release request body (HTTP API)
  */
 export interface UpdateReleaseRequestBody {
@@ -217,14 +385,15 @@ export interface UpdateReleaseRequestBody {
   releaseId?: string;
   releaseConfigId?: string;
   tenantId?: string;
-  type?: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
-  status?: 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+  type?: 'MAJOR' | 'MINOR' | 'HOTFIX';
+  status?: 'PENDING' | 'IN_PROGRESS' | 'PAUSED' | 'SUBMITTED' | 'COMPLETED' | 'ARCHIVED';
   branch?: string;
   baseBranch?: string;
   baseReleaseId?: string;
   kickOffReminderDate?: string;
   kickOffDate?: string;
   targetReleaseDate?: string;
+  delayReason?: string;  // Required when extending targetReleaseDate
   releaseDate?: string;
   hasManualBuildUpload?: boolean;
   createdByAccountId?: string;

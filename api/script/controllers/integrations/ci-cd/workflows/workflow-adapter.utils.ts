@@ -12,7 +12,7 @@ export type ParametersResult = {
 };
 
 export type QueueStatus = 'pending' | 'running' | 'completed' | 'cancelled';
-export type RunStatus = 'pending' | 'running' | 'completed';
+export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export type WorkflowAdapter = {
   fetchParameters: (tenantId: string, body: { workflowUrl?: string }) => Promise<ParametersResult>;

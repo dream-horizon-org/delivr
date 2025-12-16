@@ -5,9 +5,31 @@
 
 import { ReleaseRepository } from '../../models/release/release.repository';
 import { CronJobRepository } from '../../models/release/cron-job.repository';
+import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
+import { BuildRepository } from '../../models/release/build.repository';
 import { ReleasePlatformTargetMappingRepository } from '../../models/release/release-platform-target-mapping.repository';
+import { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import { UpdateReleaseRequestBody } from '../../types/release/release.interface';
-import { Release, UpdateReleaseDto, UpdateCronJobDto } from '../../models/release/release.interface';
+import { 
+  Release, 
+  UpdateReleaseDto, 
+  UpdateCronJobDto, 
+  CronJob, 
+  StageStatus, 
+  CronStatus, 
+  RegressionSlot,
+  TaskStatus,
+  ReleaseStatus,
+  PauseType,
+  TaskType,
+  RegressionCycleStatus
+} from '../../models/release/release.interface';
+import { CronJobService } from './cron-job/cron-job.service';
+import { 
+  validateTargetDateChange, 
+  validateSlotsArray, 
+  logTargetDateChangeAudit 
+} from '../../controllers/release/release-validation';
 
 export interface UpdateReleasePayload {
   releaseId: string;
@@ -25,12 +47,57 @@ export interface ReleaseUpdateValidationResult {
   canEditKickOffDate?: boolean;
 }
 
+export interface RetryTaskResult {
+  success: boolean;
+  error?: string;
+  taskId?: string;
+  previousStatus?: string;
+  newStatus?: string;
+}
+
+/**
+ * Build-related task types that require build entry reset on retry
+ */
+const BUILD_TASK_TYPES: TaskType[] = [
+  TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
+  TaskType.TRIGGER_REGRESSION_BUILDS,
+  TaskType.TRIGGER_TEST_FLIGHT_BUILD,
+  TaskType.CREATE_AAB_BUILD
+];
+
 export class ReleaseUpdateService {
   constructor(
     private readonly releaseRepository: ReleaseRepository,
     private readonly cronJobRepository: CronJobRepository,
-    private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository
+    private readonly platformMappingRepository: ReleasePlatformTargetMappingRepository,
+    private readonly cronJobService: CronJobService,
+    private readonly taskRepository?: ReleaseTaskRepository,
+    private readonly buildRepository?: BuildRepository,
+    private readonly regressionCycleRepository?: RegressionCycleRepository
   ) {}
+
+  // Repository getters for manual upload flow
+  getBuildRepository(): BuildRepository {
+    if (!this.buildRepository) {
+      throw new Error('BuildRepository not initialized');
+    }
+    return this.buildRepository;
+  }
+
+  getTaskRepository(): ReleaseTaskRepository {
+    if (!this.taskRepository) {
+      throw new Error('ReleaseTaskRepository not initialized');
+    }
+    return this.taskRepository;
+  }
+
+  getReleaseRepository(): ReleaseRepository {
+    return this.releaseRepository;
+  }
+
+  getPlatformMappingRepository(): ReleasePlatformTargetMappingRepository {
+    return this.platformMappingRepository;
+  }
 
   /**
    * Update an existing release with business rule validations
@@ -58,10 +125,34 @@ export class ReleaseUpdateService {
         lastUpdatedByAccountId: accountId
       };
 
-      // Always allowed fields
-      if (updates.targetReleaseDate !== undefined) {
-        releaseUpdates.targetReleaseDate = updates.targetReleaseDate ? new Date(updates.targetReleaseDate) : null;
+      // Target Release Date - with validation
+      if (updates.targetReleaseDate !== undefined && currentRelease.targetReleaseDate) {
+        const newTargetDate = updates.targetReleaseDate ? new Date(updates.targetReleaseDate) : null;
+        
+        if (newTargetDate) {
+          // Get existing slots and their cycle statuses for validation
+          const existingSlots = await this.getExistingSlotsWithStatus(releaseId);
+          
+          const dateValidation = validateTargetDateChange({
+            oldDate: currentRelease.targetReleaseDate,
+            newDate: newTargetDate,
+            existingSlots,
+            delayReason: updates.delayReason
+          });
+          
+          if (!dateValidation.isValid) {
+            throw new Error(dateValidation.error ?? 'Target date validation failed');
+          }
+          
+          // Log audit if date changed
+          if (dateValidation.shouldLogAudit && dateValidation.auditInfo) {
+            logTargetDateChangeAudit(releaseId, dateValidation.auditInfo, accountId);
+          }
+        }
+        
+        releaseUpdates.targetReleaseDate = newTargetDate;
       }
+      // Note: No else branch needed - targetReleaseDate is mandatory at release creation
 
       // Conditionally allowed fields (before kickoff)
       const kickOffDate = currentRelease.kickOffDate;
@@ -118,7 +209,7 @@ export class ReleaseUpdateService {
   /**
    * Validate what can be updated based on business rules
    */
-  private validateUpdatePermissions(release: Release, updates: UpdateReleaseRequestBody): ReleaseUpdateValidationResult {
+  private validateUpdatePermissions(release: Release, _updates: UpdateReleaseRequestBody): ReleaseUpdateValidationResult {
     const now = new Date();
 
     // Only IN_PROGRESS releases can be edited
@@ -167,9 +258,9 @@ export class ReleaseUpdateService {
    * Update platform target mappings
    */
   private async updatePlatformTargetMappings(
-    releaseId: string,
+    _releaseId: string,
     mappings: Array<{ id: string; platform: string; target: string; version: string }>,
-    accountId: string
+    _accountId: string
   ): Promise<void> {
     for (const mapping of mappings) {
       await this.platformMappingRepository.update(mapping.id, {
@@ -187,7 +278,7 @@ export class ReleaseUpdateService {
     releaseId: string,
     cronJobUpdates: NonNullable<UpdateReleaseRequestBody['cronJob']>,
     validation: ReleaseUpdateValidationResult,
-    accountId: string
+    _accountId: string
   ): Promise<void> {
     const cronJob = await this.cronJobRepository.findByReleaseId(releaseId);
     if (!cronJob) {
@@ -201,18 +292,261 @@ export class ReleaseUpdateService {
       updates.cronConfig = cronJobUpdates.cronConfig;
     }
 
-    // upcomingRegressions can always be updated for IN_PROGRESS releases
+    // upcomingRegressions with stage-based validation
     if (cronJobUpdates.upcomingRegressions !== undefined) {
-      // Convert string dates to Date objects
-      const regressions = cronJobUpdates.upcomingRegressions.map(regression => ({
-        date: new Date(regression.date),
-        config: regression.config
-      }));
-      updates.upcomingRegressions = regressions;
+      const slotUpdateResult = await this.handleRegressionSlotUpdate(
+        releaseId,
+        cronJob,
+        cronJobUpdates.upcomingRegressions
+      );
+      
+      if (slotUpdateResult.updatedSlots) {
+        updates.upcomingRegressions = slotUpdateResult.updatedSlots;
+      }
+      
+      // Process slot update after cron job is updated
+      if (Object.keys(updates).length > 0) {
+        await this.cronJobRepository.update(cronJob.id, updates);
+      }
+      
+      // Restart cron if slots were added and cron is not running
+      if (slotUpdateResult.shouldRestartCron) {
+        console.log(`[ReleaseUpdateService] Restarting cron job for release ${releaseId} - new slots added`);
+        await this.cronJobService.startCronJob(releaseId);
+      }
+      
+      return; // Exit early since we already updated
     }
 
     if (Object.keys(updates).length > 0) {
       await this.cronJobRepository.update(cronJob.id, updates);
     }
+  }
+
+  /**
+   * Handle regression slot updates with validation
+   * 
+   * Validation Rules:
+   * 1. Stage 3 must be PENDING for any slot changes
+   * 2. In Stage 2, cannot remove slots whose time has passed
+   * 3. All slot dates must be before targetReleaseDate
+   * 
+   * Side Effects:
+   * - If slots are added and cron is not running, restart cron
+   */
+  private async handleRegressionSlotUpdate(
+    releaseId: string,
+    cronJob: CronJob,
+    newSlots: Array<{ date: string | Date; config?: Record<string, unknown> }>
+  ): Promise<{ updatedSlots: RegressionSlot[] | null; shouldRestartCron: boolean }> {
+    // Parse current slots
+    const currentSlots = this.parseRegressionSlots(cronJob.upcomingRegressions);
+    
+    // Convert new slots to RegressionSlot format
+    const parsedNewSlots: RegressionSlot[] = newSlots.map(slot => ({
+      date: new Date(slot.date),
+      config: slot.config || {}
+    }));
+
+    // VALIDATION: All slot dates must be before targetReleaseDate
+    const release = await this.releaseRepository.findById(releaseId);
+    if (release?.targetReleaseDate) {
+      const slotsForValidation = parsedNewSlots.map((slot, index) => ({
+        id: `slot-${index}`,
+        date: new Date(slot.date).toISOString()
+      }));
+      
+      const slotsValidation = validateSlotsArray(slotsForValidation, release.targetReleaseDate);
+      if (!slotsValidation.isValid) {
+        const invalidDates = slotsValidation.invalidSlots.map(s => s.date).join(', ');
+        throw new Error(
+          `Slot dates must be before targetReleaseDate (${release.targetReleaseDate.toISOString()}). ` +
+          `Invalid slots: ${invalidDates}`
+        );
+      }
+    }
+
+    // Detect changes by comparing dates
+    const currentDates = new Set(currentSlots.map(s => new Date(s.date).toISOString()));
+    const newDates = new Set(parsedNewSlots.map(s => new Date(s.date).toISOString()));
+
+    const addedSlots = parsedNewSlots.filter(s => !currentDates.has(new Date(s.date).toISOString()));
+    const removedSlots = currentSlots.filter(s => !newDates.has(new Date(s.date).toISOString()));
+
+    const hasChanges = addedSlots.length > 0 || removedSlots.length > 0;
+
+    // VALIDATION 1: Stage 3 must be PENDING for any slot changes
+    if (hasChanges && cronJob.stage3Status !== StageStatus.PENDING) {
+      throw new Error(`Cannot modify regression slots: Stage 3 already started (status: ${cronJob.stage3Status})`);
+    }
+
+    // VALIDATION 2: In Stage 2, cannot remove slots whose time has passed
+    if (removedSlots.length > 0 && cronJob.stage2Status === StageStatus.IN_PROGRESS) {
+      const now = new Date();
+      const pastSlots = removedSlots.filter(s => new Date(s.date) < now);
+      if (pastSlots.length > 0) {
+        const pastDates = pastSlots.map(s => new Date(s.date).toISOString()).join(', ');
+        throw new Error(`Cannot delete slots whose time has passed during Stage 2. Past slots: ${pastDates}`);
+      }
+    }
+
+    // Determine if cron should be restarted
+    const wasStage2Completed = cronJob.stage2Status === StageStatus.COMPLETED;
+    const cronNotRunning = cronJob.cronStatus !== CronStatus.RUNNING;
+    const shouldRestartCron = addedSlots.length > 0 && cronNotRunning;
+
+    if (hasChanges) {
+      console.log(
+        `[ReleaseUpdateService] Regression slots updated for release ${releaseId}. ` +
+        `Added: ${addedSlots.length}, Removed: ${removedSlots.length}. ` +
+        `Stage 2 was ${wasStage2Completed ? 'COMPLETED' : cronJob.stage2Status}.`
+      );
+    }
+
+    return {
+      updatedSlots: parsedNewSlots,
+      shouldRestartCron
+    };
+  }
+
+  /**
+   * Parse regression slots from various formats
+   */
+  private parseRegressionSlots(
+    slots: RegressionSlot[] | string | null | undefined
+  ): RegressionSlot[] {
+    if (!slots) return [];
+    
+    if (typeof slots === 'string') {
+      try {
+        return JSON.parse(slots);
+      } catch {
+        return [];
+      }
+    }
+    
+    return slots;
+  }
+
+  /**
+   * Get existing slots with their regression cycle status
+   * Used for target date validation
+   */
+  private async getExistingSlotsWithStatus(
+    releaseId: string
+  ): Promise<Array<{ id: string; date: string; status?: RegressionCycleStatus }>> {
+    const cronJob = await this.cronJobRepository.findByReleaseId(releaseId);
+    if (!cronJob) return [];
+
+    const slots = this.parseRegressionSlots(cronJob.upcomingRegressions);
+    
+    // If we have regression cycle repository, enrich with actual cycle status
+    if (this.regressionCycleRepository) {
+      const cycles = await this.regressionCycleRepository.findByReleaseId(releaseId);
+      
+      return slots.map((slot, index) => {
+        // Match slot to cycle by index (cycles are created in order)
+        const cycle = cycles[index];
+        return {
+          id: `slot-${index}`,
+          date: new Date(slot.date).toISOString(),
+          status: cycle?.status as RegressionCycleStatus | undefined
+        };
+      });
+    }
+
+    return slots.map((slot, index) => ({
+      id: `slot-${index}`,
+      date: new Date(slot.date).toISOString()
+    }));
+  }
+
+  // ===========================================================================
+  // RETRY TASK
+  // ===========================================================================
+
+  /**
+   * Retry a failed task
+   * 
+   * This resets the task status to PENDING so the cron job can pick it up
+   * and re-execute it on the next tick (LAZY approach).
+   * 
+   * For build tasks, also resets failed build entries so TaskExecutor
+   * knows which platforms to re-trigger.
+   * 
+   * @param taskId - ID of the task to retry
+   * @param accountId - Account ID of user initiating retry
+   * @returns RetryTaskResult with success status
+   */
+  async retryTask(taskId: string, accountId: string): Promise<RetryTaskResult> {
+    // Validate repositories are available
+    if (!this.taskRepository) {
+      return { success: false, error: 'Task repository not configured' };
+    }
+
+    // Step 1: Find the task
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return { success: false, error: 'Task not found' };
+    }
+
+    // Step 2: Validate task can be retried (only FAILED tasks)
+    if (task.taskStatus !== TaskStatus.FAILED) {
+      return { 
+        success: false, 
+        error: `Only FAILED tasks can be retried. Current status: ${task.taskStatus}` 
+      };
+    }
+
+    const previousStatus = task.taskStatus;
+
+    // Step 3: Reset task status to PENDING
+    await this.taskRepository.update(taskId, { 
+      taskStatus: TaskStatus.PENDING 
+    });
+
+    // Step 4: Resume release if it was paused
+    const release = await this.releaseRepository.findById(task.releaseId);
+    if (release && release.status === ReleaseStatus.PAUSED) {
+      await this.releaseRepository.update(task.releaseId, { 
+        status: ReleaseStatus.IN_PROGRESS,
+        lastUpdatedByAccountId: accountId
+      });
+
+      // Also reset cronJob pauseType
+      const cronJob = await this.cronJobRepository.findByReleaseId(task.releaseId);
+      if (cronJob) {
+        await this.cronJobRepository.update(cronJob.id, { 
+          pauseType: PauseType.NONE 
+        });
+      }
+
+      console.log(`[ReleaseUpdateService] Release ${task.releaseId} resumed after task retry`);
+    }
+
+    // Step 5: For build tasks, reset failed build entries
+    if (this.isBuildTask(task.taskType) && this.buildRepository) {
+      const resetCount = await this.buildRepository.resetFailedBuildsForTask(taskId);
+      console.log(`[ReleaseUpdateService] Reset ${resetCount} failed build entries for task ${taskId}`);
+    }
+
+    console.log(
+      `[ReleaseUpdateService] Task ${taskId} retry initiated by ${accountId}. ` +
+      `Status: ${previousStatus} → PENDING. Cron will pick up on next tick.`
+    );
+
+    return {
+      success: true,
+      taskId,
+      previousStatus,
+      newStatus: TaskStatus.PENDING
+    };
+  }
+
+  /**
+   * Check if task type is a build-related task
+   */
+  private isBuildTask(taskType: TaskType): boolean {
+    return BUILD_TASK_TYPES.includes(taskType);
   }
 }

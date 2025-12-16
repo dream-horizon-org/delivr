@@ -36,7 +36,20 @@ import {
   createReleaseConfigModel,
   ReleaseConfigRepository
 } from "../models/release-configs";
+import {
+  createReleaseScheduleModel,
+  ReleaseScheduleRepository
+} from "../models/release-schedules";
+import {
+  createReleaseNotificationModel,
+  ReleaseNotificationRepository
+} from "../models/release-notification";
+import { ReleaseNotificationService } from "../services/release-notification";
+import { MessagingService } from "../services/integrations/comm/messaging/messaging.service";
 import { ReleaseConfigService } from "../services/release-configs";
+import { ReleaseScheduleService } from "../services/release-schedules";
+import { createCronicleService } from "../services/cronicle";
+import type { CronicleService } from "../services/cronicle";
 import {
   createReleaseModel,
   createCronJobModel,
@@ -45,16 +58,22 @@ import {
   createPlatformTargetMappingModel,
   createPlatformModel,
   createTargetModel,
+  createRegressionCycleModel,
+  createReleaseUploadModel,
   ReleaseRepository,
   ReleasePlatformTargetMappingRepository,
   CronJobRepository,
   ReleaseTaskRepository,
+  RegressionCycleRepository,
+  ReleaseUploadsRepository,
   StateHistoryRepository
 } from "../models/release";
 import { ReleaseCreationService } from "../services/release/release-creation.service";
 import { ReleaseRetrievalService } from "../services/release/release-retrieval.service";
 import { ReleaseStatusService } from "../services/release/release-status.service";
 import { ReleaseUpdateService } from "../services/release/release-update.service";
+import { ReleaseVersionService } from "../services/release/release-version.service";
+import { SCMService } from "../services/integrations/scm/scm.service";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -71,6 +90,13 @@ import { createSCMIntegrationModel } from "./integrations/scm/scm-models";
 import { createStoreIntegrationModel, createStoreCredentialModel } from "./integrations/store/store-models";
 import { StoreIntegrationController, StoreCredentialController } from "./integrations/store/store-controller";
 import { createPlatformStoreMappingModel } from "./integrations/store/platform-store-mapping-models";
+import { createBuildModel, BuildRepository } from "../models/release";
+import {
+  createDistributionModel,
+  createIosSubmissionBuildModel,
+  createAndroidSubmissionBuildModel,
+  createSubmissionActionHistoryModel
+} from "../models/distribution";
 
 //Creating Access Key
 export function createAccessKey(sequelize: Sequelize) {
@@ -425,6 +451,10 @@ export function createModelss(sequelize: Sequelize) {
   const CronJob = createCronJobModel(sequelize);  // Cron jobs for automation
   const ReleaseTask = createReleaseTaskModel(sequelize);  // Release tasks
   const StateHistory = createStateHistoryModel(sequelize);  // State history/audit trail
+  const Build = createBuildModel(sequelize);  // Build records (CI/CD)
+  const RegressionCycle = createRegressionCycleModel(sequelize);  // Regression cycles
+  const ReleaseNotification = createReleaseNotificationModel(sequelize);  // Release notifications ledger
+  const ReleaseUpload = createReleaseUploadModel(sequelize);  // Manual build uploads staging
 
   // ============================================
   const CommIntegrations = createCommIntegrationModel(sequelize);  // Communication integrations (Slack, Email, Teams)
@@ -436,6 +466,12 @@ export function createModelss(sequelize: Sequelize) {
   // Test Management integrations
   const TenantTestManagementIntegration = createTenantTestManagementIntegrationModel(sequelize);
   const TestManagementConfig = createTestManagementConfigModel(sequelize);
+  
+  // Distribution models
+  const Distribution = createDistributionModel(sequelize);  // Distribution tracking
+  const IosSubmissionBuild = createIosSubmissionBuildModel(sequelize);  // iOS submission builds
+  const AndroidSubmissionBuild = createAndroidSubmissionBuildModel(sequelize);  // Android submission builds
+  const SubmissionActionHistory = createSubmissionActionHistoryModel(sequelize);  // Submission action history
   
   // Define associations
   // ============================================
@@ -484,6 +520,30 @@ export function createModelss(sequelize: Sequelize) {
   // Release and State History (One Release has many history entries)
   Release.hasMany(StateHistory, { foreignKey: 'releaseId', as: 'history' });
   StateHistory.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Release and Notifications (One Release has many Notifications)
+  Release.hasMany(ReleaseNotification, { foreignKey: 'releaseId', as: 'notifications' });
+  ReleaseNotification.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Tenant and Notifications (One Tenant has many Notifications)
+  Tenant.hasMany(ReleaseNotification, { foreignKey: 'tenantId', as: 'notifications' });
+  ReleaseNotification.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+  // Account and Notifications (Creator relationship for ad-hoc notifications)
+  Account.hasMany(ReleaseNotification, { foreignKey: 'createdByUserId', as: 'createdNotifications' });
+  ReleaseNotification.belongsTo(Account, { foreignKey: 'createdByUserId', as: 'creator' });
+
+  // Release and Regression Cycles (One Release has many Regression Cycles)
+  Release.hasMany(RegressionCycle, { foreignKey: 'releaseId', as: 'regressionCycles' });
+  RegressionCycle.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Release and Builds (One Release has many Builds)
+  Release.hasMany(Build, { foreignKey: 'releaseId', as: 'builds' });
+  Build.belongsTo(Release, { foreignKey: 'releaseId' });
+
+  // Regression Cycle and Builds (One Regression Cycle has many Builds)
+  RegressionCycle.hasMany(Build, { foreignKey: 'regressionId', as: 'builds' });
+  Build.belongsTo(RegressionCycle, { foreignKey: 'regressionId', as: 'regressionCycle' });
 
   // Tenant and App (One Tenant can have many Apps) - NEW FLOW
   Tenant.hasMany(App, { foreignKey: 'tenantId' });
@@ -554,6 +614,55 @@ export function createModelss(sequelize: Sequelize) {
     foreignKey: 'tenantId',
     as: 'tenant'
   });
+  
+  // Distribution associations
+  // Tenant has many Distributions
+  Tenant.hasMany(Distribution, { 
+    foreignKey: 'tenantId',
+    as: 'distributions' 
+  });
+  Distribution.belongsTo(Tenant, { 
+    foreignKey: 'tenantId',
+    as: 'tenant',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Release has many Distributions
+  Release.hasMany(Distribution, { 
+    foreignKey: 'releaseId',
+    as: 'distributions' 
+  });
+  Distribution.belongsTo(Release, { 
+    foreignKey: 'releaseId',
+    as: 'release',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Distribution has many iOS Submission Builds
+  Distribution.hasMany(IosSubmissionBuild, { 
+    foreignKey: 'distributionId',
+    as: 'iosSubmissions' 
+  });
+  IosSubmissionBuild.belongsTo(Distribution, { 
+    foreignKey: 'distributionId',
+    as: 'distribution',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
+  
+  // Distribution has many Android Submission Builds
+  Distribution.hasMany(AndroidSubmissionBuild, { 
+    foreignKey: 'distributionId',
+    as: 'androidSubmissions' 
+  });
+  AndroidSubmissionBuild.belongsTo(Distribution, { 
+    foreignKey: 'distributionId',
+    as: 'distribution',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+  });
 
   return {
     Account,
@@ -577,6 +686,10 @@ export function createModelss(sequelize: Sequelize) {
     cronJob: CronJob,
     releaseTasks: ReleaseTask,
     stateHistory: StateHistory,
+    build: Build,  // Build records for CI/CD
+    regressionCycle: RegressionCycle,  // Regression cycles within release workflow
+    releaseNotification: ReleaseNotification,  // Release notifications ledger
+    releaseUpload: ReleaseUpload,  // Manual build uploads staging table
     CommIntegrations,  // Communication integrations
     SlackIntegrations: CommIntegrations,  // Legacy alias
     StoreIntegrations,  // Store integrations (App Store, Play Store, etc.)
@@ -586,6 +699,10 @@ export function createModelss(sequelize: Sequelize) {
     ChannelConfig: CommConfig,  // Legacy alias
     TenantTestManagementIntegration,  // Test management integrations
     TestManagementConfig,  // Test management configurations
+    Distribution,  // Distribution tracking
+    IosSubmissionBuild,  // iOS submission builds
+    AndroidSubmissionBuild,  // Android submission builds
+    SubmissionActionHistory,  // Submission action history
   };
 }
 
@@ -648,9 +765,22 @@ export class S3Storage implements storage.Storage {
     public cicdConfigService!: CICDConfigService;  // CI/CD config service
     public releaseConfigRepository!: ReleaseConfigRepository;
     public releaseConfigService!: ReleaseConfigService;
+    public releaseScheduleService!: ReleaseScheduleService;
+    public releaseNotificationRepository!: ReleaseNotificationRepository;
+    public messagingService!: MessagingService;
+    public releaseNotificationService!: ReleaseNotificationService;
+    public cronicleService: CronicleService | null = null;
+    public releaseRepository!: ReleaseRepository;  // Release repository
+    public releasePlatformTargetMappingRepository!: ReleasePlatformTargetMappingRepository;  // Platform-target mapping repository
+    public releaseUploadsRepository!: ReleaseUploadsRepository;  // Manual build uploads repository
+    public platformMappingRepository!: ReleasePlatformTargetMappingRepository;  // Alias for releasePlatformTargetMappingRepository
+    public cronJobRepository!: CronJobRepository;  // Cron job repository
+    public releaseTaskRepository!: ReleaseTaskRepository;  // Release task repository
+    public regressionCycleRepository!: RegressionCycleRepository;  // Regression cycle repository
     public releaseCreationService!: ReleaseCreationService;
-    public releaseRetrievalService!: ReleaseRetrievalService; // Slack integration controller (OLD - for backwards compatibility)  // Slack integration repository (NEW - with delete method)
-    public releaseUpdateService!: ReleaseUpdateService;  // Slack integration controller
+    public releaseRetrievalService!: ReleaseRetrievalService;
+    public releaseVersionService!: ReleaseVersionService;
+    public releaseUpdateService!: ReleaseUpdateService;
     public releaseStatusService!: ReleaseStatusService;
     public commIntegrationRepository!: CommIntegrationRepository;  // Comm integration repository
     public commConfigRepository!: CommConfigRepository;  // Comm config repository
@@ -658,6 +788,7 @@ export class S3Storage implements storage.Storage {
     public storeCredentialController!: StoreCredentialController;  // Store credential controller
     public commIntegrationService!: CommIntegrationService;
     public commConfigService!: CommConfigService;// Communication config service
+    public buildRepository!: BuildRepository;
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -772,8 +903,12 @@ export class S3Storage implements storage.Storage {
           this.cicdConfigRepository = new CICDConfigRepository(models.CICDConfig);
           console.log("CI/CD Config Repository initialized");
           
-          // Initialize CI/CD Config Service
-          this.cicdConfigService = new CICDConfigService(this.cicdConfigRepository, this.cicdWorkflowRepository);
+          // Initialize CI/CD Config Service (with integration repo for triggering workflows)
+          this.cicdConfigService = new CICDConfigService(
+            this.cicdConfigRepository,
+            this.cicdWorkflowRepository,
+            this.cicdIntegrationRepository
+          );
           console.log("CI/CD Config Service initialized");
           
           
@@ -865,8 +1000,38 @@ export class S3Storage implements storage.Storage {
           // Initialize Release Config (AFTER all integration services are ready)
           const releaseConfigModel = createReleaseConfigModel(this.sequelize);
           this.releaseConfigRepository = new ReleaseConfigRepository(releaseConfigModel);
+          
+          // Initialize Release Schedule Repository
+          const releaseScheduleModel = createReleaseScheduleModel(this.sequelize);
+          const releaseScheduleRepository = new ReleaseScheduleRepository(releaseScheduleModel);
+          console.log("Release Schedule Repository initialized");
+          
+          // Initialize Release Notification Repository
+          this.releaseNotificationRepository = new ReleaseNotificationRepository(
+            this.sequelize.models.ReleaseNotification
+          );
+          console.log("Release Notification Repository initialized");
+          
+          // Initialize Messaging Service
+          this.messagingService = new MessagingService(
+            this.commIntegrationService,
+            this.commConfigService
+          );
+          console.log("Messaging Service initialized");
+          
+          // Initialize Cronicle Service (optional - only if configured)
+          this.cronicleService = this.initializeCronicleService();
+          
+          // Initialize Release Schedule Service
+          this.releaseScheduleService = new ReleaseScheduleService(
+            releaseScheduleRepository,
+            this.cronicleService
+          );
+          console.log("Release Schedule Service initialized");
+          
           this.releaseConfigService = new ReleaseConfigService(
             this.releaseConfigRepository,
+            this.releaseScheduleService,
             this.cicdConfigService,
             this.testManagementConfigService,
             this.commConfigService,
@@ -875,47 +1040,112 @@ export class S3Storage implements storage.Storage {
           console.log("Release Config Service initialized");
           
           // Initialize Release Management Services
-          const releaseRepo = new ReleaseRepository(this.sequelize.models.Release);
-          const platformTargetMappingRepo = new ReleasePlatformTargetMappingRepository(
+          this.releaseRepository = new ReleaseRepository(this.sequelize.models.Release);
+          this.releasePlatformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(
             this.sequelize.models.PlatformTargetMapping
           );
-          const cronJobRepo = new CronJobRepository(this.sequelize.models.CronJob);
-          const releaseTaskRepo = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          // Alias for type guard compatibility
+          this.platformMappingRepository = this.releasePlatformTargetMappingRepository;
+          
+          // Initialize Release Uploads Repository (for manual build uploads)
+          this.releaseUploadsRepository = new ReleaseUploadsRepository(
+            this.sequelize,
+            this.sequelize.models.ReleaseUpload as typeof import("../models/release/release-uploads.sequelize.model").ReleaseUploadModel
+          );
+          console.log("Release Uploads Repository initialized");
+          
+          this.cronJobRepository = new CronJobRepository(this.sequelize.models.CronJob);
+          this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
+          this.regressionCycleRepository = new RegressionCycleRepository(this.sequelize.models.RegressionCycle);
+          console.log("Regression Cycle Repository initialized");
+          const cronJobRepo = this.cronJobRepository;
+          const releaseTaskRepo = this.releaseTaskRepository;
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );
           
+          // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
+          this.releaseVersionService = new ReleaseVersionService(
+            this.releasePlatformTargetMappingRepository
+          );
+          console.log("Release Version Service initialized");
+          
           this.releaseCreationService = new ReleaseCreationService(
-            releaseRepo,
-            platformTargetMappingRepo,
+            this.releaseRepository,
+            this.releasePlatformTargetMappingRepository,
             cronJobRepo,
             releaseTaskRepo,
             stateHistoryRepo,
             this,
-            this.releaseConfigService
+            this.releaseConfigService,
+            this.releaseVersionService
           );
           console.log("Release Creation Service initialized");
           
+          // Initialize SCM Service (needed by ReleaseRetrievalService)
+          const scmService = new SCMService();
+          console.log("SCM Service initialized");
+          
+          // Initialize Build repository (for artifact listings/uploads) - must be before ReleaseRetrievalService
+          const buildModel = createBuildModel(this.sequelize);
+          this.buildRepository = new BuildRepository(buildModel);
+          console.log("Build Repository initialized");
+          
           this.releaseRetrievalService = new ReleaseRetrievalService(
-            releaseRepo,
-            platformTargetMappingRepo,
+            this.releaseRepository,
+            this.releasePlatformTargetMappingRepository,
             cronJobRepo,
-            releaseTaskRepo
+            releaseTaskRepo,
+            this.regressionCycleRepository,
+            this.buildRepository,
+            this.releaseUploadsRepository,
+            this.releaseConfigRepository,
+            scmService,
+            this.projectManagementTicketService,
+            this.testManagementRunService
           );
           console.log("Release Retrieval Service initialized");
+          
+          // Initialize Release Notification Service (after releaseConfigService and releaseRetrievalService)
+          this.releaseNotificationService = new ReleaseNotificationService(
+            this.messagingService,
+            this.releaseNotificationRepository,
+            this.releaseConfigService,
+            this.releaseRetrievalService
+          );
+          console.log("Release Notification Service initialized");
+          
+          // Set dependencies for scheduled release creation (after all services are initialized)
+          this.releaseScheduleService.setReleaseCreationDependencies({
+            releaseConfigService: this.releaseConfigService,
+            releaseRetrievalService: this.releaseRetrievalService,
+            releaseCreationService: this.releaseCreationService,
+            releaseVersionService: this.releaseVersionService
+          });
+          console.log("Release Schedule Service dependencies set");
+          
+          // SCM Service already initialized above (used by ReleaseRetrievalService and ReleaseStatusService)
           
           this.releaseStatusService = new ReleaseStatusService(
             this.releaseRetrievalService,
             this.releaseConfigService,
             this.projectManagementTicketService,
-            this.testManagementRunService
+            this.testManagementRunService,
+            scmService,
+            this.releaseRepository,
+            this.regressionCycleRepository
           );
           console.log("Release Status Service initialized");
           
+          // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
+          this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
+          console.log("Release Status Service injected into Release Retrieval Service");
+          
           this.releaseUpdateService = new ReleaseUpdateService(
-            releaseRepo,
+            this.releaseRepository,
             cronJobRepo,
-            platformTargetMappingRepo
+            this.releasePlatformTargetMappingRepository,
+            null as any // CronJobService - TODO: instantiate properly
           );
           console.log("Release Update Service initialized");
           
@@ -948,6 +1178,39 @@ export class S3Storage implements storage.Storage {
           })
           .catch(reject);
       });
+    }
+
+    /**
+     * Initialize Cronicle service if environment variables are configured
+     * Returns null if Cronicle is not configured (optional dependency)
+     */
+    private initializeCronicleService(): CronicleService | null {
+      const cronicleUrl = process.env.CRONICLE_URL;
+      const cronicleApiKey = process.env.CRONICLE_API_KEY;
+      const webhookSecret = process.env.CRONICLE_WEBHOOK_SECRET;
+      const serverBaseUrl = process.env.SERVER_BASE_URL;
+
+      const isCronicleConfigured = cronicleUrl && cronicleApiKey && webhookSecret && serverBaseUrl;
+
+      if (!isCronicleConfigured) {
+        console.log("Cronicle not configured - release schedule jobs will not be created");
+        return null;
+      }
+
+      try {
+        const service = createCronicleService({
+          baseUrl: cronicleUrl,
+          apiKey: cronicleApiKey,
+          webhookSecret: webhookSecret,
+          serverBaseUrl: serverBaseUrl,
+          defaultTimezone: process.env.CRONICLE_DEFAULT_TIMEZONE ?? 'Asia/Kolkata'
+        });
+        console.log("Cronicle Service initialized");
+        return service;
+      } catch (error) {
+        console.error("Failed to initialize Cronicle Service:", error);
+        return null;
+      }
     }
   
     public addAccount(account: storage.Account): Promise<string> {
@@ -2670,5 +2933,32 @@ export class S3Storage implements storage.Storage {
       }
   
       return null;
+    }
+
+    // ============================================================================
+    // Public helpers for S3 reuse
+    // ============================================================================
+    public async uploadBufferToS3(key: string, buffer: Buffer, contentType?: string): Promise<void> {
+      const finalContentType = contentType && contentType.trim().length > 0 ? contentType : 'application/octet-stream';
+      await this.s3
+        .putObject({
+          Bucket: this.bucketName,
+          Key: key,
+          Body: buffer,
+          ContentType: finalContentType
+        })
+        .promise();
+    }
+
+    public getS3BucketName(): string {
+      return this.bucketName;
+    }
+
+    public async getSignedObjectUrl(key: string, expiresSeconds: number = 3600): Promise<string> {
+      return this.s3.getSignedUrlPromise('getObject', {
+        Bucket: this.bucketName,
+        Key: key,
+        Expires: expiresSeconds
+      });
     }
   }

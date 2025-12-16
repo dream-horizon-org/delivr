@@ -11,6 +11,7 @@ import type {
   ChannelConfigValidationResult,
   ValidationError
 } from '../../../../types/integrations/comm/slack-channel-config';
+import { ChannelBucket } from '../messaging/messaging.interface';
 
 // Create nanoid generator for channel config IDs (shorter, URL-safe)
 const nanoid = customAlphabet(
@@ -75,13 +76,13 @@ export class CommConfigService {
         };
       }
 
-      // Valid bucket names (singular form)
-      const validBuckets = ['release', 'build', 'regression', 'critical'];
+      // Valid bucket names - derived from ChannelBucket enum (single source of truth)
+      const validBuckets = Object.values(ChannelBucket);
 
       // Validate each bucket
       for (const [bucket, bucketChannels] of Object.entries(channels)) {
         // Check if bucket name is valid
-        if (!validBuckets.includes(bucket)) {
+        if (!validBuckets.includes(bucket as ChannelBucket)) {
           errors.push({
             field: `channelData.channels.${bucket}`,
             message: `Invalid bucket name '${bucket}'. Valid buckets: ${validBuckets.join(', ')}`

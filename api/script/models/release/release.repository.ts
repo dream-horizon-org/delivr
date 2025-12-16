@@ -1,4 +1,3 @@
-import { Model } from 'sequelize';
 import type { ReleaseModelType } from './release.sequelize.model';
 import { Release, CreateReleaseDto, UpdateReleaseDto } from './release.interface';
 
@@ -24,6 +23,7 @@ export class ReleaseRepository {
       branch: data.branch || null,
       baseBranch: data.baseBranch || null,
       baseReleaseId: data.baseReleaseId || null,
+      releaseTag: data.releaseTag || null,
       kickOffReminderDate: data.kickOffReminderDate || null,
       kickOffDate: data.kickOffDate || null,
       targetReleaseDate: data.targetReleaseDate || null,
@@ -43,14 +43,6 @@ export class ReleaseRepository {
     return this.toPlainObject(release);
   }
 
-  async findByReleaseId(releaseId: string, tenantId: string): Promise<Release | null> {
-    const release = await this.model.findOne({
-      where: { releaseId, tenantId }
-    });
-    if (!release) return null;
-    return this.toPlainObject(release);
-  }
-
   async findByBaseReleaseId(baseReleaseId: string, tenantId: string): Promise<Release | null> {
     const release = await this.model.findOne({
       where: { baseReleaseId, tenantId }
@@ -65,6 +57,19 @@ export class ReleaseRepository {
       order: [['createdAt', 'DESC']]
     });
     return releases.map(this.toPlainObject.bind(this));
+  }
+
+  /**
+   * Find the latest release for a release config
+   * Used for scheduled release version bumping
+   */
+  async findLatestByReleaseConfigId(releaseConfigId: string): Promise<Release | null> {
+    const release = await this.model.findOne({
+      where: { releaseConfigId },
+      order: [['createdAt', 'DESC']]
+    });
+    if (!release) return null;
+    return this.toPlainObject(release);
   }
 
   async update(id: string, data: UpdateReleaseDto): Promise<Release | null> {

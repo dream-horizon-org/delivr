@@ -1,6 +1,9 @@
 import ddTrace from 'dd-trace'
 ddTrace.init();
-export default ddTrace
+
+// Export tracer as named export (not default)
+export { ddTrace };
+export const tracer = ddTrace;
 
 export const getTraceId = () => {
   const span = ddTrace.scope().active()

@@ -37,12 +37,10 @@ CREATE TABLE IF NOT EXISTS tenant_ci_cd_integrations (
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  -- Indexing
-  INDEX idx_tenant (tenantId) COMMENT 'Query by tenant',
-  INDEX idx_provider (providerType) COMMENT 'Query by provider',
-  INDEX idx_verification_status (verificationStatus) COMMENT 'Query by verification status',
-  INDEX idx_tenant_provider (tenantId, providerType) COMMENT 'Query by tenant and provider',
-  UNIQUE KEY uniq_tenant_provider (tenantId, providerType) COMMENT 'Unique constraint for tenant and provider'
+  -- Indexing (minimal set - unique constraint serves as composite index)
+  -- Note: Single-column indexes on providerType/verificationStatus omitted (low cardinality)
+  -- Note: idx_tenant_provider omitted (redundant - unique key creates same index)
+  UNIQUE KEY uniq_tenant_provider (tenantId, providerType) COMMENT 'Unique constraint and index for tenant+provider queries'
 );
 
 -- Foreign keys

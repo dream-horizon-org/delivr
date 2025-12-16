@@ -9,5 +9,8 @@ export const SCM_ERROR_MESSAGES = {
   MISSING_ACCESS_TOKEN: 'SCM access token is missing or invalid',
 
   /** Missing inputs to generate final tag name */
-  MISSING_FINAL_TAG_INPUTS: 'targets and version are required to generate final tag name'
+  MISSING_FINAL_TAG_INPUTS: 'targets and version are required to generate final tag name',
+
+  /** Invalid branch or tag name according to Git naming rules */
+  INVALID_BRANCH_TAG_NAME: 'Invalid branch or tag name'
 } as const;

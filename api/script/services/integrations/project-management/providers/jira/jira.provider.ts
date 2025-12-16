@@ -11,6 +11,7 @@ import type {
 import { JiraClient } from './jira.client';
 import type { JiraIntegrationConfig } from './jira.interface';
 import { JIRA_DEFAULT_ISSUE_TYPE, JIRA_ERROR_MESSAGES } from './jira.constants';
+import { decryptConfigFields } from '~utils/encryption';
 
 /**
  * JIRA Provider Implementation
@@ -29,13 +30,19 @@ export class JiraProvider implements IProjectManagementProvider {
   }
 
   /**
-   * Get validated JIRA config
+   * Get validated JIRA config with decrypted apiToken
+   * The apiToken is stored encrypted in the database (frontend or backend format)
    */
   private getJiraConfig(config: ProjectManagementIntegrationConfig): JiraIntegrationConfig {
     if (!this.isJiraConfig(config)) {
       throw new Error(JIRA_ERROR_MESSAGES.INVALID_CONFIG);
     }
-    return config;
+    
+    // Decrypt the apiToken before using for API calls
+    // Uses decryptConfigFields which handles both frontend and backend encryption formats
+    const decryptedConfig = decryptConfigFields(config, ['apiToken']);
+    
+    return decryptedConfig as JiraIntegrationConfig;
   }
 
   /**
@@ -47,7 +54,9 @@ export class JiraProvider implements IProjectManagementProvider {
         return false;
       }
 
-      const client = new JiraClient(config);
+      // Decrypt apiToken before validation (may be encrypted from frontend)
+      const decryptedConfig = this.getJiraConfig(config);
+      const client = new JiraClient(decryptedConfig);
       await client.testConnection();
       return true;
     } catch (error) {
@@ -113,6 +122,17 @@ export class JiraProvider implements IProjectManagementProvider {
   ): Promise<boolean> {
     const statusResult = await this.getTicketStatus(config, ticketKey);
     return statusResult.status.toLowerCase() === completedStatus.toLowerCase();
+  }
+
+   /**
+   * Get the URL for a JIRA ticket
+   */
+  async getTicketUrl(
+    config: ProjectManagementIntegrationConfig,
+    ticketKey: string
+  ): Promise<string> {
+    const jiraConfig = this.getJiraConfig(config);
+    return `${jiraConfig.baseUrl}/browse/${ticketKey}`;
   }
 
   /**

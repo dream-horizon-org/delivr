@@ -1,5 +1,6 @@
 import { CreateCICDIntegrationDto, CICDIntegrationFilters, TenantCICDIntegration, UpdateCICDIntegrationDto, VerificationStatus } from '~types/integrations/ci-cd/connection.interface';
 import type { CICDIntegrationModelType } from './connection.sequelize.model';
+import { decryptFromStorage } from '~utils/encryption';
 
 export class CICDIntegrationRepository {
   private model: CICDIntegrationModelType;
@@ -11,7 +12,27 @@ export class CICDIntegrationRepository {
   private toPlainObject = (
     instance: InstanceType<CICDIntegrationModelType>
   ): TenantCICDIntegration => {
-    return instance.toJSON() as TenantCICDIntegration;
+    const json = instance.toJSON() as TenantCICDIntegration;
+    
+    // Decrypt tokens from backend storage (handles both backend and frontend formats)
+    if (json.apiToken) {
+      try {
+        json.apiToken = decryptFromStorage(json.apiToken);
+      } catch (error: any) {
+        console.error('[CICD] Failed to decrypt apiToken, keeping encrypted value:', error.message);
+        // Keep encrypted value - might be corrupted or in unexpected forma
+      }
+    }
+    if (json.headerValue) {
+      try {
+        json.headerValue = decryptFromStorage(json.headerValue);
+      } catch (error: any) {
+        console.error('[CICD] Failed to decrypt headerValue, keeping encrypted value:', error.message);
+        // Keep encrypted value - might be corrupted or in unexpected format
+      }
+    }
+    
+    return json;
   };
 
   create = async (data: CreateCICDIntegrationDto & { id: string }): Promise<TenantCICDIntegration> => {
@@ -57,14 +78,14 @@ export class CICDIntegrationRepository {
   ): Promise<TenantCICDIntegration | null> => {
     const record = await this.model.findByPk(id);
     if (!record) return null;
+    // Sequelize handles updatedAt automatically when timestamps: true
     await record.update({
       ...data,
       username: data.username ?? record.get('username'),
       apiToken: data.apiToken ?? record.get('apiToken'),
       headerName: data.headerName ?? record.get('headerName'),
       headerValue: data.headerValue ?? record.get('headerValue'),
-      providerConfig: data.providerConfig ?? record.get('providerConfig'),
-      updatedAt: new Date()
+      providerConfig: data.providerConfig ?? record.get('providerConfig')
     });
     return this.toPlainObject(record);
   };

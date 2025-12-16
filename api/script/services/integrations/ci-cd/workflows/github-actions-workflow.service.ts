@@ -3,7 +3,7 @@ import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams, GHAWorkflowDispatchParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
-import { parseGitHubRunUrl, parseGitHubWorkflowUrl, extractDefaultsFromWorkflow } from '../utils/cicd.utils';
+import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs, fetchWithTimeout } from '../utils/cicd.utils';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
   /**
@@ -14,6 +14,36 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     if (gha?.apiToken) return gha.apiToken as string;
     // TODO: consider retrieving token from SCM integration repository if needed
     return null;
+  };
+
+  /**
+   * Fetch the default branch for a GitHub repository.
+   * Falls back to environment variable or hardcoded default if API call fails.
+   */
+  private getDefaultBranch = async (token: string, owner: string, repo: string): Promise<string> => {
+    try {
+      const url = `https://api.github.com/repos/${owner}/${repo}`;
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': HEADERS.ACCEPT_GITHUB_JSON,
+        'User-Agent': HEADERS.USER_AGENT
+      };
+      const timeoutMs = Number(process.env.GHA_STATUS_TIMEOUT_MS || 8000);
+      
+      const response = await fetchWithTimeout(url, { headers }, timeoutMs);
+      if (response.ok) {
+        const data = await response.json();
+        const defaultBranch = data.default_branch;
+        if (defaultBranch && typeof defaultBranch === 'string') {
+          return defaultBranch;
+        }
+      }
+    } catch (error) {
+      console.warn(`[GitHub Actions] Failed to fetch default branch for ${owner}/${repo}, using fallback:`, error);
+    }
+    
+    // Fallback to environment variable or hardcoded default
+    return process.env.GHA_DEFAULT_REF || PROVIDER_DEFAULTS.GHA_DEFAULT_REF;
   };
 
   /**
@@ -80,13 +110,14 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     const token = await this.getGithubTokenForTenant(tenantId);
     if (!token) throw new Error(ERROR_MESSAGES.GHA_NO_TOKEN_AVAILABLE);
 
-    const defaults = extractDefaultsFromWorkflow(workflow.parameters);
-    const provided = input.jobParameters ?? {};
-    const inputs: Record<string, unknown> = {};
-    const allKeys = new Set<string>([...Object.keys(defaults), ...Object.keys(provided as Record<string, unknown>)]);
-    for (const key of allKeys) {
-      const value = (provided as any)[key] ?? (defaults as any)[key];
-      if (value !== undefined && value !== null) inputs[key] = value;
+    // Merge workflow defaults with provided job parameters (ignores extra keys from overrides)
+    const inputs = mergeWorkflowInputs(workflow.parameters, input.jobParameters);
+
+    // Determine the ref (branch where workflow file exists)
+    // Priority: 1. From URL (blob format), 2. Fetch default branch from GitHub API, 3. Fallback to env/default
+    let ref = parsed.ref;
+    if (!ref) {
+      ref = await this.getDefaultBranch(token, parsed.owner, parsed.repo);
     }
 
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
@@ -95,7 +126,7 @@ export class GitHubActionsWorkflowService extends WorkflowService {
       owner: parsed.owner,
       repo: parsed.repo,
       workflow: parsed.path,
-      ref: parsed.ref || (process.env.GHA_DEFAULT_REF || PROVIDER_DEFAULTS.GHA_DEFAULT_REF),
+      ref,
       inputs,
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       userAgent: HEADERS.USER_AGENT,
@@ -132,8 +163,10 @@ export class GitHubActionsWorkflowService extends WorkflowService {
 
   /**
    * Get normalized run status for a GitHub Actions workflow run.
+   * 
+   * @returns 'pending' | 'running' | 'completed' | 'failed'
    */
-  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<'pending'|'running'|'completed'> => {
+  getRunStatus = async (tenantId: string, input: { runUrl?: string; owner?: string; repo?: string; runId?: string; }): Promise<'pending'|'running'|'completed'|'failed'> => {
     let parsed = { owner: input.owner, repo: input.repo, runId: input.runId };
     if (input.runUrl) {
       const p = parseGitHubRunUrl(input.runUrl);

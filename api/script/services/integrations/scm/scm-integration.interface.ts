@@ -137,7 +137,26 @@ export interface SCMIntegration {
    */
   checkCherryPickStatus(
     tenantId: string,
-    releaseId: string
+    branch: string,
+    tag: string
   ): Promise<boolean>;
+
+  /**
+   * Get the URL for a branch in the repository
+   * 
+   * @param tenantId - Tenant ID to fetch integration config
+   * @param branch - Branch name (e.g., 'release/v1.0.0')
+   * @returns Full URL to the branch (e.g., 'https://github.com/owner/repo/tree/release/v1.0.0')
+   */
+  getBranchUrl(tenantId: string, branch: string): Promise<string>;
+
+  /**
+   * Get the URL for a tag in the repository
+   * 
+   * @param tenantId - Tenant ID to fetch integration config
+   * @param tag - Tag name (e.g., 'v1.0.0_rc_1')
+   * @returns Full URL to the tag (e.g., 'https://github.com/owner/repo/releases/tag/v1.0.0_rc_1')
+   */
+  getTagUrl(tenantId: string, tag: string): Promise<string>;
 }
 

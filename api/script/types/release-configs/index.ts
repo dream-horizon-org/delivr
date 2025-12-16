@@ -5,6 +5,6 @@ export type {
   ReleaseFrequency,
   WorkingDay,
   RegressionSlot,
-  ReleaseScheduling
+  ReleaseSchedule
 } from './release-config.interface';
 

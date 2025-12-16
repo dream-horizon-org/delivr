@@ -1,18 +1,48 @@
-import type { CICDConfigRepository, CICDWorkflowRepository } from '~models/integrations/ci-cd';
+import type { CICDConfigRepository, CICDWorkflowRepository, CICDIntegrationRepository } from '~models/integrations/ci-cd';
 import type { CreateCICDConfigDto, FieldError, TenantCICDConfig, UpdateCICDConfigDto } from '~types/integrations/ci-cd/config.interface';
 import type { TenantCICDWorkflow } from '~types/integrations/ci-cd/workflow.interface';
+import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
 import * as shortid from 'shortid';
 import { validateAndNormalizeWorkflowsForConfig, dedupeIds, splitWorkflows } from './config.utils';
 import { validateWorkflowsForCreateConfig, CICDConfigValidationError } from './config.validation';
+import { GitHubActionsWorkflowService } from '../workflows/github-actions-workflow.service';
+import { JenkinsWorkflowService } from '../workflows/jenkins-workflow.service';
+import { normalizePlatform, normalizeWorkflowType } from '../utils/cicd.utils';
+
+/**
+ * Input for triggering a workflow by config ID
+ */
+export type TriggerWorkflowByConfigInput = {
+  configId: string;
+  tenantId: string;
+  platform: string;
+  workflowType: string;
+  jobParameters?: Record<string, unknown>;
+};
+
+/**
+ * Result from triggering a workflow
+ */
+export type TriggerWorkflowResult = {
+  queueLocation: string;
+  workflowId: string;
+  providerType: CICDProviderType;
+};
 
 export class CICDConfigService {
   private readonly configRepository: CICDConfigRepository;
   private readonly workflowRepository: CICDWorkflowRepository;
+  private readonly integrationRepository?: CICDIntegrationRepository;
 
-  constructor(configRepository: CICDConfigRepository, workflowRepository: CICDWorkflowRepository) {
+  constructor(
+    configRepository: CICDConfigRepository,
+    workflowRepository: CICDWorkflowRepository,
+    integrationRepository?: CICDIntegrationRepository
+  ) {
     this.configRepository = configRepository;
     this.workflowRepository = workflowRepository;
+    this.integrationRepository = integrationRepository;
   }
 
   async validateConfig(dto: CreateCICDConfigDto): Promise<{ isValid: boolean; errors: FieldError[]; integration: 'ci' }> {
@@ -140,6 +170,99 @@ export class CICDConfigService {
     }
     await this.configRepository.delete(id);
     return true;
+  }
+
+  /**
+   * Trigger a workflow by config ID.
+   * 
+   * Resolves the correct workflow from the config based on platform and workflowType,
+   * then triggers it using the appropriate provider service.
+   * 
+   * @param input - Trigger parameters including configId, platform, workflowType
+   * @returns Trigger result with queueLocation and workflow details
+   */
+  async triggerWorkflowByConfig(input: TriggerWorkflowByConfigInput): Promise<TriggerWorkflowResult> {
+    const { configId, tenantId, jobParameters } = input;
+    const platform = normalizePlatform(input.platform);
+    const workflowType = normalizeWorkflowType(input.workflowType);
+
+    // 1. Load the config
+    const config = await this.configRepository.findById(configId);
+    const configNotFound = !config;
+    if (configNotFound) {
+      throw new Error(CICD_CONFIG_ERROR_MESSAGES.CONFIG_NOT_FOUND);
+    }
+
+    const configTenantMismatch = config.tenantId !== tenantId;
+    if (configTenantMismatch) {
+      throw new Error(CICD_CONFIG_ERROR_MESSAGES.CONFIG_NOT_FOUND);
+    }
+
+    // 2. Load all workflows from the config
+    const workflowIds: string[] = Array.isArray(config.workflowIds) ? config.workflowIds : [];
+    const loadedWorkflows = await Promise.all(
+      workflowIds.map((id) => this.workflowRepository.findById(id))
+    );
+    const workflows = loadedWorkflows.filter((w): w is TenantCICDWorkflow => w !== null);
+
+    // 3. Filter to matching platform and workflowType
+    const matches = workflows.filter((w) => {
+      const tenantMatches = w.tenantId === tenantId;
+      const platformMatches = normalizePlatform(w.platform) === platform;
+      const typeMatches = normalizeWorkflowType(w.workflowType) === workflowType;
+      return tenantMatches && platformMatches && typeMatches;
+    });
+
+    const noMatchFound = matches.length === 0;
+    if (noMatchFound) {
+      throw new Error(CICD_CONFIG_ERROR_MESSAGES.NO_MATCHING_WORKFLOW);
+    }
+
+    const multipleMatchesFound = matches.length > 1;
+    if (multipleMatchesFound) {
+      throw new Error(CICD_CONFIG_ERROR_MESSAGES.MULTIPLE_WORKFLOWS_FOUND);
+    }
+
+    // 4. Get the selected workflow and its integration
+    const selectedWorkflow = matches[0];
+    const workflowService = this.createWorkflowService(selectedWorkflow.providerType);
+
+    // 5. Trigger the workflow
+    const result = await workflowService.trigger(tenantId, {
+      workflowId: selectedWorkflow.id,
+      workflowType: selectedWorkflow.workflowType,
+      platform: platform ?? undefined,
+      jobParameters
+    });
+
+    return {
+      queueLocation: result.queueLocation,
+      workflowId: selectedWorkflow.id,
+      providerType: selectedWorkflow.providerType
+    };
+  }
+
+  /**
+   * Create the appropriate workflow service based on provider type
+   */
+  private createWorkflowService(providerType: CICDProviderType): GitHubActionsWorkflowService | JenkinsWorkflowService {
+    const isGitHubActions = providerType === CICDProviderType.GITHUB_ACTIONS;
+    if (isGitHubActions) {
+      return new GitHubActionsWorkflowService(
+        this.integrationRepository,
+        this.workflowRepository
+      );
+    }
+
+    const isJenkins = providerType === CICDProviderType.JENKINS;
+    if (isJenkins) {
+      return new JenkinsWorkflowService(
+        this.integrationRepository,
+        this.workflowRepository
+      );
+    }
+
+    throw new Error(CICD_CONFIG_ERROR_MESSAGES.TRIGGER_NOT_SUPPORTED);
   }
 }
 

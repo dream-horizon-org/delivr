@@ -1,6 +1,16 @@
 import fetch from 'node-fetch';
 import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface';
-import type { JenkinsProviderContract, JenkinsVerifyParams, JenkinsVerifyResult, JenkinsJobParamsRequest, JenkinsJobParamsResult } from './jenkins.interface';
+import type {
+  JenkinsProviderContract,
+  JenkinsVerifyParams,
+  JenkinsVerifyResult,
+  JenkinsJobParamsRequest,
+  JenkinsJobParamsResult,
+  JenkinsQueueStatusResult,
+  JenkinsBuildStatusRequest,
+  JenkinsBuildStatusResult
+} from './jenkins.interface';
+import { JENKINS_BUILD_RESULTS } from './jenkins.interface';
 import { fetchWithTimeout, sanitizeJoin, appendApiJson, extractJenkinsParameters } from '../../utils/cicd.utils';
 import { HEADERS, PROVIDER_DEFAULTS, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../../../../../controllers/integrations/ci-cd/constants';
 
@@ -44,8 +54,22 @@ export class JenkinsProvider implements JenkinsProviderContract {
       if (isTimeout) {
         return { isValid: false, message: ERROR_MESSAGES.JENKINS_QUEUE_TIMEOUT };
       }
-      const message = e?.message ? String(e.message) : 'Unknown error';
-      return { isValid: false, message: `Connection failed: ${message}` };
+      
+      // Provide more helpful error messages for common network issues
+      const errorMessage = e?.message ? String(e.message) : 'Unknown error';
+      let userFriendlyMessage = `Connection failed: ${errorMessage}`;
+      
+      // Check for common Docker networking issues
+      if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND')) {
+        const isLocalhost = hostUrl.includes('localhost') || hostUrl.includes('127.0.0.1');
+        if (isLocalhost) {
+          userFriendlyMessage = `Connection failed: Cannot reach Jenkins at ${hostUrl}. If your API server is running in Docker, use 'host.docker.internal:8080' (Mac/Windows) or '172.17.0.1:8080' (Linux) instead of 'localhost:8080'. Original error: ${errorMessage}`;
+        } else {
+          userFriendlyMessage = `Connection failed: Cannot reach Jenkins at ${hostUrl}. Please verify the URL is correct and accessible from the API server. Original error: ${errorMessage}`;
+        }
+      }
+      
+      return { isValid: false, message: userFriendlyMessage };
     }
   };
 
@@ -94,12 +118,14 @@ export class JenkinsProvider implements JenkinsProviderContract {
       const isBoolean = p.type === 'boolean';
       const isChoice = p.type === 'choice';
       const normalizedType: 'boolean' | 'string' | 'choice' = isBoolean ? 'boolean' : (isChoice ? 'choice' : 'string');
+      // Normalize Jenkins 'choices' to 'options' for consistency across providers
+      const choicesArray = Array.isArray(p.choices) ? p.choices : undefined;
       return {
         name: p.name as string,
         type: normalizedType,
         description: p.description,
         defaultValue: p.defaultValue,
-        choices: Array.isArray(p.choices) ? p.choices : undefined
+        options: choicesArray  // Use 'options' for consistency (Jenkins calls it 'choices')
       };
     });
     return { parameters };
@@ -148,9 +174,16 @@ export class JenkinsProvider implements JenkinsProviderContract {
   };
 
   /**
-   * Poll queue item and infer build status when executable URL is available.
+   * Poll queue item and return status with executable URL when available.
+   * The executableUrl is the actual build URL (ciRunId) that should be stored
+   * in the build table for subsequent status checks.
+   * 
+   * Jenkins Queue API behavior:
+   * - Queue item exists while job is waiting or just started
+   * - Queue item is deleted after job starts (Jenkins cleans up old items)
+   * - 404 on queue item usually means job started and queue was cleaned up
    */
-  getQueueStatus = async (req) => {
+  getQueueStatus = async (req): Promise<JenkinsQueueStatusResult> => {
     const { queueUrl, authHeader, timeoutMs } = req;
     const headers: Record<string, string> = {
       'Authorization': authHeader,
@@ -158,24 +191,77 @@ export class JenkinsProvider implements JenkinsProviderContract {
     };
     const queueApi = (queueUrl.endsWith('/') ? queueUrl : queueUrl + '/') + 'api/json';
     const qResp = await fetchWithTimeout(queueApi, { headers }, timeoutMs);
-    if (!qResp.ok) {
-      // Treat fetch failure as pending to allow polling to continue
-      return 'pending';
+    const fetchFailed = !qResp.ok;
+    if (fetchFailed) {
+      // 404 = Queue item no longer exists (job started and queue was cleaned up, or cancelled)
+      // Other errors = Treat as temporary, return pending to retry
+      const isNotFound = qResp.status === 404;
+      if (isNotFound) {
+        // Queue item expired - job either started (and we missed it) or was cancelled
+        // Return 'cancelled' so we don't keep polling a non-existent queue item
+        // The build's workflowStatus will be marked FAILED
+        return { status: 'cancelled' };
+      }
+      return { status: 'pending' };
     }
     const qJson: any = await qResp.json();
-    if (qJson.cancelled) return 'cancelled';
-    if (qJson.blocked === true) return 'pending';
-    const executable = qJson.executable;
-    if (executable && executable.url) {
-      const buildUrl: string = executable.url.endsWith('/') ? executable.url : executable.url + '/';
-      const buildApi = buildUrl + 'api/json';
-      const bResp = await fetchWithTimeout(buildApi, { headers }, timeoutMs);
-      if (!bResp.ok) return 'running';
-      const bJson: any = await bResp.json();
-      const building = !!bJson.building;
-      return building ? 'running' : 'completed';
+    const isCancelled = !!qJson.cancelled;
+    if (isCancelled) {
+      return { status: 'cancelled' };
     }
-    return 'pending';
+    const isBlocked = qJson.blocked === true;
+    if (isBlocked) {
+      return { status: 'pending' };
+    }
+    const executable = qJson.executable;
+    const hasExecutableUrl = executable && executable.url;
+    if (hasExecutableUrl) {
+      // Job has started - return the executableUrl (ciRunId)
+      const executableUrl: string = executable.url.endsWith('/') ? executable.url : executable.url + '/';
+      const buildApi = executableUrl + 'api/json';
+      const bResp = await fetchWithTimeout(buildApi, { headers }, timeoutMs);
+      const buildFetchFailed = !bResp.ok;
+      if (buildFetchFailed) {
+        // Can't fetch build info, but job has started - return running with URL
+        return { status: 'running', executableUrl };
+      }
+      const bJson: any = await bResp.json();
+      const isBuilding = !!bJson.building;
+      // Note: We don't check SUCCESS/FAILURE here - that's getBuildStatus's job
+      // getQueueStatus just reports: pending → running → completed
+      const status = isBuilding ? 'running' : 'completed';
+      return { status, executableUrl };
+    }
+    return { status: 'pending' };
+  };
+
+  /**
+   * Check status of a running Jenkins build using its build URL (ciRunId).
+   * Use this after a build has started (when you have executableUrl from getQueueStatus).
+   */
+  getBuildStatus = async (req: JenkinsBuildStatusRequest): Promise<JenkinsBuildStatusResult> => {
+    const { buildUrl, authHeader, timeoutMs } = req;
+    const headers: Record<string, string> = {
+      'Authorization': authHeader,
+      'Accept': HEADERS.ACCEPT_JSON
+    };
+    const buildApi = (buildUrl.endsWith('/') ? buildUrl : buildUrl + '/') + 'api/json';
+    const bResp = await fetchWithTimeout(buildApi, { headers }, timeoutMs);
+    const fetchFailed = !bResp.ok;
+    if (fetchFailed) {
+      // Can't fetch build info - assume still running
+      return { status: 'running' };
+    }
+    const bJson: any = await bResp.json();
+    const isBuilding = !!bJson.building;
+    if (isBuilding) {
+      return { status: 'running' };
+    }
+    // Build is complete - SUCCESS = completed, anything else = failed
+    const result = bJson.result as string | null;
+    const isSuccess = result === JENKINS_BUILD_RESULTS.SUCCESS;
+    const status = isSuccess ? 'completed' : 'failed';
+    return { status };
   };
 }
 

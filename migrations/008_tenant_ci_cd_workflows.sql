@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS tenant_ci_cd_workflows (
   workflowUrl VARCHAR(1024) NOT NULL COMMENT 'Provider URL for the job/workflow',
   providerIdentifiers JSON NULL COMMENT 'Provider-specific identifiers (e.g., jobFullName, repo, workflowFile)',
 
-  -- Classification
-  platform ENUM('ANDROID','IOS','OTHER') NOT NULL DEFAULT 'OTHER' COMMENT 'Target platform classification',
-  workflowType ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','CUSTOM') NOT NULL DEFAULT 'CUSTOM' COMMENT 'Workflow purpose/type',
+  -- Classification (platform-agnostic: allows any platform string like 'ios', 'android', 'tvos', etc.)
+  platform VARCHAR(100) NOT NULL DEFAULT 'other' COMMENT 'Target platform classification (lowercase, platform-agnostic)',
+  workflowType ENUM('PRE_REGRESSION_BUILD','REGRESSION_BUILD','TEST_FLIGHT_BUILD','AUTOMATION_BUILD','AAB_BUILD', 'CUSTOM') NOT NULL DEFAULT 'CUSTOM' COMMENT 'Workflow purpose/type',
 
   -- Parameters schema
   parameters JSON NULL COMMENT 'Array of parameter definitions with default values and choices',
@@ -30,13 +30,10 @@ CREATE TABLE IF NOT EXISTS tenant_ci_cd_workflows (
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  -- Indexing
-  INDEX idx_tenant (tenantId) COMMENT 'Query by tenant',
-  INDEX idx_provider (providerType) COMMENT 'Query by provider',
-  INDEX idx_integration (integrationId) COMMENT 'Query by integration',
-  INDEX idx_platform (platform) COMMENT 'Filter by platform',
-  INDEX idx_workflow_type (workflowType) COMMENT 'Filter by workflow type',
-  INDEX idx_tenant_provider (tenantId, providerType) COMMENT 'Query by tenant and provider'
+  -- Indexes based on actual query patterns (verified from workflow.repository.ts)
+  INDEX idx_wf_tenant (tenantId) COMMENT 'Query by tenant',
+  INDEX idx_wf_integration (integrationId) COMMENT 'Query by integration, delete check'
+  -- Note: providerType, platform, workflowType are low-cardinality - no index needed
 );
 
 -- Foreign keys

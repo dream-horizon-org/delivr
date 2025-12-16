@@ -1,6 +1,6 @@
 import shortid = require('shortid');
 import { CICD_CONFIG_ERROR_MESSAGES } from './config.constants';
-import { CICDProviderType, WorkflowType, type CreateWorkflowDto } from '~types/integrations/ci-cd';
+import { CICDProviderType, WorkflowType, type CreateWorkflowDto, type WorkflowParameters } from '~types/integrations/ci-cd';
 
 export const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -113,7 +113,7 @@ export const validateAndNormalizeWorkflowsForConfig = (
       providerIdentifiers: (providerIdentifiers as Record<string, unknown> | null | undefined) ?? null,
       platform: (platform as string).trim(),
       workflowType: workflowType as WorkflowType,
-      parameters: (parameters as Record<string, unknown> | null | undefined) ?? null,
+      parameters: (parameters as WorkflowParameters | undefined) ?? null,
       createdByAccountId
     };
     normalized.push(normalizedItem);

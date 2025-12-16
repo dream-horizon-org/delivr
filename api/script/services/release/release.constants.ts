@@ -40,6 +40,11 @@ export const RELEASE_ERROR_MESSAGES = {
   
   // Integration errors - Notification
   NOTIFICATION_INTEGRATION_NOT_AVAILABLE: 'Notification integration not available',
+  COMMS_CONFIG_NOT_CONFIGURED: 'Communications configuration not configured for this release',
+  MESSAGING_TASK_NOT_IMPLEMENTED: (taskType: string) => `Messaging task ${taskType} implementation pending - commsConfigId required`,
+  
+  // Repository errors
+  RELEASE_UPLOADS_REPO_NOT_AVAILABLE: 'ReleaseUploadsRepository not available for manual upload mode',
   
   // Platform-specific errors
   IOS_PLATFORM_REQUIRED: 'TRIGGER_TEST_FLIGHT_BUILD task requires iOS platform, but no iOS platform found',
@@ -53,6 +58,7 @@ export const RELEASE_ERROR_MESSAGES = {
   // Task dependency errors
   AUTOMATION_RUN_NOT_FOUND: 'Automation run not found. TRIGGER_AUTOMATION_RUNS task must complete first.',
   RELEASE_TAG_TASK_NOT_FOUND: 'CREATE_RELEASE_TAG task not found or tag not created yet',
+  CREATE_RELEASE_TAG_TASK_MISSING: 'CREATE_RELEASE_TAG task has not been executed yet. Release tag is not available.',
   
   // Storage errors
   STORAGE_NO_SEQUELIZE: 'Storage does not have Sequelize instance',
@@ -77,6 +83,21 @@ export const RELEASE_DEFAULTS = {
   POLL_INTERVAL_MS: 60000,        // Cron job polling interval (1 minute)
   LOCK_TIMEOUT_MS: 300000,         // Lock timeout for distributed execution (5 minutes)
   MAX_RETRY_ATTEMPTS: 3,           // Maximum retries for task execution
-  TASK_TIMEOUT_MS: 600000          // Task execution timeout (10 minutes)
+  TASK_TIMEOUT_MS: 600000,         // Task execution timeout (10 minutes)
+  FALLBACK_VERSION: '0.0.0'        // Fallback version when no version can be determined
 } as const;
+
+/**
+ * CI/CD Job Build Types - passed as jobParameters.buildType to workflows
+ * These values are used by CI/CD providers to identify the type of build requested
+ */
+export const CICD_JOB_BUILD_TYPE = {
+  PRE_REGRESSION: 'PRE_REGRESSION',
+  REGRESSION: 'REGRESSION',
+  AUTOMATION: 'AUTOMATION',
+  TESTFLIGHT: 'TESTFLIGHT',
+  AAB: 'AAB'
+} as const;
+
+export type CICDJobBuildType = typeof CICD_JOB_BUILD_TYPE[keyof typeof CICD_JOB_BUILD_TYPE];
 

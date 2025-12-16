@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '../constants/http';
-import { ERROR_MESSAGES } from '../constants/store';
+import { ERROR_MESSAGES, PLAY_STORE_UPLOAD_ERROR_MESSAGES } from '../constants/store';
 import { 
-  StoreType, 
+  StoreType as _StoreType, 
   DefaultTrack,
   AppStoreConnectPayload, 
   GooglePlayStorePayload,
@@ -46,22 +46,20 @@ export const validateIntegrationId = (req: Request, res: Response, next: NextFun
 
 export const validateConnectStoreBody = (req: Request, res: Response, next: NextFunction): void => {
   const body = req.body || {};
-  const { storeType, platform, tenantId, userId, payload } = body;
+  const { storeType, platform, tenantId, payload } = body;
 
   const isStoreTypeInvalid = !isNonEmptyString(storeType);
   const isPlatformInvalid = !isNonEmptyString(platform);
   const isTenantIdInvalid = !isNonEmptyString(tenantId);
-  const isUserIdInvalid = !isNonEmptyString(userId);
   const isPayloadMissing = !payload || typeof payload !== 'object';
 
-  const hasInvalid = isStoreTypeInvalid || isPlatformInvalid || isTenantIdInvalid || isUserIdInvalid || isPayloadMissing;
+  const hasInvalid = isStoreTypeInvalid || isPlatformInvalid || isTenantIdInvalid || isPayloadMissing;
 
   if (hasInvalid) {
     const missingFields: string[] = [];
     if (isStoreTypeInvalid) missingFields.push('storeType');
     if (isPlatformInvalid) missingFields.push('platform');
     if (isTenantIdInvalid) missingFields.push('tenantId');
-    if (isUserIdInvalid) missingFields.push('userId');
     if (isPayloadMissing) missingFields.push('payload');
 
     const errorMessage = `Missing required fields: ${missingFields.join(', ')}`;
@@ -164,7 +162,7 @@ export const validateConnectStoreBody = (req: Request, res: Response, next: Next
 
   // Validate defaultTrack for App Store/TestFlight if provided
   if (isAppStore) {
-    const appStorePayload = payload as AppStoreConnectPayload;
+    const _appStorePayload = payload as AppStoreConnectPayload;
     // App Store doesn't have defaultTrack in payload, but if it did, we'd validate here
     // For now, App Store uses targetAppId and other fields
   }
@@ -605,6 +603,145 @@ export const validatePatchStoreBodyByIntegrationId = (req: Request, res: Respons
       }
     }
   }
+
+  next();
+};
+
+// ============================================================================
+// Validate Play Store AAB Upload Request
+// ============================================================================
+
+export const validatePlayStoreUploadBody = (req: Request, res: Response, next: NextFunction): void => {
+  // Extract form fields from multipart/form-data
+  const tenantId = req.body?.tenantId;
+  const storeType = req.body?.storeType;
+  const platform = req.body?.platform;
+  const versionName = req.body?.versionName;
+  const releaseId = req.body?.releaseId;
+  const releaseNotes = req.body?.releaseNotes; // Optional
+
+  // Validate tenantId
+  const isTenantIdInvalid = !isNonEmptyString(tenantId);
+  if (isTenantIdInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
+    });
+    return;
+  }
+
+  // Validate releaseId
+  const isReleaseIdInvalid = !isNonEmptyString(releaseId);
+  if (isReleaseIdInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: 'releaseId is required',
+    });
+    return;
+  }
+
+  // Validate storeType
+  const isStoreTypeInvalid = !isNonEmptyString(storeType);
+  if (isStoreTypeInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: ERROR_MESSAGES.STORE_TYPE_REQUIRED,
+    });
+    return;
+  }
+
+  // Validate storeType is 'play_store'
+  const storeTypeLower = storeType.toLowerCase();
+  const isPlayStore = storeTypeLower === 'play_store';
+  if (!isPlayStore) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: 'storeType must be "play_store" for AAB upload',
+    });
+    return;
+  }
+
+  // Validate platform
+  const isPlatformInvalid = !isNonEmptyString(platform);
+  if (isPlatformInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: 'platform is required',
+    });
+    return;
+  }
+
+  // Validate platform is 'ANDROID'
+  const platformUpper = platform.toUpperCase();
+  const isAndroid = platformUpper === 'ANDROID';
+  if (!isAndroid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: 'platform must be "ANDROID" for Play Store upload',
+    });
+    return;
+  }
+
+  // Validate versionName
+  const isVersionNameInvalid = !isNonEmptyString(versionName);
+  if (isVersionNameInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.VERSION_NAME_REQUIRED,
+    });
+    return;
+  }
+
+  // Validate releaseNotes if provided (optional)
+  if (releaseNotes !== undefined && releaseNotes !== null) {
+    const isReleaseNotesInvalid = typeof releaseNotes !== 'string';
+    if (isReleaseNotesInvalid) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        error: 'releaseNotes must be a string if provided',
+      });
+      return;
+    }
+  }
+
+  // Validate .aab file exists in req.files (from multer)
+  const files = req.files as Express.Multer.File[] | undefined;
+  const filesMissing = !files || !Array.isArray(files) || files.length === 0;
+  if (filesMissing) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.AAB_FILE_REQUIRED,
+    });
+    return;
+  }
+
+  // Find .aab file
+  const aabFile = files.find(file => {
+    const fileName = file.originalname || file.filename || '';
+    return fileName.toLowerCase().endsWith('.aab');
+  });
+
+  const aabFileMissing = !aabFile;
+  if (aabFileMissing) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INVALID_AAB_FILE,
+    });
+    return;
+  }
+
+  // Validate file has buffer
+  const bufferMissing = !aabFile.buffer || !Buffer.isBuffer(aabFile.buffer);
+  if (bufferMissing) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INVALID_AAB_FILE,
+    });
+    return;
+  }
+
+  // Attach aabFile to request for use in controller
+  (req as any).aabFile = aabFile;
 
   next();
 };

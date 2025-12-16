@@ -4,11 +4,12 @@
  * Creates regression cycles with tasks on-demand when slot time arrives
  */
 
-import { RegressionCycleDTO } from '../storage/release/regression-cycle-dto';
-import { ReleaseTasksDTO } from '../storage/release/release-tasks-dto';
-import { ReleaseDTO } from '../storage/release/release-dto';
+import { v4 as uuidv4 } from 'uuid';
+import { RegressionCycleRepository } from '../models/release/regression-cycle.repository';
+import { ReleaseTaskRepository } from '../models/release/release-task.repository';
+import { ReleaseRepository } from '../models/release/release.repository';
 import { createStage2Tasks, CreateStage2TasksOptions } from './task-creation';
-import { RegressionCycleStatus } from '../storage/release/release-models';
+import { RegressionCycleStatus } from '../models/release/release.interface';
 
 export interface CreateRegressionCycleWithTasksOptions {
   releaseId: string;
@@ -32,33 +33,33 @@ export interface CreateRegressionCycleWithTasksOptions {
  * @returns Created cycle with cycleTag set
  */
 export async function createRegressionCycleWithTasks(
-  regressionCycleDTO: RegressionCycleDTO,
-  releaseTasksDTO: ReleaseTasksDTO,
-  releaseDTO: ReleaseDTO,
+  regressionCycleRepo: RegressionCycleRepository,
+  releaseTaskRepo: ReleaseTaskRepository,
+  releaseRepo: ReleaseRepository,
   options: CreateRegressionCycleWithTasksOptions
-): Promise<{ cycle: any; taskIds: string[] }> {
+): Promise<{ cycle: import('../models/release/regression-cycle.repository').RegressionCycle; taskIds: string[] }> {
   const { releaseId, accountId, cronConfig, hasTestPlatformIntegration } = options;
 
   // Get release to get version
-  const release = await releaseDTO.get(releaseId);
+  const release = await releaseRepo.findById(releaseId);
   if (!release) {
     throw new Error(`Release ${releaseId} not found`);
   }
 
   // Get current cycle count to determine if this is the first cycle
-  const cycleCount = await regressionCycleDTO.getCycleCount(releaseId);
+  const cycleCount = await regressionCycleRepo.getCycleCount(releaseId);
   const isFirstCycle = cycleCount === 0;
 
   // Get tag count for RC tag generation
-  const tagCount = await regressionCycleDTO.getTagCount(releaseId);
+  const tagCount = await regressionCycleRepo.getTagCount(releaseId);
 
-  // Generate cycle tag (v{version}_rc_{count})
-  const cycleTag = `v${release.version}_rc_${tagCount}`;
+  // Generate cycle tag (v{version}_rc_{count}) - use releaseId prefix since Release doesn't have version field
+  const cycleTag = `${releaseId.substring(0, 8)}_rc_${tagCount + 1}`;
 
   // Create cycle (this will mark previous cycles as not latest)
-  const cycle = await regressionCycleDTO.create({
+  const cycle = await regressionCycleRepo.create({
+    id: uuidv4(),
     releaseId,
-    accountId,
     cycleTag,
     status: RegressionCycleStatus.NOT_STARTED
   });
@@ -73,7 +74,7 @@ export async function createRegressionCycleWithTasks(
     isFirstCycle
   };
 
-  const taskIds = await createStage2Tasks(releaseTasksDTO, stage2TasksOptions);
+  const taskIds = await createStage2Tasks(releaseTaskRepo, stage2TasksOptions);
 
   return {
     cycle,

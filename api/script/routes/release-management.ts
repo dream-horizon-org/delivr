@@ -23,6 +23,8 @@ import { createTenantIntegrationRoutes } from "./integrations/test-management/te
 import { createSCMIntegrationRoutes } from "./scm-integrations";
 import { createStoreIntegrationRoutes } from "./store-integrations";
 import { createReleaseConfigRoutes } from "./release-config-routes";
+import { createReleaseScheduleRoutes } from "./release-schedule.routes";
+import { createWorkflowPollingRoutes } from "./workflow-polling.routes";
 import { getReleaseManagementRouter as getReleaseRoutes } from "./release/release-management";
 
 export interface ReleaseManagementConfig {
@@ -187,25 +189,42 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   }
 
   // ============================================================================
+  // RELEASE SCHEDULE ROUTES (Internal webhook + User-facing list)
+  // ============================================================================
+  if (isS3Storage) {
+    const s3Storage = storage;
+    
+    if (s3Storage.releaseScheduleService) {
+      const releaseScheduleRoutes = createReleaseScheduleRoutes(
+        s3Storage.releaseScheduleService,
+        storage
+      );
+      router.use(releaseScheduleRoutes);
+      console.log('[Release Management] Release Schedule routes mounted successfully');
+    } else {
+      console.warn('[Release Management] Release Schedule service not available, routes not mounted');
+    }
+  } else {
+    console.warn('[Release Management] Release Schedule service not available (S3Storage required), routes not mounted');
+  }
+
+  // ============================================================================
+  // WORKFLOW POLLING ROUTES (Internal webhook - Cronicle)
+  // ============================================================================
+  const workflowPollingRoutes = createWorkflowPollingRoutes(storage);
+  router.use(workflowPollingRoutes);
+  console.log('[Release Management] Workflow Polling routes mounted successfully');
+
+  // ============================================================================
   // RELEASE MANAGEMENT ROUTES (CRUD Operations)
   // ============================================================================
   if (isS3Storage) {
     const s3Storage = storage;
     
-    // Check if release services are available
-    if (s3Storage.releaseCreationService) {
-      const releaseRoutes = getReleaseRoutes({
-        storage: s3Storage,
-        releaseCreationService: s3Storage.releaseCreationService,
-        releaseRetrievalService: s3Storage.releaseRetrievalService,
-        releaseStatusService: s3Storage.releaseStatusService,
-        releaseUpdateService: s3Storage.releaseUpdateService
-      });
-      router.use(releaseRoutes);
-      console.log('[Release Management] Release CRUD routes mounted successfully');
-    } else {
-      console.warn('[Release Management] Release services not available, CRUD routes not mounted');
-    }
+    // Release routes now create services internally - just pass storage
+    const releaseRoutes = getReleaseRoutes({ storage: s3Storage });
+    router.use(releaseRoutes);
+    console.log('[Release Management] Release CRUD routes mounted successfully');
   } else {
     console.warn('[Release Management] Release services not available (S3Storage required), CRUD routes not mounted');
   }
@@ -247,18 +266,8 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     }
   );
 
-  // ============================================================================
-  // RELEASE OPERATIONS
-  // ============================================================================
-  // All release-specific routes are now in ./release/release-management.ts
-  const releaseRoutes = getReleaseRoutes({
-    storage,
-    releaseCreationService: (storage as any).releaseCreationService,
-    releaseRetrievalService: (storage as any).releaseRetrievalService,
-    releaseStatusService: (storage as any).releaseStatusService,
-    releaseUpdateService: (storage as any).releaseUpdateService
-  });
-  router.use(releaseRoutes);
+  // NOTE: Release routes are already mounted above if S3Storage is available
+  // This section is kept for reference but the routes are created internally now
 
   // ============================================================================
   // RELEASE SETUP & CONFIGURATION

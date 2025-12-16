@@ -17,13 +17,15 @@ import { ReleasePlatformTargetMappingRepository } from '../../models/release/rel
 import { CronJobRepository } from '../../models/release/cron-job.repository';
 import { ReleaseTaskRepository } from '../../models/release/release-task.repository';
 import { StateHistoryRepository } from '../../models/release/state-history.repository';
-import { ReleaseType, PlatformName, TargetName, TaskType, TaskStage, TaskIdentifier, StateChangeType } from '../../storage/release/release-models';
+import { PlatformName, TargetName, StateChangeType } from '../../models/release/release.interface';
 import type { CreateReleasePayload, CreateReleaseResult } from '~types/release';
 import { hasSequelize } from '~types/release';
-import type { StorageWithSequelize } from '~types/release';
 import * as storageTypes from '../../storage/storage';
 import { ReleaseConfigService } from '../release-configs/release-config.service';
+import { ReleaseVersionService } from './release-version.service';
 import { validateReleaseCreation } from './release-creation.validation';
+import { createStage1Tasks } from '../../utils/task-creation';
+import { checkIntegrationAvailability } from '../../utils/integration-availability.utils';
 
 export class ReleaseCreationService {
   constructor(
@@ -33,7 +35,8 @@ export class ReleaseCreationService {
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly stateHistoryRepo: StateHistoryRepository,
     private readonly storage: storageTypes.Storage,
-    private readonly releaseConfigService: ReleaseConfigService
+    private readonly releaseConfigService: ReleaseConfigService,
+    private readonly releaseVersionService: ReleaseVersionService
   ) {}
 
   /**
@@ -44,7 +47,8 @@ export class ReleaseCreationService {
     const validationResult = await validateReleaseCreation(
       payload,
       this.releaseConfigService,
-      this.releaseRepo
+      this.releaseRepo,
+      this.releaseVersionService
     );
 
     if (!validationResult.isValid) {
@@ -89,17 +93,21 @@ export class ReleaseCreationService {
     });
 
     // Step 4: Link platform-target combinations to release
-    const mappingRecords = await this.linkPlatformTargetsToRelease(id, payload.platformTargets);
+    await this.linkPlatformTargetsToRelease(id, payload.platformTargets);
 
     // Step 5: Create cron job
     const cronJobId = uuidv4();
     const cronConfig = payload.cronConfig || {
       kickOffReminder: true,
-      preRegressionBuilds: false,
+      preRegressionBuilds: true,
       automationBuilds: false,
       automationRuns: false,
       testFlightBuilds: true
     };
+
+    // Determine autoTransitionToStage2 based on hasManualBuildUpload
+    // If hasManualBuildUpload is true, we need manual intervention so autoTransition is false
+    const autoTransitionToStage2 = payload.hasManualBuildUpload !== true;
 
     const cronJob = await this.cronJobRepo.create({
       id: cronJobId,
@@ -111,16 +119,34 @@ export class ReleaseCreationService {
       cronCreatedByAccountId: payload.accountId,
       cronConfig,
       upcomingRegressions: payload.regressionBuildSlots || null,
-      autoTransitionToStage2: false, // Default to false, can be configured later
+      autoTransitionToStage2,
       stageData: {} // Initialize with empty object
     });
 
-    // Step 6: Create Stage 1 tasks
-    const stage1TaskIds = await this.createStage1Tasks(
-      id,
-      payload.accountId,
-      cronConfig
-    );
+    // Step 6: Create Stage 1 tasks using utility
+    // First, check integration availability from release configuration
+    let integrationAvailability = {
+      hasProjectManagementIntegration: false,
+      hasTestPlatformIntegration: false
+    };
+
+    if (payload.releaseConfigId && hasSequelize(this.storage)) {
+      integrationAvailability = await checkIntegrationAvailability(
+        payload.releaseConfigId,
+        this.storage.sequelize
+      );
+    }
+
+    const stage1TaskIds = await createStage1Tasks(this.releaseTaskRepo, {
+      releaseId: id,
+      accountId: payload.accountId,
+      cronConfig: {
+        kickOffReminder: cronConfig.kickOffReminder === true,
+        preRegressionBuilds: cronConfig.preRegressionBuilds === true
+      },
+      hasProjectManagementIntegration: integrationAvailability.hasProjectManagementIntegration,
+      hasTestPlatformIntegration: integrationAvailability.hasTestPlatformIntegration
+    });
 
     // Step 7: Create state history
     await this.createStateHistory(id, payload.accountId, releaseId, payload.platformTargets);
@@ -159,107 +185,13 @@ export class ReleaseCreationService {
   }
 
   /**
-   * Step 6: Create Stage 1 (Kickoff) tasks
-   * 
-   * Tasks:
-   * 1. PRE_KICK_OFF_REMINDER (optional - if cronConfig.kickOffReminder == true)
-   * 2. FORK_BRANCH (always required)
-   * 3. CREATE_PROJECT_MANAGEMENT_TICKET (optional - if integration exists)
-   * 4. CREATE_TEST_SUITE (optional - if integration exists)
-   * 5. TRIGGER_PRE_REGRESSION_BUILDS (optional - if cronConfig.preRegressionBuilds == true)
-   */
-  private async createStage1Tasks(
-    releaseId: string,
-    accountId: string,
-    cronConfig: Record<string, unknown>
-  ): Promise<string[]> {
-    const tasksToCreate = [];
-
-    // 1. PRE_KICK_OFF_REMINDER (optional)
-    if (cronConfig.kickOffReminder === true) {
-      tasksToCreate.push({
-        id: uuidv4(),
-        releaseId,
-        taskId: `pre-kickoff-reminder-${releaseId}-${uuidv4()}`,
-        taskType: TaskType.PRE_KICK_OFF_REMINDER,
-        stage: TaskStage.KICKOFF,
-        accountId,
-        isReleaseKickOffTask: true,
-        identifier: TaskIdentifier.PRE_REGRESSION
-      });
-    }
-
-    // 2. FORK_BRANCH (always required)
-    tasksToCreate.push({
-      id: uuidv4(),
-      releaseId,
-      taskId: `fork-branch-${releaseId}-${uuidv4()}`,
-      taskType: TaskType.FORK_BRANCH,
-      stage: TaskStage.KICKOFF,
-      accountId,
-      isReleaseKickOffTask: true,
-      identifier: TaskIdentifier.PRE_REGRESSION
-    });
-
-    // 3. CREATE_PROJECT_MANAGEMENT_TICKET (TODO: check if integration exists)
-    // For now, we'll create it if JIRA integration is available
-    // TODO: Add integration availability check
-    const hasJiraIntegration = true; // Placeholder
-    if (hasJiraIntegration) {
-      tasksToCreate.push({
-        id: uuidv4(),
-        releaseId,
-        taskId: `create-project-management-ticket-${releaseId}-${uuidv4()}`,
-        taskType: TaskType.CREATE_PROJECT_MANAGEMENT_TICKET,
-        stage: TaskStage.KICKOFF,
-        accountId,
-        isReleaseKickOffTask: true,
-        identifier: TaskIdentifier.PRE_REGRESSION
-      });
-    }
-
-    // 4. CREATE_TEST_SUITE (TODO: check if integration exists)
-    const hasTestPlatformIntegration = true; // Placeholder
-    if (hasTestPlatformIntegration) {
-      tasksToCreate.push({
-        id: uuidv4(),
-        releaseId,
-        taskId: `create-test-suite-${releaseId}-${uuidv4()}`,
-        taskType: TaskType.CREATE_TEST_SUITE,
-        stage: TaskStage.KICKOFF,
-        accountId,
-        isReleaseKickOffTask: true,
-        identifier: TaskIdentifier.PRE_REGRESSION
-      });
-    }
-
-    // 5. TRIGGER_PRE_REGRESSION_BUILDS (optional)
-    if (cronConfig.preRegressionBuilds === true) {
-      tasksToCreate.push({
-        id: uuidv4(),
-        releaseId,
-        taskId: `trigger-pre-regression-builds-${releaseId}-${uuidv4()}`,
-        taskType: TaskType.TRIGGER_PRE_REGRESSION_BUILDS,
-        stage: TaskStage.KICKOFF,
-        accountId,
-        isReleaseKickOffTask: true,
-        identifier: TaskIdentifier.PRE_REGRESSION
-      });
-    }
-
-    // Bulk create tasks
-    const createdTasks = await this.releaseTaskRepo.bulkCreate(tasksToCreate);
-    return createdTasks.map(t => t.id);
-  }
-
-  /**
    * Step 7: Create state history for release creation
    */
   private async createStateHistory(
     releaseId: string,
     accountId: string,
-    userFacingReleaseId: string,
-    platformTargets: Array<{ platform: string; target: string; version: string }>
+    _userFacingReleaseId: string,
+    _platformTargets: Array<{ platform: string; target: string; version: string }>
   ): Promise<void> {
     const historyId = uuidv4();
 

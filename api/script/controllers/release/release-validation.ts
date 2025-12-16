@@ -6,6 +6,7 @@
  */
 
 import type { CreateReleaseRequestBody, UpdateReleaseRequestBody } from '~types/release';
+import { RegressionCycleStatus } from '../../models/release/release.interface';
 
 /**
  * Validation result interface
@@ -13,6 +14,41 @@ import type { CreateReleaseRequestBody, UpdateReleaseRequestBody } from '~types/
 export interface ValidationResult {
   isValid: boolean;
   error?: string;
+}
+
+/**
+ * Slot validation result
+ */
+export interface SlotValidationResult {
+  isValid: boolean;
+  error?: string;
+  invalidSlots: Array<{ id: string; date: string }>;
+}
+
+/**
+ * Audit info for target date changes
+ */
+export interface TargetDateAuditInfo {
+  oldDate: Date;
+  newDate: Date;
+  reason: string | undefined;
+  changeType: 'EXTENDED' | 'SHORTENED' | 'UNCHANGED';
+}
+
+/**
+ * Target date change validation result
+ */
+export interface TargetDateChangeValidationResult {
+  isValid: boolean;
+  error?: string;
+  requiresDelayReason: boolean;
+  conflictingSlots: Array<{ id: string; date: string }>;
+  shouldLogAudit: boolean;
+  auditInfo?: TargetDateAuditInfo;
+  /** Updates to apply to the release record */
+  releaseUpdates?: {
+    delayReason?: string | null;
+  };
 }
 
 /**
@@ -264,7 +300,7 @@ export const validateDateSequence = (body: CreateReleaseRequestBody): Validation
  * Validates release type
  */
 export const validateType = (body: CreateReleaseRequestBody): ValidationResult => {
-  const validTypes = ['PLANNED', 'HOTFIX', 'UNPLANNED'];
+  const validTypes = ['MAJOR', 'MINOR', 'HOTFIX'];
   
   if (!validTypes.includes(body.type)) {
     return {
@@ -389,7 +425,7 @@ export const validateUpdateType = (body: UpdateReleaseRequestBody): ValidationRe
     return { isValid: true };
   }
 
-  const validTypes = ['PLANNED', 'HOTFIX', 'UNPLANNED'];
+  const validTypes = ['MAJOR', 'MINOR', 'HOTFIX'];
   
   if (!validTypes.includes(body.type)) {
     return {
@@ -674,3 +710,241 @@ export const validateCreateReleaseRequest = (body: CreateReleaseRequestBody): Va
   return { isValid: true };
 };
 
+// ============================================================================
+// TARGET DATE VALIDATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Validates a single slot date against the target release date
+ * Rule: slot.date must be STRICTLY before targetReleaseDate
+ */
+export const validateSlotAgainstTargetDate = (
+  slotDate: Date,
+  targetReleaseDate: Date | null | undefined
+): ValidationResult => {
+  // Handle null/undefined target date gracefully
+  if (!targetReleaseDate) {
+    return { isValid: true };
+  }
+
+  const slotTime = slotDate.getTime();
+  const targetTime = targetReleaseDate.getTime();
+
+  if (slotTime >= targetTime) {
+    return {
+      isValid: false,
+      error: `Slot date ${slotDate.toISOString()} must be before targetReleaseDate ${targetReleaseDate.toISOString()}`
+    };
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Slot type for validation
+ */
+type SlotForValidation = {
+  id: string;
+  date: string;
+  status?: RegressionCycleStatus;
+  config?: Record<string, unknown>;
+};
+
+/**
+ * Validates an array of slots against the target release date
+ * All slots must have dates before targetReleaseDate
+ */
+export const validateSlotsArray = (
+  slots: SlotForValidation[],
+  targetReleaseDate: Date
+): SlotValidationResult => {
+  const invalidSlots: Array<{ id: string; date: string }> = [];
+
+  for (const slot of slots) {
+    const slotDate = new Date(slot.date);
+    const validation = validateSlotAgainstTargetDate(slotDate, targetReleaseDate);
+    
+    if (!validation.isValid) {
+      invalidSlots.push({ id: slot.id, date: slot.date });
+    }
+  }
+
+  if (invalidSlots.length > 0) {
+    return {
+      isValid: false,
+      error: `${invalidSlots.length} slot(s) exceed targetReleaseDate. All regression slots must be scheduled before the target release date.`,
+      invalidSlots
+    };
+  }
+
+  return {
+    isValid: true,
+    invalidSlots: []
+  };
+};
+
+/**
+ * Parameters for target date change validation
+ */
+type TargetDateChangeParams = {
+  oldDate: Date;
+  newDate: Date;
+  existingSlots: SlotForValidation[];
+  delayReason?: string;
+};
+
+/**
+ * Validates target release date changes
+ * - Shortening: Validates existing slots, rejects if any slot is in progress
+ * - Extending: Requires delay reason
+ * - Unchanged: No validation needed
+ */
+export const validateTargetDateChange = (
+  params: TargetDateChangeParams
+): TargetDateChangeValidationResult => {
+  const { oldDate, newDate, existingSlots, delayReason } = params;
+  
+  const oldTime = oldDate.getTime();
+  const newTime = newDate.getTime();
+  
+  // Determine change type
+  const isUnchanged = oldTime === newTime;
+  const isExtending = newTime > oldTime;
+  const isShortening = newTime < oldTime;
+  
+  // UNCHANGED: No validation needed, no updates
+  if (isUnchanged) {
+    return {
+      isValid: true,
+      requiresDelayReason: false,
+      conflictingSlots: [],
+      shouldLogAudit: false
+      // No releaseUpdates - nothing to change
+    };
+  }
+  
+  // EXTENDING: Require delay reason
+  if (isExtending) {
+    const hasDelayReason = !!delayReason && delayReason.trim().length > 0;
+    
+    if (!hasDelayReason) {
+      return {
+        isValid: false,
+        error: 'delayReason is required when extending targetReleaseDate',
+        requiresDelayReason: true,
+        conflictingSlots: [],
+        shouldLogAudit: true,
+        auditInfo: {
+          oldDate,
+          newDate,
+          reason: delayReason,
+          changeType: 'EXTENDED'
+        }
+      };
+    }
+    
+    // Extension is valid with delay reason - no slot validation needed
+    return {
+      isValid: true,
+      requiresDelayReason: true,
+      conflictingSlots: [],
+      shouldLogAudit: true,
+      auditInfo: {
+        oldDate,
+        newDate,
+        reason: delayReason,
+        changeType: 'EXTENDED'
+      },
+      // Store delayReason in the release record
+      releaseUpdates: {
+        delayReason
+      }
+    };
+  }
+  
+  // SHORTENING: Check for in-progress slots first
+  const inProgressSlots = existingSlots.filter(
+    slot => slot.status === RegressionCycleStatus.IN_PROGRESS
+  );
+  
+  if (inProgressSlots.length > 0) {
+    return {
+      isValid: false,
+      error: `Cannot shorten targetReleaseDate while ${inProgressSlots.length} slot(s) are in progress. Wait for them to complete or cancel them first.`,
+      requiresDelayReason: false,
+      conflictingSlots: inProgressSlots.map(s => ({ id: s.id, date: s.date })),
+      shouldLogAudit: false
+    };
+  }
+  
+  // SHORTENING: Validate existing slots against new date
+  // Only check non-completed slots (NOT_STARTED status)
+  const activeSlots = existingSlots.filter(
+    slot => slot.status !== RegressionCycleStatus.DONE
+  );
+  
+  const conflictingSlots: Array<{ id: string; date: string }> = [];
+  
+  for (const slot of activeSlots) {
+    const slotDate = new Date(slot.date);
+    if (slotDate.getTime() >= newTime) {
+      conflictingSlots.push({ id: slot.id, date: slot.date });
+    }
+  }
+  
+  if (conflictingSlots.length > 0) {
+    return {
+      isValid: false,
+      error: `${conflictingSlots.length} existing slot(s) exceed new targetReleaseDate. Remove or reschedule these slots first.`,
+      requiresDelayReason: false,
+      conflictingSlots,
+      shouldLogAudit: false
+    };
+  }
+  
+  // Shortening is valid - clear the delayReason
+  return {
+    isValid: true,
+    requiresDelayReason: false,
+    conflictingSlots: [],
+    shouldLogAudit: true,
+    auditInfo: {
+      oldDate,
+      newDate,
+      reason: delayReason,
+      changeType: 'SHORTENED'
+    },
+    // Clear delayReason when shortening (no longer delayed)
+    releaseUpdates: {
+      delayReason: null
+    }
+  };
+};
+
+/**
+ * Logs audit info for target date changes
+ * Called by the service layer when a target date change is validated and applied
+ */
+export const logTargetDateChangeAudit = (
+  releaseId: string,
+  auditInfo: TargetDateAuditInfo,
+  accountId: string
+): void => {
+  console.log(`[Audit] targetReleaseDate changed for release ${releaseId}:`, {
+    oldDate: auditInfo.oldDate.toISOString(),
+    newDate: auditInfo.newDate.toISOString(),
+    changeType: auditInfo.changeType,
+    reason: auditInfo.reason ?? 'No reason provided',
+    changedBy: accountId
+  });
+  
+  // TODO: Emit TARGET_DATE_CHANGED event when notification system is ready
+  // eventEmitter.emit(ReleaseEvent.TARGET_DATE_CHANGED, {
+  //   releaseId,
+  //   oldDate: auditInfo.oldDate,
+  //   newDate: auditInfo.newDate,
+  //   changeType: auditInfo.changeType,
+  //   reason: auditInfo.reason,
+  //   changedBy: accountId
+  // });
+};
