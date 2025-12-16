@@ -1726,7 +1726,7 @@ export class TaskExecutor {
           artifactPath: iosUpload.artifactPath,
           releaseId: context.releaseId,
           platform: BUILD_PLATFORM.IOS,
-          storeType: STORE_TYPE.TESTFLIGHT,
+          storeType: STORE_TYPE.APP_STORE,
           regressionId: null,
           buildUploadStatus: BUILD_UPLOAD_STATUS.UPLOADED,
           buildType: BUILD_TYPE.MANUAL,

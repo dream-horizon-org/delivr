@@ -352,7 +352,7 @@ export class BuildArtifactService {
         artifactPath: null,
         releaseId,
         platform: BUILD_PLATFORM.IOS,
-        storeType: STORE_TYPE.TESTFLIGHT,
+        storeType: STORE_TYPE.APP_STORE,
         buildStage,
         regressionId: null,
         ciRunId: null,
