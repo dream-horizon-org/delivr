@@ -58,7 +58,8 @@ const convertCICDWorkflowToWorkflow = (cicdWorkflow: CICDWorkflow, name?: string
   return {
     id: cicdWorkflow.id,
     name: name || cicdWorkflow.displayName,
-    platform: cicdWorkflow.platform as Platform,
+    // Normalize platform to uppercase (backend may return lowercase)
+    platform: (cicdWorkflow.platform?.toUpperCase() || PLATFORMS.ANDROID) as Platform,
     environment: environment,
     provider: cicdWorkflow.providerType as BuildProvider,
     providerConfig: providerConfig,
@@ -103,7 +104,8 @@ function PipelineEditModalComponent({
       ];
       if (!validEnvironments.includes(wfEnv as BuildEnvironment)) return false;
       
-      if (fixedPlatform && w.platform !== fixedPlatform) return false;
+      // Normalize platform comparison (backend may return lowercase)
+      if (fixedPlatform && w.platform?.toUpperCase() !== fixedPlatform.toUpperCase()) return false;
       if (fixedEnvironment) {
         if (wfEnv !== fixedEnvironment) return false;
       }
@@ -133,7 +135,8 @@ function PipelineEditModalComponent({
         // Try to find matching workflow
         const matchingWorkflow = workflows.find(w => {
           const wfEnv = workflowTypeToEnvironment[w.workflowType];
-          return w.platform === pipeline.platform && 
+          // Normalize platform comparison (backend may return lowercase)
+          return w.platform?.toUpperCase() === pipeline.platform?.toUpperCase() && 
                  wfEnv === pipeline.environment &&
                  w.providerType === pipeline.provider;
         });

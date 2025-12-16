@@ -20,9 +20,9 @@ import {
   Loader as MantineLoader,
 } from '@mantine/core';
 import { apiGet } from '~/utils/api-client';
-import type { ReleaseCreationState, ReleaseType } from '~/types/release-creation-backend';
-import type { ReleaseConfiguration, Platform } from '~/types/release-config';
-import { RELEASE_TYPES as RELEASE_TYPE_CONSTANTS } from '~/types/release-config-constants';
+import type { ReleaseCreationState, ReleaseType, PlatformTargetWithVersion } from '~/types/release-creation-backend';
+import type { ReleaseConfiguration, Platform, TargetPlatform } from '~/types/release-config';
+import { RELEASE_TYPES as RELEASE_TYPE_CONSTANTS, TARGET_PLATFORMS, PLATFORMS } from '~/types/release-config-constants';
 import { PlatformTargetsSelector } from './PlatformTargetsSelector';
 import { convertConfigTargetsToPlatformTargets } from '~/utils/release-creation-converter';
 
@@ -58,6 +58,8 @@ export function ReleaseDetailsForm({
   const [branches, setBranches] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [defaultBranch, setDefaultBranch] = useState<string>('main');
+
+  console.log("state", "config", state, config);
 
   // Fetch branches from SCM
   useEffect(() => {
@@ -104,9 +106,53 @@ export function ReleaseDetailsForm({
     }
   }, [config, defaultBranch]);
 
-  // Filter platformTargets to only include targets that exist in config
-  // This handles cases where a draft had targets that are no longer in the current config
+  // Platform-target mapping (matches PlatformTargetsSelector)
+  const PLATFORM_TARGET_MAPPING: Record<TargetPlatform, Platform | 'WEB'> = {
+    [TARGET_PLATFORMS.WEB]: 'WEB',
+    [TARGET_PLATFORMS.PLAY_STORE]: PLATFORMS.ANDROID,
+    [TARGET_PLATFORMS.APP_STORE]: PLATFORMS.IOS,
+  } as const;
+
+  // Auto-populate platformTargets from config when creating release for the first time
   useEffect(() => {
+    if (config && (!state.platformTargets || state.platformTargets.length === 0)) {
+      // Check if config has platformTargets (from backend response, even if not in TypeScript type)
+      const configPlatformTargets = (config as any).platformTargets as Array<{ platform: string; target: string }> | undefined;
+      
+      if (configPlatformTargets && configPlatformTargets.length > 0) {
+        // Use platformTargets from config if available
+        const preFilledTargets: PlatformTargetWithVersion[] = configPlatformTargets.map((pt) => ({
+          platform: pt.platform as PlatformTargetWithVersion['platform'],
+          target: pt.target as TargetPlatform,
+          version: getDefaultVersion(), // Use default version for pre-filled targets
+        }));
+        
+        onChange({
+          ...state,
+          platformTargets: preFilledTargets,
+        });
+        return; // Exit early to avoid filtering logic below
+      } else if (config.targets && config.targets.length > 0) {
+        // Fallback: derive from config.targets
+        const preFilledTargets: PlatformTargetWithVersion[] = config.targets.map((target) => {
+          const platform = PLATFORM_TARGET_MAPPING[target];
+          return {
+            platform: platform as PlatformTargetWithVersion['platform'],
+            target: target,
+            version: getDefaultVersion(), // Use default version for pre-filled targets
+          };
+        });
+        
+        onChange({
+          ...state,
+          platformTargets: preFilledTargets,
+        });
+        return; // Exit early to avoid filtering logic below
+      }
+    }
+    
+    // Filter platformTargets to only include targets that exist in config
+    // This handles cases where a draft had targets that are no longer in the current config
     if (config && state.platformTargets && state.platformTargets.length > 0) {
       const configTargets = config.targets || [];
       
@@ -123,23 +169,26 @@ export function ReleaseDetailsForm({
         });
       }
     }
-    // NOTE: We no longer pre-fill - user must explicitly select platforms
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config?.targets]);
 
-  // Pre-fill release type from config or default to PLANNED
+  // Pre-fill release type from config or default to MINOR
   useEffect(() => {
     if (!state.type) {
-      let releaseType: ReleaseType = RELEASE_TYPE_CONSTANTS.PLANNED;
+      // Default to MINOR (regular release)
+      let releaseType: ReleaseType = RELEASE_TYPE_CONSTANTS.MINOR;
       
       if (config) {
-        // Map config release type to backend release type
-      if (config.releaseType === RELEASE_TYPE_CONSTANTS.HOTFIX) {
-        releaseType = RELEASE_TYPE_CONSTANTS.HOTFIX;
-      } else if (config.releaseType === RELEASE_TYPE_CONSTANTS.PLANNED) {
-        releaseType = RELEASE_TYPE_CONSTANTS.PLANNED;
-      }
-        // UNPLANNED is not in config, so it stays as default PLANNED
+        // Backend now uses same types as config (MAJOR/MINOR/HOTFIX)
+        // No mapping needed - pass through directly
+        if (config.releaseType === RELEASE_TYPE_CONSTANTS.MAJOR) {
+          releaseType = RELEASE_TYPE_CONSTANTS.MAJOR;
+        } else if (config.releaseType === RELEASE_TYPE_CONSTANTS.HOTFIX) {
+          releaseType = RELEASE_TYPE_CONSTANTS.HOTFIX;
+        } else {
+          // MINOR or any other type defaults to MINOR
+          releaseType = RELEASE_TYPE_CONSTANTS.MINOR;
+        }
       }
 
       onChange({
@@ -173,9 +222,9 @@ export function ReleaseDetailsForm({
           </Text>
           {state.type && (
             <Badge size="lg" variant="light" color="blue">
+              {state.type === RELEASE_TYPE_CONSTANTS.MAJOR && 'Major Release'}
               {state.type === RELEASE_TYPE_CONSTANTS.MINOR && 'Minor Release'}
               {state.type === RELEASE_TYPE_CONSTANTS.HOTFIX && 'Hotfix'}
-              {state.type === 'UNPLANNED' && 'Unplanned'}
             </Badge>
           )}
         </Group>

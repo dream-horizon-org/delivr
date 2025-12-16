@@ -255,7 +255,7 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
       ((task.taskType === 'TRIGGER_PRE_REGRESSION_BUILDS' || 
         task.taskType === 'TRIGGER_REGRESSION_BUILDS' || 
         task.taskType === 'TRIGGER_TEST_FLIGHT_BUILD' || 
-        task.taskType === 'CREATE_AAB_BUILD') && (existingData.jobUrl || existingData.workflowUrl));
+        task.taskType === 'CREATE_AAB_BUILD') && (existingData.platforms || existingData.workflowUrl));
     
     if (hasNewStructure) {
       // Flatten nested structures if needed
@@ -459,16 +459,25 @@ function mapTaskToBackendContract(task, db = null, releaseId = null) {
       case 'TRIGGER_REGRESSION_BUILDS':
       case 'TRIGGER_TEST_FLIGHT_BUILD':
       case 'CREATE_AAB_BUILD':
-        // Build tasks can have jobUrl when running (special case)
-        if (existingData?.jobUrl || task.jobUrl) {
-          output = {
-            jobUrl: existingData?.jobUrl || task.jobUrl || null,
-          };
+        // Build tasks now always have a platforms array for jobUrls
+        const platforms = task.builds?.map(b => ({
+          platform: b.platform,
+          jobUrl: `https://ci.company.com/job/${task.id}-${b.platform}` // Example URL
+        })) || [];
+        
+        if (platforms.length > 0) {
+          output = { platforms };
         } else if (task.taskStatus === 'IN_PROGRESS' || task.taskStatus === 'AWAITING_CALLBACK') {
-          // Generate default URL for running build tasks
-          output = {
-            jobUrl: `https://ci.company.com/job/${task.id}`,
-          };
+          // Generate default URLs for running build tasks if no specific builds yet
+          // Assuming expected platforms can be derived or passed
+          const defaultPlatforms = ['ANDROID', 'IOS'].map(p => ({
+            platform: p,
+            jobUrl: `https://ci.company.com/job/${task.id}-${p}`
+          }));
+          output = { platforms: defaultPlatforms };
+        } else if (existingData?.platforms) {
+          // Use existing platforms array if present
+          output = { platforms: existingData.platforms };
         }
         break;
 

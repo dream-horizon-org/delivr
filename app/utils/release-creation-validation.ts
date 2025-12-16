@@ -20,8 +20,8 @@ export function validateReleaseCreationState(
   // Required fields validation
   if (!state.type) {
     errors.type = 'Release type is required';
-  } else if (!['PLANNED', 'HOTFIX', 'UNPLANNED'].includes(state.type)) {
-    errors.type = 'Release type must be PLANNED, HOTFIX, or UNPLANNED';
+  } else if (!['MAJOR', 'MINOR', 'HOTFIX'].includes(state.type)) {
+    errors.type = 'Release type must be MAJOR, MINOR, or HOTFIX';
   }
 
   if (!state.platformTargets || state.platformTargets.length === 0) {

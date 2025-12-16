@@ -13,11 +13,20 @@
 import { useEffect } from 'react';
 import { json } from '@remix-run/node';
 import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
-import { Container } from '@mantine/core';
+import { 
+  Container, 
+  Box, 
+  Center, 
+  Stack, 
+  Text, 
+  Button, 
+  ThemeIcon,
+  useMantineTheme 
+} from '@mantine/core';
 import { useMemo } from 'react';
+import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { useReleases } from '~/hooks/useReleases';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { PageError } from '~/components/Common/PageError';
 import { ReleasesListHeader } from '~/components/Releases/ReleasesListHeader';
 import { ReleasesFilter } from '~/components/Releases/ReleasesFilter';
 import { ReleasesTabs } from '~/components/Releases/ReleasesTabs';
@@ -31,7 +40,7 @@ import {
 } from '~/constants/release-filters';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { listReleases } from '~/.server/services/ReleaseManagement';
-import type { BackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 
 /**
  * Server-side loader to fetch initial releases
@@ -96,14 +105,17 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   }
 });
 
+import type { BackendReleaseResponse as ServiceBackendReleaseResponse } from '~/.server/services/ReleaseManagement';
+
 export type ReleasesListLoaderData = {
   org: string;
-  initialReleases: BackendReleaseResponse[];
+  initialReleases: ServiceBackendReleaseResponse[];
   error?: string;
 };
 
 export default function ReleasesListPage() {
-  const { org, initialReleases } = useLoaderData<ReleasesListLoaderData>();
+  const theme = useMantineTheme();
+  const { org, initialReleases, error: loaderError } = useLoaderData<ReleasesListLoaderData>();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || RELEASE_TABS.ACTIVE;
   
@@ -112,19 +124,23 @@ export default function ReleasesListPage() {
   const stage = (searchParams.get('stage') || STAGE_FILTERS.ALL) as StageFilter;
 
   // Use React Query with initialData from server-side loader
+  // Cast service type to component type (service type is subset, component type has additional fields)
   const {
     upcoming,
     active,
     completed,
     isLoading,
-    error,
+    error: queryError,
     invalidateCache,
   } = useReleases(org, {
     initialData: {
       success: true,
-      releases: initialReleases,
+      releases: initialReleases as BackendReleaseResponse[],
     },
   });
+
+  // Combine loader error and query error
+  const error = loaderError || (queryError instanceof Error ? queryError.message : queryError);
 
   // Filter function
   const filterReleases = useMemo(() => {
@@ -211,13 +227,41 @@ export default function ReleasesListPage() {
   // With initialData from server, isLoading will be false immediately
   const shouldShowLoader = isLoading && initialReleases.length === 0;
 
+  // Error state - show error UI similar to release config page
+  if (error && !shouldShowLoader) {
+    return (
+      <Container size="xl" className="py-8">
+        <ReleasesListHeader org={org} />
+        
+        <Center py={80}>
+          <Stack align="center" gap="md">
+            <ThemeIcon size={64} radius="xl" variant="light" color="red">
+              <IconAlertCircle size={32} />
+            </ThemeIcon>
+            <Text size="lg" fw={500} c={theme.colors.slate[7]}>
+              Failed to load releases
+            </Text>
+            <Text size="sm" c={theme.colors.slate[5]} maw={400} ta="center">
+              {typeof error === 'string' ? error : 'An error occurred while loading releases. Please try again.'}
+            </Text>
+            <Button
+              variant="light"
+              color="brand"
+              leftSection={<IconRefresh size={16} />}
+              onClick={() => invalidateCache()}
+            >
+              Try Again
+            </Button>
+          </Stack>
+        </Center>
+      </Container>
+    );
+  }
+
   return (
     <Container size="xl" className="py-8">
       <ReleasesListHeader org={org} />
       {shouldShowLoader && <PageLoader message="Loading releases..." withContainer={false} />}
-      {error && !shouldShowLoader && (
-        <PageError error={error} message="Failed to fetch releases" />
-      )}
 
       {!shouldShowLoader && (
         <ReleasesTabs

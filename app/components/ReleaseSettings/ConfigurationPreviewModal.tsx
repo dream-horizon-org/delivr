@@ -92,7 +92,7 @@ export function ConfigurationPreviewModal({
               
               <Text c="dimmed">{FIELD_LABELS.RELEASE_TYPE}:</Text>
               <Badge variant="light" size="sm">
-                {config.releaseType || INFO_MESSAGES.PLANNED}
+                {config.releaseType || INFO_MESSAGES.MINOR}
               </Badge>
               
               <Text c="dimmed">{FIELD_LABELS.DEFAULT_CONFIG}:</Text>

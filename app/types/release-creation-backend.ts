@@ -15,8 +15,9 @@ import type { Platform, TargetPlatform } from '~/types/release-config';
 
 /**
  * Release type as expected by backend
+ * Updated: Backend now uses MAJOR/MINOR/HOTFIX (not PLANNED/UNPLANNED)
  */
-export type ReleaseType = 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+export type ReleaseType = 'MAJOR' | 'MINOR' | 'HOTFIX';
 
 /**
  * Platform name for platformTargets

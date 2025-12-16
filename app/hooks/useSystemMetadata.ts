@@ -28,7 +28,8 @@ export function useSystemMetadata(initialData?: SystemMetadataBackend | null) {
       cacheTime: 1000 * 60 * 60 * 24, // 24 hours
       refetchOnWindowFocus: false,
       refetchOnMount: false,
-      retry: 3,
+      // Use global retry logic (allows 3 retries on 401, then redirects)
+      // Don't override with hardcoded value
     }
   );
 }

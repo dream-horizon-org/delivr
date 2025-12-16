@@ -100,13 +100,14 @@ export class Auth {
         successRedirect: redirectUri ?? "/dashboard",
       });
     } catch (error: any) {
-      console.error("Authentication error:", error);
-      
-      // If it's a Response object with status 302, it's actually a success redirect
+      // If it's a Response object with status 302, it's actually a success redirect (not an error)
       if (error instanceof Response && error.status === 302) {
-        console.log("Authentication successful, following redirect");
+        console.log("Authentication successful, following redirect to:", error.headers.get("Location"));
         return error;
       }
+      
+      // This is an actual error
+      console.error("Authentication error:", error);
       
       // Extract meaningful error message
       let errorMessage = "Authentication failed";

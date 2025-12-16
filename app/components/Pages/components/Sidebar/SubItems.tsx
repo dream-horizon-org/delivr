@@ -28,14 +28,8 @@ export function SubItems({ subItems, org, moduleMainRoute }: SubItemsProps) {
         {subItems.map((subItem) => {
           let isSubItemActive = false;
 
-          // Special handling for Release Dashboard (exact match)
-          if (subItem.path === `/dashboard/${org.id}/releases`) {
-            isSubItemActive =
-              location.pathname === subItem.path ||
-              location.pathname.includes("/release-management");
-          }
           // Special handling for Releases list (with trailing slash)
-          else if (subItem.path === `/dashboard/${org.id}/releases/`) {
+          if (subItem.path === `/dashboard/${org.id}/releases/`) {
             isSubItemActive =
               location.pathname.includes("/releases") &&
               !location.pathname.includes("/releases/settings") &&

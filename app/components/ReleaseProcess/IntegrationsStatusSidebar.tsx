@@ -19,6 +19,8 @@ import {
   useTestManagementStatus, 
   useProjectManagementStatus 
 } from '~/hooks/useReleaseProcess';
+import { useConfig } from '~/contexts/ConfigContext';
+import { useRelease } from '~/hooks/useRelease';
 import type { TaskStage } from '~/types/release-process-enums';
 import { TaskStage as TaskStageEnum } from '~/types/release-process-enums';
 
@@ -35,21 +37,45 @@ export function IntegrationsStatusSidebar({
   currentStage,
   className,
 }: IntegrationsStatusSidebarProps) {
-  // Fetch cherry pick status (used in both stages)
+  // Get release data to access releaseConfigId
+  const { release } = useRelease(tenantId, releaseId);
+  
+  // Get cached release configs from ConfigContext
+  const { releaseConfigs } = useConfig();
+  
+  // Find the release config for this release
+  const releaseConfig = release?.releaseConfigId 
+    ? releaseConfigs.find((c) => c.id === release.releaseConfigId)
+    : null;
+  
+  // Check if integrations are configured and enabled
+  const hasTestManagement = !!(
+    releaseConfig?.testManagementConfig?.enabled && 
+    releaseConfig.testManagementConfig
+  );
+  
+  const hasProjectManagement = !!(
+    releaseConfig?.projectManagementConfig?.enabled && 
+    releaseConfig.projectManagementConfig
+  );
+  
+  // Fetch cherry pick status (used in both stages - always enabled)
   const cherryPickStatus = useCherryPickStatus(tenantId, releaseId);
   
-  // Fetch test management status (Regression stage only)
+  // Fetch test management status (Regression stage only, and only if configured)
   const testManagementStatus = useTestManagementStatus(
     tenantId,
     releaseId,
-    currentStage === TaskStageEnum.REGRESSION ? undefined : undefined // No platform filter = all platforms
+    undefined, // No platform filter = all platforms
+    currentStage === TaskStageEnum.REGRESSION && hasTestManagement // Only enable if in regression stage and config exists
   );
   
-  // Fetch project management status (Pre-Release stage only)
+  // Fetch project management status (Pre-Release stage only, and only if configured)
   const projectManagementStatus = useProjectManagementStatus(
     tenantId,
     releaseId,
-    currentStage === TaskStageEnum.PRE_RELEASE ? undefined : undefined // No platform filter = all platforms
+    undefined, // No platform filter = all platforms
+    currentStage === TaskStageEnum.PRE_RELEASE && hasProjectManagement // Only enable if in pre-release stage and config exists
   );
 
   // Only show for REGRESSION or PRE_RELEASE stages
@@ -96,7 +122,7 @@ export function IntegrationsStatusSidebar({
           )}
         </Stack>
 
-        {/* Regression Stage: Test Management Status */}
+        {/* Regression Stage: Test Management Status - Only show if configured */}
         {currentStage === 'REGRESSION' && (
           <>
             <Divider />
@@ -104,9 +130,13 @@ export function IntegrationsStatusSidebar({
               <Text size="sm" fw={600}>
                 Test Management Status
               </Text>
-            {testManagementStatus.isLoading ? (
-              <Loader size="xs" />
-            ) : testManagementStatus.data ? (
+              {!hasTestManagement ? (
+                <Text size="sm" c="dimmed">
+                  Not configured
+                </Text>
+              ) : testManagementStatus.isLoading ? (
+                <Loader size="xs" />
+              ) : testManagementStatus.data ? (
               'platforms' in testManagementStatus.data ? (
                 // All platforms response
                 <Stack gap="xs">
@@ -168,7 +198,7 @@ export function IntegrationsStatusSidebar({
           </>
         )}
 
-        {/* Pre-Release Stage: Project Management Status (Platform-wise) */}
+        {/* Pre-Release Stage: Project Management Status (Platform-wise) - Only show if configured */}
         {currentStage === TaskStageEnum.PRE_RELEASE && (
           <>
             <Divider />
@@ -176,9 +206,13 @@ export function IntegrationsStatusSidebar({
               <Text size="sm" fw={600}>
                 Project Management Status
               </Text>
-            {projectManagementStatus.isLoading ? (
-              <Loader size="xs" />
-            ) : projectManagementStatus.data ? (
+              {!hasProjectManagement ? (
+                <Text size="sm" c="dimmed">
+                  Not configured
+                </Text>
+              ) : projectManagementStatus.isLoading ? (
+                <Loader size="xs" />
+              ) : projectManagementStatus.data ? (
               'platforms' in projectManagementStatus.data ? (
                 // All platforms response
                 <Stack gap="xs">

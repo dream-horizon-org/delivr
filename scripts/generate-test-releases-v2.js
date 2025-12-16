@@ -195,10 +195,29 @@ function generateTaskOutput(taskType, status, options = {}) {
     case TaskType.TRIGGER_REGRESSION_BUILDS:
     case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
     case TaskType.CREATE_AAB_BUILD:
-      // Build tasks can have jobUrl when running (special case)
+      // Build tasks now use platforms array for jobUrls
       if (status === TaskStatus.IN_PROGRESS || status === TaskStatus.AWAITING_CALLBACK) {
+        // Determine expected platforms based on task type
+        let expectedPlatforms = [];
+        if (taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS) {
+          // Pre-Regression: All platforms (typically ANDROID, IOS)
+          expectedPlatforms = ['ANDROID', 'IOS'];
+        } else if (taskType === TaskType.TRIGGER_REGRESSION_BUILDS) {
+          // Regression: Android and iOS
+          expectedPlatforms = ['ANDROID', 'IOS'];
+        } else if (taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD) {
+          // TestFlight: iOS only
+          expectedPlatforms = ['IOS'];
+        } else if (taskType === TaskType.CREATE_AAB_BUILD) {
+          // AAB: Android only
+          expectedPlatforms = ['ANDROID'];
+        }
+        
         return {
-          jobUrl: `https://ci.company.com/job/${taskType}-${Date.now()}`,
+          platforms: expectedPlatforms.map(platform => ({
+            platform: platform,
+            jobUrl: `https://ci.company.com/job/${taskType}-${Date.now()}-${platform}`,
+          })),
         };
       }
       return null;

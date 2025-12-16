@@ -36,7 +36,7 @@ export interface Release {
   
   // Basic Info
   version: string;           // e.g., "1.2.3", "2024.01.15"
-  releaseType: ReleaseType;  // PLANNED | HOTFIX | MAJOR
+  releaseType: ReleaseType;  // MAJOR | MINOR | HOTFIX
   description?: string;
   baseVersion?: string;
   

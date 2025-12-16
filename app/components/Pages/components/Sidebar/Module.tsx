@@ -37,17 +37,8 @@ export function Module({
   // Check if module is active (any sub-item is active)
   const isModuleActive = (() => {
     for (const subItem of module.subItems) {
-      // Special handling for Release Dashboard
-      if (subItem.path === `/dashboard/${org.id}/releases`) {
-        if (
-          location.pathname === subItem.path ||
-          location.pathname.includes("/release-management")
-        ) {
-          return true;
-        }
-      }
       // Special handling for Releases list
-      else if (subItem.path === `/dashboard/${org.id}/releases/`) {
+      if (subItem.path === `/dashboard/${org.id}/releases/`) {
         if (
           location.pathname.includes("/releases") &&
           !location.pathname.includes("/releases/settings") &&
