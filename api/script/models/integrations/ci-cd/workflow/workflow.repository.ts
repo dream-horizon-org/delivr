@@ -29,18 +29,6 @@ export class CICDWorkflowRepository {
     return record ? this.toPlainObject(record) : null;
   };
 
-  findByIds = async (ids: string[]): Promise<TenantCICDWorkflow[]> => {
-    const hasNoIds = ids.length === 0;
-    if (hasNoIds) {
-      return [];
-    }
-    const { Op } = require('sequelize');
-    const records = await this.model.findAll({
-      where: { id: { [Op.in]: ids } }
-    });
-    return records.map(r => this.toPlainObject(r));
-  };
-
   findAll = async (filters: WorkflowFilters = {}): Promise<TenantCICDWorkflow[]> => {
     const where: Record<string, unknown> = {};
     if (filters.tenantId) where.tenantId = filters.tenantId;

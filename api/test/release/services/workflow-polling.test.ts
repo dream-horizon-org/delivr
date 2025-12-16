@@ -32,7 +32,6 @@ const createMockBuild = (overrides: Partial<Build> = {}): Build => ({
   queueLocation: 'https://jenkins.example.com/queue/item/123/',
   ciRunId: null,
   workflowStatus: 'PENDING' as WorkflowStatus,
-  workflowId: null,
   buildUploadStatus: 'PENDING' as any,
   artifactPath: null,
   regressionId: null,

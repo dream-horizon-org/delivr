@@ -280,7 +280,6 @@ export interface BuildInfoResponse {
   queueLocation?: string | null;
   workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
   ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
-  workflowUrl?: string | null;
   taskId?: string | null;
 
   // Optional fields (only in uploads table)

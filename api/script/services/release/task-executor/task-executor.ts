@@ -925,7 +925,6 @@ export class TaskExecutor {
         buildStage: 'KICK_OFF',
         queueLocation: result.queueLocation,
         workflowStatus: 'PENDING',
-        workflowId: result.workflowId,
         taskId: task.id
       });
 
@@ -1298,7 +1297,6 @@ export class TaskExecutor {
         buildStage: 'REGRESSION',
         queueLocation: result.queueLocation,
         workflowStatus: 'PENDING',
-        workflowId: result.workflowId,
         taskId: task.id
       });
 
@@ -1769,40 +1767,8 @@ export class TaskExecutor {
       }
     );
 
-    // Create Build record for CI/CD build
-    const BuildModel = this.sequelize.models.Build;
-    if (BuildModel) {
-      const buildId = uuidv4();
-      const versionName = iosMapping?.version ?? getReleaseVersion(release, platformMappings);
-      await BuildModel.create({
-        id: buildId,
-        tenantId: tenantId,
-        buildNumber: result.queueLocation ?? `testflight-${Date.now()}`,
-        artifactVersionName: versionName,
-        artifactPath: result.queueLocation,
-        releaseId: context.releaseId,
-        platform: BUILD_PLATFORM.IOS,
-        storeType: STORE_TYPE.TESTFLIGHT,
-        regressionId: null,
-        ciRunId: null,
-        buildUploadStatus: BUILD_UPLOAD_STATUS.PENDING,
-        buildType: BUILD_TYPE.CI_CD,
-        buildStage: BUILD_STAGE.PRE_RELEASE,
-        queueLocation: result.queueLocation,
-        workflowStatus: 'PENDING',
-        workflowId: result.workflowId,
-        taskId: task.id
-      });
-    }
-
-    // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.AWAITING_CALLBACK
-    });
-    console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for CI/CD callback`);
-
-    // Return special marker so executeTask() knows not to mark as COMPLETED
-    return 'AWAITING_CI_CD';
+    // Category A: Return raw string
+    return result.queueLocation ?? `testflight-${Date.now()}`;
   }
 
   /**
@@ -1923,40 +1889,8 @@ export class TaskExecutor {
       }
     );
 
-    // Create Build record for CI/CD build
-    const BuildModel = this.sequelize.models.Build;
-    if (BuildModel) {
-      const buildId = uuidv4();
-      const versionName = androidMapping?.version ?? getReleaseVersion(release, platformMappings);
-      await BuildModel.create({
-        id: buildId,
-        tenantId: tenantId,
-        buildNumber: result.queueLocation ?? `aab-${Date.now()}`,
-        artifactVersionName: versionName,
-        artifactPath: result.queueLocation,
-        releaseId: context.releaseId,
-        platform: BUILD_PLATFORM.ANDROID,
-        storeType: STORE_TYPE.PLAY_STORE,
-        regressionId: null,
-        ciRunId: null,
-        buildUploadStatus: BUILD_UPLOAD_STATUS.PENDING,
-        buildType: BUILD_TYPE.CI_CD,
-        buildStage: BUILD_STAGE.PRE_RELEASE,
-        queueLocation: result.queueLocation,
-        workflowStatus: 'PENDING',
-        workflowId: result.workflowId,
-        taskId: task.id
-      });
-    }
-
-    // CI/CD Mode: Set task to AWAITING_CALLBACK - waiting for CI/CD pipeline callback
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.AWAITING_CALLBACK
-    });
-    console.log(`[TaskExecutor] Task ${task.id} set to AWAITING_CALLBACK - waiting for CI/CD callback`);
-
-    // Return special marker so executeTask() knows not to mark as COMPLETED
-    return 'AWAITING_CI_CD';
+    // Category A: Return raw string
+    return result.queueLocation ?? `aab-${Date.now()}`;
   }
 
   /**

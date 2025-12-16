@@ -11,7 +11,6 @@ import { ReleaseTaskRepository } from '../../models/release/release-task.reposit
 import { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import { BuildRepository, Build } from '../../models/release/build.repository';
 import { ReleaseUploadsRepository, ReleaseUpload } from '../../models/release/release-uploads.repository';
-import { CICDWorkflowRepository } from '../../models/integrations/ci-cd/workflow/workflow.repository';
 import { TaskStage, ReleaseTask, Phase } from '../../models/release/release.interface';
 import type { 
   ReleaseResponseBody, 
@@ -269,8 +268,7 @@ export class ReleaseRetrievalService {
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly regressionCycleRepo: RegressionCycleRepository,
     private readonly buildRepo: BuildRepository,
-    private readonly releaseUploadsRepo: ReleaseUploadsRepository,
-    private readonly cicdWorkflowRepo?: CICDWorkflowRepository
+    private readonly releaseUploadsRepo: ReleaseUploadsRepository
   ) {}
 
   /**
@@ -279,42 +277,6 @@ export class ReleaseRetrievalService {
    */
   setReleaseStatusService(service: any): void {
     this.releaseStatusService = service;
-  }
-
-  /**
-   * Fetch workflow URLs for builds that have workflowId
-   * @private
-   */
-  private async fetchWorkflowUrlMap(builds: Build[]): Promise<Map<string, string>> {
-    const workflowUrlMap = new Map<string, string>();
-    
-    // Early return if no workflow repository configured
-    const hasNoWorkflowRepo = !this.cicdWorkflowRepo;
-    if (hasNoWorkflowRepo) {
-      return workflowUrlMap;
-    }
-
-    // Collect unique workflowIds from builds
-    const workflowIds = builds
-      .map(build => build.workflowId)
-      .filter((id): id is string => id !== null && id !== undefined);
-    
-    const uniqueWorkflowIds = [...new Set(workflowIds)];
-    
-    const hasNoWorkflowIds = uniqueWorkflowIds.length === 0;
-    if (hasNoWorkflowIds) {
-      return workflowUrlMap;
-    }
-
-    // Fetch workflows by IDs
-    const workflows = await this.cicdWorkflowRepo.findByIds(uniqueWorkflowIds);
-    
-    // Build the map
-    workflows.forEach(workflow => {
-      workflowUrlMap.set(workflow.id, workflow.workflowUrl);
-    });
-
-    return workflowUrlMap;
   }
 
   /**
@@ -525,8 +487,7 @@ export class ReleaseRetrievalService {
   private enrichTasksWithBuildsAndUploads(
     tasks: ReleaseTask[],
     allBuilds: Build[],
-    allReleaseUploads: ReleaseUpload[],
-    workflowUrlMap: Map<string, string> = new Map()
+    allReleaseUploads: ReleaseUpload[]
   ): {
     enrichedTasks: ReleaseTaskResponse[];
     topLevelUploadedBuilds: BuildInfoResponse[];
@@ -536,10 +497,6 @@ export class ReleaseRetrievalService {
     allBuilds.forEach(build => {
       if (build.taskId) {
         const taskBuilds = buildsByTaskId.get(build.taskId) || [];
-        
-        // Get workflowUrl from map if workflowId exists
-        const workflowUrl = build.workflowId ? (workflowUrlMap.get(build.workflowId) ?? null) : null;
-        
         taskBuilds.push({
           // Mandatory fields (in both builds and uploads)
           id: build.id,
@@ -564,7 +521,6 @@ export class ReleaseRetrievalService {
           queueLocation: build.queueLocation,
           workflowStatus: build.workflowStatus,
           ciRunType: build.ciRunType,
-          workflowUrl: workflowUrl,
           taskId: build.taskId
           
           // isUsed, usedByTaskId: NOT sent for builds
@@ -680,15 +636,11 @@ export class ReleaseRetrievalService {
     const allBuilds = await this.buildRepo.findByReleaseIdAndStage(release.id, validatedStage as any);
     const allReleaseUploads = await this.releaseUploadsRepo.findByReleaseAndStage(release.id, validatedStage as any);
 
-    // Fetch workflow URLs for CI/CD builds
-    const workflowUrlMap = await this.fetchWorkflowUrlMap(allBuilds);
-
     // Enrich tasks with builds and releaseUploads
     const { enrichedTasks, topLevelUploadedBuilds } = this.enrichTasksWithBuildsAndUploads(
       tasks,
       allBuilds,
-      allReleaseUploads,
-      workflowUrlMap
+      allReleaseUploads
     );
 
     // For REGRESSION stage, add additional fields
