@@ -186,7 +186,7 @@ export interface ReleaseTaskResponse {
   isRegressionSubTasks: boolean;
   identifier: string | null;
   externalId: string | null;
-  externalData: Record<string, unknown> | null;
+  output: import('./task-output.interface').TaskOutput | null;
   branch: string | null;
   regressionId: string | null;
   builds: BuildInfoResponse[];
@@ -296,16 +296,41 @@ export interface RegressionSlotResponse {
 }
 
 /**
- * Stage tasks response - common structure for KICKOFF and PRE_RELEASE
- * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage={stage}
+ * KICKOFF stage tasks response
+ * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=KICKOFF
  */
 export interface StageTasksResponseBody {
   success: true;
-  stage: 'KICKOFF' | 'PRE_RELEASE';
+  stage: 'KICKOFF';
   releaseId: string;
   tasks: ReleaseTaskResponse[];
   uploadedBuilds: BuildInfoResponse[];
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+}
+
+/**
+ * PRE_RELEASE stage tasks response - includes approval status
+ * API #2: GET /tenants/:tenantId/releases/:releaseId/tasks?stage=PRE_RELEASE
+ */
+export interface PreReleaseStageTasksResponseBody {
+  success: true;
+  stage: 'PRE_RELEASE';
+  releaseId: string;
+  tasks: ReleaseTaskResponse[];
+  uploadedBuilds: BuildInfoResponse[];
+  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  approvalStatus: PreReleaseApprovalStatusResponse;
+}
+
+/**
+ * Approval status for PRE_RELEASE stage
+ * Indicates whether the stage can be approved based on project management status
+ */
+export interface PreReleaseApprovalStatusResponse {
+  canApprove: boolean;
+  approvalRequirements: {
+    projectManagementPassed: boolean;
+  };
 }
 
 /**
@@ -350,7 +375,7 @@ export interface StageTasksErrorResponse {
 /**
  * Union type for stage tasks result
  */
-export type StageTasksResult = StageTasksResponseBody | RegressionStageTasksResponseBody | StageTasksErrorResponse;
+export type StageTasksResult = StageTasksResponseBody | PreReleaseStageTasksResponseBody | RegressionStageTasksResponseBody | StageTasksErrorResponse;
 
 /**
  * Update release request body (HTTP API)

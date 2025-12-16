@@ -304,11 +304,9 @@ export class CronJobService {
     await this.cronJobRepo.update(cronJob.id, {
       autoTransitionToStage3: true,
       stage3Status: StageStatus.IN_PROGRESS,
+      cronStatus: CronStatus.RUNNING,
       pauseType: PauseType.NONE  // Clear AWAITING_STAGE_TRIGGER
     });
-
-    // Start the cron job
-    await this.startCronJob(releaseId);
 
     console.log(`[CronJobService] Stage 3 triggered for release ${releaseId} (approved by: ${approvedBy})`);
 

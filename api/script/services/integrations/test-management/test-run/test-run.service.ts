@@ -250,6 +250,34 @@ export class TestManagementRunService {
   }
 
   /**
+   * Get test run URL from provider
+   * 
+   * Input: runId + testManagementConfigId
+   * Output: Full URL to the test run
+   */
+  async getRunUrl(request: TestRunActionRequest): Promise<string> {
+    const { runId, testManagementConfigId } = request;
+
+    // Get config to find integration
+    const config = await this.configRepo.findById(testManagementConfigId);
+    if (!config) {
+      throw new Error(`Test management config not found: ${testManagementConfigId}`);
+    }
+
+    // Get integration
+    const integration = await this.integrationRepo.findById(config.integrationId);
+    if (!integration) {
+      throw new Error(`Integration not found: ${config.integrationId}`);
+    }
+
+    // Get provider
+    const provider = ProviderFactory.getProvider(integration.providerType);
+
+    // Get URL from provider
+    return await provider.getRunUrl(integration.config, runId);
+  }
+
+  /**
    * Get detailed test report
    * 
    * Input: runId + testManagementConfigId

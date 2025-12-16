@@ -33,3 +33,17 @@ export type {
   Target
 } from './release-version.interface';
 
+// Task Output Types
+export type {
+  TaskOutput,
+  ForkBranchTaskOutput,
+  ProjectManagementTaskOutput,
+  TestManagementTaskOutput,
+  CreateRcTagTaskOutput,
+  ReleaseNotesTaskOutput,
+  CreateReleaseTagTaskOutput,
+  FinalReleaseNotesTaskOutput,
+  SinglePlatformBuildTaskOutput,
+  AllPlatformsBuildTaskOutput
+} from './task-output.interface';
+

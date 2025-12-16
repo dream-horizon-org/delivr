@@ -142,6 +142,47 @@ export class GitHubProvider implements SCMIntegration {
     return branchHeadSha !== tagCommitSha;
   }
 
+  /**
+   * Get the URL for a branch in the repository
+   * 
+   * @param tenantId - Tenant ID to fetch integration config
+   * @param branch - Branch name (e.g., 'release/v1.0.0')
+   * @returns Full URL to the branch (e.g., 'https://github.com/owner/repo/tree/release/v1.0.0')
+   */
+  async getBranchUrl(tenantId: string, branch: string): Promise<string> {
+    // Validate branch name
+    this.validateBranchOrTagName(branch);
+    
+    const { owner, repo } = await this.getClientAndRepo(tenantId);
+    
+    // Encode each path segment separately (preserves slashes)
+    const encodedBranch = branch
+      .split('/')
+      .map(segment => encodeURIComponent(segment))
+      .join('/');
+    
+    return `https://github.com/${owner}/${repo}/tree/${encodedBranch}`;
+  }
+
+  /**
+   * Get the URL for a tag in the repository
+   * 
+   * @param tenantId - Tenant ID to fetch integration config
+   * @param tag - Tag name (e.g., 'v1.0.0_rc_1')
+   * @returns Full URL to the tag (e.g., 'https://github.com/owner/repo/releases/tag/v1.0.0_rc_1')
+   */
+  async getTagUrl(tenantId: string, tag: string): Promise<string> {
+    // Validate tag name
+    this.validateBranchOrTagName(tag);
+    
+    const { owner, repo } = await this.getClientAndRepo(tenantId);
+    
+    // Tags don't have slashes, encode directly
+    const encodedTag = encodeURIComponent(tag);
+    
+    return `https://github.com/${owner}/${repo}/releases/tag/${encodedTag}`;
+  }
+
   private getClientAndRepo = async (
     tenantId: string
   ): Promise<{ client: OctokitClient; owner: string; repo: string }> => {
@@ -197,6 +238,27 @@ export class GitHubProvider implements SCMIntegration {
       return '';
     }
   };
+
+  /**
+   * Validate branch or tag name according to Git naming rules
+   * 
+   * @param name - Branch or tag name to validate
+   * @throws Error if name is invalid
+   */
+  private validateBranchOrTagName(name: string): void {
+    if (!name || name.trim().length === 0) {
+      throw new Error(SCM_ERROR_MESSAGES.INVALID_BRANCH_TAG_NAME);
+    }
+    
+    // Git naming rules validation
+    // - No consecutive dots (..)
+    // - No @{ sequence
+    // - No control characters
+    // - No special characters: \ ^ ~ : ? * [
+    if (/\.\.|\/@\{|[\x00-\x1f\x7f]|[\\^\~\:\?\*\[]/.test(name)) {
+      throw new Error(`${SCM_ERROR_MESSAGES.INVALID_BRANCH_TAG_NAME}: ${name}`);
+    }
+  }
 }
 
 

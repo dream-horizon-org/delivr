@@ -124,6 +124,17 @@ export class JiraProvider implements IProjectManagementProvider {
     return statusResult.status.toLowerCase() === completedStatus.toLowerCase();
   }
 
+   /**
+   * Get the URL for a JIRA ticket
+   */
+  async getTicketUrl(
+    config: ProjectManagementIntegrationConfig,
+    ticketKey: string
+  ): Promise<string> {
+    const jiraConfig = this.getJiraConfig(config);
+    return `${jiraConfig.baseUrl}/browse/${ticketKey}`;
+  }
+
   /**
    * Get available JIRA projects
    */

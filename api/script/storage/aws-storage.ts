@@ -1082,6 +1082,10 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Creation Service initialized");
           
+          // Initialize SCM Service (needed by ReleaseRetrievalService)
+          const scmService = new SCMService();
+          console.log("SCM Service initialized");
+          
           // Initialize Build repository (for artifact listings/uploads) - must be before ReleaseRetrievalService
           const buildModel = createBuildModel(this.sequelize);
           this.buildRepository = new BuildRepository(buildModel);
@@ -1094,7 +1098,11 @@ export class S3Storage implements storage.Storage {
             releaseTaskRepo,
             this.regressionCycleRepository,
             this.buildRepository,
-            this.releaseUploadsRepository
+            this.releaseUploadsRepository,
+            this.releaseConfigRepository,
+            scmService,
+            this.projectManagementTicketService,
+            this.testManagementRunService
           );
           console.log("Release Retrieval Service initialized");
           
@@ -1116,9 +1124,7 @@ export class S3Storage implements storage.Storage {
           });
           console.log("Release Schedule Service dependencies set");
           
-          // Initialize SCM Service (for cherry pick status checking)
-          const scmService = new SCMService();
-          console.log("SCM Service initialized");
+          // SCM Service already initialized above (used by ReleaseRetrievalService and ReleaseStatusService)
           
           this.releaseStatusService = new ReleaseStatusService(
             this.releaseRetrievalService,

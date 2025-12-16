@@ -164,5 +164,45 @@ export class ProjectManagementTicketService {
       message: isCompleted ? completedMessage : notCompletedMessage
     };
   }
+
+  /**
+   * Get ticket URL from provider
+   * 
+   * Input: pmConfigId + platform + ticketKey
+   * Output: Full URL to the ticket
+   */
+  async getTicketUrl(request: {
+    pmConfigId: string;
+    platform: Platform;
+    ticketKey: string;
+  }): Promise<string> {
+    const { pmConfigId, platform, ticketKey } = request;
+
+    // Get config
+    const config = await this.configRepo.findById(pmConfigId);
+    if (!config) {
+      throw new Error(`${PROJECT_MANAGEMENT_ERROR_MESSAGES.CONFIG_NOT_FOUND}: ${pmConfigId}`);
+    }
+
+    // Get integration
+    const integration = await this.integrationRepo.findById(config.integrationId);
+    if (!integration) {
+      throw new Error(
+        `${PROJECT_MANAGEMENT_ERROR_MESSAGES.INTEGRATION_NOT_FOUND}: ${config.integrationId}`
+      );
+    }
+
+    // Validate platform exists in config
+    const platformConfig = config.platformConfigurations.find((pc) => pc.platform === platform);
+    if (!platformConfig) {
+      throw new Error(`No configuration found for platform: ${platform}`);
+    }
+
+    // Get provider
+    const provider = ProviderFactory.getProvider(integration.providerType);
+
+    // Get URL from provider
+    return await provider.getTicketUrl(integration.config, ticketKey);
+  }
 }
 
