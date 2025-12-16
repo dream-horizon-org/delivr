@@ -90,7 +90,8 @@ import {
   ReleaseForTimeCheck,
   CronJobForTimeCheck
 } from '../../script/utils/time-utils';
-import { startCronJob, stopCronJob } from '../../script/services/release/cron-job/cron-scheduler';
+// Note: cron-scheduler.ts removed - replaced by global scheduler architecture
+// Old per-release timers no longer used
 // NOTE: Old executor imports removed - executors replaced by State Machine
 // import { executeKickoffCronJob } from '../../script/routes/release/kickoff-cron-job';
 // import { executeRegressionCronJob } from '../../script/routes/release/regression-cron-job';

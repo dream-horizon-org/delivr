@@ -1,6 +1,6 @@
-import { QueryTypes, Sequelize } from 'sequelize';
+import { QueryTypes, Sequelize, Op } from 'sequelize';
 import type { CronJobModelType } from './cron-job.sequelize.model';
-import { CronJob, CreateCronJobDto, UpdateCronJobDto } from './release.interface';
+import { CronJob, CreateCronJobDto, UpdateCronJobDto, CronStatus, PauseType } from './release.interface';
 
 export class CronJobRepository {
   private sequelize: Sequelize;
@@ -61,6 +61,28 @@ export class CronJobRepository {
     await this.model.destroy({
       where: { id }
     });
+  }
+
+  /**
+   * Find all active releases that should be processed by the global scheduler.
+   * 
+   * Returns cron jobs where:
+   * - cronStatus = RUNNING (release is active)
+   * - pauseType = NONE (not paused for any reason)
+   * 
+   * Used by the global scheduler to find releases to process on each tick.
+   * 
+   * @returns Array of CronJob records that should be processed
+   */
+  async findActiveReleases(): Promise<CronJob[]> {
+    const cronJobs = await this.model.findAll({
+      where: {
+        cronStatus: CronStatus.RUNNING,
+        pauseType: PauseType.NONE
+      }
+    });
+
+    return cronJobs.map(cronJob => this.toPlainObject(cronJob));
   }
 
   /**

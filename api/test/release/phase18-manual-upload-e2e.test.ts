@@ -581,11 +581,11 @@ async function runPhase18ManualUploadSimulation() {
     
     // ✅ PHASE 18: Check for tasks waiting for manual builds and upload for each cycle
     if (currentCronJob.stage2Status === StageStatus.IN_PROGRESS) {
-      // Find any AWAITING_CALLBACK tasks that need uploads
+      // Find any AWAITING_MANUAL_BUILD tasks that need uploads (Manual mode uses this status!)
       const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
       const waitingTasks = allTasks.filter(t => 
         t.taskType === TaskType.TRIGGER_REGRESSION_BUILDS && 
-        t.taskStatus === TaskStatus.AWAITING_CALLBACK &&
+        t.taskStatus === TaskStatus.AWAITING_MANUAL_BUILD &&  // Fixed: was AWAITING_CALLBACK
         t.regressionId &&
         !uploadedCycles.has(t.regressionId)
       );
@@ -605,6 +605,30 @@ async function runPhase18ManualUploadSimulation() {
           log(`  ✅ Uploaded ${platform} REGRESSION build for cycle ${cycleId.substring(0, 8)}`);
         }
         uploadedCycles.add(cycleId);
+      }
+    }
+
+    // ✅ PHASE 18: Handle Stage 3 (PRE_RELEASE) uploads
+    // Stage 3 uses TRIGGER_TEST_FLIGHT_BUILD (iOS) and CREATE_AAB_BUILD (Android)
+    if (currentCronJob.stage3Status === StageStatus.IN_PROGRESS) {
+      const allTasks = await releaseTaskRepo.findByReleaseId(release.id);
+      const stage3WaitingTasks = allTasks.filter(t => 
+        (t.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD || t.taskType === TaskType.CREATE_AAB_BUILD) && 
+        t.taskStatus === TaskStatus.AWAITING_MANUAL_BUILD
+      );
+      
+      for (const task of stage3WaitingTasks) {
+        const platform = task.taskType === TaskType.TRIGGER_TEST_FLIGHT_BUILD ? PlatformName.IOS : PlatformName.ANDROID;
+        log(`\n📦 [Phase 18] Stage 3 task ${task.taskType} waiting - Uploading PRE_RELEASE build for ${platform}...`);
+        
+        await uploadManualBuild(releaseUploadsRepo, {
+          tenantId: testIds.tenantId,
+          releaseId: release.id,
+          platform,
+          stage: 'PRE_RELEASE',
+          artifactPath: `s3://phase18-test/${platform.toLowerCase()}-pre-release-${Date.now()}.${platform === PlatformName.IOS ? 'ipa' : 'apk'}`
+        });
+        log(`  ✅ Uploaded ${platform} PRE_RELEASE build`);
       }
     }
 

@@ -246,6 +246,8 @@ CREATE TABLE IF NOT EXISTS release_uploads (
   platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL COMMENT 'Platform for this upload',
   stage ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE') NOT NULL COMMENT 'Stage this upload is for (matches buildStage)',
   artifactPath VARCHAR(1024) NOT NULL COMMENT 'S3 path to uploaded artifact',
+  internalTrackLink VARCHAR(255) NULL COMMENT 'Play Store Internal Track Link',
+  testflightNumber VARCHAR(255) NULL COMMENT 'TestFlight build number',
   isUsed BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether this upload has been consumed by a task',
   usedByTaskId VARCHAR(255) NULL COMMENT 'FK to release_tasks - which task consumed this upload',
   usedByCycleId VARCHAR(255) NULL COMMENT 'FK to regression_cycles - which cycle consumed this upload (for REGRESSION stage)',

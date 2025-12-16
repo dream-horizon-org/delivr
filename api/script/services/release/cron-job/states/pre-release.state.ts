@@ -12,8 +12,7 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
-import { StageStatus, TaskStage, CronStatus, ReleaseStatus, PlatformName } from '~models/release/release.interface';
-import { stopCronJob } from '~services/release/cron-job/cron-scheduler';
+import { StageStatus, TaskStage, CronStatus, ReleaseStatus, PlatformName, PauseType } from '~models/release/release.interface';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { createStage3Tasks } from '~utils/task-creation';
@@ -69,16 +68,16 @@ export class PreReleaseState implements ICronJobState {
       if (release.status === ReleaseStatus.ARCHIVED) {
         console.log(`[${instanceId}] [PreReleaseState] Release is ARCHIVED. Stopping execution.`);
         
-        // Update cron job status to PAUSED (if not already)
-        if (cronJob.cronStatus !== CronStatus.PAUSED) {
+        // Update cron job status to COMPLETED (terminal state, not PAUSED)
+        if (cronJob.cronStatus !== CronStatus.COMPLETED) {
           await cronJobRepo.update(cronJob.id, {
-            cronStatus: CronStatus.PAUSED,
+            cronStatus: CronStatus.COMPLETED,
             cronStoppedAt: new Date()
           });
         }
         
-        // Stop cron job
-        stopCronJob(releaseId);
+        // NEW ARCHITECTURE: DB status update is sufficient.
+        // Global scheduler will skip this release since cronStatus != RUNNING.
         return;  // Early exit
       }
       
@@ -321,12 +320,11 @@ export class PreReleaseState implements ICronJobState {
     
     await cronJobRepo.update(cronJob.id, {
       stage3Status: StageStatus.COMPLETED,
-      cronStatus: CronStatus.COMPLETED,
-      cronStoppedAt: new Date()
+      pauseType: PauseType.AWAITING_STAGE_TRIGGER
     });
 
-    stopCronJob(releaseId);
-    console.log(`[PreReleaseState] ✅ Workflow COMPLETED: Stage 3 done, cron stopped`);
+    // Global scheduler will automatically exclude this release (cronStatus=COMPLETED)
+    console.log(`[PreReleaseState] ✅ Workflow COMPLETED: Stage 3 done`);
     console.log(`[PreReleaseState] Note: Release workflow ends here - no Stage 4. Submission tasks (SUBMIT_TO_TARGET) are manual APIs.`);
 
     // Delete workflow polling Cronicle jobs (release is COMPLETED)

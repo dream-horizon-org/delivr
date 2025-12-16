@@ -565,7 +565,44 @@ async function runCICDPipelineE2ETest() {
 
     const currentStatus = `Cron=${currentCronJob.cronStatus} | S1=${currentCronJob.stage1Status} | S2=${currentCronJob.stage2Status} | S3=${currentCronJob.stage3Status}`;
     
-    // CI/CD MODE: No manual uploads - builds triggered automatically via mocked CI/CD
+    // ✅ CI/CD MODE: Simulate build callbacks for PENDING workflows
+    const BuildModel = sequelize.models.Build || createBuildModel(sequelize);
+    const pendingBuilds = await BuildModel.findAll({
+      where: {
+        releaseId: release.id,
+        workflowStatus: 'PENDING'
+      }
+    });
+    
+    if (pendingBuilds.length > 0) {
+      log(`\n🔄 [CI/CD Mock] Simulating callback for ${pendingBuilds.length} pending builds...`);
+      const taskIdsToComplete = new Set<string>();
+      
+      for (const build of pendingBuilds) {
+        await build.update({
+          workflowStatus: 'COMPLETED',
+          buildUploadStatus: 'UPLOADED'  // Valid values: PENDING, UPLOADED, FAILED
+        });
+        if ((build as any).taskId) {
+          taskIdsToComplete.add((build as any).taskId);
+        }
+        log(`  ✅ Build ${(build as any).id.substring(0, 8)} marked COMPLETED`);
+      }
+      
+      // Mark associated tasks as COMPLETED (all platforms done)
+      for (const taskId of taskIdsToComplete) {
+        const task = await releaseTaskRepo.findById(taskId);
+        if (task && task.taskStatus === TaskStatus.AWAITING_CALLBACK) {
+          // Check if ALL builds for this task are complete
+          const taskBuilds = await BuildModel.findAll({ where: { taskId } });
+          const allComplete = taskBuilds.every((b: any) => b.workflowStatus === 'COMPLETED');
+          if (allComplete) {
+            await releaseTaskRepo.update(taskId, { taskStatus: TaskStatus.COMPLETED });
+            log(`  ✅ Task ${taskId.substring(0, 8)} marked COMPLETED (all builds done)`);
+          }
+        }
+      }
+    }
 
     if (currentStatus !== lastLoggedStatus || iteration % 10 === 0) {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);

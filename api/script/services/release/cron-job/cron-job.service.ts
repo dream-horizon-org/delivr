@@ -25,7 +25,8 @@ import { RegressionCycleRepository } from '~models/release/regression-cycle.repo
 import { ReleasePlatformTargetMappingRepository } from '~models/release/release-platform-target-mapping.repository';
 import { ReleaseUploadsRepository } from '~models/release/release-uploads.repository';
 import { getTaskExecutor } from '~services/release/task-executor/task-executor-factory';
-import { startCronJob, stopCronJob, isCronJobRunning } from './cron-scheduler';
+// Note: Per-release cron-scheduler is deprecated. Using global-scheduler instead.
+// The cron-scheduler.ts file has been removed.
 import { StageStatus, CronStatus, CronJob, PauseType } from '~models/release/release.interface';
 import {
   createWorkflowPollingJobs,
@@ -59,50 +60,38 @@ export class CronJobService {
   /**
    * Start cron job for a release
    * 
-   * Uses State Machine to automatically handle stage transitions.
-   * No need to specify stage - State Machine determines it from DB.
-   * Also updates cron job status in DB to IN_PROGRESS.
+   * NEW ARCHITECTURE (Global Scheduler):
+   * This method ONLY updates DB status. The global scheduler picks up
+   * active releases (cronStatus=RUNNING, pauseType=NONE) on each tick.
+   * 
+   * Old: Created per-release setInterval
+   * New: Updates DB status, global scheduler processes on next tick
    * 
    * @returns The updated CronJob record
    */
   async startCronJob(releaseId: string): Promise<CronJob> {
-    // Check if cron job is already running
-    if (isCronJobRunning(releaseId)) {
-      throw new Error(`Cron job is already running for release ${releaseId}`);
-    }
-
     // Get cron job record
     const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
     if (!cronJob) {
       throw new Error(`Cron job not found for release ${releaseId}`);
     }
 
-    // Create State Machine instance
-    const stateMachine = await this.createStateMachine(releaseId);
-
-    // Start cron job with State Machine executor
-    const started = startCronJob(releaseId, async () => {
-      try {
-        await stateMachine.execute();
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        log.error('Error executing state machine for release', { releaseId, error: errorMessage });
-        // State Machine will handle retries and error states
-        // Continue running to allow recovery
-      }
-    });
-
-    if (!started) {
-      throw new Error(`Failed to start cron job for release ${releaseId}`);
+    // Check if already running (DB-based check) - make it idempotent
+    const isRunning = cronJob.cronStatus === CronStatus.RUNNING && cronJob.pauseType === PauseType.NONE;
+    if (isRunning) {
+      log.info('Cron job already running - returning current state', { releaseId });
+      return cronJob; // Idempotent - just return current state
     }
 
-    // Update cron job status in DB to indicate Stage 1 has started
+    // Update cron job status in DB
+    // Global scheduler will pick this up on next tick
     await this.cronJobRepo.update(cronJob.id, {
       stage1Status: StageStatus.IN_PROGRESS,
-      cronStatus: CronStatus.RUNNING
+      cronStatus: CronStatus.RUNNING,
+      pauseType: PauseType.NONE  // Ensure not paused
     });
 
-    log.info('Cron job started for release', { releaseId });
+    log.info('Cron job started for release (DB-only, global scheduler will process)', { releaseId });
 
     // Create workflow polling Cronicle jobs (if Cronicle is available)
     await this.createWorkflowPollingJobsIfEnabled(releaseId);
@@ -111,28 +100,22 @@ export class CronJobService {
     return {
       ...cronJob,
       stage1Status: StageStatus.IN_PROGRESS,
-      cronStatus: CronStatus.RUNNING
+      cronStatus: CronStatus.RUNNING,
+      pauseType: PauseType.NONE
     };
   }
 
   /**
-   * Stop cron job for a release
-   */
-  stopCronJob(releaseId: string): void {
-    const stopped = stopCronJob(releaseId);
-
-    if (!stopped) {
-      throw new Error(`No cron job running for release ${releaseId}`);
-    }
-
-    log.info('Cron job stopped for release', { releaseId });
-  }
-
-  /**
    * Check if cron job is running for a release
+   * 
+   * NEW ARCHITECTURE: Checks DB status instead of in-memory Map
    */
-  isCronJobRunning(releaseId: string): boolean {
-    return isCronJobRunning(releaseId);
+  async isCronJobRunningForRelease(releaseId: string): Promise<boolean> {
+    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    if (!cronJob) {
+      return false;
+    }
+    return cronJob.cronStatus === CronStatus.RUNNING && cronJob.pauseType === PauseType.NONE;
   }
 
   /**
@@ -209,8 +192,6 @@ export class CronJobService {
       pauseType: PauseType.NONE  // Clear AWAITING_STAGE_TRIGGER
     });
 
-    // Start the cron job
-    await this.startCronJob(releaseId);
 
     log.info('Stage 2 triggered for release', { releaseId });
 
@@ -230,6 +211,7 @@ export class CronJobService {
    * - Stage 2 must be COMPLETED
    * - Stage 3 must be PENDING
    */
+
   async triggerStage3(
     releaseId: string, 
     tenantId: string,
@@ -369,25 +351,19 @@ export class CronJobService {
     let cronJobPaused = false;
 
     if (cronJob) {
-      // Only update if running
-      if (cronJob.cronStatus === CronStatus.RUNNING) {
+      // Only update if not already completed
+      if (cronJob.cronStatus !== CronStatus.COMPLETED) {
         await this.cronJobRepo.update(cronJob.id, {
-          cronStatus: CronStatus.PAUSED,
+          cronStatus: CronStatus.COMPLETED,
           cronStoppedAt: new Date()
+          // Note: ARCHIVED is terminal state - no comeback possible, so use COMPLETED
         });
-        log.info('Cron job paused', { cronJobId: cronJob.id });
+        log.info('Cron job completed due to release archival (terminal state)', { cronJobId: cronJob.id });
         cronJobPaused = true;
       }
 
-      // Stop cron job execution
-      try {
-        this.stopCronJob(releaseId);
-        log.info('Cron job scheduler stopped', { releaseId });
-      } catch (stopError) {
-        // Cron job might not be running - that's OK
-        const errorMessage = stopError instanceof Error ? stopError.message : 'Unknown error';
-        log.warn('No running cron job to stop', { releaseId, error: errorMessage });
-      }
+      // NEW ARCHITECTURE: DB status update is sufficient.
+      // Global scheduler will skip this release since cronStatus != RUNNING.
     }
 
     // Delete workflow polling Cronicle jobs (release is ARCHIVED)
@@ -468,6 +444,37 @@ export class CronJobService {
         alreadyPaused: false
       }
     };
+  }
+
+  /**
+   * Resume cron job execution (internal method)
+   * 
+   * Simple resume that just sets cronStatus=RUNNING and pauseType=NONE
+   * without any validation. Used when adding new regression slots to 
+   * restart the scheduler without touching stage statuses.
+   * 
+   * This is different from resumeRelease() which has user-facing validations.
+   */
+  async resumeCronJob(releaseId: string): Promise<void> {
+    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    if (!cronJob) {
+      throw new Error(`Cron job not found for release ${releaseId}`);
+    }
+
+    // Check if already running - idempotent
+    const isRunning = cronJob.cronStatus === CronStatus.RUNNING && cronJob.pauseType === PauseType.NONE;
+    if (isRunning) {
+      log.info('Cron job already running', { releaseId });
+      return;
+    }
+
+    // Resume: set RUNNING + NONE without touching stage statuses
+    await this.cronJobRepo.update(cronJob.id, {
+      cronStatus: CronStatus.RUNNING,
+      pauseType: PauseType.NONE
+    });
+
+    log.info('Cron job resumed (internal)', { releaseId });
   }
 
   /**

@@ -311,8 +311,10 @@ export class ReleaseUpdateService {
       
       // Restart cron if slots were added and cron is not running
       if (slotUpdateResult.shouldRestartCron) {
-        console.log(`[ReleaseUpdateService] Restarting cron job for release ${releaseId} - new slots added`);
-        await this.cronJobService.startCronJob(releaseId);
+        console.log(`[ReleaseUpdateService] Resuming cron job for release ${releaseId} - new slots added`);
+        // Use resumeCronJob() instead of startCronJob() to avoid resetting stage1Status
+        // Release could be in any stage (Stage 1, 2, or 3) when adding new slots
+        await this.cronJobService.resumeCronJob(releaseId);
       }
       
       return; // Exit early since we already updated

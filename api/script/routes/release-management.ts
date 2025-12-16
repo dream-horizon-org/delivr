@@ -25,6 +25,7 @@ import { createStoreIntegrationRoutes } from "./store-integrations";
 import { createReleaseConfigRoutes } from "./release-config-routes";
 import { createReleaseScheduleRoutes } from "./release-schedule.routes";
 import { createWorkflowPollingRoutes } from "./workflow-polling.routes";
+import { createCronWebhookRoutes } from "./release/cron-webhook.routes";
 import { getReleaseManagementRouter as getReleaseRoutes } from "./release/release-management";
 
 export interface ReleaseManagementConfig {
@@ -214,6 +215,13 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   const workflowPollingRoutes = createWorkflowPollingRoutes(storage);
   router.use(workflowPollingRoutes);
   console.log('[Release Management] Workflow Polling routes mounted successfully');
+
+  // ============================================================================
+  // CRON WEBHOOK ROUTES (Global Scheduler - Cronicle)
+  // ============================================================================
+  const cronWebhookRoutes = createCronWebhookRoutes(storage);
+  router.use(cronWebhookRoutes);
+  console.log('[Release Management] Cron Webhook routes mounted successfully');
 
   // ============================================================================
   // RELEASE MANAGEMENT ROUTES (CRUD Operations)

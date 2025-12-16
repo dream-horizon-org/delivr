@@ -7,7 +7,6 @@ import { getHeadersMiddleware, HeadersConfig } from "./routes/headers";
 import { getAcquisitionRouter, getHealthRouter, AcquisitionConfig } from "./routes/acquisition";
 import { getManagementRouter, ManagementConfig } from "./routes/management";
 import { getReleaseManagementRouter, ReleaseManagementConfig } from "./routes/release-management";
-import { createCronJobRoutes, CronJobRoutesConfig } from "./routes/cron-job.routes";
 import { getDistributionRouter, DistributionRouterConfig } from "./routes/distribution.routes";
 import { PassportAuthentication, AuthenticationConfig } from "./routes/passport-authentication";
 import { Authentication } from "./routes/authentication";
@@ -33,10 +32,6 @@ export function management(config: ManagementConfig): Router {
 
 export function releaseManagement(config: ReleaseManagementConfig): Router {
   return getReleaseManagementRouter(config);
-}
-
-export function cronJob(config: CronJobRoutesConfig): Router {
-  return createCronJobRoutes(config);
 }
 
 export function distribution(config: DistributionRouterConfig): Router {

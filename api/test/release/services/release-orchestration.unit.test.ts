@@ -19,7 +19,7 @@ jest.mock('../../../script/models/release/cron-job.repository');
 jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
-jest.mock('../../../script/services/release/cron-job/cron-scheduler');
+// Note: cron-scheduler.ts removed - replaced by global-scheduler architecture
 jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
   getTaskExecutor: jest.fn(),
 }));
@@ -73,7 +73,6 @@ import {
   RegressionCycleStatus,
   PauseType 
 } from '../../../script/models/release/release.interface';
-import { stopCronJob, startCronJob } from '../../../script/services/release/cron-job/cron-scheduler';
 import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
 import { getStorage } from '../../../script/storage/storage-instance';
 import { checkIntegrationAvailability } from '../../../script/utils/integration-availability.utils';
@@ -379,8 +378,9 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron scheduler called
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
-        expect(startCronJob).toHaveBeenCalledWith(mockReleaseId, expect.any(Function));
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // expect(startCronJob).toHaveBeenCalledWith(mockReleaseId, expect.any(Function));
       });
 
       it('should NOT transition when autoTransition disabled (manual mode)', async () => {
@@ -418,7 +418,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron NOT stopped (scheduler keeps running, state machine skips)
-        expect(stopCronJob).not.toHaveBeenCalled();
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).not.toHaveBeenCalled();
       });
     });
   });
@@ -834,7 +835,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron job for Stage 2 stopped
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
       });
     });
 
@@ -891,7 +893,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron NOT stopped (scheduler keeps running, state machine skips)
-        expect(stopCronJob).not.toHaveBeenCalled();
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).not.toHaveBeenCalled();
       });
     });
 
@@ -1266,7 +1269,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron job stopped
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
       });
     });
 

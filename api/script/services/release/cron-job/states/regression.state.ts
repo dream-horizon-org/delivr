@@ -15,7 +15,6 @@
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
 import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus, PlatformName, PauseType } from '~models/release/release.interface';
-import { stopCronJob, startCronJob } from '~services/release/cron-job/cron-scheduler';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { isRegressionSlotTime } from '~utils/time-utils';
@@ -123,16 +122,16 @@ export class RegressionState implements ICronJobState {
       if (release.status === ReleaseStatus.ARCHIVED) {
         console.log(`[${instanceId}] [RegressionState] Release is ARCHIVED. Stopping execution.`);
         
-        // Update cron job status to PAUSED (if not already)
-        if (cronJob.cronStatus !== CronStatus.PAUSED) {
+        // Update cron job status to COMPLETED (terminal state, not PAUSED)
+        if (cronJob.cronStatus !== CronStatus.COMPLETED) {
           await cronJobRepo.update(cronJob.id, {
-            cronStatus: CronStatus.PAUSED,
+            cronStatus: CronStatus.COMPLETED,
             cronStoppedAt: new Date()
           });
         }
         
-        // Stop cron job
-        stopCronJob(releaseId);
+        // NEW ARCHITECTURE: DB status update is sufficient.
+        // Global scheduler will skip this release since cronStatus != RUNNING.
         return;  // Early exit
       }
       
@@ -427,17 +426,14 @@ export class RegressionState implements ICronJobState {
         stage3Status: StageStatus.IN_PROGRESS
       });
 
-      stopCronJob(releaseId);
+      // NEW ARCHITECTURE: No manual timer management needed.
+      // Global scheduler will pick up the new stage status on next tick.
       console.log(`[RegressionState] ✅ Transitioned: Stage 2 → Stage 3 (automatic)`);
       
-      // Set next state
+      // Set next state (will be used on next scheduler tick)
       this.context.setState(new PreReleaseState(this.context));
       
-      // Start Stage 3 cron (State Machine will handle PreReleaseState execution)
-      startCronJob(releaseId, async () => {
-        await this.context.execute();
-      });
-      console.log(`[RegressionState] Started pre-release cron job for release ${releaseId}`);
+      console.log(`[RegressionState] Stage 3 will start on next scheduler tick`);
     } else {
       console.log(`[RegressionState] Stage 2 complete. Waiting for manual Stage 3 trigger (autoTransitionToStage3 = false)`);
       

@@ -405,7 +405,7 @@ describe('Archive Release Feature', () => {
       expect(updated?.status).toBe(ReleaseStatus.ARCHIVED);
     });
 
-    it('should update cronJob.cronStatus to PAUSED when archiving', async () => {
+    it('should update cronJob.cronStatus to COMPLETED when archiving (terminal state)', async () => {
       // ✅ CORRECT: Create release using DTO
       const release = await createTestRelease(releaseRepo, {
         tenantId: testTenantId,
@@ -441,7 +441,7 @@ describe('Archive Release Feature', () => {
       });
       
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -450,7 +450,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.cronStoppedAt).toBeDefined();
     });
 
@@ -525,7 +525,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -534,7 +534,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.stage1Status).toBe(StageStatus.IN_PROGRESS);  // Unchanged
     });
 
@@ -627,7 +627,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -636,7 +636,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.stage2Status).toBe(StageStatus.IN_PROGRESS);  // Unchanged
     });
 
@@ -664,11 +664,11 @@ describe('Archive Release Feature', () => {
         autoTransitionToStage3: false  // Manual Stage 3
       });
 
-      // Update to Stage 2 COMPLETED
+      // Update to Stage 2 COMPLETED (waiting for manual Stage 3 trigger)
       await cronJobRepo.update(cronJob.id, {
         stage1Status: StageStatus.COMPLETED,
         stage2Status: StageStatus.COMPLETED,
-        cronStatus: CronStatus.PAUSED
+        cronStatus: CronStatus.RUNNING  // Still RUNNING, waiting for trigger
       });
 
       // Archive the release
@@ -676,9 +676,9 @@ describe('Archive Release Feature', () => {
         status: ReleaseStatus.ARCHIVED
       });
 
-      // Cron already PAUSED, so no need to update (but verify it's idempotent)
+      // Archive sets COMPLETED (terminal state)
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,
         cronStoppedAt: new Date()
       });
 
@@ -687,7 +687,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
   });
 
@@ -730,7 +730,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -739,7 +739,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.stage3Status).toBe(StageStatus.IN_PROGRESS);  // Unchanged
     });
   });
@@ -777,7 +777,7 @@ describe('Archive Release Feature', () => {
       expect(updated?.status).toBe(ReleaseStatus.ARCHIVED);
     });
 
-    it('should handle archiving when cron job is already PAUSED', async () => {
+    it('should handle archiving when cron job was waiting for manual trigger', async () => {
       // ✅ CORRECT: Create release using DTO
       const release = await createTestRelease(releaseRepo, {
         tenantId: testTenantId,
@@ -801,19 +801,19 @@ describe('Archive Release Feature', () => {
         autoTransitionToStage3: false
       });
 
-      // Update to Stage 1 COMPLETED, cron PAUSED (waiting for manual Stage 2)
+      // Update to Stage 1 COMPLETED, cron still RUNNING (waiting for manual Stage 2 trigger)
       await cronJobRepo.update(cronJob.id, {
         stage1Status: StageStatus.COMPLETED,
-        cronStatus: CronStatus.PAUSED
+        cronStatus: CronStatus.RUNNING  // Still RUNNING, waiting for trigger
       });
 
-      // Archive (should update release status, leave cron as PAUSED)
+      // Archive (should set cronStatus to COMPLETED since it's terminal)
       await releaseRepo.update(testReleaseId, {
         status: ReleaseStatus.ARCHIVED
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -822,7 +822,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should handle archiving when cron job is COMPLETED', async () => {
@@ -902,7 +902,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED
+        cronStatus: CronStatus.COMPLETED  // ARCHIVED is terminal - use COMPLETED
       });
 
       // Verify
@@ -1017,9 +1017,9 @@ describe('Archive Release Feature', () => {
       const tasks = await releaseTaskRepo.findByReleaseId(testReleaseId);
       expect(tasks[0].taskStatus).toBe(TaskStatus.PENDING);  // Not executed!
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should stop executing tasks in RegressionState when release is archived', async () => {
@@ -1069,9 +1069,9 @@ describe('Archive Release Feature', () => {
       const regressionTasks = tasks.filter(t => t.stage === TaskStage.REGRESSION);
       expect(regressionTasks).toHaveLength(0);  // No tasks created!
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should stop executing tasks in PreReleaseState when release is archived', async () => {
@@ -1127,9 +1127,9 @@ describe('Archive Release Feature', () => {
       const tasks = await releaseTaskRepo.findByReleaseId(testReleaseId);
       expect(tasks[0].taskStatus).toBe(TaskStatus.PENDING);  // Not executed!
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should not initialize state machine when release is archived', async () => {
@@ -1172,9 +1172,9 @@ describe('Archive Release Feature', () => {
       // The initialize() method should detect ARCHIVED and set currentState = null
       expect(stateMachine['currentState']).toBeNull();  // Access private field for testing
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
   });
 

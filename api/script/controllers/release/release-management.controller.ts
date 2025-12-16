@@ -422,6 +422,14 @@ export class ReleaseManagementController {
         });
       }
 
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
       // Delegate to service
       const result = await this.cronJobService.triggerStage3(
         releaseId, 

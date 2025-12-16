@@ -18,7 +18,6 @@ import { TaskStage, StageStatus, TaskStatus, CronStatus, ReleaseStatus, Platform
 import { getOrderedTasks, canExecuteTask, getTaskBlockReason, isTaskRequired, OptionalTaskConfig } from '~utils/task-sequencing';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
 import { hasSequelize } from '~types/release/api-types';
-import { startCronJob, stopCronJob } from '~services/release/cron-job/cron-scheduler';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
 export class KickoffState implements ICronJobState {
@@ -58,10 +57,8 @@ export class KickoffState implements ICronJobState {
     if (cronJob.stage1Status !== StageStatus.IN_PROGRESS) {
       console.log(`[${instanceId}] [KickoffState] Stage 1 not IN_PROGRESS (status: ${cronJob.stage1Status})`);
       
-      // Stop cron if stage is complete or pending
-      if (cronJob.stage1Status === StageStatus.COMPLETED || cronJob.stage1Status === StageStatus.PENDING) {
-        stopCronJob(releaseId);
-      }
+      // NEW ARCHITECTURE: No manual timer management needed.
+      // Global scheduler will skip this release automatically based on DB status.
       return;
     }
 
@@ -81,16 +78,16 @@ export class KickoffState implements ICronJobState {
       if (release.status === ReleaseStatus.ARCHIVED) {
         console.log(`[${instanceId}] [KickoffState] Release is ARCHIVED. Stopping execution.`);
         
-        // Update cron job status to PAUSED (if not already)
-        if (cronJob.cronStatus !== CronStatus.PAUSED) {
+        // Update cron job status to COMPLETED (terminal state, not PAUSED)
+        if (cronJob.cronStatus !== CronStatus.COMPLETED) {
           await cronJobRepo.update(cronJob.id, {
-            cronStatus: CronStatus.PAUSED,
+            cronStatus: CronStatus.COMPLETED,
             cronStoppedAt: new Date()
           });
         }
         
-        // Stop cron job
-        stopCronJob(releaseId);
+        // NEW ARCHITECTURE: DB status update is sufficient.
+        // Global scheduler will skip this release since cronStatus != RUNNING.
         return;  // Early exit
       }
       
@@ -321,19 +318,15 @@ export class KickoffState implements ICronJobState {
         stage2Status: StageStatus.IN_PROGRESS
       });
 
-      // Stop Stage 1 cron
-      stopCronJob(releaseId);
+      // NEW ARCHITECTURE: No manual timer management needed.
+      // Global scheduler will pick up the new stage status on next tick.
 
-      // Set next state
+      // Set next state (will be used on next scheduler tick)
       const { RegressionState } = await import('./regression.state');
       this.context.setState(new RegressionState(this.context));
 
-      // Start Stage 2 cron (State Machine will handle RegressionState execution)
-      startCronJob(releaseId, async () => {
-        await this.context.execute();
-      });
-
       console.log(`[KickoffState] ✅ Transitioned: Stage 1 → Stage 2 (automatic)`);
+      console.log(`[KickoffState] Stage 2 will start on next scheduler tick`);
 
     } else {
       // ⏸️ MANUAL MODE → Set pauseType, keep scheduler running (state machine will skip)

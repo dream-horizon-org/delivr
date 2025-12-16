@@ -193,10 +193,8 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
           app.use(fileUploadMiddleware, api.management({ storage: storage, redisManager: redisManager }));
           
           // Release Management Routes (releases, builds, integrations) - NO AUTH in debug mode
+
           app.use('/api/v1', api.releaseManagement({ storage: storage }));
-          
-          // Cron Job Routes (State Machine-based) - NO AUTH in debug mode
-          app.use('/api/v1', api.cronJob({ storage: storage }));
           
           // Distribution Routes (submissions, rollout) - NO AUTH in debug mode
           app.use('/api/v1', api.distribution({ storage: storage }));
@@ -205,8 +203,6 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
         }
         // Release Management Routes (releases, builds, integrations)
         app.use('/api/v1', auth.authenticate, api.releaseManagement({ storage: storage }));
-        // Cron Job Routes (State Machine-based)
-        app.use('/api/v1', auth.authenticate, api.cronJob({ storage: storage }));
         // Distribution Routes (submissions, rollout)
         app.use('/api/v1', auth.authenticate, api.distribution({ storage: storage }));
         // DOTA Management Routes (deployments, apps, packages)
