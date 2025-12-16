@@ -11,14 +11,12 @@
 import {
     Alert,
     Button,
-    Divider,
+    Checkbox,
     FileInput,
     Group,
     Modal,
     NumberInput,
-    Paper,
     Select,
-    Slider,
     Stack,
     Text,
     Textarea,
@@ -30,7 +28,6 @@ import { useFetcher } from '@remix-run/react';
 import { IconAlertCircle, IconEdit, IconUpload } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo } from 'react';
 import {
-    BUTTON_LABELS,
     DIALOG_ICON_SIZES,
     DIALOG_TITLES,
     MAX_ROLLOUT_PERCENT,
@@ -106,7 +103,14 @@ export function ReSubmissionDialog({
     },
     validate: {
       aabFile: (value) => (!value ? 'Please upload an AAB file' : null),
-      version: (value) => (!value ? 'Version is required' : null),
+      version: (value) => {
+        if (!value) return 'Version is required';
+        // Semantic versioning validation (e.g., 2.7.1, 1.0.0, 3.2.1-beta)
+        if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(value)) {
+          return 'Version must follow semantic versioning (e.g., 2.7.1)';
+        }
+        return null;
+      },
       rolloutPercentage: (value) => {
         if (value < MIN_ROLLOUT_PERCENT || value > MAX_ROLLOUT_PERCENT) return `Must be between ${MIN_ROLLOUT_PERCENT} and ${MAX_ROLLOUT_PERCENT}`;
         return null;
@@ -133,8 +137,15 @@ export function ReSubmissionDialog({
       releaseNotes: previousSubmission.releaseNotes || '',
     },
     validate: {
-      version: (value) => (!value ? 'Version is required' : null),
-      testflightNumber: (value) => (!value ? 'TestFlight build number is required' : null),  // Renamed from testflightBuildNumber
+      version: (value) => {
+        if (!value) return 'Version is required';
+        // Semantic versioning validation (e.g., 2.7.1, 1.0.0, 3.2.1-beta)
+        if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/.test(value)) {
+          return 'Version must follow semantic versioning (e.g., 2.7.1)';
+        }
+        return null;
+      },
+      testflightNumber: (value) => (!value ? 'TestFlight build number is required' : null),
       releaseNotes: (value) => (!value ? 'Release notes are required' : null),
     },
   });
@@ -216,54 +227,32 @@ export function ReSubmissionDialog({
         <Stack gap="md">
           {/* Info Alert */}
           <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
-            This will create a new submission. You must provide a new artifact (AAB or TestFlight build).
+            {isAndroid 
+              ? 'This will create a new production submission with the provided AAB file.'
+              : 'This will create a new production submission with the provided TestFlight build.'}
           </Alert>
 
-          {/* Previous Artifact Info */}
-          <div>
-            <Text size="sm" fw={500} mb="xs">Previous Artifact (Read-Only)</Text>
-            <Paper p="xs" withBorder bg="gray.0">
-              {isAndroid ? (
-                <Text size="xs" c="dimmed">
-                  AAB: {previousSubmission.artifact?.artifactPath || 'N/A'}
-                </Text>
-              ) : (
-                <Text size="xs" c="dimmed">
-                  TestFlight Build: {previousSubmission.artifact?.testflightNumber || 'N/A'}
-                </Text>
-              )}
-            </Paper>
-          </div>
-
-          <Divider />
-
           {/* New Artifact Upload */}
-          <div>
-            <Text size="sm" fw={500} mb="xs">New Artifact (Required)</Text>
-            
-            {isAndroid ? (
-              <FileInput
-                label="Upload New AAB File"
-                placeholder="Select AAB file"
-                accept=".aab"
-                required
-                disabled={isSubmitting}
-                leftSection={<IconUpload size={16} />}
-                {...androidForm.getInputProps('aabFile')}
-              />
-            ) : (
-              <NumberInput
-                label="New TestFlight Build Number"
-                placeholder="Enter build number"
-                required
-                min={1}
-                disabled={isSubmitting}
-                {...iosForm.getInputProps('testflightNumber')}
-              />
-            )}
-          </div>
-
-          <Divider />
+          {isAndroid ? (
+            <FileInput
+              label="Upload AAB File"
+              placeholder="Select AAB file"
+              accept=".aab"
+              required
+              disabled={isSubmitting}
+              leftSection={<IconUpload size={16} />}
+              {...androidForm.getInputProps('aabFile')}
+            />
+          ) : (
+            <NumberInput
+              label="TestFlight Build Number"
+              placeholder="New TestFlight Build Number"
+              required
+              min={1}
+              disabled={isSubmitting}
+              {...iosForm.getInputProps('testflightNumber')}
+            />
+          )}
 
           {/* Version */}
           <TextInput
@@ -286,41 +275,31 @@ export function ReSubmissionDialog({
                 {...androidForm.getInputProps('versionCode')}
               />
 
-              <div>
-                <Text size="sm" fw={500} mb="xs">
-                  Initial Rollout Percentage
-                </Text>
-                <Slider
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  marks={[
-                    { value: 1, label: '1%' },
-                    { value: 5, label: '5%' },
-                    { value: 10, label: '10%' },
-                    { value: 25, label: '25%' },
-                    { value: 50, label: '50%' },
-                    { value: 100, label: '100%' },
-                  ]}
-                  disabled={isSubmitting}
-                  {...androidForm.getInputProps('rolloutPercentage')}
-                />
-                <Text size="xs" c="dimmed" mt="xs">
-                  Current: {androidForm.values.rolloutPercentage}%
-                </Text>
-              </div>
+              <NumberInput
+                label="Initial Rollout Percentage"
+                description="Start with a small percentage and gradually increase"
+                placeholder="Enter rollout percentage"
+                min={MIN_ROLLOUT_PERCENT}
+                max={MAX_ROLLOUT_PERCENT}
+                suffix="%"
+                required
+                disabled={isSubmitting}
+                {...androidForm.getInputProps('rolloutPercentage')}
+              />
 
               <Select
                 label="In-App Update Priority"
-                description="0 = Normal, 5 = Critical"
+                description="Priority for in-app updates (0 = lowest, 5 = highest)"
+                placeholder="Select priority"
                 data={[
-                  { value: '0', label: '0 - Normal' },
-                  { value: '1', label: '1' },
-                  { value: '2', label: '2' },
-                  { value: '3', label: '3' },
-                  { value: '4', label: '4' },
-                  { value: '5', label: '5 - Critical' },
+                  { value: '0', label: '0 - Lowest' },
+                  { value: '1', label: '1 - Low' },
+                  { value: '2', label: '2 - Medium' },
+                  { value: '3', label: '3 - High' },
+                  { value: '4', label: '4 - Higher' },
+                  { value: '5', label: '5 - Highest (Immediate)' },
                 ]}
+                required
                 disabled={isSubmitting}
                 value={androidForm.values.inAppUpdatePriority.toString()}
                 onChange={(value) => androidForm.setFieldValue('inAppUpdatePriority', parseInt(value || '0'))}
@@ -328,28 +307,18 @@ export function ReSubmissionDialog({
             </>
           ) : (
             <>
-              <Select
-                label="Release Type"
-                description="Phased Release (7-day rollout) or Manual Release (immediate)"
-                data={[
-                  { value: 'true', label: 'Phased Release (7-day automatic)' },
-                  { value: 'false', label: 'Manual Release (immediate 100%)' },
-                ]}
+              <Checkbox
+                label="Enable Phased Release"
+                description="7-day automatic rollout by Apple (can be paused/resumed)"
                 disabled={isSubmitting}
-                value={iosForm.values.phasedRelease.toString()}
-                onChange={(value) => iosForm.setFieldValue('phasedRelease', value === 'true')}
+                {...iosForm.getInputProps('phasedRelease', { type: 'checkbox' })}
               />
 
-              <Select
-                label="Reset Rating"
-                description="Whether to reset the app rating for this release"
-                data={[
-                  { value: 'false', label: 'Keep existing rating' },
-                  { value: 'true', label: 'Reset rating to zero' },
-                ]}
+              <Checkbox
+                label="Reset App Rating"
+                description="Reset app ratings to zero for this version"
                 disabled={isSubmitting}
-                value={iosForm.values.resetRating.toString()}
-                onChange={(value) => iosForm.setFieldValue('resetRating', value === 'true')}
+                {...iosForm.getInputProps('resetRating', { type: 'checkbox' })}
               />
             </>
           )}
@@ -380,14 +349,15 @@ export function ReSubmissionDialog({
               onClick={handleClose} 
               disabled={isSubmitting}
             >
-              {BUTTON_LABELS.CANCEL}
+              Cancel
             </Button>
             <Button 
               type="submit" 
               loading={isSubmitting}
               leftSection={<IconUpload size={DIALOG_ICON_SIZES.ACTION} />}
+              color="cyan"
             >
-              {BUTTON_LABELS.RESUBMIT}
+              Submit
             </Button>
           </Group>
         </Stack>

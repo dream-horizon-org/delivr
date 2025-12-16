@@ -499,16 +499,20 @@ export default function DistributionDetailPage() {
 
   // Platform-specific resubmit dialog handlers
   const handleOpenAndroidResubmitDialog = useCallback(() => {
-    if (latestAndroidSubmission) {
-      handleOpenResubmitDialog(latestAndroidSubmission);
+    // Use active submission if available, otherwise use the most recent historical submission
+    const submissionToResubmit = latestAndroidSubmission || historicalAndroidSubmissions[0];
+    if (submissionToResubmit) {
+      handleOpenResubmitDialog(submissionToResubmit);
     }
-  }, [latestAndroidSubmission, handleOpenResubmitDialog]);
+  }, [latestAndroidSubmission, historicalAndroidSubmissions, handleOpenResubmitDialog]);
 
   const handleOpenIOSResubmitDialog = useCallback(() => {
-    if (latestIOSSubmission) {
-      handleOpenResubmitDialog(latestIOSSubmission);
+    // Use active submission if available, otherwise use the most recent historical submission
+    const submissionToResubmit = latestIOSSubmission || historicalIOSSubmissions[0];
+    if (submissionToResubmit) {
+      handleOpenResubmitDialog(submissionToResubmit);
     }
-  }, [latestIOSSubmission, handleOpenResubmitDialog]);
+  }, [latestIOSSubmission, historicalIOSSubmissions, handleOpenResubmitDialog]);
 
   // Platform-specific dialog handlers
   const handleOpenAndroidPauseDialog = useCallback(() => {
@@ -977,13 +981,15 @@ export default function DistributionDetailPage() {
           />
 
           {/* Resubmit Dialog */}
-          <ReSubmissionDialog
-            opened={isResubmitDialogOpen}
-            onClose={handleCloseDialogs}
-            distributionId={distribution.id}
-            previousSubmission={selectedSubmission}
-            onResubmitComplete={handleResubmitComplete}
-          />
+          {selectedSubmission && (
+            <ReSubmissionDialog
+              opened={isResubmitDialogOpen}
+              onClose={handleCloseDialogs}
+              distributionId={distribution.id}
+              previousSubmission={selectedSubmission}
+              onResubmitComplete={handleResubmitComplete}
+            />
+          )}
         </>
       )}
     </Container>
