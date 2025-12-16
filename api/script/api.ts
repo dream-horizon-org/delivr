@@ -8,6 +8,7 @@ import { getAcquisitionRouter, getHealthRouter, AcquisitionConfig } from "./rout
 import { getManagementRouter, ManagementConfig } from "./routes/management";
 import { getReleaseManagementRouter, ReleaseManagementConfig } from "./routes/release-management";
 import { createCronJobRoutes, CronJobRoutesConfig } from "./routes/cron-job.routes";
+import { getDistributionRouter, DistributionRouterConfig } from "./routes/distribution.routes";
 import { PassportAuthentication, AuthenticationConfig } from "./routes/passport-authentication";
 import { Authentication } from "./routes/authentication";
 import { AppInsights } from "./routes/app-insights";
@@ -36,6 +37,10 @@ export function releaseManagement(config: ReleaseManagementConfig): Router {
 
 export function cronJob(config: CronJobRoutesConfig): Router {
   return createCronJobRoutes(config);
+}
+
+export function distribution(config: DistributionRouterConfig): Router {
+  return getDistributionRouter(config);
 }
 
 export function auth(config: AuthenticationConfig): any {
