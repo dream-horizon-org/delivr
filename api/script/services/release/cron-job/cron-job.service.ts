@@ -310,6 +310,90 @@ export class CronJobService {
   }
 
   /**
+   * Trigger Stage 4 (Distribution)
+   * 
+   * Requirements:
+   * - Stage 3 must be COMPLETED
+   * - Stage 4 must be PENDING
+   * - Project Management tickets must be completed (unless forceApprove)
+   */
+  async triggerStage4(
+    releaseId: string, 
+    tenantId: string,
+    approvedBy: string,
+    comments?: string,
+    forceApprove?: boolean
+  ): Promise<TriggerStageResult> {
+
+    // Verify release exists and belongs to tenant
+    const release = await this.releaseRepo.findById(releaseId);
+    if (!release) {
+      return { success: false, error: `Release not found: ${releaseId}`, statusCode: 404 };
+    }
+    if (release.tenantId !== tenantId) {
+      return { success: false, error: 'Release does not belong to this tenant', statusCode: 403 };
+    }
+
+    // Get cron job
+    const cronJob = await this.cronJobRepo.findByReleaseId(releaseId);
+    if (!cronJob) {
+      return { success: false, error: `Cron job not found for release: ${releaseId}`, statusCode: 404 };
+    }
+
+    // Validate approval requirements (unless forceApprove is true)
+    if (!forceApprove && this.releaseStatusService) {
+      // Check project management status (all platforms must have completed tickets)
+      const projectManagementPassed = await this.releaseStatusService.allPlatformsPassingProjectManagement(releaseId);
+      
+      if (!projectManagementPassed) {
+        return {
+          success: false,
+          error: 'Project management check failed: Not all platform tickets are completed. Please ensure all project management tickets are marked as done before approval.',
+          statusCode: 400
+        };
+      }
+    }
+
+    // Validate Stage 3 is COMPLETED
+    if (cronJob.stage3Status !== StageStatus.COMPLETED) {
+      return {
+        success: false,
+        error: `Stage 3 must be COMPLETED before triggering Stage 4. Current status: ${cronJob.stage3Status}`,
+        statusCode: 400
+      };
+    }
+
+    // Validate Stage 4 is not already started
+    if (cronJob.stage4Status === StageStatus.IN_PROGRESS) {
+      return { success: false, error: 'Stage 4 is already in progress', statusCode: 400 };
+    }
+    if (cronJob.stage4Status === StageStatus.COMPLETED) {
+      return { success: false, error: 'Stage 4 is already completed', statusCode: 400 };
+    }
+
+    // Update cron job - Stage 4 is the final stage, so mark cron as COMPLETED
+    await this.cronJobRepo.update(cronJob.id, {
+      stage4Status: StageStatus.IN_PROGRESS,
+      pauseType: PauseType.NONE,
+      cronStatus: CronStatus.COMPLETED,
+      cronStoppedAt: new Date()
+    });
+
+    log.info('Stage 4 triggered for release', { releaseId, approvedBy });
+
+    return {
+      success: true,
+      data: {
+        releaseId,
+        stage4Status: StageStatus.IN_PROGRESS,
+        approvedBy,
+        approvedAt: new Date().toISOString(),
+        nextStage: 'DISTRIBUTION' as const
+      }
+    };
+  }
+
+  /**
    * Archive (cancel) a release
    * 
    * Actions:
@@ -636,9 +720,10 @@ export type TriggerStageResult = {
     releaseId: string;
     stage2Status?: string;
     stage3Status?: string;
+    stage4Status?: string;
     approvedBy?: string;
     approvedAt?: string;
-    nextStage?: 'PRE_RELEASE';
+    nextStage?: 'PRE_RELEASE' | 'DISTRIBUTION';
   };
 } | {
   success: false;

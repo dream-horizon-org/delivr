@@ -386,6 +386,17 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   );
 
   // ============================================================================
+  // STAGE 4 TRIGGER
+  // ============================================================================
+  
+  // Trigger Distribution (Stage 4)
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/trigger-distribution",
+    tenantPermissions.requireOwner({ storage }),
+    controller.triggerDistribution
+  );
+
+  // ============================================================================
   // MANUAL APIS AFTER STAGE 3
   // ============================================================================
   

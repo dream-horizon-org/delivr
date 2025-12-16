@@ -466,6 +466,69 @@ export class ReleaseManagementController {
   };
 
   /**
+   * Trigger Stage 4 (Distribution) / Approve Pre-Release Stage
+   * POST /tenants/:tenantId/releases/:releaseId/trigger-distribution
+   */
+  triggerDistribution = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const tenantId = req.params.tenantId;
+      const releaseId = req.params.releaseId;
+      
+      // Extract request body parameters
+      const { approvedBy, comments, forceApprove } = req.body;
+
+      // Validate required fields
+      if (!approvedBy) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'approvedBy is required'
+        });
+      }
+
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      // Delegate to service
+      const result = await this.cronJobService.triggerStage4(
+        releaseId, 
+        tenantId, 
+        approvedBy,
+        comments,
+        forceApprove
+      );
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Pre-release stage approved and Distribution stage triggered successfully',
+        releaseId: result.data.releaseId,
+        approvedAt: result.data.approvedAt,
+        approvedBy: result.data.approvedBy,
+        nextStage: result.data.nextStage
+      });
+    } catch (error: unknown) {
+      console.error('[Trigger Distribution] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to approve pre-release stage',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
    * Archive (cancel) a release
    * PUT /tenants/:tenantId/releases/:releaseId/archive
    */
