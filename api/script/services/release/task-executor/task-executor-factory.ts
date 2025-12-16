@@ -31,9 +31,11 @@ import { ReleaseConfigRepository } from '../../../models/release-configs/release
 import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
 import { ReleaseRepository } from '../../../models/release/release.repository';
 import { ReleaseUploadsRepository } from '../../../models/release/release-uploads.repository';
+import { CronJobRepository } from '../../../models/release/cron-job.repository';
 import { createReleaseTaskModel } from '../../../models/release/release-task.sequelize.model';
 import { createReleaseModel } from '../../../models/release/release.sequelize.model';
 import { createReleaseUploadModel } from '../../../models/release/release-uploads.sequelize.model';
+import { createCronJobModel } from '../../../models/release/cron-job.sequelize.model';
 import { getStorage } from '../../../storage/storage-instance';
 import { hasSequelize } from '../../../types/release/api-types';
 
@@ -97,11 +99,13 @@ export function getTaskExecutor(): TaskExecutor {
   const ReleaseTaskModel = createReleaseTaskModel(sequelize);
   const ReleaseModel = createReleaseModel(sequelize);
   const ReleaseUploadModel = createReleaseUploadModel(sequelize);
+  const CronJobModel = createCronJobModel(sequelize);
   const releaseTaskRepo = new ReleaseTaskRepository(ReleaseTaskModel);
   const releaseRepo = new ReleaseRepository(ReleaseModel);
   const releaseUploadsRepo = new ReleaseUploadsRepository(sequelize, ReleaseUploadModel);
+  const cronJobRepo = new CronJobRepository(CronJobModel);
   
-  // Create TaskExecutor with all 11 dependencies (including cicdConfigService and releaseUploadsRepo)
+  // Create TaskExecutor with all dependencies (including cronJobRepo for error handling)
   taskExecutorInstance = new TaskExecutor(
     scmService,
     cicdIntegrationRepo,
@@ -113,7 +117,8 @@ export function getTaskExecutor(): TaskExecutor {
     releaseConfigRepo,
     releaseTaskRepo,
     releaseRepo,
-    releaseUploadsRepo
+    releaseUploadsRepo,
+    cronJobRepo
   );
   
   return taskExecutorInstance;

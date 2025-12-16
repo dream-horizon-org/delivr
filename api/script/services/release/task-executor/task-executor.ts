@@ -11,7 +11,8 @@ import type { Sequelize } from 'sequelize';
 import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
 import { ReleaseRepository } from '../../../models/release/release.repository';
 import type { Release, ReleaseTask } from '../../../models/release/release.interface';
-import { TaskType, TaskStatus, ReleaseStatus, TaskStage } from '../../../models/release/release.interface';
+import { TaskType, TaskStatus, ReleaseStatus, TaskStage, PauseType } from '../../../models/release/release.interface';
+import { CronJobRepository } from '../../../models/release/cron-job.repository';
 import { getStorage } from '../../../storage/storage-instance';
 import { hasSequelize } from '../../../types/release/api-types';
 
@@ -27,6 +28,7 @@ import { WorkflowType } from '../../../types/integrations/ci-cd/workflow.interfa
 import { ProjectManagementTicketService } from '../../integrations/project-management/ticket/ticket.service';
 import { Platform } from '../../../types/integrations/project-management/platform.interface';
 import { TestManagementRunService } from '../../integrations/test-management/test-run/test-run.service';
+import { TestPlatform } from '../../../types/integrations/test-management/platform.interface';
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS, CICD_JOB_BUILD_TYPE } from '../release.constants';
@@ -149,6 +151,7 @@ export class TaskExecutor {
   private sequelize: Sequelize;
   private releaseUploadsRepo: ReleaseUploadsRepository | null;
   private cicdConfigService: CICDConfigService;
+  private cronJobRepo: CronJobRepository | null;
 
   constructor(
     private scmService: SCMService,
@@ -161,12 +164,14 @@ export class TaskExecutor {
     private releaseConfigRepository: ReleaseConfigRepository,
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository,
-    releaseUploadsRepo?: ReleaseUploadsRepository | null
+    releaseUploadsRepo?: ReleaseUploadsRepository | null,
+    cronJobRepo?: CronJobRepository | null
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
     this.releaseUploadsRepo = releaseUploadsRepo ?? null;
     this.cicdConfigService = cicdConfigService;
+    this.cronJobRepo = cronJobRepo ?? null;
     
     // Initialize Sequelize instance (validate once at construction)
     const storage = getStorage();
@@ -430,7 +435,6 @@ export class TaskExecutor {
       }
       
       // Update task status to FAILED
-      // Use updateById since we have the database ID, not taskId
       await this.releaseTaskRepo.update(task.id, {
         taskStatus: TaskStatus.FAILED,
         externalData: {
@@ -439,15 +443,25 @@ export class TaskExecutor {
         }
       });
 
-      // Update release status - use ARCHIVED as closest to FAILED
-      // Note: ReleaseStatus doesn't have FAILED, using ARCHIVED to indicate release stopped
+      // PAUSE release (not ARCHIVE) - allows recovery after fix
+      // Consistent with callback failure handling in BuildCallbackService
       await this.releaseRepo.update(
         context.releaseId,
         {
-          status: ReleaseStatus.ARCHIVED,
+          status: ReleaseStatus.PAUSED,
           lastUpdatedByAccountId: context.release.lastUpdatedByAccountId || context.release.createdByAccountId || 'system'
         }
       );
+      
+      // Set pauseType on cronJob so scheduler knows why it's paused
+      if (this.cronJobRepo) {
+        const cronJob = await this.cronJobRepo.findByReleaseId(context.releaseId);
+        if (cronJob) {
+          await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
+        }
+      }
+      
+      console.log(`[TaskExecutor] Release ${context.releaseId} PAUSED due to task failure. Can be resumed after fix.`);
 
       return {
         success: false,
@@ -743,10 +757,11 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
-      // Call service with correct signature
+      // Call service with specific platform filter to avoid creating duplicate runs
       const results = await this.testRunService.createTestRuns({
         testManagementConfigId: testConfigId,
-        runName: `Release ${version} - ${platformName} Test Suite`
+        runName: `Release ${version} - ${platformName} Test Suite`,
+        platforms: [platformName as TestPlatform]
       });
       
       // Get the run ID for this platform
@@ -905,7 +920,14 @@ export class TaskExecutor {
         }
       );
 
-      const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
+      // Validate queueLocation - if missing, workflow trigger failed
+      const queueLocationMissing = !result.queueLocation;
+      if (queueLocationMissing) {
+        throw new Error(`CI/CD workflow trigger failed for ${platformName} - no queueLocation returned`);
+      }
+
+      // DB operations - let errors propagate naturally (not integration failures)
+      const buildNumber = result.queueLocation;
       const buildId = uuidv4();
       const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
 
@@ -1277,7 +1299,14 @@ export class TaskExecutor {
         }
       );
 
-      const buildNumber = result.queueLocation ?? `build-${Date.now()}`;
+      // Validate queueLocation - if missing, workflow trigger failed
+      const queueLocationMissing = !result.queueLocation;
+      if (queueLocationMissing) {
+        throw new Error(`CI/CD workflow trigger failed for ${platformName} - no queueLocation returned`);
+      }
+
+      // DB operations - let errors propagate naturally (not integration failures)
+      const buildNumber = result.queueLocation;
       const buildId = uuidv4();
       const versionName = mapping.version ?? getReleaseVersion(release, platformMappings);
 
@@ -1364,7 +1393,12 @@ export class TaskExecutor {
         }
       );
 
-      runIds.push(result.queueLocation ?? `run-${Date.now()}`);
+      // Validate queueLocation - if missing, workflow trigger failed
+      const queueLocationMissing = !result.queueLocation;
+      if (queueLocationMissing) {
+        throw new Error(`CI/CD automation workflow trigger failed for ${platformName} - no queueLocation returned`);
+      }
+      runIds.push(result.queueLocation);
     }
 
     // Category A: Return raw string
@@ -1767,8 +1801,14 @@ export class TaskExecutor {
       }
     );
 
+    // Validate queueLocation - if missing, workflow trigger failed
+    const queueLocationMissing = !result.queueLocation;
+    if (queueLocationMissing) {
+      throw new Error('CI/CD TestFlight workflow trigger failed - no queueLocation returned');
+    }
+
     // Category A: Return raw string
-    return result.queueLocation ?? `testflight-${Date.now()}`;
+    return result.queueLocation;
   }
 
   /**
@@ -1889,8 +1929,14 @@ export class TaskExecutor {
       }
     );
 
+    // Validate queueLocation - if missing, workflow trigger failed
+    const queueLocationMissing = !result.queueLocation;
+    if (queueLocationMissing) {
+      throw new Error('CI/CD AAB workflow trigger failed - no queueLocation returned');
+    }
+
     // Category A: Return raw string
-    return result.queueLocation ?? `aab-${Date.now()}`;
+    return result.queueLocation;
   }
 
   /**

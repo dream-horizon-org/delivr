@@ -10,7 +10,8 @@
 
 export enum TestPlatform {
   IOS = 'IOS',
-  ANDROID = 'ANDROID'
+  ANDROID = 'ANDROID',
+  WEB = 'WEB'
 }
 
 /**
@@ -24,7 +25,8 @@ export const TEST_PLATFORMS = Object.values(TestPlatform) as TestPlatform[];
  */
 export const TEST_PLATFORM_DISPLAY_NAMES: Record<TestPlatform, string> = {
   [TestPlatform.IOS]: 'iOS',
-  [TestPlatform.ANDROID]: 'Android'
+  [TestPlatform.ANDROID]: 'Android',
+  [TestPlatform.WEB]: 'Web'
 };
 
 

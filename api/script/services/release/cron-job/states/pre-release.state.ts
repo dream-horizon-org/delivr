@@ -94,25 +94,11 @@ export class PreReleaseState implements ICronJobState {
       );
       
       // Check if release has iOS platform
-      let hasIOSPlatform = false;
-      const ReleaseModel = storage.sequelize.models.release;
-      const PlatformModel = storage.sequelize.models.platform;
-      
-      if (ReleaseModel && PlatformModel) {
-        const releaseWithPlatforms = await ReleaseModel.findByPk(releaseId, {
-          include: [{
-            model: PlatformModel,
-            as: 'platforms',
-            through: { attributes: [] }
-          }]
-        });
-        
-        if (releaseWithPlatforms) {
-          interface PlatformModel { id: string; name: string; }
-          const platforms = (releaseWithPlatforms as any).platforms as PlatformModel[] || [];
-          hasIOSPlatform = platforms.some((platform: PlatformModel) => platform.name === 'IOS');
-        }
-      }
+      const platformMappingRepo = this.context.getPlatformMappingRepo();
+      const platformMappings = platformMappingRepo 
+        ? await platformMappingRepo.getByReleaseId(releaseId)
+        : [];
+      const hasIOSPlatform = platformMappings.some(mapping => mapping.platform === 'IOS');
 
       // Check if Stage 3 tasks exist, create them if not
       
