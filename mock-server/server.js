@@ -11,9 +11,9 @@
  */
 
 import jsonServer from 'json-server';
+import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import multer from 'multer';
 import distributionMiddleware from './middleware/distribution.middleware.js';
 import createReleaseProcessMiddleware from './middleware/release-process.middleware.js';
 
