@@ -3,7 +3,7 @@ import { CICDProviderType } from '~types/integrations/ci-cd/connection.interface
 import { ProviderFactory } from '../providers/provider.factory';
 import type { GitHubActionsProviderContract, GHAWorkflowInputsParams, GHARunStatusParams, GHAWorkflowDispatchParams } from '../providers/github-actions/github-actions.interface';
 import { ERROR_MESSAGES, HEADERS, PROVIDER_DEFAULTS } from '../../../../controllers/integrations/ci-cd/constants';
-import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs } from '../utils/cicd.utils';
+import { parseGitHubRunUrl, parseGitHubWorkflowUrl, mergeWorkflowInputs, fetchWithTimeout } from '../utils/cicd.utils';
 
 export class GitHubActionsWorkflowService extends WorkflowService {
   /**
@@ -14,6 +14,36 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     if (gha?.apiToken) return gha.apiToken as string;
     // TODO: consider retrieving token from SCM integration repository if needed
     return null;
+  };
+
+  /**
+   * Fetch the default branch for a GitHub repository.
+   * Falls back to environment variable or hardcoded default if API call fails.
+   */
+  private getDefaultBranch = async (token: string, owner: string, repo: string): Promise<string> => {
+    try {
+      const url = `https://api.github.com/repos/${owner}/${repo}`;
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': HEADERS.ACCEPT_GITHUB_JSON,
+        'User-Agent': HEADERS.USER_AGENT
+      };
+      const timeoutMs = Number(process.env.GHA_STATUS_TIMEOUT_MS || 8000);
+      
+      const response = await fetchWithTimeout(url, { headers }, timeoutMs);
+      if (response.ok) {
+        const data = await response.json();
+        const defaultBranch = data.default_branch;
+        if (defaultBranch && typeof defaultBranch === 'string') {
+          return defaultBranch;
+        }
+      }
+    } catch (error) {
+      console.warn(`[GitHub Actions] Failed to fetch default branch for ${owner}/${repo}, using fallback:`, error);
+    }
+    
+    // Fallback to environment variable or hardcoded default
+    return process.env.GHA_DEFAULT_REF || PROVIDER_DEFAULTS.GHA_DEFAULT_REF;
   };
 
   /**
@@ -83,13 +113,20 @@ export class GitHubActionsWorkflowService extends WorkflowService {
     // Merge workflow defaults with provided job parameters (ignores extra keys from overrides)
     const inputs = mergeWorkflowInputs(workflow.parameters, input.jobParameters);
 
+    // Determine the ref (branch where workflow file exists)
+    // Priority: 1. From URL (blob format), 2. Fetch default branch from GitHub API, 3. Fallback to env/default
+    let ref = parsed.ref;
+    if (!ref) {
+      ref = await this.getDefaultBranch(token, parsed.owner, parsed.repo);
+    }
+
     const provider = await ProviderFactory.getProvider(CICDProviderType.GITHUB_ACTIONS) as GitHubActionsProviderContract;
     const args: GHAWorkflowDispatchParams = {
       token,
       owner: parsed.owner,
       repo: parsed.repo,
       workflow: parsed.path,
-      ref: parsed.ref || (process.env.GHA_DEFAULT_REF || PROVIDER_DEFAULTS.GHA_DEFAULT_REF),
+      ref,
       inputs,
       acceptHeader: HEADERS.ACCEPT_GITHUB_JSON,
       userAgent: HEADERS.USER_AGENT,
