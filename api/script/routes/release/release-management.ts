@@ -29,19 +29,6 @@ import {
   hasBuildCallbackDependencies,
   StorageWithReleaseServices
 } from "../../types/release/storage-with-services.interface";
-import { hasSequelize } from "../../types/release/api-types";
-import { DistributionService } from "../../services/distribution/distribution.service";
-import { createDistributionController } from "../../controllers/distribution/distribution.controller";
-import {
-  createDistributionModel,
-  DistributionRepository,
-  createIosSubmissionBuildModel,
-  IosSubmissionBuildRepository,
-  createAndroidSubmissionBuildModel,
-  AndroidSubmissionBuildRepository,
-  createSubmissionActionHistoryModel,
-  SubmissionActionHistoryRepository
-} from "../../models/distribution";
 
 // Multer configuration for file uploads (memory storage)
 const upload = multer({ 
@@ -138,29 +125,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     buildCallbackController = new BuildCallbackController(buildCallbackService);
   }
 
-  // Initialize Distribution Service and Controller
-  let distributionController: ReturnType<typeof createDistributionController> | undefined;
-  if (hasSequelize(storage)) {
-    const distributionModel = createDistributionModel(storage.sequelize);
-    const iosSubmissionModel = createIosSubmissionBuildModel(storage.sequelize);
-    const androidSubmissionModel = createAndroidSubmissionBuildModel(storage.sequelize);
-    const actionHistoryModel = createSubmissionActionHistoryModel(storage.sequelize);
-
-    const distributionRepository = new DistributionRepository(distributionModel);
-    const iosSubmissionRepository = new IosSubmissionBuildRepository(iosSubmissionModel);
-    const androidSubmissionRepository = new AndroidSubmissionBuildRepository(androidSubmissionModel);
-    const actionHistoryRepository = new SubmissionActionHistoryRepository(actionHistoryModel);
-
-    const distributionService = new DistributionService(
-      distributionRepository,
-      iosSubmissionRepository,
-      androidSubmissionRepository,
-      actionHistoryRepository
-    );
-
-    distributionController = createDistributionController(distributionService);
-  }
-
   // ============================================================================
   // HEALTH CHECK
   // ============================================================================
@@ -189,24 +153,6 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     tenantPermissions.requireOwner({ storage }),
     controller.getRelease
   );
-
-  // Get distribution by release ID
-  if (distributionController) {
-    router.get(
-      "/releases/:releaseId/distribution",
-      releasePermissions.requireReleaseAccess({ storage }),
-      distributionController.getDistributionByReleaseId
-    );
-  }
-
-  // Get distribution by distribution ID
-  if (distributionController) {
-    router.get(
-      "/distributions/:distributionId",
-      releasePermissions.requireDistributionAccess({ storage }),
-      distributionController.getDistributionById
-    );
-  }
 
   // Get all releases for a tenant
   router.get(

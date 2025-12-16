@@ -38,9 +38,9 @@ export const BUILD_TYPES = Object.values(BUILD_TYPE);
 export type BuildType = typeof BUILD_TYPE[keyof typeof BUILD_TYPE];
 
 /**
- * iOS release type (always AUTOMATIC)
+ * iOS release type (always AFTER_APPROVAL - automatically release after App Review approval)
  */
-export const IOS_RELEASE_TYPE = 'AUTOMATIC' as const;
+export const IOS_RELEASE_TYPE = 'AFTER_APPROVAL' as const;
 export type IosReleaseType = typeof IOS_RELEASE_TYPE;
 
 /**
