@@ -12,7 +12,7 @@ import type { FixedPipelineCategoriesProps, PipelineCategoryConfig } from '~/typ
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { PipelineEditModal } from './PipelineEditModal';
 import { ANDROID_PIPELINE_CATEGORIES, IOS_PIPELINE_CATEGORIES } from '~/constants/release-config';
-import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { PLATFORMS, BUILD_PROVIDERS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 import {
   PROVIDER_LABELS,
   BUILD_UPLOAD_LABELS,
@@ -230,6 +230,11 @@ export function FixedPipelineCategories({
                     <Text fw={600} size="md">
                       {category.label}
                     </Text>
+                    {category.environment === BUILD_ENVIRONMENTS.AAB_BUILD && (
+                      <Badge size="sm" variant="outline" color="gray">
+                        .aab
+                      </Badge>
+                    )}
                     {category.required && (
                       <Badge color={BADGE_COLORS.ERROR} size="sm" variant="light">
                         {STATUS_LABELS.REQUIRED}

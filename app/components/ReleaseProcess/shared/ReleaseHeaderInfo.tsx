@@ -31,6 +31,25 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
   const releaseStatus: ReleaseStatus = release.status;
   const releasePhase: Phase | undefined = release.releasePhase;
   const platformMappings: PlatformTargetMapping[] = (release.platformTargetMappings || []) as PlatformTargetMapping[];
+  
+  // Helper to get release type color (consistent with ReleaseCard)
+  const getReleaseTypeColor = (type: string): string => {
+    switch (type.toUpperCase()) {
+      case 'PLANNED':
+        return 'blue';
+      case 'HOTFIX':
+        return 'red';
+      case 'UNPLANNED':
+        return 'purple';
+      default:
+        return 'brand';
+    }
+  };
+  
+  // Check if paused
+  const isPaused = release.cronJob?.cronStatus === 'PAUSED' || 
+                   releasePhase === Phase.PAUSED_BY_USER || 
+                   releasePhase === Phase.PAUSED_BY_FAILURE;
 
   return (
     <Group justify="space-between" align="center" wrap="wrap">
@@ -45,8 +64,17 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
           </Title>
         )}
 
-        {/* Status Badges - Next to Title */}
+        {/* Status Badges - Next to Title - Consistent with ReleaseCard */}
         <Group gap="sm">
+          <Badge
+            color={getReleaseTypeColor(release.type)}
+            variant="light"
+            size="md"
+            style={{ fontSize: '0.7rem', textTransform: 'capitalize' }}
+          >
+            {release.type.toLowerCase()}
+          </Badge>
+          
           {releasePhase && (
             <Badge
               color={getPhaseColor(releasePhase)}
@@ -57,7 +85,8 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
               {getPhaseLabel(releasePhase)}
             </Badge>
           )}
-          {releaseStatus && (
+          
+          {releaseStatus && !isPaused && (
             <Badge
               color={getReleaseStatusColor(releaseStatus)}
               variant="light"
@@ -67,6 +96,17 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
               {getReleaseStatusLabel(releaseStatus)}
             </Badge>
           )}
+          
+          {isPaused && (
+            <Badge
+              color="orange"
+              variant="light"
+              size="md"
+              style={{ fontSize: '0.7rem' }}
+            >
+              Paused
+            </Badge>
+          )}
         </Group>
       </Group>
 
@@ -74,7 +114,7 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
       {platformMappings.length > 0 && (
         <Group gap="xs">
           {platformMappings.map((mapping, idx) => (
-            <Badge key={idx} size="md" variant="light" color="blue">
+            <Badge key={idx} size="md" variant="light" color="brand">
               {mapping.platform} {HEADER_LABELS.PLATFORM_SEPARATOR} {mapping.target}
               {mapping.version && <span style={{ fontWeight: 700 }}> ({mapping.version})</span>}
             </Badge>

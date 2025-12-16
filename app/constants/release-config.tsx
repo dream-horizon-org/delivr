@@ -250,9 +250,9 @@ export const ANDROID_PIPELINE_CATEGORIES: readonly PipelineCategoryConfig[] = [
     id: 'android-aab',
     platform: PLATFORM_CONSTANTS.ANDROID,
     environment: BUILD_ENVIRONMENTS.AAB_BUILD,
-    label: 'Android AAB Build',
+    label: 'Playstore Build',
     description: 'AAB build for Android releases',
-    required: false,
+    required: true,
   },
 ] as const;
 

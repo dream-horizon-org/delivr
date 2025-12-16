@@ -34,6 +34,7 @@ import {
   IconTarget,
   IconEye,
   IconGitBranch,
+  IconTrain,
 } from '@tabler/icons-react';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import type { ConfigurationListItemProps } from '~/types/release-config-props';
@@ -130,6 +131,16 @@ export function ConfigurationListItem({
               <Badge size="sm" variant="light" color={releaseTypeColor}>
                 {config.releaseType}
               </Badge>
+              {config.releaseSchedule && (
+                <Badge 
+                  size="sm" 
+                  variant="light" 
+                  color="indigo"
+                  leftSection={<IconTrain size={12} />}
+                >
+                  Release Train
+                </Badge>
+              )}
             </Group>
           </Box>
 

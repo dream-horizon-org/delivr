@@ -28,6 +28,14 @@ export interface BackendReleaseResponse {
   hasManualBuildUpload: boolean;
   customIntegrationConfigs: Record<string, unknown> | null;
   preCreatedBuilds: any[] | null;
+  createdByAccountId: string;
+  releasePilotAccountId: string | null;
+  releasePilot?: {
+    id: string;
+    email: string;
+    name: string;
+  } | null;
+  lastUpdatedByAccountId: string;
   createdBy: string;
   lastUpdatedBy: string;
   createdAt: string;

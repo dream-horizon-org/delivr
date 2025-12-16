@@ -527,6 +527,11 @@ interface ReleaseDetails {
   // Ownership
   createdByAccountId: string;
   releasePilotAccountId: string | null;
+  releasePilot?: {
+    id: string;
+    email: string;
+    name: string;
+  } | null;
   lastUpdatedByAccountId: string;
   
   // Timestamps

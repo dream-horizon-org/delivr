@@ -34,7 +34,7 @@ import {
 } from '@tabler/icons-react';
 import type { CICDWorkflow } from '~/.server/services/ReleaseManagement/integrations';
 import { WorkflowPreviewModal } from './WorkflowPreviewModal';
-import { PLATFORMS, BUILD_PROVIDERS } from '~/types/release-config-constants';
+import { PLATFORMS, BUILD_PROVIDERS, BUILD_ENVIRONMENTS } from '~/types/release-config-constants';
 import { PLATFORM_LABELS, ENVIRONMENT_LABELS, PROVIDER_LABELS } from '~/constants/release-config-ui';
 
 export interface WorkflowListProps {
@@ -112,12 +112,16 @@ export function WorkflowList({
   };
 
   const getWorkflowTypeLabel = (workflowType: string) => {
+    // Map backend workflow types to frontend environment labels
     const mapping: Record<string, string> = {
-      PRE_REGRESSION: 'Pre-Regression',
-      REGRESSION: 'Regression',
-      TESTFLIGHT: 'TestFlight',
+      PRE_REGRESSION_BUILD: ENVIRONMENT_LABELS.PRE_REGRESSION,
+      REGRESSION_BUILD: ENVIRONMENT_LABELS.REGRESSION,
+      TEST_FLIGHT_BUILD: ENVIRONMENT_LABELS.TESTFLIGHT,
+      AAB_BUILD: ENVIRONMENT_LABELS.AAB_BUILD,
+      PRE_REGRESSION: ENVIRONMENT_LABELS.PRE_REGRESSION,
+      REGRESSION: ENVIRONMENT_LABELS.REGRESSION,
+      TESTFLIGHT: ENVIRONMENT_LABELS.TESTFLIGHT,
       PRODUCTION: 'Production',
-      AAB_BUILD: 'AAB Build',
     };
     return mapping[workflowType] || workflowType;
   };
@@ -222,6 +226,11 @@ export function WorkflowList({
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
+                          {(workflow.workflowType === 'AAB_BUILD' || workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD) && (
+                            <Badge size="sm" variant="outline" color="gray">
+                              .aab
+                            </Badge>
+                          )}
                         </Group>
                         <Text
                           size="xs"
@@ -343,6 +352,11 @@ export function WorkflowList({
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
+                          {(workflow.workflowType === 'AAB_BUILD' || workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD) && (
+                            <Badge size="sm" variant="outline" color="gray">
+                              .aab
+                            </Badge>
+                          )}
                         </Group>
                         <Text
                           size="xs"

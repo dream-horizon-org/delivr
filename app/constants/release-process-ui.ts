@@ -23,7 +23,7 @@ export const TASK_STATUS_LABELS = {
 
 export const TASK_STATUS_COLORS = {
   PENDING: 'gray',
-  IN_PROGRESS: 'blue',
+  IN_PROGRESS: 'brand',
   AWAITING_CALLBACK: 'yellow',
   AWAITING_MANUAL_BUILD: 'orange',
   COMPLETED: 'green',
@@ -64,7 +64,7 @@ export const TASK_TYPE_LABELS = {
   
   // Stage 3: Pre-Release (4 tasks)
   TRIGGER_TEST_FLIGHT_BUILD: 'Trigger TestFlight Build',
-  CREATE_AAB_BUILD: 'Create AAB Build',
+  CREATE_AAB_BUILD: 'Create Playstore Build',
   CREATE_RELEASE_TAG: 'Create Release Tag',
   CREATE_FINAL_RELEASE_NOTES: 'Create Final Release Notes',
 } as const;
@@ -82,7 +82,7 @@ export const STAGE_STATUS_LABELS = {
 
 export const STAGE_STATUS_COLORS = {
   PENDING: 'gray',
-  IN_PROGRESS: 'blue',
+  IN_PROGRESS: 'brand',
   COMPLETED: 'green',
   FAILED: 'red',
 } as const;
@@ -329,7 +329,7 @@ export const RELEASE_STATUS_LABELS = {
 
 export const RELEASE_STATUS_COLORS = {
   PENDING: 'gray',
-  IN_PROGRESS: 'blue',
+  IN_PROGRESS: 'brand',
   PAUSED: 'yellow',
   SUBMITTED: 'cyan',
   COMPLETED: 'green',
@@ -359,14 +359,14 @@ export const PHASE_LABELS = {
 
 export const PHASE_COLORS = {
   NOT_STARTED: 'gray',
-  KICKOFF: 'blue',
+  KICKOFF: 'brand',
   AWAITING_REGRESSION: 'cyan',
-  REGRESSION: 'blue',
+  REGRESSION: 'brand',
   REGRESSION_AWAITING_NEXT_CYCLE: 'cyan',
   AWAITING_PRE_RELEASE: 'cyan',
-  PRE_RELEASE: 'blue',
+  PRE_RELEASE: 'brand',
   AWAITING_SUBMISSION: 'cyan',
-  SUBMISSION: 'blue',
+  SUBMISSION: 'brand',
   SUBMITTED_PENDING_APPROVAL: 'cyan',
   COMPLETED: 'green',
   PAUSED_BY_USER: 'yellow',

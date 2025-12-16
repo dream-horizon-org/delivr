@@ -1,19 +1,34 @@
 /**
  * Release Card Component
- * Displays a single release in a modern card format with gradient header
+ * Modern, clean card design with improved information hierarchy
  */
 
-import { Badge, Box, Card, Group, Stack, Text, useMantineTheme } from '@mantine/core';
+import { Badge, Box, Card, Group, Stack, Text, useMantineTheme, Divider } from '@mantine/core';
 import { Link, useSearchParams } from '@remix-run/react';
-import { IconCheck, IconClock, IconFlag, IconRocket, IconSettings, IconTarget } from '@tabler/icons-react';
-import { memo } from 'react';
+import { 
+  IconCalendar, 
+  IconClock, 
+  IconFlag, 
+  IconGitBranch, 
+  IconRocket, 
+  IconSettings, 
+  IconTarget,
+  IconCheck,
+  IconX,
+  IconPlayerPause,
+  IconAlertCircle,
+} from '@tabler/icons-react';
+import { memo, useState } from 'react';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import type { ReleaseCardProps } from '~/types/release';
 import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient } from '~/utils/release-utils';
+import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import { getPhaseColor, getPhaseLabel, getReleaseStatusColor, getReleaseStatusLabel } from '~/constants/release-process-ui';
+import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 
 /**
- * Release Card Component - Modern Full Width Design
+ * Release Card Component - Modern Clean Design
  */
 export const ReleaseCard = memo(function ReleaseCard({ 
   release, 
@@ -21,6 +36,7 @@ export const ReleaseCard = memo(function ReleaseCard({
 }: ReleaseCardProps) {
   const theme = useMantineTheme();
   const [searchParams] = useSearchParams();
+  const [configModalOpened, setConfigModalOpened] = useState(false);
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -28,9 +44,23 @@ export const ReleaseCard = memo(function ReleaseCard({
     ? configs.find((c) => c.id === release.releaseConfigId)
     : null;
 
-  // Get active status
+  // Get active status (for combining with other badges)
   const activeStatus = getReleaseActiveStatus(release);
   const activeStatusColor = getActiveStatusColor(activeStatus);
+  
+  // Helper to get release type color
+  const getReleaseTypeColor = (type: string): string => {
+    switch (type.toUpperCase()) {
+      case 'PLANNED':
+        return 'blue';
+      case 'HOTFIX':
+        return 'red';
+      case 'UNPLANNED':
+        return 'purple';
+      default:
+        return 'brand';
+    }
+  };
 
   // Preserve search params (filters and tab) when navigating to release detail
   const returnToParams = new URLSearchParams(searchParams);
@@ -38,147 +68,191 @@ export const ReleaseCard = memo(function ReleaseCard({
     ? `/dashboard/${org}/releases/${release.id}?returnTo=${encodeURIComponent(returnToParams.toString())}`
     : `/dashboard/${org}/releases/${release.id}`;
 
-  return (
-    <Link
-      to={releaseUrl}
-      className="block no-underline"
-    >
-        <Card
-          shadow="md"
-          padding={0}
-          radius="lg"
-          withBorder
-          className="overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-blue-300 cursor-pointer"
-          style={{ width: '100%' }}
-        >
-          {/* Gradient Header - Reduced height and less bold */}
-          <Box
-            style={{
-              background: getReleaseTypeGradient(release.type),
-              padding: '12px 20px',
-              position: 'relative',
-            }}
-          >
-            <Group justify="space-between" align="center" wrap="nowrap">
-              <Group gap="md" align="center" wrap="nowrap">
-                {release.branch ? (
-                  <Text fw={600} size="lg" c="white" className="truncate font-mono">
-                    {release.branch}
-                  </Text>
-                ) : (
-                <Text fw={600} size="lg" c="white" className="truncate">
-                    No branch
-                </Text>
-                )}
-                {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
-                  <Group gap="xs">
-                    {release.platformTargetMappings.map((mapping: any, idx: number) => (
-                      <Badge
-                        key={idx}
-                        size="sm"
-                        variant="light"
-                        className="bg-white/20 text-white border-white/30"
-                      >
-                        {mapping.platform}: {mapping.version || 'N/A'}
-                      </Badge>
-                    ))}
-                  </Group>
-                )}
-                <Badge
-                  size="sm"
-                  variant="light"
-                  className="bg-white/20 text-white border-white/30"
-                >
-                  {release.status.replace('_', ' ')}
-                </Badge>
-                <Badge
-                  size="sm"
-                  variant="light"
-                  className="bg-white/20 text-white border-white/30"
-                >
-                  {release.type}
-                </Badge>
-                <Badge
-                  size="sm"
-                  variant="light"
-                  className="bg-white/20 text-white border-white/30"
-                >
-                  {activeStatus}
-                </Badge>
-              </Group>
-            </Group>
-          </Box>
+  // Status indicators
+  const isPaused = release.cronJob?.cronStatus === 'PAUSED';
+  const phase = release.releasePhase;
+  const status = release.status;
 
-          {/* Content Section */}
-          <Box p="lg">
-            <Stack gap="md">
-              {/* Platform Targets with Icons */}
-              {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
-                <div>
-                  <Text size="xs" fw={600} c="dimmed" className="mb-2 uppercase tracking-wide">
-                    Platforms & Targets
+
+  // Handle config name click - prevent navigation and open modal
+  const handleConfigClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (releaseConfig) {
+      setConfigModalOpened(true);
+    }
+    return false;
+  };
+
+  return (
+    <>
+      <Card
+        shadow="sm"
+        padding={0}
+        radius="md"
+        withBorder
+        className="overflow-hidden hover:shadow-md transition-all duration-200 border-gray-200 bg-white"
+        style={{ 
+          width: '100%', 
+          position: 'relative',
+          borderColor: theme.colors.gray[2],
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = theme.colors.brand[3];
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = theme.colors.gray[2];
+        }}
+      >
+        {/* Header Section - Clean and Minimal */}
+        <Box
+          p="md"
+          style={{
+            backgroundColor: theme.colors.brand[0],
+            borderBottom: `1px solid ${theme.colors.brand[2]}`,
+          }}
+        >
+          <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+            {/* Left: Branch and Type */}
+            <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+              <Group gap="sm" align="center" wrap="nowrap">
+                {release.branch ? (
+                  <Group gap="xs" align="center" style={{ flex: 1, minWidth: 0 }}>
+                    <IconGitBranch size={16} color={theme.colors.brand[7]} />
+                    <Text 
+                      fw={600} 
+                      size="md" 
+                      c="dark" 
+                      className="truncate font-mono"
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      {release.branch}
+                    </Text>
+                  </Group>
+                ) : (
+                  <Text fw={600} size="md" c="dimmed">
+                    No branch
                   </Text>
-                  <Group gap="xs">
+                )}
+              </Group>
+              
+              {/* Release Type and Status Badges - Combined with Active Status */}
+              <Group gap="xs" wrap="wrap">
+                <Badge
+                  size="sm"
+                  variant="light"
+                  color={getReleaseTypeColor(release.type)}
+                  style={{ textTransform: 'capitalize' }}
+                >
+                  {release.type.toLowerCase()}
+                </Badge>
+                
+                {phase && (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color={getPhaseColor(phase)}
+                  >
+                    {getPhaseLabel(phase)}
+                  </Badge>
+                )}
+                
+                {status && !isPaused && (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color={getReleaseStatusColor(status)}
+                  >
+                    {getReleaseStatusLabel(status)}
+                  </Badge>
+                )}
+
+                {/* Show active status combined with paused if applicable */}
+                {isPaused ? (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color="orange"
+                    leftSection={<IconPlayerPause size={12} />}
+                  >
+                    Paused
+                  </Badge>
+                ) : activeStatus && activeStatus !== 'COMPLETED' ? (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color={activeStatusColor}
+                    style={{ textTransform: 'capitalize' }}
+                  >
+                    {activeStatus}
+                  </Badge>
+                ) : null}
+              </Group>
+            </Stack>
+
+            {/* Right: Release Config Name - Clickable */}
+            {releaseConfig && (
+              <Box
+                onClick={handleConfigClick}
+                style={{
+                  cursor: 'pointer',
+                  zIndex: 10,
+                  position: 'relative',
+                }}
+              >
+                <Text
+                  size="sm"
+                  fw={500}
+                  c="brand"
+                  className="hover:underline"
+                >
+                  <Group gap={4}>
+                    <IconSettings size={14} />
+                    <span>{releaseConfig.name}</span>
+                  </Group>
+                </Text>
+              </Box>
+            )}
+          </Group>
+        </Box>
+
+        {/* Content Section - Clickable Link Overlay */}
+        <Link
+          to={releaseUrl}
+          className="block no-underline"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
+          <Box p="md" style={{ cursor: 'pointer' }}>
+            <Stack gap="md">
+              {/* Platform Targets - Compact Display */}
+              {release.platformTargetMappings && release.platformTargetMappings.length > 0 && (
+                <Box>
+                  <Group gap="xs" wrap="wrap">
                     {release.platformTargetMappings.map((mapping: any, idx: number) => (
                       <Badge
                         key={idx}
-                        size="lg"
+                        size="md"
                         variant="light"
-                        color="blue"
-                        leftSection={<PlatformIcon platform={mapping.platform} />}
-                        className="px-3 py-1"
+                        color="brand"
+                        leftSection={<PlatformIcon platform={mapping.platform} size={14} />}
+                        style={{ textTransform: 'none' }}
                       >
                         {mapping.platform} → {mapping.target}
+                        {mapping.version && ` (${mapping.version})`}
                       </Badge>
                     ))}
                   </Group>
-                </div>
+                </Box>
               )}
 
-              {/* Release Config Info */}
-              {releaseConfig && (
-                <div>
-                  <Text size="xs" fw={600} c="dimmed" className="mb-2 uppercase tracking-wide">
-                    Release Configuration
-                  </Text>
-                  <Group gap="md">
-                    <Badge
-                      size="lg"
-                      variant="light"
-                      color="violet"
-                      leftSection={<IconSettings size={14} />}
-                      className="px-3 py-1"
-                    >
-                      {releaseConfig.name}
-                    </Badge>
-                    {releaseConfig.releaseType && (
-                      <Badge size="sm" variant="outline" color="violet">
-                        {releaseConfig.releaseType}
-                      </Badge>
-                    )}
-                    {releaseConfig.releaseSchedule?.regressionSlots && releaseConfig.releaseSchedule.regressionSlots.length > 0 && (
-                      <Badge size="sm" variant="outline" color="green">
-                        {releaseConfig.releaseSchedule.regressionSlots.length} Regression Slot{releaseConfig.releaseSchedule.regressionSlots.length !== 1 ? 's' : ''}
-                      </Badge>
-                    )}
-                  </Group>
-                </div>
-              )}
-
-              {/* Stat Cards Grid - Kickoff first, then Target */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* Kickoff Date Card - First */}
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {/* Kickoff Date */}
                 {release.kickOffDate && (
-                  <Box
-                    style={{
-                      backgroundColor: '#f0fdf4',
-                      padding: '12px 16px',
-                      borderRadius: theme.radius.md,
-                    }}
-                  >
-                    <Group gap="xs" className="mb-1">
-                      <IconFlag size={16} color="#10b981" />
-                      <Text size="xs" fw={600} c="dimmed" className="uppercase">
+                  <Box p="xs">
+                    <Group gap={4} mb={4}>
+                      <IconFlag size={14} color={theme.colors.brand[7]} />
+                      <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Kickoff
                       </Text>
                     </Group>
@@ -188,19 +262,13 @@ export const ReleaseCard = memo(function ReleaseCard({
                   </Box>
                 )}
 
-                {/* Target Date Card - Second */}
+                {/* Target Date */}
                 {release.targetReleaseDate && (
-                  <Box
-                    style={{
-                      backgroundColor: '#eff6ff',
-                      padding: '12px 16px',
-                      borderRadius: theme.radius.md,
-                    }}
-                  >
-                    <Group gap="xs" className="mb-1">
-                      <IconTarget size={16} color="#3b82f6" />
-                      <Text size="xs" fw={600} c="dimmed" className="uppercase">
-                        Target Date
+                  <Box p="xs">
+                    <Group gap={4} mb={4}>
+                      <IconTarget size={14} color={theme.colors.brand[7]} />
+                      <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Target
                       </Text>
                     </Group>
                     <Text size="sm" fw={600} c="dark">
@@ -209,18 +277,19 @@ export const ReleaseCard = memo(function ReleaseCard({
                   </Box>
                 )}
 
-                {/* Release Date Card */}
+                {/* Release Date */}
                 {release.releaseDate && (
                   <Box
+                    p="xs"
                     style={{
-                      backgroundColor: '#ecfdf5',
-                      padding: '12px 16px',
-                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.brand[0],
+                      borderRadius: theme.radius.sm,
+                      border: `1px solid ${theme.colors.brand[2]}`,
                     }}
                   >
-                    <Group gap="xs" className="mb-1">
-                      <IconRocket size={16} color="#10b981" />
-                      <Text size="xs" fw={600} c="dimmed" className="uppercase">
+                    <Group gap={4} mb={4}>
+                      <IconRocket size={14} color={theme.colors.brand[7]} />
+                      <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Released
                       </Text>
                     </Group>
@@ -229,42 +298,61 @@ export const ReleaseCard = memo(function ReleaseCard({
                     </Text>
                   </Box>
                 )}
-
-                {/* Tasks Count Card */}
-                {release.tasks && release.tasks.length > 0 && (
-                  <Box
-                    style={{
-                      backgroundColor: '#f0fdfa',
-                      padding: '12px 16px',
-                      borderRadius: theme.radius.md,
-                    }}
-                  >
-                    <Group gap="xs" className="mb-1">
-                      <IconCheck size={16} color="#14b8a6" />
-                      <Text size="xs" fw={600} c="dimmed" className="uppercase">
-                        Tasks
-                      </Text>
-                    </Group>
-                    <Text size="sm" fw={600} c="dark">
-                      {release.tasks.length} task{release.tasks.length !== 1 ? 's' : ''}
-                    </Text>
-                  </Box>
-                )}
               </div>
 
-              {/* Footer with Created Date */}
-              <Group justify="space-between" className="pt-2 border-t border-gray-200">
-                <Group gap="xs">
-                  <IconClock size={14} color="#94a3b8" />
+              {/* Footer - Created Date and Pilot Info */}
+              <Divider />
+              <Group justify="space-between" align="center">
+                <Group gap={6}>
+                  <IconClock size={14} color={theme.colors.gray[6]} />
                   <Text size="xs" c="dimmed">
                     Created {formatReleaseDate(release.createdAt)}
                   </Text>
                 </Group>
+                
+                {/* Show pilot info if available, otherwise show created by */}
+                {release.releasePilot ? (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color="brand"
+                    style={{ textTransform: 'none' }}
+                  >
+                    Pilot: {release.releasePilot.name || release.releasePilot.email}
+                  </Badge>
+                ) : release.releasePilotAccountId ? (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color="brand"
+                    style={{ textTransform: 'none' }}
+                  >
+                    Pilot: Unknown
+                  </Badge>
+                ) : release.createdBy ? (
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color="brand"
+                    style={{ textTransform: 'none' }}
+                  >
+                    Created by: Unknown
+                  </Badge>
+                ) : null}
               </Group>
             </Stack>
           </Box>
-        </Card>
-    </Link>
+        </Link>
+      </Card>
+
+      {/* Configuration Preview Modal - Outside Link to prevent navigation */}
+    {releaseConfig && (
+      <ConfigurationPreviewModal
+        opened={configModalOpened}
+        onClose={() => setConfigModalOpened(false)}
+        config={releaseConfig}
+      />
+    )}
+  </>
   );
 });
-

@@ -85,6 +85,22 @@ server.use(createReleaseProcessMiddleware(router));
 // CUSTOM ROUTES
 // ============================================================================
 
+/**
+ * Helper function to get mock account details
+ * In a real scenario, this would fetch from accounts collection
+ */
+function getAccountDetails(accountId) {
+  if (!accountId) return null;
+  
+  // Mock account data - in real server this would come from accounts table
+  // For now, generate mock data based on accountId
+  return {
+    id: accountId,
+    email: `user-${accountId.substring(0, 8)}@example.com`,
+    name: `User ${accountId.substring(0, 8)}`
+  };
+}
+
 // Helper function to transform release to backend format
 // Matches BackendReleaseResponse interface and backend contract
 function transformRelease(release, tenantId) {
@@ -122,6 +138,13 @@ function transformRelease(release, tenantId) {
     }
     if (transformed.releasePilotAccountId === undefined && transformed.createdByAccountId) {
       transformed.releasePilotAccountId = transformed.createdByAccountId;
+    }
+    
+    // Add releasePilot account details if releasePilotAccountId exists
+    if (transformed.releasePilotAccountId) {
+      transformed.releasePilot = getAccountDetails(transformed.releasePilotAccountId);
+    } else {
+      transformed.releasePilot = null;
     }
     
     // Remove old/legacy fields that shouldn't be in response (only if they exist)
@@ -172,6 +195,8 @@ function transformRelease(release, tenantId) {
     preCreatedBuilds: release.preCreatedBuilds || null,
     createdByAccountId: release.createdByAccountId || release.createdBy || '4JCGF-VeXg',
     releasePilotAccountId: release.releasePilotAccountId || release.createdByAccountId || release.createdBy || null,
+    releasePilot: release.releasePilotAccountId ? getAccountDetails(release.releasePilotAccountId) : 
+                   (release.createdByAccountId || release.createdBy ? getAccountDetails(release.createdByAccountId || release.createdBy) : null),
     lastUpdatedByAccountId: release.lastUpdatedByAccountId || release.lastUpdatedBy || '4JCGF-VeXg',
     createdAt: release.createdAt || new Date().toISOString(),
     updatedAt: release.updatedAt || new Date().toISOString(),
