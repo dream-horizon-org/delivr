@@ -148,7 +148,7 @@ export function ActivityHistoryLog({ actionHistory }: ActivityHistoryLogProps) {
 
               {/* Reason */}
               {entry.reason && (
-                <Paper {...DIST_CARD_PROPS.NESTED} className="bg-white">
+                <Paper {...DIST_CARD_PROPS.NESTED} className="bg-white" p={DS_SPACING.MD}>
                   <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.MEDIUM} mb={DS_SPACING.XS}>
                     Reason:
                   </Text>
