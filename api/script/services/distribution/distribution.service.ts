@@ -7,11 +7,12 @@ import { DistributionRepository } from '~models/distribution';
 import { IosSubmissionBuildRepository } from '~models/distribution';
 import { AndroidSubmissionBuildRepository } from '~models/distribution';
 import { SubmissionActionHistoryRepository } from '~models/distribution';
-import type { Distribution } from '~types/distribution/distribution.interface';
+import type { Distribution, DistributionFilters } from '~types/distribution/distribution.interface';
 import type { IosSubmissionBuild } from '~types/distribution/ios-submission.interface';
 import type { AndroidSubmissionBuild } from '~types/distribution/android-submission.interface';
 import type { SubmissionActionHistory } from '~types/distribution/submission-action-history.interface';
 import { SUBMISSION_PLATFORM } from '~types/distribution/submission.constants';
+import type { DistributionStatus } from '~types/distribution/distribution.constants';
 
 /**
  * Formatted submission response (matches API contract)
@@ -317,6 +318,234 @@ export class DistributionService {
       updatedAt: distribution.updatedAt,
       statusUpdatedAt: distribution.statusUpdatedAt,
       submissions: allSubmissions
+    };
+  }
+
+  /**
+   * List all distributions with pagination, filtering, and stats
+   */
+  async listDistributions(
+    filters: {
+      status?: string;
+      platform?: string;
+      tenantId?: string;
+    } = {},
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<{
+    distributions: Array<{
+      id: string;
+      branch: string;
+      status: string;
+      platforms: string[];
+      createdAt: Date;
+      updatedAt: Date;
+      statusUpdatedAt: Date;
+      submissions: Array<{
+        id: string;
+        platform: 'ANDROID' | 'IOS';
+        version: string;
+        status: string;
+        rolloutPercentage: number;
+        createdAt: Date;
+        updatedAt: Date;
+        statusUpdatedAt: Date;
+      }>;
+    }>;
+    pagination: {
+      page: number;
+      pageSize: number;
+      totalPages: number;
+      totalItems: number;
+      hasMore: boolean;
+    };
+    stats: {
+      totalDistributions: number;
+      totalSubmissions: number;
+      inReviewSubmissions: number;
+      releasedSubmissions: number;
+    };
+  }> {
+    // Normalize platform filter to uppercase for case-insensitive comparison
+    const normalizedPlatform = filters.platform ? filters.platform.toUpperCase() : undefined;
+
+    // Build filters for repository
+    const repositoryFilters: DistributionFilters = {};
+    if (filters.status) {
+      repositoryFilters.status = filters.status as DistributionStatus;
+    }
+    if (filters.tenantId) {
+      repositoryFilters.tenantId = filters.tenantId;
+    }
+
+    // Get paginated distributions
+    const { distributions, total } = await this.distributionRepository.findAllPaginated(
+      repositoryFilters,
+      page,
+      pageSize
+    );
+
+    // Get ALL distributions for stats calculation (not just current page)
+    const allDistributions = await this.distributionRepository.findAll(repositoryFilters);
+
+    // Get latest submissions for each distribution in current page
+    const distributionsWithSubmissions = await Promise.all(
+      distributions.map(async (distribution) => {
+        // Get latest submissions per platform
+        const iosSubmission = await this.iosSubmissionRepository.findLatestByDistributionId(distribution.id);
+        const androidSubmission = await this.androidSubmissionRepository.findLatestByDistributionId(distribution.id);
+
+        // Filter by platform if specified (case-insensitive)
+        const submissions: Array<{
+          id: string;
+          platform: 'ANDROID' | 'IOS';
+          version: string;
+          status: string;
+          rolloutPercentage: number;
+          createdAt: Date;
+          updatedAt: Date;
+          statusUpdatedAt: Date;
+        }> = [];
+
+        if (androidSubmission && (!normalizedPlatform || normalizedPlatform === 'ANDROID')) {
+          submissions.push({
+            id: androidSubmission.id,
+            platform: 'ANDROID',
+            version: androidSubmission.version,
+            status: androidSubmission.status,
+            rolloutPercentage: androidSubmission.rolloutPercentage ?? 0,
+            createdAt: androidSubmission.createdAt,
+            updatedAt: androidSubmission.updatedAt,
+            statusUpdatedAt: androidSubmission.statusUpdatedAt
+          });
+        }
+
+        if (iosSubmission && (!normalizedPlatform || normalizedPlatform === 'IOS')) {
+          submissions.push({
+            id: iosSubmission.id,
+            platform: 'IOS',
+            version: iosSubmission.version,
+            status: iosSubmission.status,
+            rolloutPercentage: iosSubmission.rolloutPercentage ?? 0,
+            createdAt: iosSubmission.createdAt,
+            updatedAt: iosSubmission.updatedAt,
+            statusUpdatedAt: iosSubmission.statusUpdatedAt
+          });
+        }
+
+        // If platform filter is specified and no submissions match, return null to filter out
+        if (normalizedPlatform && submissions.length === 0) {
+          return null;
+        }
+
+        // Calculate distribution's statusUpdatedAt as max of all submissions' statusUpdatedAt
+        const submissionStatusDates = submissions.map(s => s.statusUpdatedAt);
+        const distributionStatusUpdatedAt = submissionStatusDates.length > 0
+          ? new Date(Math.max(...submissionStatusDates.map(d => d.getTime())))
+          : distribution.statusUpdatedAt;
+
+        return {
+          id: distribution.id,
+          branch: distribution.branch,
+          status: distribution.status,
+          platforms: distribution.configuredListOfPlatforms,
+          createdAt: distribution.createdAt,
+          updatedAt: distribution.updatedAt,
+          statusUpdatedAt: distributionStatusUpdatedAt,
+          submissions
+        };
+      })
+    );
+
+    // Filter out null distributions (those that don't match platform filter)
+    const filteredDistributions = distributionsWithSubmissions.filter(d => d !== null) as Array<{
+      id: string;
+      branch: string;
+      status: string;
+      platforms: string[];
+      createdAt: Date;
+      updatedAt: Date;
+      statusUpdatedAt: Date;
+      submissions: Array<{
+        id: string;
+        platform: 'ANDROID' | 'IOS';
+        version: string;
+        status: string;
+        rolloutPercentage: number;
+        createdAt: Date;
+        updatedAt: Date;
+        statusUpdatedAt: Date;
+      }>;
+    }>;
+
+    // Calculate stats from ALL distributions (not just current page)
+    const allDistributionsWithSubmissions = await Promise.all(
+      allDistributions.map(async (distribution) => {
+        const iosSubmission = await this.iosSubmissionRepository.findLatestByDistributionId(distribution.id);
+        const androidSubmission = await this.androidSubmissionRepository.findLatestByDistributionId(distribution.id);
+
+        const submissions: Array<{
+          id: string;
+          platform: 'ANDROID' | 'IOS';
+          status: string;
+          rolloutPercentage: number;
+        }> = [];
+
+        if (androidSubmission) {
+          submissions.push({
+            id: androidSubmission.id,
+            platform: 'ANDROID',
+            status: androidSubmission.status,
+            rolloutPercentage: androidSubmission.rolloutPercentage ?? 0
+          });
+        }
+
+        if (iosSubmission) {
+          submissions.push({
+            id: iosSubmission.id,
+            platform: 'IOS',
+            status: iosSubmission.status,
+            rolloutPercentage: iosSubmission.rolloutPercentage ?? 0
+          });
+        }
+
+        return { submissions };
+      })
+    );
+
+    // Calculate stats
+    const totalSubmissions = allDistributionsWithSubmissions.reduce(
+      (sum, d) => sum + d.submissions.length,
+      0
+    );
+
+    const inReviewSubmissions = allDistributionsWithSubmissions.reduce(
+      (sum, d) => sum + d.submissions.filter(s => s.status === 'IN_REVIEW').length,
+      0
+    );
+
+    const releasedSubmissions = allDistributionsWithSubmissions.reduce(
+      (sum, d) => sum + d.submissions.filter(s => s.status === 'LIVE' && s.rolloutPercentage === 100).length,
+      0
+    );
+
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      distributions: filteredDistributions,
+      pagination: {
+        page,
+        pageSize,
+        totalPages,
+        totalItems: total,
+        hasMore: page < totalPages
+      },
+      stats: {
+        totalDistributions: allDistributions.length,
+        totalSubmissions,
+        inReviewSubmissions,
+        releasedSubmissions
+      }
     };
   }
 }
