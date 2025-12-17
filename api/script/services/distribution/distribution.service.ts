@@ -22,6 +22,12 @@ import {
   BUILD_STAGE, 
   BUILD_UPLOAD_STATUS 
 } from '~types/release-management/builds/build.constants';
+import { createAppleServiceFromIntegration } from './apple-app-store-connect.service';
+import type { AppleAppStoreConnectService } from './apple-app-store-connect.service';
+import type { MockAppleAppStoreConnectService } from './apple-app-store-connect.mock';
+import { getStorage } from '../../storage/storage-instance';
+import { StoreIntegrationController } from '../../storage/integrations/store/store-controller';
+import { StoreType } from '../../storage/integrations/store/store-types';
 
 /**
  * Formatted submission response (matches API contract)
@@ -38,6 +44,8 @@ type FormattedSubmission =
       phasedRelease: boolean | null;
       resetRating: boolean | null;
       rolloutPercentage: number;
+      totalPauseDuration?: number | null;
+      totalRemainingPauseDuration?: number | null;
       releaseNotes: string;
       submittedAt: Date | null;
       submittedBy: string | null;
@@ -175,6 +183,9 @@ export class DistributionService {
         }))
       };
     });
+
+    // Enrich iOS submissions with totalPauseDuration from Apple API
+    await this.enrichIosSubmissionsWithPauseDuration(formattedIosSubmissions, distribution.tenantId);
 
     // Format Android submissions to match expected response structure
     const formattedAndroidSubmissions = androidSubmissions.map(submission => {
@@ -457,6 +468,23 @@ export class DistributionService {
         // If platform filter is specified and no submissions match, return null to filter out
         if (normalizedPlatform && submissions.length === 0) {
           return null;
+        }
+
+        // Enrich iOS submissions with current rollout percentage from Apple API
+        const iosSubmissions = submissions.filter(s => s.platform === 'IOS') as Array<{
+          id: string;
+          platform: 'IOS';
+          version: string;
+          status: string;
+          rolloutPercentage: number;
+          createdAt: Date;
+          updatedAt: Date;
+          statusUpdatedAt: Date;
+          isActive: boolean;
+        }>;
+        
+        if (iosSubmissions.length > 0) {
+          await this.enrichIosSubmissionsWithRolloutPercentage(iosSubmissions, distribution.tenantId);
         }
 
         // Calculate distribution's statusUpdatedAt as max of all submissions' statusUpdatedAt
@@ -793,6 +821,340 @@ export class DistributionService {
         error: `Failed to create distribution: ${errorMessage}`
       };
     }
+  }
+
+  /**
+   * Enrich iOS submissions with totalPauseDuration and totalRemainingPauseDuration from Apple API
+   * Only fetches for submissions with:
+   * - phasedRelease = true
+   * - isActive = true
+   * - status in ['LIVE', 'PAUSED', 'COMPLETE']
+   * 
+   * Calculates:
+   * - totalPauseDuration: Total days paused (from Apple API)
+   * - totalRemainingPauseDuration: Remaining pause days allowed (30 - totalPauseDuration)
+   * 
+   * @param submissions - Array of formatted iOS submissions
+   * @param tenantId - Tenant ID to fetch store integration
+   * @returns Promise resolving when enrichment is complete (modifies submissions in place)
+   */
+  private async enrichIosSubmissionsWithPauseDuration(
+    submissions: Array<FormattedSubmission & { platform: 'IOS' }>,
+    tenantId: string
+  ): Promise<void> {
+    // Filter submissions that need Apple API enrichment
+    const submissionsNeedingEnrichment = submissions.filter(sub => 
+      sub.phasedRelease === true &&
+      sub.isActive === true &&
+      ['LIVE', 'PAUSED', 'COMPLETE'].includes(sub.status)
+    );
+
+    if (submissionsNeedingEnrichment.length === 0) {
+      console.log('[DistributionService] No iOS submissions need totalPauseDuration enrichment');
+      return;
+    }
+
+    console.log(
+      `[DistributionService] Enriching ${submissionsNeedingEnrichment.length} iOS submission(s) with totalPauseDuration from Apple`
+    );
+
+    // Get store integration for tenant
+    let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
+    let targetAppId: string;
+
+    try {
+      const storage = getStorage();
+      const storeIntegrationController = (storage as any).storeIntegrationController as StoreIntegrationController;
+      
+      if (!storeIntegrationController) {
+        console.error('[DistributionService] StoreIntegrationController not initialized');
+        return;
+      }
+
+      // Find iOS App Store integration for tenant
+      const integrations = await storeIntegrationController.findAll({
+        tenantId,
+        platform: 'IOS',
+        storeType: StoreType.APP_STORE
+      });
+
+      if (integrations.length === 0) {
+        console.warn(`[DistributionService] No iOS store integration found for tenant ${tenantId}`);
+        return;
+      }
+
+      const integration = integrations[0];
+      targetAppId = integration.targetAppId ?? '';
+
+      if (!targetAppId) {
+        console.warn(`[DistributionService] No targetAppId in integration ${integration.id}`);
+        return;
+      }
+
+      // Create Apple service instance (will be reused for all submissions)
+      appleService = await createAppleServiceFromIntegration(integration.id);
+      
+    } catch (error) {
+      console.error('[DistributionService] Failed to initialize Apple service:', error);
+      return;
+    }
+
+    // Enrich each submission in parallel
+    await Promise.all(
+      submissionsNeedingEnrichment.map(async (submission) => {
+        try {
+          console.log(`[DistributionService] Fetching pause duration for submission ${submission.id} (v${submission.version})`);
+          
+          // Step 1: Get app store version ID (use cached if available)
+          let appStoreVersionId = (submission as any).appStoreVersionId;
+
+          if (appStoreVersionId) {
+            console.log(`[DistributionService] Using cached appStoreVersionId: ${appStoreVersionId}`);
+          } else {
+            console.log(`[DistributionService] No cached appStoreVersionId, fetching from Apple API...`);
+            const versionData = await appleService.getAppStoreVersionByVersionString(
+              targetAppId,
+              submission.version
+            );
+
+            if (!versionData) {
+              console.warn(`[DistributionService] Version ${submission.version} not found in Apple for submission ${submission.id}`);
+              submission.totalPauseDuration = null;
+              submission.totalRemainingPauseDuration = null;
+              return;
+            }
+
+            appStoreVersionId = versionData.id;
+            console.log(`[DistributionService] Found appStoreVersionId: ${appStoreVersionId} for v${submission.version}`);
+            
+            // Cache it for next time (fire-and-forget update)
+            this.iosSubmissionRepository.update(submission.id, {
+              appStoreVersionId: appStoreVersionId
+            }).catch(err => {
+              console.warn(`[DistributionService] Failed to cache appStoreVersionId for ${submission.id}:`, err);
+            });
+          }
+
+          // Step 2: Get phased release data
+          const phasedReleaseData = await appleService.getPhasedReleaseForVersion(appStoreVersionId);
+
+          if (!phasedReleaseData || !phasedReleaseData.data) {
+            console.warn(`[DistributionService] No phased release found for version ${appStoreVersionId}`);
+            submission.totalPauseDuration = null;
+            submission.totalRemainingPauseDuration = null;
+            return;
+          }
+
+          // Step 3: Extract totalPauseDuration and calculate totalRemainingPauseDuration
+          const totalPauseDuration = phasedReleaseData.data.attributes?.totalPauseDuration;
+          submission.totalPauseDuration = totalPauseDuration ?? null;
+
+          // Calculate remaining pause duration (30 days max - days already paused)
+          if (totalPauseDuration !== null && totalPauseDuration !== undefined) {
+            const MAX_PAUSE_DURATION_DAYS = 30;
+            submission.totalRemainingPauseDuration = Math.max(0, MAX_PAUSE_DURATION_DAYS - totalPauseDuration);
+          } else {
+            submission.totalRemainingPauseDuration = null;
+          }
+
+          console.log(
+            `[DistributionService] Successfully enriched submission ${submission.id}: ` +
+            `totalPauseDuration: ${totalPauseDuration} days, ` +
+            `totalRemainingPauseDuration: ${submission.totalRemainingPauseDuration} days`
+          );
+          
+        } catch (error) {
+          console.error(`[DistributionService] Failed to enrich submission ${submission.id}:`, error);
+          submission.totalPauseDuration = null;
+          submission.totalRemainingPauseDuration = null;
+        }
+      })
+    );
+
+    console.log('[DistributionService] Completed totalPauseDuration enrichment for iOS submissions');
+  }
+
+  /**
+   * Map Apple's currentDayNumber to rollout percentage based on 7-day schedule
+   * @param currentDayNumber - Day number from Apple (1-7)
+   * @returns Rollout percentage (1-100)
+   */
+  private mapDayNumberToRolloutPercentage(currentDayNumber: number): number {
+    const schedule: Record<number, number> = {
+      1: 1,
+      2: 2,
+      3: 5,
+      4: 10,
+      5: 20,
+      6: 50,
+      7: 100
+    };
+    return schedule[currentDayNumber] ?? 100;
+  }
+
+  /**
+   * Enrich iOS submissions with current rollout percentage from Apple API
+   * Only updates for submissions with:
+   * - phasedRelease = true
+   * - isActive = true
+   * - status in ['LIVE', 'PAUSED', 'COMPLETE']
+   * 
+   * Fetches currentDayNumber from Apple and:
+   * 1. Maps it to rollout percentage
+   * 2. Updates database with new percentage
+   * 3. Updates in-memory submission object
+   * 
+   * @param submissions - Array of iOS submissions (lightweight format for list API)
+   * @param tenantId - Tenant ID to fetch store integration
+   * @returns Promise resolving when enrichment is complete (modifies submissions in place)
+   */
+  private async enrichIosSubmissionsWithRolloutPercentage(
+    submissions: Array<{
+      id: string;
+      platform: 'IOS';
+      version: string;
+      status: string;
+      rolloutPercentage: number;
+      isActive: boolean;
+    }>,
+    tenantId: string
+  ): Promise<void> {
+    // Filter submissions that need Apple API enrichment
+    const submissionsNeedingEnrichment = submissions.filter(sub => 
+      sub.isActive === true &&
+      ['LIVE', 'PAUSED', 'COMPLETE'].includes(sub.status)
+    );
+
+    if (submissionsNeedingEnrichment.length === 0) {
+      console.log('[DistributionService] No iOS submissions need rollout percentage enrichment');
+      return;
+    }
+
+    console.log(
+      `[DistributionService] Enriching ${submissionsNeedingEnrichment.length} iOS submission(s) with rollout percentage from Apple`
+    );
+
+    // Get store integration for tenant
+    let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
+    let targetAppId: string;
+
+    try {
+      const storage = getStorage();
+      const storeIntegrationController = (storage as any).storeIntegrationController as StoreIntegrationController;
+      
+      if (!storeIntegrationController) {
+        console.error('[DistributionService] StoreIntegrationController not initialized');
+        return;
+      }
+
+      // Find iOS App Store integration for tenant
+      const integrations = await storeIntegrationController.findAll({
+        tenantId,
+        platform: 'IOS',
+        storeType: StoreType.APP_STORE
+      });
+
+      if (integrations.length === 0) {
+        console.warn(`[DistributionService] No iOS store integration found for tenant ${tenantId}`);
+        return;
+      }
+
+      const integration = integrations[0];
+      targetAppId = integration.targetAppId ?? '';
+
+      if (!targetAppId) {
+        console.warn(`[DistributionService] No targetAppId in integration ${integration.id}`);
+        return;
+      }
+
+      // Create Apple service instance (will be reused for all submissions)
+      appleService = await createAppleServiceFromIntegration(integration.id);
+      
+    } catch (error) {
+      console.error('[DistributionService] Failed to initialize Apple service:', error);
+      return;
+    }
+
+    // Enrich each submission in parallel
+    await Promise.all(
+      submissionsNeedingEnrichment.map(async (submission) => {
+        try {
+          console.log(`[DistributionService] Fetching rollout percentage for submission ${submission.id} (v${submission.version})`);
+          
+          // Step 1: Get app store version ID (use cached if available)
+          let appStoreVersionId = (submission as any).appStoreVersionId;
+
+          if (appStoreVersionId) {
+            console.log(`[DistributionService] Using cached appStoreVersionId: ${appStoreVersionId}`);
+          } else {
+            console.log(`[DistributionService] No cached appStoreVersionId, fetching from Apple API...`);
+            const versionData = await appleService.getAppStoreVersionByVersionString(
+              targetAppId,
+              submission.version
+            );
+
+            if (!versionData) {
+              console.warn(`[DistributionService] Version ${submission.version} not found in Apple for submission ${submission.id}`);
+              return;
+            }
+
+            appStoreVersionId = versionData.id;
+            console.log(`[DistributionService] Found appStoreVersionId: ${appStoreVersionId} for v${submission.version}`);
+            
+            // Cache it for next time (fire-and-forget update)
+            this.iosSubmissionRepository.update(submission.id, {
+              appStoreVersionId: appStoreVersionId
+            }).catch(err => {
+              console.warn(`[DistributionService] Failed to cache appStoreVersionId for ${submission.id}:`, err);
+            });
+          }
+
+          // Step 2: Get phased release data
+          const phasedReleaseData = await appleService.getPhasedReleaseForVersion(appStoreVersionId);
+
+          if (!phasedReleaseData || !phasedReleaseData.data) {
+            console.warn(`[DistributionService] No phased release found for version ${appStoreVersionId}`);
+            return;
+          }
+
+          // Step 3: Extract currentDayNumber and map to percentage
+          const currentDayNumber = phasedReleaseData.data.attributes?.currentDayNumber;
+          
+          if (currentDayNumber === null || currentDayNumber === undefined) {
+            console.warn(`[DistributionService] No currentDayNumber found for submission ${submission.id}`);
+            return;
+          }
+
+          const newRolloutPercentage = this.mapDayNumberToRolloutPercentage(currentDayNumber);
+          
+          console.log(
+            `[DistributionService] Submission ${submission.id}: currentDayNumber = ${currentDayNumber}, ` +
+            `rolloutPercentage = ${newRolloutPercentage}%`
+          );
+
+          // Step 4: Update database if percentage has changed
+          if (newRolloutPercentage !== submission.rolloutPercentage) {
+            await this.iosSubmissionRepository.update(submission.id, {
+              rolloutPercentage: newRolloutPercentage
+            });
+            
+            console.log(
+              `[DistributionService] Updated submission ${submission.id} rollout percentage: ` +
+              `${submission.rolloutPercentage}% → ${newRolloutPercentage}%`
+            );
+          }
+
+          // Step 5: Update in-memory object for response
+          submission.rolloutPercentage = newRolloutPercentage;
+          
+        } catch (error) {
+          console.error(`[DistributionService] Failed to enrich submission ${submission.id}:`, error);
+          // Keep existing rolloutPercentage on error
+        }
+      })
+    );
+
+    console.log('[DistributionService] Completed rollout percentage enrichment for iOS submissions');
   }
 }
 

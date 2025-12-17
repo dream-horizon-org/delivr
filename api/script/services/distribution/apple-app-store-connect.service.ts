@@ -531,6 +531,49 @@ export class AppleAppStoreConnectService {
   }
 
   /**
+   * Get app store review submission ID for a specific version
+   * 
+   * @param appStoreVersionId - The ID of the app store version
+   * @returns Promise with review submission ID or null if not found
+   */
+  async getReviewSubmissionIdForVersion(appStoreVersionId: string): Promise<string | null> {
+    try {
+      // Query review submissions filtered by app store version
+      const response = await this.makeRequest<any>(
+        'GET',
+        `/appStoreReviewSubmissions?filter[appStoreVersion]=${appStoreVersionId}`
+      );
+
+      const submissions = response?.data || [];
+      
+      if (submissions.length === 0) {
+        console.warn(`[AppleService] No review submission found for version ${appStoreVersionId}`);
+        return null;
+      }
+
+      // Return the most recent submission (first in the list)
+      const reviewSubmissionId = submissions[0].id;
+      console.log(`[AppleService] Found review submission: ${reviewSubmissionId} for version ${appStoreVersionId}`);
+      
+      return reviewSubmissionId;
+    } catch (error) {
+      console.error(`[AppleService] Error fetching review submission:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Delete (cancel) an app store review submission
+   * This cancels the submission and allows resubmission
+   * 
+   * @param reviewSubmissionId - The ID of the review submission to delete
+   * @returns Promise resolving when deletion is successful
+   */
+  async deleteReviewSubmission(reviewSubmissionId: string): Promise<void> {
+    await this.makeRequest('DELETE', `/appStoreReviewSubmissions/${reviewSubmissionId}`);
+  }
+
+  /**
    * Get all builds for an app
    * 
    * @param appId - The app ID

@@ -16,6 +16,7 @@ export type IosSubmissionBuild = {
   releaseType: IosReleaseType;
   resetRating: boolean | null;
   rolloutPercentage: number | null;
+  appStoreVersionId: string | null;
   isActive: boolean;
   submittedBy: string | null;
   createdAt: Date;
@@ -58,6 +59,7 @@ export type UpdateIosSubmissionDto = {
   releaseType?: IosReleaseType;
   resetRating?: boolean | null;
   rolloutPercentage?: number | null;
+  appStoreVersionId?: string | null;
   isActive?: boolean;
   submittedBy?: string | null;
   submittedAt?: Date | null;
