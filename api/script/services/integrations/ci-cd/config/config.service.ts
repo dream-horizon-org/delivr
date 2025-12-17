@@ -28,6 +28,7 @@ export type TriggerWorkflowResult = {
   queueLocation: string;
   workflowId: string;
   providerType: CICDProviderType;
+  workflowType: string;
 };
 
 export class CICDConfigService {
@@ -238,7 +239,8 @@ export class CICDConfigService {
     return {
       queueLocation: result.queueLocation,
       workflowId: selectedWorkflow.id,
-      providerType: selectedWorkflow.providerType
+      providerType: selectedWorkflow.providerType,
+      workflowType: selectedWorkflow.workflowType
     };
   }
 

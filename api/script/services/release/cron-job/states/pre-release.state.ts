@@ -228,11 +228,19 @@ export class PreReleaseState implements ICronJobState {
           console.log(`[${instanceId}] [PreReleaseState] Executing task: ${task.taskType} (${task.id})`);
           
           try {
+            // Fetch platform-target mappings for this release
+            const platformMappingRepo = this.context.getPlatformMappingRepo();
+            if (!platformMappingRepo) {
+              throw new Error('Platform mapping repository not available');
+            }
+            const platformTargetMappings = await platformMappingRepo.getByReleaseId(releaseId);
+            
             await taskExecutor.executeTask({
               releaseId,
               tenantId: release.tenantId,
               release,
-              task
+              task,
+              platformTargetMappings
             });
             
             console.log(`[${instanceId}] [PreReleaseState] Task ${task.taskType} executed successfully`);

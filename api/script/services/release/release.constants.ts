@@ -48,6 +48,8 @@ export const RELEASE_ERROR_MESSAGES = {
   
   // Platform-specific errors
   IOS_PLATFORM_REQUIRED: 'TRIGGER_TEST_FLIGHT_BUILD task requires iOS platform, but no iOS platform found',
+  TESTFLIGHT_NUMBER_REQUIRED: 'TestFlight build number (testflightNumber) is required for manual iOS upload but was not provided',
+  AAB_VERSION_CODE_REQUIRED: 'Android AAB build version code is required for manual upload but could not be extracted from internalTrackLink',
   
   // Regression cycle errors
   REGRESSION_CYCLE_ID_NOT_FOUND: 'Regression cycle ID not found in task',

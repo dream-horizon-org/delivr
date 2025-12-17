@@ -3,7 +3,6 @@ import type { Storage } from '../../../storage/storage';
 import { HTTP_STATUS } from '~constants/http';
 import { successResponse, errorResponse, validationErrorResponse } from '~utils/response.utils';
 import { BUILD_ERROR_MESSAGES, BUILD_SUCCESS_MESSAGES } from '~types/release-management/builds';
-import { getFileWithField } from '../../../file-upload-manager';
 import { getTrimmedString } from '~utils/string.utils';
 import {
   BuildArtifactService,
@@ -38,7 +37,8 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
         return;
       }
 
-      const artifactFile = getFileWithField(req, 'artifact');
+      // When using upload.single(), the file is in req.file, not req.files
+      const artifactFile = req.file;
       const fileMissing = !artifactFile || !artifactFile.buffer || !artifactFile.originalname;
       if (fileMissing) {
         res.status(HTTP_STATUS.BAD_REQUEST).json(
@@ -70,10 +70,18 @@ export const createCiArtifactUploadHandler = (storage: Storage) =>
         const artifactError = err as BuildArtifactError;
         const isBuildNotFound = artifactError.code === BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND;
         const isPlayStoreIntegrationNotFound = artifactError.code === BUILD_ARTIFACT_ERROR_CODE.PLAY_STORE_INTEGRATION_NOT_FOUND;
+        const isVersionMismatch = artifactError.code === BUILD_ARTIFACT_ERROR_CODE.ARTIFACT_VERSION_MISMATCH;
 
         if (isBuildNotFound) {
           res.status(HTTP_STATUS.BAD_REQUEST).json(
             validationErrorResponse('ciRunId', artifactError.message)
+          );
+          return;
+        }
+
+        if (isVersionMismatch) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json(
+            validationErrorResponse('artifactVersion', artifactError.message)
           );
           return;
         }

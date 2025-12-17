@@ -64,6 +64,7 @@ import { createReleaseModel, ReleaseModelType } from '../../script/models/releas
 import { createCronJobModel, CronJobModelType } from '../../script/models/release/cron-job.sequelize.model';
 import { createReleaseTaskModel, ReleaseTaskModelType } from '../../script/models/release/release-task.sequelize.model';
 import { createRegressionCycleModel, RegressionCycleModelType } from '../../script/models/release/regression-cycle.sequelize.model';
+import { createPlatformTargetMappingModel } from '../../script/models/release/platform-target-mapping.sequelize.model';
 import { TaskExecutor } from '../../script/services/release/task-executor/task-executor';
 import { CronJobStateMachine } from '../../script/services/release/cron-job/cron-job-state-machine';
 // NOTE: Tests use test-helpers/task-executor-factory.ts, NOT production factory
@@ -840,11 +841,19 @@ async function runChunk7TaskExecutionTests(sequelize: Sequelize) {
     if (forkTask) {
       const fullRelease = await releaseRepo.findById(release.id);
 
+      // Fetch platform-target mappings for this release
+      const PlatformTargetMappingModel = sequelize.models.PlatformTargetMapping || createPlatformTargetMappingModel(sequelize);
+      const mappings = await PlatformTargetMappingModel.findAll({
+        where: { releaseId: release.id }
+      });
+      const platformTargetMappings = mappings.map((m: any) => m.toJSON());
+
       const result = await taskExecutor.executeTask({
         releaseId: release.id,
         tenantId,
         release: fullRelease!,
-        task: forkTask
+        task: forkTask,
+        platformTargetMappings
       });
 
       // Graceful degradation: Integration failures are OK in test mode

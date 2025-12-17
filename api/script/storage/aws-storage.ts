@@ -2955,4 +2955,31 @@ export class S3Storage implements storage.Storage {
         Expires: expiresSeconds
       });
     }
+
+    /**
+     * Check if an object exists in S3
+     * @param key - The S3 key to check
+     * @returns true if object exists, false otherwise
+     */
+    public async objectExists(key: string): Promise<boolean> {
+      try {
+        await this.s3
+          .headObject({
+            Bucket: this.bucketName,
+            Key: key
+          })
+          .promise();
+        return true;
+      } catch (error: unknown) {
+        const isNotFoundError = error instanceof Error && 
+          (error.name === 'NotFound' || error.name === 'NoSuchKey' || 
+           (error as { code?: string }).code === 'NotFound' || 
+           (error as { code?: string }).code === 'NoSuchKey');
+        if (isNotFoundError) {
+          return false;
+        }
+        // Re-throw other errors (permissions, network, etc.)
+        throw error;
+      }
+    }
   }

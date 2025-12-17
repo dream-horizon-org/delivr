@@ -96,6 +96,31 @@ export class BuildArtifactService {
       );
     }
 
+    // Step 1.5: Validate artifactVersion matches release platform mapping version
+    const platformMappings = await executeOperation(
+      () => this.s3Storage.releasePlatformTargetMappingRepository.getByReleaseId(build.releaseId),
+      BUILD_ARTIFACT_ERROR_CODE.DB_QUERY_FAILED,
+      BUILD_ARTIFACT_ERROR_MESSAGES.DB_QUERY_FAILED
+    );
+
+    const platformMapping = platformMappings.find(m => m.platform === build.platform);
+    const platformMappingNotFound = !platformMapping;
+    
+    if (platformMappingNotFound) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.BUILD_NOT_FOUND,
+        `Platform mapping not found for platform ${build.platform} in release ${build.releaseId}`
+      );
+    }
+
+    const versionMismatch = platformMapping.version !== artifactVersion;
+    if (versionMismatch) {
+      throw new BuildArtifactError(
+        BUILD_ARTIFACT_ERROR_CODE.ARTIFACT_VERSION_MISMATCH,
+        `${BUILD_ARTIFACT_ERROR_MESSAGES.ARTIFACT_VERSION_MISMATCH}: expected "${platformMapping.version}" for platform ${build.platform}, but received "${artifactVersion}"`
+      );
+    }
+
     // Step 2: Upload artifact to S3
     const uploadResult = await this.uploadArtifactToS3({
       tenantId: build.tenantId,
