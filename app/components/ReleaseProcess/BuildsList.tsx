@@ -25,6 +25,8 @@ import type { BuildInfo } from '~/types/release-process.types';
 import { Platform, TaskStatus, BuildUploadStage, TaskType } from '~/types/release-process-enums';
 import { ManualBuildUploadWidget } from './ManualBuildUploadWidget';
 
+import type { BuildTaskOutput } from '~/types/release-process.types';
+
 interface BuildsListProps {
   builds: BuildInfo[];
   expectedPlatforms?: Platform[]; // For CI/CD: Show all platforms even if no builds
@@ -37,6 +39,7 @@ interface BuildsListProps {
   tenantId?: string;
   releaseId?: string;
   onUploadComplete?: () => void;
+  buildOutput?: BuildTaskOutput | null; // CI/CD job URLs from task output
 }
 
 export function BuildsList({ 
@@ -51,6 +54,7 @@ export function BuildsList({
   tenantId,
   releaseId,
   onUploadComplete,
+  buildOutput,
 }: BuildsListProps) {
   // Helper to generate TestFlight link
   const getTestFlightLink = (testflightNumber: string | null): string | null => {
@@ -97,6 +101,8 @@ export function BuildsList({
           
           // If no builds for this platform but we're showing expected platforms (CI/CD mode or failed task)
           if (platformBuilds.length === 0 && expectedPlatforms) {
+            // Find job URL for this platform from buildOutput
+            const platformJobUrl = buildOutput?.platforms?.find(p => p.platform === platform)?.jobUrl;
             return (
               <PlatformStatusItem
                 key={platform}
@@ -105,6 +111,7 @@ export function BuildsList({
                 isPostRegression={isPostRegression}
                 isKickoffRegression={isKickoffRegression}
                 getTestFlightLink={getTestFlightLink}
+                jobUrl={platformJobUrl}
               />
             );
           }
@@ -118,22 +125,27 @@ export function BuildsList({
               <Badge size="sm" variant="light" style={{ alignSelf: 'flex-start' }}>
                 {platform}
               </Badge>
-              {platformBuilds.map((build) => (
-                <BuildItem
-                  key={build.id}
-                  build={build}
-                  taskStatus={taskStatus}
-                  isPostRegression={isPostRegression}
-                  isKickoffRegression={isKickoffRegression}
-                  getTestFlightLink={getTestFlightLink}
-                  canChangeBuilds={canChangeBuilds}
-                  buildStage={buildStage}
-                  taskType={taskType}
-                  tenantId={tenantId}
-                  releaseId={releaseId}
-                  onUploadComplete={onUploadComplete}
-                />
-              ))}
+              {platformBuilds.map((build) => {
+                // Find job URL for this platform from buildOutput
+                const platformJobUrl = buildOutput?.platforms?.find(p => p.platform === build.platform)?.jobUrl;
+                return (
+                  <BuildItem
+                    key={build.id}
+                    build={build}
+                    taskStatus={taskStatus}
+                    isPostRegression={isPostRegression}
+                    isKickoffRegression={isKickoffRegression}
+                    getTestFlightLink={getTestFlightLink}
+                    canChangeBuilds={canChangeBuilds}
+                    buildStage={buildStage}
+                    taskType={taskType}
+                    tenantId={tenantId}
+                    releaseId={releaseId}
+                    onUploadComplete={onUploadComplete}
+                    jobUrl={platformJobUrl}
+                  />
+                );
+              })}
             </Stack>
           );
         })}
@@ -154,6 +166,7 @@ interface BuildItemProps {
   tenantId?: string;
   releaseId?: string;
   onUploadComplete?: () => void;
+  jobUrl?: string; // CI/CD job URL for this platform
 }
 
 function BuildItem({
@@ -168,6 +181,7 @@ function BuildItem({
   tenantId,
   releaseId,
   onUploadComplete,
+  jobUrl,
 }: BuildItemProps) {
   const [isChangingBuild, setIsChangingBuild] = useState(false);
 
@@ -310,9 +324,28 @@ function BuildItem({
             </Stack>
           )}
           
-          {/* For Kickoff/Regression: Show download links */}
+          {/* For Kickoff/Regression: Show download links and CI/CD job links */}
           {isKickoffRegression && (
             <Stack gap="xs">
+              {/* CI/CD Job Link - Show when task is running or completed and has URL */}
+              {jobUrl && (
+                taskStatus === TaskStatus.IN_PROGRESS ||
+                taskStatus === TaskStatus.AWAITING_CALLBACK ||
+                taskStatus === TaskStatus.COMPLETED ||
+                taskStatus === TaskStatus.FAILED
+              ) && (
+                <Anchor 
+                  href={jobUrl} 
+                  target="_blank" 
+                  size="sm" 
+                  c="blue"
+                >
+                  <Group gap={4}>
+                    <IconExternalLink size={14} />
+                    <Text size="sm">View CI/CD Job</Text>
+                  </Group>
+                </Anchor>
+              )}
               {build.artifactPath && (
                 <Anchor 
                   href={build.artifactPath} 
@@ -326,6 +359,28 @@ function BuildItem({
                   </Group>
                 </Anchor>
               )}
+            </Stack>
+          )}
+          
+          {/* For Pre-Release: Show CI/CD job links if available */}
+          {isPostRegression && jobUrl && (
+            taskStatus === TaskStatus.IN_PROGRESS ||
+            taskStatus === TaskStatus.AWAITING_CALLBACK ||
+            taskStatus === TaskStatus.COMPLETED ||
+            taskStatus === TaskStatus.FAILED
+          ) && (
+            <Stack gap="xs">
+              <Anchor 
+                href={jobUrl} 
+                target="_blank" 
+                size="sm" 
+                c="blue"
+              >
+                <Group gap={4}>
+                  <IconExternalLink size={14} />
+                  <Text size="sm">View CI/CD Job</Text>
+                </Group>
+              </Anchor>
             </Stack>
           )}
           
@@ -364,6 +419,7 @@ interface PlatformStatusItemProps {
   isPostRegression: boolean;
   isKickoffRegression: boolean;
   getTestFlightLink: (testflightNumber: string | null) => string | null;
+  jobUrl?: string; // CI/CD job URL for this platform
 }
 
 /**
@@ -376,9 +432,18 @@ function PlatformStatusItem({
   isPostRegression,
   isKickoffRegression,
   getTestFlightLink,
+  jobUrl,
 }: PlatformStatusItemProps) {
   const isFailed = taskStatus === TaskStatus.FAILED;
   const isRunning = taskStatus === TaskStatus.IN_PROGRESS || taskStatus === TaskStatus.AWAITING_CALLBACK;
+  
+  // Show CI/CD job link if available and task is in a state that allows it
+  const shouldShowJobLink = jobUrl && (
+    taskStatus === TaskStatus.IN_PROGRESS ||
+    taskStatus === TaskStatus.AWAITING_CALLBACK ||
+    taskStatus === TaskStatus.COMPLETED ||
+    taskStatus === TaskStatus.FAILED
+  );
 
   return (
     <Group justify="space-between" align="flex-start" p="sm" 
@@ -405,9 +470,26 @@ function PlatformStatusItem({
               </Badge>
             )}
           </Group>
-          <Text size="sm" c={isFailed ? 'red' : 'dimmed'}>
-            {isFailed ? 'Build failed' : 'Build in progress...'}
-          </Text>
+          {/* Status text and CI/CD Job Link on same row with space-between */}
+          <Group justify="space-between" align="center" gap="md">
+            <Text size="sm" c={isFailed ? 'red' : 'dimmed'}>
+              {isFailed ? 'Build failed' : 'Build in progress...'}
+            </Text>
+            {/* CI/CD Job Link - Show in the card */}
+            {shouldShowJobLink && (
+              <Anchor 
+                href={jobUrl} 
+                target="_blank" 
+                size="sm" 
+                c="blue"
+              >
+                <Group gap={4}>
+                  <IconExternalLink size={14} />
+                  <Text size="sm">View CI/CD Job</Text>
+                </Group>
+              </Anchor>
+            )}
+          </Group>
         </Stack>
       </Group>
     </Group>

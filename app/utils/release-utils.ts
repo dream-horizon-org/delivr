@@ -29,12 +29,12 @@ export function formatReleaseDate(dateString: string | null): string {
  */
 export function getReleaseTypeGradient(type: string): string {
   switch (type) {
-    case RELEASE_TYPE.PLANNED:
+    case RELEASE_TYPE.MAJOR:
+      return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)';
+    case RELEASE_TYPE.MINOR:
       return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
     case RELEASE_TYPE.HOTFIX:
       return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
-    case RELEASE_TYPE.UNPLANNED:
-      return 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)';
     default:
       return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
   }
@@ -63,12 +63,12 @@ export function getStatusColor(status: string): string {
  */
 export function getTypeColor(type: string): string {
   switch (type) {
+    case RELEASE_TYPE.MAJOR:
+      return MANTINE_COLORS.PURPLE;
+    case RELEASE_TYPE.MINOR:
+      return MANTINE_COLORS.BLUE;
     case RELEASE_TYPE.HOTFIX:
       return MANTINE_COLORS.RED;
-    case RELEASE_TYPE.UNPLANNED:
-      return MANTINE_COLORS.PURPLE;
-    case RELEASE_TYPE.PLANNED:
-      return MANTINE_COLORS.BLUE;
     default:
       return MANTINE_COLORS.GRAY;
   }
@@ -95,7 +95,7 @@ export function getTaskStatusColor(status: string): string {
  * Derive UI active status from backend release data
  * Calculated at runtime based on:
  * - kickOffDate for UPCOMING
- * - status and cronJob.cronStatus for RUNNING/PAUSED
+ * - status and cronJob.pauseType for RUNNING/PAUSED
  * - status for COMPLETED
  * 
  * @param release - Backend release response
@@ -109,8 +109,9 @@ export function getReleaseActiveStatus(release: BackendReleaseResponse): typeof 
     return RELEASE_ACTIVE_STATUS.COMPLETED;
   }
   
-  // Check if cronJob is paused
-  if (release.cronJob?.cronStatus === 'PAUSED') {
+  // Check if cronJob is paused - use pauseType (backend keeps cronStatus=RUNNING)
+  const pauseType = release.cronJob?.pauseType;
+  if (pauseType && pauseType !== 'NONE') {
     return RELEASE_ACTIVE_STATUS.PAUSED;
   }
   

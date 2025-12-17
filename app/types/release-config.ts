@@ -11,7 +11,7 @@ export type BuildUploadStep = 'MANUAL' | 'CI_CD';
 
 export type BuildProvider = 'JENKINS' | 'GITHUB_ACTIONS' | 'MANUAL_UPLOAD';
 
-export type BuildEnvironment = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT';
+export type BuildEnvironment = 'PRE_REGRESSION' | 'REGRESSION' | 'TESTFLIGHT' | 'AAB_BUILD';
 
 export type Platform = 'ANDROID' | 'IOS';
 

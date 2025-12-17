@@ -28,7 +28,7 @@ export class ReleaseConfigService {
         logTransformation(config, payload, 'create');
       }
 
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs`;
       const requestBody = JSON.stringify(payload);
       
       console.log('[ReleaseConfigService] POST to:', url, " payload: ", JSON.stringify(payload, null, 2));
@@ -95,7 +95,7 @@ export class ReleaseConfigService {
     userId: string
   ): Promise<{ success: boolean; data?: Partial<ReleaseConfiguration>[]; error?: string }> {
     try {
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs?includeArchived=true`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs?includeArchived=true`;
       console.log('[ReleaseConfigService] Listing configs for tenant:', tenantId, 'from:', url);
 
       const response = await fetch(url, {
@@ -123,7 +123,7 @@ export class ReleaseConfigService {
           error: result.error || result.message || 'Failed to fetch release configurations',
         };
       }
-      console.log('[ReleaseConfigService] List Configs result:', JSON.stringify(result, null, 2));
+      // console.log('[ReleaseConfigService] List Configs result:', JSON.stringify(result, null, 2));
       console.log('[ReleaseConfigService] List successful:', result.data?.length || 0, 'configs');
 
 
@@ -154,7 +154,7 @@ export class ReleaseConfigService {
       console.log('[ReleaseConfigService] Fetching config:', configId);
 
       const response = await fetch(
-        `${BACKEND_API_URL}/tenants/${tenantId}/release-configs/${configId}`,
+        `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`,
         {
           method: 'GET',
           headers: {
@@ -208,7 +208,7 @@ export class ReleaseConfigService {
         logTransformation(updates, payload, 'update');
       }
 
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/release-configs/${configId}`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`;
       console.log('[ReleaseConfigService] PUT to:', url);
       
       const response = await fetch(url, {
@@ -261,7 +261,7 @@ export class ReleaseConfigService {
       console.log('[ReleaseConfigService] Deleting config:', configId);
 
       const response = await fetch(
-        `${BACKEND_API_URL}/tenants/${tenantId}/release-configs/${configId}`,
+        `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/release-configs/${configId}`,
         {
           method: 'DELETE',
           headers: {

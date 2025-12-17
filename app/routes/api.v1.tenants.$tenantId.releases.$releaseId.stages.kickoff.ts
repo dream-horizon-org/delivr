@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching kickoff stage for release:', releaseId);
-      const response = await ReleaseProcessService.getKickoffStage(tenantId, releaseId);
+      const response = await ReleaseProcessService.getKickoffStage(tenantId, releaseId, user.user.id);
       console.log('[BFF] Kickoff stage response:', response.data);
       
       // Backend returns { success: true, stage: 'KICKOFF', releaseId, tasks, stageStatus }

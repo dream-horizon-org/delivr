@@ -106,7 +106,9 @@ export function WorkflowList({
   };
 
   const getPlatformLabel = (platform: string) => {
-    return platform === PLATFORMS.ANDROID
+    // Normalize to uppercase for comparison (backend may return lowercase)
+    const normalizedPlatform = platform?.toUpperCase();
+    return normalizedPlatform === PLATFORMS.ANDROID
       ? PLATFORM_LABELS.ANDROID
       : PLATFORM_LABELS.IOS;
   };
@@ -226,7 +228,7 @@ export function WorkflowList({
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
-                          {(workflow.workflowType === 'AAB_BUILD' || workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD) && (
+                          {workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD && (
                             <Badge size="sm" variant="outline" color="gray">
                               .aab
                             </Badge>
@@ -352,7 +354,7 @@ export function WorkflowList({
                           >
                             {getWorkflowTypeLabel(workflow.workflowType)}
                           </Badge>
-                          {(workflow.workflowType === 'AAB_BUILD' || workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD) && (
+                          {workflow.workflowType === BUILD_ENVIRONMENTS.AAB_BUILD && (
                             <Badge size="sm" variant="outline" color="gray">
                               .aab
                             </Badge>

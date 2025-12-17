@@ -1,7 +1,6 @@
 import {
   IconAdjustmentsHorizontal,
   IconApps,
-  IconChartBar,
   IconCloud,
   IconGitBranch,
   IconList,
@@ -39,12 +38,6 @@ export function getNavigationModules(org: Organization): ModuleConfig[] {
       mainRoute: `/dashboard/${org.id}/releases`,
       prefetch: "render",
       subItems: [
-        {
-          label: "Release Dashboard",
-          icon: IconChartBar,
-          path: `/dashboard/${org.id}/releases`,
-          prefetch: "render",
-        },
         {
           label: "Releases",
           icon: IconList,

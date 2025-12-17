@@ -242,7 +242,7 @@ export function PlatformTargetsSelector({
                     onChange={(e) =>
                       handleTargetToggle(target, e.currentTarget.checked)
                     }
-                    disabled={!selected && platformTargets.length === 0}
+                    disabled={disabled}
                   />
 
                   {selected && (

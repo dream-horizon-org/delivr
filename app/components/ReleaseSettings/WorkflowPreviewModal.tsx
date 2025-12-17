@@ -32,7 +32,9 @@ export function WorkflowPreviewModal({
   const theme = useMantineTheme();
 
   const getPlatformIcon = (platform: string) => {
-    switch (platform) {
+    // Normalize to uppercase for comparison (backend may return lowercase)
+    const normalizedPlatform = platform?.toUpperCase();
+    switch (normalizedPlatform) {
       case PLATFORMS.ANDROID:
         return <IconBrandAndroid size={18} />;
       case PLATFORMS.IOS:
@@ -134,7 +136,7 @@ export function WorkflowPreviewModal({
                 leftSection={getPlatformIcon(workflow.platform)}
                 size="md"
               >
-                {PLATFORM_LABELS[workflow.platform] || workflow.platform}
+                {PLATFORM_LABELS[workflow.platform?.toUpperCase() as keyof typeof PLATFORM_LABELS] || workflow.platform}
               </Badge>
             </Group>
 

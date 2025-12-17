@@ -14,7 +14,7 @@ export interface BackendReleaseResponse {
   releaseId: string;
   releaseConfigId: string | null;
   tenantId: string;
-  type: 'PLANNED' | 'HOTFIX' | 'UNPLANNED';
+  type: 'MAJOR' | 'MINOR' | 'HOTFIX';
   status: ReleaseStatus;
   releasePhase?: Phase;
   branch: string | null;

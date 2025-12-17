@@ -21,7 +21,7 @@ import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { usePauseResumeRelease } from '~/hooks/useReleaseProcess';
-import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
 import type { MessageTypeEnum } from '~/types/release-process.types';
 import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
@@ -72,10 +72,11 @@ export function ReleaseProcessHeader({
   // Use API data directly - no derivation
   const releaseStatus: ReleaseStatus = release.status;
   const releasePhase: Phase | undefined = release.releasePhase;
-  const isPaused =
-    releaseStatus === ReleaseStatus.PAUSED ||
-    releasePhase === Phase.PAUSED_BY_USER ||
-    releasePhase === Phase.PAUSED_BY_FAILURE;
+  
+  // Check if paused - use pauseType from cronJob (primary check)
+  // Backend keeps cronStatus=RUNNING and uses pauseType to control pause state
+  const pauseType = release.cronJob?.pauseType;
+  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
 
   // Handle update submission
   const handleUpdate = async (updateRequest: UpdateReleaseBackendRequest): Promise<void> => {

@@ -18,6 +18,7 @@ import { API_CONFIG, HTTP_STATUS, getBaseURLForRequest, isDistributionAPI } from
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_CONFIG.TIMEOUT,
+  withCredentials: true, // Send cookies with requests
   headers: {
     'Content-Type': 'application/json',
   },
@@ -146,11 +147,12 @@ function getAuthToken(): string | null {
 
 /**
  * Handle unauthorized access
+ * Note: Server-side loaders handle 401 redirects, so client-side just logs
  */
 function handleUnauthorized(): void {
-  // In a real app, this would redirect to login
-  console.warn('[Auth] Unauthorized access - redirecting to login');
-  // window.location.href = '/login';
+  // Server-side loaders will handle redirect on 401
+  // Client-side just logs for debugging
+  console.warn('[Auth] Unauthorized access detected');
 }
 
 /**

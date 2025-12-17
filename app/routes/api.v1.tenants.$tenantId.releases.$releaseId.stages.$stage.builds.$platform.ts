@@ -100,6 +100,7 @@ const uploadBuild: AuthenticatedActionFunction = async ({ params, request, user 
       blob,
       platformEnum,
       buildUploadStage,
+      user.user.id,
       file.name // Pass filename
     );
 

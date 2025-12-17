@@ -134,6 +134,7 @@ export const BUTTON_LABELS = {
   EDIT_RELEASE: 'Edit Release',
   PAUSE: 'Pause',
   RESUME: 'Resume',
+  ARCHIVE: 'Archive Release',
   ACTIVITY_LOG: 'Activity Log',
   POST_SLACK_MESSAGE: 'Post Slack Message',
   

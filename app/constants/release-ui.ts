@@ -21,9 +21,9 @@ export type ReleaseStatusValue = typeof RELEASE_STATUS[keyof typeof RELEASE_STAT
 // ============================================================================
 
 export const RELEASE_TYPE = {
-  PLANNED: 'PLANNED',
+  MAJOR: 'MAJOR',
+  MINOR: 'MINOR',
   HOTFIX: 'HOTFIX',
-  UNPLANNED: 'UNPLANNED',
 } as const;
 
 export type ReleaseTypeValue = typeof RELEASE_TYPE[keyof typeof RELEASE_TYPE];

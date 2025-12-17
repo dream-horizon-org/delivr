@@ -37,8 +37,45 @@ export function createServerError(message: string) {
 
 /**
  * Log API errors with context
+ * Extracts only relevant information to avoid logging entire request/response objects
  */
 export function logApiError(context: string, error: unknown): void {
+  // Handle Axios errors
+  if (error && typeof error === 'object' && 'isAxiosError' in error) {
+    const axiosError = error as any;
+    const errorInfo: Record<string, unknown> = {
+      message: axiosError.message || 'Unknown error',
+      code: axiosError.code,
+    };
+
+    // Add response info if available
+    if (axiosError.response) {
+      errorInfo.status = axiosError.response.status;
+      errorInfo.statusText = axiosError.response.statusText;
+      errorInfo.data = axiosError.response.data;
+      errorInfo.url = axiosError.config?.url;
+      errorInfo.method = axiosError.config?.method?.toUpperCase();
+    } else if (axiosError.config) {
+      // Request was made but no response (network error)
+      errorInfo.url = axiosError.config.url;
+      errorInfo.method = axiosError.config.method?.toUpperCase();
+    }
+
+    console.error(`${context} Error:`, errorInfo);
+    return;
+  }
+
+  // Handle regular Error objects
+  if (error instanceof Error) {
+    console.error(`${context} Error:`, {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+    });
+    return;
+  }
+
+  // Fallback for unknown error types
   console.error(`${context} Error:`, error);
 }
 

@@ -112,7 +112,7 @@ class ReleaseManagementService {
   ): Promise<ListReleasesResponse> {
     try {
       const includeTasks = options?.includeTasks || false;
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases${includeTasks ? '?includeTasks=true' : ''}`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases${includeTasks ? '?includeTasks=true' : ''}`;
 
       console.log('[ReleaseManagementService] GET:', url);
 
@@ -166,7 +166,7 @@ class ReleaseManagementService {
     userId: string
   ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
     try {
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases/${releaseId}`;
 
       console.log('[ReleaseManagementService] GET:', url);
 
@@ -220,7 +220,7 @@ class ReleaseManagementService {
     userId: string
   ): Promise<CreateReleaseResponse> {
     try {
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases`;
       
       console.log('[ReleaseManagementService] POST to:', url);
       console.log('[ReleaseManagementService] Payload:', JSON.stringify(request, null, 2));
@@ -283,7 +283,7 @@ class ReleaseManagementService {
     updates: any
   ): Promise<{ success: boolean; release?: BackendReleaseResponse; error?: string }> {
     try {
-      const url = `${BACKEND_API_URL}/tenants/${tenantId}/releases/${releaseId}`;
+      const url = `${BACKEND_API_URL}/api/v1/tenants/${tenantId}/releases/${releaseId}`;
 
       console.log('[ReleaseManagementService] PATCH:', url);
 

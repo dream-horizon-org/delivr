@@ -312,14 +312,34 @@ export function prepareReleaseConfigPayload(
   // If undefined or disabled, omit entirely (backend optional)
 
   // ========================================================================
-  // TRANSFORMATION 5: Scheduling - Lowercase releaseFrequency
+  // TRANSFORMATION 5: Scheduling - Lowercase releaseFrequency + Transform initialVersions
   // Why: Backend expects lowercase enum ("weekly"), UI uses uppercase ("WEEKLY")
   // Field name: releaseSchedule (not scheduling)
+  // initialVersions: Backend expects array [{ platform, target, version }], UI has object { PLATFORM: version }
   // ========================================================================
   if (config.releaseSchedule) {
+    // Transform initialVersions from object to array format
+    let initialVersionsArray: Array<{ platform: string; target: string; version: string }> = [];
+    
+    if (config.releaseSchedule.initialVersions && platformTargets.length > 0) {
+      // Map each platform in initialVersions to its corresponding target from platformTargets
+      Object.entries(config.releaseSchedule.initialVersions).forEach(([platform, version]) => {
+        // Find the target for this platform from platformTargets
+        const platformTarget = platformTargets.find(pt => pt.platform === platform.toUpperCase());
+        if (platformTarget && version) {
+          initialVersionsArray.push({
+            platform: platform.toUpperCase(),
+            target: platformTarget.target,
+            version: version as string,
+          });
+        }
+      });
+    }
+    
     payload.releaseSchedule = {
       ...config.releaseSchedule,
       releaseFrequency: config.releaseSchedule.releaseFrequency.toLowerCase(),
+      initialVersions: initialVersionsArray,
     };
   }
 

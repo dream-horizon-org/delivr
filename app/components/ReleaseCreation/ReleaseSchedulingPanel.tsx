@@ -18,8 +18,8 @@ import {
   Button,
   Badge,
   Alert,
-  Modal,
   useMantineTheme,
+  Textarea,
 } from '@mantine/core';
 import {
   IconCalendar,
@@ -37,6 +37,8 @@ import {
   DEFAULT_KICKOFF_TIME,
 } from '~/constants/release-creation';
 import { showInfoToast } from '~/utils/toast';
+import { validateAllSlots } from '~/utils/regression-slot-validation';
+import { combineDateAndTime } from '~/utils/release-creation-converter';
 
 interface ReleaseSchedulingPanelProps {
   state: Partial<ReleaseCreationState>;
@@ -59,9 +61,6 @@ export function ReleaseSchedulingPanel({
 }: ReleaseSchedulingPanelProps) {
   const theme = useMantineTheme();
   const [enableKickoffDateChange, setEnableKickoffDateChange] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingKickoffDate, setPendingKickoffDate] = useState<string>('');
-  const [pendingKickoffTime, setPendingKickoffTime] = useState<string>('');
   const {
     targetReleaseDate,
     targetReleaseTime,
@@ -71,6 +70,7 @@ export function ReleaseSchedulingPanel({
     kickOffReminderTime,
     regressionBuildSlots,
     hasManualBuildUpload,
+    delayReason,
   } = state;
 
   // Ensure times have default values if not set
@@ -172,6 +172,16 @@ export function ReleaseSchedulingPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, targetReleaseDate]);
 
+  // Check if target release date is being extended (for delayReason requirement)
+  const isExtendingTargetDate = useMemo(() => {
+    if (!isEditMode || !existingRelease?.targetReleaseDate || !targetReleaseDate) {
+      return false;
+    }
+    const oldDate = new Date(existingRelease.targetReleaseDate);
+    const newDate = new Date(targetReleaseDate);
+    return newDate > oldDate;
+  }, [isEditMode, existingRelease, targetReleaseDate]);
+
   // Handle release date change - only auto-update kickoff date if it hasn't been manually set
   const handleReleaseDateChange = (date: string) => {
     const updates: Partial<ReleaseCreationState> = {
@@ -187,11 +197,28 @@ export function ReleaseSchedulingPanel({
       updates.kickOffDate = kd.toISOString().split('T')[0] || '';
     }
 
+    // Clear delayReason if shortening target date
+    if (isEditMode && existingRelease?.targetReleaseDate) {
+      const oldDate = new Date(existingRelease.targetReleaseDate);
+      const newDate = new Date(date);
+      if (newDate < oldDate) {
+        updates.delayReason = undefined;
+      }
+    }
+
     onChange({
       ...state,
       ...updates,
     });
   };
+
+  // Validate slots when kickoff date changes
+  // Note: Validation errors are shown in the RegressionSlotCardForRelease component
+  // This effect just ensures slots are re-validated when dates change
+  useEffect(() => {
+    // Validation happens in RegressionSlotCardForRelease component
+    // This effect is here for potential future use if we need to aggregate errors
+  }, [kickOffDate, kickOffTimeValue, targetReleaseDate, targetReleaseTimeValue, regressionBuildSlots]);
 
   // Check if regression builds are enabled
   const hasRegressionBuilds = regressionBuildSlots && regressionBuildSlots.length > 0;
@@ -225,7 +252,7 @@ export function ReleaseSchedulingPanel({
               <Box style={{ flex: 1 }}>
                 <Text fw={500} size="sm" mb={4}>Enable Kickoff Date Change</Text>
                 <Text size="xs" c="dimmed">
-                  Enable this toggle to modify the kickoff date and time. Note: Changing the kickoff date will remove all existing regression slots.
+                  Enable this toggle to modify the kickoff date and time. Note: Changing the kickoff date will validate all regression slots. Invalid slots will show errors and must be updated.
                 </Text>
               </Box>
               <Switch
@@ -239,7 +266,7 @@ export function ReleaseSchedulingPanel({
           {isEditMode && existingRelease && !enableKickoffDateChange ? (
             <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
               <Text size="sm">
-                Changing kickoff date will remove all regression slots. You will need to manually add them back.
+                Changing kickoff date will validate all regression slots. Invalid slots will show errors and must be updated to future times.
               </Text>
             </Alert>
           ) : (
@@ -249,40 +276,16 @@ export function ReleaseSchedulingPanel({
               dateValue={kickOffDate || ''}
               timeValue={kickOffTimeValue}
               onDateChange={(date) => {
-                // Check if kickoff date is actually changing
-                const originalKickoffDate = existingRelease?.kickOffDate 
-                  ? new Date(existingRelease.kickOffDate).toISOString().split('T')[0]
-                  : null;
-                
-                if (isEditMode && existingRelease && originalKickoffDate && date !== originalKickoffDate) {
-                  // Kickoff date is changing - show confirmation
-                  setPendingKickoffDate(date);
-                  setPendingKickoffTime(kickOffTimeValue);
-                  setShowConfirmDialog(true);
-                } else {
-                  onChange({
-                    ...state,
-                    kickOffDate: date,
-                  });
-                }
+                onChange({
+                  ...state,
+                  kickOffDate: date,
+                });
               }}
               onTimeChange={(time) => {
-                // Check if kickoff time is actually changing
-                const originalKickoffTime = existingRelease?.kickOffDate
-                  ? new Date(existingRelease.kickOffDate).toTimeString().slice(0, 5)
-                  : null;
-                
-                if (isEditMode && existingRelease && originalKickoffTime && time !== originalKickoffTime) {
-                  // Kickoff time is changing - show confirmation
-                  setPendingKickoffTime(time);
-                  setPendingKickoffDate(kickOffDate || '');
-                  setShowConfirmDialog(true);
-                } else {
-                  onChange({
-                    ...state,
-                    kickOffTime: time,
-                  });
-                }
+                onChange({
+                  ...state,
+                  kickOffTime: time,
+                });
               }}
               dateError={errors.kickOffDate}
               timeError={errors.kickOffTime}
@@ -453,6 +456,30 @@ export function ReleaseSchedulingPanel({
               dateMin={kickOffDate ? new Date(new Date(kickOffDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
               required
             />
+            
+            {/* Delay Reason - Required when extending target release date */}
+            {isExtendingTargetDate && (
+              <Textarea
+                label="Delay Reason"
+                placeholder="e.g., Additional testing required due to critical bug fixes"
+                value={delayReason || ''}
+                onChange={(e) =>
+                  onChange({
+                    ...state,
+                    delayReason: e.target.value,
+                  })
+                }
+                required
+                withAsterisk
+                minRows={3}
+                maxRows={5}
+                description="Please provide a reason for extending the target release date. This is required when moving the release date to a later time."
+                error={errors.delayReason}
+                styles={{
+                  label: { fontWeight: 500, marginBottom: 6 },
+                }}
+              />
+            )}
         </Stack>
       </Box>
 
@@ -526,70 +553,10 @@ export function ReleaseSchedulingPanel({
           }
           config={config}
           errors={errors}
-          disableExistingSlots={showOnlyTargetDateAndSlots}
+          isAfterKickoff={showOnlyTargetDateAndSlots}
         />
       )}
 
-      {/* Confirmation Modal for Kickoff Date Change */}
-      <Modal
-        opened={showConfirmDialog}
-        onClose={() => {
-          setShowConfirmDialog(false);
-          setPendingKickoffDate('');
-          setPendingKickoffTime('');
-        }}
-        title="Confirm Kickoff Date Change"
-        centered
-      >
-        <Stack gap="md">
-          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
-            <Text size="sm" fw={500} className="mb-1">
-              Changing kickoff date will remove all regression slots
-            </Text>
-            <Text size="xs">
-              You will need to manually add regression slots for this release after the kickoff date is updated.
-            </Text>
-          </Alert>
-          
-          <Group justify="flex-end" mt="md">
-            <Button
-              variant="subtle"
-              onClick={() => {
-                setShowConfirmDialog(false);
-                setPendingKickoffDate('');
-                setPendingKickoffTime('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              onClick={() => {
-                // Update kickoff date/time
-                onChange({
-                  ...state,
-                  kickOffDate: pendingKickoffDate,
-                  kickOffTime: pendingKickoffTime,
-                  // Clear regression slots
-                  regressionBuildSlots: [],
-                });
-                
-                // Show notification
-                showInfoToast({
-                  title: 'Regression Slots Removed',
-                  message: 'All regression slots have been removed. You will need to manually add regression slots for this release.',
-                });
-                
-                setShowConfirmDialog(false);
-                setPendingKickoffDate('');
-                setPendingKickoffTime('');
-              }}
-            >
-              Confirm & Remove Slots
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
 
     </Stack>
   );

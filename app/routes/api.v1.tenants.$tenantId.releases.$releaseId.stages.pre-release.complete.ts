@@ -36,7 +36,7 @@ const completePreReleaseStage: AuthenticatedActionFunction = async ({ params, re
 
   try {
     console.log('[BFF] Completing pre-release stage for release:', releaseId);
-    const response = await ReleaseProcessService.completePostRegressionStage(tenantId, releaseId);
+    const response = await ReleaseProcessService.completePostRegressionStage(tenantId, releaseId, user.user.id);
     
     // Axios response structure: response.data contains the actual response body
     console.log('[BFF] Pre-release stage completion response:', response.data);

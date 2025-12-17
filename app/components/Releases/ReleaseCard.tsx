@@ -3,7 +3,7 @@
  * Modern, clean card design with improved information hierarchy
  */
 
-import { Badge, Box, Card, Group, Stack, Text, useMantineTheme, Divider } from '@mantine/core';
+import { Badge, Box, Card, Group, Stack, Text, useMantineTheme, Divider, Menu, Modal, Button } from '@mantine/core';
 import { Link, useSearchParams } from '@remix-run/react';
 import { 
   IconCalendar, 
@@ -17,15 +17,22 @@ import {
   IconX,
   IconPlayerPause,
   IconAlertCircle,
+  IconDots,
+  IconArchive,
 } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import { PlatformIcon } from '~/components/Releases/PlatformIcon';
 import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
+import { useArchiveRelease } from '~/hooks/useReleaseProcess';
 import type { ReleaseCardProps } from '~/types/release';
 import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient } from '~/utils/release-utils';
-import { Phase, ReleaseStatus } from '~/types/release-process-enums';
-import { getPhaseColor, getPhaseLabel, getReleaseStatusColor, getReleaseStatusLabel } from '~/constants/release-process-ui';
+import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
+import { getPhaseColor, getPhaseLabel, getReleaseStatusColor, getReleaseStatusLabel, BUTTON_LABELS } from '~/constants/release-process-ui';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { getApiErrorMessage } from '~/utils/api-client';
+import { useQueryClient } from 'react-query';
+import { invalidateReleases } from '~/utils/cache-invalidation';
 
 /**
  * Release Card Component - Modern Clean Design
@@ -37,6 +44,11 @@ export const ReleaseCard = memo(function ReleaseCard({
   const theme = useMantineTheme();
   const [searchParams] = useSearchParams();
   const [configModalOpened, setConfigModalOpened] = useState(false);
+  const [archiveConfirmModalOpened, setArchiveConfirmModalOpened] = useState(false);
+  const queryClient = useQueryClient();
+  
+  // Archive hook
+  const archiveMutation = useArchiveRelease(org, release.id);
   
   // Get release config info
   const { configs } = useReleaseConfigs(org);
@@ -51,12 +63,12 @@ export const ReleaseCard = memo(function ReleaseCard({
   // Helper to get release type color
   const getReleaseTypeColor = (type: string): string => {
     switch (type.toUpperCase()) {
-      case 'PLANNED':
+      case 'MAJOR':
+        return 'purple';
+      case 'MINOR':
         return 'blue';
       case 'HOTFIX':
         return 'red';
-      case 'UNPLANNED':
-        return 'purple';
       default:
         return 'brand';
     }
@@ -69,7 +81,10 @@ export const ReleaseCard = memo(function ReleaseCard({
     : `/dashboard/${org}/releases/${release.id}`;
 
   // Status indicators
-  const isPaused = release.cronJob?.cronStatus === 'PAUSED';
+  // Check if paused - use pauseType from cronJob (primary check)
+  // Backend keeps cronStatus=RUNNING and uses pauseType to control pause state
+  const pauseType = release.cronJob?.pauseType;
+  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
   const phase = release.releasePhase;
   const status = release.status;
 
@@ -83,6 +98,26 @@ export const ReleaseCard = memo(function ReleaseCard({
     }
     return false;
   };
+
+  // Handle archive
+  const handleArchive = async () => {
+    try {
+      await archiveMutation.mutateAsync();
+      
+      showSuccessToast({
+        message: 'Release archived successfully',
+      });
+
+      await invalidateReleases(queryClient, org);
+      setArchiveConfirmModalOpened(false);
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(error, 'Failed to archive release');
+      showErrorToast({ message: errorMessage });
+    }
+  };
+
+  // Only show archive option if release is not already archived
+  const canArchive = status !== ReleaseStatus.ARCHIVED;
 
   return (
     <>
@@ -190,29 +225,65 @@ export const ReleaseCard = memo(function ReleaseCard({
               </Group>
             </Stack>
 
-            {/* Right: Release Config Name - Clickable */}
-            {releaseConfig && (
-              <Box
-                onClick={handleConfigClick}
-                style={{
-                  cursor: 'pointer',
-                  zIndex: 10,
-                  position: 'relative',
-                }}
-              >
-                <Text
-                  size="sm"
-                  fw={500}
-                  c="brand"
-                  className="hover:underline"
+            {/* Right: Release Config Name and Menu */}
+            <Group gap="xs">
+              {releaseConfig && (
+                <Box
+                  onClick={handleConfigClick}
+                  style={{
+                    cursor: 'pointer',
+                    zIndex: 10,
+                    position: 'relative',
+                  }}
                 >
-                  <Group gap={4}>
-                    <IconSettings size={14} />
-                    <span>{releaseConfig.name}</span>
-                  </Group>
-                </Text>
-              </Box>
-            )}
+                  <Text
+                    size="sm"
+                    fw={500}
+                    c="brand"
+                    className="hover:underline"
+                  >
+                    <Group gap={4}>
+                      <IconSettings size={14} />
+                      <span>{releaseConfig.name}</span>
+                    </Group>
+                  </Text>
+                </Box>
+              )}
+              
+              {/* Three-dot menu for actions */}
+              {canArchive && (
+                <Menu shadow="md" width={200} position="bottom-end">
+                  <Menu.Target>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      p={4}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <IconDots size={16} />
+                    </Button>
+                  </Menu.Target>
+
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      leftSection={<IconArchive size={16} />}
+                      color="red"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setArchiveConfirmModalOpened(true);
+                      }}
+                    >
+                      {BUTTON_LABELS.ARCHIVE}
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              )}
+            </Group>
           </Group>
         </Box>
 
@@ -346,13 +417,39 @@ export const ReleaseCard = memo(function ReleaseCard({
       </Card>
 
       {/* Configuration Preview Modal - Outside Link to prevent navigation */}
-    {releaseConfig && (
-      <ConfigurationPreviewModal
-        opened={configModalOpened}
-        onClose={() => setConfigModalOpened(false)}
-        config={releaseConfig}
-      />
-    )}
-  </>
+      {releaseConfig && (
+        <ConfigurationPreviewModal
+          opened={configModalOpened}
+          onClose={() => setConfigModalOpened(false)}
+          config={releaseConfig}
+        />
+      )}
+
+      {/* Archive Confirmation Modal */}
+      <Modal
+        opened={archiveConfirmModalOpened}
+        onClose={() => setArchiveConfirmModalOpened(false)}
+        title="Archive Release"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to archive this release? This action cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setArchiveConfirmModalOpened(false)}>
+              Cancel
+            </Button>
+            <Button 
+              color="red" 
+              onClick={handleArchive}
+              loading={archiveMutation.isLoading}
+            >
+              Archive Release
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </>
   );
 });

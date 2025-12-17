@@ -145,11 +145,14 @@ The `output` field contains task-specific data. The structure varies by `taskTyp
 #### Build Tasks (TRIGGER_PRE_REGRESSION_BUILDS, TRIGGER_REGRESSION_BUILDS, TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD)
 ```typescript
 {
-  jobUrl?: string;        // CI/CD job URL (e.g., Jenkins job URL, GitHub Actions workflow URL) - available when task is IN_PROGRESS, AWAITING_CALLBACK, COMPLETED, or FAILED
+  platforms: Array<{
+    platform: string;  // 'ANDROID' | 'IOS' | 'WEB'
+    jobUrl: string;    // CI/CD job URL for this platform
+  }>;
 }
 ```
 
-**Note:** Build tasks are special - they can have `jobUrl` in `output` even when the task is still running (`IN_PROGRESS` or `AWAITING_CALLBACK`), allowing users to monitor CI/CD progress. This is different from regular tasks where output is only available when `COMPLETED` or `FAILED`.
+**Note:** Build tasks are special - they can have `jobUrl` in `output.platforms` even when the task is still running (`IN_PROGRESS` or `AWAITING_CALLBACK`), allowing users to monitor CI/CD progress. This is different from regular tasks where output is only available when `COMPLETED` or `FAILED`. Each platform in a multi-platform build can have its own CI/CD job URL.
 
 ### TaskStatus
 ```typescript

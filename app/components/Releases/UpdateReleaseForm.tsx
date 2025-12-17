@@ -187,9 +187,9 @@ export function UpdateReleaseForm({
           <Select
             label="Release Type"
             data={[
+              { value: RELEASE_TYPES.MAJOR, label: 'Major Release' },
               { value: RELEASE_TYPES.MINOR, label: 'Minor Release' },
               { value: RELEASE_TYPES.HOTFIX, label: 'Hotfix' },
-              { value: 'UNPLANNED', label: 'Unplanned' },
             ]}
             value={state.type || release.type}
             onChange={(value) => handleChange({ type: value as any })}

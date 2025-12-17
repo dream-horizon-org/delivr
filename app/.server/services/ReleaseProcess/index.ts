@@ -55,6 +55,17 @@ class ReleaseProcess {
     timeout: 30000,
   });
 
+  /**
+   * Build headers with userId for authentication
+   * Backend accepts 'userid' header as fallback when Authorization token is not present
+   */
+  private buildHeaders(userId: string, additionalHeaders?: Record<string, string>) {
+    return {
+      'userid': userId,
+      ...(additionalHeaders || {}),
+    };
+  }
+
   // ======================
   // Stage APIs
   // ======================
@@ -63,40 +74,43 @@ class ReleaseProcess {
    * Get stage tasks - Matches backend contract API #2
    * Single endpoint with stage query parameter
    */
-  async getStageTasks(tenantId: string, releaseId: string, stage: TaskStage) {
+  async getStageTasks(tenantId: string, releaseId: string, stage: TaskStage, userId: string) {
     return this.__client.get<null, AxiosResponse<KickoffStageResponse | RegressionStageResponse | PreReleaseStageResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks`,
-      { params: { stage } }
+      { 
+        params: { stage },
+        headers: this.buildHeaders(userId)
+      }
     );
   }
 
   /**
    * Get kickoff stage data - Convenience method
    */
-  async getKickoffStage(tenantId: string, releaseId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.KICKOFF) as Promise<AxiosResponse<KickoffStageResponse>>;
+  async getKickoffStage(tenantId: string, releaseId: string, userId: string) {
+    return this.getStageTasks(tenantId, releaseId, TaskStage.KICKOFF, userId) as Promise<AxiosResponse<KickoffStageResponse>>;
   }
 
   /**
    * Get regression stage data - Convenience method
    */
-  async getRegressionStage(tenantId: string, releaseId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.REGRESSION) as Promise<AxiosResponse<RegressionStageResponse>>;
+  async getRegressionStage(tenantId: string, releaseId: string, userId: string) {
+    return this.getStageTasks(tenantId, releaseId, TaskStage.REGRESSION, userId) as Promise<AxiosResponse<RegressionStageResponse>>;
   }
 
   /**
    * Get pre-release stage data - Convenience method
    */
-  async getPreReleaseStage(tenantId: string, releaseId: string) {
-    return this.getStageTasks(tenantId, releaseId, TaskStage.PRE_RELEASE) as Promise<AxiosResponse<PreReleaseStageResponse>>;
+  async getPreReleaseStage(tenantId: string, releaseId: string, userId: string) {
+    return this.getStageTasks(tenantId, releaseId, TaskStage.PRE_RELEASE, userId) as Promise<AxiosResponse<PreReleaseStageResponse>>;
   }
 
   /**
    * Get post-regression stage data - Legacy alias
    * @deprecated Use getPreReleaseStage instead
    */
-  async getPostRegressionStage(tenantId: string, releaseId: string) {
-    return this.getPreReleaseStage(tenantId, releaseId);
+  async getPostRegressionStage(tenantId: string, releaseId: string, userId: string) {
+    return this.getPreReleaseStage(tenantId, releaseId, userId);
   }
 
   // ======================
@@ -106,9 +120,11 @@ class ReleaseProcess {
   /**
    * Retry a failed task - Matches backend contract API #8
    */
-  async retryTask(tenantId: string, releaseId: string, taskId: string) {
+  async retryTask(tenantId: string, releaseId: string, taskId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<RetryTaskResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks/${taskId}/retry`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/tasks/${taskId}/retry`,
+      undefined,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -128,6 +144,7 @@ class ReleaseProcess {
     file: Blob,
     platform: Platform,
     stage: BuildUploadStage,
+    userId: string,
     filename?: string
   ) {
     // Map BuildUploadStage to TaskStage for backend
@@ -163,16 +180,18 @@ class ReleaseProcess {
         // API contract specifies PUT for upload
         return this.__client.put<FormData, AxiosResponse<BuildUploadResponse>>(
           `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/${platform}`,
-          formData
+          formData,
+          { headers: this.buildHeaders(userId) }
         );
   }
 
   /**
    * Delete uploaded build
    */
-  async deleteBuild(tenantId: string, releaseId: string, buildId: string) {
+  async deleteBuild(tenantId: string, releaseId: string, buildId: string, userId: string) {
     return this.__client.delete<null, AxiosResponse<{ success: boolean; message: string }>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/${buildId}`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/${buildId}`,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -183,31 +202,38 @@ class ReleaseProcess {
   /**
    * Get test management status - Matches backend contract API #17
    */
-  async getTestManagementStatus(tenantId: string, releaseId: string, platform?: Platform) {
+  async getTestManagementStatus(tenantId: string, releaseId: string, userId: string, platform?: Platform) {
     const params = platform ? { platform } : {};
     return this.__client.get<null, AxiosResponse<TestManagementStatusResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/test-management-run-status`,
-      { params }
+      { 
+        params,
+        headers: this.buildHeaders(userId)
+      }
     );
   }
 
   /**
    * Get project management status - Matches backend contract API #18
    */
-  async getProjectManagementStatus(tenantId: string, releaseId: string, platform?: Platform) {
+  async getProjectManagementStatus(tenantId: string, releaseId: string, userId: string, platform?: Platform) {
     const params = platform ? { platform } : {};
     return this.__client.get<null, AxiosResponse<ProjectManagementStatusResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/project-management-run-status`,
-      { params }
+      { 
+        params,
+        headers: this.buildHeaders(userId)
+      }
     );
   }
 
   /**
    * Get cherry pick status - Matches backend contract API #19
    */
-  async getCherryPickStatus(tenantId: string, releaseId: string) {
+  async getCherryPickStatus(tenantId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<CherryPickStatusResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/check-cherry-pick-status`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/check-cherry-pick-status`,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -219,19 +245,22 @@ class ReleaseProcess {
    * Approve regression stage - Matches backend contract API #11
    * Backend endpoint: POST /api/v1/tenants/{tenantId}/releases/{releaseId}/trigger-pre-release
    */
-  async approveRegressionStage(tenantId: string, releaseId: string, request: ApproveRegressionStageRequest) {
+  async approveRegressionStage(tenantId: string, releaseId: string, request: ApproveRegressionStageRequest, userId: string) {
     return this.__client.post<ApproveRegressionStageRequest, AxiosResponse<ApproveRegressionStageResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/trigger-pre-release`,
-      request
+      request,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
   /**
    * Complete pre-release stage - Matches backend contract API #12
    */
-  async completePostRegressionStage(tenantId: string, releaseId: string) {
+  async completePostRegressionStage(tenantId: string, releaseId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<CompletePreReleaseResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/pre-release/complete`,
+      undefined,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -242,19 +271,21 @@ class ReleaseProcess {
   /**
    * Get release notifications - Matches backend contract API #20
    */
-  async getNotifications(tenantId: string, releaseId: string) {
+  async getNotifications(tenantId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<NotificationsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/notifications`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/notifications`,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
   /**
    * Send release notification - Matches backend contract API #21
    */
-  async sendNotification(tenantId: string, releaseId: string, request: NotificationRequest) {
+  async sendNotification(tenantId: string, releaseId: string, request: NotificationRequest, userId: string) {
     return this.__client.post<NotificationRequest, AxiosResponse<SendNotificationResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/notify`,
-      request
+      request,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -265,9 +296,10 @@ class ReleaseProcess {
   /**
    * Get activity logs - Matches backend contract API #23
    */
-  async getActivityLogs(tenantId: string, releaseId: string) {
+  async getActivityLogs(tenantId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<ActivityLogsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}/activity-logs`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/activity-logs`,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -278,9 +310,10 @@ class ReleaseProcess {
   /**
    * Get release details - Matches backend contract API #1
    */
-  async getReleaseDetails(tenantId: string, releaseId: string) {
+  async getReleaseDetails(tenantId: string, releaseId: string, userId: string) {
     return this.__client.get<null, AxiosResponse<GetReleaseDetailsResponse>>(
-      `/api/v1/tenants/${tenantId}/releases/${releaseId}`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}`,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -295,6 +328,7 @@ class ReleaseProcess {
   async listBuildArtifacts(
     tenantId: string,
     releaseId: string,
+    userId: string,
     filters?: { platform?: Platform; buildStage?: string }
   ) {
     const params: Record<string, string> = {};
@@ -303,7 +337,10 @@ class ReleaseProcess {
 
     return this.__client.get<null, AxiosResponse<ListBuildArtifactsResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds/artifacts`,
-      { params }
+      { 
+        params,
+        headers: this.buildHeaders(userId)
+      }
     );
   }
 
@@ -316,7 +353,8 @@ class ReleaseProcess {
     tenantId: string,
     releaseId: string,
     stage: BuildUploadStage,
-    request: { testflightBuildNumber: string; versionName: string }
+    request: { testflightBuildNumber: string; versionName: string },
+    userId: string
   ) {
     // Map BuildUploadStage to TaskStage for backend
     const backendStage = mapBuildUploadStageToTaskStage(stage);
@@ -326,7 +364,8 @@ class ReleaseProcess {
       AxiosResponse<BuildUploadResponse>
     >(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/stages/${backendStage}/builds/ios/verify-testflight`,
-      request
+      request,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
@@ -336,12 +375,16 @@ class ReleaseProcess {
   async getAllBuilds(
     tenantId: string,
     releaseId: string,
+    userId: string,
     filters?: { stage?: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE'; platform?: Platform; status?: 'PENDING' | 'UPLOADED' | 'FAILED' }
   ) {
     const params = filters || {};
     return this.__client.get<null, AxiosResponse<GetBuildsResponse>>(
       `/api/v1/tenants/${tenantId}/releases/${releaseId}/builds`,
-      { params }
+      { 
+        params,
+        headers: this.buildHeaders(userId)
+      }
     );
   }
 
@@ -351,21 +394,37 @@ class ReleaseProcess {
 
   /**
    * Pause release (stop cron job) - Matches backend implementation
-   * POST /api/releases/:releaseId/cron/stop
+   * POST /api/v1/tenants/:tenantId/releases/:releaseId/pause
    */
-  async pauseRelease(releaseId: string) {
+  async pauseRelease(tenantId: string, releaseId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<{ success: boolean; message: string; releaseId: string }>>(
-      `/api/releases/${releaseId}/cron/stop`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/pause`,
+      undefined,
+      { headers: this.buildHeaders(userId) }
     );
   }
 
   /**
    * Resume release (start cron job) - Matches backend implementation
-   * POST /api/releases/:releaseId/cron/start
+   * POST /api/v1/tenants/:tenantId/releases/:releaseId/resume
    */
-  async resumeRelease(releaseId: string) {
+  async resumeRelease(tenantId: string, releaseId: string, userId: string) {
     return this.__client.post<null, AxiosResponse<{ success: boolean; message: string; releaseId: string }>>(
-      `/api/releases/${releaseId}/cron/start`
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/resume`,
+      undefined,
+      { headers: this.buildHeaders(userId) }
+    );
+  }
+
+  /**
+   * Archive release - Matches backend implementation
+   * PUT /api/v1/tenants/:tenantId/releases/:releaseId/archive
+   */
+  async archiveRelease(tenantId: string, releaseId: string, userId: string) {
+    return this.__client.put<null, AxiosResponse<{ success: boolean; message: string }>>(
+      `/api/v1/tenants/${tenantId}/releases/${releaseId}/archive`,
+      undefined,
+      { headers: this.buildHeaders(userId) }
     );
   }
 }

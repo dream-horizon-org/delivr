@@ -10,8 +10,7 @@
  */
 
 import { useMemo } from 'react';
-import { Stack, Group, Text, Anchor } from '@mantine/core';
-import { IconExternalLink } from '@tabler/icons-react';
+import { Stack } from '@mantine/core';
 import { useRelease } from '~/hooks/useRelease';
 import type { Task, BuildInfo, BuildTaskOutput } from '~/types/release-process.types';
 import { TaskStatus, BuildUploadStage, TaskType, Platform } from '~/types/release-process-enums';
@@ -145,38 +144,12 @@ export function BuildTaskDetails({
     task.taskStatus === TaskStatus.FAILED
   );
 
-  // Extract CI/CD URL from output (for build tasks)
+  // Extract CI/CD URLs from output (for build tasks)
   // Special case: Build tasks can have jobUrl even when IN_PROGRESS
   const buildOutput = task.output as BuildTaskOutput | null;
-  const jobUrl = buildOutput?.jobUrl;
-  
-  // Show CI/CD link if:
-  // - Task is IN_PROGRESS or AWAITING_CALLBACK (build tasks special case)
-  // - OR task is COMPLETED/FAILED and has jobUrl
-  const shouldShowCICDLink = !!jobUrl && (
-    task.taskStatus === TaskStatus.IN_PROGRESS ||
-    task.taskStatus === TaskStatus.AWAITING_CALLBACK ||
-    task.taskStatus === TaskStatus.COMPLETED ||
-    task.taskStatus === TaskStatus.FAILED
-  );
 
   return (
     <Stack gap="md">
-      {/* CI/CD Link - Show when task is running or completed and has URL */}
-      {shouldShowCICDLink && (
-        <Stack gap="xs">
-          <Text size="xs" c="dimmed" fw={500}>
-            CI/CD Link
-          </Text>
-          <Anchor href={jobUrl} target="_blank" size="sm" c="brand">
-            <Group gap={4}>
-              <IconExternalLink size={14} />
-              <Text size="sm">View Job</Text>
-            </Group>
-          </Anchor>
-        </Stack>
-      )}
-
       {/* Build Upload Widget - Show for platforms without builds (Manual mode only) */}
       {showBuildUpload && buildStage && tenantId && releaseId && (
         <BuildUploadSection
@@ -204,6 +177,7 @@ export function BuildTaskDetails({
           tenantId={tenantId}
           releaseId={releaseId}
           onUploadComplete={onUploadComplete}
+          buildOutput={buildOutput}
         />
       )}
     </Stack>

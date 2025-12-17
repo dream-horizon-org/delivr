@@ -33,7 +33,7 @@ const sendNotification: AuthenticatedActionFunction = async ({ params, request, 
     }
 
     console.log('[BFF] Sending notification for release:', releaseId, { messageType: body.messageType });
-    const response = await ReleaseProcessService.sendNotification(tenantId, releaseId, body);
+    const response = await ReleaseProcessService.sendNotification(tenantId, releaseId, body, user.user.id);
     console.log('[BFF] Send notification response:', response.data);
     
     return json(response.data, { status: 201 });
