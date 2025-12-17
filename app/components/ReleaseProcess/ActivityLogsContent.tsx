@@ -364,20 +364,10 @@ export function ActivityLogsContent({ activityLogs }: ActivityLogsContentProps) 
               </ThemeIcon>
             }
             title={
-              <Stack gap={8} mt={2}>
-                <Group gap="xs" align="center" wrap="wrap">
-                  <Text size="sm" fw={600} c="var(--mantine-color-slate-8)">
-                    {activityTypeLabel}
-                  </Text>
-                  <Badge
-                    color={color}
-                    variant={getActivityBadgeVariant(log.type)}
-                    size="xs"
-                    radius="sm"
-                  >
-                    {log.type}
-                  </Badge>
-                </Group>
+              <Stack gap={6} mt={2}>
+                <Text size="sm" fw={600} c="var(--mantine-color-slate-8)">
+                  {activityTypeLabel}
+                </Text>
                 <Text size="sm" fw={500} c="var(--mantine-color-slate-7)" style={{ lineHeight: 1.5 }}>
                   {changeText}
                 </Text>
