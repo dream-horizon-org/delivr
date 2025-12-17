@@ -327,6 +327,11 @@ export function convertUpdateStateToBackendRequest(
   if (state.kickOffReminderDate) {
     request.kickOffReminderDate = combineDateAndTime(state.kickOffReminderDate, state.kickOffReminderTime);
   }
+  
+  // Delay Reason - include if provided (required when extending targetReleaseDate)
+  if (state.delayReason !== undefined) {
+    request.delayReason = state.delayReason || undefined;
+  }
 
   // Platform Target Mappings
   if (state.platformTargetMappings !== undefined) {

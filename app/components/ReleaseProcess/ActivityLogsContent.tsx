@@ -25,7 +25,7 @@ interface ActivityLogsContentProps {
 
 /**
  * Format activity change into readable diff format
- * Example: "Status: PENDING → IN_PROGRESS"
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
  */
 function formatActivityChange(log: ActivityLog): string {
   const { type, previousValue, newValue } = log;
@@ -35,8 +35,134 @@ function formatActivityChange(log: ActivityLog): string {
     return 'Activity recorded';
   }
 
-  if (!previousValue && newValue) {
-    // New value only (e.g., integration events)
+  // Handle different activity types based on backend structure
+  switch (type) {
+    case 'RELEASE':
+      // Release field changes
+      if (previousValue && newValue) {
+        const fields = Object.keys(newValue);
+        if (fields.length > 0) {
+          const changes = fields.map(field => {
+            const oldVal = previousValue[field];
+            const newVal = newValue[field];
+            if (oldVal !== undefined && newVal !== undefined && oldVal !== newVal) {
+              return `${field}: ${oldVal || 'N/A'} → ${newVal || 'N/A'}`;
+            }
+            return null;
+          }).filter(Boolean);
+          if (changes.length > 0) {
+            return changes.join(', ');
+          }
+        }
+        // Fallback: show status if available
+        if (previousValue.status && newValue.status) {
+          return `Status: ${previousValue.status} → ${newValue.status}`;
+        }
+      }
+      if (newValue && !previousValue) {
+        return `Release ${newValue.status || 'created'}`;
+      }
+      if (previousValue && !newValue) {
+        return 'Release removed';
+      }
+      break;
+
+    case 'PLATFORM_TARGET':
+      if (previousValue && newValue) {
+        const oldPlatform = previousValue.platform || 'N/A';
+        const oldTarget = previousValue.target || 'N/A';
+        const newPlatform = newValue.platform || 'N/A';
+        const newTarget = newValue.target || 'N/A';
+        return `Platform Target: ${oldPlatform}/${oldTarget} → ${newPlatform}/${newTarget}`;
+      }
+      if (newValue && !previousValue) {
+        const platform = newValue.platform || 'N/A';
+        const target = newValue.target || 'N/A';
+        return `Added Platform Target: ${platform}/${target}`;
+      }
+      if (previousValue && !newValue) {
+        const platform = previousValue.platform || 'N/A';
+        const target = previousValue.target || 'N/A';
+        return `Removed Platform Target: ${platform}/${target}`;
+      }
+      break;
+
+    case 'REGRESSION':
+      if (previousValue && newValue) {
+        const oldStatus = previousValue.status || 'N/A';
+        const newStatus = newValue.status || 'N/A';
+        return `Regression: ${oldStatus} → ${newStatus}`;
+      }
+      if (newValue && !previousValue) {
+        return `Regression ${newValue.status || 'started'}`;
+      }
+      if (previousValue && !newValue) {
+        return 'Regression removed';
+      }
+      break;
+
+    case 'CRONCONFIG':
+      if (previousValue && newValue) {
+        return 'Cron Config updated';
+      }
+      if (newValue && !previousValue) {
+        return 'Cron Config set';
+      }
+      if (previousValue && !newValue) {
+        return 'Cron Config removed';
+      }
+      break;
+
+    case 'PAUSE_RELEASE':
+      if (newValue?.reason) {
+        return `Release paused: ${newValue.reason}`;
+      }
+      return 'Release paused';
+
+    case 'RESUME_RELEASE':
+      return 'Release resumed';
+
+    case 'REGRESSION_STAGE_APPROVAL':
+      if (newValue) {
+        const approvedBy = newValue.approvedBy || newValue.updatedBy || 'Unknown';
+        return `Regression stage approved by ${approvedBy}`;
+      }
+      if (previousValue) {
+        return 'Regression stage approval removed';
+      }
+      break;
+  }
+
+  // Fallback for unknown types or legacy types
+  if (previousValue && newValue) {
+    // Try to detect common patterns
+    if (previousValue.status && newValue.status) {
+      return `Status: ${previousValue.status} → ${newValue.status}`;
+    }
+    if (previousValue.field && newValue.field && previousValue.field === newValue.field) {
+      return `${previousValue.field}: ${previousValue.value || 'N/A'} → ${newValue.value || 'N/A'}`;
+    }
+    if (previousValue.taskId && newValue.taskId && previousValue.taskId === newValue.taskId) {
+      const taskType = newValue.taskType || previousValue.taskType || 'Task';
+      const oldStatus = previousValue.status || 'N/A';
+      const newStatus = newValue.status || 'N/A';
+      return `Task ${taskType}: ${oldStatus} → ${newStatus}`;
+    }
+    if (previousValue.cronStatus && newValue.cronStatus) {
+      const reason = newValue.reason ? ` (${newValue.reason})` : '';
+      return `Cron Status: ${previousValue.cronStatus} → ${newValue.cronStatus}${reason}`;
+    }
+    // Last resort: show JSON (truncated if too long)
+    const prevStr = JSON.stringify(previousValue);
+    const newStr = JSON.stringify(newValue);
+    if (prevStr.length + newStr.length > 100) {
+      return 'Activity updated';
+    }
+    return `${prevStr} → ${newStr}`;
+  }
+  
+  if (newValue && !previousValue) {
+    // New value only
     if (newValue.field) {
       return `${newValue.field}: ${newValue.value || 'N/A'}`;
     }
@@ -45,7 +171,7 @@ function formatActivityChange(log: ActivityLog): string {
     }
     return 'New activity';
   }
-
+  
   if (previousValue && !newValue) {
     // Deletion case
     if (previousValue.field) {
@@ -53,30 +179,8 @@ function formatActivityChange(log: ActivityLog): string {
     }
     return 'Activity removed';
   }
-
-  // Both values exist - show diff
-  if (previousValue.status && newValue.status) {
-    return `Status: ${previousValue.status} → ${newValue.status}`;
-  }
-
-  if (previousValue.field && newValue.field && previousValue.field === newValue.field) {
-    return `${previousValue.field}: ${previousValue.value || 'N/A'} → ${newValue.value || 'N/A'}`;
-  }
-
-  if (previousValue.taskId && newValue.taskId && previousValue.taskId === newValue.taskId) {
-    const taskType = newValue.taskType || previousValue.taskType || 'Task';
-    const oldStatus = previousValue.status || 'N/A';
-    const newStatus = newValue.status || 'N/A';
-    return `Task ${taskType}: ${oldStatus} → ${newStatus}`;
-  }
-
-  if (previousValue.cronStatus && newValue.cronStatus) {
-    const reason = newValue.reason ? ` (${newValue.reason})` : '';
-    return `Cron Status: ${previousValue.cronStatus} → ${newValue.cronStatus}${reason}`;
-  }
-
-  // Fallback: show raw values
-  return `${JSON.stringify(previousValue)} → ${JSON.stringify(newValue)}`;
+  
+  return 'Activity recorded';
 }
 
 /**
@@ -114,9 +218,26 @@ function formatTimestamp(dateString: string): string {
 
 /**
  * Get icon for activity type
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
  */
 function getActivityIcon(type: string): React.ReactNode {
   switch (type) {
+    // Backend activity types
+    case 'RELEASE':
+      return <IconTag size={16} />;
+    case 'PLATFORM_TARGET':
+      return <IconSettings size={16} />;
+    case 'REGRESSION':
+      return <IconCheck size={16} />;
+    case 'CRONCONFIG':
+      return <IconSettings size={16} />;
+    case 'PAUSE_RELEASE':
+      return <IconPlayerPause size={16} />;
+    case 'RESUME_RELEASE':
+      return <IconPlayerPlay size={16} />;
+    case 'REGRESSION_STAGE_APPROVAL':
+      return <IconCheck size={16} />;
+    // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return <IconTag size={16} />;
     case 'TASK_UPDATE':
@@ -136,9 +257,26 @@ function getActivityIcon(type: string): React.ReactNode {
 
 /**
  * Get color for activity type
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
  */
 function getActivityColor(type: string): string {
   switch (type) {
+    // Backend activity types
+    case 'RELEASE':
+      return 'blue';
+    case 'PLATFORM_TARGET':
+      return 'violet';
+    case 'REGRESSION':
+      return 'green';
+    case 'CRONCONFIG':
+      return 'orange';
+    case 'PAUSE_RELEASE':
+      return 'red';
+    case 'RESUME_RELEASE':
+      return 'teal';
+    case 'REGRESSION_STAGE_APPROVAL':
+      return 'green';
+    // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return 'blue';
     case 'TASK_UPDATE':
@@ -160,8 +298,8 @@ function getActivityColor(type: string): string {
  * Get badge variant based on activity type
  */
 function getActivityBadgeVariant(type: string): 'light' | 'filled' | 'outline' {
-  if (type === 'RELEASE_PAUSED') return 'filled';
-  if (type === 'RELEASE_RESUMED') return 'light';
+  if (type === 'PAUSE_RELEASE' || type === 'RELEASE_PAUSED') return 'filled';
+  if (type === 'RESUME_RELEASE' || type === 'RELEASE_RESUMED') return 'light';
   return 'light';
 }
 

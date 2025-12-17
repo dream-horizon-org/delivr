@@ -26,7 +26,7 @@ import { useReleaseConfigs } from '~/hooks/useReleaseConfigs';
 import { useArchiveRelease } from '~/hooks/useReleaseProcess';
 import type { ReleaseCardProps } from '~/types/release';
 import { formatReleaseDate, getActiveStatusColor, getReleaseActiveStatus, getReleaseTypeGradient } from '~/utils/release-utils';
-import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import { getPhaseColor, getPhaseLabel, getReleaseStatusColor, getReleaseStatusLabel, BUTTON_LABELS } from '~/constants/release-process-ui';
 import { ConfigurationPreviewModal } from '~/components/ReleaseSettings/ConfigurationPreviewModal';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
@@ -81,7 +81,10 @@ export const ReleaseCard = memo(function ReleaseCard({
     : `/dashboard/${org}/releases/${release.id}`;
 
   // Status indicators
-  const isPaused = release.cronJob?.cronStatus === 'PAUSED';
+  // Check if paused - use pauseType from cronJob (primary check)
+  // Backend keeps cronStatus=RUNNING and uses pauseType to control pause state
+  const pauseType = release.cronJob?.pauseType;
+  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
   const phase = release.releasePhase;
   const status = release.status;
 

@@ -123,7 +123,7 @@ export class ReleaseConfigService {
           error: result.error || result.message || 'Failed to fetch release configurations',
         };
       }
-      console.log('[ReleaseConfigService] List Configs result:', JSON.stringify(result, null, 2));
+      // console.log('[ReleaseConfigService] List Configs result:', JSON.stringify(result, null, 2));
       console.log('[ReleaseConfigService] List successful:', result.data?.length || 0, 'configs');
 
 

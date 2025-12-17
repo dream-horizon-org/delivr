@@ -43,7 +43,7 @@ export const loader = authenticateLoaderRequest(
       const buildStage = url.searchParams.get('buildStage') || undefined;
 
       console.log('[BFF] Fetching build artifacts for release:', releaseId, { platform, buildStage });
-      const response = await ReleaseProcessService.listBuildArtifacts(tenantId, releaseId, {
+      const response = await ReleaseProcessService.listBuildArtifacts(tenantId, releaseId, user.user.id, {
         platform: platform as any,
         buildStage,
       });

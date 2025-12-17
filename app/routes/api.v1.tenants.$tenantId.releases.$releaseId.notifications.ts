@@ -32,7 +32,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching notifications for release:', releaseId);
-      const response = await ReleaseProcessService.getNotifications(tenantId, releaseId);
+      const response = await ReleaseProcessService.getNotifications(tenantId, releaseId, user.user.id);
       console.log('[BFF] Notifications response:', response.data);
       
       return json(response.data);

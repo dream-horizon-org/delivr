@@ -343,112 +343,28 @@ server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
 });
 
 /**
- * GET /api/v1/tenants/:tenantId (MOCK for tenant info with integrations)
- * Returns tenant info with APP_DISTRIBUTION integrations enabled
- * This mock enables the Distribution step in the release process
+ * GET /api/v1/tenants/:tenantId/releases
+ * List all releases for a tenant (with /api/v1 prefix - matches backend API)
  */
-server.get('/api/v1/tenants/:tenantId', (req, res) => {
-  const { tenantId } = req.params;
+server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
+  const db = router.db;
+  const releases = db.get('releases').value() || [];
   
-  // Mock tenant response with APP_DISTRIBUTION integrations
+  console.log(`[GET /api/v1/tenants/:tenantId/releases] Tenant ID:`, req.params.tenantId);
+  console.log(`[GET /api/v1/tenants/:tenantId/releases] Total releases in DB:`, releases.length);
+  
+  // Transform to match backend response format
+  const transformedReleases = releases.map(release => {
+    return transformRelease(release, req.params.tenantId);
+  });
+  
+  console.log(`[GET /api/v1/tenants/:tenantId/releases] Returning ${transformedReleases.length} releases`);
+  
+  // Return format matches backend: {success: true, releases: [...]}
+  // The BFF layer will wrap this in {success: true, data: {releases: [...]}} for the frontend
   res.json({
     success: true,
-    data: {
-      organisation: {
-        id: tenantId,
-        displayName: 'TestAbc',
-        releaseManagement: {
-          config: {
-            connectedIntegrations: {
-              SOURCE_CONTROL: [
-                {
-                  id: 'int_github_1',
-                  provider: 'GITHUB',
-                  status: 'CONNECTED',
-                  name: 'GitHub - delivr',
-                  connectedAt: '2024-01-15T10:00:00.000Z',
-                }
-              ],
-              COMMUNICATION: [
-                {
-                  id: 'int_slack_1',
-                  provider: 'SLACK',
-                  status: 'CONNECTED',
-                  name: 'Slack - Delivr Workspace',
-                  connectedAt: '2024-01-15T10:00:00.000Z',
-                }
-              ],
-              CI_CD: [],
-              TEST_MANAGEMENT: [
-                {
-                  id: 'int_checkmate_1',
-                  provider: 'CHECKMATE',
-                  status: 'CONNECTED',
-                  name: 'Checkmate',
-                  connectedAt: '2024-01-15T10:00:00.000Z',
-                }
-              ],
-              PROJECT_MANAGEMENT: [
-                {
-                  id: 'int_jira_1',
-                  provider: 'JIRA',
-                  status: 'CONNECTED',
-                  name: 'Jira - Delivr Project',
-                  connectedAt: '2024-01-15T10:00:00.000Z',
-                }
-              ],
-              APP_DISTRIBUTION: [
-                {
-                  id: 'int_play_store_1',
-                  provider: 'PLAY_STORE',
-                  status: 'CONNECTED',
-                  name: 'Google Play Store - Delivr App',
-                  connectedAt: '2024-02-01T10:00:00.000Z',
-                  config: {
-                    packageName: 'com.delivr.app',
-                    serviceAccountEmail: 'delivr-release@delivr-app.iam.gserviceaccount.com',
-                  }
-                },
-                {
-                  id: 'int_app_store_1',
-                  provider: 'APP_STORE',
-                  status: 'CONNECTED',
-                  name: 'App Store Connect - Delivr iOS',
-                  connectedAt: '2024-02-01T10:00:00.000Z',
-                  config: {
-                    bundleId: 'com.delivr.ios',
-                    teamId: 'ABCD1234',
-                  }
-                }
-              ],
-            },
-            enabledPlatforms: ['ANDROID', 'IOS'],
-            enabledTargets: ['PLAY_STORE', 'APP_STORE'],
-            allowedReleaseTypes: ['MINOR', 'HOTFIX', 'MAJOR'],
-            customSettings: {},
-          },
-        },
-      },
-      // App distribution integrations (also returned separately)
-      appDistributions: [
-        {
-          id: 'dist_int_play_store_1',
-          platform: 'ANDROID',
-          target: 'PLAY_STORE',
-          status: 'ACTIVE',
-          packageName: 'com.delivr.app',
-          createdAt: '2024-02-01T10:00:00.000Z',
-        },
-        {
-          id: 'dist_int_app_store_1',
-          platform: 'IOS',
-          target: 'APP_STORE',
-          status: 'ACTIVE',
-          bundleId: 'com.delivr.ios',
-          createdAt: '2024-02-01T10:00:00.000Z',
-        }
-      ],
-    },
+    releases: transformedReleases,
   });
 });
 

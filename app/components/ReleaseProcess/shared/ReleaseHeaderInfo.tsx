@@ -6,7 +6,7 @@
 import { Badge, Group, Text, Title } from '@mantine/core';
 import { IconGitBranch, IconTag } from '@tabler/icons-react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
-import { Phase, ReleaseStatus } from '~/types/release-process-enums';
+import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
 import {
   HEADER_LABELS,
@@ -46,10 +46,10 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
     }
   };
   
-  // Check if paused
-  const isPaused = release.cronJob?.cronStatus === 'PAUSED' || 
-                   releasePhase === Phase.PAUSED_BY_USER || 
-                   releasePhase === Phase.PAUSED_BY_FAILURE;
+  // Check if paused - use pauseType from cronJob (primary check)
+  // Backend keeps cronStatus=RUNNING and uses pauseType to control pause state
+  const pauseType = release.cronJob?.pauseType;
+  const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
 
   return (
     <Group justify="space-between" align="center" wrap="wrap">

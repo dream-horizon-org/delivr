@@ -44,7 +44,7 @@ const archiveRelease: AuthenticatedActionFunction = async ({ params, request, us
   try {
     console.log(`[BFF] Archiving release:`, releaseId);
     
-    const response = await ReleaseProcessService.archiveRelease(tenantId, releaseId);
+    const response = await ReleaseProcessService.archiveRelease(tenantId, releaseId, user.user.id);
     
     console.log(`[BFF] Archive release response:`, response.data);
     

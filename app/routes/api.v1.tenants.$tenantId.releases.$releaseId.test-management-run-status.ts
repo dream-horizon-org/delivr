@@ -45,7 +45,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching test management status for release:', releaseId, platform ? `platform: ${platform}` : 'all platforms');
-      const response = await ReleaseProcessService.getTestManagementStatus(tenantId, releaseId, platform);
+      const response = await ReleaseProcessService.getTestManagementStatus(tenantId, releaseId, user.user.id, platform);
       console.log('[BFF] Test management status response:', response.data);
       
       // Backend returns { success: true, ... } (single platform or all platforms)

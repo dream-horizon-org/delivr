@@ -112,6 +112,7 @@ export interface ReleaseCreationState {
   targetReleaseTime?: string; // Time string (HH:MM)
   kickOffReminderDate?: string; // Date string (YYYY-MM-DD)
   kickOffReminderTime?: string; // Time string (HH:MM)
+  delayReason?: string; // Required when extending targetReleaseDate (edit mode)
 
   // Optional
   branch?: string;
@@ -180,6 +181,7 @@ export interface UpdateReleaseBackendRequest {
   kickOffReminderDate?: string; // ISO date string
   kickOffDate?: string; // ISO date string
   targetReleaseDate?: string; // ISO date string
+  delayReason?: string; // Required when extending targetReleaseDate
   releaseDate?: string; // ISO date string
   hasManualBuildUpload?: boolean;
   releasePilotAccountId?: string;
@@ -210,6 +212,7 @@ export interface UpdateReleaseState {
   targetReleaseTime?: string; // Time string (HH:MM)
   kickOffReminderDate?: string; // Date string (YYYY-MM-DD)
   kickOffReminderTime?: string; // Time string (HH:MM)
+  delayReason?: string; // Required when extending targetReleaseDate
 
   // Platform Targets
   platformTargetMappings?: PlatformTargetMappingUpdate[];

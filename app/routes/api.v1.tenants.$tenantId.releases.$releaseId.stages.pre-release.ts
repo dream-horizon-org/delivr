@@ -37,7 +37,7 @@ export const loader = authenticateLoaderRequest(
 
     try {
       console.log('[BFF] Fetching pre-release stage for release:', releaseId);
-      const response = await ReleaseProcessService.getPreReleaseStage(tenantId, releaseId);
+      const response = await ReleaseProcessService.getPreReleaseStage(tenantId, releaseId, user.user.id);
       console.log('[BFF] Pre-release stage response:', response.data);
       
       // Backend returns { success: true, stage: 'PRE_RELEASE', releaseId, tasks, stageStatus }
