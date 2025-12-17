@@ -534,13 +534,13 @@ export interface PostSlackMessageResponse {
  * Activity Log - Matches backend contract
  */
 export interface ActivityLog {
-  id: string;
-  releaseId: string;
-  type: string;                          // Type of activity/change
-  previousValue: Record<string, any> | null;  // Previous value before change
-  newValue: Record<string, any> | null;       // New value after change
-  updatedAt: string;
-  updatedBy: string;                     // Account ID who made the change
+  id: string;                    // UUID v4
+  releaseId: string;             // Release ID
+  type: string;                  // Activity type (RELEASE|PLATFORM_TARGET|REGRESSION|CRONCONFIG|PAUSE_RELEASE|RESUME_RELEASE|REGRESSION_STAGE_APPROVAL)
+  previousValue: any | null;     // JSON object with old values (null for ADDED)
+  newValue: any | null;          // JSON object with new values (null for REMOVED)
+  updatedAt: string;               // ISO timestamp
+  updatedBy: string;             // Account ID of user who made the change
 }
 
 /**

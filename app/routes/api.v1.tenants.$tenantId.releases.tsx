@@ -47,6 +47,8 @@ export const loader = authenticateLoaderRequest(
     }
 
     console.log('[BFF] List successful:', result.releases?.length || 0, 'releases');
+    // Return format that apiGet expects: {success: true, data: {releases: [...]}}
+    // This matches the ApiResponse<T> structure where T = {releases: [...]}
     return json({
       success: true,
       data: {

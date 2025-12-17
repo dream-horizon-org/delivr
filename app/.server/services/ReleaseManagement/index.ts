@@ -125,11 +125,21 @@ class ReleaseManagementService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch releases' }));
-        console.error('[ReleaseManagementService] List failed:', errorData);
+        console.error('[ReleaseManagementService] List failed - Status:', response.status, response.statusText);
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        console.error('[ReleaseManagementService] List failed - Response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        console.error('[ReleaseManagementService] List failed - Parsed error:', errorData);
         return {
           success: false,
-          error: errorData.error || 'Failed to fetch releases',
+          error: errorData.error || errorData.message || `Failed to fetch releases: ${response.status} ${response.statusText}`,
         };
       }
 
@@ -149,6 +159,22 @@ class ReleaseManagementService {
       };
     } catch (error: any) {
       console.error('[ReleaseManagementService] List error:', error);
+      console.error('[ReleaseManagementService] List error details:', {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+        cause: error.cause,
+        stack: error.stack,
+      });
+      
+      // Check if it's a network error
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.message?.includes('fetch failed')) {
+        return {
+          success: false,
+          error: `Cannot connect to backend server at ${BACKEND_API_URL}. Please ensure the server is running.`,
+        };
+      }
+      
       return {
         success: false,
         error: error.message || 'Internal server error',
