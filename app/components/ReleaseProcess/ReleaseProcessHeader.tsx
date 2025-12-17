@@ -12,7 +12,7 @@
  * - Stage status from stage API responses
  */
 
-import { Button, Group, Paper, Stack } from '@mantine/core';
+import { Button, Group, Paper, Stack, Box } from '@mantine/core';
 import { Link, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -143,9 +143,14 @@ export function ReleaseProcessHeader({
       <Paper shadow="sm" p="lg" radius="md" withBorder className={className}>
         <Stack gap="md">
           {/* Top Section: Back Button */}
-          <Group>
+          <Group gap="xs" style={{ marginBottom: '-8px' }}>
             <Link to={backUrl}>
-              <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+              <Button 
+                variant="subtle" 
+                size="xs"
+                leftSection={<IconArrowLeft size={14} />}
+                style={{ padding: '4px 8px', height: 'auto' }}
+              >
                 {BUTTON_LABELS.BACK}
               </Button>
             </Link>
@@ -155,24 +160,28 @@ export function ReleaseProcessHeader({
           <ReleaseHeaderTitle release={release} />
 
           {/* Info Section and Action Buttons */}
-          <Group justify="space-between" align="center" wrap="wrap">
+          <Group justify="space-between" align="center" wrap="nowrap">
             {/* Info Section - Left Side */}
-            <ReleaseHeaderInfo
-              release={release}
-              releaseVersion={releaseVersion}
-              currentStage={currentStage}
-            />
+            <Box style={{ flex: '1 1 auto', minWidth: 0 }}>
+              <ReleaseHeaderInfo
+                release={release}
+                releaseVersion={releaseVersion}
+                currentStage={currentStage}
+              />
+            </Box>
 
             {/* Action Buttons - Right Side */}
-            <ReleaseHeaderActions
-              release={release}
-              isPaused={isPaused}
-              onEditClick={() => setEditModalOpened(true)}
-              onPauseClick={handlePauseClick}
-              onResumeClick={handleResumeClick}
-              onActivityLogClick={() => setActivityDrawerOpened(true)}
-              onSlackMessageClick={() => setSlackMessageModalOpened(true)}
-            />
+            <Box style={{ flex: '0 0 auto' }}>
+              <ReleaseHeaderActions
+                release={release}
+                isPaused={isPaused}
+                onEditClick={() => setEditModalOpened(true)}
+                onPauseClick={handlePauseClick}
+                onResumeClick={handleResumeClick}
+                onActivityLogClick={() => setActivityDrawerOpened(true)}
+                onSlackMessageClick={() => setSlackMessageModalOpened(true)}
+              />
+            </Box>
           </Group>
         </Stack>
       </Paper>

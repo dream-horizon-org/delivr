@@ -130,7 +130,12 @@ export function SlackChannelConfigEnhanced({
       <Stack gap="lg">
         {/* Header */}
         <Group gap="sm" mb="xs">
-          <ThemeIcon size={36} radius="md" variant="light" color="blue">
+          <ThemeIcon 
+            size={36} 
+            radius="md" 
+            variant={isEnabled ? 'filled' : 'light'} 
+            color={isEnabled ? 'blue' : 'gray'}
+          >
             <IconBrandSlack size={20} />
           </ThemeIcon>
           <Box style={{ flex: 1 }}>

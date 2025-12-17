@@ -270,9 +270,14 @@ export function CheckmateConnectionFlow({ onConnect, onCancel, isEditMode = fals
       )}
 
       {isVerified && (
-        <ConnectionAlert color="green" title={ALERT_MESSAGES.VERIFICATION_SUCCESS}>
-          <Text size="sm">Credentials verified successfully! Click "{isEditMode ? 'Save Changes' : 'Connect'}" to save.</Text>
-        </ConnectionAlert>
+        <Alert 
+          icon={<IconCheck size={16} />} 
+          color="green"
+          variant="light"
+          radius="md"
+        >
+          Credentials verified successfully! Click "{isEditMode ? 'Save Changes' : 'Connect'}" to save.
+        </Alert>
       )}
 
       {!isEditMode && !isVerified ? (

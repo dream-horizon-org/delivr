@@ -49,6 +49,7 @@ export function SchedulingStepWrapper({
   scheduling,
   onChange,
   selectedPlatforms,
+  showValidation = false,
 }: SchedulingStepWrapperProps) {
   const theme = useMantineTheme();
   const isEnabled = scheduling !== undefined && scheduling !== null;
@@ -157,6 +158,7 @@ export function SchedulingStepWrapper({
           config={scheduling}
           onChange={onChange}
           selectedPlatforms={selectedPlatforms}
+          showValidation={showValidation}
         />
       )}
     </Stack>

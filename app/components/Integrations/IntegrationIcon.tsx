@@ -13,6 +13,7 @@ import {
   IconBrandAndroid,
   IconBrandFirebase,
   IconBrandDiscord,
+  IconBrandTeams,
   IconPlug,
   IconChecks,
   IconSettings,
@@ -66,6 +67,8 @@ export function IntegrationIcon({ name, size = 40, className = '', color }: Inte
       return <IconLayoutKanban {...iconProps} />;
 
     case 'teams':
+      return <IconBrandTeams {...iconProps} />;
+    
     case 'discord':
       return <IconBrandDiscord {...iconProps} />;
 

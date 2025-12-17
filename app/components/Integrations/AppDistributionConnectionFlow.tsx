@@ -299,7 +299,7 @@ export function AppDistributionConnectionFlow({
     <Stack gap="md">
       <TextInput
         label="Display Name"
-        placeholder="My Production Play Store"
+        placeholder="Play Store Integration"
         value={playStoreData.displayName}
         onChange={(e) =>
           setPlayStoreData({ ...playStoreData, displayName: e.target.value })
@@ -310,7 +310,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="App Package Name"
-        placeholder="com.example.app"
+        placeholder="Enter your package name"
         value={playStoreData.appIdentifier}
         onChange={(e) =>
           setPlayStoreData({ ...playStoreData, appIdentifier: e.target.value })
@@ -339,7 +339,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="Project ID"
-        placeholder="your-project-id"
+        placeholder="Enter your project ID"
         value={playStoreData.serviceAccountJson?.project_id}
         onChange={(e) =>
           setPlayStoreData({
@@ -356,7 +356,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="Client Email"
-        placeholder="service-account@project.iam.gserviceaccount.com"
+        placeholder="Enter your service account email"
         value={playStoreData.serviceAccountJson?.client_email}
         onChange={(e) =>
           setPlayStoreData({
@@ -395,7 +395,7 @@ export function AppDistributionConnectionFlow({
     <Stack gap="md">
       <TextInput
         label="Display Name"
-        placeholder="My Production App Store"
+        placeholder="App Store Integration"
         value={appStoreData.displayName}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, displayName: e.target.value })
@@ -406,7 +406,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="App ID"
-        placeholder="1234567890"
+        placeholder="Enter your App ID"
         value={appStoreData.targetAppId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, targetAppId: e.target.value })
@@ -428,7 +428,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="Team Name"
-        placeholder="My Company Inc."
+        placeholder="Enter your team name"
         value={appStoreData.teamName}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, teamName: e.target.value })
@@ -441,7 +441,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="Issuer ID"
-        placeholder="69a6de93-2dc1-47e3-e053-5b8c7c11a4d1"
+        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         value={appStoreData.issuerId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, issuerId: e.target.value })
@@ -452,7 +452,7 @@ export function AppDistributionConnectionFlow({
 
       <TextInput
         label="Key ID"
-        placeholder="2S5FVTVKZ8"
+        placeholder="XXXXXXXXXX"
         value={appStoreData.keyId}
         onChange={(e) =>
           setAppStoreData({ ...appStoreData, keyId: e.target.value })

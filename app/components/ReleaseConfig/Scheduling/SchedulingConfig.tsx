@@ -35,7 +35,7 @@ import { validateScheduling, formatValidationErrors } from './scheduling-validat
 import { SCHEDULING_LABELS, ICON_SIZES } from '~/constants/release-config-ui';
 import { timeToMinutes } from '~/utils/time-utils';
 
-export function SchedulingConfig({ config, onChange, selectedPlatforms }: SchedulingConfigProps) {
+export function SchedulingConfig({ config, onChange, selectedPlatforms, showValidation = false }: SchedulingConfigProps) {
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
 
   // Comprehensive validation matching backend
@@ -100,7 +100,7 @@ export function SchedulingConfig({ config, onChange, selectedPlatforms }: Schedu
         </Text>
       </div>
       
-      {validationErrors.length > 0 && (
+      {showValidation && validationErrors.length > 0 && (
         <Alert icon={<IconAlertCircle size={ICON_SIZES.SMALL} />} color="red" title={SCHEDULING_LABELS.VALIDATION_ERRORS}>
           <Stack gap="xs">
             {validationErrors.map((error, i) => (

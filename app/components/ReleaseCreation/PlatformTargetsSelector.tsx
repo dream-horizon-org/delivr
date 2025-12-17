@@ -131,6 +131,7 @@ export function PlatformTargetsSelector({
 
   // Handle target selection/deselection
   const handleTargetToggle = (target: TargetPlatform, checked: boolean) => {
+    if (disabled) return; // Don't allow changes when disabled
     if (checked) {
       // Add platform-target combination
       const platform = PLATFORM_TARGET_MAPPING[target];
@@ -152,6 +153,7 @@ export function PlatformTargetsSelector({
 
   // Handle version change for a specific target
   const handleVersionChange = (target: TargetPlatform, version: string) => {
+    if (disabled) return; // Don't allow changes when disabled
     onChange(
       platformTargets.map((pt) =>
         pt.target === target ? { ...pt, version } : pt
@@ -254,6 +256,7 @@ export function PlatformTargetsSelector({
                       required
                       withAsterisk
                       error={versionError}
+                      disabled={disabled}
                       description="Semantic version format (e.g., v1.0.0). This will be the version number for this platform."
                       styles={{
                         label: { fontWeight: 500, marginBottom: 6 },

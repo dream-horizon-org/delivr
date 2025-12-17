@@ -332,7 +332,7 @@ export function CreateReleaseForm({
     }
 
     // Validate before opening modal
-    const validation = validateReleaseCreationState(state);
+    const validation = validateReleaseCreationState(state, isEditMode, activeStatus || undefined);
     if (!validation.isValid) {
       console.error('[CreateRelease] Validation Errors:', validation.errors);
       console.error('[CreateRelease] Current State:', state);
@@ -524,7 +524,7 @@ export function CreateReleaseForm({
               {isUpcoming 
                 ? "You can edit branch, base branch, and scheduling info. Configuration and platform targets cannot be changed."
                 : isAfterKickoff
-                ? "You can only edit target release date and add regression slots."
+                ? "You can only edit target release date and modify regression slots."
                 : "This release cannot be edited."}
             </Text>
           </Alert>
@@ -567,6 +567,7 @@ export function CreateReleaseForm({
               latestVersion="v1.0.0" // TODO: Fetch from API
               tenantId={org}
               errors={errors}
+              disablePlatformTargets={isEditMode && isUpcoming}
             />
           </Box>
         )}

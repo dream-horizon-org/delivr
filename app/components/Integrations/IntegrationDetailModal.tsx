@@ -17,7 +17,6 @@ import {
   IconAlertTriangle, 
   IconTrash, 
   IconPencil,
-  IconX,
   IconExternalLink,
   IconCalendar,
   IconUser,
@@ -461,30 +460,20 @@ export function IntegrationDetailModal({
               {isDisconnecting ? 'Disconnecting...' : INTEGRATION_MODAL_LABELS.DISCONNECT}
             </Button>
             
-            <Group gap="sm">
-              {onEdit && (
-                <Button
-                  variant="light"
-                  color="brand"
-                  size="sm"
-                  leftSection={<IconPencil size={14} />}
-                  onClick={() => {
-                    onEdit(integration.id);
-                    onClose();
-                  }}
-                >
-                  Edit
-                </Button>
-              )}
-              <Button 
-                variant="default" 
+            {onEdit && (
+              <Button
+                variant="light"
+                color="brand"
                 size="sm"
-                leftSection={<IconX size={14} />}
-                onClick={onClose}
+                leftSection={<IconPencil size={14} />}
+                onClick={() => {
+                  onEdit(integration.id);
+                  onClose();
+                }}
               >
-                Close
+                Edit
               </Button>
-            </Group>
+            )}
           </Group>
         </Stack>
       </Modal>

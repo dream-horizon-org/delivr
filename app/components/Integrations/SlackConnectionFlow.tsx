@@ -1,5 +1,5 @@
 import { Alert, TextInput, Stack, Box, Text, Group, useMantineTheme, ThemeIcon, Paper, Badge } from '@mantine/core';
-import { IconAlertCircle, IconMessageCircle, IconShield } from '@tabler/icons-react';
+import { IconAlertCircle, IconMessageCircle, IconShield, IconCheck } from '@tabler/icons-react';
 import { useSlackConnection } from '~/hooks/useSlackConnection';
 import { 
   SLACK_LABELS, 
@@ -213,9 +213,11 @@ export function SlackConnectionFlow({
       {/* Step 2: Ready to Connect */}
       {step === CONNECTION_STEPS.SLACK_CHANNELS && (
         <>
-          <ConnectionAlert 
-            color="green" 
-            title={isEditMode ? 'Slack Connection' : SLACK_LABELS.TOKEN_VERIFIED}
+          <Alert 
+            icon={<IconCheck size={16} />} 
+            color="green"
+            variant="light"
+            radius="md"
           >
             <Stack gap="xs">
               {displayWorkspaceInfo.workspaceName && (
@@ -234,7 +236,7 @@ export function SlackConnectionFlow({
                   : SLACK_LABELS.TOKEN_VERIFIED_MESSAGE}
               </Text>
             </Stack>
-          </ConnectionAlert>
+          </Alert>
 
           <Box
             p="md"

@@ -3,7 +3,8 @@
  * Displays release title, status badges, and platform badges
  */
 
-import { Badge, Group, Text, Title } from '@mantine/core';
+import { Badge, Group, Text, Title, Tooltip, Box, Stack } from '@mantine/core';
+import React, { useRef, useState, useEffect } from 'react';
 import { IconGitBranch, IconTag, IconClock } from '@tabler/icons-react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
@@ -26,6 +27,47 @@ interface PlatformTargetMapping {
 
 interface ReleaseHeaderTitleProps {
   release: BackendReleaseResponse;
+}
+
+/**
+ * Component that conditionally shows tooltip only when text is truncated
+ */
+function ConditionalTooltip({ 
+  children, 
+  label, 
+  ...props 
+}: { 
+  children: React.ReactElement; 
+  label: string;
+  [key: string]: any;
+}) {
+  const textRef = useRef<HTMLElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    const checkTruncation = () => {
+      if (textRef.current) {
+        const element = textRef.current;
+        setIsTruncated(element.scrollWidth > element.clientWidth);
+      }
+    };
+
+    checkTruncation();
+    window.addEventListener('resize', checkTruncation);
+    return () => window.removeEventListener('resize', checkTruncation);
+  }, [label]);
+
+  const childWithRef = React.cloneElement(children, { ref: textRef });
+
+  if (isTruncated) {
+    return (
+      <Tooltip label={label} withArrow color="gray" {...props}>
+        {childWithRef}
+      </Tooltip>
+    );
+  }
+
+  return childWithRef;
 }
 
 export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
@@ -53,19 +95,32 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
   const isPaused = !!(pauseType && pauseType !== PauseType.NONE);
 
   return (
-    <Group justify="space-between" align="center" wrap="wrap">
-      <Group gap="md" align="center">
-        {release.branch ? (
-          <Title order={2} className="font-mono">
+    <Stack gap="sm">
+      {/* First Line: Branch Name - Full Width */}
+      {release.branch ? (
+        <ConditionalTooltip label={release.branch}>
+          <Title 
+            order={2} 
+            className="font-mono"
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              width: '100%',
+            }}
+          >
             {release.branch}
           </Title>
-        ) : (
-          <Title order={2}>
-            {HEADER_LABELS.NO_BRANCH}
-          </Title>
-        )}
+        </ConditionalTooltip>
+      ) : (
+        <Title order={2}>
+          {HEADER_LABELS.NO_BRANCH}
+        </Title>
+      )}
 
-        {/* Status Badges - Next to Title - Consistent with ReleaseCard */}
+      {/* Second Line: Status Badges and Platform Badges */}
+      <Group justify="space-between" align="center" wrap="wrap">
+        {/* Status Badges */}
         <Group gap="sm">
           <Badge
             color={getReleaseTypeColor(release.type)}
@@ -122,7 +177,7 @@ export function ReleaseHeaderTitle({ release }: ReleaseHeaderTitleProps) {
           ))}
         </Group>
       )}
-    </Group>
+    </Stack>
   );
 }
 
@@ -143,7 +198,7 @@ export function ReleaseHeaderInfo({
   currentStage,
 }: ReleaseHeaderInfoProps) {
   return (
-    <Group gap="xl">
+    <Group gap="xl" wrap="nowrap" style={{ minWidth: 0 }}>
       <Group gap="xs">
         <IconTag size={18} className="text-brand-600" />
         <div>
@@ -157,15 +212,28 @@ export function ReleaseHeaderInfo({
       </Group>
 
       {release.branch && (
-        <Group gap="xs">
-          <IconGitBranch size={18} className="text-slate-600" />
-          <div>
+        <Group gap="xs" style={{ flex: '0 1 auto', minWidth: 0 }}>
+          <IconGitBranch size={18} className="text-slate-600" style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0, flex: '1 1 auto' }}>
             <Text size="xs" c="dimmed">
               {HEADER_LABELS.RELEASE_BRANCH}
             </Text>
-            <Text fw={600} size="sm" className="font-mono">
-              {release.branch}
-            </Text>
+            <ConditionalTooltip label={release.branch}>
+              <Text 
+                fw={600} 
+                size="sm" 
+                className="font-mono"
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  display: 'block',
+                  maxWidth: '200px',
+                }}
+              >
+                {release.branch}
+              </Text>
+            </ConditionalTooltip>
           </div>
         </Group>
       )}

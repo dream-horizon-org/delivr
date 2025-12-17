@@ -231,9 +231,14 @@ export function GitHubConnectionFlow({
       )}
 
       {isVerified && !isEditMode && (
-        <ConnectionAlert color="green" title={GITHUB_LABELS.REPO_VERIFIED}>
-          <Text size="sm">Connection verified! Click "Save & Connect" to complete the setup.</Text>
-        </ConnectionAlert>
+        <Alert 
+          icon={<IconCheck size={16} />} 
+          color="green"
+          variant="light"
+          radius="md"
+        >
+          Connection verified! Click "Save & Connect" to complete the setup.
+        </Alert>
       )}
 
       {isEditMode && hasOwnerOrRepoChanged && !token && (
