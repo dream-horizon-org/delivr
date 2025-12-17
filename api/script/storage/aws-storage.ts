@@ -1127,7 +1127,8 @@ export class S3Storage implements storage.Storage {
             this.releaseConfigRepository,
             scmService,
             this.projectManagementTicketService,
-            this.testManagementRunService
+            this.testManagementRunService,
+            this
           );
           console.log("Release Retrieval Service initialized");
           

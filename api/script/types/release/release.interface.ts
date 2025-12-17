@@ -195,6 +195,15 @@ export interface ReleaseTaskResponse {
 }
 
 /**
+ * Account details for release pilot
+ */
+export interface AccountDetails {
+  id: string;
+  email: string;
+  name: string;
+}
+
+/**
  * Release retrieval response body (single release)
  */
 export interface ReleaseResponseBody {
@@ -217,6 +226,7 @@ export interface ReleaseResponseBody {
   hasManualBuildUpload: boolean;
   createdByAccountId: string;
   releasePilotAccountId: string | null;
+  releasePilot?: AccountDetails | null;
   lastUpdatedByAccountId: string;
   createdAt: string;
   updatedAt: string;

@@ -15,7 +15,6 @@ import { TaskStage, ReleaseTask, Phase, ReleasePlatformTargetMapping } from '../
 import { ReleaseConfigRepository } from '../../models/release-configs/release-config.repository';
 import type { 
   ReleaseResponseBody, 
-  ReleaseWithPlatformTargets, 
   BuildInfoResponse, 
   ReleaseTaskResponse,
   TaskOutput,
@@ -28,13 +27,15 @@ import type {
   FinalReleaseNotesTaskOutput,
   SinglePlatformBuildTaskOutput,
   AllPlatformsBuildTaskOutput,
-  Platform
+  AccountDetails
 } from '~types/release';
 import { ReleaseConfiguration } from '~types/release-configs';
 import { SCMService } from '../integrations/scm/scm.service';
 import { ProjectManagementTicketService } from '../integrations/project-management/ticket/ticket.service';
 import { TestManagementRunService } from '../integrations/test-management/test-run/test-run.service';
 import { Platform as PMPlatform } from '~types/integrations/project-management';
+import * as storageTypes from '../../storage/storage';
+import { ErrorCode } from '../../storage/storage';
 
 // ============================================================================
 // PHASE DERIVATION TYPES
@@ -302,7 +303,8 @@ export class ReleaseRetrievalService {
     private readonly releaseConfigRepo: ReleaseConfigRepository,
     private readonly scmService: SCMService,
     private readonly pmTicketService: ProjectManagementTicketService,
-    private readonly testRunService: TestManagementRunService
+    private readonly testRunService: TestManagementRunService,
+    private readonly storage: storageTypes.Storage
   ) {}
 
   /**
@@ -311,6 +313,40 @@ export class ReleaseRetrievalService {
    */
   setReleaseStatusService(service: any): void {
     this.releaseStatusService = service;
+  }
+
+  /**
+   * Helper method to fetch account details
+   * Returns null if account doesn't exist or if there's an error
+   */
+  private async getAccountDetails(accountId: string | null): Promise<AccountDetails | null> {
+    if (!accountId) return null;
+    
+    try {
+      const account = await this.storage.getAccount(accountId);
+      
+      // Verify account exists and has required fields
+      if (!account || !account.email || !account.name) {
+        console.warn(`[Release Retrieval] Account ${accountId} exists but missing required fields`);
+        return null;
+      }
+      
+      return {
+        id: account.id || accountId,
+        email: account.email,
+        name: account.name
+      };
+    } catch (error: any) {
+      // Handle NotFound error specifically (account doesn't exist)
+      if (error?.code === ErrorCode.NotFound) {
+        console.warn(`[Release Retrieval] Account ${accountId} not found`);
+        return null;
+      }
+      
+      // Log other errors but still return null to prevent breaking the release response
+      console.error(`[Release Retrieval] Failed to fetch account ${accountId}:`, error);
+      return null;
+    }
   }
 
   /**
@@ -331,6 +367,9 @@ export class ReleaseRetrievalService {
       // Fetch cron job
       const cronJobRecord = await this.cronJobRepo.findByReleaseId(release.id);
 
+      // Fetch release pilot account details
+      const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
+
       const releaseResponse: ReleaseResponseBody = {
         id: release.id,
         releaseId: release.releaseId,
@@ -349,6 +388,7 @@ export class ReleaseRetrievalService {
         hasManualBuildUpload: release.hasManualBuildUpload,
         createdByAccountId: release.createdByAccountId,
         releasePilotAccountId: release.releasePilotAccountId,
+        releasePilot: releasePilot,
         lastUpdatedByAccountId: release.lastUpdatedByAccountId,
         createdAt: release.createdAt.toISOString(),
         updatedAt: release.updatedAt.toISOString()
@@ -444,6 +484,9 @@ export class ReleaseRetrievalService {
         })
       : 'NOT_STARTED';
 
+    // Fetch release pilot account details
+    const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
+
     const releaseResponse: ReleaseResponseBody = {
       id: release.id,
       releaseId: release.releaseId,
@@ -464,6 +507,7 @@ export class ReleaseRetrievalService {
       hasManualBuildUpload: release.hasManualBuildUpload,
       createdByAccountId: release.createdByAccountId,
       releasePilotAccountId: release.releasePilotAccountId,
+      releasePilot: releasePilot,
       lastUpdatedByAccountId: release.lastUpdatedByAccountId,
       createdAt: release.createdAt.toISOString(),
       updatedAt: release.updatedAt.toISOString(),

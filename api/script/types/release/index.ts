@@ -18,7 +18,8 @@ export type {
   BuildInfoResponse,
   ReleaseResponseBody,
   ReleaseListResponseBody,
-  SingleReleaseResponseBody
+  SingleReleaseResponseBody,
+  AccountDetails
 } from './release.interface';
 
 export { hasSequelize } from './release.interface';
