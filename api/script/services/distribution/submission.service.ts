@@ -11,6 +11,7 @@ import {
   SUBMISSION_PLATFORM,
   SUBMISSION_ACTION
 } from '~types/distribution/submission.constants';
+import type { SubmissionStatus } from '~types/distribution/submission.constants';
 import { DISTRIBUTION_STATUS } from '~types/distribution/distribution.constants';
 import { v4 as uuidv4 } from 'uuid';
 import type { AppleAppStoreConnectService } from './apple-app-store-connect.service';
@@ -512,16 +513,17 @@ export class SubmissionService {
       throw new Error(`Failed to submit to Apple App Store for review: ${errorMessage}`);
     }
 
-    // Step 9: Change submission status to SUBMITTED (only after Apple API succeeds)
+    // Step 9: Change submission status to SUBMITTED and save appStoreVersionId (only after Apple API succeeds)
     const finalSubmission = await this.iosSubmissionRepository.update(submissionId, {
-      status: SUBMISSION_STATUS.SUBMITTED
+      status: SUBMISSION_STATUS.SUBMITTED,
+      appStoreVersionId: appStoreVersionId
     });
 
     if (!finalSubmission) {
       throw new Error('Failed to update submission status to SUBMITTED');
     }
 
-    console.log(`[SubmissionService] Updated iOS submission ${submissionId} status to SUBMITTED`);
+    console.log(`[SubmissionService] Updated iOS submission ${submissionId} status to SUBMITTED, saved appStoreVersionId: ${appStoreVersionId}`);
 
     // Step 10: Update distribution status based on configured platforms
     const configuredPlatforms = distribution.configuredListOfPlatforms;
@@ -722,8 +724,8 @@ export class SubmissionService {
 
     // Step 3: Mark old submission as inactive
     await this.iosSubmissionRepository.update(resubmittableSubmission.id, {
-      isActive: false
-    });
+          isActive: false
+        });
 
     console.log(`[SubmissionService] Marked old iOS submission ${resubmittableSubmission.id} as inactive`);
 
@@ -946,18 +948,19 @@ export class SubmissionService {
       throw new Error(`Failed to submit to Apple App Store for review: ${errorMessage}`);
     }
 
-    // Step 7: Change submission status to SUBMITTED (only after Apple API succeeds)
+    // Step 7: Change submission status to SUBMITTED and save appStoreVersionId (only after Apple API succeeds)
     const finalSubmission = await this.iosSubmissionRepository.update(newSubmissionId, {
       status: SUBMISSION_STATUS.SUBMITTED,
       submittedAt: new Date(),
-      submittedBy
+      submittedBy,
+      appStoreVersionId: appStoreVersionId
     });
 
     if (!finalSubmission) {
       throw new Error('Failed to update submission status to SUBMITTED');
     }
 
-    console.log(`[SubmissionService] Updated iOS submission ${newSubmissionId} status to SUBMITTED`);
+    console.log(`[SubmissionService] Updated iOS submission ${newSubmissionId} status to SUBMITTED, saved appStoreVersionId: ${appStoreVersionId}`);
 
     // Step 8: Distribution status is NOT updated during resubmission
     // Note: Distribution status was already updated during the first-time submission.
@@ -1104,7 +1107,45 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 7: Get targetAppId from integration and fetch current phased release ID
+    // Step 7: Get phased release ID using cached appStoreVersionId (optimized!)
+    let phasedReleaseId: string | null;
+    
+    // Try to use cached appStoreVersionId first (skip 1 Apple API call!)
+    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    
+    if (cachedAppStoreVersionId) {
+      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
+      
+      try {
+        // ✅ Direct API call using cached version ID (skip getAppStoreVersions call!)
+        const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(cachedAppStoreVersionId);
+        
+        if (!phasedReleaseResponse || !phasedReleaseResponse.data) {
+          throw new Error('No phased release found for this version');
+        }
+        
+        const phasedReleaseState = phasedReleaseResponse.data.attributes?.phasedReleaseState;
+        phasedReleaseId = phasedReleaseResponse.data.id;
+        
+        console.log(`[SubmissionService] Found phased release: ${phasedReleaseId}, state: ${phasedReleaseState}`);
+        
+        // Validate state is ACTIVE (only ACTIVE releases can be paused)
+        if (phasedReleaseState !== 'ACTIVE') {
+          throw new Error(
+            `Cannot pause phased release in state "${phasedReleaseState}". ` +
+            `Only ACTIVE releases can be paused. Current state suggests the release may already be paused or completed.`
+          );
+        }
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
+      }
+      
+    } else {
+      // Fallback: Use old method if appStoreVersionId is not cached (backward compatibility)
+      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
+      
     const targetAppId = integration.targetAppId;
     
     if (!targetAppId) {
@@ -1114,13 +1155,6 @@ export class SubmissionService {
       );
     }
 
-    // Step 8: Dynamically fetch the current ACTIVE phased release ID from Apple
-    // This follows Apple's recommended workflow:
-    // 1. Get READY_FOR_SALE app store version (sorted by creation date)
-    // 2. Get phased release for that version
-    // 3. Validate state is ACTIVE (only ACTIVE releases can be paused)
-    // 4. Extract phased release ID
-    let phasedReleaseId: string | null;
     try {
       console.log(`[SubmissionService] Fetching current ACTIVE phased release ID for app ${targetAppId}`);
       phasedReleaseId = await appleService.getCurrentPhasedReleaseId(targetAppId, 'ACTIVE');
@@ -1129,13 +1163,13 @@ export class SubmissionService {
       throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
     }
 
-    // Step 9: Validate ACTIVE phased release exists
     if (!phasedReleaseId) {
       throw new Error(
         'No ACTIVE phased release found for this app. ' +
         'The phased release may not be enabled, may already be paused, may have completed, ' +
         'or no READY_FOR_SALE version exists. Only ACTIVE phased releases can be paused.'
       );
+      }
     }
 
     // Step 10: Call Apple API to pause the phased release
@@ -1244,7 +1278,45 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 6: Get targetAppId from integration and fetch current phased release ID
+    // Step 6: Get phased release ID using cached appStoreVersionId (optimized!)
+    let phasedReleaseId: string | null;
+    
+    // Try to use cached appStoreVersionId first (skip 1 Apple API call!)
+    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    
+    if (cachedAppStoreVersionId) {
+      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
+      
+      try {
+        // ✅ Direct API call using cached version ID (skip getAppStoreVersions call!)
+        const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(cachedAppStoreVersionId);
+        
+        if (!phasedReleaseResponse || !phasedReleaseResponse.data) {
+          throw new Error('No phased release found for this version');
+        }
+        
+        const phasedReleaseState = phasedReleaseResponse.data.attributes?.phasedReleaseState;
+        phasedReleaseId = phasedReleaseResponse.data.id;
+        
+        console.log(`[SubmissionService] Found phased release: ${phasedReleaseId}, state: ${phasedReleaseState}`);
+        
+        // Validate state is PAUSED (only PAUSED releases can be resumed)
+        if (phasedReleaseState !== 'PAUSED') {
+          throw new Error(
+            `Cannot resume phased release in state "${phasedReleaseState}". ` +
+            `Only PAUSED releases can be resumed. Current state: ${phasedReleaseState}`
+          );
+        }
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
+      }
+      
+    } else {
+      // Fallback: Use old method if appStoreVersionId is not cached (backward compatibility)
+      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
+      
     const targetAppId = integration.targetAppId;
     
     if (!targetAppId) {
@@ -1254,9 +1326,6 @@ export class SubmissionService {
       );
     }
 
-    // Step 7: Dynamically fetch the current PAUSED phased release ID from Apple
-    // Only PAUSED releases can be resumed
-    let phasedReleaseId: string | null;
     try {
       console.log(`[SubmissionService] Fetching current PAUSED phased release ID for app ${targetAppId}`);
       phasedReleaseId = await appleService.getCurrentPhasedReleaseId(targetAppId, 'PAUSED');
@@ -1265,13 +1334,13 @@ export class SubmissionService {
       throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
     }
 
-    // Step 8: Validate PAUSED phased release exists
     if (!phasedReleaseId) {
       throw new Error(
         'No PAUSED phased release found for this app. ' +
         'The phased release may not be paused, may have completed, or does not exist. ' +
         'Only PAUSED phased releases can be resumed.'
       );
+      }
     }
 
     // Step 9: Call Apple API to resume the phased release
@@ -1341,7 +1410,22 @@ export class SubmissionService {
       throw new Error('iOS phased release can only be updated to 100% to complete rollout early. Cannot set partial percentages manually.');
     }
 
-    // Step 4: Get distribution to retrieve tenantId
+    // Step 4: Validate submission status - can only complete when LIVE
+    // If PAUSED, user must resume first before completing
+    if (iosSubmission.status === SUBMISSION_STATUS.PAUSED) {
+      throw new Error(
+        `Please resume the rollout first, then try completing to 100%.`
+      );
+    }
+    
+    if (iosSubmission.status !== SUBMISSION_STATUS.LIVE) {
+      throw new Error(
+        `Cannot complete phased release with submission status: ${iosSubmission.status}. ` +
+        `Must be LIVE. Current status: ${iosSubmission.status}`
+      );
+    }
+
+    // Step 5: Get distribution to retrieve tenantId
     const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
     
     if (!distribution) {
@@ -1350,7 +1434,7 @@ export class SubmissionService {
 
     const tenantId = distribution.tenantId;
 
-    // Step 5: Find iOS store integration
+    // Step 6: Find iOS store integration
     const storeIntegrationController = getStoreIntegrationController();
     
     // Validate storeType is APP_STORE (only supported type for iOS)
@@ -1378,7 +1462,7 @@ export class SubmissionService {
     // This ensures credentials are valid and verified before attempting Apple API operations
     validateIntegrationStatus(integration);
 
-    // Step 6: Create Apple service from integration
+    // Step 7: Create Apple service from integration
     let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
     try {
       appleService = await createAppleServiceFromIntegration(integration.id);
@@ -1387,7 +1471,45 @@ export class SubmissionService {
       throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
     }
 
-    // Step 7: Get targetAppId from integration and fetch current phased release ID
+    // Step 8: Get phased release ID using cached appStoreVersionId (optimized!)
+    let phasedReleaseId: string | null;
+    
+    // Try to use cached appStoreVersionId first (skip 1 Apple API call!)
+    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    
+    if (cachedAppStoreVersionId) {
+      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
+      
+      try {
+        // ✅ Direct API call using cached version ID (skip getAppStoreVersions call!)
+        const phasedReleaseResponse = await appleService.getPhasedReleaseForVersion(cachedAppStoreVersionId);
+        
+        if (!phasedReleaseResponse || !phasedReleaseResponse.data) {
+          throw new Error('No phased release found for this version');
+        }
+        
+        const phasedReleaseState = phasedReleaseResponse.data.attributes?.phasedReleaseState;
+        phasedReleaseId = phasedReleaseResponse.data.id;
+        
+        console.log(`[SubmissionService] Found phased release: ${phasedReleaseId}, state: ${phasedReleaseState}`);
+        
+        // Validate state is ACTIVE (must resume first if PAUSED)
+        if (phasedReleaseState !== 'ACTIVE') {
+          throw new Error(
+            `Cannot complete phased release in Apple state "${phasedReleaseState}". ` +
+            `Must be ACTIVE. If paused, please resume the rollout first before completing to 100%.`
+          );
+        }
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
+      }
+      
+    } else {
+      // Fallback: Use old method if appStoreVersionId is not cached (backward compatibility)
+      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
+      
     const targetAppId = integration.targetAppId;
     
     if (!targetAppId) {
@@ -1397,9 +1519,6 @@ export class SubmissionService {
       );
     }
 
-    // Step 8: Dynamically fetch the current ACTIVE phased release ID from Apple
-    // Only ACTIVE releases can be completed (set to 100%)
-    let phasedReleaseId: string | null;
     try {
       console.log(`[SubmissionService] Fetching current ACTIVE phased release ID for app ${targetAppId}`);
       phasedReleaseId = await appleService.getCurrentPhasedReleaseId(targetAppId, 'ACTIVE');
@@ -1408,16 +1527,16 @@ export class SubmissionService {
       throw new Error(`Failed to fetch phased release from Apple App Store Connect: ${errorMessage}`);
     }
 
-    // Step 9: Validate ACTIVE phased release exists
     if (!phasedReleaseId) {
       throw new Error(
         'No ACTIVE phased release found for this app. ' +
-        'The phased release may be paused, may have already completed, or does not exist. ' +
-        'Only ACTIVE phased releases can be completed to 100%.'
+        'If the release is PAUSED, please resume it first, then try completing. ' +
+        'Note: This limitation only applies to older submissions without cached version IDs.'
       );
+      }
     }
 
-    // Step 10: Call Apple API to complete the phased release (set to 100%)
+    // Step 9: Call Apple API to complete the phased release (set to 100%)
     let appleResponse: any;
     try {
       console.log(`[SubmissionService] Completing phased release ${phasedReleaseId} for submission ${submissionId}`);
@@ -1428,16 +1547,18 @@ export class SubmissionService {
       throw new Error(`Failed to complete phased release in Apple App Store Connect: ${errorMessage}`);
     }
 
-    // Step 11: Update rollout percentage to 100% in database (only after Apple API succeeds)
+    // Step 10: Update rollout percentage to 100% and status to LIVE in database (only after Apple API succeeds)
+    // Note: If status was PAUSED, it becomes LIVE again since the rollout is now active at 100%
     const updatedSubmission = await this.iosSubmissionRepository.update(submissionId, {
-      rolloutPercentage: 100
+      rolloutPercentage: 100,
+      status: SUBMISSION_STATUS.LIVE
     });
 
     if (!updatedSubmission) {
       throw new Error('Failed to update rollout percentage');
     }
 
-    console.log(`[SubmissionService] Successfully updated rollout percentage to 100% for submission ${submissionId}`);
+    console.log(`[SubmissionService] Successfully completed rollout to 100% for submission ${submissionId}. Status: LIVE`);
 
     return {
       id: updatedSubmission.id,
@@ -1485,6 +1606,188 @@ export class SubmissionService {
     return {
       id: updatedSubmission.id,
       rolloutPercentage: updatedSubmission.rolloutPercentage ?? 0,
+      statusUpdatedAt: updatedSubmission.statusUpdatedAt
+    };
+  }
+
+  /**
+   * Cancel iOS submission (iOS only)
+   * Deletes the app store review submission in Apple App Store Connect
+   * Updates submission status to CANCELLED in database
+   * 
+   * Requirements:
+   * - Status must be SUBMITTED or IN_REVIEW
+   * - Must be active (isActive = true)
+   * - After cancellation, keeps isActive = true (for future resubmission)
+   */
+  async cancelSubmission(
+    submissionId: string,
+    reason: string,
+    createdBy: string
+  ): Promise<{ id: string; status: string; statusUpdatedAt: Date } | null> {
+    // Step 1: Find iOS submission (cancel only applies to iOS for now)
+    const iosSubmission = await this.iosSubmissionRepository.findById(submissionId);
+    
+    if (!iosSubmission) {
+      return null;
+    }
+
+    // Step 2: Verify submission can be cancelled (must be SUBMITTED or IN_REVIEW)
+    const cancellableStatuses: SubmissionStatus[] = [SUBMISSION_STATUS.SUBMITTED, SUBMISSION_STATUS.IN_REVIEW];
+    const isCancellable = cancellableStatuses.includes(iosSubmission.status);
+    
+    if (!isCancellable) {
+      throw new Error(
+        `Cannot cancel submission with status: ${iosSubmission.status}. ` +
+        `Must be SUBMITTED or IN_REVIEW. Current status indicates the submission may have already been approved, rejected, or is live.`
+      );
+    }
+
+    // Step 3: Verify submission is active
+    if (!iosSubmission.isActive) {
+      throw new Error('Cannot cancel inactive submission. Only active submissions can be cancelled.');
+    }
+
+    // Step 4: Get distribution to retrieve tenantId
+    const distribution = await this.distributionRepository.findById(iosSubmission.distributionId);
+    
+    if (!distribution) {
+      throw new Error(`Distribution not found for submission ${submissionId}`);
+    }
+
+    const tenantId = distribution.tenantId;
+
+    // Step 5: Find iOS store integration
+    const storeIntegrationController = getStoreIntegrationController();
+    
+    const mappedStoreType = StoreType.APP_STORE;
+
+    const integrations = await storeIntegrationController.findAll({
+      tenantId,
+      platform: 'IOS',
+      storeType: mappedStoreType
+    });
+
+    if (integrations.length === 0) {
+      throw new Error(`No iOS store integration found for tenant ${tenantId}. Please configure App Store Connect credentials first.`);
+    }
+
+    const integration = integrations[0];
+
+    // Validate integration status is VERIFIED
+    validateIntegrationStatus(integration);
+
+    // Step 6: Create Apple service from integration
+    let appleService: AppleAppStoreConnectService | MockAppleAppStoreConnectService;
+    try {
+      appleService = await createAppleServiceFromIntegration(integration.id);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load Apple App Store Connect credentials: ${errorMessage}`);
+    }
+
+    // Step 7: Get app store review submission ID to delete
+    // We need to find the review submission for this version
+    let reviewSubmissionId: string | null = null;
+    
+    // Try to use cached appStoreVersionId first (optimized!)
+    const cachedAppStoreVersionId = iosSubmission.appStoreVersionId;
+    
+    if (cachedAppStoreVersionId) {
+      console.log(`[SubmissionService] Using cached appStoreVersionId: ${cachedAppStoreVersionId}`);
+      
+      try {
+        // Get review submissions for this version
+        reviewSubmissionId = await appleService.getReviewSubmissionIdForVersion(cachedAppStoreVersionId);
+        
+        if (!reviewSubmissionId) {
+          throw new Error('No app store review submission found for this version');
+        }
+        
+        console.log(`[SubmissionService] Found review submission: ${reviewSubmissionId}`);
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch review submission from Apple App Store Connect: ${errorMessage}`);
+      }
+      
+    } else {
+      // Fallback: Use targetAppId to find the version first (backward compatibility)
+      console.log(`[SubmissionService] No cached appStoreVersionId, using fallback method with targetAppId`);
+      
+      const targetAppId = integration.targetAppId;
+      
+      if (!targetAppId) {
+        throw new Error(
+          `Missing targetAppId in store integration ${integration.id}. ` +
+          'Please configure the App Store Connect integration with the target app ID.'
+        );
+      }
+      
+      try {
+        // Get app store version by version string
+        const versionData = await appleService.getAppStoreVersionByVersionString(
+          targetAppId,
+          iosSubmission.version
+        );
+        
+        if (!versionData) {
+          throw new Error(`Version ${iosSubmission.version} not found in Apple App Store Connect`);
+        }
+        
+        const appStoreVersionId = versionData.id;
+        
+        // Get review submission for this version
+        reviewSubmissionId = await appleService.getReviewSubmissionIdForVersion(appStoreVersionId);
+        
+        if (!reviewSubmissionId) {
+          throw new Error('No app store review submission found for this version');
+        }
+        
+        console.log(`[SubmissionService] Found review submission: ${reviewSubmissionId}`);
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch review submission from Apple App Store Connect: ${errorMessage}`);
+      }
+    }
+
+    // Step 8: Call Apple API to delete the review submission (cancel the submission)
+    try {
+      console.log(`[SubmissionService] Cancelling review submission ${reviewSubmissionId} for submission ${submissionId}`);
+      await appleService.deleteReviewSubmission(reviewSubmissionId);
+      console.log(`[SubmissionService] Successfully cancelled review submission ${reviewSubmissionId}`);
+    } catch (error) {
+      // If Apple API call fails, throw error to prevent database update
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to cancel review submission in Apple App Store Connect: ${errorMessage}`);
+    }
+
+    // Step 9: Update submission status to CANCELLED in database (only after Apple API succeeds)
+    // NOTE: Keep isActive = true (as per user requirement) for potential future resubmission
+    const updatedSubmission = await this.iosSubmissionRepository.update(submissionId, {
+      status: SUBMISSION_STATUS.CANCELLED
+    });
+
+    if (!updatedSubmission) {
+      throw new Error('Failed to update submission status to CANCELLED');
+    }
+
+    // Step 10: Record action in history
+    await this.actionHistoryRepository.create({
+      id: uuidv4(),
+      submissionId,
+      platform: SUBMISSION_PLATFORM.IOS,
+      action: SUBMISSION_ACTION.CANCELLED,
+      reason,
+      createdBy
+    });
+
+    console.log(`[SubmissionService] Successfully cancelled submission ${submissionId}, isActive remains true`);
+
+    return {
+      id: updatedSubmission.id,
+      status: updatedSubmission.status,
       statusUpdatedAt: updatedSubmission.statusUpdatedAt
     };
   }

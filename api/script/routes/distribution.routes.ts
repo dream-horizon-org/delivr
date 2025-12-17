@@ -288,15 +288,26 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * Request Body:
    * - reason: string (optional)
    */
+  /**
+   * PATCH /submissions/:submissionId/cancel?platform=IOS
+   * 
+   * Cancel an iOS submission (iOS only).
+   * Deletes the app store review submission in Apple App Store Connect.
+   * 
+   * Requirements:
+   * - Status must be SUBMITTED or IN_REVIEW
+   * - Must be active (isActive = true)
+   * - After cancellation, keeps isActive = true (for future resubmission)
+   * 
+   * Query Parameters:
+   * - platform: string (required) - Must be "IOS" (Android not yet supported)
+   * 
+   * Request Body:
+   * - reason: string (required) - Reason for cancellation
+   */
   router.patch(
     "/submissions/:submissionId/cancel",
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Implement submissionController.cancelSubmission
-      return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-        error: "Not implemented yet",
-        message: "Cancel submission endpoint"
-      });
-    }
+    submissionController.cancelSubmission
   );
 
   // ============================================================================

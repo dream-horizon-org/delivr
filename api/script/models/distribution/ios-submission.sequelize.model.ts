@@ -20,6 +20,7 @@ export type IosSubmissionBuildAttributes = {
   releaseType: IosReleaseType;
   resetRating: boolean | null;
   rolloutPercentage: number | null;
+  appStoreVersionId: string | null;
   isActive: boolean;
   submittedBy: string | null;
   createdAt: Date;
@@ -118,6 +119,12 @@ export const createIosSubmissionBuildModel = (
         allowNull: true,
         field: 'rolloutPercentage',
         comment: 'Percentage of users to rollout to (0-100)'
+      },
+      appStoreVersionId: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: 'appStoreVersionId',
+        comment: 'Apple App Store version ID (cached for performance)'
       },
       isActive: {
         type: DataTypes.BOOLEAN,

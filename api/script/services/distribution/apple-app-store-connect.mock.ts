@@ -176,9 +176,11 @@ export class MockAppleAppStoreConnectService {
       throw new Error(`Phased release not found: ${phasedReleaseId}`);
     }
 
-    const isNotActive = release.state !== 'ACTIVE';
-    if (isNotActive) {
-      throw new Error(`Cannot complete phased release with state: ${release.state}. Must be ACTIVE.`);
+    // Must be ACTIVE to complete (if PAUSED, must resume first)
+    if (release.state !== 'ACTIVE') {
+      throw new Error(
+        `Cannot complete phased release with state: ${release.state}. Must be ACTIVE. If PAUSED, resume first.`
+      );
     }
 
     // Update state to COMPLETE and set to day 7 (100%)
@@ -589,6 +591,37 @@ export class MockAppleAppStoreConnectService {
   static clearMockData(): void {
     MockAppleAppStoreConnectService.mockPhasedReleases.clear();
     console.log('[MockAppleService] Cleared all mock phased release data');
+  }
+
+  /**
+   * Mock: Get app store review submission ID for a specific version
+   * Returns mock review submission ID
+   */
+  async getReviewSubmissionIdForVersion(appStoreVersionId: string): Promise<string | null> {
+    console.log(`[MockAppleService] Getting review submission for version ${appStoreVersionId}`);
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Generate mock review submission ID
+    const reviewSubmissionId = `mock-review-submission-${Date.now()}`;
+    
+    console.log(`[MockAppleService] Found review submission: ${reviewSubmissionId}`);
+    
+    return reviewSubmissionId;
+  }
+
+  /**
+   * Mock: Delete (cancel) an app store review submission
+   * Simulates canceling a submission in Apple App Store Connect
+   */
+  async deleteReviewSubmission(reviewSubmissionId: string): Promise<void> {
+    console.log(`[MockAppleService] Deleting review submission ${reviewSubmissionId}`);
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log(`[MockAppleService] Successfully deleted review submission ${reviewSubmissionId}`);
   }
 
   /**
