@@ -36,7 +36,8 @@ import { ReleasePlatformTargetMappingRepository } from '~models/release/release-
 import { createPlatformTargetMappingModel } from '~models/release/platform-target-mapping.sequelize.model';
 import { ReleaseRepository } from '~models/release/release.repository';
 import { createReleaseModel } from '~models/release/release.sequelize.model';
-import { decrypt, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
+import { decryptIfEncrypted, encryptForStorage, decryptFromStorage } from '../../utils/encryption';
+import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -174,35 +175,24 @@ const verifyAppStoreConnect = async (
 
     // Decrypt private key if encrypted (check if it's not a PEM format)
     if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
-      try {
-        console.log('[AppStore] Encrypted privateKeyPem detected, attempting decryption...');
-        const decrypted = decrypt(privateKeyPem);
-        
-        // Verify decryption worked (should now start with -----BEGIN)
-        if (!decrypted.startsWith('-----BEGIN')) {
-          return {
-            isValid: false,
-            message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
-            details: {
-              error: 'Decryption did not produce valid PEM format',
-              hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
-            },
-          };
-        }
-        
-        privateKeyPem = decrypted;
-        console.log('[AppStore] Private key decrypted successfully');
-      } catch (error) {
-        console.error('[AppStore] Failed to decrypt privateKeyPem:', error);
+      console.log('[AppStore] Encrypted privateKeyPem detected, attempting decryption...');
+      // Decrypt frontend-encrypted value (Layer 1)
+      const decrypted = decryptIfEncrypted(privateKeyPem, 'privateKeyPem');
+      
+      // Verify decryption worked (should now start with -----BEGIN)
+      if (!decrypted.startsWith('-----BEGIN')) {
         return {
           isValid: false,
-          message: 'Failed to decrypt private key. ENCRYPTION_KEY may be missing or incorrect.',
+          message: 'Failed to decrypt private key. Please check ENCRYPTION_KEY environment variable is set correctly on the backend.',
           details: {
-            error: error instanceof Error ? error.message : 'Unknown decryption error',
-            hint: 'Check backend .env file for ENCRYPTION_KEY',
+            error: 'Decryption did not produce valid PEM format',
+            hint: 'Ensure ENCRYPTION_KEY matches between frontend and backend',
           },
         };
       }
+      
+      privateKeyPem = decrypted;
+      console.log('[AppStore] Private key decrypted successfully');
     }
 
     // Validate required fields
@@ -364,21 +354,12 @@ const verifyGooglePlayStore = async (
     if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
       console.log('[PlayStore] Encrypted private_key detected, attempting decryption...');
       console.log('[PlayStore] Encrypted key length:', serviceAccountJson.private_key.length);
-      try {
-        const decrypted = decrypt(serviceAccountJson.private_key);
-        console.log('[PlayStore] Decryption successful, decrypted key length:', decrypted.length);
-        serviceAccountJson.private_key = decrypted;
-        // Remove the encryption flag
-        delete serviceAccountJson._encrypted;
-      } catch (error) {
-        console.error('[PlayStore] Failed to decrypt service account private_key:', error);
-        delete serviceAccountJson._encrypted;
-        return {
-          isValid: false,
-          message: `Failed to decrypt private_key: ${error instanceof Error ? error.message : 'Unknown decryption error'}`,
-          details: { error: String(error) },
-        };
-      }
+      // Decrypt frontend-encrypted value (Layer 1)
+      const decrypted = decryptIfEncrypted(serviceAccountJson.private_key, 'private_key');
+      console.log('[PlayStore] Decryption successful, decrypted key length:', decrypted.length);
+      serviceAccountJson.private_key = decrypted;
+      // Remove the encryption flag
+      delete serviceAccountJson._encrypted;
     }
 
     // Validate required fields
@@ -820,13 +801,8 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       // Decrypt privateKeyPem if it's frontend-encrypted (not in PEM format)
       let privateKeyPem = appStorePayload.privateKeyPem;
       if (privateKeyPem && !privateKeyPem.startsWith('-----BEGIN')) {
-        try {
-          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
-          privateKeyPem = decrypt(appStorePayload.privateKeyPem);
-        } catch (error) {
-          console.error('[Store] Failed to decrypt privateKeyPem before storage:', error);
-          // If decryption fails, use as-is (might already be plaintext or backend-encrypted)
-        }
+        // Decrypt using frontend encryption key (ENCRYPTION_KEY) - Layer 1
+        privateKeyPem = decryptIfEncrypted(appStorePayload.privateKeyPem, 'privateKeyPem');
       }
       
       // Create credential payload with plaintext values
@@ -853,15 +829,9 @@ export const connectStore = async (req: Request, res: Response): Promise<void> =
       
       // Decrypt private_key if it's frontend-encrypted
       if (serviceAccountJson._encrypted && serviceAccountJson.private_key) {
-        try {
-          // Decrypt using frontend encryption key (ENCRYPTION_KEY)
-          serviceAccountJson.private_key = decrypt(serviceAccountJson.private_key);
-          delete serviceAccountJson._encrypted;
-        } catch (error) {
-          console.error('[Store] Failed to decrypt private_key before storage:', error);
-          // If decryption fails, use as-is
-          delete serviceAccountJson._encrypted;
-        }
+        // Decrypt using frontend encryption key (ENCRYPTION_KEY) - Layer 1
+        serviceAccountJson.private_key = decryptIfEncrypted(serviceAccountJson.private_key, 'private_key');
+        delete serviceAccountJson._encrypted;
       }
       
       // Create credential payload with plaintext values
@@ -2025,6 +1995,141 @@ export const uploadAabToPlayStore = async (req: Request, res: Response): Promise
     });
   } catch (error) {
     const message = getErrorMessage(error, PLAY_STORE_UPLOAD_ERROR_MESSAGES.PLAY_STORE_UPLOAD_FAILED);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: RESPONSE_STATUS.FAILURE,
+      error: message,
+    });
+  }
+};
+
+// ============================================================================
+// GET /integrations/store/play-store/listings
+// ============================================================================
+
+export const getPlayStoreListings = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.query.tenantId as string;
+    const storeType = req.query.storeType as string;
+    const platform = req.query.platform as string;
+
+    const mappedStoreType = mapStoreTypeFromApi(storeType);
+    const platformUpper = platform.toUpperCase() as 'ANDROID' | 'IOS';
+
+    // Validate storeType and platform (using constants)
+    const isPlayStore = mappedStoreType === StoreType.PLAY_STORE;
+    const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
+
+    if (!isPlayStore || !isAndroid) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: `storeType must be "play_store" (${STORE_TYPE.PLAY_STORE}) and platform must be "${BUILD_PLATFORM.ANDROID}"`,
+      });
+      return;
+    }
+
+    // Find Play Store integration for tenant
+    const integrationController = getStoreController();
+    const integrations = await integrationController.findAll({
+      tenantId,
+      storeType: mappedStoreType,
+      platform: platformUpper,
+    });
+
+    if (integrations.length === 0) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: RESPONSE_STATUS.FAILURE,
+        error: PLAY_STORE_UPLOAD_ERROR_MESSAGES.INTEGRATION_NOT_FOUND_FOR_UPLOAD,
+      });
+      return;
+    }
+
+    // Use first integration found
+    const integration = integrations[0];
+    const integrationId = integration.id;
+    const packageName = integration.appIdentifier;
+
+    // Validate integration status before proceeding with credential operations
+    // This prevents attempting to decrypt credentials or generate access tokens
+    // for integrations that are not verified
+    validateIntegrationStatus(integration);
+
+    // Get GoogleAuth client and access token
+    // Only proceed if integration status is VERIFIED
+    const { accessToken } = await getGoogleAuthClientFromIntegration(integrationId);
+
+    const apiBaseUrl = PLAY_STORE_UPLOAD_CONSTANTS.API_BASE_URL;
+
+    // Step 1: Create edit (required for listings API)
+    const createEditUrl = `${apiBaseUrl}/applications/${packageName}/edits`;
+    const createEditResponse = await fetch(createEditUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!createEditResponse.ok) {
+      const errorText = await createEditResponse.text().catch(() => 'Unknown error');
+      throw new Error(`Failed to create edit: ${createEditResponse.status} ${errorText}`);
+    }
+
+    const editData = await createEditResponse.json();
+    const editId = editData.id;
+
+    try {
+      // Step 2: Get listings (supported languages)
+      const listingsUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}/listings`;
+      const listingsResponse = await fetch(listingsUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!listingsResponse.ok) {
+        const errorText = await listingsResponse.text().catch(() => 'Unknown error');
+        throw new Error(`Failed to get listings: ${listingsResponse.status} ${errorText}`);
+      }
+
+      const listingsData = await listingsResponse.json();
+
+      // Step 3: Clean up - Delete edit
+      const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
+      await fetch(deleteEditUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }).catch(() => {
+        // Ignore delete errors - edit will expire automatically
+        console.warn('Failed to delete edit, it will expire automatically');
+      });
+
+      res.status(HTTP_STATUS.OK).json({
+        success: RESPONSE_STATUS.SUCCESS,
+        data: listingsData,
+      });
+    } catch (error) {
+      // Clean up edit on error
+      try {
+        const deleteEditUrl = `${apiBaseUrl}/applications/${packageName}/edits/${editId}`;
+        await fetch(deleteEditUrl, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+      } catch (deleteError) {
+        // Ignore delete errors
+        console.warn('Failed to delete edit after error, it will expire automatically');
+      }
+      throw error;
+    }
+  } catch (error) {
+    const message = getErrorMessage(error, 'Failed to get Play Store listings');
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: RESPONSE_STATUS.FAILURE,
       error: message,

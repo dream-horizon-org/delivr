@@ -88,6 +88,14 @@ export interface ITestManagementProvider {
   ): Promise<TestStatusResult>;
   
   /**
+   * Get the URL for a test run
+   */
+  getRunUrl(
+    config: TenantTestManagementIntegrationConfig,
+    runId: string
+  ): Promise<string>;
+  
+  /**
    * Reset a test run (optional)
    */
   resetTestRun?(

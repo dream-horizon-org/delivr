@@ -328,6 +328,17 @@ export class CheckmateProvider implements ITestManagementProvider {
   };
 
   /**
+   * Get the URL for a test run
+   */
+  getRunUrl = async (
+    config: TenantTestManagementIntegrationConfig,
+    runId: string
+  ): Promise<string> => {
+    const checkmateConfig = this.getCheckmateConfig(config);
+    return this.buildSimpleRunUrl(checkmateConfig.baseUrl, runId);
+  };
+
+  /**
    * Reset a test run in Checkmate
    * Calls Checkmate's /api/v1/run/reset which marks all Passed tests as Retest
    */

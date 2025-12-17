@@ -15,6 +15,7 @@ import { ManualUploadService } from '../../services/release/manual-upload.servic
 import { UploadStage } from '../../models/release/release-uploads.sequelize.model';
 import { PlatformName } from '../../models/release/release.interface';
 import { HTTP_STATUS } from '../../constants/http';
+import { ReleaseActivityLogService } from '../../services/release/release-activity-log.service';
 import type { 
   CreateReleaseRequestBody,
   CreateReleasePayload,
@@ -35,12 +36,14 @@ export class ReleaseManagementController {
   private updateService: ReleaseUpdateService;
   private cronJobService: CronJobService;
   private manualUploadService: ManualUploadService | null;
+  private activityLogService: ReleaseActivityLogService;
 
   constructor(
     creationService: ReleaseCreationService,
     retrievalService: ReleaseRetrievalService,
     statusService: ReleaseStatusService,
     updateService: ReleaseUpdateService,
+    activityLogService: ReleaseActivityLogService,
     cronJobService: CronJobService,
     manualUploadService?: ManualUploadService
   ) {
@@ -50,6 +53,7 @@ export class ReleaseManagementController {
     this.updateService = updateService;
     this.cronJobService = cronJobService;
     this.manualUploadService = manualUploadService ?? null;
+    this.activityLogService = activityLogService;
   }
 
   /**
@@ -422,6 +426,14 @@ export class ReleaseManagementController {
         });
       }
 
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
       // Delegate to service
       const result = await this.cronJobService.triggerStage3(
         releaseId, 
@@ -452,6 +464,69 @@ export class ReleaseManagementController {
       return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: 'Failed to approve regression stage',
+        message: errorMessage
+      });
+    }
+  };
+
+  /**
+   * Trigger Stage 4 (Distribution) / Approve Pre-Release Stage
+   * POST /tenants/:tenantId/releases/:releaseId/trigger-distribution
+   */
+  triggerDistribution = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const tenantId = req.params.tenantId;
+      const releaseId = req.params.releaseId;
+      
+      // Extract request body parameters
+      const { approvedBy, comments, forceApprove } = req.body;
+
+      // Validate required fields
+      if (!approvedBy) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'approvedBy is required'
+        });
+      }
+
+      // Input validation (first-level)
+      if (!releaseId) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: 'Release ID is required'
+        });
+      }
+
+      // Delegate to service
+      const result = await this.cronJobService.triggerStage4(
+        releaseId, 
+        tenantId, 
+        approvedBy,
+        comments,
+        forceApprove
+      );
+
+      if (result.success === false) {
+        return res.status(result.statusCode).json({
+          success: false,
+          error: result.error
+        });
+      }
+
+      return res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Pre-release stage approved and Distribution stage triggered successfully',
+        releaseId: result.data.releaseId,
+        approvedAt: result.data.approvedAt,
+        approvedBy: result.data.approvedBy,
+        nextStage: result.data.nextStage
+      });
+    } catch (error: unknown) {
+      console.error('[Trigger Distribution] Error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: 'Failed to approve pre-release stage',
         message: errorMessage
       });
     }
@@ -606,6 +681,38 @@ export class ReleaseManagementController {
       return res.status(statusCode).json({
         success: false,
         error: error.message ?? 'Failed to check test management run status'
+      });
+    }
+  }
+
+  /**
+   * Get activity logs for a release
+   * Retrieves all activity logs for a specific release ID
+   */
+  getActivityLogs = async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const { releaseId } = req.params;
+
+      if (!releaseId) {
+        return res.status(400).json({
+          success: false,
+          error: 'releaseId is required'
+        });
+      }
+
+      // Delegate to service layer
+      const logs = await this.activityLogService.getActivityLogs(releaseId);
+
+      return res.status(200).json({
+        success: true,
+        data: logs
+      });
+    } catch (error: any) {
+      console.error('[Get Activity Logs] Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve activity logs',
+        message: error.message || 'Unknown error'
       });
     }
   }
@@ -846,6 +953,12 @@ export class ReleaseManagementController {
     try {
       const { tenantId, releaseId } = req.params;
 
+      // Extract accountId from authenticated user
+      if (!req.user?.id) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Unauthorized' });
+      }
+      const accountId = req.user.id;
+
       if (!releaseId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
@@ -854,7 +967,7 @@ export class ReleaseManagementController {
       }
 
       // Delegate to CronJobService
-      const result = await this.cronJobService.pauseRelease(releaseId, tenantId);
+      const result = await this.cronJobService.pauseRelease(releaseId, tenantId, accountId);
 
       if (result.success === false) {
         const statusCode = result.statusCode ?? HTTP_STATUS.BAD_REQUEST;
@@ -892,6 +1005,12 @@ export class ReleaseManagementController {
     try {
       const { tenantId, releaseId } = req.params;
 
+      // Extract accountId from authenticated user
+      if (!req.user?.id) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({ success: false, error: 'Unauthorized' });
+      }
+      const accountId = req.user.id;
+
       if (!releaseId) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
@@ -900,7 +1019,7 @@ export class ReleaseManagementController {
       }
 
       // Delegate to CronJobService
-      const result = await this.cronJobService.resumeRelease(releaseId, tenantId);
+      const result = await this.cronJobService.resumeRelease(releaseId, tenantId, accountId);
 
       if (result.success === false) {
         const statusCode = result.statusCode ?? HTTP_STATUS.BAD_REQUEST;

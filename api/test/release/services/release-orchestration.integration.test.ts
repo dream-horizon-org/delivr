@@ -11,6 +11,21 @@
  * - Cron Job State Management
  */
 
+// Mock octokit before any imports that use it
+jest.mock('octokit', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    rest: {
+      repos: {
+        getBranch: jest.fn(),
+        createRelease: jest.fn(),
+      },
+      git: {
+        createRef: jest.fn(),
+      }
+    }
+  }))
+}));
+
 import { Sequelize } from 'sequelize';
 import { v4 as uuidv4 } from 'uuid';
 // Repositories (direct usage)
@@ -78,7 +93,7 @@ const createStateMachine = async (releaseId: string, storage: any, sequelize: Se
 
   const { cronJobRepo, releaseRepo, releaseTaskRepo, regressionCycleRepo } = getOrCreateRepos(sequelize);
 
-  return new CronJobStateMachine(
+  const stateMachine = new CronJobStateMachine(
     releaseId,
     cronJobRepo,
     releaseRepo,
@@ -87,6 +102,11 @@ const createStateMachine = async (releaseId: string, storage: any, sequelize: Se
     mockTaskExecutor,
     storage
   );
+
+  // Initialize the state machine (must be called after construction)
+  await stateMachine.initialize();
+
+  return stateMachine;
 };
 
 // ============================================================================
@@ -119,7 +139,7 @@ async function createTestRelease(
   return releaseRepo.create({
     id,
     releaseId: `REL-${Date.now()}`,
-    releaseConfigId: null,
+    releaseConfigId: uuidv4(), // Generate a dummy config ID for tests
     tenantId: options.tenantId,
     status: 'IN_PROGRESS',
     type: options.type ?? 'MINOR',
@@ -194,6 +214,7 @@ describe('Archive Release Feature', () => {
   let cronJobRepo: CronJobRepository;
   let releaseRepo: ReleaseRepository;
   let releaseTaskRepo: ReleaseTaskRepository;
+  let regressionCycleRepo: RegressionCycleRepository;
   let storage: any;
   
   const testTenantId = 'test-tenant-archive';
@@ -253,6 +274,7 @@ describe('Archive Release Feature', () => {
     cronJobRepo = repos.cronJobRepo;
     releaseRepo = repos.releaseRepo;
     releaseTaskRepo = repos.releaseTaskRepo;
+    regressionCycleRepo = repos.regressionCycleRepo;
 
     // Note: Release models are now created within createTestStorage (via aws-storage.ts)
     // Initialize storage singleton
@@ -405,7 +427,7 @@ describe('Archive Release Feature', () => {
       expect(updated?.status).toBe(ReleaseStatus.ARCHIVED);
     });
 
-    it('should update cronJob.cronStatus to PAUSED when archiving', async () => {
+    it('should update cronJob.cronStatus to COMPLETED when archiving (terminal state)', async () => {
       // ✅ CORRECT: Create release using DTO
       const release = await createTestRelease(releaseRepo, {
         tenantId: testTenantId,
@@ -441,7 +463,7 @@ describe('Archive Release Feature', () => {
       });
       
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -450,7 +472,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.cronStoppedAt).toBeDefined();
     });
 
@@ -525,7 +547,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -534,7 +556,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.stage1Status).toBe(StageStatus.IN_PROGRESS);  // Unchanged
     });
 
@@ -627,7 +649,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -636,7 +658,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.stage2Status).toBe(StageStatus.IN_PROGRESS);  // Unchanged
     });
 
@@ -664,11 +686,11 @@ describe('Archive Release Feature', () => {
         autoTransitionToStage3: false  // Manual Stage 3
       });
 
-      // Update to Stage 2 COMPLETED
+      // Update to Stage 2 COMPLETED (waiting for manual Stage 3 trigger)
       await cronJobRepo.update(cronJob.id, {
         stage1Status: StageStatus.COMPLETED,
         stage2Status: StageStatus.COMPLETED,
-        cronStatus: CronStatus.PAUSED
+        cronStatus: CronStatus.RUNNING  // Still RUNNING, waiting for trigger
       });
 
       // Archive the release
@@ -676,9 +698,9 @@ describe('Archive Release Feature', () => {
         status: ReleaseStatus.ARCHIVED
       });
 
-      // Cron already PAUSED, so no need to update (but verify it's idempotent)
+      // Archive sets COMPLETED (terminal state)
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,
         cronStoppedAt: new Date()
       });
 
@@ -687,7 +709,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
   });
 
@@ -730,7 +752,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -739,7 +761,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
       expect(updatedCronJob?.stage3Status).toBe(StageStatus.IN_PROGRESS);  // Unchanged
     });
   });
@@ -777,7 +799,7 @@ describe('Archive Release Feature', () => {
       expect(updated?.status).toBe(ReleaseStatus.ARCHIVED);
     });
 
-    it('should handle archiving when cron job is already PAUSED', async () => {
+    it('should handle archiving when cron job was waiting for manual trigger', async () => {
       // ✅ CORRECT: Create release using DTO
       const release = await createTestRelease(releaseRepo, {
         tenantId: testTenantId,
@@ -801,19 +823,19 @@ describe('Archive Release Feature', () => {
         autoTransitionToStage3: false
       });
 
-      // Update to Stage 1 COMPLETED, cron PAUSED (waiting for manual Stage 2)
+      // Update to Stage 1 COMPLETED, cron still RUNNING (waiting for manual Stage 2 trigger)
       await cronJobRepo.update(cronJob.id, {
         stage1Status: StageStatus.COMPLETED,
-        cronStatus: CronStatus.PAUSED
+        cronStatus: CronStatus.RUNNING  // Still RUNNING, waiting for trigger
       });
 
-      // Archive (should update release status, leave cron as PAUSED)
+      // Archive (should set cronStatus to COMPLETED since it's terminal)
       await releaseRepo.update(testReleaseId, {
         status: ReleaseStatus.ARCHIVED
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED,
+        cronStatus: CronStatus.COMPLETED,  // ARCHIVED is terminal - use COMPLETED
         cronStoppedAt: new Date()
       });
 
@@ -822,7 +844,7 @@ describe('Archive Release Feature', () => {
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
       
       expect(updatedRelease?.status).toBe(ReleaseStatus.ARCHIVED);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should handle archiving when cron job is COMPLETED', async () => {
@@ -902,7 +924,7 @@ describe('Archive Release Feature', () => {
       });
 
       await cronJobRepo.update(cronJob.id, {
-        cronStatus: CronStatus.PAUSED
+        cronStatus: CronStatus.COMPLETED  // ARCHIVED is terminal - use COMPLETED
       });
 
       // Verify
@@ -1017,9 +1039,9 @@ describe('Archive Release Feature', () => {
       const tasks = await releaseTaskRepo.findByReleaseId(testReleaseId);
       expect(tasks[0].taskStatus).toBe(TaskStatus.PENDING);  // Not executed!
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should stop executing tasks in RegressionState when release is archived', async () => {
@@ -1069,9 +1091,9 @@ describe('Archive Release Feature', () => {
       const regressionTasks = tasks.filter(t => t.stage === TaskStage.REGRESSION);
       expect(regressionTasks).toHaveLength(0);  // No tasks created!
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should stop executing tasks in PreReleaseState when release is archived', async () => {
@@ -1127,9 +1149,9 @@ describe('Archive Release Feature', () => {
       const tasks = await releaseTaskRepo.findByReleaseId(testReleaseId);
       expect(tasks[0].taskStatus).toBe(TaskStatus.PENDING);  // Not executed!
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
 
     it('should not initialize state machine when release is archived', async () => {
@@ -1172,9 +1194,9 @@ describe('Archive Release Feature', () => {
       // The initialize() method should detect ARCHIVED and set currentState = null
       expect(stateMachine['currentState']).toBeNull();  // Access private field for testing
 
-      // Verify: Cron job should be stopped
+      // Verify: Cron job should be COMPLETED (archived is terminal)
       const updatedCronJob = await cronJobRepo.findByReleaseId(testReleaseId);
-      expect(updatedCronJob?.cronStatus).toBe(CronStatus.PAUSED);
+      expect(updatedCronJob?.cronStatus).toBe(CronStatus.COMPLETED);
     });
   });
 
@@ -1430,6 +1452,617 @@ describe('Archive Release Feature', () => {
       // tests exist in a separate file due to their size (51 tests, 1724 lines)
       expect(true).toBe(true);
       console.log('✅ Flexible Regression Slots - See regression-slots-comprehensive.test.ts for 51 detailed tests');
+    });
+  });
+
+  // ========================================================================
+  // TASK 1-3: Slot Handling - Past Slot Execution & Deadline Enforcement (TDD)
+  // ========================================================================
+  
+  describe('Slot Handling - Past Slot Execution & Deadline (TDD)', () => {
+    let testReleaseId: string;
+
+    beforeEach(() => {
+      testReleaseId = `test-release-slot-${uuidv4()}`;
+    });
+
+    afterEach(async () => {
+      // Cleanup
+      await sequelize.query(`DELETE FROM release_tasks WHERE releaseId = '${testReleaseId}'`);
+      await sequelize.query(`DELETE FROM regression_cycles WHERE releaseId = '${testReleaseId}'`);
+      await sequelize.query(`DELETE FROM cron_jobs WHERE releaseId = '${testReleaseId}'`);
+      await sequelize.query(`DELETE FROM releases WHERE id = '${testReleaseId}'`);
+    });
+
+    // TASK 1: Execute Past Slots (Before targetReleaseDate)
+    describe('Task 1: Execute Past Slots (Before Deadline)', () => {
+      it('should create regression cycle when slot is 2 hours past but before targetReleaseDate', async () => {
+        // Arrange: Slot 2 hours in the past, deadline 4 hours in future
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours future
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        // Act: Execute state machine
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        // Assert: Regression cycle should be created (but won't be with current impl)
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(1); // ❌ FAILS: Current implementation won't create cycle (outside 60-sec window)
+        
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        // null and [] both mean "no upcoming slots"
+        expect(updatedCronJob?.upcomingRegressions ?? []).toEqual([]);
+      });
+
+      it('should create regression cycle when slot is 10 minutes past', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours future
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(1); // ❌ FAILS: Outside 60-sec window
+      });
+
+      it('should execute multiple past slots sequentially', async () => {
+        const now = new Date();
+        const slot1Time = new Date(now.getTime() - 4 * 60 * 60 * 1000); // 4 hours ago
+        const slot2Time = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 hours ago
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours future
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [
+            { date: slot1Time, config: {} },
+            { date: slot2Time, config: {} }
+          ]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(1); // ❌ FAILS: Won't execute past slots
+        
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        expect(updatedCronJob?.upcomingRegressions).toHaveLength(1); // ❌ FAILS: Should remove first slot
+      });
+
+      it('should NOT create cycle if active cycle already exists', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        // Create an active cycle manually
+        await sequelize.query(`
+          INSERT INTO regression_cycles (id, releaseId, status, createdAt, updatedAt)
+          VALUES (UUID(), '${testReleaseId}', 'IN_PROGRESS', NOW(), NOW())
+        `);
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(1); // Should still be 1 (not create duplicate)
+        
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        expect(updatedCronJob?.upcomingRegressions).toHaveLength(1); // Slot should NOT be removed
+      });
+
+      it('should execute slot that is 1 minute past', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 1 * 60 * 1000); // 1 minute ago
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(1); // ❌ FAILS: Outside 60-sec window
+      });
+
+      it('should remove slot from upcomingRegressions after creating cycle', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        // null and [] both mean "no upcoming slots"
+        expect(updatedCronJob?.upcomingRegressions ?? []).toEqual([]);
+      });
+    });
+
+    // TASK 2: Log Warnings for Late Execution
+    describe('Task 2: Log Warnings for Late Execution', () => {
+      it('should log warning when executing slot more than 5 minutes late', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('late')
+        ); // ❌ FAILS: No warning logged
+
+        warnSpy.mockRestore();
+      });
+
+      it('should NOT log warning when slot is less than 5 minutes late', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 3 * 60 * 1000); // 3 minutes ago (within threshold)
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        // Should NOT contain "late" warning
+        const lateCalls = warnSpy.mock.calls.filter(call => 
+          call.some(arg => typeof arg === 'string' && arg.includes('late'))
+        );
+        expect(lateCalls).toHaveLength(0); // Should not log late warning
+
+        warnSpy.mockRestore();
+      });
+
+      it('should log warning exactly at 5 minute threshold', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - (5 * 60 * 1000 - 100)); // 5 minutes minus 100ms (within threshold)
+        const targetReleaseDate = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        // Boundary case: should NOT warn (> 5 minutes, not >= 5 minutes)
+        const lateCalls = warnSpy.mock.calls.filter(call => 
+          call.some(arg => typeof arg === 'string' && arg.includes('late'))
+        );
+        expect(lateCalls).toHaveLength(0); // Should not warn at exactly 5 minutes
+
+        warnSpy.mockRestore();
+      });
+    });
+
+    // TASK 3: Skip Slots Past targetReleaseDate
+    describe('Task 3: Skip Slots Past targetReleaseDate', () => {
+      it('should NOT create cycle when current time is past targetReleaseDate', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 4 * 60 * 60 * 1000); // 4 hours ago
+        const targetReleaseDate = new Date(now.getTime() - 1 * 60 * 60 * 1000); // 1 hour ago (DEADLINE PASSED!)
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(0); // ❌ FAILS: Current impl doesn't check targetReleaseDate
+
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        expect(updatedCronJob?.upcomingRegressions).toHaveLength(1); // ❌ FAILS: Slot should remain
+      });
+
+      it('should log warning when skipping slot past targetReleaseDate', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+        const targetReleaseDate = new Date(now.getTime() - 1 * 60 * 60 * 1000); // DEADLINE PASSED
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('targetReleaseDate')
+        ); // ❌ FAILS: No warning logged
+
+        warnSpy.mockRestore();
+      });
+
+      it('should skip multiple slots when all are past targetReleaseDate', async () => {
+        const now = new Date();
+        const slot1Time = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+        const slot2Time = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        const targetReleaseDate = new Date(now.getTime() - 1 * 60 * 60 * 1000); // DEADLINE PASSED
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [
+            { date: slot1Time, config: {} },
+            { date: slot2Time, config: {} }
+          ]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(0); // ❌ FAILS: Should not create cycles
+
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        expect(updatedCronJob?.upcomingRegressions).toHaveLength(2); // ❌ FAILS: Slots should remain
+      });
+
+      it('should skip slot exactly at targetReleaseDate boundary (now == deadline)', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+        const targetReleaseDate = new Date(now.getTime()); // Exactly now (boundary case)
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(0); // ❌ FAILS: Should skip (now >= deadline)
+      });
+
+      it('should skip slot when 1 minute past targetReleaseDate', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        const targetReleaseDate = new Date(now.getTime() - 1 * 60 * 1000); // 1 minute ago
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(0); // ❌ FAILS: Should skip
+      });
+
+      it('should execute past slot when targetReleaseDate is still in future', async () => {
+        const now = new Date();
+        const slotTime = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago (PAST)
+        const targetReleaseDate = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours future (NOT PASSED)
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [{ date: slotTime, config: {} }]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(1); // ❌ FAILS: Should execute (before deadline)
+      });
+
+      it('should handle mixed slots: some before deadline, some after', async () => {
+        const now = new Date();
+        const slot1Time = new Date(now.getTime() - 4 * 60 * 60 * 1000); // 4 hours ago
+        const slot2Time = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 hours ago
+        const slot3Time = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+        const targetReleaseDate = new Date(now.getTime() - 2.5 * 60 * 60 * 1000); // 2.5 hours ago
+        // slot1 and slot2 are BEFORE deadline (should execute)
+        // slot3 is AFTER deadline (should skip)
+        
+        const release = await createTestRelease(releaseRepo, {
+          tenantId: testTenantId,
+          accountId: testAccountId,
+          targetReleaseDate,
+          plannedDate: new Date()
+        });
+        testReleaseId = release.id;
+
+        const cronJob = await createTestCronJob(cronJobRepo, {
+          releaseId: testReleaseId,
+          accountId: testAccountId,
+          upcomingRegressions: [
+            { date: slot1Time, config: {} },
+            { date: slot2Time, config: {} },
+            { date: slot3Time, config: {} }
+          ]
+        });
+
+        await cronJobRepo.update(cronJob.id, {
+          stage1Status: StageStatus.COMPLETED,
+          stage2Status: StageStatus.IN_PROGRESS,
+          cronStatus: CronStatus.RUNNING
+        });
+
+        const stateMachine = await createStateMachine(testReleaseId, storage, sequelize);
+        await stateMachine.execute();
+
+        const cycles = await regressionCycleRepo.findByReleaseId(testReleaseId);
+        expect(cycles).toHaveLength(0); // ❌ FAILS: Should NOT execute any (current time > deadline)
+        
+        // All slots should remain (none executed because now > deadline)
+        const updatedCronJob = await cronJobRepo.findById(cronJob.id);
+        expect(updatedCronJob?.upcomingRegressions).toHaveLength(3); // ❌ FAILS
+      });
     });
   });
 });

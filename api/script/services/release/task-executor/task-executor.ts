@@ -11,7 +11,8 @@ import type { Sequelize } from 'sequelize';
 import { ReleaseTaskRepository } from '../../../models/release/release-task.repository';
 import { ReleaseRepository } from '../../../models/release/release.repository';
 import type { Release, ReleaseTask } from '../../../models/release/release.interface';
-import { TaskType, TaskStatus, ReleaseStatus, TaskStage } from '../../../models/release/release.interface';
+import { TaskType, TaskStatus, ReleaseStatus, TaskStage, PauseType } from '../../../models/release/release.interface';
+import { CronJobRepository } from '../../../models/release/cron-job.repository';
 import { getStorage } from '../../../storage/storage-instance';
 import { hasSequelize } from '../../../types/release/api-types';
 
@@ -27,6 +28,7 @@ import { WorkflowType } from '../../../types/integrations/ci-cd/workflow.interfa
 import { ProjectManagementTicketService } from '../../integrations/project-management/ticket/ticket.service';
 import { Platform } from '../../../types/integrations/project-management/platform.interface';
 import { TestManagementRunService } from '../../integrations/test-management/test-run/test-run.service';
+import { TestPlatform } from '../../../types/integrations/test-management/platform.interface';
 import { MessagingService } from '../../integrations/comm/messaging/messaging.service';
 import type { ReleaseConfigRepository } from '../../../models/release-configs/release-config.repository';
 import { RELEASE_ERROR_MESSAGES, RELEASE_DEFAULTS, CICD_JOB_BUILD_TYPE } from '../release.constants';
@@ -142,6 +144,7 @@ export class TaskExecutor {
   private sequelize: Sequelize;
   private releaseUploadsRepo: ReleaseUploadsRepository | null;
   private cicdConfigService: CICDConfigService;
+  private cronJobRepo: CronJobRepository | null;
 
   constructor(
     private scmService: SCMService,
@@ -154,12 +157,14 @@ export class TaskExecutor {
     private releaseConfigRepository: ReleaseConfigRepository,
     releaseTaskRepo: ReleaseTaskRepository,
     releaseRepo: ReleaseRepository,
-    releaseUploadsRepo?: ReleaseUploadsRepository | null
+    releaseUploadsRepo?: ReleaseUploadsRepository | null,
+    cronJobRepo?: CronJobRepository | null
   ) {
     this.releaseTaskRepo = releaseTaskRepo;
     this.releaseRepo = releaseRepo;
     this.releaseUploadsRepo = releaseUploadsRepo ?? null;
     this.cicdConfigService = cicdConfigService;
+    this.cronJobRepo = cronJobRepo ?? null;
     
     // Initialize Sequelize instance (validate once at construction)
     const storage = getStorage();
@@ -379,7 +384,6 @@ export class TaskExecutor {
       }
       
       // Update task status to FAILED
-      // Use updateById since we have the database ID, not taskId
       await this.releaseTaskRepo.update(task.id, {
         taskStatus: TaskStatus.FAILED,
         externalData: {
@@ -388,15 +392,25 @@ export class TaskExecutor {
         }
       });
 
-      // Update release status - use ARCHIVED as closest to FAILED
-      // Note: ReleaseStatus doesn't have FAILED, using ARCHIVED to indicate release stopped
+      // PAUSE release (not ARCHIVE) - allows recovery after fix
+      // Consistent with callback failure handling in BuildCallbackService
       await this.releaseRepo.update(
         context.releaseId,
         {
-          status: ReleaseStatus.ARCHIVED,
+          status: ReleaseStatus.PAUSED,
           lastUpdatedByAccountId: context.release.lastUpdatedByAccountId || context.release.createdByAccountId || 'system'
         }
       );
+      
+      // Set pauseType on cronJob so scheduler knows why it's paused
+      if (this.cronJobRepo) {
+        const cronJob = await this.cronJobRepo.findByReleaseId(context.releaseId);
+        if (cronJob) {
+          await this.cronJobRepo.update(cronJob.id, { pauseType: PauseType.TASK_FAILURE });
+        }
+      }
+      
+      console.log(`[TaskExecutor] Release ${context.releaseId} PAUSED due to task failure. Can be resumed after fix.`);
 
       return {
         success: false,
@@ -422,11 +436,9 @@ export class TaskExecutor {
     context: TaskExecutionContext
   ): Promise<unknown> {
     switch (taskType) {
+      // Stage 1 (Kickoff) tasks
       case TaskType.FORK_BRANCH:
         return await this.executeForkBranch(context);
-
-      case TaskType.PRE_KICK_OFF_REMINDER:
-        return await this.executePreKickOffReminder(context);
 
       case TaskType.CREATE_PROJECT_MANAGEMENT_TICKET:
         return await this.executeCreateProjectManagementTicket(context);
@@ -448,10 +460,6 @@ export class TaskExecutor {
         // Stage 2: Regression cycle notes (has regressionId)
         return await this.executeCreateReleaseNotes(context);
 
-      case TaskType.CREATE_FINAL_RELEASE_NOTES:
-        // Stage 3: Final release notes (renamed from CREATE_GITHUB_RELEASE)
-        return await this.executeCreateFinalReleaseNotes(context);
-
       case TaskType.TRIGGER_REGRESSION_BUILDS:
         return await this.executeTriggerRegressionBuilds(context);
 
@@ -461,27 +469,21 @@ export class TaskExecutor {
       case TaskType.AUTOMATION_RUNS:
         return await this.executeAutomationRuns(context);
 
-      case TaskType.SEND_REGRESSION_BUILD_MESSAGE:
-        return await this.executeSendRegressionBuildMessage(context);
-
       // Stage 3 (Pre-Release) tasks
-      case TaskType.PRE_RELEASE_CHERRY_PICKS_REMINDER:
-        return await this.executePreReleaseCherryPicksReminder(context);
-
+      // Note: PRE_RELEASE_CHERRY_PICKS_REMINDER, SEND_PRE_RELEASE_MESSAGE removed - notifications handled by event system
+      // Note: CHECK_PROJECT_RELEASE_APPROVAL removed - no longer needed
       case TaskType.CREATE_RELEASE_TAG:
         return await this.executeCreateReleaseTag(context);
+
+      case TaskType.CREATE_FINAL_RELEASE_NOTES:
+        // Stage 3: Final release notes (renamed from CREATE_GITHUB_RELEASE)
+        return await this.executeCreateFinalReleaseNotes(context);
 
       case TaskType.TRIGGER_TEST_FLIGHT_BUILD:
         return await this.executeTestFlightBuild(context);
 
       case TaskType.CREATE_AAB_BUILD:
         return await this.executeCreateAABBuild(context);
-
-      case TaskType.SEND_PRE_RELEASE_MESSAGE:
-        return await this.executeSendPreReleaseMessage(context);
-
-      case TaskType.CHECK_PROJECT_RELEASE_APPROVAL:
-        return await this.executeCheckProjectReleaseApproval(context);
 
       default:
         throw new Error(RELEASE_ERROR_MESSAGES.TASK_TYPE_NOT_IMPLEMENTED(taskType));
@@ -537,44 +539,7 @@ export class TaskExecutor {
     };
   }
 
-  /**
-   * Execute PRE_KICK_OFF_REMINDER task
-   * 
-   * Sends a reminder message via notification integration.
-   */
-  /**
-   * Execute PRE_KICK_OFF_REMINDER task (Category B)
-   * 
-   * Sends a reminder message via notification integration.
-   * Returns: Object with message details
-   */
-  private async executePreKickOffReminder(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] PRE_KICK_OFF_REMINDER: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    // TODO: Define Task enum value for pre-kickoff reminder in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] PRE_KICK_OFF_REMINDER: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
+  // Note: executePreKickOffReminder method removed - notifications handled by event system
 
   /**
    * Execute CREATE_PROJECT_MANAGEMENT_TICKET task (Category A)
@@ -692,10 +657,11 @@ export class TaskExecutor {
     for (const mapping of platformMappings) {
       const platformName = mapping.platform;
       
-      // Call service with correct signature
+      // Call service with specific platform filter to avoid creating duplicate runs
       const results = await this.testRunService.createTestRuns({
         testManagementConfigId: testConfigId,
-        runName: `Release ${version} - ${platformName} Test Suite`
+        runName: `Release ${version} - ${platformName} Test Suite`,
+        platforms: [platformName as TestPlatform]
       });
       
       // Get the run ID for this platform
@@ -1420,99 +1386,8 @@ export class TaskExecutor {
     };
   }
 
-  /**
-   * Execute SEND_REGRESSION_BUILD_MESSAGE task
-   * 
-   * Sends a notification message about regression builds.
-   */
-  /**
-   * Execute SEND_REGRESSION_BUILD_MESSAGE task (Category B)
-   * 
-   * Sends regression build notification.
-   * Returns: Object with message details
-   */
-  private async executeSendRegressionBuildMessage(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] SEND_REGRESSION_BUILD_MESSAGE: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    if (!task.regressionId) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_ID_NOT_FOUND);
-    }
-
-    // Get cycle tag
-    const RegressionCycleModel = this.sequelize.models.RegressionCycle;
-
-    if (!RegressionCycleModel) {
-        throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_MODEL_NOT_FOUND);
-    }
-
-    const cycle = await RegressionCycleModel.findByPk(task.regressionId);
-    if (!cycle) {
-      throw new Error(RELEASE_ERROR_MESSAGES.REGRESSION_CYCLE_NOT_FOUND(task.regressionId));
-    }
-
-    // TODO: Define Task enum value for regression builds message in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] SEND_REGRESSION_BUILD_MESSAGE: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
-
-  /**
-   * Execute PRE_RELEASE_CHERRY_PICKS_REMINDER task
-   * 
-   * Sends cherry picks reminder notification.
-   */
-  /**
-   * Execute PRE_RELEASE_CHERRY_PICKS_REMINDER task (Category B)
-   * 
-   * Sends cherry picks reminder notification.
-   * Returns: Object with message details
-   */
-  private async executePreReleaseCherryPicksReminder(
-    context: TaskExecutionContext
-    
-  ): Promise<Record<string, unknown>> {
-    const { release, task } = context;
-
-    // Get comms config from release configuration
-    const releaseConfig = await this.getReleaseConfig(release.releaseConfigId);
-    const commsConfigId = releaseConfig.commsConfigId;
-
-    // If comms not configured, mark task as SKIPPED (not FAILED)
-    if (!commsConfigId || !this.messagingService) {
-      console.log(`[TaskExecutor] PRE_RELEASE_CHERRY_PICKS_REMINDER: comms not configured, marking as SKIPPED`);
-      await this.releaseTaskRepo.update(task.id, {
-        taskStatus: TaskStatus.SKIPPED
-      });
-      return { skipped: true, reason: 'comms_not_configured' };
-    }
-
-    // TODO: Define Task enum value for cherry picks reminder in messaging.interface.ts
-    // For now, mark as SKIPPED until messaging templates are implemented
-    console.log(`[TaskExecutor] PRE_RELEASE_CHERRY_PICKS_REMINDER: messaging not implemented, marking as SKIPPED`);
-    await this.releaseTaskRepo.update(task.id, {
-      taskStatus: TaskStatus.SKIPPED
-    });
-    return { skipped: true, reason: 'messaging_not_implemented' };
-  }
+  // Note: executeSendRegressionBuildMessage method removed - notifications handled by event system
+  // Note: executePreReleaseCherryPicksReminder method removed - notifications handled by event system
 
   /**
    * Execute CREATE_RELEASE_TAG task

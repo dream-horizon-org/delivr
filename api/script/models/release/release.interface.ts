@@ -3,6 +3,8 @@
  * Definitions for Release, CronJob, Tasks, History, Junction Tables, and Reference Tables
  */
 
+import type { AccountDetails } from '../../types/release/release.interface';
+
 // ============================================================================
 // ENUMS (Database Schema Tied)
 // ============================================================================
@@ -62,30 +64,23 @@ export enum RegressionCycleStatus {
 }
 
 export enum TaskType {
-  // Stage 1: Kickoff (5 tasks)
-  PRE_KICK_OFF_REMINDER = 'PRE_KICK_OFF_REMINDER',
+  // Stage 1: Kickoff (4 tasks)
   FORK_BRANCH = 'FORK_BRANCH',
   CREATE_PROJECT_MANAGEMENT_TICKET = 'CREATE_PROJECT_MANAGEMENT_TICKET',
   CREATE_TEST_SUITE = 'CREATE_TEST_SUITE',
   TRIGGER_PRE_REGRESSION_BUILDS = 'TRIGGER_PRE_REGRESSION_BUILDS',
-  // Stage 2: Regression Testing (7 tasks)
+  // Stage 2: Regression Testing (6 tasks)
   RESET_TEST_SUITE = 'RESET_TEST_SUITE',
   CREATE_RC_TAG = 'CREATE_RC_TAG',
   CREATE_RELEASE_NOTES = 'CREATE_RELEASE_NOTES',
   TRIGGER_REGRESSION_BUILDS = 'TRIGGER_REGRESSION_BUILDS',
   TRIGGER_AUTOMATION_RUNS = 'TRIGGER_AUTOMATION_RUNS',
   AUTOMATION_RUNS = 'AUTOMATION_RUNS',
-  SEND_REGRESSION_BUILD_MESSAGE = 'SEND_REGRESSION_BUILD_MESSAGE',
-  // Stage 3: Pre-Release (7 tasks)
-  PRE_RELEASE_CHERRY_PICKS_REMINDER = 'PRE_RELEASE_CHERRY_PICKS_REMINDER',
+  // Stage 3: Pre-Release (4 tasks)
   CREATE_RELEASE_TAG = 'CREATE_RELEASE_TAG',
   CREATE_FINAL_RELEASE_NOTES = 'CREATE_FINAL_RELEASE_NOTES',
-  TRIGGER_TEST_FLIGHT_BUILD = 'TRIGGER_TEST_FLIGHT_BUILD',
-  CREATE_AAB_BUILD = 'CREATE_AAB_BUILD', // Android AAB build task
-  SEND_PRE_RELEASE_MESSAGE = 'SEND_PRE_RELEASE_MESSAGE',
-  CHECK_PROJECT_RELEASE_APPROVAL = 'CHECK_PROJECT_RELEASE_APPROVAL',
-  // Manual API (1 task)
-  SUBMIT_TO_TARGET = 'SUBMIT_TO_TARGET'
+  TRIGGER_TEST_FLIGHT_BUILD = 'TRIGGER_TEST_FLIGHT_BUILD', // If hasIOSPlatform
+  CREATE_AAB_BUILD = 'CREATE_AAB_BUILD' // If hasAndroidPlatform
 }
 
 /**
@@ -441,4 +436,26 @@ export interface RegressionSlotConfig {
 export interface RegressionSlot {
   date: Date | string;
   config: RegressionSlotConfig;
+}
+
+// --- Activity Log ---
+
+export interface ActivityLog {
+  id: string;
+  releaseId: string;
+  type: string;
+  previousValue: any; // JSON object
+  newValue: any; // JSON object
+  updatedAt: Date;
+  updatedBy: string; // Account ID of user who made the change
+  updatedByAccount?: AccountDetails | null; // Populated account details (similar to releasePilot)
+}
+
+export interface CreateActivityLogDto {
+  id: string;
+  releaseId: string;
+  type: string;
+  previousValue?: any | null;
+  newValue?: any | null;
+  updatedBy: string;
 }

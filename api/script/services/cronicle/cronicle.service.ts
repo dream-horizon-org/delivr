@@ -8,7 +8,6 @@ import type {
   CronicleService,
   CreateCronicleJobRequest,
   UpdateCronicleJobRequest,
-  CreateCronicleCategoryRequest,
   CronicleTimingConfig,
   CronicleApiResponse,
   CronicleJobInfo,
@@ -51,8 +50,9 @@ export class CronicleServiceImpl implements CronicleService {
 
   /**
    * Create a new scheduled job in Cronicle
-   * Automatically ensures the category exists before creating the job.
-   * Falls back to 'general' category if custom category creation fails.
+   * Validates that the category exists before creating the job.
+   * Falls back to 'general' category if the specified category is not found.
+   * Note: Categories must be created manually in Cronicle UI (Admin → Categories).
    * @returns The created job ID
    */
   createJob = async (request: CreateCronicleJobRequest): Promise<string> => {
@@ -82,6 +82,9 @@ export class CronicleServiceImpl implements CronicleService {
    * The `category` parameter is the category **title** (e.g., "Release Scheduling").
    * Cronicle auto-generates the ID from the title.
    * 
+   * Falls back to 'general' category if the specified category is not found.
+   * Categories must be created manually in Cronicle UI (Admin → Categories).
+   * 
    * @param categoryTitle - The category title (not ID)
    * @returns The category ID to use in job creation
    */
@@ -100,22 +103,13 @@ export class CronicleServiceImpl implements CronicleService {
       return existingCategoryId;
     }
 
-    // Try to create the category (requires admin privilege)
-    try {
-      const newCategoryId = await this.createCategory({
-        title: categoryTitle,
-        description: `Auto-created category for ${categoryTitle} jobs`
-      });
-      console.log(`[CronicleService] Created category '${categoryTitle}' with ID: ${newCategoryId}`);
-      return newCategoryId;
-    } catch (error) {
-      // Category creation failed - fall back to 'general'
-      console.warn(
-        `[CronicleService] Could not create category '${categoryTitle}', using '${FALLBACK_CATEGORY}' instead.`,
-        'Grant admin privilege to Cronicle API key to create custom categories.'
-      );
-      return FALLBACK_CATEGORY;
-    }
+    // Category not found - fall back to 'general' (no auto-creation)
+    console.warn(
+      `[CronicleService] Category '${categoryTitle}' not found in Cronicle. ` +
+      `Using '${FALLBACK_CATEGORY}' category instead. ` +
+      `To organize jobs properly, create the '${categoryTitle}' category manually in Cronicle UI (Admin → Categories).`
+    );
+    return FALLBACK_CATEGORY;
   };
 
   /**
@@ -243,7 +237,7 @@ export class CronicleServiceImpl implements CronicleService {
   };
 
   // ─────────────────────────────────────────────────────────────
-  // Public API: Category Operations (requires admin privilege)
+  // Public API: Category Queries (read-only, no admin required)
   // ─────────────────────────────────────────────────────────────
 
   /**
@@ -277,36 +271,6 @@ export class CronicleServiceImpl implements CronicleService {
     }
   };
 
-  /**
-   * Create a new category (requires admin privilege)
-   * @returns The created category ID
-   */
-  createCategory = async (request: CreateCronicleCategoryRequest): Promise<string> => {
-    const payload: Record<string, unknown> = {
-      title: request.title,
-      description: request.description ?? '',
-      enabled: request.enabled !== false ? 1 : 0,
-      max_children: request.maxChildren ?? 0  // 0 = unlimited
-    };
-
-    // Add custom ID if provided
-    const hasCustomId = request.id !== undefined;
-    if (hasCustomId) {
-      payload.id = request.id;
-    }
-
-    const response = await this.callApi<{ id: string }>(
-      CRONICLE_API_ENDPOINTS.CREATE_CATEGORY,
-      payload
-    );
-
-    const isError = response.code !== CRONICLE_RESPONSE_CODES.SUCCESS;
-    if (isError) {
-      throw new Error(`${CRONICLE_ERROR_MESSAGES.CREATE_CATEGORY_FAILED}: ${response.description}`);
-    }
-
-    return response.id!;
-  };
 
   // ─────────────────────────────────────────────────────────────
   // Private: API Communication

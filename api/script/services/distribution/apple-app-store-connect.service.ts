@@ -1,7 +1,8 @@
 import { generateAppStoreConnectJWT } from '../../controllers/integrations/store-controllers';
 import { getStorage } from '../../storage/storage-instance';
-import { StoreCredentialController } from '../../storage/integrations/store/store-controller';
+import { StoreCredentialController, StoreIntegrationController } from '../../storage/integrations/store/store-controller';
 import { decryptFromStorage } from '../../utils/encryption';
+import { MockAppleAppStoreConnectService } from './apple-app-store-connect.mock';
 
 /**
  * Apple App Store Connect API Service
@@ -9,6 +10,14 @@ import { decryptFromStorage } from '../../utils/encryption';
  */
 
 export type PhasedReleaseState = 'ACTIVE' | 'PAUSED' | 'COMPLETE';
+
+/**
+ * Check if mock mode is enabled via environment variable
+ */
+const isMockMode = (): boolean => {
+  const mockEnv = process.env.MOCK_APPLE_API ?? 'false';
+  return mockEnv.toLowerCase() === 'true';
+};
 
 /**
  * Helper function to get StoreCredentialController from storage
@@ -19,6 +28,19 @@ const getCredentialController = (): StoreCredentialController => {
   const controllerMissing = !controller;
   if (controllerMissing) {
     throw new Error('StoreCredentialController not initialized. Storage setup may not have completed.');
+  }
+  return controller;
+};
+
+/**
+ * Helper function to get StoreIntegrationController from storage
+ */
+const getStoreIntegrationController = (): StoreIntegrationController => {
+  const storage = getStorage();
+  const controller = (storage as any).storeIntegrationController;
+  const controllerMissing = !controller;
+  if (controllerMissing) {
+    throw new Error('StoreIntegrationController not initialized. Storage setup may not have completed.');
   }
   return controller;
 };
@@ -265,18 +287,47 @@ export class AppleAppStoreConnectService {
    * 
    * @param appId - The app ID
    * @param versionString - The version string (e.g., "1.2.3")
+   * @param includeBuild - Whether to include build relationship (default: false)
    * @returns Promise with app store version data or null if not found
    */
-  async getAppStoreVersionByVersionString(appId: string, versionString: string): Promise<any | null> {
+  async getAppStoreVersionByVersionString(
+    appId: string, 
+    versionString: string, 
+    includeBuild: boolean = false
+  ): Promise<any | null> {
     try {
+      const includeParam = includeBuild ? '&include=build' : '';
       const response = await this.makeRequest<any>('GET', 
-        `/apps/${appId}/appStoreVersions?filter[versionString]=${versionString}`
+        `/apps/${appId}/appStoreVersions?filter[versionString]=${versionString}${includeParam}`
       );
       
       const versions = (response as any)?.data || [];
       return versions.length > 0 ? versions[0] : null;
     } catch (error) {
       console.error(`[AppleService] Error fetching version ${versionString}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get the build currently associated with an app store version
+   * 
+   * @param appStoreVersionId - The ID of the app store version
+   * @returns Promise with build data or null if no build is associated
+   */
+  async getAssociatedBuild(appStoreVersionId: string): Promise<any | null> {
+    try {
+      const response = await this.makeRequest<any>('GET', 
+        `/appStoreVersions/${appStoreVersionId}?include=build`
+      );
+      
+      // Check if build is included in the response
+      const included = response?.included || [];
+      const build = included.find((item: any) => item.type === 'builds');
+      
+      return build ?? null;
+    } catch (error) {
+      console.error(`[AppleService] Error fetching associated build:`, error);
       return null;
     }
   }
@@ -480,6 +531,49 @@ export class AppleAppStoreConnectService {
   }
 
   /**
+   * Get app store review submission ID for a specific version
+   * 
+   * @param appStoreVersionId - The ID of the app store version
+   * @returns Promise with review submission ID or null if not found
+   */
+  async getReviewSubmissionIdForVersion(appStoreVersionId: string): Promise<string | null> {
+    try {
+      // Query review submissions filtered by app store version
+      const response = await this.makeRequest<any>(
+        'GET',
+        `/appStoreReviewSubmissions?filter[appStoreVersion]=${appStoreVersionId}`
+      );
+
+      const submissions = response?.data || [];
+      
+      if (submissions.length === 0) {
+        console.warn(`[AppleService] No review submission found for version ${appStoreVersionId}`);
+        return null;
+      }
+
+      // Return the most recent submission (first in the list)
+      const reviewSubmissionId = submissions[0].id;
+      console.log(`[AppleService] Found review submission: ${reviewSubmissionId} for version ${appStoreVersionId}`);
+      
+      return reviewSubmissionId;
+    } catch (error) {
+      console.error(`[AppleService] Error fetching review submission:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Delete (cancel) an app store review submission
+   * This cancels the submission and allows resubmission
+   * 
+   * @param reviewSubmissionId - The ID of the review submission to delete
+   * @returns Promise resolving when deletion is successful
+   */
+  async deleteReviewSubmission(reviewSubmissionId: string): Promise<void> {
+    await this.makeRequest('DELETE', `/appStoreReviewSubmissions/${reviewSubmissionId}`);
+  }
+
+  /**
    * Get all builds for an app
    * 
    * @param appId - The app ID
@@ -589,7 +683,28 @@ export class AppleAppStoreConnectService {
  */
 export async function createAppleServiceFromIntegration(
   integrationId: string
-): Promise<AppleAppStoreConnectService> {
+): Promise<AppleAppStoreConnectService | MockAppleAppStoreConnectService> {
+  // Check if mock mode is enabled
+  const mockEnabled = isMockMode();
+  if (mockEnabled) {
+    console.log('[AppleServiceFactory] MOCK_APPLE_API=true - Using mock Apple service');
+    
+    // Seed mock data with test phased releases
+    // Get the targetAppId from the integration to seed properly
+    const integrationController = getStoreIntegrationController();
+    const integration = await integrationController.findById(integrationId);
+    const targetAppId = integration?.targetAppId ?? '1234567890';
+    
+    console.log(`[AppleServiceFactory] Seeding mock data for app ${targetAppId}`);
+    MockAppleAppStoreConnectService.seedTestData(targetAppId);
+    
+    return new MockAppleAppStoreConnectService(
+      'mock-issuer-id',
+      'mock-key-id',
+      'mock-private-key'
+    );
+  }
+
   const credentialController = getCredentialController();
   
   // Get credentials from DB

@@ -10,6 +10,7 @@ import {
   isValidTrackForStoreType,
   getInvalidTrackErrorMessage
 } from '../storage/integrations/store/store-types';
+import { BUILD_PLATFORM, STORE_TYPE } from '~types/release-management/builds/build.constants';
 
 const isNonEmptyString = (value: unknown): value is string => {
   const isString = typeof value === 'string';
@@ -742,6 +743,71 @@ export const validatePlayStoreUploadBody = (req: Request, res: Response, next: N
 
   // Attach aabFile to request for use in controller
   (req as any).aabFile = aabFile;
+
+  next();
+};
+
+// ============================================================================
+// Validate Play Store Listings Query
+// ============================================================================
+
+export const validatePlayStoreListingsQuery = (req: Request, res: Response, next: NextFunction): void => {
+  // Extract from query parameters (GET request)
+  const tenantId = req.query?.tenantId as string;
+  const storeType = req.query?.storeType as string;
+  const platform = req.query?.platform as string;
+
+  // Validate tenantId
+  const isTenantIdInvalid = !isNonEmptyString(tenantId);
+  if (isTenantIdInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: ERROR_MESSAGES.TENANT_ID_REQUIRED,
+    });
+    return;
+  }
+
+  // Validate storeType
+  const isStoreTypeInvalid = !isNonEmptyString(storeType);
+  if (isStoreTypeInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: ERROR_MESSAGES.STORE_TYPE_REQUIRED,
+    });
+    return;
+  }
+
+  // Validate storeType is 'play_store' (API format, maps to STORE_TYPE.PLAY_STORE)
+  const storeTypeLower = storeType.toLowerCase();
+  const isPlayStore = storeTypeLower === 'play_store';
+  if (!isPlayStore) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: `storeType must be "play_store" for listings (maps to ${STORE_TYPE.PLAY_STORE})`,
+    });
+    return;
+  }
+
+  // Validate platform
+  const isPlatformInvalid = !isNonEmptyString(platform);
+  if (isPlatformInvalid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: 'platform is required',
+    });
+    return;
+  }
+
+  // Validate platform is ANDROID (using constant)
+  const platformUpper = platform.toUpperCase();
+  const isAndroid = platformUpper === BUILD_PLATFORM.ANDROID;
+  if (!isAndroid) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({
+      success: false,
+      error: `platform must be "${BUILD_PLATFORM.ANDROID}" for Play Store listings`,
+    });
+    return;
+  }
 
   next();
 };

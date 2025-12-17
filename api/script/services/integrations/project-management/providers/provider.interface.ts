@@ -73,6 +73,14 @@ export interface IProjectManagementProvider {
   ): Promise<boolean>;
 
   /**
+   * Get the URL for a ticket
+   */
+  getTicketUrl(
+    config: ProjectManagementIntegrationConfig,
+    ticketKey: string
+  ): Promise<string>;
+
+  /**
    * Get available projects (for UI dropdown)
    */
   getProjects?(

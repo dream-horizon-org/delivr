@@ -19,7 +19,7 @@ jest.mock('../../../script/models/release/cron-job.repository');
 jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
-jest.mock('../../../script/services/release/cron-job/cron-scheduler');
+// Note: cron-scheduler.ts removed - replaced by global-scheduler architecture
 jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
   getTaskExecutor: jest.fn(),
 }));
@@ -52,8 +52,8 @@ jest.mock('../../../script/utils/regression-cycle-creation', () => ({
   createRegressionCycleWithTasks: jest.fn(),
 }));
 jest.mock('../../../script/utils/task-creation', () => ({
-  createStage1Tasks: jest.fn(),
-  createStage3Tasks: jest.fn(),
+  createStage1Tasks: jest.fn().mockResolvedValue(['task-1', 'task-2']),
+  createStage3Tasks: jest.fn().mockResolvedValue(['task-3', 'task-4']),
 }));
 
 // ================================================================================
@@ -73,7 +73,6 @@ import {
   RegressionCycleStatus,
   PauseType 
 } from '../../../script/models/release/release.interface';
-import { stopCronJob, startCronJob } from '../../../script/services/release/cron-job/cron-scheduler';
 import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
 import { getStorage } from '../../../script/storage/storage-instance';
 import { checkIntegrationAvailability } from '../../../script/utils/integration-availability.utils';
@@ -379,8 +378,9 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron scheduler called
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
-        expect(startCronJob).toHaveBeenCalledWith(mockReleaseId, expect.any(Function));
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // expect(startCronJob).toHaveBeenCalledWith(mockReleaseId, expect.any(Function));
       });
 
       it('should NOT transition when autoTransition disabled (manual mode)', async () => {
@@ -418,7 +418,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron NOT stopped (scheduler keeps running, state machine skips)
-        expect(stopCronJob).not.toHaveBeenCalled();
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).not.toHaveBeenCalled();
       });
     });
   });
@@ -834,7 +835,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron job for Stage 2 stopped
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
       });
     });
 
@@ -891,7 +893,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron NOT stopped (scheduler keeps running, state machine skips)
-        expect(stopCronJob).not.toHaveBeenCalled();
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).not.toHaveBeenCalled();
       });
     });
 
@@ -1095,7 +1098,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING),
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.PENDING),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.PENDING),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1165,7 +1168,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.COMPLETED),
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.COMPLETED),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.COMPLETED),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1198,7 +1201,7 @@ describe('Release Orchestration - Unit Tests', () => {
         
         const mockTasks = [
           createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.COMPLETED),
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.PENDING),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.PENDING),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 
@@ -1266,7 +1269,8 @@ describe('Release Orchestration - Unit Tests', () => {
         );
 
         // Verify: Cron job stopped
-        expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
+        // TODO: Update test for new architecture - no per-release timers
+        // expect(stopCronJob).toHaveBeenCalledWith(mockReleaseId);
       });
     });
 
@@ -1292,8 +1296,8 @@ describe('Release Orchestration - Unit Tests', () => {
         });
         
         const mockTasks = [
-          createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING), // Optional
-          createMockTask(TaskType.SEND_PRE_RELEASE_MESSAGE, TaskStatus.COMPLETED), // Required
+          createMockTask(TaskType.CREATE_FINAL_RELEASE_NOTES, TaskStatus.PENDING),
+          createMockTask(TaskType.CREATE_AAB_BUILD, TaskStatus.COMPLETED),
         ];
         mockDeps.mockReleaseTasksDTO.getByReleaseAndStage.mockResolvedValue(mockTasks);
 

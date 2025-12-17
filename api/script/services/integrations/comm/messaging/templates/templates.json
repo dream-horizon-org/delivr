@@ -50,7 +50,7 @@
             "category": "build"
           },
           "fields": [],
-          "description": "Download the iOS pre-regression build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+          "description": "📦 iOS pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_play_store": {
           "metadata": {
@@ -60,7 +60,7 @@
             "category": "build"
           },
           "fields": [],
-          "description": "Download the Android Playstore pre-regression build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+          "description": "📦 Android Playstore pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_web": {
           "metadata": {
@@ -70,7 +70,7 @@
             "category": "build"
           },
           "fields": [],
-          "description": "Download the Android Web pre-regression build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+          "description": "📦 Android Web pre-regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         }
       }
     },
@@ -128,7 +128,7 @@
             "category": "build"
           },
           "fields": [],
-          "description": "Download the iOS regression build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+          "description": "📦 iOS regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_play_store": {
           "metadata": {
@@ -138,7 +138,7 @@
             "category": "build"
           },
           "fields": [],
-          "description": "Download the Android Playstore regression build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+          "description": "📦 Android Playstore regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         },
         "android_web": {
           "metadata": {
@@ -148,7 +148,7 @@
             "category": "build"
           },
           "fields": [],
-          "description": "Download the Android Web regression build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+          "description": "📦 Android Web regression build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
         }
       }
     },
@@ -259,7 +259,7 @@
         "showTitle": false
       },
       "fields": [],
-      "description": "We have scheduled the next regression slot at *{0}*."
+      "description": "We have scheduled a new regression slot at *{0}*."
     },
     "ios-test-flight-build": {
       "metadata": {
@@ -269,7 +269,7 @@
         "category": "build"
       },
       "fields": [],
-      "description": "Download the iOS TestFlight build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+      "description": "✈️ iOS TestFlight build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
     },
     "android-aab-build": {
       "metadata": {
@@ -279,7 +279,7 @@
         "category": "build"
       },
       "fields": [],
-      "description": "Download the Android AAB build from {0}\n\n*Version:* {1}\n*Branch:* {2}"
+      "description": "📦 Android AAB build ready.\n\n*Version:* {0}\n*Branch:* {1}{2}"
     },
     "regression-stage-approval-request": {
       "metadata": {

@@ -27,7 +27,7 @@ import { TaskExecutor } from '~services/release/task-executor/task-executor';
 import { Storage } from '~storage/storage';
 import { StageStatus, CronStatus, ReleaseStatus, PauseType, PlatformName } from '~models/release/release.interface';
 import type { PlatformVersionMapping } from '~utils/awaiting-manual-build.utils';
-import { stopCronJob } from './cron-scheduler';
+// Note: stopCronJob from cron-scheduler is deprecated. Using DB-only updates via cronJobRepo.
 
 export class CronJobStateMachine {
   private currentState: ICronJobState | null = null;
@@ -74,16 +74,16 @@ export class CronJobStateMachine {
         `Not initializing state machine.`
       );
       
-      // Update cron job status to PAUSED (if not already)
-      if (cronJob.cronStatus !== CronStatus.PAUSED) {
+      // Update cron job status to COMPLETED (terminal state, not PAUSED)
+      if (cronJob.cronStatus !== CronStatus.COMPLETED) {
         await this.cronJobRepo.update(cronJob.id, {
-          cronStatus: CronStatus.PAUSED,
+          cronStatus: CronStatus.COMPLETED,
           cronStoppedAt: new Date()
         });
       }
       
-      // Stop cron job
-      stopCronJob(this.releaseId);
+      // NEW ARCHITECTURE: No need to call stopCronJob() - DB status update is sufficient.
+      // Global scheduler will skip this release since cronStatus != RUNNING.
       
       // Set currentState to null - no execution should happen
       this.currentState = null;
@@ -223,19 +223,18 @@ export class CronJobStateMachine {
     if (release && release.status === ReleaseStatus.ARCHIVED) {
       console.log(`[StateMachine] Release ${this.releaseId} is ARCHIVED in execute(). Stopping cron job.`);
       
-      // Get cron job and pause if running
+      // Get cron job and set to COMPLETED (terminal state)
       const cronJob = await this.cronJobRepo.findByReleaseId(this.releaseId);
-      if (cronJob && cronJob.cronStatus !== CronStatus.PAUSED && cronJob.cronStatus !== CronStatus.COMPLETED) {
+      if (cronJob && cronJob.cronStatus !== CronStatus.COMPLETED) {
         await this.cronJobRepo.update(cronJob.id, {
-          cronStatus: CronStatus.PAUSED,
+          cronStatus: CronStatus.COMPLETED,
           cronStoppedAt: new Date()
         });
-        console.log(`[StateMachine] Cron job paused for archived release ${this.releaseId}`);
+        console.log(`[StateMachine] Cron job completed for archived release ${this.releaseId}`);
       }
       
-      // Stop cron job scheduler
-      const { stopCronJob } = await import('./cron-scheduler');
-      stopCronJob(this.releaseId);
+      // NEW ARCHITECTURE: No need to call stopCronJob() - DB status update is sufficient.
+      // Global scheduler will skip this release since cronStatus != RUNNING.
       return; // Early exit
     }
 

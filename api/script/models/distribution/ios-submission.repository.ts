@@ -58,6 +58,23 @@ export class IosSubmissionBuildRepository {
   }
 
   /**
+   * Find latest active iOS submission by distribution ID
+   * Returns the most recent active submission (or null if none)
+   */
+  async findLatestByDistributionId(distributionId: string): Promise<IosSubmissionBuild | null> {
+    const submission = await this.model.findOne({
+      where: { 
+        distributionId,
+        isActive: true
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    if (!submission) return null;
+    return this.toPlainObject(submission);
+  }
+
+  /**
    * Find all iOS submissions with optional filters
    */
   async findAll(filters: IosSubmissionFilters = {}): Promise<IosSubmissionBuild[]> {

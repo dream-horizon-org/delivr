@@ -11,8 +11,7 @@ export const CRONICLE_ERROR_MESSAGES = {
   ENABLE_JOB_FAILED: 'Failed to enable/disable Cronicle job',
   PING_FAILED: 'Failed to ping Cronicle server',
   INVALID_CONFIG: 'Invalid Cronicle service configuration',
-  GET_CATEGORIES_FAILED: 'Failed to get Cronicle categories',
-  CREATE_CATEGORY_FAILED: 'Failed to create Cronicle category'
+  GET_CATEGORIES_FAILED: 'Failed to get Cronicle categories'
 } as const;
 
 export const CRONICLE_DEFAULTS = {
@@ -32,8 +31,7 @@ export const CRONICLE_API_ENDPOINTS = {
   GET_EVENT: '/api/app/get_event',
   RUN_EVENT: '/api/app/run_event',
   GET_SCHEDULE: '/api/app/get_schedule',
-  GET_CATEGORIES: '/api/app/get_categories',
-  CREATE_CATEGORY: '/api/app/create_category'
+  GET_CATEGORIES: '/api/app/get_categories'
 } as const;
 
 export const CRONICLE_RESPONSE_CODES = {

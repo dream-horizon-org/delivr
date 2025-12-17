@@ -37,7 +37,7 @@ export const createDistributionModel = (
         comment: 'Unique distribution identifier'
       },
       tenantId: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.UUID,
         allowNull: false,
         field: 'tenantId',
         references: {

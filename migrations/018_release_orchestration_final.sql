@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS releases (
   hasManualBuildUpload BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether manual build upload is enabled',
   createdByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who created release',
   releasePilotAccountId VARCHAR(255) COMMENT 'Account ID of release pilot',
-  lastUpdatedByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who last updated release',
+  lastUpdateByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who last updated release',
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS releases (
   CONSTRAINT fk_releases_config FOREIGN KEY (releaseConfigId) REFERENCES release_configurations(id) ON DELETE SET NULL,
   CONSTRAINT fk_releases_creator FOREIGN KEY (createdByAccountId) REFERENCES accounts(id),
   CONSTRAINT fk_releases_pilot FOREIGN KEY (releasePilotAccountId) REFERENCES accounts(id),
-  CONSTRAINT fk_releases_updater FOREIGN KEY (lastUpdatedByAccountId) REFERENCES accounts(id)
+  CONSTRAINT fk_releases_updater FOREIGN KEY (lastUpdateByAccountId) REFERENCES accounts(id)
 );
 
 -- ============================================================================
@@ -246,6 +246,8 @@ CREATE TABLE IF NOT EXISTS release_uploads (
   platform ENUM('ANDROID', 'IOS', 'WEB') NOT NULL COMMENT 'Platform for this upload',
   stage ENUM('KICK_OFF', 'REGRESSION', 'PRE_RELEASE') NOT NULL COMMENT 'Stage this upload is for (matches buildStage)',
   artifactPath VARCHAR(1024) NOT NULL COMMENT 'S3 path to uploaded artifact',
+  internalTrackLink VARCHAR(255) NULL COMMENT 'Play Store Internal Track Link',
+  testflightNumber VARCHAR(255) NULL COMMENT 'TestFlight build number',
   isUsed BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether this upload has been consumed by a task',
   usedByTaskId VARCHAR(255) NULL COMMENT 'FK to release_tasks - which task consumed this upload',
   usedByCycleId VARCHAR(255) NULL COMMENT 'FK to regression_cycles - which cycle consumed this upload (for REGRESSION stage)',

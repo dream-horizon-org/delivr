@@ -19,7 +19,6 @@ jest.mock('../../../script/models/release/cron-job.repository');
 jest.mock('../../../script/models/release/release.repository');
 jest.mock('../../../script/models/release/release-task.repository');
 jest.mock('../../../script/models/release/regression-cycle.repository');
-jest.mock('../../../script/services/release/cron-job/cron-scheduler');
 jest.mock('../../../script/services/release/task-executor/task-executor-factory', () => ({
   getTaskExecutor: jest.fn(),
 }));
@@ -71,7 +70,6 @@ import {
   PauseType,
   ReleaseStatus 
 } from '../../../script/models/release/release.interface';
-import { stopCronJob, startCronJob, isCronJobRunning } from '../../../script/services/release/cron-job/cron-scheduler';
 import { getTaskExecutor } from '../../../script/services/release/task-executor/task-executor-factory';
 import { getStorage } from '../../../script/storage/storage-instance';
 
@@ -129,7 +127,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(true);
@@ -169,7 +167,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(true);
@@ -199,7 +197,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -228,7 +226,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -257,7 +255,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.pauseRelease(mockReleaseId, mockTenantId);
+      const result = await service.pauseRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -306,7 +304,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(true);
@@ -344,7 +342,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -377,7 +375,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);
@@ -411,7 +409,7 @@ describe('User-Induced Pause (Feature 5)', () => {
       );
 
       // Act
-      const result = await service.resumeRelease(mockReleaseId, mockTenantId);
+      const result = await service.resumeRelease(mockReleaseId, mockTenantId, 'test-account-id');
 
       // Assert
       expect(result.success).toBe(false);

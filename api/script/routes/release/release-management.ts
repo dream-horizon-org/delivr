@@ -37,6 +37,7 @@ const upload = multer({
     fileSize: 500 * 1024 * 1024 // 500MB limit
   }
 });
+import type { ReleaseActivityLogService } from "../../services/release/release-activity-log.service";
 
 export interface ReleaseManagementConfig {
   storage: storageTypes.Storage;
@@ -107,6 +108,7 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     storageWithServices.releaseRetrievalService,
     storageWithServices.releaseStatusService,
     storageWithServices.releaseUpdateService,
+    storageWithServices.releaseActivityLogService,
     cronJobService,
     manualUploadService
   );
@@ -386,6 +388,17 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
   );
 
   // ============================================================================
+  // STAGE 4 TRIGGER
+  // ============================================================================
+  
+  // Trigger Distribution (Stage 4)
+  router.post(
+    "/tenants/:tenantId/releases/:releaseId/trigger-distribution",
+    tenantPermissions.requireOwner({ storage }),
+    controller.triggerDistribution
+  );
+
+  // ============================================================================
   // MANUAL APIS AFTER STAGE 3
   // ============================================================================
   
@@ -421,6 +434,17 @@ export function getReleaseManagementRouter(config: ReleaseManagementConfig): Rou
     "/tenants/:tenantId/releases/:releaseId/test-management-run-status",
     tenantPermissions.requireOwner({ storage }),
     controller.checkTestManagementRunStatus
+  );
+
+  // ============================================================================
+  // ACTIVITY LOGS
+  // ============================================================================
+
+  // Get activity logs for a release
+  router.get(
+    "/tenants/:tenantId/releases/:releaseId/activity-logs",
+    tenantPermissions.requireOwner({ storage }),
+    controller.getActivityLogs
   );
 
   // ============================================================================

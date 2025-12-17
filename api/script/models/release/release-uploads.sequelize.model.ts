@@ -86,9 +86,13 @@ export const createReleaseUploadModel = (sequelize: Sequelize): typeof ReleaseUp
         allowNull: false,
       },
       tenantId: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.UUID,
         allowNull: false,
         field: 'tenantId',
+        references: {
+          model: 'tenants',
+          key: 'id'
+        }
       },
       releaseId: {
         type: DataTypes.STRING(255),

@@ -77,6 +77,45 @@ export class DistributionRepository {
   }
 
   /**
+   * Find all distributions with pagination and optional filters
+   */
+  async findAllPaginated(
+    filters: DistributionFilters = {},
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<{ distributions: Distribution[]; total: number }> {
+    const where: Record<string, unknown> = {};
+
+    if (filters.tenantId) {
+      where.tenantId = filters.tenantId;
+    }
+    if (filters.releaseId) {
+      where.releaseId = filters.releaseId;
+    }
+    if (filters.branch) {
+      where.branch = filters.branch;
+    }
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    const limit = Math.min(pageSize, 100); // Max 100 items per page
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await this.model.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset
+    });
+
+    return {
+      distributions: rows.map(d => this.toPlainObject(d)),
+      total: count
+    };
+  }
+
+  /**
    * Find all distributions by tenant ID
    */
   async findByTenantId(tenantId: string): Promise<Distribution[]> {

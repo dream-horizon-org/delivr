@@ -77,7 +77,7 @@ export interface ReleaseAttributes {
   // Ownership & permissions
   createdByAccountId: string | null;
   releasePilotAccountId: string;
-  lastUpdateByAccountId: string;
+  lastUpdatedByAccountId: string;
   
   // Parent release (for hotfixes)
   parentId: string | null;

@@ -69,7 +69,7 @@ function getBackendStorageKey(): string {
  * Derive a 32-byte encryption key from the master key and salt
  */
 function deriveKey(masterKey: string, salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(masterKey, salt, 100000, 32, 'sha256');
+  return crypto.pbkdf2Sync(masterKey, salt as any, 100000, 32, 'sha256');
 }
 
 // ============================================================================
@@ -195,11 +195,14 @@ export function isBackendEncrypted(value: string): boolean {
 }
 
 /**
- * Decrypt ciphertext from backend storage
- * Handles both backend-encrypted format and legacy frontend-encrypted format
- * (for backward compatibility with existing data)
+ * Decrypt ciphertext from backend storage (Layer 2 - Database At-Rest Encryption)
+ * Uses BACKEND_STORAGE_ENCRYPTION_KEY
+ * Format: salt:iv:authTag:ciphertext (4 parts with colons)
  * 
- * @param ciphertext - Encrypted string (backend or frontend format) or plaintext
+ * NOTE: This function ONLY handles backend storage format. 
+ * For frontend-encrypted data (Layer 1), use decryptIfEncrypted() instead.
+ * 
+ * @param ciphertext - Encrypted string from database (backend storage format) or plaintext
  * @returns Decrypted plaintext string (or original if already plaintext)
  */
 export function decryptFromStorage(ciphertext: string): string {
@@ -223,28 +226,18 @@ export function decryptFromStorage(ciphertext: string): string {
     return ciphertext;
   }
   
-  // Try backend storage format first (salt:iv:authTag:ciphertext)
+  // Only handle backend storage format (salt:iv:authTag:ciphertext)
   if (isBackendEncrypted(ciphertext)) {
     try {
       return decryptBackendStorage(ciphertext);
     } catch (error: any) {
-      console.warn(`[Encryption] Backend format decryption failed, trying frontend format: ${error.message}`);
-      // Fall through to try frontend format
+      console.error(`[Encryption] Backend storage decryption failed: ${error.message}`);
+      throw new Error(`Failed to decrypt value from storage: ${error.message}`);
     }
   }
   
-  // Try frontend format (legacy data or migration scenario)
-  if (isFrontendEncrypted(ciphertext)) {
-    try {
-      return decryptFromFrontend(ciphertext);
-    } catch (error: any) {
-      console.error(`[Encryption] Frontend format decryption also failed: ${error.message}`);
-      throw new Error(`Failed to decrypt value: tried both backend and frontend formats, both failed`);
-    }
-  }
-  
-  // If neither format matches, it might be plaintext (shouldn't happen in production, but handle gracefully)
-  console.warn('[Encryption] Value does not match backend or frontend encrypted format, returning as-is (might be plaintext)');
+  // If format doesn't match, it might be plaintext (shouldn't happen in production, but handle gracefully)
+  console.warn('[Encryption] Value does not match backend storage encrypted format, returning as-is (might be plaintext)');
   return ciphertext;
 }
 
@@ -288,13 +281,15 @@ export function encryptConfigFields<T extends Record<string, any>>(
 }
 
 /**
- * Safely decrypt a config object's sensitive fields from backend storage
+ * Safely decrypt a config object's sensitive fields
  * 
- * Supports two encryption formats:
- * 1. Backend format: salt:iv:authTag:ciphertext (4 parts with colons)
- * 2. Frontend format: single base64 string (used when _encrypted was true)
+ * Handles BOTH formats:
+ * 1. Layer 1 (Frontend): salt:iv:authTag:ciphertext with ENCRYPTION_KEY (PBKDF2)
+ * 2. Layer 2 (Backend Storage): salt:iv:authTag:ciphertext with BACKEND_STORAGE_ENCRYPTION_KEY (PBKDF2)
  * 
- * @param config - Configuration object with encrypted fields
+ * This function is used by providers during verification (Layer 1) and when reading from DB (Layer 2).
+ * 
+ * @param config - Configuration object with encrypted fields (from frontend or database)
  * @param sensitiveFields - Array of field names to decrypt (default: ['apiToken'])
  * @returns New config object with decrypted sensitive fields
  */
@@ -308,23 +303,54 @@ export function decryptConfigFields<T extends Record<string, any>>(
     if (decryptedConfig[field] && typeof decryptedConfig[field] === 'string') {
       const value = decryptedConfig[field];
       
-      // Check for backend encryption format (salt:iv:authTag:ciphertext)
+      // Check for known plaintext prefixes - if present, skip decryption
+      const knownPlainTextPrefixes = [
+        'xoxb-',      // Slack bot tokens
+        'ghp_',       // GitHub personal access tokens
+        'gho_',       // GitHub OAuth tokens
+        'github_pat_', // GitHub fine-grained PATs
+        '-----BEGIN', // PEM keys
+      ];
+      
+      if (knownPlainTextPrefixes.some(prefix => value.startsWith(prefix))) {
+        // Already plaintext, keep as-is
+        continue;
+      }
+      
+      // Check if it's the encrypted format (salt:iv:authTag:ciphertext)
       if (isBackendEncrypted(value)) {
-        try {
-          decryptedConfig[field] = decryptBackendStorage(value);
-        } catch (error: any) {
-          console.error(`Failed to decrypt field '${field}' (backend format):`, error.message);
-          // Keep the encrypted value if decryption fails
+        // Try Layer 1 (Frontend) decryption first (for verification scenarios)
+        // Frontend uses ENCRYPTION_KEY with PBKDF2
+        const encryptionKey = process.env.ENCRYPTION_KEY;
+        if (encryptionKey) {
+          try {
+            const layer1Decrypted = decryptFrontendWithPBKDF2(value, encryptionKey);
+            decryptedConfig[field] = layer1Decrypted;
+            continue;
+          } catch (layer1Error) {
+            // Layer 1 decryption failed, try Layer 2 (Backend Storage)
+            // Backend uses BACKEND_STORAGE_ENCRYPTION_KEY with PBKDF2
+            try {
+              decryptedConfig[field] = decryptBackendStorage(value);
+              continue;
+            } catch (layer2Error: any) {
+              console.error(`Failed to decrypt field '${field}' (tried both Layer 1 and Layer 2):`, layer2Error.message);
+              // Keep the encrypted value if both decryptions fail
+            }
+          }
+        } else {
+          // No ENCRYPTION_KEY, try Layer 2 only
+          try {
+            decryptedConfig[field] = decryptBackendStorage(value);
+          } catch (error: any) {
+            console.error(`Failed to decrypt field '${field}' (backend storage format):`, error.message);
+            // Keep the encrypted value if decryption fails
+          }
         }
-      } 
-      // Check for frontend encryption format (single base64 string, no known prefix)
-      else if (isFrontendEncrypted(value)) {
-        try {
-          decryptedConfig[field] = decryptFromFrontend(value);
-        } catch (error: any) {
-          console.error(`Failed to decrypt field '${field}' (frontend format):`, error.message);
-          // Keep the encrypted value if decryption fails
-        }
+      }
+      // If format doesn't match, assume it's plaintext
+      else {
+        console.warn(`Field '${field}' does not match encrypted format, keeping as-is (might be plaintext)`);
       }
     }
   }
@@ -333,17 +359,18 @@ export function decryptConfigFields<T extends Record<string, any>>(
 }
 
 // ============================================================================
-// FRONTEND DECRYPTION (Decrypting from frontend)
+// FRONTEND DECRYPTION (Layer 1 - Decrypting from frontend)
 // Uses: ENCRYPTION_KEY (shared with frontend)
-// Format: base64(iv + ciphertext + authTag) - single base64 string
+// Format: salt:iv:authTag:ciphertext (4 parts with colons, PBKDF2 key derivation)
 // ============================================================================
 
 /**
- * Decrypt a value encrypted by the frontend (AES-256-GCM with different format)
- * Frontend format: base64(iv + ciphertext + authTag)
- * Uses ENCRYPTION_KEY (shared with frontend), NOT BACKEND_STORAGE_ENCRYPTION_KEY
+ * Decrypt a value encrypted by the frontend (AES-256-GCM with PBKDF2 key derivation)
+ * Frontend format: salt:iv:authTag:ciphertext (4 parts with colons, all base64 encoded)
+ * Uses ENCRYPTION_KEY (shared with frontend) with PBKDF2 key derivation
+ * NOT BACKEND_STORAGE_ENCRYPTION_KEY
  * 
- * @param encryptedData - Base64 encoded encrypted string with IV prepended
+ * @param encryptedData - Encrypted string in format: salt:iv:authTag:ciphertext
  * @returns Decrypted plaintext string
  */
 export function decryptFromFrontend(encryptedData: string): string {
@@ -355,67 +382,67 @@ export function decryptFromFrontend(encryptedData: string): string {
     throw new Error(errorMsg);
   }
 
-  try {
-    // Convert base64 to buffer
-    const buffer = Buffer.from(encryptedData, 'base64');
-
-    // Extract IV (first 12 bytes) and encrypted data
-    const iv = buffer.subarray(0, 12);
-    const encrypted = buffer.subarray(12);
-
-    // Convert key from base64
-    const keyBuffer = Buffer.from(encryptionKey, 'base64');
-
-    // Create decipher
-    const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer as any, iv as any);
-
-    // Extract auth tag (last 16 bytes of encrypted data)
-    const authTag = encrypted.subarray(encrypted.length - 16);
-    const ciphertext = encrypted.subarray(0, encrypted.length - 16);
-
-    decipher.setAuthTag(authTag as any);
-
-    // Decrypt
-    let decrypted = decipher.update(ciphertext as any);
-    decrypted = Buffer.concat([decrypted as any, decipher.final() as any]);
-
-    return decrypted.toString('utf8');
-  } catch (error) {
-    console.error('[Decrypt] FAILED:', error instanceof Error ? error.message : error);
-    throw new Error('Failed to decrypt data');
-  }
+  // Frontend uses PBKDF2 format: salt:iv:authTag:ciphertext
+  return decryptFrontendWithPBKDF2(encryptedData, encryptionKey);
 }
 
 /**
- * Check if a value appears to be encrypted by the frontend
- * Frontend encrypted values are base64 strings without known plaintext prefixes
+ * Decrypt frontend data that uses PBKDF2 + salt format
+ * Frontend format: salt:iv:authTag:ciphertext (4 parts with colons)
+ * Uses ENCRYPTION_KEY (shared with frontend) with PBKDF2 key derivation
+ * 
+ * @param encryptedData - Encrypted string in format: salt:iv:authTag:ciphertext
+ * @param masterKey - The master encryption key (ENCRYPTION_KEY)
+ * @param fieldName - Field name for logging (optional)
+ * @returns Decrypted plaintext string
  */
-function isFrontendEncrypted(value: string): boolean {
-  if (!value) return false;
-  
-  // Known plaintext prefixes - if value starts with these, it's NOT encrypted
-  const knownPlainTextPrefixes = [
-    'xoxb-',       // Slack bot tokens
-    'ghp_',        // GitHub personal access tokens
-    'gho_',        // GitHub OAuth tokens
-    'github_pat_', // GitHub fine-grained PATs
-    '-----BEGIN',  // PEM keys
-    'http://',     // URLs
-    'https://',    // URLs
-  ];
-  
-  if (knownPlainTextPrefixes.some(prefix => value.startsWith(prefix))) {
-    return false;
+function decryptFrontendWithPBKDF2(encryptedData: string, masterKey: string): string {  
+  // Validate format: must be salt:iv:authTag:ciphertext (4 parts with colons)
+  if (!isBackendEncrypted(encryptedData)) {
+    throw new Error('Invalid frontend encryption format: expected salt:iv:authTag:ciphertext (4 parts with colons). ' +
+                    'Frontend must use PBKDF2 format with ENCRYPTION_KEY.');
   }
   
-  // Check if it looks like base64 (frontend encryption produces base64)
-  const base64Regex = /^[A-Za-z0-9+/]+=*$/;
-  return base64Regex.test(value) && value.length > 20;
+  try {
+    // Split the encrypted data: salt:iv:authTag:ciphertext
+    const parts = encryptedData.split(':');
+    if (parts.length !== 4) {
+      throw new Error('Invalid encrypted data format: expected 4 parts (salt:iv:authTag:ciphertext)');
+    }
+    
+    const [saltB64, ivB64, authTagB64, ciphertextB64] = parts;
+    
+    // Convert from base64
+    const salt = Buffer.from(saltB64, 'base64');
+    const iv = Buffer.from(ivB64, 'base64');
+    const authTag = Buffer.from(authTagB64, 'base64');
+    
+    // Derive key using PBKDF2 (same as frontend: 100000 iterations, SHA-256, 32 bytes)
+    // Frontend uses the master key as raw string (not base64 decoded)
+    // The ENCRYPTION_KEY is a base64 string, but frontend uses it as raw bytes for PBKDF2
+    const masterKeyBuffer = Buffer.from(masterKey, 'utf8'); // Use as raw string, not base64
+    
+    const derivedKey = crypto.pbkdf2Sync(masterKeyBuffer as any, salt as any, 100000, 32, 'sha256');
+    
+    // Create decipher
+    const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey as any, iv as any);
+    decipher.setAuthTag(authTag as any);
+    
+    // Decrypt (ciphertext is base64 encoded)
+    let decrypted = decipher.update(ciphertextB64, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  } catch (error) {
+    throw error;
+  }
 }
 
+
 /**
- * Decrypt a value only if it appears to be encrypted
- * Encrypted values from frontend are base64 encoded strings
+ * Decrypt a value only if it appears to be encrypted (Layer 1 - Frontend Encryption)
+ * Frontend format: salt:iv:authTag:ciphertext (4 parts with colons, PBKDF2 key derivation)
+ * Uses ENCRYPTION_KEY (shared with frontend)
  * 
  * @param value - The value to potentially decrypt
  * @param fieldName - Field name for logging (optional)
@@ -426,9 +453,7 @@ export function decryptIfEncrypted(value: string, fieldName?: string): string {
     return value;
   }
 
-  // Check if value looks like a base64 encoded encrypted string
-  // Frontend encryption produces base64 strings (no special prefixes like xoxb-, ghp_, etc.)
-  // Skip decryption for tokens that have known plaintext prefixes
+  // Check for known plaintext prefixes - if present, return as-is
   const knownPlainTextPrefixes = [
     'xoxb-',      // Slack bot tokens
     'ghp_',       // GitHub personal access tokens
@@ -451,18 +476,17 @@ export function decryptIfEncrypted(value: string, fieldName?: string): string {
     return value;
   }
 
-  // Try to decrypt - if it fails, assume it's already plaintext
-  try {
-    const decrypted = decryptFromFrontend(value);
-    console.log(`[Encryption] ${fieldName ?? 'Field'} decrypted successfully, result starts with: ${decrypted.substring(0, 10)}...`);
-    return decrypted;
-  } catch (error) {
-    // If decryption fails, log the error but return original
-    console.error(`[Encryption] Failed to decrypt ${fieldName ?? 'field'}:`, error instanceof Error ? error.message : 'Unknown error');
-    console.error(`[Encryption] Value starts with: ${value.substring(0, 20)}...`);
-    // Return original value - may cause validation to fail if truly encrypted
-    return value;
+  // Frontend uses PBKDF2 format: salt:iv:authTag:ciphertext
+  if (isBackendEncrypted(value)) {
+    try {
+      const decrypted = decryptFrontendWithPBKDF2(value, encryptionKey);
+      return decrypted;
+    } catch (error) {
+      // Return original value - may cause validation to fail if truly encrypted
+      return value;
+    }
   }
+  return value;
 }
 
 /**
@@ -524,8 +548,11 @@ export function generateEncryptionKey(): string {
 // ============================================================================
 
 /**
- * @deprecated Use decryptFromFrontend() instead
- * Legacy export for backward compatibility
+ * @deprecated Use decryptIfEncrypted() instead for automatic format detection
+ * This function now uses the new PBKDF2 format (salt:iv:authTag:ciphertext)
+ * 
+ * For Layer 1 (frontend encryption): Use decryptIfEncrypted()
+ * For Layer 2 (backend storage): Use decryptFromStorage()
  */
 export const decrypt = decryptFromFrontend;
 

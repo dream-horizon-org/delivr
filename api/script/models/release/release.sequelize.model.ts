@@ -62,7 +62,7 @@ export const createReleaseModel = (
         comment: 'FK to release_configurations table'
       },
       tenantId: {
-        type: DataTypes.CHAR(36),
+        type: DataTypes.UUID,
         allowNull: false,
         field: 'tenantId',
         references: {
@@ -166,7 +166,7 @@ export const createReleaseModel = (
       lastUpdatedByAccountId: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'lastUpdateByAccountId', // DB column name (without 'd')
+        field: 'lastUpdatedByAccountId',
         references: {
           model: 'accounts',
           key: 'id'

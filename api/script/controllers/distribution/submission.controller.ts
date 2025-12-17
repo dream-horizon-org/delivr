@@ -591,6 +591,83 @@ const updateRolloutPercentageHandler = (service: SubmissionService) =>
   };
 
 /**
+ * Cancel iOS submission (iOS only)
+ * PATCH /submissions/:submissionId/cancel
+ * Query params: platform (IOS only)
+ * Request body: { reason: string }
+ */
+const cancelSubmissionHandler = (service: SubmissionService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { submissionId } = req.params;
+      const { platform } = req.query;
+      const { reason } = req.body;
+      const createdBy = req.user?.email ?? 'unknown';
+
+      if (!submissionId || typeof submissionId !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('submissionId is required'),
+            'Invalid submission ID'
+          )
+        );
+        return;
+      }
+
+      // Validate platform parameter
+      if (!platform || typeof platform !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('platform', 'platform query parameter is required')
+        );
+        return;
+      }
+
+      // Only iOS supports cancel submission (for now)
+      if (platform.toUpperCase() === 'ANDROID') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          errorResponse(
+            new Error('Cancel submission is only supported for iOS submissions'),
+            'Android submission cancellation will be implemented later'
+          )
+        );
+        return;
+      }
+
+      if (platform.toUpperCase() !== 'IOS') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('platform', 'platform must be IOS')
+        );
+        return;
+      }
+
+      if (!reason || typeof reason !== 'string') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('reason', SUBMISSION_ACTION_HISTORY_ERROR_MESSAGES.REASON_REQUIRED)
+        );
+        return;
+      }
+
+      const result = await service.cancelSubmission(submissionId, reason, createdBy);
+
+      if (!result) {
+        res.status(HTTP_STATUS.NOT_FOUND).json(
+          notFoundResponse('Submission')
+        );
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json(
+        successResponse(result)
+      );
+    } catch (error) {
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, 'Failed to cancel submission')
+      );
+    }
+  };
+
+/**
  * Create and export controller with all handlers
  */
 export const createSubmissionController = (service: SubmissionService) => ({
@@ -599,7 +676,8 @@ export const createSubmissionController = (service: SubmissionService) => ({
   createNewSubmission: createNewSubmissionHandler(service),
   pauseRollout: pauseRolloutHandler(service),
   resumeRollout: resumeRolloutHandler(service),
-  updateRolloutPercentage: updateRolloutPercentageHandler(service)
+  updateRolloutPercentage: updateRolloutPercentageHandler(service),
+  cancelSubmission: cancelSubmissionHandler(service)
 });
 
 export type SubmissionController = ReturnType<typeof createSubmissionController>;

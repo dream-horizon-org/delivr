@@ -18,7 +18,8 @@ export type {
   BuildInfoResponse,
   ReleaseResponseBody,
   ReleaseListResponseBody,
-  SingleReleaseResponseBody
+  SingleReleaseResponseBody,
+  AccountDetails
 } from './release.interface';
 
 export { hasSequelize } from './release.interface';
@@ -32,4 +33,18 @@ export type {
   Platform,
   Target
 } from './release-version.interface';
+
+// Task Output Types
+export type {
+  TaskOutput,
+  ForkBranchTaskOutput,
+  ProjectManagementTaskOutput,
+  TestManagementTaskOutput,
+  CreateRcTagTaskOutput,
+  ReleaseNotesTaskOutput,
+  CreateReleaseTagTaskOutput,
+  FinalReleaseNotesTaskOutput,
+  SinglePlatformBuildTaskOutput,
+  AllPlatformsBuildTaskOutput
+} from './task-output.interface';
 

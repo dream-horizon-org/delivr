@@ -19,6 +19,14 @@ import {
   createSubmissionActionHistoryModel,
   createDistributionModel
 } from "../models/distribution";
+import {
+  ReleaseRepository,
+  BuildRepository,
+  ReleasePlatformTargetMappingRepository,
+  createReleaseModel,
+  createBuildModel,
+  createPlatformTargetMappingModel
+} from "../models/release";
 import { SubmissionService } from "../services/distribution";
 import { DistributionService } from "../services/distribution/distribution.service";
 import { createSubmissionController } from "../controllers/distribution";
@@ -63,6 +71,15 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
   const iosSubmissionRepository = new IosSubmissionBuildRepository(iosSubmissionModel);
   const actionHistoryRepository = new SubmissionActionHistoryRepository(actionHistoryModel);
 
+  // Initialize release-related repositories for createDistributionFromRelease
+  const releaseModel = createReleaseModel(sequelize);
+  const buildModel = createBuildModel(sequelize);
+  const platformTargetMappingModel = createPlatformTargetMappingModel(sequelize);
+
+  const releaseRepository = new ReleaseRepository(releaseModel);
+  const buildRepository = new BuildRepository(buildModel);
+  const platformTargetMappingRepository = new ReleasePlatformTargetMappingRepository(platformTargetMappingModel);
+
   // Initialize services
   // Note: AppleAppStoreConnectService is created dynamically per-request from integration credentials
   // The service automatically:
@@ -87,13 +104,34 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
     distributionRepository,
     iosSubmissionRepository,
     androidSubmissionRepository,
-    actionHistoryRepository
+    actionHistoryRepository,
+    releaseRepository,
+    buildRepository,
+    platformTargetMappingRepository
   );
-  const distributionController = createDistributionController(distributionService);
+  const distributionController = createDistributionController(distributionService, storage);
 
   // ============================================================================
-  // DISTRIBUTION - GET BY RELEASE ID OR DISTRIBUTION ID
+  // DISTRIBUTION - LIST, GET BY RELEASE ID OR DISTRIBUTION ID
   // ============================================================================
+
+  /**
+   * GET /distributions
+   * 
+   * List all distributions with pagination, filtering, and stats.
+   * 
+   * Query Parameters:
+   * - page: number (default: 1)
+   * - pageSize: number (default: 10, max: 100)
+   * - status: string (filter by distribution status)
+   * - platform: string (filter by platform: ANDROID or IOS)
+   * 
+   * Use Case: Distribution management page, view all distributions
+   */
+  router.get(
+    "/distributions",
+    distributionController.listDistributions
+  );
 
   /**
    * GET /releases/:releaseId/distribution
@@ -250,15 +288,26 @@ export function getDistributionRouter(config: DistributionRouterConfig): Router 
    * Request Body:
    * - reason: string (optional)
    */
+  /**
+   * PATCH /submissions/:submissionId/cancel?platform=IOS
+   * 
+   * Cancel an iOS submission (iOS only).
+   * Deletes the app store review submission in Apple App Store Connect.
+   * 
+   * Requirements:
+   * - Status must be SUBMITTED or IN_REVIEW
+   * - Must be active (isActive = true)
+   * - After cancellation, keeps isActive = true (for future resubmission)
+   * 
+   * Query Parameters:
+   * - platform: string (required) - Must be "IOS" (Android not yet supported)
+   * 
+   * Request Body:
+   * - reason: string (required) - Reason for cancellation
+   */
   router.patch(
     "/submissions/:submissionId/cancel",
-    async (req: Request, res: Response): Promise<Response> => {
-      // TODO: Implement submissionController.cancelSubmission
-      return res.status(HTTP_STATUS.NOT_IMPLEMENTED).json({
-        error: "Not implemented yet",
-        message: "Cancel submission endpoint"
-      });
-    }
+    submissionController.cancelSubmission
   );
 
   // ============================================================================

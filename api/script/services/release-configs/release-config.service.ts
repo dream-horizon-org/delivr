@@ -4,7 +4,7 @@
  */
 
 import * as shortid from 'shortid';
-import { ReleaseConfigRepository } from '~models/release-configs';
+import { ReleaseConfigRepository, ReleaseConfigActivityLogRepository } from '~models/release-configs';
 import type {
   CreateReleaseConfigDto,
   CreateReleaseConfigRequest,
@@ -25,6 +25,7 @@ import type { CreateTestManagementConfigDto } from '~types/integrations/test-man
 import type { CICDConfigService } from '../integrations/ci-cd/config/config.service';
 import type { CommConfigService } from '../integrations/comm/comm-config/comm-config.service';
 import type { ProjectManagementConfigService } from '~services/integrations/project-management/configuration';
+import type { ReleaseConfigActivityLogService } from './release-config-activity-log.service';
 import type { ReleaseScheduleService } from '~services/release-schedules';
 
 shortid.characters('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-');
@@ -40,7 +41,9 @@ export class ReleaseConfigService {
     private readonly cicdConfigService?: CICDConfigService,
     private readonly testManagementConfigService?: TestManagementConfigService,
     private readonly commConfigService?: CommConfigService,
-    private readonly projectManagementConfigService?: ProjectManagementConfigService
+    private readonly projectManagementConfigService?: ProjectManagementConfigService,
+    private readonly activityLogService?: ReleaseConfigActivityLogService,
+    private readonly activityLogRepository?: ReleaseConfigActivityLogRepository
   ) {}
 
   /**
@@ -459,6 +462,100 @@ export class ReleaseConfigService {
     if (data.isDefault !== undefined) configUpdate.isDefault = data.isDefault;
     if (data.isActive !== undefined) configUpdate.isActive = data.isActive;
 
+    // Log base config changes BEFORE integration updates (excluding scheduling)
+    if (this.activityLogService) {
+      const previousValue: Record<string, any> = {};
+      const newValue: Record<string, any> = {};
+
+      // Build previous and new values from configUpdate keys (excluding scheduling)
+      const baseFields = ['name', 'description', 'releaseType', 'platformTargets', 'baseBranch', 
+                          'hasManualBuildUpload', 'isDefault', 'isActive'];
+      
+      for (const field of baseFields) {
+        if (field in configUpdate) {
+          previousValue[field] = existingConfig[field as keyof ReleaseConfiguration];
+          newValue[field] = configUpdate[field as keyof UpdateReleaseConfigDto];
+        }
+      }
+
+      // Log changes if any base fields were updated
+      const hasBaseFieldUpdates = Object.keys(previousValue).length > 0;
+      if (hasBaseFieldUpdates) {
+        await this.activityLogService.registerConfigActivityLogs(
+          id,
+          currentUserId,
+          new Date(),
+          'RELEASE_CONFIG',
+          previousValue,
+          newValue
+        );
+      }
+
+      // Log release schedule changes separately
+      // Note: releaseSchedule is managed via ReleaseScheduleService but we log changes here
+      if ('releaseSchedule' in configUpdate) {
+        const previousSchedule = (existingConfig as any).releaseSchedule;
+        const newSchedule = (configUpdate as any).releaseSchedule;
+        
+        // Extract regression slots for separate logging
+        const previousRegressionSlots = previousSchedule?.regressionSlots || [];
+        const newRegressionSlots = newSchedule?.regressionSlots || [];
+        
+        // Build schedule without regression slots for base logging
+        const previousScheduleWithoutSlots = previousSchedule ? { ...previousSchedule } : null;
+        const newScheduleWithoutSlots = newSchedule ? { ...newSchedule } : null;
+        
+        if (previousScheduleWithoutSlots) {
+          delete previousScheduleWithoutSlots.regressionSlots;
+        }
+        if (newScheduleWithoutSlots) {
+          delete newScheduleWithoutSlots.regressionSlots;
+        }
+        
+        // Log base schedule fields (without regression slots)
+        await this.activityLogService.registerConfigActivityLogs(
+          id,
+          currentUserId,
+          new Date(),
+          'SCHEDULE',
+          { releaseSchedule: previousScheduleWithoutSlots },
+          { releaseSchedule: newScheduleWithoutSlots }
+        );
+        
+        // Log regression slots - each slot as separate row
+        // Create maps for easy lookup (use index as key since slots don't have IDs)
+        const previousSlotsMap = new Map(
+          previousRegressionSlots.map((slot: any, index: number) => [index, slot])
+        );
+        const newSlotsMap = new Map(
+          newRegressionSlots.map((slot: any, index: number) => [index, slot])
+        );
+        
+        // Get max length to cover all slots
+        const maxSlots = Math.max(previousRegressionSlots.length, newRegressionSlots.length);
+        
+        for (let i = 0; i < maxSlots; i++) {
+          const prevSlot = previousSlotsMap.get(i);
+          const newSlot = newSlotsMap.get(i);
+          
+          // Check if there's an actual change
+          const prevStr = prevSlot ? JSON.stringify(prevSlot) : null;
+          const newStr = newSlot ? JSON.stringify(newSlot) : null;
+          
+          if (prevStr !== newStr) {
+            await this.activityLogService.registerConfigActivityLogs(
+              id,
+              currentUserId,
+              new Date(),
+              'SCHEDULE',
+              prevSlot || null,
+              newSlot || null
+            );
+          }
+        }
+      }
+    }
+
     // Handle integration config IDs (returns null for removal, id for keep/update/create)
     const ciConfigId = await this.handleCiConfigId(existingConfig, data, currentUserId);
     const testManagementConfigId = await this.handleTestManagementConfigId(existingConfig, data, currentUserId);
@@ -544,11 +641,29 @@ export class ReleaseConfigService {
     if (ciConfig === null) {
       console.log('[handleCiConfigId] Explicit null - removing config');
       
+      // Get previous config for activity log before deletion
+      let previousCiConfig = null;
+      if (existingConfig.ciConfigId && this.cicdConfigService) {
+        previousCiConfig = await this.cicdConfigService.findById(existingConfig.ciConfigId);
+      }
+      
       // Delete the actual integration config from its table if it exists
       if (existingConfig.ciConfigId && this.cicdConfigService) {
         console.log('[handleCiConfigId] Deleting config from DB:', existingConfig.ciConfigId);
         await this.cicdConfigService.deleteConfig(existingConfig.ciConfigId, existingConfig.tenantId);
         console.log('[handleCiConfigId] Config deleted successfully');
+      }
+      
+      // Log CI config deletion
+      if (this.activityLogService && previousCiConfig) {
+        await this.activityLogService.registerConfigActivityLogs(
+          existingConfig.id,
+          currentUserId,
+          new Date(),
+          'CI_CONFIG',
+          { workflowIds: previousCiConfig.workflowIds },
+          null
+        );
       }
       
       return null;
@@ -568,7 +683,27 @@ export class ReleaseConfigService {
 
       // IDs match - UPDATE existing config
       console.log('[handleCiConfigId] IDs match - updating existing config:', providedConfigId);
+      
+      // Get previous config for activity log before update
+      let previousCiConfig = null;
+      if (this.cicdConfigService) {
+        previousCiConfig = await this.cicdConfigService.findById(providedConfigId);
+      }
+      
       await this.updateCiConfig(providedConfigId, existingConfig.tenantId, ciConfig, currentUserId);
+      
+      // Log CI config update
+      if (this.activityLogService && previousCiConfig) {
+        await this.activityLogService.registerConfigActivityLogs(
+          existingConfig.id,
+          currentUserId,
+          new Date(),
+          'CI_CONFIG',
+          { workflowIds: previousCiConfig.workflowIds },
+          { workflowIds: ciConfig.workflows || [] }
+        );
+      }
+      
       return providedConfigId;
     }
 
@@ -580,7 +715,21 @@ export class ReleaseConfigService {
 
     // No existing config and no ID provided - CREATE new
     console.log('[handleCiConfigId] Creating new config');
-    return await this.createCiConfig(existingConfig.tenantId, ciConfig, currentUserId);
+    const newConfigId = await this.createCiConfig(existingConfig.tenantId, ciConfig, currentUserId);
+    
+    // Log CI config creation
+    if (this.activityLogService && newConfigId) {
+      await this.activityLogService.registerConfigActivityLogs(
+        existingConfig.id,
+        currentUserId,
+        new Date(),
+        'CI_CONFIG',
+        null,
+        { workflowIds: ciConfig.workflows || [] }
+      );
+    }
+    
+    return newConfigId;
   }
 
   /**
@@ -659,11 +808,33 @@ export class ReleaseConfigService {
     if (testMgmtData === null) {
       console.log('[handleTestManagementConfigId] Explicit null - removing config');
       
+      // Get previous config for activity log before deletion
+      let previousTestMgmtConfig = null;
+      if (existingConfig.testManagementConfigId && this.testManagementConfigService) {
+        previousTestMgmtConfig = await this.testManagementConfigService.getConfigById(existingConfig.testManagementConfigId);
+      }
+      
       // Delete the actual integration config from its table if it exists
       if (existingConfig.testManagementConfigId && this.testManagementConfigService) {
         console.log('[handleTestManagementConfigId] Deleting config from DB:', existingConfig.testManagementConfigId);
         await this.testManagementConfigService.deleteConfig(existingConfig.testManagementConfigId);
         console.log('[handleTestManagementConfigId] Config deleted successfully');
+      }
+      
+      // Log test management config deletion (single row with all data)
+      if (this.activityLogService && previousTestMgmtConfig) {
+        await this.activityLogService.registerConfigActivityLogs(
+          existingConfig.id,
+          currentUserId,
+          new Date(),
+          'TEST_MANAGEMENT_CONFIG',
+          { 
+            name: previousTestMgmtConfig.name,
+            passThresholdPercent: previousTestMgmtConfig.passThresholdPercent,
+            platformConfigurations: previousTestMgmtConfig.platformConfigurations || []
+          },
+          null
+        );
       }
       
       return null;
@@ -683,12 +854,88 @@ export class ReleaseConfigService {
 
       // IDs match - UPDATE existing config
       console.log('[handleTestManagementConfigId] IDs match - updating existing config:', providedConfigId);
+      
+      // Get previous config for activity log before update
+      let previousTestMgmtConfig = null;
+      if (this.testManagementConfigService) {
+        previousTestMgmtConfig = await this.testManagementConfigService.getConfigById(providedConfigId);
+      }
+      
       await this.updateTestManagementConfig(
         providedConfigId,
         existingConfig.tenantId,
         testMgmtData,
         currentUserId
       );
+      
+      // Log test management config update
+      if (this.activityLogService && previousTestMgmtConfig) {
+        // Log base fields (name, passThresholdPercent) if changed
+        const baseFieldChanges: Record<string, any> = {};
+        const baseFieldNewValues: Record<string, any> = {};
+        
+        if (testMgmtData.name !== undefined && testMgmtData.name !== previousTestMgmtConfig.name) {
+          baseFieldChanges.name = previousTestMgmtConfig.name;
+          baseFieldNewValues.name = testMgmtData.name;
+        }
+        if (testMgmtData.passThresholdPercent !== undefined && testMgmtData.passThresholdPercent !== previousTestMgmtConfig.passThresholdPercent) {
+          baseFieldChanges.passThresholdPercent = previousTestMgmtConfig.passThresholdPercent;
+          baseFieldNewValues.passThresholdPercent = testMgmtData.passThresholdPercent;
+        }
+        
+        if (Object.keys(baseFieldChanges).length > 0) {
+          await this.activityLogService.registerConfigActivityLogs(
+            existingConfig.id,
+            currentUserId,
+            new Date(),
+            'TEST_MANAGEMENT_CONFIG',
+            baseFieldChanges,
+            baseFieldNewValues
+          );
+        }
+        
+        // Log platform configurations - each platform as separate row
+        if (testMgmtData.platforms) {
+          const previousPlatforms = previousTestMgmtConfig.platformConfigurations || [];
+          const newPlatforms = testMgmtData.platforms || [];
+          
+          // Create maps for easy lookup
+          const previousPlatformMap = new Map(
+            previousPlatforms.map(p => [p.platform, p])
+          );
+          const newPlatformMap = new Map(
+            newPlatforms.map((p: any) => [p.platform, p])
+          );
+          
+          // Get all unique platforms
+          const allPlatforms = new Set([
+            ...previousPlatformMap.keys(),
+            ...newPlatformMap.keys()
+          ]);
+          
+          // Log each platform change separately
+          for (const platform of allPlatforms) {
+            const prevPlatform = previousPlatformMap.get(platform) as any;
+            const newPlatform = newPlatformMap.get(platform) as any;
+            
+            // Check if there's an actual change
+            const prevStr = prevPlatform ? JSON.stringify(prevPlatform.parameters) : null;
+            const newStr = newPlatform ? JSON.stringify(newPlatform.parameters) : null;
+            
+            if (prevStr !== newStr) {
+              await this.activityLogService.registerConfigActivityLogs(
+                existingConfig.id,
+                currentUserId,
+                new Date(),
+                'TEST_MANAGEMENT_CONFIG',
+                prevPlatform ? { platform: prevPlatform.platform, parameters: prevPlatform.parameters } : null,
+                newPlatform ? { platform: newPlatform.platform, parameters: newPlatform.parameters } : null
+              );
+            }
+          }
+        }
+      }
+      
       return providedConfigId;
     }
 
@@ -700,12 +947,30 @@ export class ReleaseConfigService {
 
     // No existing config and no ID provided - CREATE new
     console.log('[handleTestManagementConfigId] Creating new config');
-    return await this.createTestManagementConfig(
+    const newConfigId = await this.createTestManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
       testMgmtData,  // Pass extracted config object, not full updateData
       currentUserId
     );
+    
+    // Log test management config creation (single row with all data)
+    if (this.activityLogService && newConfigId) {
+      await this.activityLogService.registerConfigActivityLogs(
+        existingConfig.id,
+        currentUserId,
+        new Date(),
+        'TEST_MANAGEMENT_CONFIG',
+        null,
+        { 
+          name: testMgmtData.name,
+          passThresholdPercent: testMgmtData.passThresholdPercent,
+          platformConfigurations: testMgmtData.platforms || []
+        }
+      );
+    }
+    
+    return newConfigId;
   }
 
   /**
@@ -828,11 +1093,34 @@ export class ReleaseConfigService {
     if (projectMgmtData === null) {
       console.log('[handleProjectManagementConfigId] Explicit null - removing config');
       
+      // Get previous config for activity log before deletion
+      let previousPmConfig = null;
+      if (existingConfig.projectManagementConfigId && this.projectManagementConfigService) {
+        previousPmConfig = await this.projectManagementConfigService.getConfigById(existingConfig.projectManagementConfigId);
+      }
+      
       // Delete the actual integration config from its table if it exists
       if (existingConfig.projectManagementConfigId && this.projectManagementConfigService) {
         console.log('[handleProjectManagementConfigId] Deleting config from DB:', existingConfig.projectManagementConfigId);
         await this.projectManagementConfigService.deleteConfig(existingConfig.projectManagementConfigId);
         console.log('[handleProjectManagementConfigId] Config deleted successfully');
+      }
+      
+      // Log project management config deletion (single row with all data)
+      if (this.activityLogService && previousPmConfig) {
+        await this.activityLogService.registerConfigActivityLogs(
+          existingConfig.id,
+          currentUserId,
+          new Date(),
+          'PROJECT_MANAGEMENT_CONFIG',
+          { 
+            name: previousPmConfig.name,
+            description: previousPmConfig.description,
+            isActive: previousPmConfig.isActive,
+            platformConfigurations: previousPmConfig.platformConfigurations || []
+          },
+          null
+        );
       }
       
       return null;
@@ -852,12 +1140,92 @@ export class ReleaseConfigService {
 
       // IDs match - UPDATE existing config
       console.log('[handleProjectManagementConfigId] IDs match - updating existing config:', providedConfigId);
+      
+      // Get previous config for activity log before update
+      let previousPmConfig = null;
+      if (this.projectManagementConfigService) {
+        previousPmConfig = await this.projectManagementConfigService.getConfigById(providedConfigId);
+      }
+      
       await this.updateProjectManagementConfig(
         providedConfigId,
         existingConfig.tenantId,
         projectMgmtData,
         currentUserId
       );
+      
+      // Log project management config update
+      if (this.activityLogService && previousPmConfig) {
+        // Log base fields if changed
+        const baseFieldChanges: Record<string, any> = {};
+        const baseFieldNewValues: Record<string, any> = {};
+        
+        if (projectMgmtData.name !== undefined && projectMgmtData.name !== previousPmConfig.name) {
+          baseFieldChanges.name = previousPmConfig.name;
+          baseFieldNewValues.name = projectMgmtData.name;
+        }
+        if (projectMgmtData.description !== undefined && projectMgmtData.description !== previousPmConfig.description) {
+          baseFieldChanges.description = previousPmConfig.description;
+          baseFieldNewValues.description = projectMgmtData.description;
+        }
+        if (projectMgmtData.isActive !== undefined && projectMgmtData.isActive !== previousPmConfig.isActive) {
+          baseFieldChanges.isActive = previousPmConfig.isActive;
+          baseFieldNewValues.isActive = projectMgmtData.isActive;
+        }
+        
+        if (Object.keys(baseFieldChanges).length > 0) {
+          await this.activityLogService.registerConfigActivityLogs(
+            existingConfig.id,
+            currentUserId,
+            new Date(),
+            'PROJECT_MANAGEMENT_CONFIG',
+            baseFieldChanges,
+            baseFieldNewValues
+          );
+        }
+        
+        // Log platform configurations - each platform as separate row
+        if (projectMgmtData.platformConfigurations) {
+          const previousPlatforms = previousPmConfig.platformConfigurations || [];
+          const newPlatforms = projectMgmtData.platformConfigurations || [];
+          
+          // Create maps for easy lookup
+          const previousPlatformMap = new Map(
+            previousPlatforms.map((p: any) => [p.platform, p])
+          );
+          const newPlatformMap = new Map(
+            newPlatforms.map((p: any) => [p.platform, p])
+          );
+          
+          // Get all unique platforms
+          const allPlatforms = new Set([
+            ...previousPlatformMap.keys(),
+            ...newPlatformMap.keys()
+          ]);
+          
+          // Log each platform change separately
+          for (const platform of allPlatforms) {
+            const prevPlatform = previousPlatformMap.get(platform) as any;
+            const newPlatform = newPlatformMap.get(platform) as any;
+            
+            // Check if there's an actual change
+            const prevStr = prevPlatform ? JSON.stringify(prevPlatform) : null;
+            const newStr = newPlatform ? JSON.stringify(newPlatform) : null;
+            
+            if (prevStr !== newStr) {
+              await this.activityLogService.registerConfigActivityLogs(
+                existingConfig.id,
+                currentUserId,
+                new Date(),
+                'PROJECT_MANAGEMENT_CONFIG',
+                prevPlatform || null,
+                newPlatform || null
+              );
+            }
+          }
+        }
+      }
+      
       return providedConfigId;
     }
 
@@ -869,12 +1237,31 @@ export class ReleaseConfigService {
 
     // No existing config and no ID provided - CREATE new
     console.log('[handleProjectManagementConfigId] Creating new config');
-    return await this.createProjectManagementConfig(
+    const newConfigId = await this.createProjectManagementConfig(
       existingConfig.tenantId,
       existingConfig.name,
       projectMgmtData,  // Pass the extracted projectManagementConfig object, not full updateData
       currentUserId
     );
+    
+    // Log project management config creation (single row with all data)
+    if (this.activityLogService && newConfigId) {
+      await this.activityLogService.registerConfigActivityLogs(
+        existingConfig.id,
+        currentUserId,
+        new Date(),
+        'PROJECT_MANAGEMENT_CONFIG',
+        null,
+        { 
+          name: projectMgmtData.name,
+          description: projectMgmtData.description,
+          isActive: projectMgmtData.isActive ?? true,
+          platformConfigurations: projectMgmtData.platformConfigurations || []
+        }
+      );
+    }
+    
+    return newConfigId;
   }
 
   /**
@@ -997,11 +1384,29 @@ export class ReleaseConfigService {
     if (commsData === null) {
       console.log('[handleCommsConfigId] Explicit null - removing config');
       
+      // Get previous config for activity log before deletion
+      let previousCommsConfig = null;
+      if (existingConfig.commsConfigId && this.commConfigService) {
+        previousCommsConfig = await this.commConfigService.getConfigById(existingConfig.commsConfigId);
+      }
+      
       // Delete the actual integration config from its table if it exists
       if (existingConfig.commsConfigId && this.commConfigService) {
         console.log('[handleCommsConfigId] Deleting config from DB:', existingConfig.commsConfigId);
         await this.commConfigService.deleteConfig(existingConfig.commsConfigId);
         console.log('[handleCommsConfigId] Config deleted successfully');
+      }
+      
+      // Log communication config deletion
+      if (this.activityLogService && previousCommsConfig) {
+        await this.activityLogService.registerConfigActivityLogs(
+          existingConfig.id,
+          currentUserId,
+          new Date(),
+          'COMMUNICATION_CONFIG',
+          { channelData: previousCommsConfig.channelData },
+          null
+        );
       }
       
       return null;
@@ -1021,12 +1426,32 @@ export class ReleaseConfigService {
 
       // IDs match - UPDATE existing config
       console.log('[handleCommsConfigId] IDs match - updating existing config:', providedConfigId);
+      
+      // Get previous config for activity log before update
+      let previousCommsConfig = null;
+      if (this.commConfigService) {
+        previousCommsConfig = await this.commConfigService.getConfigById(providedConfigId);
+      }
+      
       await this.updateCommsConfig(
         providedConfigId,
         existingConfig.tenantId,
         commsData,
         currentUserId
       );
+      
+      // Log communication config update
+      if (this.activityLogService && previousCommsConfig) {
+        await this.activityLogService.registerConfigActivityLogs(
+          existingConfig.id,
+          currentUserId,
+          new Date(),
+          'COMMUNICATION_CONFIG',
+          { channelData: previousCommsConfig.channelData },
+          { channelData: commsData.channelData }
+        );
+      }
+      
       return providedConfigId;
     }
 
@@ -1038,11 +1463,25 @@ export class ReleaseConfigService {
 
     // No existing config and no ID provided - CREATE new
     console.log('[handleCommsConfigId] Creating new config');
-    return await this.createCommsConfig(
+    const newConfigId = await this.createCommsConfig(
       existingConfig.tenantId,
       commsData,  // Pass the extracted communicationConfig object, not full updateData
       currentUserId
     );
+    
+    // Log communication config creation
+    if (this.activityLogService && newConfigId) {
+      await this.activityLogService.registerConfigActivityLogs(
+        existingConfig.id,
+        currentUserId,
+        new Date(),
+        'COMMUNICATION_CONFIG',
+        null,
+        { channelData: commsData.channelData }
+      );
+    }
+    
+    return newConfigId;
   }
 
   /**
@@ -1280,6 +1719,13 @@ export class ReleaseConfigService {
 
     // Delete associated integration configs before deleting the release config
     await this.cascadeDeleteIntegrationConfigs(config);
+
+    // Delete activity logs (Note: Database has ON DELETE CASCADE, but explicit deletion for clarity)
+    if (this.activityLogRepository) {
+      console.log('[deleteConfig] Deleting activity logs for config:', id);
+      await this.activityLogRepository.deleteByReleaseConfigId(id);
+      console.log('[deleteConfig] Activity logs deleted successfully');
+    }
 
     return this.configRepo.delete(id);
   }

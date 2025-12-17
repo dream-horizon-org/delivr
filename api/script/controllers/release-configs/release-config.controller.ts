@@ -6,6 +6,7 @@
 import type { Request, Response } from 'express';
 import { HTTP_STATUS } from '~constants/http';
 import type { ReleaseConfigService } from '~services/release-configs';
+import type { ReleaseConfigActivityLogService } from '~services/release-configs';
 import type { CreateReleaseConfigRequest } from '~types/release-configs';
 import { errorResponse, getErrorStatusCode, notFoundResponse, successResponse, validationErrorResponse } from '~utils/response.utils';
 import { RELEASE_CONFIG_ERROR_MESSAGES, RELEASE_CONFIG_SUCCESS_MESSAGES } from './constants';
@@ -244,15 +245,47 @@ const deleteConfigHandler = (service: ReleaseConfigService) =>
   };
 
 /**
+ * Handler: Get activity logs for a release config
+ */
+const getActivityLogsHandler = (activityLogService: ReleaseConfigActivityLogService) =>
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { configId } = req.params;
+
+      if (!configId) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json(
+          validationErrorResponse('configId', 'configId is required')
+        );
+        return;
+      }
+
+      // Delegate to activity log service directly
+      const logs = await activityLogService.getActivityLogs(configId);
+
+      res.status(HTTP_STATUS.OK).json(
+        successResponse(logs)
+      );
+    } catch (error) {
+      console.error('[Get Activity Logs] Error:', error);
+      const statusCode = getErrorStatusCode(error);
+      res.status(statusCode).json(
+        errorResponse(error, RELEASE_CONFIG_ERROR_MESSAGES.GET_CONFIG_FAILED)
+      );
+    }
+  };
+
+/**
  * Factory: Create controller with all handlers
  */
 export const createReleaseConfigController = (
-  service: ReleaseConfigService
+  service: ReleaseConfigService,
+  activityLogService: ReleaseConfigActivityLogService
 ) => ({
   createConfig: createConfigHandler(service),
   getConfigById: getConfigByIdHandler(service),
   listConfigsByTenant: listConfigsByTenantHandler(service),
   updateConfig: updateConfigHandler(service),
-  deleteConfig: deleteConfigHandler(service)
+  deleteConfig: deleteConfigHandler(service),
+  getActivityLogs: getActivityLogsHandler(activityLogService)
 });
 

@@ -11,13 +11,31 @@ import { ReleaseTaskRepository } from '../../models/release/release-task.reposit
 import { RegressionCycleRepository } from '../../models/release/regression-cycle.repository';
 import { BuildRepository, Build } from '../../models/release/build.repository';
 import { ReleaseUploadsRepository, ReleaseUpload } from '../../models/release/release-uploads.repository';
-import { TaskStage, ReleaseTask, Phase } from '../../models/release/release.interface';
+import { TaskStage, ReleaseTask, Phase, ReleasePlatformTargetMapping } from '../../models/release/release.interface';
+import { ReleaseConfigRepository } from '../../models/release-configs/release-config.repository';
 import type { 
   ReleaseResponseBody, 
-  ReleaseWithPlatformTargets, 
   BuildInfoResponse, 
-  ReleaseTaskResponse 
+  ReleaseTaskResponse,
+  TaskOutput,
+  ForkBranchTaskOutput,
+  ProjectManagementTaskOutput,
+  TestManagementTaskOutput,
+  CreateRcTagTaskOutput,
+  ReleaseNotesTaskOutput,
+  CreateReleaseTagTaskOutput,
+  FinalReleaseNotesTaskOutput,
+  SinglePlatformBuildTaskOutput,
+  AllPlatformsBuildTaskOutput,
+  AccountDetails
 } from '~types/release';
+import { ReleaseConfiguration } from '~types/release-configs';
+import { SCMService } from '../integrations/scm/scm.service';
+import { ProjectManagementTicketService } from '../integrations/project-management/ticket/ticket.service';
+import { TestManagementRunService } from '../integrations/test-management/test-run/test-run.service';
+import { Platform as PMPlatform } from '~types/integrations/project-management';
+import * as storageTypes from '../../storage/storage';
+import { getAccountDetails as getAccountDetailsUtil } from '../../utils/account.utils';
 
 // ============================================================================
 // PHASE DERIVATION TYPES
@@ -220,11 +238,24 @@ function deriveStageStatus(
 
 export type GetTasksResult = {
   success: true;
-  stage: 'KICKOFF' | 'PRE_RELEASE';
+  stage: 'KICKOFF';
   releaseId: string;
   tasks: ReleaseTaskResponse[];
   uploadedBuilds: BuildInfoResponse[];
   stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+} | {
+  success: true;
+  stage: 'PRE_RELEASE';
+  releaseId: string;
+  tasks: ReleaseTaskResponse[];
+  uploadedBuilds: BuildInfoResponse[];
+  stageStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  approvalStatus: {
+    canApprove: boolean;
+    approvalRequirements: {
+      projectManagementPassed: boolean;
+    };
+  };
 } | {
   success: true;
   stage: 'REGRESSION';
@@ -268,7 +299,12 @@ export class ReleaseRetrievalService {
     private readonly releaseTaskRepo: ReleaseTaskRepository,
     private readonly regressionCycleRepo: RegressionCycleRepository,
     private readonly buildRepo: BuildRepository,
-    private readonly releaseUploadsRepo: ReleaseUploadsRepository
+    private readonly releaseUploadsRepo: ReleaseUploadsRepository,
+    private readonly releaseConfigRepo: ReleaseConfigRepository,
+    private readonly scmService: SCMService,
+    private readonly pmTicketService: ProjectManagementTicketService,
+    private readonly testRunService: TestManagementRunService,
+    private readonly storage: storageTypes.Storage
   ) {}
 
   /**
@@ -277,6 +313,10 @@ export class ReleaseRetrievalService {
    */
   setReleaseStatusService(service: any): void {
     this.releaseStatusService = service;
+  }
+
+  private async getAccountDetails(accountId: string | null): Promise<AccountDetails | null> {
+    return getAccountDetailsUtil(this.storage, accountId, 'Release Retrieval');
   }
 
   /**
@@ -297,6 +337,9 @@ export class ReleaseRetrievalService {
       // Fetch cron job
       const cronJobRecord = await this.cronJobRepo.findByReleaseId(release.id);
 
+      // Fetch release pilot account details
+      const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
+
       const releaseResponse: ReleaseResponseBody = {
         id: release.id,
         releaseId: release.releaseId,
@@ -315,6 +358,7 @@ export class ReleaseRetrievalService {
         hasManualBuildUpload: release.hasManualBuildUpload,
         createdByAccountId: release.createdByAccountId,
         releasePilotAccountId: release.releasePilotAccountId,
+        releasePilot: releasePilot,
         lastUpdatedByAccountId: release.lastUpdatedByAccountId,
         createdAt: release.createdAt.toISOString(),
         updatedAt: release.updatedAt.toISOString()
@@ -357,10 +401,9 @@ export class ReleaseRetrievalService {
           isRegressionSubTasks: t.isRegressionSubTasks,
           identifier: t.identifier,
           externalId: t.externalId,
-          externalData: t.externalData,
+          output: null,  // Not populated in list view for performance
           branch: t.branch,
           builds: [],  // Not populated in list view
-          releaseUploads: [],  // Not populated in list view
           createdAt: t.createdAt.toISOString(),
           updatedAt: t.updatedAt.toISOString()
         }));
@@ -411,6 +454,9 @@ export class ReleaseRetrievalService {
         })
       : 'NOT_STARTED';
 
+    // Fetch release pilot account details
+    const releasePilot = await this.getAccountDetails(release.releasePilotAccountId);
+
     const releaseResponse: ReleaseResponseBody = {
       id: release.id,
       releaseId: release.releaseId,
@@ -431,6 +477,7 @@ export class ReleaseRetrievalService {
       hasManualBuildUpload: release.hasManualBuildUpload,
       createdByAccountId: release.createdByAccountId,
       releasePilotAccountId: release.releasePilotAccountId,
+      releasePilot: releasePilot,
       lastUpdatedByAccountId: release.lastUpdatedByAccountId,
       createdAt: release.createdAt.toISOString(),
       updatedAt: release.updatedAt.toISOString(),
@@ -447,10 +494,9 @@ export class ReleaseRetrievalService {
         isRegressionSubTasks: t.isRegressionSubTasks,
         identifier: t.identifier,
         externalId: t.externalId,
-        externalData: t.externalData,
+        output: null,  // Not populated in detail view (only in API #2 - stage tasks)
         branch: t.branch,
         builds: [],  // Not populated in detail view
-        releaseUploads: [],  // Not populated in detail view
         createdAt: t.createdAt.toISOString(),
         updatedAt: t.updatedAt.toISOString()
       }))
@@ -480,18 +526,22 @@ export class ReleaseRetrievalService {
     return releaseResponse;
   }
 
+
   /**
    * Enrich tasks with builds and release uploads
    * @private
    */
-  private enrichTasksWithBuildsAndUploads(
+  private async enrichTasksWithBuildsAndUploads(
     tasks: ReleaseTask[],
     allBuilds: Build[],
-    allReleaseUploads: ReleaseUpload[]
-  ): {
+    allReleaseUploads: ReleaseUpload[],
+    tenantId: string,
+    releaseConfig: ReleaseConfiguration | null,
+    platformMappings: ReleasePlatformTargetMapping[]
+  ): Promise<{
     enrichedTasks: ReleaseTaskResponse[];
     topLevelUploadedBuilds: BuildInfoResponse[];
-  } {
+  }> {
     // Group builds by taskId
     const buildsByTaskId: Map<string, BuildInfoResponse[]> = new Map();
     allBuilds.forEach(build => {
@@ -558,8 +608,8 @@ export class ReleaseRetrievalService {
       }
     });
 
-    // Enrich tasks with builds only (no releaseUploads)
-    const enrichedTasks: ReleaseTaskResponse[] = tasks.map(t => ({
+    // Enrich tasks with builds only (no releaseUploads) - use Promise.all for async output derivation
+    const enrichedTasks: ReleaseTaskResponse[] = await Promise.all(tasks.map(async (t) => ({
       id: t.id,
       taskId: t.taskId,
       taskType: t.taskType,
@@ -572,12 +622,12 @@ export class ReleaseRetrievalService {
       isRegressionSubTasks: t.isRegressionSubTasks,
       identifier: t.identifier,
       externalId: t.externalId,
-      externalData: t.externalData,
+      output: await this.deriveTaskOutput(t, tenantId, releaseConfig, platformMappings, allBuilds),
       branch: t.branch,
       builds: buildsByTaskId.get(t.id) || [],
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString()
-    }));
+    })));
 
     return { enrichedTasks, topLevelUploadedBuilds };
   }
@@ -636,11 +686,20 @@ export class ReleaseRetrievalService {
     const allBuilds = await this.buildRepo.findByReleaseIdAndStage(release.id, validatedStage as any);
     const allReleaseUploads = await this.releaseUploadsRepo.findByReleaseAndStage(release.id, validatedStage as any);
 
+    // Fetch releaseConfig and platformMappings for deriving task output
+    const releaseConfig = release.releaseConfigId 
+      ? await this.releaseConfigRepo.findById(release.releaseConfigId)
+      : null;
+    const platformMappings = await this.platformTargetMappingRepo.getByReleaseId(release.id);
+
     // Enrich tasks with builds and releaseUploads
-    const { enrichedTasks, topLevelUploadedBuilds } = this.enrichTasksWithBuildsAndUploads(
+    const { enrichedTasks, topLevelUploadedBuilds } = await this.enrichTasksWithBuildsAndUploads(
       tasks,
       allBuilds,
-      allReleaseUploads
+      allReleaseUploads,
+      tenantId,
+      releaseConfig,
+      platformMappings
     );
 
     // For REGRESSION stage, add additional fields
@@ -729,7 +788,45 @@ export class ReleaseRetrievalService {
       };
     }
 
-    // For KICKOFF and PRE_RELEASE stages, return basic response with uploadedBuilds
+    // For PRE_RELEASE stage, add approval status
+    if (validatedStage === 'PRE_RELEASE') {
+      let approvalStatus;
+      if (this.releaseStatusService) {
+        // Check if all platforms are passing project management (tickets completed)
+        const projectManagementPassed = await this.releaseStatusService.allPlatformsPassingProjectManagement(release.id);
+        
+        // Calculate canApprove (same as projectManagementPassed)
+        const canApprove = projectManagementPassed;
+        
+        approvalStatus = {
+          canApprove,
+          approvalRequirements: {
+            projectManagementPassed
+          }
+        };
+      } else {
+        // Fallback if ReleaseStatusService not available (should not happen)
+        approvalStatus = {
+          canApprove: false,
+          approvalRequirements: {
+            projectManagementPassed: false
+          }
+        };
+      }
+      
+      // Return PRE_RELEASE-specific response
+      return {
+        success: true,
+        stage: 'PRE_RELEASE',
+        releaseId: releaseId,
+        tasks: enrichedTasks,
+        uploadedBuilds: topLevelUploadedBuilds,
+        stageStatus: stageStatus,
+        approvalStatus: approvalStatus
+      };
+    }
+    
+    // For KICKOFF stage, return basic response with uploadedBuilds
     return {
       success: true,
       stage: validatedStage,
@@ -790,5 +887,385 @@ export class ReleaseRetrievalService {
       success: true,
       task
     };
+  }
+
+  /**
+   * Derive structured output for a task based on its type and externalData
+   * 
+   * @param task - Task with externalData
+   * @param tenantId - Tenant ID for service calls
+   * @param releaseConfig - Release configuration (for PM/TM config IDs)
+   * @param platformMappings - Platform mappings (for PM/TM ticket/run IDs)
+   * @param allBuilds - All builds for this release/stage (for build tasks)
+   * @returns Structured TaskOutput or null if not applicable
+   */
+  private async deriveTaskOutput(
+    task: ReleaseTask,
+    tenantId: string,
+    releaseConfig: ReleaseConfiguration | null,
+    platformMappings?: ReleasePlatformTargetMapping[],
+    allBuilds?: Build[]
+  ): Promise<TaskOutput | null> {
+    // These tasks derive output from sources OTHER than externalData/externalId:
+    // - Build tasks: Use builds table (filtered by taskId)
+    // - PM tickets: Use platformMappings[].projectManagementRunId
+    // - TM runs: Use platformMappings[].testManagementRunId
+    const tasksWithoutExternalData = [
+      'TRIGGER_PRE_REGRESSION_BUILDS',
+      'TRIGGER_REGRESSION_BUILDS',
+      'TRIGGER_TEST_FLIGHT_BUILD',
+      'CREATE_AAB_BUILD',
+      'CREATE_PROJECT_MANAGEMENT_TICKET',
+      'CREATE_TEST_SUITE'
+    ].includes(task.taskType);
+
+    // Return null for other tasks without externalData/externalId
+    if (!tasksWithoutExternalData && !task.externalData && !task.externalId) {
+      return null;
+    }
+
+    try {
+      switch (task.taskType) {
+        case 'FORK_BRANCH':
+          return await this.deriveForkBranchOutput(task, tenantId);
+        
+        case 'CREATE_PROJECT_MANAGEMENT_TICKET':
+          return await this.deriveProjectManagementOutput(task, tenantId, releaseConfig, platformMappings);
+        
+        case 'CREATE_TEST_SUITE':
+          return await this.deriveTestManagementOutput(task, tenantId, releaseConfig, platformMappings);
+        
+        case 'CREATE_RC_TAG':
+          return await this.deriveCreateRcTagOutput(task, tenantId);
+        
+        case 'CREATE_RELEASE_NOTES':
+          return await this.deriveReleaseNotesOutput(task, tenantId);
+        
+        case 'CREATE_RELEASE_TAG':
+          return await this.deriveCreateReleaseTagOutput(task, tenantId);
+        
+        case 'CREATE_FINAL_RELEASE_NOTES':
+          return await this.deriveFinalReleaseNotesOutput(task, tenantId);
+        
+        // Multi-platform build tasks
+        case 'TRIGGER_PRE_REGRESSION_BUILDS':
+        case 'TRIGGER_REGRESSION_BUILDS':
+          return await this.deriveAllPlatformsBuildOutput(task, allBuilds);
+        
+        // Single-platform build tasks
+        case 'TRIGGER_TEST_FLIGHT_BUILD':
+        case 'CREATE_AAB_BUILD':
+          return await this.deriveSinglePlatformBuildOutput(task, allBuilds);
+        
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving output for task ${task.id}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for FORK_BRANCH task
+   */
+  private async deriveForkBranchOutput(
+    task: ReleaseTask,
+    tenantId: string
+  ): Promise<ForkBranchTaskOutput | null> {
+    const externalData = task.externalData as { branchName?: string } | null;
+    if (!externalData?.branchName) {
+      return null;
+    }
+
+    try {
+      const branchUrl = await this.scmService.getBranchUrl(tenantId, externalData.branchName);
+      
+      return {
+        branchName: externalData.branchName,
+        branchUrl
+      };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving fork branch output:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for CREATE_PROJECT_MANAGEMENT_TICKET task
+   */
+  private async deriveProjectManagementOutput(
+    task: ReleaseTask,
+    tenantId: string,
+    releaseConfig: ReleaseConfiguration | null,
+    platformMappings?: ReleasePlatformTargetMapping[]
+  ): Promise<ProjectManagementTaskOutput | null> {
+    if (!platformMappings || platformMappings.length === 0) {
+      return null;
+    }
+
+    const pmConfigId = releaseConfig.projectManagementConfigId;
+    if (!pmConfigId) {
+      return null;
+    }
+
+    const platforms: Array<{ platform: string; ticketUrl: string }> = [];
+
+    for (const mapping of platformMappings) {
+      if (mapping.projectManagementRunId) {
+        try {
+          const ticketUrl = await this.pmTicketService.getTicketUrl({
+            pmConfigId,
+            platform: mapping.platform as PMPlatform,
+            ticketKey: mapping.projectManagementRunId
+          });
+
+          platforms.push({
+            platform: mapping.platform,
+            ticketUrl
+          });
+        } catch (error) {
+          console.error(`[ReleaseRetrievalService] Error getting ticket URL for platform ${mapping.platform}:`, error);
+        }
+      }
+    }
+
+    return platforms.length > 0 ? { platforms } : null;
+  }
+
+  /**
+   * Derive output for CREATE_TEST_SUITE task
+   */
+  private async deriveTestManagementOutput(
+    task: ReleaseTask,
+    tenantId: string,
+    releaseConfig: ReleaseConfiguration | null,
+    platformMappings?: ReleasePlatformTargetMapping[]
+  ): Promise<TestManagementTaskOutput | null> {
+    if (!platformMappings || platformMappings.length === 0) {
+      return null;
+    }
+
+    const testConfigId = releaseConfig.testManagementConfigId;
+    if (!testConfigId) {
+      return null;
+    }
+
+    const platforms: Array<{ platform: string; runId: string; runUrl: string }> = [];
+
+    for (const mapping of platformMappings) {
+      if (mapping.testManagementRunId) {
+        try {
+          const runUrl = await this.testRunService.getRunUrl({
+            runId: mapping.testManagementRunId,
+            testManagementConfigId: testConfigId
+          });
+
+          platforms.push({
+            platform: mapping.platform,
+            runId: mapping.testManagementRunId,
+            runUrl
+          });
+        } catch (error) {
+          console.error(`[ReleaseRetrievalService] Error getting run URL for platform ${mapping.platform}:`, error);
+        }
+      }
+    }
+
+    return platforms.length > 0 ? { platforms } : null;
+  }
+
+  /**
+   * Derive output for CREATE_RC_TAG task
+   */
+  private async deriveCreateRcTagOutput(
+    task: ReleaseTask,
+    tenantId: string
+  ): Promise<CreateRcTagTaskOutput | null> {
+    const externalData = task.externalData as { tag?: string } | null;
+    if (!externalData?.tag) {
+      return null;
+    }
+
+    try {
+      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.tag);
+      
+      return {
+        tagName: externalData.tag,
+        tagUrl
+      };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving RC tag output:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for CREATE_RELEASE_NOTES task (regression cycle notes)
+   */
+  private async deriveReleaseNotesOutput(
+    task: ReleaseTask,
+    tenantId: string
+  ): Promise<ReleaseNotesTaskOutput | null> {
+    const externalData = task.externalData as { currentTag?: string } | null;
+    if (!externalData?.currentTag) {
+      return null;
+    }
+
+    try {
+      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.currentTag);
+      
+      return {
+        tagUrl
+      };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving release notes output:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for CREATE_RELEASE_TAG task
+   */
+  private async deriveCreateReleaseTagOutput(
+    task: ReleaseTask,
+    tenantId: string
+  ): Promise<CreateReleaseTagTaskOutput | null> {
+    const externalData = task.externalData as { tagName?: string } | null;
+    if (!externalData?.tagName) {
+      return null;
+    }
+
+    try {
+      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.tagName);
+      
+      return {
+        tagName: externalData.tagName,
+        tagUrl
+      };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving create release tag output:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for CREATE_FINAL_RELEASE_NOTES task
+   */
+  private async deriveFinalReleaseNotesOutput(
+    task: ReleaseTask,
+    tenantId: string
+  ): Promise<FinalReleaseNotesTaskOutput | null> {
+    const externalData = task.externalData as { currentTag?: string } | null;
+    if (!externalData?.currentTag) {
+      return null;
+    }
+
+    try {
+      const tagUrl = await this.scmService.getTagUrl(tenantId, externalData.currentTag);
+      
+      return {
+        tagUrl
+      };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving final release notes output:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for all-platforms build tasks
+   * (TRIGGER_PRE_REGRESSION_BUILDS, TRIGGER_REGRESSION_BUILDS)
+   * 
+   * These tasks create multiple builds (one per platform)
+   * We return jobUrl for each platform
+   * 
+   * @param task - Task with builds linked via taskId
+   * @param allBuilds - All builds for this release/stage (filter by taskId)
+   * @returns AllPlatformsBuildTaskOutput with platforms array
+   */
+  private async deriveAllPlatformsBuildOutput(
+    task: ReleaseTask,
+    allBuilds?: Build[]
+  ): Promise<AllPlatformsBuildTaskOutput | null> {
+    if (!allBuilds || allBuilds.length === 0) {
+      return null;
+    }
+
+    try {
+      // Filter builds for this task
+      const taskBuilds = allBuilds.filter(build => build.taskId === task.id);
+      
+      if (taskBuilds.length === 0) {
+        return null;
+      }
+
+      // Map each build to { platform, jobUrl }
+      const platforms = taskBuilds.map(build => ({
+        platform: build.platform,
+        jobUrl: this.deriveJobUrl(build)
+      }));
+
+      return { platforms };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving all-platforms build output:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Derive output for single-platform build tasks
+   * (TRIGGER_TEST_FLIGHT_BUILD, CREATE_AAB_BUILD)
+   * 
+   * These tasks create one build per task
+   * Build ID is stored in task.externalId
+   * 
+   * @param task - Task with build ID in externalId
+   * @param allBuilds - All builds for this release/stage (find by ID)
+   * @returns SinglePlatformBuildTaskOutput with single jobUrl
+   */
+  private async deriveSinglePlatformBuildOutput(
+    task: ReleaseTask,
+    allBuilds?: Build[]
+  ): Promise<SinglePlatformBuildTaskOutput | null> {
+    // Build ID stored in externalId
+    const buildId = task.externalId;
+    
+    if (!buildId || !allBuilds || allBuilds.length === 0) {
+      return { jobUrl: null };
+    }
+
+    try {
+      // Find the build by ID
+      const build = allBuilds.find(b => b.id === buildId);
+      
+      if (!build) {
+        console.error(`[ReleaseRetrievalService] Build ${buildId} not found for task ${task.id}`);
+        return { jobUrl: null };
+      }
+
+      // Derive jobUrl from build's CI/CD data
+      const jobUrl = this.deriveJobUrl(build);
+      
+      return { jobUrl };
+    } catch (error) {
+      console.error(`[ReleaseRetrievalService] Error deriving single-platform build output:`, error);
+      return { jobUrl: null };
+    }
+  }
+
+  /**
+   * Derive job URL from build's CI/CD data
+   * 
+   * For all CI/CD providers (Jenkins, GitHub Actions, etc.):
+   * ciRunId IS the job URL - can be used directly
+   * 
+   * @param build - Build record with CI/CD data
+   * @returns Job URL or null if not available
+   */
+  private deriveJobUrl(build: Build): string | null {
+    // ciRunId IS the job URL for all providers
+    // (Jenkins stores full job URL, GitHub Actions stores run URL, etc.)
+    return build.ciRunId || null;
   }
 }
