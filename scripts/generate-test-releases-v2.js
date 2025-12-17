@@ -81,6 +81,9 @@ const Phase = {
   KICKOFF: 'KICKOFF',
   REGRESSION: 'REGRESSION',
   PRE_RELEASE: 'PRE_RELEASE',
+  AWAITING_SUBMISSION: 'AWAITING_SUBMISSION',
+  SUBMISSION: 'SUBMISSION',
+  SUBMITTED_PENDING_APPROVAL: 'SUBMITTED_PENDING_APPROVAL',
 };
 
 const ReleaseStatus = {
@@ -1688,6 +1691,370 @@ const TEST_CASE_CONFIGS = {
     builds: [],
     branch: 'test-post-p-3-both-platforms',
   },
+  
+  // ============================================================================
+  // DISTRIBUTION/SUBMISSION STAGE - MANUAL MODE (6 test cases)
+  // ============================================================================
+  
+  'SUB-M-1': {
+    stage: 'AWAITING_SUBMISSION',
+    mode: 'MANUAL',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    tasks: {}, // No submission tasks yet (awaiting)
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', testflightNumber: '12345', storeType: 'TESTFLIGHT', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', internalTrackLink: 'https://play.google.com/apps/internaltest/...', storeType: 'PLAY_STORE', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-m-1-awaiting-submission',
+  },
+  
+  'SUB-M-2': {
+    stage: 'SUBMISSION',
+    mode: 'MANUAL',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'IN_PROGRESS',
+    tasks: {}, // Submission tasks handled by backend
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', testflightNumber: '12345', storeType: 'TESTFLIGHT', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', internalTrackLink: 'https://play.google.com/apps/internaltest/...', storeType: 'PLAY_STORE', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-m-2-submission-in-progress',
+  },
+  
+  'SUB-M-3': {
+    stage: 'SUBMITTED_PENDING_APPROVAL',
+    mode: 'MANUAL',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'SUBMITTED',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', testflightNumber: '12345', storeType: 'TESTFLIGHT', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', internalTrackLink: 'https://play.google.com/apps/internaltest/...', storeType: 'PLAY_STORE', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-m-3-submitted-pending-approval',
+  },
+  
+  'SUB-M-4': {
+    stage: 'SUBMISSION',
+    mode: 'MANUAL',
+    platforms: ['ANDROID'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'IN_PROGRESS',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'ANDROID', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', internalTrackLink: 'https://play.google.com/apps/internaltest/...', storeType: 'PLAY_STORE', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-m-4-android-only-submission',
+  },
+  
+  'SUB-M-5': {
+    stage: 'SUBMISSION',
+    mode: 'MANUAL',
+    platforms: ['IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'IN_PROGRESS',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', testflightNumber: '12345', storeType: 'TESTFLIGHT', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-m-5-ios-only-submission',
+  },
+  
+  'SUB-M-6': {
+    stage: 'SUBMISSION',
+    mode: 'MANUAL',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'IN_PROGRESS',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+      { status: 'DONE', tag: 'rc-1.0.0-cycle2', slotIndex: 2, dateOffset: -5, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', testflightNumber: '12345', storeType: 'TESTFLIGHT', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'MANUAL', buildStage: 'PRE_RELEASE', internalTrackLink: 'https://play.google.com/apps/internaltest/...', storeType: 'PLAY_STORE', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-m-6-multiple-cycles-submission',
+  },
+  
+  // ============================================================================
+  // DISTRIBUTION/SUBMISSION STAGE - CI/CD MODE (4 test cases)
+  // ============================================================================
+  
+  'SUB-C-1': {
+    stage: 'AWAITING_SUBMISSION',
+    mode: 'CI_CD',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-c-1-awaiting-submission-cicd',
+  },
+  
+  'SUB-C-2': {
+    stage: 'SUBMISSION',
+    mode: 'CI_CD',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'IN_PROGRESS',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-c-2-submission-in-progress-cicd',
+  },
+  
+  'SUB-C-3': {
+    stage: 'SUBMITTED_PENDING_APPROVAL',
+    mode: 'CI_CD',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'SUBMITTED',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-c-3-submitted-pending-approval-cicd',
+  },
+  
+  'SUB-C-4': {
+    stage: 'SUBMISSION',
+    mode: 'CI_CD',
+    platforms: ['ANDROID', 'IOS'],
+    dateOffset: -12,
+    kickoffDate: -12,
+    kickoffCompleted: true,
+    regressionCompleted: true,
+    preReleaseCompleted: true,
+    postRegressionDateOffset: -4,
+    submissionDateOffset: -1,
+    status: 'IN_PROGRESS',
+    tasks: {},
+    cycles: [
+      { status: 'DONE', tag: 'rc-1.0.0-cycle1', slotIndex: 1, dateOffset: -7, completedHoursOffset: 4 },
+      { status: 'DONE', tag: 'rc-1.0.0-cycle2', slotIndex: 2, dateOffset: -5, completedHoursOffset: 4 },
+    ],
+    regressionTasks: {
+      RESET_TEST_SUITE: 'COMPLETED',
+      CREATE_RC_TAG: 'COMPLETED',
+      CREATE_RELEASE_NOTES: 'COMPLETED',
+      TRIGGER_REGRESSION_BUILDS: 'COMPLETED',
+    },
+    preReleaseTasks: {
+      TRIGGER_TEST_FLIGHT_BUILD: 'COMPLETED',
+      CREATE_AAB_BUILD: 'COMPLETED',
+      CREATE_RELEASE_TAG: 'COMPLETED',
+      CREATE_FINAL_RELEASE_NOTES: 'COMPLETED',
+    },
+    stagingBuilds: [],
+    builds: [
+      { platform: 'IOS', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+      { platform: 'ANDROID', buildType: 'CI_CD', buildStage: 'PRE_RELEASE', workflowStatus: 'COMPLETED', hoursOffset: 1 },
+    ],
+    branch: 'test-sub-c-4-multiple-cycles-submission-cicd',
+  },
 };
 
 // ============================================================================
@@ -1735,6 +2102,11 @@ function generateRelease(releaseId, config, baseDate, kickoffDate, index) {
       stageStatuses.stage1 = 'COMPLETED';
       stageStatuses.stage2 = config.regressionCompleted ? 'COMPLETED' : 'PENDING';
       stageStatuses.stage3 = 'IN_PROGRESS';
+    } else if (config.stage === 'AWAITING_SUBMISSION' || config.stage === 'SUBMISSION' || config.stage === 'SUBMITTED_PENDING_APPROVAL') {
+      stageStatuses.stage1 = 'COMPLETED';
+      stageStatuses.stage2 = 'COMPLETED';
+      stageStatuses.stage3 = config.preReleaseCompleted ? 'COMPLETED' : 'PENDING';
+      stageStatuses.stage4 = config.stage === 'SUBMISSION' || config.stage === 'SUBMITTED_PENDING_APPROVAL' ? 'IN_PROGRESS' : 'PENDING';
     }
     const cron = createCronJob(releaseId, Phase[config.stage] || Phase.KICKOFF, stageStatuses);
     
@@ -1757,6 +2129,8 @@ function generateRelease(releaseId, config, baseDate, kickoffDate, index) {
     }
   } else if (config.stage === 'PRE_RELEASE' && config.postRegressionDateOffset) {
     updatedAt = addDays(baseDate, config.postRegressionDateOffset);
+  } else if ((config.stage === 'AWAITING_SUBMISSION' || config.stage === 'SUBMISSION' || config.stage === 'SUBMITTED_PENDING_APPROVAL') && config.submissionDateOffset) {
+    updatedAt = addDays(baseDate, config.submissionDateOffset);
   }
   
   return {
@@ -1793,8 +2167,8 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
   const stage = config.stage;
   const taskDate = kickoffDate || baseDate;
   
-  // Generate kickoff tasks for REGRESSION and PRE_RELEASE stages (they always include completed kickoff tasks)
-  if ((stage === 'REGRESSION' || stage === 'PRE_RELEASE') && config.kickoffCompleted !== false && kickoffDate) {
+  // Generate kickoff tasks for REGRESSION, PRE_RELEASE, and SUBMISSION stages (they always include completed kickoff tasks)
+  if ((stage === 'REGRESSION' || stage === 'PRE_RELEASE' || stage === 'AWAITING_SUBMISSION' || stage === 'SUBMISSION' || stage === 'SUBMITTED_PENDING_APPROVAL') && config.kickoffCompleted !== false && kickoffDate) {
     const kickoffCompletedDate = addHours(kickoffDate, 5);
     const kickoffTaskConfigs = {
       FORK_BRANCH: 'COMPLETED',
@@ -1879,11 +2253,11 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
     });
   }
   
-  // Generate regression tasks for completed cycles (for PRE_RELEASE stage)
-  // PRE_RELEASE stages should include regression tasks from all completed cycles
+  // Generate regression tasks for completed cycles (for PRE_RELEASE and SUBMISSION stages)
+  // PRE_RELEASE and SUBMISSION stages should include regression tasks from all completed cycles
   // Note: V1 doesn't include regression tasks in PRE_RELEASE, only kickoff + pre-release tasks
   // But if cycles exist, we should include their regression tasks
-  if (stage === 'PRE_RELEASE' && config.regressionCompleted && cycles.length > 0) {
+  if ((stage === 'PRE_RELEASE' || stage === 'AWAITING_SUBMISSION' || stage === 'SUBMISSION' || stage === 'SUBMITTED_PENDING_APPROVAL') && config.regressionCompleted && cycles.length > 0) {
     cycles.forEach((cycle) => {
       const cycleDate = new Date(cycle.slotDateTime);
       const taskConfigs = {
@@ -1910,7 +2284,7 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
     });
   }
   
-  // Generate pre-release tasks
+  // Generate pre-release tasks (for PRE_RELEASE stage)
   if (stage === 'PRE_RELEASE' && config.tasks) {
     const postRegressionDate = config.postRegressionDateOffset 
       ? addDays(baseDate, config.postRegressionDateOffset)
@@ -1927,6 +2301,40 @@ function generateTasks(releaseId, config, baseDate, kickoffDate, cycles = []) {
     }
     taskConfigs.CREATE_RELEASE_TAG = config.tasks.CREATE_RELEASE_TAG || 'PENDING';
     taskConfigs.CREATE_FINAL_RELEASE_NOTES = config.tasks.CREATE_FINAL_RELEASE_NOTES || 'PENDING';
+    
+    Object.entries(taskConfigs).forEach(([taskType, status], idx) => {
+      const createdAt = postRegressionDate;
+      const updatedAt = (status === 'COMPLETED' || status === 'FAILED' || status === 'IN_PROGRESS') 
+        ? addHours(createdAt, idx + 1) 
+        : createdAt;
+      
+      const taskOptions = {
+        createdAt,
+        updatedAt,
+        branch: config.branch || null,
+      };
+      
+      tasks.push(createTask(releaseId, TaskType[taskType], TaskStage.PRE_RELEASE, TaskStatus[status], taskOptions));
+    });
+  }
+  
+  // Generate pre-release tasks (for SUBMISSION stages - all completed)
+  if ((stage === 'AWAITING_SUBMISSION' || stage === 'SUBMISSION' || stage === 'SUBMITTED_PENDING_APPROVAL') && config.preReleaseCompleted && config.preReleaseTasks) {
+    const postRegressionDate = config.postRegressionDateOffset 
+      ? addDays(baseDate, config.postRegressionDateOffset)
+      : addDays(baseDate, -4);
+    
+    const taskConfigs = {};
+    
+    // Only include tasks for configured platforms
+    if (config.platforms.includes('IOS')) {
+      taskConfigs.TRIGGER_TEST_FLIGHT_BUILD = config.preReleaseTasks.TRIGGER_TEST_FLIGHT_BUILD || 'COMPLETED';
+    }
+    if (config.platforms.includes('ANDROID')) {
+      taskConfigs.CREATE_AAB_BUILD = config.preReleaseTasks.CREATE_AAB_BUILD || 'COMPLETED';
+    }
+    taskConfigs.CREATE_RELEASE_TAG = config.preReleaseTasks.CREATE_RELEASE_TAG || 'COMPLETED';
+    taskConfigs.CREATE_FINAL_RELEASE_NOTES = config.preReleaseTasks.CREATE_FINAL_RELEASE_NOTES || 'COMPLETED';
     
     Object.entries(taskConfigs).forEach(([taskType, status], idx) => {
       const createdAt = postRegressionDate;
@@ -2027,7 +2435,7 @@ function generateBuilds(releaseId, config, baseDate, kickoffDate, tasks, cycles)
           ? addHours(cycleDate.toISOString(), buildConfig.hoursOffset)
           : cycleDate.toISOString();
       } else {
-        const refDate = config.stage === 'PRE_RELEASE' && config.postRegressionDateOffset
+        const refDate = (config.stage === 'PRE_RELEASE' || config.stage === 'AWAITING_SUBMISSION' || config.stage === 'SUBMISSION' || config.stage === 'SUBMITTED_PENDING_APPROVAL') && config.postRegressionDateOffset
           ? addDays(baseDate, config.postRegressionDateOffset)
           : taskDate;
         buildDate = buildConfig.hoursOffset 
@@ -2122,6 +2530,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     'POST-C-1', 'POST-C-2', 'POST-C-3', 'POST-C-4',
     // Pre-Release Platform (3)
     'POST-P-1', 'POST-P-2', 'POST-P-3',
+    // Distribution/Submission Manual (6)
+    'SUB-M-1', 'SUB-M-2', 'SUB-M-3', 'SUB-M-4', 'SUB-M-5', 'SUB-M-6',
+    // Distribution/Submission CI/CD (4)
+    'SUB-C-1', 'SUB-C-2', 'SUB-C-3', 'SUB-C-4',
   ];
   
   const testData = {
