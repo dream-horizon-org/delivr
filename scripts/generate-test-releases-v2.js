@@ -23,6 +23,11 @@ const ACCOUNT_ID = '4JCGF-VeXg';
 const RELEASE_CONFIG_ID = 'NklcgYBbmx';
 const BASE_DATE = new Date('2024-12-20T10:00:00.000Z');
 
+// Distribution data counters
+let distributionCounter = 1;
+let androidSubmissionCounter = 1;
+let iosSubmissionCounter = 1;
+
 // Helper functions
 function generateUUID() {
   return crypto.randomUUID();
@@ -2080,6 +2085,12 @@ function generateTestCase(testId, config, index) {
   // Generate builds (needs tasks and cycles)
   const { stagingBuilds, builds } = generateBuilds(releaseId, config, baseDate, kickoffDate, tasks, cycles);
   
+  // Generate distribution data for distribution stage releases (SUB-* test cases)
+  let distributionData = null;
+  if (testId.startsWith('SUB-')) {
+    distributionData = createDistributionData(releaseId, config, baseDate, builds);
+  }
+  
   return {
     release: {
       ...release,
@@ -2089,6 +2100,9 @@ function generateTestCase(testId, config, index) {
     stagingBuilds,
     builds,
     tasks, // Also return separately for the tasks array
+    distribution: distributionData?.distribution || null,
+    androidSubmissions: distributionData?.androidSubmissions || [],
+    iosSubmissions: distributionData?.iosSubmissions || [],
   };
 }
 
@@ -2491,6 +2505,108 @@ function generateBuilds(releaseId, config, baseDate, kickoffDate, tasks, cycles)
   return { stagingBuilds, builds };
 }
 
+/**
+ * Create distribution data for a release (store_distribution + submission builds)
+ * Only called for distribution stage releases (SUB-* test cases)
+ */
+function createDistributionData(releaseId, config, baseDate, builds = []) {
+  const distributionId = `dist_${releaseId.slice(0, 8)}_${String(distributionCounter++).padStart(3, '0')}`;
+  const submissionDate = config.submissionDateOffset !== undefined
+    ? addDays(baseDate, config.submissionDateOffset)
+    : addDays(baseDate, -1);
+  
+  // Determine distribution status based on stage
+  let distributionStatus = 'PENDING';
+  if (config.stage === 'SUBMISSION' || config.stage === 'SUBMITTED_PENDING_APPROVAL') {
+    distributionStatus = 'SUBMITTED';
+  } else if (config.stage === 'AWAITING_SUBMISSION') {
+    distributionStatus = 'PENDING';
+  }
+  
+  const distribution = {
+    id: distributionId,
+    tenantId: TENANT_ID,
+    releaseId: releaseId,
+    status: distributionStatus,
+    createdAt: submissionDate,
+    updatedAt: submissionDate,
+  };
+  
+  const androidSubmissions = [];
+  const iosSubmissions = [];
+  
+  // Get version from platform target mappings (default to v1.0.0)
+  const version = 'v1.0.0';
+  const versionCode = 10000;
+  
+  // Generate Android submission if Android platform
+  if (config.platforms.includes('ANDROID')) {
+    const androidBuild = builds.find(b => b.platform === 'ANDROID');
+    const androidSub = {
+      id: `asb_${releaseId.slice(0, 8)}_${String(androidSubmissionCounter++).padStart(3, '0')}`,
+      distributionId: distributionId,
+      version: version,
+      storeType: 'PLAY_STORE',
+      versionCode: versionCode,
+      rolloutPercentage: 0,
+      inAppUpdatePriority: 3,
+      releaseNotes: `Android ${version} release`,
+      submittedAt: submissionDate,
+      submittedBy: ACCOUNT_ID,
+      statusUpdatedAt: submissionDate,
+      createdAt: submissionDate,
+      updatedAt: submissionDate,
+      artifact: {
+        artifactPath: androidBuild?.artifactPath || `s3://bucket/releases/${releaseId}/android/build.aab`,
+        internalTrackLink: androidBuild?.internalTrackLink || 'https://play.google.com/apps/testing/com.dream11.fantasy',
+      },
+      actionHistory: [],
+      isCurrent: true,
+      status: config.stage === 'AWAITING_SUBMISSION' ? 'PENDING' : 
+              config.stage === 'SUBMISSION' ? 'IN_REVIEW' : 
+              config.stage === 'SUBMITTED_PENDING_APPROVAL' ? 'APPROVED' : 'PENDING',
+    };
+    androidSubmissions.push(androidSub);
+  }
+  
+  // Generate iOS submission if iOS platform
+  if (config.platforms.includes('IOS')) {
+    const iosBuild = builds.find(b => b.platform === 'IOS');
+    const iosSub = {
+      id: `isb_${releaseId.slice(0, 8)}_${String(iosSubmissionCounter++).padStart(3, '0')}`,
+      distributionId: distributionId,
+      version: version,
+      storeType: 'APP_STORE',
+      releaseType: 'AFTER_APPROVAL',
+      phasedRelease: true,
+      resetRating: false,
+      rolloutPercentage: 0,
+      releaseNotes: `iOS ${version} release`,
+      submittedAt: submissionDate,
+      submittedBy: ACCOUNT_ID,
+      statusUpdatedAt: submissionDate,
+      createdAt: submissionDate,
+      updatedAt: submissionDate,
+      artifact: {
+        testflightBuildNumber: (iosBuild && iosBuild.testflightNumber) ? String(iosBuild.testflightNumber) : '12345',
+        testflightLink: 'https://appstoreconnect.apple.com/apps/123456/testflight',
+      },
+      actionHistory: [],
+      isCurrent: true,
+      status: config.stage === 'AWAITING_SUBMISSION' ? 'PENDING' : 
+              config.stage === 'SUBMISSION' ? 'IN_REVIEW' : 
+              config.stage === 'SUBMITTED_PENDING_APPROVAL' ? 'APPROVED' : 'PENDING',
+    };
+    iosSubmissions.push(iosSub);
+  }
+  
+  return {
+    distribution,
+    androidSubmissions,
+    iosSubmissions,
+  };
+}
+
 // ============================================================================
 // MAIN EXECUTION
 // ============================================================================
@@ -2499,7 +2615,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🚀 Generating test releases (V2 - Data-Driven)...\n');
   
   const dbPath = path.join(__dirname, '../mock-server/data/db-release-process.json');
-  let existingData = { releases: [], releaseTasks: [], regressionCycles: [], buildUploadsStaging: [], builds: [] };
+  let existingData = { 
+    releases: [], 
+    releaseTasks: [], 
+    regressionCycles: [], 
+    buildUploadsStaging: [], 
+    builds: [],
+    store_distribution: [],
+    android_submission_builds: [],
+    ios_submission_builds: [],
+  };
   
   try {
     if (fs.existsSync(dbPath)) {
@@ -2542,6 +2667,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     regressionCycles: [],
     buildUploadsStaging: [],
     builds: [],
+    store_distribution: [],
+    android_submission_builds: [],
+    ios_submission_builds: [],
   };
   
   const testCaseIds = Object.keys(TEST_CASE_CONFIGS)
@@ -2575,6 +2703,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         testData.builds.push(...testCase.builds);
       }
       
+      // Collect distribution data for distribution stage releases
+      if (testCase.distribution) {
+        testData.store_distribution.push(testCase.distribution);
+      }
+      if (testCase.androidSubmissions && Array.isArray(testCase.androidSubmissions)) {
+        testData.android_submission_builds.push(...testCase.androidSubmissions);
+      }
+      if (testCase.iosSubmissions && Array.isArray(testCase.iosSubmissions)) {
+        testData.ios_submission_builds.push(...testCase.iosSubmissions);
+      }
+      
       process.stdout.write(`  ✅ ${testId} (${index + 1}/${testCaseIds.length})\r`);
     } catch (error) {
       console.error(`\n  ❌ Error generating ${testId}: ${error.message}`);
@@ -2589,6 +2728,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`✅ Generated ${testData.regressionCycles.length} test cycles`);
   console.log(`✅ Generated ${testData.buildUploadsStaging.length} staging builds`);
   console.log(`✅ Generated ${testData.builds.length} builds`);
+  console.log(`✅ Generated ${testData.store_distribution.length} distributions`);
+  console.log(`✅ Generated ${testData.android_submission_builds.length} Android submissions`);
+  console.log(`✅ Generated ${testData.ios_submission_builds.length} iOS submissions`);
   
   const mergedData = {
     ...existingData,
@@ -2597,6 +2739,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     regressionCycles: testData.regressionCycles,
     buildUploadsStaging: testData.buildUploadsStaging,
     builds: testData.builds,
+    store_distribution: [
+      ...(existingData.store_distribution || []),
+      ...testData.store_distribution,
+    ],
+    android_submission_builds: [
+      ...(existingData.android_submission_builds || []),
+      ...testData.android_submission_builds,
+    ],
+    ios_submission_builds: [
+      ...(existingData.ios_submission_builds || []),
+      ...testData.ios_submission_builds,
+    ],
   };
   
   try {

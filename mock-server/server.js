@@ -26,47 +26,57 @@ const __dirname = path.dirname(__filename);
 // ============================================================================
 
 // Load distribution data
-const distributionDbPath = path.join(__dirname, 'data', 'db-distribution.json');
-const distributionData = JSON.parse(fs.readFileSync(distributionDbPath, 'utf-8'));
+// COMMENTED OUT: Using only db-release-process.json to keep only test releases
+// const distributionDbPath = path.join(__dirname, 'data', 'db-distribution.json');
+// const distributionData = JSON.parse(fs.readFileSync(distributionDbPath, 'utf-8'));
 
 // Load release process data
 const releaseProcessDbPath = path.join(__dirname, 'data', 'db-release-process.json');
 const releaseProcessData = JSON.parse(fs.readFileSync(releaseProcessDbPath, 'utf-8'));
 
 // Merge data from both files
+// COMMENTED OUT: Using only release process DB to keep only test releases
 // Distribution data takes priority for distributions/submissions
 // Release process data provides releases, tasks, cycles, staging builds
 const mergedData = {
-  // From distribution DB - distribution-specific entities
-  releases: [
-    ...(distributionData.releases || []),
-    ...(releaseProcessData.releases || []),
-  ],
-  store_distribution: distributionData.store_distribution || [],
-  android_submission_builds: distributionData.android_submission_builds || [],
-  ios_submission_builds: distributionData.ios_submission_builds || [],
-  submissions: distributionData.submissions || [],
-  
-  // From release process DB - release process entities
+  // From release process DB - release process entities (ONLY SOURCE NOW)
+  releases: releaseProcessData.releases || [],
+  store_distribution: releaseProcessData.store_distribution || [],
+  android_submission_builds: releaseProcessData.android_submission_builds || [],
+  ios_submission_builds: releaseProcessData.ios_submission_builds || [],
+  submissions: [], // Not used in release process
   releaseTasks: releaseProcessData.releaseTasks || [],
   regressionCycles: releaseProcessData.regressionCycles || [],
   buildUploadsStaging: releaseProcessData.buildUploadsStaging || [],
-  builds: [
-    ...(distributionData.builds || []),
-    ...(releaseProcessData.builds || []),
-  ],
+  builds: releaseProcessData.builds || [],
   
   // Optional shared entities
-  storeIntegrations: distributionData.storeIntegrations || releaseProcessData.storeIntegrations || [],
-  pmApprovals: distributionData.pmApprovals || releaseProcessData.pmApprovals || [],
-  extraCommits: distributionData.extraCommits || releaseProcessData.extraCommits || [],
+  storeIntegrations: releaseProcessData.storeIntegrations || [],
+  pmApprovals: releaseProcessData.pmApprovals || [],
+  extraCommits: releaseProcessData.extraCommits || [],
+  
+  // COMMENTED OUT: Previously merged from distribution DB
+  // releases: [
+  //   ...(distributionData.releases || []),
+  //   ...(releaseProcessData.releases || []),
+  // ],
+  // store_distribution: distributionData.store_distribution || [],
+  // android_submission_builds: distributionData.android_submission_builds || [],
+  // ios_submission_builds: distributionData.ios_submission_builds || [],
+  // submissions: distributionData.submissions || [],
+  // builds: [
+  //   ...(distributionData.builds || []),
+  //   ...(releaseProcessData.builds || []),
+  // ],
 };
 
-console.log('📂 Loaded and merged data from both DB files:');
-console.log(`   - Distribution DB: ${Object.keys(distributionData).length} collections`);
+console.log('📂 Loaded data from release process DB (distribution DB commented out):');
+// console.log(`   - Distribution DB: ${Object.keys(distributionData).length} collections`);
 console.log(`   - Release Process DB: ${Object.keys(releaseProcessData).length} collections`);
-console.log(`   - Merged releases: ${mergedData.releases.length}`);
+console.log(`   - Releases: ${mergedData.releases.length}`);
 console.log(`   - Distributions: ${mergedData.store_distribution.length}`);
+console.log(`   - Android Submissions: ${mergedData.android_submission_builds.length}`);
+console.log(`   - iOS Submissions: ${mergedData.ios_submission_builds.length}`);
 console.log(`   - Release Tasks: ${mergedData.releaseTasks.length}`);
 console.log(`   - Regression Cycles: ${mergedData.regressionCycles.length}`);
 
