@@ -157,7 +157,8 @@ export class GitHubActionsWorkflowService extends WorkflowService {
       }
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
-    const queueLocation = foundUrl ?? PROVIDER_DEFAULTS.GHA_NO_QUEUE_LOCATION;
+    const queueLocation = foundUrl;
+    if (!queueLocation) throw new Error(ERROR_MESSAGES.GHA_DISPATCH_FAILED);
     return { queueLocation };
   };
 
