@@ -35,7 +35,7 @@ export const createReleaseConfigActivityLogModel = (
         allowNull: false,
         field: 'releaseConfigId',
         references: {
-          model: 'release_configs',
+          model: 'release_configurations',
           key: 'id'
         }
       },
