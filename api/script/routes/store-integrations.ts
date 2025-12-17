@@ -65,6 +65,13 @@ export function createStoreIntegrationRoutes(): Router {
     storeControllers.uploadAabToPlayStore
   );
 
+  // Get Play Store supported languages/listings
+  router.get(
+    '/integrations/store/play-store/listings',
+    validateStore.validatePlayStoreListingsQuery,
+    storeControllers.getPlayStoreListings
+  );
+
   return router;
 }
 
