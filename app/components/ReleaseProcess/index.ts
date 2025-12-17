@@ -17,8 +17,6 @@ export { PreReleaseStage } from './PreReleaseStage';
 export { RegressionCycleCard } from './RegressionCycleCard';
 export { RegressionCyclesList } from './RegressionCyclesList';
 export { RegressionStage } from './RegressionStage';
-export { RegularTaskDetails } from './RegularTaskDetails';
-export { ReleaseProcessActionsSidebar } from './ReleaseProcessActionsSidebar';
 export { ReleaseProcessHeader } from './ReleaseProcessHeader';
 export { ReleaseProcessSidebar } from './ReleaseProcessSidebar';
 export { DistributionStage } from './stages/DistributionStage';

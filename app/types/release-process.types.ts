@@ -541,6 +541,11 @@ export interface ActivityLog {
   newValue: any | null;          // JSON object with new values (null for REMOVED)
   updatedAt: string;               // ISO timestamp
   updatedBy: string;             // Account ID of user who made the change
+  updatedByAccount?: {           // Populated account details (similar to releasePilot)
+    id: string;
+    email: string;
+    name: string;
+  } | null;
 }
 
 /**

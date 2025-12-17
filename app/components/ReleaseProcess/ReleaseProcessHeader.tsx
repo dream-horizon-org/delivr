@@ -87,6 +87,8 @@ export function ReleaseProcessHeader({
       );
 
       await invalidateReleases(queryClient, org);
+      // Invalidate activity logs to show update action
+      await queryClient.invalidateQueries(['release-process', 'activity', org, release.id]);
       showSuccessToast(RELEASE_MESSAGES.UPDATE_SUCCESS);
 
       if (onUpdate) {
