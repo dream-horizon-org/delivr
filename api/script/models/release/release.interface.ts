@@ -3,6 +3,8 @@
  * Definitions for Release, CronJob, Tasks, History, Junction Tables, and Reference Tables
  */
 
+import type { AccountDetails } from '../../types/release/release.interface';
+
 // ============================================================================
 // ENUMS (Database Schema Tied)
 // ============================================================================
@@ -445,7 +447,8 @@ export interface ActivityLog {
   previousValue: any; // JSON object
   newValue: any; // JSON object
   updatedAt: Date;
-  updatedBy: string;
+  updatedBy: string; // Account ID of user who made the change
+  updatedByAccount?: AccountDetails | null; // Populated account details (similar to releasePilot)
 }
 
 export interface CreateActivityLogDto {

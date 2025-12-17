@@ -35,7 +35,7 @@ import { ProjectManagementTicketService } from '../integrations/project-manageme
 import { TestManagementRunService } from '../integrations/test-management/test-run/test-run.service';
 import { Platform as PMPlatform } from '~types/integrations/project-management';
 import * as storageTypes from '../../storage/storage';
-import { ErrorCode } from '../../storage/storage';
+import { getAccountDetails as getAccountDetailsUtil } from '../../utils/account.utils';
 
 // ============================================================================
 // PHASE DERIVATION TYPES
@@ -315,38 +315,8 @@ export class ReleaseRetrievalService {
     this.releaseStatusService = service;
   }
 
-  /**
-   * Helper method to fetch account details
-   * Returns null if account doesn't exist or if there's an error
-   */
   private async getAccountDetails(accountId: string | null): Promise<AccountDetails | null> {
-    if (!accountId) return null;
-    
-    try {
-      const account = await this.storage.getAccount(accountId);
-      
-      // Verify account exists and has required fields
-      if (!account || !account.email || !account.name) {
-        console.warn(`[Release Retrieval] Account ${accountId} exists but missing required fields`);
-        return null;
-      }
-      
-      return {
-        id: account.id || accountId,
-        email: account.email,
-        name: account.name
-      };
-    } catch (error: any) {
-      // Handle NotFound error specifically (account doesn't exist)
-      if (error?.code === ErrorCode.NotFound) {
-        console.warn(`[Release Retrieval] Account ${accountId} not found`);
-        return null;
-      }
-      
-      // Log other errors but still return null to prevent breaking the release response
-      console.error(`[Release Retrieval] Failed to fetch account ${accountId}:`, error);
-      return null;
-    }
+    return getAccountDetailsUtil(this.storage, accountId, 'Release Retrieval');
   }
 
   /**
