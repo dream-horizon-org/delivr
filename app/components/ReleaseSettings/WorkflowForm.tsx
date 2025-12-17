@@ -66,6 +66,7 @@ export interface WorkflowFormProps {
   };
   existingWorkflow?: CICDWorkflow | null;
   isEditMode?: boolean;
+  workflowId?: string; // Fallback workflow ID from URL params
 }
 
 export function WorkflowForm({
@@ -75,6 +76,7 @@ export function WorkflowForm({
   availableIntegrations,
   existingWorkflow,
   isEditMode = false,
+  workflowId,
 }: WorkflowFormProps) {
   const theme = useMantineTheme();
 
@@ -106,9 +108,42 @@ export function WorkflowForm({
   // Initialize form from existing workflow
   useEffect(() => {
     if (existingWorkflow) {
+      console.log('[WorkflowForm] Initializing form from existing workflow:', {
+        displayName: existingWorkflow.displayName,
+        platform: existingWorkflow.platform,
+        workflowType: existingWorkflow.workflowType,
+        providerType: existingWorkflow.providerType,
+      });
+      
       setName(existingWorkflow.displayName || '');
-      setPlatform(existingWorkflow.platform || PLATFORMS.ANDROID);
-      setEnvironment(workflowTypeToEnvironment[existingWorkflow.workflowType] || BUILD_ENVIRONMENTS.PRE_REGRESSION);
+      
+      // Normalize platform to uppercase (backend may return lowercase)
+      const normalizedPlatform = existingWorkflow.platform?.toUpperCase() || PLATFORMS.ANDROID;
+      const validPlatform = (normalizedPlatform === PLATFORMS.ANDROID || normalizedPlatform === PLATFORMS.IOS) 
+        ? normalizedPlatform 
+        : PLATFORMS.ANDROID;
+      setPlatform(validPlatform);
+      
+      // Map workflowType to environment
+      const mappedEnvironment = existingWorkflow.workflowType 
+        ? workflowTypeToEnvironment[existingWorkflow.workflowType] 
+        : undefined;
+      
+      // Validate environment is valid for the platform
+      const validEnvironmentsForPlatform = getEnvironmentsForPlatform(validPlatform as Platform);
+      const validEnvironment = mappedEnvironment && validEnvironmentsForPlatform.includes(mappedEnvironment)
+        ? mappedEnvironment
+        : validEnvironmentsForPlatform[0] || BUILD_ENVIRONMENTS.PRE_REGRESSION;
+      
+      setEnvironment(validEnvironment);
+      
+      console.log('[WorkflowForm] Set form values:', {
+        platform: validPlatform,
+        environment: validEnvironment,
+        mappedFromWorkflowType: existingWorkflow.workflowType,
+        validEnvironmentsForPlatform,
+      });
+      
       setProvider((existingWorkflow.providerType || defaultProvider) as BuildProvider);
 
       // Reconstruct providerConfig from workflow data
@@ -265,8 +300,17 @@ export function WorkflowForm({
       }
 
       if (isEditMode && existingWorkflow) {
+        // Use existingWorkflow.id if available, otherwise fall back to workflowId from URL params
+        const idToUse = existingWorkflow.id || workflowId;
+        
+        if (!idToUse) {
+          showErrorToast({ title: 'Error', message: 'Workflow ID is missing. Cannot update workflow.' });
+          setIsSaving(false);
+          return;
+        }
+        
         const result = await apiPatch<{ success: boolean; error?: string }>(
-          `/api/v1/tenants/${tenantId}/workflows/${existingWorkflow.id}`,
+          `/api/v1/tenants/${tenantId}/workflows/${idToUse}`,
           workflowData
         );
 
@@ -296,7 +340,7 @@ export function WorkflowForm({
       showErrorToast({ title: 'Error', message: errorMessage });
       setIsSaving(false);
     }
-  }, [validate, provider, providerConfig, name, platform, environment, isSaving, isEditMode, existingWorkflow, tenantId, onSubmit]);
+  }, [validate, provider, providerConfig, name, platform, environment, isSaving, isEditMode, existingWorkflow, workflowId, tenantId, onSubmit]);
 
   const handlePlatformChange = useCallback((val: string | null) => {
     const newPlatform = (val || PLATFORMS.ANDROID) as Platform;

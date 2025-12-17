@@ -3,7 +3,7 @@
  * Shows all details about a CI/CD workflow
  */
 
-import { Modal, Stack, Text, Card, Group, Badge, Divider, ScrollArea, useMantineTheme, ThemeIcon } from '@mantine/core';
+import { Modal, Stack, Text, Card, Group, Badge, Divider, ScrollArea, useMantineTheme, ThemeIcon, Anchor } from '@mantine/core';
 import {
   IconRocket,
   IconBrandAndroid,
@@ -184,17 +184,27 @@ export function WorkflowPreviewModal({
             </Text>
           </Group>
 
-          <Text
+          <Anchor
+            href={workflow.workflowUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             size="sm"
             c={theme.colors.blue[7]}
             style={{
               fontFamily: 'monospace',
               wordBreak: 'break-all',
               lineHeight: 1.5,
+              textDecoration: 'none',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.textDecoration = 'underline';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.textDecoration = 'none';
             }}
           >
             {workflow.workflowUrl}
-          </Text>
+          </Anchor>
         </Card>
 
         {/* Parameters */}
