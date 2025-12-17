@@ -24,6 +24,13 @@ interface ActivityLogsContentProps {
 }
 
 /**
+ * Get display name for the user who made the change
+ */
+function getUpdatedByName(log: ActivityLog): string {
+  return log.updatedByAccount?.name || log.updatedBy || 'Unknown';
+}
+
+/**
  * Format activity change into readable diff format
  * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
  */
@@ -124,7 +131,7 @@ function formatActivityChange(log: ActivityLog): string {
 
     case 'REGRESSION_STAGE_APPROVAL':
       if (newValue) {
-        const approvedBy = newValue.approvedBy || newValue.updatedBy || 'Unknown';
+        const approvedBy = newValue.approvedBy || getUpdatedByName(log) || 'Unknown';
         return `Regression stage approved by ${approvedBy}`;
       }
       if (previousValue) {
@@ -387,7 +394,7 @@ export function ActivityLogsContent({ activityLogs }: ActivityLogsContentProps) 
                 <Text size="xs" c="dimmed">
                   <Text span c="var(--mantine-color-slate-5)">By:</Text>{' '}
                   <Text span fw={500} c="var(--mantine-color-slate-7)">
-                    {log.updatedBy}
+                    {getUpdatedByName(log)}
                   </Text>
                 </Text>
               )}

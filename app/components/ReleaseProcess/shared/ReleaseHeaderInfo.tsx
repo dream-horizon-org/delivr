@@ -4,7 +4,7 @@
  */
 
 import { Badge, Group, Text, Title } from '@mantine/core';
-import { IconGitBranch, IconTag } from '@tabler/icons-react';
+import { IconGitBranch, IconTag, IconClock } from '@tabler/icons-react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
@@ -16,6 +16,7 @@ import {
   getReleaseStatusLabel,
   STAGE_LABELS,
 } from '~/constants/release-process-ui';
+import { formatReleaseDateTime } from '~/utils/release-process-date';
 
 interface PlatformTargetMapping {
   platform: string;
@@ -164,6 +165,20 @@ export function ReleaseHeaderInfo({
             </Text>
             <Text fw={600} size="sm" className="font-mono">
               {release.branch}
+            </Text>
+          </div>
+        </Group>
+      )}
+
+      {release.kickOffDate && (
+        <Group gap="xs">
+          <IconClock size={18} className="text-slate-600" />
+          <div>
+            <Text size="xs" c="dimmed">
+              {HEADER_LABELS.RELEASE_STARTED_AT}
+            </Text>
+            <Text fw={600} size="sm">
+              {formatReleaseDateTime(release.kickOffDate)}
             </Text>
           </div>
         </Group>

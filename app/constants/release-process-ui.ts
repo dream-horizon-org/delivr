@@ -179,6 +179,7 @@ export const HEADER_LABELS = {
   CURRENT_STAGE: 'Current Stage',
   RELEASE_VERSION: 'Version',
   RELEASE_BRANCH: 'Branch',
+  RELEASE_STARTED_AT: 'Release started at',
   STATUS: 'Status',
   NO_BRANCH: 'No branch',
   NOT_AVAILABLE: 'N/A',

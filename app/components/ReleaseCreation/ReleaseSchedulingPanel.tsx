@@ -451,9 +451,9 @@ export function ReleaseSchedulingPanel({
               }
               dateError={errors.targetReleaseDate}
               timeError={errors.targetReleaseTime}
-              dateDescription="Date when the release will be deployed to production. Must be after the kickoff date."
+              dateDescription="Date when the release will be deployed to production. Release time must be after kickoff time if on the same day."
               timeDescription="Time when the release will be deployed. Use 24-hour format (e.g., 10:00, 15:30)."
-              dateMin={kickOffDate ? new Date(new Date(kickOffDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+              dateMin={kickOffDate ? new Date(kickOffDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
               required
             />
             

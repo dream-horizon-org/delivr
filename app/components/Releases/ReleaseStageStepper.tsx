@@ -192,11 +192,25 @@ export const ReleaseStageStepper = memo(function ReleaseStageStepper({
           // For non-navigable steps, show why
           if (!isAccessible) {
             return (
-              <Tooltip 
-                key={stage.key} 
+              <Tooltip
+                key={stage.key}
                 label="Complete previous stages first"
                 position="bottom"
                 withArrow
+                styles={{
+                  tooltip: {
+                    backgroundColor: 'var(--mantine-color-slate-9)',
+                    color: 'var(--mantine-color-white)',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    borderRadius: '6px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                  },
+                  arrow: {
+                    backgroundColor: 'var(--mantine-color-slate-9)',
+                  },
+                }}
               >
                 <span>{stepContent}</span>
               </Tooltip>
