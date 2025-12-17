@@ -1163,7 +1163,7 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Status Service initialized");
           
-          this.releaseActivityLogService = new ReleaseActivityLogService(activityLogRepo);
+          this.releaseActivityLogService = new ReleaseActivityLogService(activityLogRepo, this);
           console.log("Release Activity Log Service initialized");
           
           // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
