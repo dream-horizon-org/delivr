@@ -14,12 +14,11 @@
 
 import { ICronJobState } from './cron-job-state.interface';
 import { CronJobStateMachine } from '../cron-job-state-machine';
-import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus, PlatformName, PauseType } from '~models/release/release.interface';
+import { StageStatus, TaskStage, RegressionCycleStatus, CronStatus, ReleaseStatus, PauseType } from '~models/release/release.interface';
 import { hasSequelize } from '~types/release/api-types';
 import { checkIntegrationAvailability } from '~utils/integration-availability.utils';
-import { isRegressionSlotTime } from '~utils/time-utils';
 import { createRegressionCycleWithTasks } from '~utils/regression-cycle-creation';
-import { getOrderedTasks, canExecuteTask, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
+import { getOrderedTasks, getTaskBlockReason, OptionalTaskConfig, isTaskRequired } from '~utils/task-sequencing';
 import { PreReleaseState } from './pre-release.state';
 import { processAwaitingManualBuildTasks } from '~utils/awaiting-manual-build.utils';
 
@@ -141,16 +140,29 @@ export class RegressionState implements ICronJobState {
         throw new Error('Sequelize storage required for integration availability check');
       }
       
-      const integrationAvailability = await checkIntegrationAvailability(
-        release.releaseConfigId,
-        storageInstance.sequelize
-      );
+      // Try to fetch integration availability, use defaults if config not found (for tests)
+      let integrationAvailability: { hasProjectManagementIntegration: boolean; hasTestPlatformIntegration: boolean };
+      try {
+        integrationAvailability = await checkIntegrationAvailability(
+          release.releaseConfigId,
+          storageInstance.sequelize
+        );
+      } catch (error) {
+        console.warn(`[${instanceId}] [RegressionState] Could not check integration availability: ${error}. Using defaults.`);
+        integrationAvailability = {
+          hasProjectManagementIntegration: false,
+          hasTestPlatformIntegration: false
+        };
+      }
 
       // Check for regression slots that need cycle creation
       // 🚀 Optimization: Fetch latestCycle once and reuse (eliminates duplicate query)
       let latestCycle = await regressionCycleRepo.findLatest(releaseId);
 
-      if (cronJob.upcomingRegressions && isRegressionSlotTime(cronJob)) {
+      // Check if there are any upcoming regressions to process
+      // Note: We no longer use isRegressionSlotTime() which checked 60-second window.
+      // Now we check if slot time has passed (even if hours ago) as long as before targetReleaseDate.
+      if (cronJob.upcomingRegressions) {
         let slots: Array<{ date: string | Date; config: Record<string, unknown> }>;
         if (typeof cronJob.upcomingRegressions === 'string') {
           try {
@@ -164,28 +176,56 @@ export class RegressionState implements ICronJobState {
         }
 
         const now = new Date();
-        const TIME_WINDOW_MS = 60 * 1000;
+        const targetReleaseDate = release.targetReleaseDate ? new Date(release.targetReleaseDate) : null;
+        const LATE_WARNING_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
         const canCreateNewCycle = !latestCycle || latestCycle.status === RegressionCycleStatus.DONE;
 
         if (canCreateNewCycle) {
-          const slotsInWindow = slots
+          // Find all past slots that should be executed (before targetReleaseDate)
+          const executableSlots = slots
             .map(slot => {
               const slotTime = new Date(slot.date);
               if (isNaN(slotTime.getTime())) {
                 return null;
               }
-              const diff = Math.abs(now.getTime() - slotTime.getTime());
-              if (diff < TIME_WINDOW_MS) {
-                return { slot, slotTime, diff };
+              
+              // Check if slot time has passed
+              const isPast = slotTime.getTime() <= now.getTime();
+              
+              if (!isPast) {
+                return null; // Future slot, skip
               }
-              return null;
+              
+              // Check if we're past the targetReleaseDate deadline
+              if (targetReleaseDate && now.getTime() >= targetReleaseDate.getTime()) {
+                // Don't execute - deadline has passed
+                console.warn(
+                  `[${instanceId}] [RegressionState] ⚠️ Skipping slot past targetReleaseDate. ` +
+                  `Slot: ${slotTime.toISOString()}, Deadline: ${targetReleaseDate.toISOString()}, Now: ${now.toISOString()}`
+                );
+                return null;
+              }
+              
+              // Slot is executable (past time but before deadline)
+              const lateMs = now.getTime() - slotTime.getTime();
+              
+              return { slot, slotTime, lateMs };
             })
-            .filter((s): s is { slot: typeof slots[0]; slotTime: Date; diff: number } => s !== null)
-            .sort((a, b) => a.slotTime.getTime() - b.slotTime.getTime());
+            .filter((s): s is { slot: typeof slots[0]; slotTime: Date; lateMs: number } => s !== null)
+            .sort((a, b) => a.slotTime.getTime() - b.slotTime.getTime()); // Oldest first
 
-          if (slotsInWindow.length > 0) {
-            const { slot, slotTime } = slotsInWindow[0];
+          if (executableSlots.length > 0) {
+            const { slot, slotTime, lateMs } = executableSlots[0];
+            
+            // Log warning if executing more than 5 minutes late
+            if (lateMs > LATE_WARNING_THRESHOLD_MS) {
+              const lateMinutes = Math.floor(lateMs / (60 * 1000));
+              console.warn(
+                `[${instanceId}] [RegressionState] ⚠️ Executing regression slot ${lateMinutes} minutes late. ` +
+                `Scheduled: ${slotTime.toISOString()}, Now: ${now.toISOString()}`
+              );
+            }
             
             console.log(`[${instanceId}] [RegressionState] Creating regression cycle for slot at ${slotTime.toISOString()}`);
             

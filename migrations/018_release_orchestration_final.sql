@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS releases (
   hasManualBuildUpload BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether manual build upload is enabled',
   createdByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who created release',
   releasePilotAccountId VARCHAR(255) COMMENT 'Account ID of release pilot',
-  lastUpdatedByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who last updated release',
+  lastUpdateByAccountId VARCHAR(255) NOT NULL COMMENT 'Account ID who last updated release',
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS releases (
   CONSTRAINT fk_releases_config FOREIGN KEY (releaseConfigId) REFERENCES release_configurations(id) ON DELETE SET NULL,
   CONSTRAINT fk_releases_creator FOREIGN KEY (createdByAccountId) REFERENCES accounts(id),
   CONSTRAINT fk_releases_pilot FOREIGN KEY (releasePilotAccountId) REFERENCES accounts(id),
-  CONSTRAINT fk_releases_updater FOREIGN KEY (lastUpdatedByAccountId) REFERENCES accounts(id)
+  CONSTRAINT fk_releases_updater FOREIGN KEY (lastUpdateByAccountId) REFERENCES accounts(id)
 );
 
 -- ============================================================================

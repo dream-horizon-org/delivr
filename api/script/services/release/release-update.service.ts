@@ -494,20 +494,14 @@ export class ReleaseUpdateService {
 
     const hasChanges = addedSlots.length > 0 || removedSlots.length > 0;
 
-    // VALIDATION 1: Stage 3 must be PENDING for any slot changes
+    // VALIDATION: Stage 3 must be PENDING for any slot changes
     if (hasChanges && cronJob.stage3Status !== StageStatus.PENDING) {
       throw new Error(`Cannot modify regression slots: Stage 3 already started (status: ${cronJob.stage3Status})`);
     }
 
-    // VALIDATION 2: In Stage 2, cannot remove slots whose time has passed
-    if (removedSlots.length > 0 && cronJob.stage2Status === StageStatus.IN_PROGRESS) {
-      const now = new Date();
-      const pastSlots = removedSlots.filter(s => new Date(s.date) < now);
-      if (pastSlots.length > 0) {
-        const pastDates = pastSlots.map(s => new Date(s.date).toISOString()).join(', ');
-        throw new Error(`Cannot delete slots whose time has passed during Stage 2. Past slots: ${pastDates}`);
-      }
-    }
+    // Note: We no longer block deletion of past slots during Stage 2.
+    // Slots are removed from upcomingRegressions upon cycle creation,
+    // so users should be able to clean them up if needed.
 
     // Determine if cron should be restarted
     const wasStage2Completed = cronJob.stage2Status === StageStatus.COMPLETED;
