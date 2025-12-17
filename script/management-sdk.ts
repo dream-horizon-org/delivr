@@ -483,7 +483,7 @@ class AccountManager {
     ).then(() => null);
   }
 
-  public uploadRegressionArtifact(ciRunId: string, artifactPath: string): Promise<void> {
+  public uploadRegressionArtifact(ciRunId: string, artifactPath: string, artifactVersion: string): Promise<void> {
     return Promise<void>((resolve, reject) => {
       const request: superagent.Request<any> = superagent.post(
         this._serverUrl + urlEncode([`/builds/ci/artifact`])
@@ -494,6 +494,7 @@ class AccountManager {
       const file: any = fs.createReadStream(artifactPath);
 
       request.field("ciRunId", ciRunId);
+      request.field("artifactVersion", artifactVersion);
       request.attach("artifact", file);
 
       request.end((err: any, res: superagent.Response) => {
@@ -567,8 +568,8 @@ class AccountManager {
     });
   }
 
-  public uploadTestFlightBuildNumber(ciRunId: string, testflightNumber: string): Promise<void> {
-    const requestBody = JSON.stringify({ ciRunId, testflightNumber });
+  public uploadTestFlightBuildNumber(ciRunId: string, testflightNumber: string, artifactVersion: string): Promise<void> {
+    const requestBody = JSON.stringify({ ciRunId, testflightNumber, artifactVersion });
     return this.post(
       urlEncode([`/builds/ci/testflight/verify`]),
       requestBody,

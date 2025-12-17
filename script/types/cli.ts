@@ -265,11 +265,13 @@ export interface IApplyPatchCommand extends ICommand {
 export interface IUploadRegressionArtifactCommand extends ICommand {
   ciRunId: string;
   artifactPath: string;
+  artifactVersion: string;
 }
 
 export interface IUploadTestFlightBuildNumberCommand extends ICommand {
   ciRunId: string;
   testflightNumber: string;
+  artifactVersion: string;
 }
 
 export interface IUploadAABBuildCommand extends ICommand {

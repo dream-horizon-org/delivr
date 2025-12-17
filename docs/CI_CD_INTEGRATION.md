@@ -46,13 +46,6 @@ The Delivr CLI provides commands to upload build artifacts directly from your CI
 npm install -g @d11/delivr-cli
 ```
 
-### Verify Installation
-
-```bash
-code-push-standalone --version
-```
-
----
 
 ## Authentication
 
@@ -107,7 +100,7 @@ code-push-standalone upload-aab-build <ciRunId> <artifactPath> --artifactVersion
 Upload APK or IPA regression build artifacts to Delivr Release Management.
 
 ```bash
-code-push-standalone upload-regression-artifact <ciRunId> <artifactPath>
+code-push-standalone upload-regression-artifact <ciRunId> <artifactPath> --artifactVersion <version>
 ```
 
 **Arguments:**
@@ -116,6 +109,12 @@ code-push-standalone upload-regression-artifact <ciRunId> <artifactPath>
 |----------|----------|-------------|
 | `ciRunId` | Yes | CI run identifier - see [CI Run ID Reference](#ci-run-id-reference) |
 | `artifactPath` | Yes | Path to the build artifact file (`.apk` or `.ipa` only) |
+
+**Options:**
+
+| Option | Alias | Required | Description |
+|--------|-------|----------|-------------|
+| `--artifactVersion` | `-v` | Yes | Artifact version (e.g., 3.0.4) - validates artifact belongs to correct release |
 
 > **Note:** For AAB files, use `upload-aab-build` instead.
 
@@ -126,7 +125,7 @@ code-push-standalone upload-regression-artifact <ciRunId> <artifactPath>
 Upload TestFlight build number to associate with an iOS CI run.
 
 ```bash
-code-push-standalone upload-testflight-build-number <ciRunId> <testflightNumber>
+code-push-standalone upload-testflight-build-number <ciRunId> <testflightNumber> --artifactVersion <version>
 ```
 
 **Arguments:**
@@ -135,6 +134,12 @@ code-push-standalone upload-testflight-build-number <ciRunId> <testflightNumber>
 |----------|----------|-------------|
 | `ciRunId` | Yes | CI run identifier - see [CI Run ID Reference](#ci-run-id-reference) |
 | `testflightNumber` | Yes | TestFlight build number from App Store Connect |
+
+**Options:**
+
+| Option | Alias | Required | Description |
+|--------|-------|----------|-------------|
+| `--artifactVersion` | `-v` | Yes | Artifact version (e.g., 3.0.4) - validates artifact belongs to correct release |
 
 ---
 
@@ -148,6 +153,12 @@ The `ciRunId` is a unique identifier for your CI build. Use the appropriate envi
 | **GitHub Actions** | `$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID` | `https://github.com/org/repo/actions/runs/12345` |
 ---
 
+### Pipeline Behavior
+
+By default, these pipelines will **upload to Delivr** and **fail the entire build** if the CLI command fails (e.g., server returns an error). This is the recommended behavior for production builds.
+
+For **internal development/testing**, you can set the `DELIVR_INTERNAL` parameter to `true` to **skip the Delivr upload entirely**.
+
 ## Jenkins Integration
 
 ### Pipeline Job (Jenkinsfile) - AAB Build
@@ -155,6 +166,14 @@ The `ciRunId` is a unique identifier for your CI build. Use the appropriate envi
 ```groovy
 pipeline {
     agent any
+    
+    parameters {
+        booleanParam(
+            name: 'DELIVR_INTERNAL',
+            defaultValue: false,
+            description: 'Internal Delivr build (skip Delivr upload)'
+        )
+    }
     
     environment {
         DELIVR_ACCESS_KEY = credentials('delivr-access-key')  // Store in Jenkins credentials
@@ -171,6 +190,9 @@ pipeline {
         }
         
         stage('Upload to Delivr') {
+            when {
+                expression { return !params.DELIVR_INTERNAL }
+            }
             steps {
                 sh '''#!/usr/bin/env bash
                     set -e
@@ -197,7 +219,7 @@ pipeline {
                     # Authenticate with Delivr
                     code-push-standalone login "$DELIVR_SERVER_URL" --accessKey "$DELIVR_ACCESS_KEY"
                     
-                    # Upload AAB build artifact
+                    # Upload AAB build artifact - fails build on error
                     # $BUILD_URL is automatically set by Jenkins
                     # $APP_VERSION should be set in your build (e.g., from build.gradle)
                     code-push-standalone upload-aab-build "$BUILD_URL" ./app/build/outputs/bundle/release/app-release.aab --artifactVersion "$APP_VERSION"
@@ -206,14 +228,23 @@ pipeline {
                 '''
             }
         }
+        
+        stage('Skip Delivr Upload (Internal Build)') {
+            when {
+                expression { return params.DELIVR_INTERNAL }
+            }
+            steps {
+                echo 'ℹ️ Skipping Delivr upload (internal build)'
+            }
+        }
     }
     
     post {
         success {
-            echo 'Build uploaded to Delivr successfully!'
+            echo 'Build completed successfully!'
         }
         failure {
-            echo 'Failed to upload build to Delivr'
+            echo 'Build failed'
         }
     }
 }
@@ -226,6 +257,14 @@ If your CI pipeline already uploads the AAB to Play Store and you have the versi
 ```groovy
 pipeline {
     agent any
+    
+    parameters {
+        booleanParam(
+            name: 'DELIVR_INTERNAL',
+            defaultValue: false,
+            description: 'Internal Delivr build (skip Delivr upload)'
+        )
+    }
     
     environment {
         DELIVR_ACCESS_KEY = credentials('delivr-access-key')
@@ -253,6 +292,9 @@ pipeline {
         }
         
         stage('Upload to Delivr') {
+            when {
+                expression { return !params.DELIVR_INTERNAL }
+            }
             steps {
                 sh '''#!/usr/bin/env bash
                     set -e
@@ -265,11 +307,21 @@ pipeline {
                     code-push-standalone login "$DELIVR_SERVER_URL" --accessKey "$DELIVR_ACCESS_KEY"
                     
                     # Upload with build number since we already uploaded to Play Store
+                    # Fails build on error
                     code-push-standalone upload-aab-build "$BUILD_URL" \
                         ./app/build/outputs/bundle/release/app-release.aab \
                         --artifactVersion "$APP_VERSION" \
                         --buildNumber "$VERSION_CODE"
                 '''
+            }
+        }
+        
+        stage('Skip Delivr Upload (Internal Build)') {
+            when {
+                expression { return params.DELIVR_INTERNAL }
+            }
+            steps {
+                echo 'ℹ️ Skipping Delivr upload (internal build)'
             }
         }
     }
@@ -324,16 +376,19 @@ fi
 
 echo "Uploading AAB: $AAB_PATH"
 # APP_VERSION should be set in your build environment
+# Fails build on error
 code-push-standalone upload-aab-build "$BUILD_URL" "$AAB_PATH" --artifactVersion "$APP_VERSION"
 
 echo "=== Upload Complete ==="
 ```
 
-> **Note:** Add `DELIVR_ACCESS_KEY` and `DELIVR_SERVER_URL` as credentials/environment variables in Jenkins.
+> **Note:** Add `DELIVR_ACCESS_KEY`, `DELIVR_SERVER_URL`, and optionally `DELIVR_INTERNAL` as credentials/environment variables in Jenkins.
 
 ---
 
 ## GitHub Actions Integration
+
+For **internal development/testing**, you can set `delivr_internal: true` to **skip the Delivr upload entirely**.
 
 ### AAB Build Workflow
 
@@ -346,6 +401,12 @@ on:
   push:
     branches: [main, release/*]
   workflow_dispatch:
+    inputs:
+      delivr_internal:
+        description: 'Internal Delivr build (skip Delivr upload)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   build-and-upload:
@@ -370,9 +431,11 @@ jobs:
         run: ./gradlew bundleRelease
       
       - name: Install delivr-cli
+        if: ${{ inputs.delivr_internal != true }}
         run: npm install -g @d11/delivr-cli
       
       - name: Upload to Delivr
+        if: ${{ inputs.delivr_internal != true }}
         env:
           DELIVR_ACCESS_KEY: ${{ secrets.DELIVR_ACCESS_KEY }}
           DELIVR_SERVER_URL: ${{ secrets.DELIVR_SERVER_URL }}
@@ -387,10 +450,14 @@ jobs:
           # Extract version from build.gradle or set it
           APP_VERSION=$(./gradlew -q printVersionName)
           
-          # Upload AAB
+          # Upload AAB - fails workflow on error
           code-push-standalone upload-aab-build "$CI_RUN_ID" \
             ./app/build/outputs/bundle/release/app-release.aab \
             --artifactVersion "$APP_VERSION"
+      
+      - name: Skip Delivr Upload (Internal Build)
+        if: ${{ inputs.delivr_internal == true }}
+        run: echo "ℹ️ Skipping Delivr upload (internal build)"
 ```
 
 ### APK Regression Build Workflow
@@ -404,6 +471,12 @@ on:
   push:
     branches: [main, release/*]
   workflow_dispatch:
+    inputs:
+      delivr_internal:
+        description: 'Internal Delivr build (skip Delivr upload)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   build-and-upload:
@@ -428,9 +501,11 @@ jobs:
         run: ./gradlew assembleRelease
       
       - name: Install delivr-cli
+        if: ${{ inputs.delivr_internal != true }}
         run: npm install -g @d11/delivr-cli
       
       - name: Upload to Delivr
+        if: ${{ inputs.delivr_internal != true }}
         env:
           DELIVR_ACCESS_KEY: ${{ secrets.DELIVR_ACCESS_KEY }}
           DELIVR_SERVER_URL: ${{ secrets.DELIVR_SERVER_URL }}
@@ -439,9 +514,17 @@ jobs:
           
           CI_RUN_ID="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           
-          # Upload APK regression build
+          # Extract version from build.gradle or set it
+          APP_VERSION=$(./gradlew -q printVersionName)
+          
+          # Upload APK regression build - fails workflow on error
           code-push-standalone upload-regression-artifact "$CI_RUN_ID" \
-            ./app/build/outputs/apk/release/app-release.apk
+            ./app/build/outputs/apk/release/app-release.apk \
+            --artifactVersion "$APP_VERSION"
+      
+      - name: Skip Delivr Upload (Internal Build)
+        if: ${{ inputs.delivr_internal == true }}
+        run: echo "ℹ️ Skipping Delivr upload (internal build)"
 ```
 
 ### AAB Workflow with Play Store Upload
@@ -455,6 +538,13 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      delivr_internal:
+        description: 'Internal Delivr build (skip Delivr upload)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   release:
@@ -495,9 +585,11 @@ jobs:
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
       
       - name: Install delivr-cli
+        if: ${{ inputs.delivr_internal != true }}
         run: npm install -g @d11/delivr-cli
       
       - name: Upload to Delivr
+        if: ${{ inputs.delivr_internal != true }}
         env:
           DELIVR_ACCESS_KEY: ${{ secrets.DELIVR_ACCESS_KEY }}
           DELIVR_SERVER_URL: ${{ secrets.DELIVR_SERVER_URL }}
@@ -507,10 +599,15 @@ jobs:
           CI_RUN_ID="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           
           # Include build number since we already uploaded to Play Store
+          # Fails workflow on error
           code-push-standalone upload-aab-build "$CI_RUN_ID" \
             ./app/build/outputs/bundle/release/app-release.aab \
             --artifactVersion "${{ steps.version.outputs.version_name }}" \
             --buildNumber "${{ steps.version.outputs.version_code }}"
+      
+      - name: Skip Delivr Upload (Internal Build)
+        if: ${{ inputs.delivr_internal == true }}
+        run: echo "ℹ️ Skipping Delivr upload (internal build)"
 ```
 
 ### iOS IPA Regression Build Workflow
@@ -521,6 +618,13 @@ name: iOS Build and Upload to Delivr
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      delivr_internal:
+        description: 'Internal Delivr build (skip Delivr upload)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   build-ios:
@@ -553,9 +657,11 @@ jobs:
             -exportOptionsPlist ios/ExportOptions.plist
       
       - name: Install delivr-cli
+        if: ${{ inputs.delivr_internal != true }}
         run: npm install -g @d11/delivr-cli
       
       - name: Upload to Delivr
+        if: ${{ inputs.delivr_internal != true }}
         env:
           DELIVR_ACCESS_KEY: ${{ secrets.DELIVR_ACCESS_KEY }}
           DELIVR_SERVER_URL: ${{ secrets.DELIVR_SERVER_URL }}
@@ -564,8 +670,16 @@ jobs:
           
           CI_RUN_ID="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           
-          # Upload IPA regression build
-          code-push-standalone upload-regression-artifact "$CI_RUN_ID" ./build/MyApp.ipa
+          # Extract version from Info.plist or set it
+          APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ios/MyApp/Info.plist)
+          
+          # Upload IPA regression build - fails workflow on error
+          code-push-standalone upload-regression-artifact "$CI_RUN_ID" ./build/MyApp.ipa \
+            --artifactVersion "$APP_VERSION"
+      
+      - name: Skip Delivr Upload (Internal Build)
+        if: ${{ inputs.delivr_internal == true }}
+        run: echo "ℹ️ Skipping Delivr upload (internal build)"
 ```
 
 ### iOS TestFlight Build Number Workflow
@@ -579,6 +693,13 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      delivr_internal:
+        description: 'Internal Delivr build (skip Delivr upload)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   build-and-upload:
@@ -615,9 +736,11 @@ jobs:
           echo "build_number=$TESTFLIGHT_BUILD_NUMBER" >> $GITHUB_OUTPUT
       
       - name: Install delivr-cli
+        if: ${{ inputs.delivr_internal != true }}
         run: npm install -g @d11/delivr-cli
       
       - name: Upload TestFlight Build Number to Delivr
+        if: ${{ inputs.delivr_internal != true }}
         env:
           DELIVR_ACCESS_KEY: ${{ secrets.DELIVR_ACCESS_KEY }}
           DELIVR_SERVER_URL: ${{ secrets.DELIVR_SERVER_URL }}
@@ -626,9 +749,17 @@ jobs:
           
           CI_RUN_ID="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           
-          # Upload TestFlight build number
+          # Extract version from Info.plist or set it
+          APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" ios/MyApp/Info.plist)
+          
+          # Upload TestFlight build number - fails workflow on error
           code-push-standalone upload-testflight-build-number "$CI_RUN_ID" \
-            "${{ steps.testflight.outputs.build_number }}"
+            "${{ steps.testflight.outputs.build_number }}" \
+            --artifactVersion "$APP_VERSION"
+      
+      - name: Skip Delivr Upload (Internal Build)
+        if: ${{ inputs.delivr_internal == true }}
+        run: echo "ℹ️ Skipping Delivr upload (internal build)"
 ```
 
 ---

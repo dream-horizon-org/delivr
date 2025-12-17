@@ -962,7 +962,6 @@ yargs
         "Uploads the AAB with versionCode (CI already uploaded to Play Store)"
       )
       .option("artifactVersion", {
-        alias: "v",
         demand: true,
         description: "Artifact version (e.g., 3.0.4) - used to validate artifact belongs to the correct release",
         type: "string",
@@ -980,28 +979,38 @@ yargs
     isValidCommandCategory = true;
     isValidCommand = true;
     yargs
-      .usage(USAGE_PREFIX + " upload-regression-artifact <ciRunId> <artifactPath>")
+      .usage(USAGE_PREFIX + " upload-regression-artifact <ciRunId> <artifactPath> --artifactVersion <version>")
       .demand(/*count*/ 2, /*max*/ 2)
       .example(
-        "upload-regression-artifact $BUILD_URL ./app-release.apk",
+        'upload-regression-artifact $BUILD_URL ./app-release.apk --artifactVersion "3.0.4"',
         "Uploads APK regression build to the CI run"
       )
       .example(
-        "upload-regression-artifact $BUILD_URL ./MyApp.ipa",
+        'upload-regression-artifact $BUILD_URL ./MyApp.ipa --artifactVersion "3.0.4"',
         "Uploads IPA regression build to the CI run"
-      );
+      )
+      .option("artifactVersion", {
+        demand: true,
+        description: "Artifact version (e.g., 3.0.4) - used to validate artifact belongs to the correct release",
+        type: "string",
+      });
     addCommonConfiguration(yargs);
   })
   .command("upload-testflight-build-number", "Upload TestFlight build number for iOS builds", (yargs: yargs.Argv) => {
     isValidCommandCategory = true;
     isValidCommand = true;
     yargs
-      .usage(USAGE_PREFIX + " upload-testflight-build-number <ciRunId> <testflightNumber>")
+      .usage(USAGE_PREFIX + " upload-testflight-build-number <ciRunId> <testflightNumber> --artifactVersion <version>")
       .demand(/*count*/ 2, /*max*/ 2)
       .example(
-        "upload-testflight-build-number $BUILD_URL 17965",
+        'upload-testflight-build-number $BUILD_URL 17965 --artifactVersion "3.0.4"',
         "Uploads the TestFlight build number for the CI run"
-      );
+      )
+      .option("artifactVersion", {
+        demand: true,
+        description: "Artifact version (e.g., 3.0.4) - used to validate artifact belongs to the correct release",
+        type: "string",
+      });
     addCommonConfiguration(yargs);
   })
   .command("whoami", "Display the account info for the current login session", (yargs: yargs.Argv) => {
@@ -1471,19 +1480,29 @@ export function createCommand(): cli.ICommand {
 
       case "upload-regression-artifact":
         if (arg1 && arg2) {
-          cmd = { type: cli.CommandType.uploadRegressionArtifact };
-          const uploadRegressionCommand = <cli.IUploadRegressionArtifactCommand>cmd;
-          uploadRegressionCommand.ciRunId = arg1;
-          uploadRegressionCommand.artifactPath = arg2;
+          const artifactVersionOption = argv["artifactVersion"] as string;
+          const hasArtifactVersion = artifactVersionOption && artifactVersionOption.length > 0;
+          if (hasArtifactVersion) {
+            cmd = { type: cli.CommandType.uploadRegressionArtifact };
+            const uploadRegressionCommand = <cli.IUploadRegressionArtifactCommand>cmd;
+            uploadRegressionCommand.ciRunId = arg1;
+            uploadRegressionCommand.artifactPath = arg2;
+            uploadRegressionCommand.artifactVersion = artifactVersionOption;
+          }
         }
         break;
 
       case "upload-testflight-build-number":
         if (arg1 && arg2) {
-          cmd = { type: cli.CommandType.uploadTestFlightBuildNumber };
-          const uploadTestFlightCommand = <cli.IUploadTestFlightBuildNumberCommand>cmd;
-          uploadTestFlightCommand.ciRunId = arg1;
-          uploadTestFlightCommand.testflightNumber = arg2;
+          const artifactVersionOption = argv["artifactVersion"] as string;
+          const hasArtifactVersion = artifactVersionOption && artifactVersionOption.length > 0;
+          if (hasArtifactVersion) {
+            cmd = { type: cli.CommandType.uploadTestFlightBuildNumber };
+            const uploadTestFlightCommand = <cli.IUploadTestFlightBuildNumberCommand>cmd;
+            uploadTestFlightCommand.ciRunId = arg1;
+            uploadTestFlightCommand.testflightNumber = arg2;
+            uploadTestFlightCommand.artifactVersion = artifactVersionOption;
+          }
         }
         break;
     }

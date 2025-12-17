@@ -1742,6 +1742,7 @@ function applyPatch(command: cli.IApplyPatchCommand): Promise<void> {
 function uploadRegressionArtifact(command: cli.IUploadRegressionArtifactCommand): Promise<void> {
   const artifactPath = command.artifactPath;
   const ciRunId = command.ciRunId;
+  const artifactVersion = command.artifactVersion;
 
   const artifactPathNotProvided = !artifactPath;
   if (artifactPathNotProvided) {
@@ -1751,6 +1752,11 @@ function uploadRegressionArtifact(command: cli.IUploadRegressionArtifactCommand)
   const ciRunIdNotProvided = !ciRunId;
   if (ciRunIdNotProvided) {
     throw new Error("CI Run ID is required.");
+  }
+
+  const artifactVersionNotProvided = !artifactVersion;
+  if (artifactVersionNotProvided) {
+    throw new Error("Artifact version is required. Use --artifactVersion to specify the release version (e.g., 3.0.4).");
   }
 
   const artifactFileNotExists = fileDoesNotExistOrIsDirectory(artifactPath);
@@ -1764,12 +1770,12 @@ function uploadRegressionArtifact(command: cli.IUploadRegressionArtifactCommand)
     throw new Error(`Invalid artifact type. Allowed types are: ${allowedExtensions}. For AAB builds, use the "upload-aab-build" command instead.`);
   }
 
-  log(`Uploading artifact "${artifactPath}" to CI run "${ciRunId}"...`);
+  log(`Uploading artifact "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}"...`);
 
   return sdk
-    .uploadRegressionArtifact(ciRunId, artifactPath)
+    .uploadRegressionArtifact(ciRunId, artifactPath, artifactVersion)
     .then((): void => {
-      log(`Successfully uploaded artifact "${artifactPath}" to CI run "${ciRunId}".`);
+      log(`Successfully uploaded artifact "${artifactPath}" (version ${artifactVersion}) to CI run "${ciRunId}".`);
     })
     .catch((error: CodePushError): void => {
       const errorMessage = `Failed to upload artifact: ${error.message}`;
@@ -1780,6 +1786,7 @@ function uploadRegressionArtifact(command: cli.IUploadRegressionArtifactCommand)
 function uploadTestFlightBuildNumber(command: cli.IUploadTestFlightBuildNumberCommand): Promise<void> {
   const ciRunId = command.ciRunId;
   const testflightNumber = command.testflightNumber;
+  const artifactVersion = command.artifactVersion;
 
   const ciRunIdNotProvided = !ciRunId;
   if (ciRunIdNotProvided) {
@@ -1791,12 +1798,17 @@ function uploadTestFlightBuildNumber(command: cli.IUploadTestFlightBuildNumberCo
     throw new Error("TestFlight number is required.");
   }
 
-  log(`Uploading TestFlight build number "${testflightNumber}" for CI run "${ciRunId}"...`);
+  const artifactVersionNotProvided = !artifactVersion;
+  if (artifactVersionNotProvided) {
+    throw new Error("Artifact version is required. Use --artifactVersion to specify the release version (e.g., 3.0.4).");
+  }
+
+  log(`Uploading TestFlight build number "${testflightNumber}" (version ${artifactVersion}) for CI run "${ciRunId}"...`);
 
   return sdk
-    .uploadTestFlightBuildNumber(ciRunId, testflightNumber)
+    .uploadTestFlightBuildNumber(ciRunId, testflightNumber, artifactVersion)
     .then((): void => {
-      log(`Successfully uploaded TestFlight build number "${testflightNumber}" for CI run "${ciRunId}".`);
+      log(`Successfully uploaded TestFlight build number "${testflightNumber}" (version ${artifactVersion}) for CI run "${ciRunId}".`);
     })
     .catch((error: CodePushError): void => {
       const errorMessage = `Failed to upload TestFlight build number: ${error.message}`;
