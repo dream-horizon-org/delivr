@@ -82,14 +82,19 @@ export function validateReleaseCreationState(
   if (!state.kickOffDate) {
     errors.kickOffDate = 'Kickoff date is required';
   } else {
-    const kickOff = new Date(state.kickOffDate);
-    if (isNaN(kickOff.getTime())) {
+    const kickOffDateOnly = new Date(state.kickOffDate);
+    if (isNaN(kickOffDateOnly.getTime())) {
       errors.kickOffDate = 'Invalid kickoff date format';
     } else {
+      // Validate datetime (date + time) is not in the past
+      const kickOffDateTime = combineDateAndTime(
+        state.kickOffDate,
+        state.kickOffTime || '00:00'
+      );
+      const kickOff = new Date(kickOffDateTime);
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      if (kickOff < now) {
-        errors.kickOffDate = 'Kickoff date cannot be in the past';
+      if (kickOff <= now) {
+        errors.kickOffDate = 'Kickoff date and time cannot be in the past';
       }
     }
   }
@@ -97,14 +102,19 @@ export function validateReleaseCreationState(
   if (!state.targetReleaseDate) {
     errors.targetReleaseDate = 'Target release date is required';
   } else {
-    const targetRelease = new Date(state.targetReleaseDate);
-    if (isNaN(targetRelease.getTime())) {
+    const targetReleaseDateOnly = new Date(state.targetReleaseDate);
+    if (isNaN(targetReleaseDateOnly.getTime())) {
       errors.targetReleaseDate = 'Invalid target release date format';
     } else {
+      // Validate datetime (date + time) is not in the past
+      const targetReleaseDateTime = combineDateAndTime(
+        state.targetReleaseDate,
+        state.targetReleaseTime || '00:00'
+      );
+      const targetRelease = new Date(targetReleaseDateTime);
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      if (targetRelease < now) {
-        errors.targetReleaseDate = 'Target release date cannot be in the past';
+      if (targetRelease <= now) {
+        errors.targetReleaseDate = 'Target release date and time cannot be in the past';
       }
 
       // Validate target release date is after kickoff date (including time)
@@ -114,14 +124,9 @@ export function validateReleaseCreationState(
           state.kickOffDate,
           state.kickOffTime || '00:00'
         );
-        const targetReleaseDateTime = combineDateAndTime(
-          state.targetReleaseDate,
-          state.targetReleaseTime || '00:00'
-        );
-        
         const kickOff = new Date(kickOffDateTime);
-        const targetRelease = new Date(targetReleaseDateTime);
         
+        // Reuse already computed targetRelease datetime
         if (targetRelease <= kickOff) {
           errors.targetReleaseDate = 'Target release date and time must be after kickoff date and time';
         }

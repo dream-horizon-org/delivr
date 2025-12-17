@@ -293,6 +293,32 @@ server.get('/tenants/:tenantId/releases', (req, res) => {
 });
 
 /**
+ * GET /api/v1/tenants/:tenantId/releases
+ * List all releases for a tenant (with /api/v1 prefix - matches backend API)
+ */
+server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
+  const db = router.db;
+  const releases = db.get('releases').value() || [];
+  
+  console.log(`[GET /api/v1/tenants/:tenantId/releases] Tenant ID:`, req.params.tenantId);
+  console.log(`[GET /api/v1/tenants/:tenantId/releases] Total releases in DB:`, releases.length);
+  
+  // Transform to match backend response format
+  const transformedReleases = releases.map(release => {
+    return transformRelease(release, req.params.tenantId);
+  });
+  
+  console.log(`[GET /api/v1/tenants/:tenantId/releases] Returning ${transformedReleases.length} releases`);
+  
+  // Return format matches backend: {success: true, releases: [...]}
+  // The BFF layer will wrap this in {success: true, data: {releases: [...]}} for the frontend
+  res.json({
+    success: true,
+    releases: transformedReleases,
+  });
+});
+
+/**
  * GET /tenants/:tenantId/release-configs
  * List release configs (mock to prevent errors)
  */

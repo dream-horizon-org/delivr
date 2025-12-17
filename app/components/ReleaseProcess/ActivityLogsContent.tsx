@@ -5,7 +5,7 @@
  * Handles parsing of previousValue/newValue and displays changes in readable format
  */
 
-import { Badge, Group, Stack, Text, Timeline, ThemeIcon } from '@mantine/core';
+import { Group, Stack, Text, Timeline, ThemeIcon } from '@mantine/core';
 import {
   IconCheck,
   IconClock,
@@ -24,10 +24,18 @@ interface ActivityLogsContentProps {
 }
 
 /**
- * Format activity change into readable diff format
- * Example: "Status: PENDING → IN_PROGRESS"
+ * Get display name for the user who made the change
  */
-function formatActivityChange(log: ActivityLog): string {
+function getUpdatedByName(log: ActivityLog): string {
+  return log.updatedByAccount?.name || log.updatedBy || 'Unknown';
+}
+
+/**
+ * Format complete activity log message
+ * Returns a single formatted message instead of separate label + description
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
+ */
+function formatActivityLogMessage(log: ActivityLog): string {
   const { type, previousValue, newValue } = log;
 
   // Handle null values
@@ -35,48 +43,145 @@ function formatActivityChange(log: ActivityLog): string {
     return 'Activity recorded';
   }
 
-  if (!previousValue && newValue) {
-    // New value only (e.g., integration events)
-    if (newValue.field) {
-      return `${newValue.field}: ${newValue.value || 'N/A'}`;
-    }
-    if (newValue.integration) {
-      return `${newValue.integration} event: ${newValue.event || 'N/A'}`;
-    }
-    return 'New activity';
-  }
+  switch (type) {
+    case 'PAUSE_RELEASE':
+      if (newValue?.reason) {
+        return `Release paused: ${newValue.reason}`;
+      }
+      return 'Release paused';
 
-  if (previousValue && !newValue) {
-    // Deletion case
-    if (previousValue.field) {
-      return `${previousValue.field}: ${previousValue.value || 'N/A'} → removed`;
-    }
-    return 'Activity removed';
-  }
+    case 'RESUME_RELEASE':
+      return 'Release resumed';
 
-  // Both values exist - show diff
-  if (previousValue.status && newValue.status) {
-    return `Status: ${previousValue.status} → ${newValue.status}`;
-  }
+    case 'REGRESSION_STAGE_APPROVAL':
+      if (newValue) {
+        const approvedBy = newValue.approvedBy || getUpdatedByName(log) || 'Unknown';
+        return `Regression stage approved by ${approvedBy}`;
+      }
+      return 'Regression stage approval removed';
 
-  if (previousValue.field && newValue.field && previousValue.field === newValue.field) {
-    return `${previousValue.field}: ${previousValue.value || 'N/A'} → ${newValue.value || 'N/A'}`;
-  }
+    case 'RELEASE':
+      if (previousValue && newValue) {
+        // Field updates
+        const fields = Object.keys(newValue);
+        const changes = fields
+          .map(field => {
+            const oldVal = previousValue[field];
+            const newVal = newValue[field];
+            if (oldVal !== undefined && newVal !== undefined && oldVal !== newVal) {
+              // Format field names nicely (camelCase to Title Case)
+              const fieldLabel = field
+                .replace(/([A-Z])/g, ' $1')
+                .trim()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+              return `${fieldLabel}: ${oldVal || 'N/A'} → ${newVal || 'N/A'}`;
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        if (changes.length > 0) {
+          return `Release updated: ${changes.join(', ')}`;
+        }
+        
+        if (previousValue.status && newValue.status) {
+          return `Release status changed: ${previousValue.status} → ${newValue.status}`;
+        }
+        
+        return 'Release updated';
+      }
+      if (newValue && !previousValue) {
+        return 'Release created';
+      }
+      if (previousValue && !newValue) {
+        return 'Release removed';
+      }
+      return 'Release activity';
 
-  if (previousValue.taskId && newValue.taskId && previousValue.taskId === newValue.taskId) {
-    const taskType = newValue.taskType || previousValue.taskType || 'Task';
-    const oldStatus = previousValue.status || 'N/A';
-    const newStatus = newValue.status || 'N/A';
-    return `Task ${taskType}: ${oldStatus} → ${newStatus}`;
-  }
+    case 'PLATFORM_TARGET':
+      if (previousValue && newValue) {
+        const oldPlatform = previousValue.platform || 'N/A';
+        const oldTarget = previousValue.target || 'N/A';
+        const newPlatform = newValue.platform || 'N/A';
+        const newTarget = newValue.target || 'N/A';
+        return `Platform target updated: ${oldPlatform}/${oldTarget} → ${newPlatform}/${newTarget}`;
+      }
+      if (newValue && !previousValue) {
+        const platform = newValue.platform || 'N/A';
+        const target = newValue.target || 'N/A';
+        return `Platform target added: ${platform}/${target}`;
+      }
+      if (previousValue && !newValue) {
+        const platform = previousValue.platform || 'N/A';
+        const target = previousValue.target || 'N/A';
+        return `Platform target removed: ${platform}/${target}`;
+      }
+      return 'Platform target activity';
 
-  if (previousValue.cronStatus && newValue.cronStatus) {
-    const reason = newValue.reason ? ` (${newValue.reason})` : '';
-    return `Cron Status: ${previousValue.cronStatus} → ${newValue.cronStatus}${reason}`;
-  }
+    case 'REGRESSION':
+      if (previousValue && newValue) {
+        const oldDate = previousValue.date ? new Date(previousValue.date).toLocaleDateString() : 'N/A';
+        const newDate = newValue.date ? new Date(newValue.date).toLocaleDateString() : 'N/A';
+        return `Regression slot updated: ${oldDate} → ${newDate}`;
+      }
+      if (newValue && !previousValue) {
+        const date = newValue.date ? new Date(newValue.date).toLocaleDateString() : 'N/A';
+        return `Regression slot added: ${date}`;
+      }
+      if (previousValue && !newValue) {
+        const date = previousValue.date ? new Date(previousValue.date).toLocaleDateString() : 'N/A';
+        return `Regression slot removed: ${date}`;
+      }
+      return 'Regression activity';
 
-  // Fallback: show raw values
-  return `${JSON.stringify(previousValue)} → ${JSON.stringify(newValue)}`;
+    case 'CRONCONFIG':
+      if (previousValue && newValue) {
+        return 'Cron configuration updated';
+      }
+      if (newValue && !previousValue) {
+        return 'Cron configuration set';
+      }
+      if (previousValue && !newValue) {
+        return 'Cron configuration removed';
+      }
+      return 'Cron configuration activity';
+
+    default:
+      // Fallback for unknown types
+      if (previousValue && newValue) {
+        if (previousValue.status && newValue.status) {
+          return `Status changed: ${previousValue.status} → ${newValue.status}`;
+        }
+        if (previousValue.field && newValue.field && previousValue.field === newValue.field) {
+          return `${previousValue.field} updated: ${previousValue.value || 'N/A'} → ${newValue.value || 'N/A'}`;
+        }
+        if (previousValue.taskId && newValue.taskId && previousValue.taskId === newValue.taskId) {
+          const taskType = newValue.taskType || previousValue.taskType || 'Task';
+          const oldStatus = previousValue.status || 'N/A';
+          const newStatus = newValue.status || 'N/A';
+          return `${taskType} status changed: ${oldStatus} → ${newStatus}`;
+        }
+        return 'Activity updated';
+      }
+      if (newValue && !previousValue) {
+        if (newValue.field) {
+          return `${newValue.field} added: ${newValue.value || 'N/A'}`;
+        }
+        if (newValue.integration) {
+          return `${newValue.integration} event: ${newValue.event || 'N/A'}`;
+        }
+        return 'Activity added';
+      }
+      if (previousValue && !newValue) {
+        if (previousValue.field) {
+          return `${previousValue.field} removed: ${previousValue.value || 'N/A'}`;
+        }
+        return 'Activity removed';
+      }
+      return 'Activity recorded';
+  }
 }
 
 /**
@@ -114,9 +219,26 @@ function formatTimestamp(dateString: string): string {
 
 /**
  * Get icon for activity type
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
  */
 function getActivityIcon(type: string): React.ReactNode {
   switch (type) {
+    // Backend activity types
+    case 'RELEASE':
+      return <IconTag size={16} />;
+    case 'PLATFORM_TARGET':
+      return <IconSettings size={16} />;
+    case 'REGRESSION':
+      return <IconCheck size={16} />;
+    case 'CRONCONFIG':
+      return <IconSettings size={16} />;
+    case 'PAUSE_RELEASE':
+      return <IconPlayerPause size={16} />;
+    case 'RESUME_RELEASE':
+      return <IconPlayerPlay size={16} />;
+    case 'REGRESSION_STAGE_APPROVAL':
+      return <IconCheck size={16} />;
+    // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return <IconTag size={16} />;
     case 'TASK_UPDATE':
@@ -136,9 +258,26 @@ function getActivityIcon(type: string): React.ReactNode {
 
 /**
  * Get color for activity type
+ * Handles backend activity types: RELEASE, PLATFORM_TARGET, REGRESSION, CRONCONFIG, PAUSE_RELEASE, RESUME_RELEASE, REGRESSION_STAGE_APPROVAL
  */
 function getActivityColor(type: string): string {
   switch (type) {
+    // Backend activity types
+    case 'RELEASE':
+      return 'blue';
+    case 'PLATFORM_TARGET':
+      return 'violet';
+    case 'REGRESSION':
+      return 'green';
+    case 'CRONCONFIG':
+      return 'orange';
+    case 'PAUSE_RELEASE':
+      return 'red';
+    case 'RESUME_RELEASE':
+      return 'teal';
+    case 'REGRESSION_STAGE_APPROVAL':
+      return 'green';
+    // Legacy types (for backward compatibility)
     case 'RELEASE_STATUS_CHANGE':
       return 'blue';
     case 'TASK_UPDATE':
@@ -156,24 +295,6 @@ function getActivityColor(type: string): string {
   }
 }
 
-/**
- * Get badge variant based on activity type
- */
-function getActivityBadgeVariant(type: string): 'light' | 'filled' | 'outline' {
-  if (type === 'RELEASE_PAUSED') return 'filled';
-  if (type === 'RELEASE_RESUMED') return 'light';
-  return 'light';
-}
-
-/**
- * Format activity type for display
- */
-function formatActivityType(type: string): string {
-  return type
-    .split('_')
-    .map(word => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(' ');
-}
 
 export function ActivityLogsContent({ activityLogs }: ActivityLogsContentProps) {
   if (!activityLogs || activityLogs.length === 0) {
@@ -206,9 +327,8 @@ export function ActivityLogsContent({ activityLogs }: ActivityLogsContentProps) 
       {activityLogs.map((log) => {
         const color = getActivityColor(log.type);
         const icon = getActivityIcon(log.type);
-        const changeText = formatActivityChange(log);
+        const message = formatActivityLogMessage(log);
         const timeText = formatTimestamp(log.updatedAt);
-        const activityTypeLabel = formatActivityType(log.type);
 
         return (
           <Timeline.Item
@@ -219,24 +339,9 @@ export function ActivityLogsContent({ activityLogs }: ActivityLogsContentProps) 
               </ThemeIcon>
             }
             title={
-              <Stack gap={8} mt={2}>
-                <Group gap="xs" align="center" wrap="wrap">
-                  <Text size="sm" fw={600} c="var(--mantine-color-slate-8)">
-                    {activityTypeLabel}
-                  </Text>
-                  <Badge
-                    color={color}
-                    variant={getActivityBadgeVariant(log.type)}
-                    size="xs"
-                    radius="sm"
-                  >
-                    {log.type}
-                  </Badge>
-                </Group>
-                <Text size="sm" fw={500} c="var(--mantine-color-slate-7)" style={{ lineHeight: 1.5 }}>
-                  {changeText}
-                </Text>
-              </Stack>
+              <Text size="sm" fw={600} c="var(--mantine-color-slate-8)" style={{ lineHeight: 1.5 }}>
+                {message}
+              </Text>
             }
           >
             <Stack gap={6} mt={8}>
@@ -249,7 +354,7 @@ export function ActivityLogsContent({ activityLogs }: ActivityLogsContentProps) 
                 <Text size="xs" c="dimmed">
                   <Text span c="var(--mantine-color-slate-5)">By:</Text>{' '}
                   <Text span fw={500} c="var(--mantine-color-slate-7)">
-                    {log.updatedBy}
+                    {getUpdatedByName(log)}
                   </Text>
                 </Text>
               )}

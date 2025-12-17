@@ -17,7 +17,6 @@ export { PreKickoffStage } from './PreKickoffStage';
 export { RegressionCycleCard } from './RegressionCycleCard';
 export { RegressionCyclesList } from './RegressionCyclesList';
 export { RegressionStage } from './RegressionStage';
-export { ReleaseProcessActionsSidebar } from './ReleaseProcessActionsSidebar';
 export { ReleaseProcessHeader } from './ReleaseProcessHeader';
 export { ReleaseProcessSidebar } from './ReleaseProcessSidebar';
 export { IntegrationsStatusSidebar } from './IntegrationsStatusSidebar';

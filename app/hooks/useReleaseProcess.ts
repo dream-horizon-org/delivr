@@ -220,6 +220,8 @@ export function useRetryTask(tenantId?: string, releaseId?: string) {
           });
           // Invalidate releases list to reflect task status changes
           queryClient.invalidateQueries(['releases', tenantId]);
+          // Invalidate activity logs to show retry action
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
       },
     }
@@ -297,6 +299,8 @@ export function useManualBuildUpload(tenantId?: string, releaseId?: string) {
               stageToInvalidate = TaskStage.REGRESSION;
           }
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
+          // Invalidate activity logs to show upload action
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
       },
     }
@@ -361,6 +365,8 @@ export function useVerifyTestFlight(tenantId?: string, releaseId?: string) {
               stageToInvalidate = TaskStage.REGRESSION;
           }
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, stageToInvalidate));
+          // Invalidate activity logs to show verification action
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
       },
     }
@@ -513,6 +519,8 @@ export function useApproveRegression(tenantId?: string, releaseId?: string) {
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
           // Invalidate releases list to reflect stage transition
           queryClient.invalidateQueries(['releases', tenantId]);
+          // Invalidate activity logs to show approval action
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
       },
     }
@@ -549,6 +557,8 @@ export function useCompletePreReleaseStage(tenantId?: string, releaseId?: string
           queryClient.invalidateQueries(QUERY_KEYS.stage(tenantId, releaseId, TaskStage.PRE_RELEASE));
           // Invalidate releases list to reflect stage completion
           queryClient.invalidateQueries(['releases', tenantId]);
+          // Invalidate activity logs to show completion action
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
       },
     }
@@ -619,6 +629,8 @@ export function useSendNotification(tenantId?: string, releaseId?: string) {
       onSuccess: () => {
         if (tenantId && releaseId) {
           queryClient.invalidateQueries(['release-process', 'notifications', tenantId, releaseId]);
+          // Invalidate activity logs to show notification action
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
         }
       },
     }
@@ -768,6 +780,10 @@ export function usePauseResumeRelease(tenantId?: string, releaseId?: string) {
         queryClient.invalidateQueries(['releases', tenantId]);
         queryClient.invalidateQueries(['release', tenantId, releaseId]);
         queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
+        // Invalidate activity logs to show pause/resume action
+        if (tenantId && releaseId) {
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+        }
       },
     }
   );
@@ -811,6 +827,10 @@ export function useArchiveRelease(tenantId?: string, releaseId?: string) {
         queryClient.invalidateQueries(['releases', tenantId]);
         queryClient.invalidateQueries(['release', tenantId, releaseId]);
         queryClient.invalidateQueries(['release-process', 'stage', tenantId, releaseId]);
+        // Invalidate activity logs to show archive action
+        if (tenantId && releaseId) {
+          queryClient.invalidateQueries(QUERY_KEYS.activityLog(tenantId, releaseId));
+        }
       },
     }
   );

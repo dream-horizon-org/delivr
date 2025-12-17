@@ -139,153 +139,160 @@ export const ReleaseCard = memo(function ReleaseCard({
           e.currentTarget.style.borderColor = theme.colors.gray[2];
         }}
       >
-        {/* Header Section - Clean and Minimal */}
-        <Box
-          p="md"
-          style={{
-            backgroundColor: theme.colors.brand[0],
-            borderBottom: `1px solid ${theme.colors.brand[2]}`,
-          }}
+        {/* Header Section - Clickable Link Overlay */}
+        <Link
+          to={releaseUrl}
+          className="block no-underline"
+          style={{ textDecoration: 'none', color: 'inherit' }}
         >
-          <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
-            {/* Left: Branch and Type */}
-            <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
-              <Group gap="sm" align="center" wrap="nowrap">
-                {release.branch ? (
-                  <Group gap="xs" align="center" style={{ flex: 1, minWidth: 0 }}>
-                    <IconGitBranch size={16} color={theme.colors.brand[7]} />
-                    <Text 
-                      fw={600} 
-                      size="md" 
-                      c="dark" 
-                      className="truncate font-mono"
-                      style={{ flex: 1, minWidth: 0 }}
-                    >
-                      {release.branch}
+          <Box
+            p="md"
+            style={{
+              backgroundColor: theme.colors.brand[0],
+              borderBottom: `1px solid ${theme.colors.brand[2]}`,
+              cursor: 'pointer',
+            }}
+          >
+            <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
+              {/* Left: Branch and Type */}
+              <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="sm" align="center" wrap="nowrap">
+                  {release.branch ? (
+                    <Group gap="xs" align="center" style={{ flex: 1, minWidth: 0 }}>
+                      <IconGitBranch size={16} color={theme.colors.brand[7]} />
+                      <Text 
+                        fw={600} 
+                        size="md" 
+                        c="dark" 
+                        className="truncate font-mono"
+                        style={{ flex: 1, minWidth: 0 }}
+                      >
+                        {release.branch}
+                      </Text>
+                    </Group>
+                  ) : (
+                    <Text fw={600} size="md" c="dimmed">
+                      No branch
                     </Text>
-                  </Group>
-                ) : (
-                  <Text fw={600} size="md" c="dimmed">
-                    No branch
-                  </Text>
-                )}
-              </Group>
-              
-              {/* Release Type and Status Badges - Combined with Active Status */}
-              <Group gap="xs" wrap="wrap">
-                <Badge
-                  size="sm"
-                  variant="light"
-                  color={getReleaseTypeColor(release.type)}
-                  style={{ textTransform: 'capitalize' }}
-                >
-                  {release.type.toLowerCase()}
-                </Badge>
+                  )}
+                </Group>
                 
-                {phase && (
+                {/* Release Type and Status Badges - Combined with Active Status */}
+                <Group gap="xs" wrap="wrap">
                   <Badge
                     size="sm"
                     variant="light"
-                    color={getPhaseColor(phase)}
-                  >
-                    {getPhaseLabel(phase)}
-                  </Badge>
-                )}
-                
-                {status && !isPaused && (
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    color={getReleaseStatusColor(status)}
-                  >
-                    {getReleaseStatusLabel(status)}
-                  </Badge>
-                )}
-
-                {/* Show active status combined with paused if applicable */}
-                {isPaused ? (
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    color="orange"
-                    leftSection={<IconPlayerPause size={12} />}
-                  >
-                    Paused
-                  </Badge>
-                ) : activeStatus && activeStatus !== 'COMPLETED' ? (
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    color={activeStatusColor}
+                    color={getReleaseTypeColor(release.type)}
                     style={{ textTransform: 'capitalize' }}
                   >
-                    {activeStatus}
+                    {release.type.toLowerCase()}
                   </Badge>
-                ) : null}
-              </Group>
-            </Stack>
+                  
+                  {phase && (
+                    <Badge
+                      size="sm"
+                      variant="light"
+                      color={getPhaseColor(phase)}
+                    >
+                      {getPhaseLabel(phase)}
+                    </Badge>
+                  )}
+                  
+                  {status && !isPaused && (
+                    <Badge
+                      size="sm"
+                      variant="light"
+                      color={getReleaseStatusColor(status)}
+                    >
+                      {getReleaseStatusLabel(status)}
+                    </Badge>
+                  )}
 
-            {/* Right: Release Config Name and Menu */}
-            <Group gap="xs">
-              {releaseConfig && (
-                <Box
-                  onClick={handleConfigClick}
-                  style={{
-                    cursor: 'pointer',
-                    zIndex: 10,
-                    position: 'relative',
-                  }}
-                >
-                  <Text
-                    size="sm"
-                    fw={500}
-                    c="brand"
-                    className="hover:underline"
+                  {/* Show active status combined with paused if applicable */}
+                  {isPaused ? (
+                    <Badge
+                      size="sm"
+                      variant="light"
+                      color="orange"
+                      leftSection={<IconPlayerPause size={12} />}
+                    >
+                      Paused
+                    </Badge>
+                  ) : activeStatus && activeStatus !== 'COMPLETED' ? (
+                    <Badge
+                      size="sm"
+                      variant="light"
+                      color={activeStatusColor}
+                      style={{ textTransform: 'capitalize' }}
+                    >
+                      {activeStatus}
+                    </Badge>
+                  ) : null}
+                </Group>
+              </Stack>
+
+              {/* Right: Release Config Name and Menu */}
+              <Group gap="xs" onClick={(e) => e.stopPropagation()}>
+                {releaseConfig && (
+                  <Box
+                    onClick={handleConfigClick}
+                    style={{
+                      cursor: 'pointer',
+                      zIndex: 10,
+                      position: 'relative',
+                    }}
                   >
-                    <Group gap={4}>
-                      <IconSettings size={14} />
-                      <span>{releaseConfig.name}</span>
-                    </Group>
-                  </Text>
-                </Box>
-              )}
-              
-              {/* Three-dot menu for actions */}
-              {canArchive && (
-                <Menu shadow="md" width={200} position="bottom-end">
-                  <Menu.Target>
-                    <Button
-                      variant="subtle"
-                      size="xs"
-                      p={4}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      style={{ cursor: 'pointer' }}
+                    <Text
+                      size="sm"
+                      fw={500}
+                      c="brand"
+                      className="hover:underline"
                     >
-                      <IconDots size={16} />
-                    </Button>
-                  </Menu.Target>
+                      <Group gap={4}>
+                        <IconSettings size={14} />
+                        <span>{releaseConfig.name}</span>
+                      </Group>
+                    </Text>
+                  </Box>
+                )}
+                
+                {/* Three-dot menu for actions */}
+                {canArchive && (
+                  <Menu shadow="md" width={200} position="bottom-end">
+                    <Menu.Target>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        p={4}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <IconDots size={16} />
+                      </Button>
+                    </Menu.Target>
 
-                  <Menu.Dropdown>
-                    <Menu.Item
-                      leftSection={<IconArchive size={16} />}
-                      color="red"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setArchiveConfirmModalOpened(true);
-                      }}
-                    >
-                      {BUTTON_LABELS.ARCHIVE}
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
-              )}
+                    <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<IconArchive size={16} />}
+                        color="red"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setArchiveConfirmModalOpened(true);
+                        }}
+                      >
+                        {BUTTON_LABELS.ARCHIVE}
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                )}
+              </Group>
             </Group>
-          </Group>
-        </Box>
+          </Box>
+        </Link>
 
         {/* Content Section - Clickable Link Overlay */}
         <Link
