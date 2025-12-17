@@ -182,10 +182,9 @@ export type CronicleService = {
   setJobEnabled: (jobId: string, enabled: boolean) => Promise<void>;
   runJobNow: (jobId: string, params?: Record<string, unknown>) => Promise<string>;
   
-  // Category operations (requires admin privilege for create)
+  // Category queries (read-only, no admin required)
   getCategories: () => Promise<CronicleCategoryInfo[]>;
   findCategoryByTitle: (title: string) => Promise<string | null>;
-  createCategory: (request: CreateCronicleCategoryRequest) => Promise<string>;
   
   // URL builders
   buildDirectUrl: (path: string) => string;

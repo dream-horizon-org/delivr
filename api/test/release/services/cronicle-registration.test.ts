@@ -97,7 +97,6 @@ const createMockCronicleService = (overrides: MockCronicleServiceOverrides = {})
   runJobNow: jest.fn().mockResolvedValue('run-id'),
   getCategories: jest.fn().mockResolvedValue([]),
   findCategoryByTitle: jest.fn().mockResolvedValue(null),  // Category doesn't exist by default
-  createCategory: jest.fn().mockResolvedValue('category-id'),
   buildWebhookUrl: jest.fn().mockReturnValue('http://localhost:3000/api/internal/cron/releases'),
   buildDirectUrl: jest.fn().mockReturnValue('http://localhost:3000/internal/cron/releases'),
   ping: jest.fn().mockResolvedValue(true),

@@ -18,11 +18,11 @@ import type { ReleaseRetrievalService } from '~services/release/release-retrieva
 import type {
   NotificationPayload,
   NotificationResult,
-  PlatformName,
-  TargetName,
   TemplatePlatformKey
 } from '~types/release-notification';
 import { 
+  PlatformName,
+  TargetName,
   PLATFORM_SPECIFIC_NOTIFICATION_TYPES,
   PLATFORM_TARGET_TO_TEMPLATE_KEY 
 } from '~types/release-notification';
@@ -177,13 +177,16 @@ export class ReleaseNotificationService {
    * @param payload - Notification payload
    * @returns Array of string parameters for template placeholders
    * 
-   * Note: Build sharing templates that need file attachment:
-   * - PREREGRESSION_BUILDS: downloadUrl used as both parameter {0} and fileUrl
-   * - REGRESSION_BUILDS: downloadUrl used as both parameter {0} and fileUrl
+   * Note: Build notification URL handling:
+   * - displayUrl: Used in message (parameter {2}) with platform-specific label
+   * - artifactDownloadUrl: Used for file attachment (via getFileUrlFromPayload)
+   * - Template structure for builds: {0}=version, {1}=branch, {2}=optional URL line
    * 
-   * Build link templates (no file attachment):
-   * - IOS_TEST_FLIGHT_BUILD: downloadUrl as parameter {0} only
-   * - ANDROID_AAB_BUILD: downloadUrl as parameter {0} only
+   * Build notifications:
+   * - PREREGRESSION_BUILDS: displayUrl in message, artifactDownloadUrl for attachment
+   * - REGRESSION_BUILDS: displayUrl in message, artifactDownloadUrl for attachment
+   * - IOS_TEST_FLIGHT_BUILD: displayUrl in message, artifactDownloadUrl optional
+   * - ANDROID_AAB_BUILD: displayUrl in message, artifactDownloadUrl optional
    */
   private buildTemplateParameters(payload: NotificationPayload): string[] {
     switch (payload.type) {
@@ -227,24 +230,44 @@ export class ReleaseNotificationService {
       // PLATFORM-SPECIFIC TEMPLATES
       // ============================================================================
 
-      case NotificationType.PREREGRESSION_BUILDS:
+      case NotificationType.PREREGRESSION_BUILDS: {
+        // Use displayUrl (no fallback to artifactDownloadUrl)
+        const displayUrl = payload.displayUrl;
+        
+        // Build URL line with conditional newline
+        let urlLine = '';
+        if (displayUrl) {
+          urlLine = `\nDownload: ${displayUrl}`;
+        }
+        
         return [
-          payload.downloadUrl,  // {0} - also used as fileUrl for attachment
-          payload.version,      // {1}
-          payload.branch        // {2}
+          payload.version,  // {0}
+          payload.branch,   // {1}
+          urlLine           // {2} - conditional URL with label
         ];
+      }
 
       case NotificationType.PREREGRESSION_BUILDS_FAILED:
         return [
           payload.workflowUrl   // {0}
         ];
 
-      case NotificationType.REGRESSION_BUILDS:
+      case NotificationType.REGRESSION_BUILDS: {
+        // Use displayUrl (no fallback to artifactDownloadUrl)
+        const displayUrl = payload.displayUrl;
+        
+        // Build URL line with conditional newline
+        let urlLine = '';
+        if (displayUrl) {
+          urlLine = `\nDownload: ${displayUrl}`;
+        }
+        
         return [
-          payload.downloadUrl,  // {0} - also used as fileUrl for attachment
-          payload.version,      // {1}
-          payload.branch        // {2}
+          payload.version,  // {0}
+          payload.branch,   // {1}
+          urlLine           // {2} - conditional URL with label
         ];
+      }
 
       case NotificationType.REGRESSION_BUILDS_FAILED:
         return [
@@ -283,19 +306,39 @@ export class ReleaseNotificationService {
       // STAGE 3: POST-REGRESSION
       // ============================================================================
 
-      case NotificationType.IOS_TEST_FLIGHT_BUILD:
+      case NotificationType.IOS_TEST_FLIGHT_BUILD: {
+        // Use displayUrl (no fallback to artifactDownloadUrl)
+        const displayUrl = payload.displayUrl;
+        
+        // Build URL line with conditional newline
+        let urlLine = '';
+        if (displayUrl) {
+          urlLine = `\nView in TestFlight: ${displayUrl}`;
+        }
+        
         return [
-          payload.downloadUrl,  // {0} - link only, no file attachment
-          payload.version,      // {1}
-          payload.branch        // {2}
+          payload.version,  // {0}
+          payload.branch,   // {1}
+          urlLine           // {2} - conditional URL with label
         ];
+      }
 
-      case NotificationType.ANDROID_AAB_BUILD:
+      case NotificationType.ANDROID_AAB_BUILD: {
+        // Use displayUrl (no fallback to artifactDownloadUrl)
+        const displayUrl = payload.displayUrl;
+        
+        // Build URL line with conditional newline
+        let urlLine = '';
+        if (displayUrl) {
+          urlLine = `\nDownload: ${displayUrl}`;
+        }
+        
         return [
-          payload.downloadUrl,  // {0} - link only, no file attachment
-          payload.version,      // {1}
-          payload.branch        // {2}
+          payload.version,  // {0}
+          payload.branch,   // {1}
+          urlLine           // {2} - conditional URL with label
         ];
+      }
 
       case NotificationType.WHATS_NEW:
         return [
@@ -440,16 +483,24 @@ export class ReleaseNotificationService {
   /**
    * Determine if notification type requires file attachment
    * @param payload - Notification payload
-   * @returns downloadUrl if file attachment needed, undefined otherwise
+   * @returns artifactDownloadUrl if file attachment needed, undefined otherwise
+   * 
+   * Note: Uses artifactDownloadUrl field (no fallback to displayUrl)
+   * - displayUrl is for showing in the message
+   * - artifactDownloadUrl is for downloading/attaching the artifact
    */
   private getFileUrlFromPayload(payload: NotificationPayload): string | undefined {
     // Only build sharing templates need file attachment
     if (payload.type === NotificationType.PREREGRESSION_BUILDS ||
-        payload.type === NotificationType.REGRESSION_BUILDS) {
-      return payload.downloadUrl;
+        payload.type === NotificationType.REGRESSION_BUILDS ||
+        payload.type === NotificationType.IOS_TEST_FLIGHT_BUILD ||
+        payload.type === NotificationType.ANDROID_AAB_BUILD) {
+      // Use artifactDownloadUrl (no fallback to displayUrl)
+      return payload.artifactDownloadUrl;
     }
     
     return undefined;
   }
+
 }
 

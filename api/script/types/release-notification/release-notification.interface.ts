@@ -195,9 +195,10 @@ export type PreregressionBuildsPayload = BaseNotificationPayload & {
   type: NotificationType.PREREGRESSION_BUILDS;
   platform: PlatformName;
   target: TargetName;
-  downloadUrl: string;   // {0}
-  version: string;       // {1}
-  branch: string;        // {2}
+  displayUrl?: string;           // Optional: URL shown in Slack message
+  artifactDownloadUrl?: string;  // Optional: URL for downloading/attaching artifact
+  version: string;               // {0}
+  branch: string;                // {1}
 };
 
 export type PreregressionBuildsFailedPayload = BaseNotificationPayload & {
@@ -221,9 +222,10 @@ export type RegressionBuildsPayload = BaseNotificationPayload & {
   type: NotificationType.REGRESSION_BUILDS;
   platform: PlatformName;
   target: TargetName;
-  downloadUrl: string;   // {0}
-  version: string;       // {1}
-  branch: string;        // {2}
+  displayUrl?: string;           // Optional: URL shown in Slack message
+  artifactDownloadUrl?: string;  // Optional: URL for downloading/attaching artifact
+  version: string;               // {0}
+  branch: string;                // {1}
 };
 
 export type RegressionBuildsFailedPayload = BaseNotificationPayload & {
@@ -265,16 +267,18 @@ export type NewSlotAddedPayload = BaseNotificationPayload & {
 
 export type IosTestFlightBuildPayload = BaseNotificationPayload & {
   type: NotificationType.IOS_TEST_FLIGHT_BUILD;
-  downloadUrl: string;   // {0}
-  version: string;       // {1}
-  branch: string;        // {2}
+  displayUrl?: string;           // Optional: URL shown in Slack message (TestFlight link)
+  artifactDownloadUrl?: string;  // Optional: URL for downloading/attaching artifact (rarely used for TestFlight)
+  version: string;               // {0}
+  branch: string;                // {1}
 };
 
 export type AndroidAabBuildPayload = BaseNotificationPayload & {
   type: NotificationType.ANDROID_AAB_BUILD;
-  downloadUrl: string;   // {0}
-  version: string;       // {1}
-  branch: string;        // {2}
+  displayUrl?: string;           // Optional: URL shown in Slack message
+  artifactDownloadUrl?: string;  // Optional: URL for downloading/attaching artifact
+  version: string;               // {0}
+  branch: string;                // {1}
 };
 
 export type WhatsNewPayload = BaseNotificationPayload & {
