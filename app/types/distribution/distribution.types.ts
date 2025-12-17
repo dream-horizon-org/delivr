@@ -722,13 +722,8 @@ export interface IOSSubmitOptions {
   phasedRelease?: boolean;
 }
 
-/** Submit to Store Request */
-export interface SubmitToStoreRequest {
-  releaseId: string;
-  platforms: Platform[];
-  android?: AndroidSubmitOptions;
-  ios?: IOSSubmitOptions;
-}
+// REMOVED: SubmitToStoreRequest - Not in API spec
+// Use SubmitSubmissionRequest per platform instead (API Spec Line 711)
 
 // Response types
 
@@ -737,14 +732,11 @@ export interface BuildResponse extends APISuccessResponse<Build> {}
 export interface UploadAABResponse extends APISuccessResponse<{ build: Build }> {}
 export interface VerifyTestFlightResponse extends APISuccessResponse<{ build: Build; verified: boolean }> {}
 
-export interface SubmissionsResponse extends APISuccessResponse<{ submissions: Submission[] }> {}
+// REMOVED: SubmissionsResponse - Not in API spec
+// Use getReleaseDistribution() or getDistribution() which include submissions
 
-export interface SubmitToStoreResponse extends APISuccessResponse<{
-  releaseId: string;
-  submissionIds: string[];
-  submissions: Submission[];
-  releaseStatus: DistributionStatus;
-}> {}
+// REMOVED: SubmitToStoreResponse - Not in API spec
+// Use SubmissionResponse per platform instead
 
 export interface PMStatusResponse extends APISuccessResponse<PMApprovalStatus> {}
 export interface ExtraCommitsResponse extends APISuccessResponse<ExtraCommitsData> {}
@@ -770,4 +762,18 @@ export interface ReleaseStoresResponse extends APISuccessResponse<{
   }>;
 }> {}
 
-export interface DistributionStatusResponse extends APISuccessResponse<DistributionStatusData> {}
+// REMOVED: DistributionStatusResponse - Not in API spec
+// Use getReleaseDistribution() or getDistribution() instead which return full distribution with submissions
+
+// ============================================================================
+// PAGE-SPECIFIC FILTER TYPES
+// ============================================================================
+
+/**
+ * Active filters for distribution list page
+ * Simpler type for single-value filters (vs DistributionFilters which supports multi-select)
+ */
+export interface ActiveDistributionFilters {
+  status: string | null;
+  platform: string | null;
+}

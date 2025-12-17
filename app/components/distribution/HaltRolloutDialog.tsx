@@ -112,7 +112,7 @@ export function HaltRolloutDialog({
         {/* Platform Info */}
         <Paper {...DIST_CARD_PROPS.COMPACT} className="bg-white" p={DS_SPACING.MD}>
           <Group justify="space-between" align="center">
-            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>Platform</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} >Platform</Text>
             <Badge 
               {...DIST_BADGE_PROPS.LARGE}
               leftSection={<PlatformIcon size={DIALOG_ICON_SIZES.ALERT} />}

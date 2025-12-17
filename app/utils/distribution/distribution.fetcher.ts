@@ -19,8 +19,8 @@ export interface FetcherResponse {
 export interface ParsedFetcherState {
   isSuccess: boolean;
   isError: boolean;
-  error: string | undefined;
-  data: unknown | undefined;
+  error: string | null;
+  data: unknown | null;
 }
 
 // ============================================================================
@@ -32,13 +32,13 @@ export interface ParsedFetcherState {
  * Handles the common pattern of checking success/error in fetcher responses
  */
 export function parseFetcherResponse(fetcherData: unknown): ParsedFetcherState {
-  const data = fetcherData as FetcherResponse | undefined;
+  const data = fetcherData as FetcherResponse | null;
   
   return {
     isSuccess: data?.success === true,
-    isError: data?.error !== undefined,
-    error: data?.error,
-    data: data?.data,
+    isError: data?.error != null,
+    error: data?.error ?? null,
+    data: data?.data ?? null,
   };
 }
 

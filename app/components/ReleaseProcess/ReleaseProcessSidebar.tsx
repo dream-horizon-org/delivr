@@ -102,7 +102,7 @@ export function ReleaseProcessSidebar({
   onStageSelect,
   className,
 }: ReleaseProcessSidebarProps) {
-  // Stepper logic
+  // All stages are always visible
   const stages = RELEASE_PROCESS_STAGES;
 
   // Determine current stage index
@@ -121,6 +121,7 @@ export function ReleaseProcessSidebar({
     (stepIndex: number) => {
       const stage = stages[stepIndex];
 
+      // Standard progression: can only access stages up to current stage
       const isAccessible = currentStageIndex === -1 || stepIndex <= currentStageIndex;
 
       if (isAccessible && stage.isNavigable && onStageSelect) {

@@ -34,7 +34,7 @@ export function getStatusColor(status: string): string {
 /**
  * Format date to short human-readable string
  */
-export function formatDate(dateString: string | null | undefined): string {
+export function formatDate(dateString: string | null): string {
   if (!dateString) return '-';
   
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -49,7 +49,7 @@ export function formatDate(dateString: string | null | undefined): string {
  * Format date and time in full readable format
  * Example: "Dec 15, 2025 at 3:45 PM"
  */
-export function formatDateTime(dateString: string | null | undefined): string {
+export function formatDateTime(dateString: string | null): string {
   if (!dateString) return '-';
   
   const date = new Date(dateString);
@@ -67,7 +67,7 @@ export function formatDateTime(dateString: string | null | undefined): string {
 /**
  * Format date as relative time (e.g., "2 hours ago")
  */
-export function formatRelativeTime(dateString: string | null | undefined): string {
+export function formatRelativeTime(dateString: string | null): string {
   if (!dateString) return '-';
   
   const now = new Date();

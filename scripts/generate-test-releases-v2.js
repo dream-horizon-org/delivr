@@ -2090,7 +2090,7 @@ function generateBuilds(releaseId, config, baseDate, kickoffDate, tasks, cycles)
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🚀 Generating test releases (V2 - Data-Driven)...\n');
   
-  const dbPath = path.join(__dirname, '../mock-server/data/db.json');
+  const dbPath = path.join(__dirname, '../mock-server/data/db-release-process.json');
   let existingData = { releases: [], releaseTasks: [], regressionCycles: [], buildUploadsStaging: [], builds: [] };
   
   try {
@@ -2190,7 +2190,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     fs.writeFileSync(dbPath, JSON.stringify(mergedData, null, 2));
     console.log(`\n📝 Updated: ${dbPath}`);
-    console.log(`\n✨ Total releases in db.json: ${mergedData.releases.length}`);
+    console.log(`\n✨ Total releases in db-release-process.json: ${mergedData.releases.length}`);
   } catch (error) {
     console.error(`\n❌ Error writing to db.json: ${error.message}`);
     process.exit(1);

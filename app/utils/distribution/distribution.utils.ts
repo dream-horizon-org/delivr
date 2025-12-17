@@ -64,7 +64,7 @@ export function isIOSPlatform(platform: Platform): boolean {
 /**
  * Format ISO date string to locale date
  */
-export function formatDate(isoString: string | null | undefined): string {
+export function formatDate(isoString: string | null): string {
   if (!isoString) return '-';
   return new Date(isoString).toLocaleDateString();
 }
@@ -170,7 +170,7 @@ export function deriveApprovalState(pmStatus: PMApprovalStatus): ApprovalState {
   const isApproved = pmStatus.approved;
   const requiresManualApproval = pmStatus.requiresManualApproval ?? false;
   const ticket = pmStatus.pmTicket;
-  const blockedReason = pmStatus.blockedReason;
+  const blockedReason = pmStatus.blockedReason ?? null;
   
   const statusLabel = isApproved 
     ? 'Approved' 
@@ -212,10 +212,10 @@ export function deriveActionAvailability(
   const canResume = findAction(SubmissionAction.RESUME as RolloutAction)?.enabled ?? false;
   const canHalt = findAction(SubmissionAction.HALT as RolloutAction)?.enabled ?? false;
 
-  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason;
-  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason;
-  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason;
-  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason;
+  const updateReason = findAction(SubmissionAction.UPDATE_ROLLOUT as RolloutAction)?.reason ?? null;
+  const pauseReason = findAction(SubmissionAction.PAUSE as RolloutAction)?.reason ?? null;
+  const resumeReason = findAction(SubmissionAction.RESUME as RolloutAction)?.reason ?? null;
+  const haltReason = findAction(SubmissionAction.HALT as RolloutAction)?.reason ?? null;
 
   const supportsRollout = isAndroidPlatform(platform);
   const isPaused = status === SubmissionStatus.PAUSED;

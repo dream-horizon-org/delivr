@@ -283,7 +283,7 @@ export type ApprovalState = {
   isApproved: boolean;
   requiresManualApproval: boolean;
   ticket: PMApprovalStatus['pmTicket'];
-  blockedReason: string | undefined;
+  blockedReason: string | null;
   statusLabel: string;
   statusColor: string;
 };
@@ -294,10 +294,10 @@ export type ActionAvailability = {
   canPause: boolean;
   canResume: boolean;
   canHalt: boolean;
-  updateReason: string | undefined;
-  pauseReason: string | undefined;
-  resumeReason: string | undefined;
-  haltReason: string | undefined;
+  updateReason: string | null;
+  pauseReason: string | null;
+  resumeReason: string | null;
+  haltReason: string | null;
   supportsRollout: boolean;
   isPaused: boolean;
   isComplete: boolean;

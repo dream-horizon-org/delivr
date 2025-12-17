@@ -17,24 +17,24 @@
 import { json, unstable_parseMultipartFormData } from '@remix-run/node';
 import { DistributionService } from '~/.server/services/Distribution';
 import {
-    ERROR_MESSAGES,
-    HTTP_STATUS,
-    LOG_CONTEXT,
+  ERROR_MESSAGES,
+  HTTP_STATUS,
+  LOG_CONTEXT,
 } from '~/constants/distribution/distribution-api.constants';
 import type {
-    AndroidResubmissionRequest,
-    IOSResubmissionRequest,
+  AndroidResubmissionRequest,
+  IOSResubmissionRequest,
 } from '~/types/distribution/distribution.types';
 import { Platform } from '~/types/distribution/distribution.types';
 import {
-    createValidationError,
-    handleAxiosError,
-    logApiError,
-    validateRequired,
+  createValidationError,
+  handleAxiosError,
+  logApiError,
+  validateRequired,
 } from '~/utils/api-route-helpers';
 import {
-    authenticateActionRequest,
-    type AuthenticatedActionFunction,
+  authenticateActionRequest,
+  type AuthenticatedActionFunction,
 } from '~/utils/authenticate';
 
 /**
@@ -150,13 +150,13 @@ const createResubmission: AuthenticatedActionFunction = async ({ params, request
         return createValidationError(ERROR_MESSAGES.AAB_FILE_REQUIRED);
       }
 
-      const rolloutPercentage = rolloutPercentStr ? Number(rolloutPercentStr) : undefined;
-      if (rolloutPercentage === undefined || !validateRolloutPercent(rolloutPercentage)) {
+      const rolloutPercentage = rolloutPercentStr ? Number(rolloutPercentStr) : null;
+      if (rolloutPercentage === null || !validateRolloutPercent(rolloutPercentage)) {
         return createValidationError(ERROR_MESSAGES.PERCENTAGE_REQUIRED);
       }
 
-      const inAppUpdatePriority = inAppPriorityStr ? Number(inAppPriorityStr) : undefined;
-      if (inAppUpdatePriority === undefined || !validateInAppPriority(inAppUpdatePriority)) {
+      const inAppUpdatePriority = inAppPriorityStr ? Number(inAppPriorityStr) : null;
+      if (inAppUpdatePriority === null || !validateInAppPriority(inAppUpdatePriority)) {
         return json(
           {
             success: false,

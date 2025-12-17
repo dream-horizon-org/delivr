@@ -8,34 +8,34 @@
  */
 
 import {
-    Badge,
-    Button,
-    Checkbox,
-    Divider,
-    Group,
-    Modal,
-    Paper,
-    Stack,
-    Text,
-    Textarea,
-    Title,
+  Badge,
+  Button,
+  Checkbox,
+  Divider,
+  Group,
+  Modal,
+  Paper,
+  Stack,
+  Text,
+  Textarea,
+  Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconBrandApple, IconRocket } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import { STORE_TYPE_NAMES } from '~/constants/distribution/distribution.constants';
 import { type IOSSubmission } from '~/types/distribution/distribution.types';
 import {
-    isFetcherSubmitting,
-    isIOSPromoteFormValid,
-    parseFetcherResponse,
-    validateReleaseNotes,
+  isFetcherSubmitting,
+  isIOSPromoteFormValid,
+  parseFetcherResponse,
+  validateReleaseNotes,
 } from '~/utils/distribution';
 import { ErrorAlert } from './ErrorRecovery';
 
@@ -189,7 +189,7 @@ function BuildInfoSection({ submission }: { submission: IOSSubmission }) {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Group justify="space-between" align="center">
-      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
+      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
         {label}
       </Text>
       {children}

@@ -8,42 +8,42 @@
  */
 
 import {
-    Badge,
-    Button,
-    Divider,
-    Group,
-    Modal,
-    NumberInput,
-    Paper,
-    Select,
-    Stack,
-    Text,
-    Textarea,
-    Title,
+  Badge,
+  Button,
+  Divider,
+  Group,
+  Modal,
+  NumberInput,
+  Paper,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useFetcher } from '@remix-run/react';
 import { IconBrandAndroid, IconDownload, IconExternalLink, IconRocket } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import {
-    DS_COLORS,
-    DS_SPACING,
-    DS_TYPOGRAPHY,
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
 } from '~/constants/distribution/distribution-design.constants';
 import {
-    IN_APP_UPDATE_PRIORITY_OPTIONS,
-    MAX_ROLLOUT_PERCENT,
-    MIN_ROLLOUT_PERCENT,
-    STORE_TYPE_NAMES,
+  IN_APP_UPDATE_PRIORITY_OPTIONS,
+  MAX_ROLLOUT_PERCENT,
+  MIN_ROLLOUT_PERCENT,
+  STORE_TYPE_NAMES,
 } from '~/constants/distribution/distribution.constants';
 import { type AndroidSubmission } from '~/types/distribution/distribution.types';
 import {
-    isAndroidPromoteFormValid,
-    isFetcherSubmitting,
-    parseFetcherResponse,
-    validateInAppUpdatePriority,
-    validateReleaseNotes,
-    validateRolloutPercentage,
+  isAndroidPromoteFormValid,
+  isFetcherSubmitting,
+  parseFetcherResponse,
+  validateInAppUpdatePriority,
+  validateReleaseNotes,
+  validateRolloutPercentage,
 } from '~/utils/distribution';
 import { ErrorAlert } from './ErrorRecovery';
 
@@ -190,7 +190,7 @@ function BuildInfoSection({ submission }: { submission: AndroidSubmission }) {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Group justify="space-between" align="center">
-      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} c={DS_COLORS.TEXT.PRIMARY}>
+      <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
         {label}
       </Text>
       {children}

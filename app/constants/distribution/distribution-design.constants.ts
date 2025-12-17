@@ -308,7 +308,6 @@ export const DIST_ALERT_PROPS = {
  * Standard text color patterns
  */
 export const DIST_TEXT_COLORS = {
-  PRIMARY: undefined, // Uses default theme color
   SECONDARY: 'dimmed',
   SUCCESS: 'green.7',
   WARNING: 'orange.7',
@@ -357,9 +356,8 @@ export const DS_COLORS = {
     WARNING: 'orange',
     DANGER: 'red',
   },
-  // Text colors
+  // Text colors (omit PRIMARY - Mantine uses theme default when c prop not passed)
   TEXT: {
-    PRIMARY: undefined,
     SECONDARY: 'dimmed',
     MUTED: 'dimmed',
   },

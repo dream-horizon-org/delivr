@@ -52,8 +52,8 @@ export const loader = authenticateLoaderRequest(
         MAX_PAGE_SIZE,
         Math.max(1, parseInt(url.searchParams.get('pageSize') || String(DEFAULT_PAGE_SIZE)))
       );
-      const status = url.searchParams.get('status') || undefined;
-      const platform = url.searchParams.get('platform') || undefined;
+      const status = url.searchParams.get('status');
+      const platform = url.searchParams.get('platform');
 
       // Call backend service
       const response = await DistributionService.listDistributions(

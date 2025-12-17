@@ -10,6 +10,7 @@
  * Then frontend connects to http://localhost:4000
  */
 
+import fs from 'fs';
 import jsonServer from 'json-server';
 import multer from 'multer';
 import path from 'path';
@@ -20,9 +21,58 @@ import createReleaseProcessMiddleware from './middleware/release-process.middlew
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create server
+// ============================================================================
+// LOAD AND MERGE DATA FROM BOTH DB FILES
+// ============================================================================
+
+// Load distribution data
+const distributionDbPath = path.join(__dirname, 'data', 'db-distribution.json');
+const distributionData = JSON.parse(fs.readFileSync(distributionDbPath, 'utf-8'));
+
+// Load release process data
+const releaseProcessDbPath = path.join(__dirname, 'data', 'db-release-process.json');
+const releaseProcessData = JSON.parse(fs.readFileSync(releaseProcessDbPath, 'utf-8'));
+
+// Merge data from both files
+// Distribution data takes priority for distributions/submissions
+// Release process data provides releases, tasks, cycles, staging builds
+const mergedData = {
+  // From distribution DB - distribution-specific entities
+  releases: [
+    ...(distributionData.releases || []),
+    ...(releaseProcessData.releases || []),
+  ],
+  store_distribution: distributionData.store_distribution || [],
+  android_submission_builds: distributionData.android_submission_builds || [],
+  ios_submission_builds: distributionData.ios_submission_builds || [],
+  submissions: distributionData.submissions || [],
+  
+  // From release process DB - release process entities
+  releaseTasks: releaseProcessData.releaseTasks || [],
+  regressionCycles: releaseProcessData.regressionCycles || [],
+  buildUploadsStaging: releaseProcessData.buildUploadsStaging || [],
+  builds: [
+    ...(distributionData.builds || []),
+    ...(releaseProcessData.builds || []),
+  ],
+  
+  // Optional shared entities
+  storeIntegrations: distributionData.storeIntegrations || releaseProcessData.storeIntegrations || [],
+  pmApprovals: distributionData.pmApprovals || releaseProcessData.pmApprovals || [],
+  extraCommits: distributionData.extraCommits || releaseProcessData.extraCommits || [],
+};
+
+console.log('📂 Loaded and merged data from both DB files:');
+console.log(`   - Distribution DB: ${Object.keys(distributionData).length} collections`);
+console.log(`   - Release Process DB: ${Object.keys(releaseProcessData).length} collections`);
+console.log(`   - Merged releases: ${mergedData.releases.length}`);
+console.log(`   - Distributions: ${mergedData.store_distribution.length}`);
+console.log(`   - Release Tasks: ${mergedData.releaseTasks.length}`);
+console.log(`   - Regression Cycles: ${mergedData.regressionCycles.length}`);
+
+// Create server with merged data
 const server = jsonServer.create();
-const router = jsonServer.router(path.join(__dirname, 'data', 'db-distribution.json'));
+const router = jsonServer.router(mergedData);
 const middlewares = jsonServer.defaults();
 
 // ============================================================================
@@ -209,7 +259,7 @@ function transformRelease(release, tenantId) {
  * GET /tenants/:tenantId/releases/:releaseId
  * Get single release by ID (can be either 'id' or 'releaseId' field)
  */
-server.get('/tenants/:tenantId/releases/:releaseId', (req, res) => {
+server.get('/api/v1/tenants/:tenantId/releases/:releaseId', (req, res) => {
   const { tenantId, releaseId } = req.params;
   const db = router.db;
   
@@ -254,7 +304,7 @@ server.get('/tenants/:tenantId/releases/:releaseId', (req, res) => {
  * GET /tenants/:tenantId/releases
  * List all releases for a tenant (matches ReleaseManagement service)
  */
-server.get('/tenants/:tenantId/releases', (req, res) => {
+server.get('/api/v1/tenants/:tenantId/releases', (req, res) => {
   const db = router.db;
   const releases = db.get('releases').value() || [];
   
@@ -293,10 +343,120 @@ server.get('/tenants/:tenantId/releases', (req, res) => {
 });
 
 /**
+ * GET /api/v1/tenants/:tenantId (MOCK for tenant info with integrations)
+ * Returns tenant info with APP_DISTRIBUTION integrations enabled
+ * This mock enables the Distribution step in the release process
+ */
+server.get('/api/v1/tenants/:tenantId', (req, res) => {
+  const { tenantId } = req.params;
+  
+  // Mock tenant response with APP_DISTRIBUTION integrations
+  res.json({
+    success: true,
+    data: {
+      organisation: {
+        id: tenantId,
+        displayName: 'TestAbc',
+        releaseManagement: {
+          config: {
+            connectedIntegrations: {
+              SOURCE_CONTROL: [
+                {
+                  id: 'int_github_1',
+                  provider: 'GITHUB',
+                  status: 'CONNECTED',
+                  name: 'GitHub - delivr',
+                  connectedAt: '2024-01-15T10:00:00.000Z',
+                }
+              ],
+              COMMUNICATION: [
+                {
+                  id: 'int_slack_1',
+                  provider: 'SLACK',
+                  status: 'CONNECTED',
+                  name: 'Slack - Delivr Workspace',
+                  connectedAt: '2024-01-15T10:00:00.000Z',
+                }
+              ],
+              CI_CD: [],
+              TEST_MANAGEMENT: [
+                {
+                  id: 'int_checkmate_1',
+                  provider: 'CHECKMATE',
+                  status: 'CONNECTED',
+                  name: 'Checkmate',
+                  connectedAt: '2024-01-15T10:00:00.000Z',
+                }
+              ],
+              PROJECT_MANAGEMENT: [
+                {
+                  id: 'int_jira_1',
+                  provider: 'JIRA',
+                  status: 'CONNECTED',
+                  name: 'Jira - Delivr Project',
+                  connectedAt: '2024-01-15T10:00:00.000Z',
+                }
+              ],
+              APP_DISTRIBUTION: [
+                {
+                  id: 'int_play_store_1',
+                  provider: 'PLAY_STORE',
+                  status: 'CONNECTED',
+                  name: 'Google Play Store - Delivr App',
+                  connectedAt: '2024-02-01T10:00:00.000Z',
+                  config: {
+                    packageName: 'com.delivr.app',
+                    serviceAccountEmail: 'delivr-release@delivr-app.iam.gserviceaccount.com',
+                  }
+                },
+                {
+                  id: 'int_app_store_1',
+                  provider: 'APP_STORE',
+                  status: 'CONNECTED',
+                  name: 'App Store Connect - Delivr iOS',
+                  connectedAt: '2024-02-01T10:00:00.000Z',
+                  config: {
+                    bundleId: 'com.delivr.ios',
+                    teamId: 'ABCD1234',
+                  }
+                }
+              ],
+            },
+            enabledPlatforms: ['ANDROID', 'IOS'],
+            enabledTargets: ['PLAY_STORE', 'APP_STORE'],
+            allowedReleaseTypes: ['MINOR', 'HOTFIX', 'MAJOR'],
+            customSettings: {},
+          },
+        },
+      },
+      // App distribution integrations (also returned separately)
+      appDistributions: [
+        {
+          id: 'dist_int_play_store_1',
+          platform: 'ANDROID',
+          target: 'PLAY_STORE',
+          status: 'ACTIVE',
+          packageName: 'com.delivr.app',
+          createdAt: '2024-02-01T10:00:00.000Z',
+        },
+        {
+          id: 'dist_int_app_store_1',
+          platform: 'IOS',
+          target: 'APP_STORE',
+          status: 'ACTIVE',
+          bundleId: 'com.delivr.ios',
+          createdAt: '2024-02-01T10:00:00.000Z',
+        }
+      ],
+    },
+  });
+});
+
+/**
  * GET /tenants/:tenantId/release-configs
  * List release configs (mock to prevent errors)
  */
-server.get('/tenants/:tenantId/release-configs', (req, res) => {
+server.get('/api/v1/tenants/:tenantId/release-configs', (req, res) => {
   res.json({
     success: true,
     data: [],
@@ -693,72 +853,9 @@ server.get('/api/v1/releases/:releaseId/distribution', (req, res) => {
   });
 });
 
-/**
- * GET /api/v1/releases/:releaseId/distribution/status
- * Get distribution status (with optional platform filter)
- */
-server.get('/api/v1/releases/:releaseId/distribution/status', (req, res) => {
-  const { releaseId } = req.params;
-  const { platform } = req.query;
-  const db = router.db;
-  
-  // Get all submissions for this release
-  const submissions = db.get('submissions')
-    .filter({ releaseId })
-    .value();
-  
-  // Build per-platform status
-  const platforms = {};
-  
-  const androidSubmission = submissions.find(s => s.platform === 'ANDROID');
-  const iosSubmission = submissions.find(s => s.platform === 'IOS');
-  
-  if ((!platform || platform === 'ANDROID') && androidSubmission) {
-    platforms.android = {
-      submitted: true,
-      submissionId: androidSubmission.id,
-      status: androidSubmission.submissionStatus,
-      rolloutPercentage: androidSubmission.rolloutPercentage || androidSubmission.exposurePercent || 0,
-      canRetry: androidSubmission.submissionStatus === 'REJECTED',
-      error: null,
-    };
-  }
-  
-  if ((!platform || platform === 'IOS') && iosSubmission) {
-    platforms.ios = {
-      submitted: true,
-      submissionId: iosSubmission.id,
-      status: iosSubmission.submissionStatus,
-      rolloutPercentage: iosSubmission.rolloutPercentage || iosSubmission.exposurePercent || 0,
-      canRetry: iosSubmission.submissionStatus === 'REJECTED',
-      error: null,
-    };
-  }
-  
-  // Calculate overall progress
-  const platformCount = Object.keys(platforms).length;
-  const totalProgress = Object.values(platforms).reduce((sum, p) => {
-    if (p.status === 'RELEASED') return sum + 100;
-    if (p.status === 'LIVE') return sum + (p.rolloutPercentage || p.exposurePercent || 0);
-    if (p.status === 'BUILD_SUBMITTED') return sum + 10;
-    return sum;
-  }, 0);
-  const overallProgress = platformCount > 0 ? totalProgress / platformCount : 0;
-  
-  res.json({
-    success: true,
-    data: {
-      releaseId,
-      releaseVersion: '2.5.0',
-      releaseStatus: submissions.length > 0 ? 'BUILDS_SUBMITTED' : 'PRE_RELEASE',
-      platforms,
-      isComplete: Object.values(platforms).every(p => p.status === 'RELEASED'),
-      overallProgress: Math.round(overallProgress * 10) / 10,
-      startedAt: submissions.length > 0 ? submissions[0].submittedAt : null,
-      completedAt: null,
-    },
-  });
-});
+// ❌ REMOVED: Legacy endpoint not in DISTRIBUTION_API_SPEC.md
+// GET /api/v1/releases/:releaseId/distribution/status was removed
+// Use GET /api/v1/releases/:releaseId/distribution instead
 
 /**
  * GET /api/v1/releases/:releaseId/stores
@@ -786,96 +883,10 @@ server.get('/api/v1/releases/:releaseId/stores', (req, res) => {
   });
 });
 
-/**
- * POST /api/v1/releases/:releaseId/distribute
- * Submit release to stores (main entry point)
- */
-server.post('/api/v1/releases/:releaseId/distribute', (req, res) => {
-  const { releaseId } = req.params;
-  const { platforms, android, ios } = req.body;
-  const db = router.db;
-  
-  const results = [];
-  const now = new Date().toISOString();
-  
-  // Process Android submission
-  if (platforms?.includes('ANDROID') && android) {
-    const androidSubmission = {
-      id: `sub_android_${Date.now()}`,
-      releaseId,
-      platform: 'ANDROID',
-      storeType: 'PLAY_STORE',
-      versionName: android.versionName || '1.0.0',
-      versionCode: android.versionCode || '100',
-      submissionStatus: 'BUILD_SUBMITTED',
-      rolloutPercentage: android.initialRolloutPercent || 10,
-      exposurePercent: android.initialRolloutPercent || 10, // Legacy
-      track: android.track || 'PRODUCTION',
-      releaseNotes: android.releaseNotes || '',
-      submittedAt: now,
-      availableActions: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    db.get('submissions').push(androidSubmission).write();
-    results.push({ platform: 'ANDROID', success: true, submissionId: androidSubmission.id });
-  }
-  
-  // Process iOS submission
-  if (platforms?.includes('IOS') && ios) {
-    const iosSubmission = {
-      id: `sub_ios_${Date.now()}`,
-      releaseId,
-      platform: 'IOS',
-      storeType: 'APP_STORE',
-      versionName: ios.versionName || '1.0.0',
-      versionCode: ios.versionCode || '100',
-      submissionStatus: 'BUILD_SUBMITTED',
-      rolloutPercentage: 0,
-      exposurePercent: 0, // Legacy
-      track: 'PRODUCTION',
-      releaseNotes: ios.releaseNotes || '',
-      submittedAt: now,
-      availableActions: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    db.get('submissions').push(iosSubmission).write();
-    results.push({ platform: 'IOS', success: true, submissionId: iosSubmission.id });
-  }
-  
-  // Update release status
-  db.get('releases').find({ id: releaseId }).assign({ status: 'DISTRIBUTING', updatedAt: now }).write();
-  
-  res.json({
-    success: true,
-    data: {
-      releaseId,
-      platforms: results,
-      submittedAt: now,
-    },
-  });
-});
-
-/**
- * GET /api/v1/releases/:releaseId/submissions
- * List submissions for release
- */
-server.get('/api/v1/releases/:releaseId/submissions', (req, res) => {
-  const { releaseId } = req.params;
-  const db = router.db;
-  
-  const submissions = db.get('submissions')
-    .filter({ releaseId })
-    .value();
-  
-  res.json({
-    success: true,
-    data: {
-      submissions,
-    },
-  });
-});
+// ❌ REMOVED: Legacy endpoints not in DISTRIBUTION_API_SPEC.md
+// POST /api/v1/releases/:releaseId/distribute was removed
+// GET /api/v1/releases/:releaseId/submissions was removed
+// Use GET /api/v1/releases/:releaseId/distribution instead
 
 /**
  * GET /api/v1/submissions/:submissionId
@@ -992,7 +1003,9 @@ server.put('/api/v1/submissions/:submissionId/submit', (req, res) => {
     });
   }
   
-  const submission = db.get('submissions').find({ id: submissionId });
+  // Get submission from correct table based on platform
+  const table = platform === 'ANDROID' ? 'android_submission_builds' : 'ios_submission_builds';
+  const submission = db.get(table).find({ id: submissionId });
   const submissionData = submission.value();
   
   if (!submissionData) {
@@ -1002,18 +1015,7 @@ server.put('/api/v1/submissions/:submissionId/submit', (req, res) => {
     });
   }
   
-  // Verify platform matches submission
-  if (submissionData.platform !== platform) {
-    return res.status(400).json({
-      success: false,
-      error: { 
-        code: 'PLATFORM_MISMATCH', 
-        message: `Submission platform (${submissionData.platform}) does not match query parameter (${platform})` 
-      },
-    });
-  }
-  
-  if (submissionData.submissionStatus !== 'PENDING') {
+  if (submissionData.status !== 'PENDING') {
     return res.status(400).json({
       success: false,
       error: { code: 'INVALID_STATUS', message: 'Can only submit PENDING submissions' },
@@ -1023,7 +1025,7 @@ server.put('/api/v1/submissions/:submissionId/submit', (req, res) => {
   const now = new Date().toISOString();
   const updates = {
     ...req.body,
-    submissionStatus: 'IN_REVIEW',
+    status: 'IN_REVIEW',
     submittedAt: now,
     submittedBy: 'prince@dream11.com',
     statusUpdatedAt: now,
@@ -1031,6 +1033,25 @@ server.put('/api/v1/submissions/:submissionId/submit', (req, res) => {
   };
   
   submission.assign(updates).write();
+  
+  // Also update the distribution status if all submissions are no longer pending
+  const distributionId = submissionData.distributionId;
+  const distribution = db.get('store_distribution').find({ id: distributionId });
+  if (distribution.value()) {
+    const allAndroidSubmissions = db.get('android_submission_builds').filter({ distributionId }).value();
+    const allIosSubmissions = db.get('ios_submission_builds').filter({ distributionId }).value();
+    const allSubmissions = [...allAndroidSubmissions, ...allIosSubmissions];
+    
+    const anyPending = allSubmissions.some(s => s.status === 'PENDING');
+    const anySubmitted = allSubmissions.some(s => ['IN_REVIEW', 'APPROVED', 'LIVE'].includes(s.status));
+    
+    let newDistStatus = distribution.value().status;
+    if (!anyPending && anySubmitted) {
+      newDistStatus = 'PARTIALLY_SUBMITTED';
+    }
+    
+    distribution.assign({ status: newDistStatus, updatedAt: now }).write();
+  }
   
   res.json({
     success: true,
@@ -1669,10 +1690,8 @@ server.listen(PORT, () => {
   console.log('   GET    /api/v1/releases/:id/pm-status');
   console.log('   GET    /api/v1/releases/:id/extra-commits');
   console.log('   POST   /api/v1/releases/:id/approve');
-  console.log('   POST   /api/v1/releases/:id/distribute');
-  console.log('   GET    /api/v1/releases/:id/distribution/status');
+  console.log('   GET    /api/v1/releases/:id/distribution');
   console.log('   GET    /api/v1/releases/:id/stores');
-  console.log('   GET    /api/v1/releases/:id/submissions');
   console.log('   GET    /api/v1/submissions/:id');
   console.log('   GET    /api/v1/submissions/:id/status');
   console.log('   POST   /api/v1/submissions/:id/retry');
@@ -1683,9 +1702,7 @@ server.listen(PORT, () => {
   console.log('   GET    /api/v1/submissions/:id/history');
   console.log('');
   console.log('💡 Test Scenarios:');
-  console.log('   - Version Conflict: POST /api/v1/releases/rel_version_conflict/distribute');
-  console.log('   - Exposure Conflict: POST /api/v1/releases/rel_exposure_conflict/distribute');
-  console.log('   - PM Not Approved: POST /api/v1/releases/rel_pm_not_approved/distribute');
+  // Legacy endpoints removed - use GET /api/v1/releases/:id/distribution instead
   console.log('');
 });
 

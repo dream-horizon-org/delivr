@@ -54,7 +54,6 @@ export { ReleaseCompleteView } from './ReleaseCompleteView';
 // Page Layout Components (migrated from routes/_components)
 // ============================================================================
 export { DistributionPageHeader } from './DistributionPageHeader';
-export { DistributionTab } from './DistributionTab';
 export { EmptySubmissionsCard } from './EmptySubmissionsCard';
 export { PlatformTabContent } from './PlatformTabContent';
 export { PreReleaseTab } from './PreReleaseTab';
@@ -96,7 +95,6 @@ export type { PlatformReleaseInfo, ReleaseCompleteViewProps } from './ReleaseCom
 
 // Page Layout Component Types
 export type { DistributionPageHeaderProps } from './DistributionPageHeader';
-export type { DistributionTabProps } from './DistributionTab';
 export type { EmptySubmissionsCardProps } from './EmptySubmissionsCard';
 export type { PlatformTabContentProps } from './PlatformTabContent';
 export type { PreReleaseTabProps } from './PreReleaseTab';

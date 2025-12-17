@@ -60,7 +60,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     return json(result, { status: 200 });
   } catch (error: any) {
-    console.error('[App Distribution Revoke] Error:', error);
     return json(
       { success: false, error: error.message || 'Failed to revoke integration' },
       { status: 500 }

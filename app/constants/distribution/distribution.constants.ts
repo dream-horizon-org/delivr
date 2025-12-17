@@ -684,8 +684,8 @@ export const DISTRIBUTIONS_LIST_UI = {
     `Showing ${start}-${end} of ${total}`,
   PLATFORM_TOOLTIP: {
     NOT_SUBMITTED: (platform: string) => `${platform}: Not Submitted`,
-    SUBMITTED: (platform: string, status: string, exposure?: number) => 
-      exposure !== undefined && exposure > 0
+    SUBMITTED: (platform: string, status: string, exposure: number | null = null) => 
+      exposure !== null && exposure > 0
         ? `${platform}: ${status} (${exposure}%)`
         : `${platform}: ${status}`,
   },
@@ -714,6 +714,22 @@ export const DISTRIBUTIONS_LIST_LAYOUT = {
   PLATFORM_BADGE_PADDING: '10px 14px',
   ACTIONS_COLUMN_WIDTH: 150,
 } as const;
+
+/**
+ * Distributions List Page - Filter Options
+ */
+export const DISTRIBUTION_STATUS_FILTER_OPTIONS = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'PARTIALLY_SUBMITTED', label: 'Partially Submitted' },
+  { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'PARTIALLY_RELEASED', label: 'Partially Released' },
+  { value: 'RELEASED', label: 'Released' },
+] as const;
+
+export const PLATFORM_FILTER_OPTIONS = [
+  { value: 'ANDROID', label: 'Android' },
+  { value: 'IOS', label: 'iOS' },
+] as const;
 
 // ============================================================================
 // EMPTY STATE MESSAGES

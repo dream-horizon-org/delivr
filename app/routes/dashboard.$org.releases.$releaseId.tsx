@@ -9,26 +9,29 @@
  */
 
 import { Container, Group, Stack } from '@mantine/core';
-import { useNavigate, useParams } from '@remix-run/react';
-import { useState, useEffect } from 'react';
+import { useParams } from '@remix-run/react';
+import { useEffect, useState } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { KickoffStage, PreReleaseStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
+import { DistributionStage, KickoffStage, PreKickoffStage, PreReleaseStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
+import { useConfig } from '~/contexts/ConfigContext';
 import { useRelease } from '~/hooks/useRelease';
-import { useKickoffStage, useRegressionStage, usePreReleaseStage } from '~/hooks/useReleaseProcess';
+import { useKickoffStage, usePreReleaseStage, useRegressionStage } from '~/hooks/useReleaseProcess';
 import { Phase, TaskStage } from '~/types/release-process-enums';
 import {
-  determineReleasePhase,
-  getReleaseVersion,
-  getStageFromPhase,
+    determineReleasePhase,
+    getReleaseVersion,
+    getStageFromPhase,
 } from '~/utils/release-process-utils';
 
 export default function ReleaseDetailsPage() {
   const params = useParams();
   const org = params.org || '';
   const releaseId = params.releaseId || '';
-  const navigate = useNavigate();
+
+  // Get tenant config (for integration checks if needed)
+  const { tenantConfig } = useConfig();
 
   // Use cached hook - no refetching on navigation if data is fresh
   // IMPORTANT: Call hook only once at the top level (before any early returns)
@@ -84,13 +87,6 @@ export default function ReleaseDetailsPage() {
     }
   }, [selectedStage, release, releaseId, kickoffData.data, regressionData.data, preReleaseData.data]);
 
-  // Handle navigation to distribution stage
-  useEffect(() => {
-    if (selectedStage === 'DISTRIBUTION') {
-      navigate(`/dashboard/${org}/releases/${releaseId}/distribution`);
-    }
-  }, [selectedStage, navigate, org, releaseId]);
-
   // Loading State
   if (isLoading) {
     return <PageLoader message="Loading release..." />;
@@ -123,11 +119,6 @@ export default function ReleaseDetailsPage() {
       return null;
     }
 
-    // Handle distribution stage - navigation is handled by useEffect above
-    if (stageToRender === 'DISTRIBUTION') {
-      return null; // Will navigate away via useEffect
-    }
-
     if (stageToRender === 'KICKOFF') {
       return <KickoffStage tenantId={org} releaseId={releaseId} />;
     }
@@ -138,6 +129,10 @@ export default function ReleaseDetailsPage() {
 
     if (stageToRender === 'PRE_RELEASE') {
       return <PreReleaseStage tenantId={org} releaseId={releaseId} />;
+    }
+
+    if (stageToRender === 'DISTRIBUTION') {
+      return <DistributionStage tenantId={org} releaseId={releaseId} />;
     }
 
     return null;

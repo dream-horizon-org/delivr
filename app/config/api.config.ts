@@ -46,12 +46,16 @@ export const API_CONFIG = {
 
 /**
  * Distribution API patterns that should go to mock server in hybrid mode
+ * Aligned with DISTRIBUTION_API_SPEC.md
  */
 export const DISTRIBUTION_API_PATTERNS = [
+  // Distribution Management
   '/api/v1/distributions',
   '/api/v1/distributions/*',
-  '/api/v1/distributions/*/submit',
+  '/api/v1/distributions/*/submissions',
   '/api/v1/releases/*/distribution',
+  
+  // Pre-Release Stage
   '/api/v1/releases/*/builds',
   '/api/v1/releases/*/builds/*',
   '/api/v1/releases/*/builds/upload-aab',
@@ -59,18 +63,15 @@ export const DISTRIBUTION_API_PATTERNS = [
   '/api/v1/releases/*/extra-commits',
   '/api/v1/releases/*/pm-status',
   '/api/v1/releases/*/approve',
-  '/api/v1/releases/*/distribute',
-  '/api/v1/releases/*/distribution/status',
-  '/api/v1/releases/*/stores',
-  '/api/v1/releases/*/submissions',
+  
+  // Submission Management (per API spec)
   '/api/v1/submissions/*',
-  '/api/v1/submissions/*/status',
-  '/api/v1/submissions/*/retry',
+  '/api/v1/submissions/*/submit',
+  '/api/v1/submissions/*/cancel',
   '/api/v1/submissions/*/rollout',
   '/api/v1/submissions/*/rollout/pause',
   '/api/v1/submissions/*/rollout/resume',
   '/api/v1/submissions/*/rollout/halt',
-  '/api/v1/submissions/*/history',
 ] as const;
 
 /**
@@ -151,10 +152,11 @@ export function getBaseURLForRequest(url: string): string {
 
 /**
  * API Endpoints
+ * Aligned with DISTRIBUTION_API_SPEC.md
  */
 export const API_ENDPOINTS = {
   // ============================================================================
-  // PRE-RELEASE STAGE APIs
+  // PRE-RELEASE STAGE APIs (DISTRIBUTION_API_SPEC.md lines 47-99)
   // ============================================================================
   
   // Builds
@@ -169,42 +171,54 @@ export const API_ENDPOINTS = {
   MANUAL_APPROVE: (releaseId: string) => `/api/v1/releases/${releaseId}/approve`,
   
   // ============================================================================
-  // DISTRIBUTION STAGE APIs
+  // DISTRIBUTION APIs (DISTRIBUTION_API_SPEC.md)
   // ============================================================================
   
-  // Submission
-  SUBMIT_TO_STORES: (releaseId: string) => `/api/v1/releases/${releaseId}/distribute`,
-  GET_DISTRIBUTION_STATUS: (releaseId: string) => `/api/v1/releases/${releaseId}/distribution/status`,
-  GET_SUBMISSIONS: (releaseId: string) => `/api/v1/releases/${releaseId}/submissions`,
-  GET_SUBMISSION: (submissionId: string) => `/api/v1/submissions/${submissionId}`,
-  POLL_SUBMISSION_STATUS: (submissionId: string) => `/api/v1/submissions/${submissionId}/status`,
-  RETRY_SUBMISSION: (submissionId: string) => `/api/v1/submissions/${submissionId}/retry`,
+  // Get Distribution (API Spec Line 303)
+  GET_RELEASE_DISTRIBUTION: (releaseId: string) => `/api/v1/releases/${releaseId}/distribution`,
+  
+  // List Distributions (API Spec Line 536)
+  LIST_DISTRIBUTIONS: () => `/api/v1/distributions`,
+  
+  // Get Distribution Details (API Spec Line 844)
+  GET_DISTRIBUTION: (distributionId: string) => `/api/v1/distributions/${distributionId}`,
+  
+  // Get Submission Details (API Spec Line 971)
+  GET_SUBMISSION: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}?platform=${platform}`,
   
   // ============================================================================
-  // ROLLOUT CONTROL APIs
+  // SUBMISSION MANAGEMENT (DISTRIBUTION_API_SPEC.md)
   // ============================================================================
   
-  UPDATE_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout`,
-  PAUSE_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/pause`,
-  RESUME_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/resume`,
-  HALT_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/halt`,
-  GET_SUBMISSION_HISTORY: (submissionId: string) => `/api/v1/submissions/${submissionId}/history`,
+  // Submit Existing Submission (API Spec Line 711)
+  SUBMIT_SUBMISSION: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/submit?platform=${platform}`,
+  
+  // Create Resubmission (API Spec Line 1206)
+  CREATE_RESUBMISSION: (distributionId: string) => `/api/v1/distributions/${distributionId}/submissions`,
+  
+  // Cancel Submission (API Spec Line 1345)
+  CANCEL_SUBMISSION: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/cancel?platform=${platform}`,
   
   // ============================================================================
-  // RELEASE MANAGEMENT APIs
+  // ROLLOUT CONTROL (DISTRIBUTION_API_SPEC.md)
   // ============================================================================
   
-  GET_RELEASE: (releaseId: string) => `/api/v1/releases/${releaseId}`,
-  UPDATE_RELEASE_STATUS: (releaseId: string) => `/api/v1/releases/${releaseId}/status`,
-  GET_RELEASE_TIMELINE: (releaseId: string) => `/api/v1/releases/${releaseId}/timeline`,
+  // Update Rollout (API Spec Line 1106)
+  UPDATE_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/rollout?platform=${platform}`,
   
-  // ============================================================================
-  // INTEGRATION/CONFIG APIs
-  // ============================================================================
+  // Pause Rollout - iOS Only (API Spec Line 1383)
+  PAUSE_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/pause?platform=IOS`,
   
-  LIST_STORE_INTEGRATIONS: () => `/api/v1/integrations/stores`,
-  GET_STORE_INTEGRATION: (integrationId: string) => `/api/v1/integrations/stores/${integrationId}`,
-  VERIFY_STORE_INTEGRATION: (integrationId: string) => `/api/v1/integrations/stores/${integrationId}/verify`,
+  // Resume Rollout - iOS Only (API Spec Line 1421)
+  RESUME_ROLLOUT: (submissionId: string) => `/api/v1/submissions/${submissionId}/rollout/resume?platform=IOS`,
+  
+  // Halt Rollout (API Spec Line 1449)
+  HALT_ROLLOUT: (submissionId: string, platform: 'ANDROID' | 'IOS') => 
+    `/api/v1/submissions/${submissionId}/rollout/halt?platform=${platform}`,
 } as const;
 
 /**

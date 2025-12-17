@@ -4,51 +4,35 @@
  */
 
 /**
- * Generate distribution page URL
- */
-export function getDistributionPageUrl(org: string, releaseId: string): string {
-  return `/dashboard/${org}/releases/${releaseId}/distribution`;
-}
-
-/**
- * Generate submission details page URL
- */
-export function getSubmissionDetailsUrl(
-  org: string,
-  releaseId: string,
-  submissionId: string
-): string {
-  return `/dashboard/${org}/releases/${releaseId}/submissions/${submissionId}`;
-}
-
-/**
  * Route paths (for programmatic navigation)
  */
 export const DISTRIBUTION_ROUTES = {
-  DISTRIBUTION: (org: string, releaseId: string) =>
-    `/dashboard/${org}/releases/${releaseId}/distribution`,
+  /**
+   * Distribution management page - view/manage a specific distribution
+   */
+  DISTRIBUTION_DETAILS: (org: string, distributionId: string) =>
+    `/dashboard/${org}/distributions/${distributionId}`,
   
-  SUBMISSION_DETAILS: (org: string, releaseId: string, submissionId: string) =>
-    `/dashboard/${org}/releases/${releaseId}/submissions/${submissionId}`,
+  /**
+   * Distribution list page - view all distributions
+   */
+  DISTRIBUTIONS_LIST: (org: string) =>
+    `/dashboard/${org}/distributions`,
   
+  /**
+   * Release details page - includes distribution stage
+   */
   RELEASE_DETAILS: (org: string, releaseId: string) =>
     `/dashboard/${org}/releases/${releaseId}`,
-} as const;
-
-/**
- * Tab keys for distribution page
- */
-export const DISTRIBUTION_TABS = {
-  PRE_RELEASE: 'pre-release',
-  DISTRIBUTION: 'distribution',
 } as const;
 
 /**
  * Query parameter keys
  */
 export const DISTRIBUTION_QUERY_PARAMS = {
-  TAB: 'tab',
   PLATFORM: 'platform',
   STATUS: 'status',
+  PAGE: 'page',
+  PAGE_SIZE: 'pageSize',
 } as const;
 

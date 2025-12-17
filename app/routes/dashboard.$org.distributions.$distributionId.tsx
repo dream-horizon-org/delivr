@@ -79,8 +79,6 @@ export const loader = authenticateLoaderRequest(
         loadedAt: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('[Distribution Detail] Failed to fetch:', error);
-      
       const appError: AppError = {
         category: ErrorCategory.NETWORK,
         code: 'FETCH_FAILED',
@@ -179,7 +177,6 @@ export const action = authenticateLoaderRequest(
           return json({ success: false, error: 'Unknown intent' }, { status: 400 });
       }
     } catch (error) {
-      console.error(`[Distribution Detail] Action failed:`, error);
       return json(
         {
           success: false,
@@ -410,8 +407,6 @@ export default function DistributionDetailPage() {
         } else if (errorMessage.includes('Network Error') || errorMessage.includes('ERR_NETWORK')) {
           errorMessage = 'Network connection failed. Please check your internet connection.';
         }
-        
-        console.error('[Distribution] API Error:', response.error);
         
         // Determine which action failed and show appropriate error message
         let actionName = 'Action';
@@ -989,11 +984,12 @@ export default function DistributionDetailPage() {
             onClose={handleCloseDialogs}
             platform={selectedSubmission.platform}
             currentPercentage={selectedSubmission.rolloutPercentage}
-            phasedRelease={
-              selectedSubmission.platform === Platform.IOS && 'phasedRelease' in selectedSubmission
-                ? selectedSubmission.phasedRelease ?? undefined
-                : undefined
-            }
+            {...(selectedSubmission.platform === Platform.IOS && 
+              'phasedRelease' in selectedSubmission && 
+              selectedSubmission.phasedRelease != null 
+                ? { phasedRelease: selectedSubmission.phasedRelease } 
+                : {}
+            )}
             onConfirm={handleUpdateRolloutSubmit}
             isLoading={fetcher.state === 'submitting'}
           />

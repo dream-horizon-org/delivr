@@ -542,8 +542,26 @@ GET /api/v1/distributions?tenantId=<TENANT_ID>
 | `tenantId` | string | **Yes** | - | Tenant/Organization ID (required for multi-tenant support) |
 | `page` | integer | No | 1 | Page number (1-indexed) |
 | `pageSize` | integer | No | 10 | Items per page (max: 100) |
-| `status` | string | No | - | Filter: PENDING, PARTIALLY_SUBMITTED, SUBMITTED, PARTIALLY_RELEASED, RELEASED |
-| `platform` | string | No | - | Filter: ANDROID, IOS |
+| `status` | string | No | - | Filter by distribution status: `PENDING`, `PARTIALLY_SUBMITTED`, `SUBMITTED`, `PARTIALLY_RELEASED`, `RELEASED` |
+| `platform` | string | No | - | Filter by platform: `ANDROID`, `IOS` |
+
+**Example Requests:**
+```bash
+# Basic (all distributions)
+GET /api/v1/distributions?tenantId=tenant_1
+
+# With pagination
+GET /api/v1/distributions?tenantId=tenant_1&page=1&pageSize=10
+
+# Filter by status
+GET /api/v1/distributions?tenantId=tenant_1&status=RELEASED
+
+# Filter by platform
+GET /api/v1/distributions?tenantId=tenant_1&platform=IOS
+
+# Combined filters
+GET /api/v1/distributions?tenantId=tenant_1&status=PENDING&platform=IOS&page=1&pageSize=20
+```
 
 **Error Response (Missing tenantId):**
 ```json

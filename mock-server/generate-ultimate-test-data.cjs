@@ -136,24 +136,45 @@ function createActionHistory(status, rollout, submittedAt, statusUpdatedAt) {
   return history;
 }
 
-function createDistribution(version, androidSubs, iosSubs) {
+function createDistribution(version, androidSubs, iosSubs, releasePhase = null) {
   const releaseId = `rel_${version.replace(/\./g, '_')}`;
   const distId = `dist_${String(distCounter++).padStart(3, '0')}`;
   
   const release = {
     id: releaseId,
+    releaseId: releaseId,
+    releaseConfigId: null,
     tenantId: 'EkgmIbgGQx',
-    version,
+    type: 'MINOR',
+    status: 'IN_PROGRESS', // Default status for releases
+    releasePhase: releasePhase || null,
     branch: `release/${version}`,
+    baseBranch: 'main',
+    baseReleaseId: null,
+    platformTargetMappings: [],
+    kickOffReminderDate: null,
+    kickOffDate: daysAgo(15),
+    targetReleaseDate: null,
+    releaseDate: null,
+    hasManualBuildUpload: false,
+    customIntegrationConfigs: null,
+    preCreatedBuilds: null,
+    createdByAccountId: '4JCGF-VeXg',
+    releasePilotAccountId: null,
+    releasePilot: null,
+    lastUpdatedByAccountId: '4JCGF-VeXg',
     createdAt: daysAgo(15),
-    updatedAt: daysAgo(1)
-  };
+    updatedAt: daysAgo(1),
+    cronJob: null,
+    tasks: []
+  }
   
+  // Create distribution object (status will be updated after submissions are added)
   const distribution = {
     id: distId,
     tenantId: 'EkgmIbgGQx',
     releaseId,
-    status: calculateDistributionStatus(androidSubs, iosSubs),
+    status: 'PENDING', // Will be updated after submissions
     createdAt: daysAgo(15),
     updatedAt: daysAgo(1)
   };
@@ -220,6 +241,48 @@ function createDistribution(version, androidSubs, iosSubs) {
         ...(sub.rejectionReason && { rejectionReason: sub.rejectionReason })
       });
     });
+  }
+  
+  // Update distribution status based on current (last) submissions
+  const currentAndroid = androidSubs && androidSubs.length > 0 ? androidSubs[androidSubs.length - 1] : null;
+  const currentIos = iosSubs && iosSubs.length > 0 ? iosSubs[iosSubs.length - 1] : null;
+  
+  // Calculate status based on current submissions
+  const submissions = [currentAndroid, currentIos].filter(Boolean);
+  if (submissions.length === 0) {
+    distribution.status = 'PENDING';
+  } else {
+    const isReleased = (sub) => ['APPROVED', 'LIVE', 'PAUSED', 'HALTED'].includes(sub?.status);
+    const allReleased = submissions.every(isReleased);
+    const someReleased = submissions.some(isReleased);
+    const allPending = submissions.every(s => s?.status === 'PENDING');
+    const allInReview = submissions.every(s => s?.status === 'IN_REVIEW');
+    
+    if (submissions.length === 1) {
+      const sub = submissions[0];
+      if (sub.status === 'PENDING') distribution.status = 'PENDING';
+      else if (isReleased(sub)) distribution.status = 'RELEASED';
+      else distribution.status = 'SUBMITTED';
+    } else if (allPending) {
+      distribution.status = 'PENDING';
+    } else if (allReleased) {
+      distribution.status = 'RELEASED';
+    } else if (someReleased) {
+      distribution.status = 'PARTIALLY_RELEASED';
+    } else if (allInReview) {
+      distribution.status = 'SUBMITTED';
+    } else {
+      distribution.status = 'PARTIALLY_SUBMITTED';
+    }
+  }
+  
+  // Auto-set releasePhase based on distribution status if not explicitly provided
+  if (!releasePhase && distribution.status) {
+    if (distribution.status === 'PENDING') {
+      release.releasePhase = 'PRE_RELEASE_COMPLETED'; // Ready to submit to stores
+    } else if (['PARTIALLY_SUBMITTED', 'SUBMITTED', 'PARTIALLY_RELEASED', 'RELEASED'].includes(distribution.status)) {
+      release.releasePhase = 'SUBMISSION'; // In submission/release phase
+    }
   }
 }
 
@@ -448,10 +511,30 @@ createDistribution('5.2.0',
 );
 
 // =============================================================================
+// DISTRIBUTION STAGE TEST RELEASES (for Release Process testing)
+// =============================================================================
+
+// Test 1: PENDING distribution (both platforms) - for first-time submission test
+// PRE_RELEASE_COMPLETED phase makes Distribution step accessible but shows pending state
+createDistribution('9.0.0',
+  [{ status: 'PENDING', rollout: 0 }],
+  [{ status: 'PENDING', rollout: 0 }],
+  'PRE_RELEASE_COMPLETED'
+);
+
+// Test 2: PARTIALLY_RELEASED - Android LIVE 50%, iOS IN_REVIEW - for read-only view test
+// SUBMISSION phase indicates distribution is in progress
+createDistribution('9.1.0',
+  [{ status: 'LIVE', rollout: 50, submittedAt: hoursAgo(10) }],
+  [{ status: 'IN_REVIEW', rollout: 0, submittedAt: hoursAgo(10) }],
+  'SUBMISSION'
+);
+
+// =============================================================================
 // WRITE TO FILE
 // =============================================================================
 
-const outputPath = path.join(__dirname, 'data', 'db.json');
+const outputPath = path.join(__dirname, 'data', 'db-distribution.json');
 fs.writeFileSync(outputPath, JSON.stringify(db, null, 2));
 
 console.log('✅ ULTIMATE comprehensive test data generated!\n');

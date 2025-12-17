@@ -4,19 +4,19 @@
  * Form for updating an existing release with business rule validations
  */
 
-import { useState, useEffect } from 'react';
-import { Modal, Stack, Button, Group, Text, Alert, Select, TextInput } from '@mantine/core';
+import { Alert, Button, Group, Modal, Select, Stack, TextInput } from '@mantine/core';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from 'react-query';
-import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import { DateTimeInput } from '~/components/ReleaseCreation/DateTimeInput';
 import { RELEASE_MESSAGES, getErrorMessage } from '~/constants/toast-messages';
+import { RELEASE_TYPES } from '~/types/release-config-constants';
+import type { RegressionBuildSlotBackend, UpdateReleaseBackendRequest, UpdateReleaseState } from '~/types/release-creation-backend';
+import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
-import type { UpdateReleaseState, UpdateReleaseBackendRequest } from '~/types/release-creation-backend';
-import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { convertUpdateStateToBackendRequest, extractDateAndTime } from '~/utils/release-creation-converter';
-import { RELEASE_TYPES } from '~/types/release-config-constants';
-import { DateTimeInput } from '~/components/ReleaseCreation/DateTimeInput';
+import { showErrorToast, showSuccessToast } from '~/utils/toast';
 
 interface UpdateReleaseFormProps {
   opened: boolean;
@@ -41,15 +41,15 @@ export function UpdateReleaseForm({
   // Initialize state from release data
   useEffect(() => {
     if (opened && release) {
-      const kickOffDate = release.kickOffDate ? extractDateAndTime(release.kickOffDate) : undefined;
-      const targetReleaseDate = release.targetReleaseDate ? extractDateAndTime(release.targetReleaseDate) : undefined;
-      const kickOffReminderDate = release.kickOffReminderDate ? extractDateAndTime(release.kickOffReminderDate) : undefined;
+      const kickOffDate = release.kickOffDate ? extractDateAndTime(release.kickOffDate) : null;
+      const targetReleaseDate = release.targetReleaseDate ? extractDateAndTime(release.targetReleaseDate) : null;
+      const kickOffReminderDate = release.kickOffReminderDate ? extractDateAndTime(release.kickOffReminderDate) : null;
 
       setState({
         type: release.type,
-        branch: release.branch || undefined,
-        baseBranch: release.baseBranch || undefined,
-        baseReleaseId: release.baseReleaseId || undefined,
+        branch: release.branch || null,
+        baseBranch: release.baseBranch || null,
+        baseReleaseId: release.baseReleaseId || null,
         kickOffDate: kickOffDate?.date,
         kickOffTime: kickOffDate?.time,
         targetReleaseDate: targetReleaseDate?.date,
@@ -66,10 +66,9 @@ export function UpdateReleaseForm({
           testManagementRunId: mapping.testManagementRunId || null,
         })),
         cronConfig: release.cronJob?.cronConfig as any,
-        upcomingRegressions: release.cronJob?.upcomingRegressions?.map((reg: { date: string; config: Record<string, unknown> }) => ({
-          date: reg.date,
-          config: reg.config,
-        })),
+        upcomingRegressions: Array.isArray(release.cronJob?.upcomingRegressions)
+          ? (release.cronJob.upcomingRegressions as RegressionBuildSlotBackend[])
+          : null,
       });
       setErrors({});
     }
@@ -203,7 +202,7 @@ export function UpdateReleaseForm({
             label="Branch"
             placeholder="e.g., release/v1.0.0"
             value={state.branch || ''}
-            onChange={(e) => handleChange({ branch: e.target.value || undefined })}
+            onChange={(e) => handleChange({ branch: e.target.value || null })}
             error={errors.branch}
             description="Release branch name"
           />
@@ -215,7 +214,7 @@ export function UpdateReleaseForm({
             label="Base Branch"
             placeholder="e.g., main"
             value={state.baseBranch || ''}
-            onChange={(e) => handleChange({ baseBranch: e.target.value || undefined })}
+            onChange={(e) => handleChange({ baseBranch: e.target.value || null })}
             error={errors.baseBranch}
             description="Base branch to fork from"
           />

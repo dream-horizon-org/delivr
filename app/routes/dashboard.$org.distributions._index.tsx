@@ -7,19 +7,24 @@
  */
 
 import {
+  ActionIcon,
+  Badge,
   Container,
   Group,
   Loader,
   Modal,
   Pagination,
   Paper,
+  Select,
   Stack,
   Table,
   Text,
-  Title
+  Title,
+  Tooltip
 } from '@mantine/core';
 import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import { useLoaderData, useNavigate, useNavigation, useRevalidator, useSearchParams } from '@remix-run/react';
+import { IconFilter, IconFilterOff } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { DistributionService } from '~/.server/services/Distribution';
@@ -29,25 +34,29 @@ import { EmptyDistributions } from '~/components/Distribution/EmptyDistributions
 import { ErrorState, StaleDataWarning } from '~/components/Distribution/ErrorRecovery';
 import { SubmitToStoresForm } from '~/components/Distribution/SubmitToStoresForm';
 import {
+  DISTRIBUTION_STATUS_FILTER_OPTIONS,
   DISTRIBUTIONS_LIST_LAYOUT,
-  DISTRIBUTIONS_LIST_UI
+  DISTRIBUTIONS_LIST_UI,
+  PLATFORM_FILTER_OPTIONS,
 } from '~/constants/distribution/distribution.constants';
 import { useSubmitModalProps } from '~/hooks/distribution';
-import {
-  type DistributionEntry,
-  type DistributionStats,
-  type PaginationMeta,
+import type {
+  ActiveDistributionFilters,
+  DistributionEntry,
+  DistributionStats,
+  PaginationMeta,
 } from '~/types/distribution/distribution.types';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { ErrorCategory, checkStaleData, type AppError } from '~/utils/error-handling';
+import { checkStaleData, ErrorCategory, type AppError } from '~/utils/error-handling';
 
-// Types imported from central types file - single source of truth
+// Loader data interface
 interface LoaderData {
   org: string;
   distributions: DistributionEntry[];
   stats: DistributionStats;
   pagination: PaginationMeta;
   loadedAt: string;
+  filters: ActiveDistributionFilters;
   error?: AppError | string;
 }
 
@@ -64,21 +73,20 @@ export const loader = authenticateLoaderRequest(
     const page = parseInt(url.searchParams.get('page') || '1');
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
     
-    // TODO: Pass filters to backend API when implemented
-    // const search = url.searchParams.get('search') || '';
-    // const status = url.searchParams.getAll('status');
-    // const platforms = url.searchParams.getAll('platform');
-    // const dateFrom = url.searchParams.get('dateFrom');
-    // const dateTo = url.searchParams.get('dateTo');
+    // Extract filter params
+    const status = url.searchParams.get('status') ?? null;
+    const platform = url.searchParams.get('platform') ?? null;
 
     try {
-      // Fetch from API with pagination params
+      // Fetch from API with pagination and filter params
       // Backend returns paginated response with distributions + submissions + stats
       // org is the tenantId in this context
       const response = await DistributionService.listDistributions(
         org,  // tenantId
         page,
-        pageSize
+        pageSize,
+        status,
+        platform
       );
 
       // Extract distributions, stats, and pagination from response
@@ -90,10 +98,12 @@ export const loader = authenticateLoaderRequest(
         stats: stats as DistributionStats,
         pagination: pagination as PaginationMeta,
         loadedAt: new Date().toISOString(),
+        filters: {
+          status: status || null,
+          platform: platform || null,
+        },
       });
     } catch (error) {
-      console.error('[Distributions] Failed to fetch:', error);
-      
       // Parse error into AppError format
       const appError: AppError = {
         category: ErrorCategory.NETWORK,
@@ -121,6 +131,10 @@ export const loader = authenticateLoaderRequest(
           hasMore: false,
         },
         loadedAt: new Date().toISOString(),
+        filters: {
+          status: status || null,
+          platform: platform || null,
+        },
         error: appError,
       });
     }
@@ -128,7 +142,7 @@ export const loader = authenticateLoaderRequest(
 );
 
 export default function DistributionsListPage() {
-  const { org, distributions, stats, pagination, loadedAt, error } =
+  const { org, distributions, stats, pagination, loadedAt, filters, error } =
     useLoaderData<LoaderData>();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
@@ -148,11 +162,8 @@ export default function DistributionsListPage() {
   const isLoading = navigation.state === 'loading';
   const hasDistributions = distributions.length > 0;
   const hasMultiplePages = pagination.totalPages > 1;
-
-  // Debug: Log navigation state
-  console.log('[Distributions] Navigation state:', navigation.state);
-  console.log('[Distributions] Has distributions:', hasDistributions);
-  console.log('[Distributions] Distributions count:', distributions.length);
+  const hasActiveFilters = filters.status !== null || filters.platform !== null;
+  const activeFilterCount = [filters.status, filters.platform].filter(Boolean).length;
 
   // Handler functions - extracted from inline JSX
   const handleOpenSubmitModal = useCallback((distribution: DistributionEntry) => {
@@ -171,18 +182,46 @@ export default function DistributionsListPage() {
   }, [handleCloseSubmitModal, revalidator]);
 
   const handlePageChange = useCallback((newPage: number) => {
-    // Client-side navigation - no full page refresh
-    console.log('[Pagination] Changing to page:', newPage);
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('page', String(newPage));
-    const newUrl = `?${newSearchParams.toString()}`;
-    console.log('[Pagination] Navigating to:', newUrl);
-    navigate(newUrl, { replace: false });
+    navigate(`?${newSearchParams.toString()}`, { replace: false });
   }, [navigate, searchParams]);
 
   const handleRetryLoad = useCallback(() => {
     revalidator.revalidate();
   }, [revalidator]);
+
+  // Filter handlers
+  const handleStatusChange = useCallback((value: string | null) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (value) {
+      newSearchParams.set('status', value);
+    } else {
+      newSearchParams.delete('status');
+    }
+    newSearchParams.set('page', '1'); // Reset to first page when filtering
+    navigate(`?${newSearchParams.toString()}`, { replace: false });
+  }, [navigate, searchParams]);
+
+  const handlePlatformChange = useCallback((value: string | null) => {
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (value) {
+      newSearchParams.set('platform', value);
+    } else {
+      newSearchParams.delete('platform');
+    }
+    newSearchParams.set('page', '1'); // Reset to first page when filtering
+    navigate(`?${newSearchParams.toString()}`, { replace: false });
+  }, [navigate, searchParams]);
+
+  const handleClearFilters = useCallback(() => {
+    const newSearchParams = new URLSearchParams();
+    // Keep pagination params
+    if (searchParams.get('pageSize')) {
+      newSearchParams.set('pageSize', searchParams.get('pageSize')!);
+    }
+    navigate(`?${newSearchParams.toString()}`, { replace: false });
+  }, [navigate, searchParams]);
 
   // Pagination display text
   const paginationText = DISTRIBUTIONS_LIST_UI.PAGINATION_TEXT(
@@ -203,6 +242,62 @@ export default function DistributionsListPage() {
             </Text>
           </div>
           {isLoading && <Loader size="sm" color="blue" />}
+        </Group>
+      </Paper>
+
+      {/* Filters */}
+      <Paper shadow="sm" p="md" radius="md" withBorder className="mb-6">
+        <Group justify="space-between" align="center">
+          <Group gap="md">
+            <Group gap="xs" w={100}>
+              <IconFilter size={18} color="gray" />
+              <Text size="sm" fw={500} c="dimmed">Filters</Text>
+              <Badge 
+                size="sm" 
+                variant="filled" 
+                color="blue"
+                style={{ 
+                  opacity: hasActiveFilters ? 1 : 0,
+                  transition: 'opacity 150ms ease',
+                }}
+              >
+                {activeFilterCount || 0}
+              </Badge>
+            </Group>
+            <Select
+              placeholder="All Statuses"
+              data={DISTRIBUTION_STATUS_FILTER_OPTIONS}
+              value={filters.status}
+              onChange={handleStatusChange}
+              clearable
+              size="sm"
+              w={180}
+            />
+            <Select
+              placeholder="All Platforms"
+              data={PLATFORM_FILTER_OPTIONS}
+              value={filters.platform}
+              onChange={handlePlatformChange}
+              clearable
+              size="sm"
+              w={140}
+            />
+          </Group>
+          <Tooltip label="Clear all filters" disabled={!hasActiveFilters}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              onClick={handleClearFilters}
+              size="lg"
+              style={{ 
+                opacity: hasActiveFilters ? 1 : 0,
+                pointerEvents: hasActiveFilters ? 'auto' : 'none',
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              <IconFilterOff size={18} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </Paper>
 

@@ -16,7 +16,6 @@ import type {
   BuildsResponse,
   CreateResubmissionRequest,
   DistributionsResponse,
-  DistributionStatusResponse,
   DistributionWithSubmissions,
   ExtraCommitsResponse,
   HaltRolloutRequest,
@@ -27,10 +26,7 @@ import type {
   ReleaseStoresResponse,
   RolloutUpdateResponse,
   SubmissionResponse,
-  SubmissionsResponse,
   SubmitSubmissionRequest,
-  SubmitToStoreRequest,
-  SubmitToStoreResponse,
   UpdateRolloutRequest,
   UploadAABResponse,
   VerifyTestFlightRequest,
@@ -168,8 +164,8 @@ class Distribution {
     tenantId: string,
     page: number = 1,
     pageSize: number = 10,
-    status?: string,
-    platform?: string
+    status: string | null = null,
+    platform: string | null = null
   ) {
     const params: Record<string, string | number> = { tenantId, page, pageSize };
     if (status) {
@@ -185,48 +181,14 @@ class Distribution {
     );
   }
 
-  /**
-   * Submit release builds to stores (main entry point)
-   * Used from Release Process Step (when distributionId not yet known)
-   */
-  async submitToStores(releaseId: string, request: SubmitToStoreRequest) {
-    return this.__client.post<SubmitToStoreRequest, AxiosResponse<SubmitToStoreResponse>>(
-      `/api/v1/releases/${releaseId}/distribute`,
-      request
-    );
-  }
-
-  /**
-   * Submit distribution to stores by distributionId
-   * Used from Distribution Management Page (when distributionId is known)
-   */
-  async submitToStoresByDistributionId(distributionId: string, request: SubmitToStoreRequest) {
-    return this.__client.put<SubmitToStoreRequest, AxiosResponse<SubmitToStoreResponse>>(
-      `/api/v1/distributions/${distributionId}/submit`,
-      request
-    );
-  }
-
-  /**
-   * Get distribution status for a release
-   * @param platform - Optional platform filter (ANDROID or IOS)
-   */
-  async getDistributionStatus(releaseId: string, platform?: Platform) {
-    const params = platform ? { platform } : {};
-    return this.__client.get<null, AxiosResponse<DistributionStatusResponse>>(
-      `/api/v1/releases/${releaseId}/distribution/status`,
-      { params }
-    );
-  }
-
-  /**
-   * Get all submissions for a release
-   */
-  async getSubmissions(releaseId: string) {
-    return this.__client.get<null, AxiosResponse<SubmissionsResponse>>(
-      `/api/v1/releases/${releaseId}/submissions`
-    );
-  }
+  // ======================
+  // REMOVED LEGACY METHODS (Not in DISTRIBUTION_API_SPEC.md):
+  // - submitToStores() → Use submitSubmission() per platform instead
+  // - submitToStoresByDistributionId() → Use submitSubmission() per platform instead
+  // - getDistributionStatus() → Use getReleaseDistribution() or getDistribution() instead
+  // - getSubmissions() → Use getReleaseDistribution() or getDistribution() which includes submissions
+  // - pollSubmissionStatus() → Use getSubmission() instead
+  // ======================
 
   /**
    * Get single submission details
@@ -251,9 +213,10 @@ class Distribution {
   /**
    * Get distribution details by releaseId (for release process distribution step)
    * Returns full distribution object with all submissions and artifacts
+   * Reference: DISTRIBUTION_API_SPEC.md - Line 303
    */
   async getReleaseDistribution(releaseId: string) {
-    return this.__client.get<null, AxiosResponse<SubmissionResponse>>(
+    return this.__client.get<null, AxiosResponse<APISuccessResponse<DistributionWithSubmissions>>>(
       `/api/v1/releases/${releaseId}/distribution`
     );
   }
@@ -296,16 +259,8 @@ class Distribution {
   }
 
   /**
-   * Poll submission status (lightweight)
-   */
-  async pollSubmissionStatus(submissionId: string) {
-    return this.__client.get<null, SubmissionResponse>(
-      `/api/v1/submissions/${submissionId}/status`
-    );
-  }
-
-  /**
    * Retry a failed submission (creates NEW submission ID)
+   * NOTE: This is legacy - Use createResubmission() instead per API spec
    */
   /**
    * Cancel a submission (IN_REVIEW, APPROVED, etc.)
