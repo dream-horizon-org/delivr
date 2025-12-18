@@ -66,8 +66,18 @@ export function isKickOffReminderTime(release: ReleaseForTimeCheck): boolean {
 /**
  * Check if branch fork time has arrived
  * 
+ * Returns true if:
+ * - kickOffDate is in the past (catch-up execution)
+ * - kickOffDate is now or within the current window
+ * 
+ * This allows the FORK_BRANCH task to execute even if the scheduler
+ * starts late or the release is created with a past kickOffDate.
+ * 
+ * Similar to regression slot behavior: execute any past-due task
+ * as long as it hasn't been completed yet.
+ * 
  * @param release - Release object with kickOffDate
- * @returns true if current time is within 60 seconds of kickOffDate
+ * @returns true if fork task should execute
  */
 export function isBranchForkTime(release: ReleaseForTimeCheck): boolean {
   if (!release.kickOffDate) {
@@ -82,11 +92,9 @@ export function isBranchForkTime(release: ReleaseForTimeCheck): boolean {
     return false;
   }
 
-  // Calculate time difference in milliseconds
-  const diff = Math.abs(now.getTime() - forkTime.getTime());
-
-  // Return true if within 60-second window
-  return diff < TIME_WINDOW_MS;
+  // Execute if kickOffDate is in the past or present (catch-up mode)
+  // No future check - task should wait if kickOffDate hasn't arrived yet
+  return forkTime.getTime() <= now.getTime();
 }
 
 /**

@@ -217,8 +217,8 @@ export async function registerCronicleReleaseTick(
       category: categoryTitle,  // CronicleService handles ID resolution/creation
       enabled: true,
       timing: {
-        type: 'cron',
-        value: '* * * * *'  // Every minute
+        minutes: Array.from({ length: 60 }, (_, i) => i), // Every minute (0-59)
+        hours: Array.from({ length: 24 }, (_, i) => i)    // Every hour (0-23)
       },
       params: {
         method: 'POST',
