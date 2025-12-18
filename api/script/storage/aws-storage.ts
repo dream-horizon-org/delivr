@@ -79,6 +79,8 @@ import { ReleaseUpdateService } from "../services/release/release-update.service
 import { ReleaseVersionService } from "../services/release/release-version.service";
 import { SCMService } from "../services/integrations/scm/scm.service";
 import { ReleaseActivityLogService } from "../services/release/release-activity-log.service";
+import { CronJobService } from "../services/release/cron-job/cron-job.service";
+import { getCronJobService } from "../services/release/cron-job/cron-job-service.factory";
 import * as utils from "../utils/common";
 import { SCMIntegrationController } from "./integrations/scm/scm-controller";
 import { 
@@ -802,6 +804,8 @@ export class S3Storage implements storage.Storage {
     public commIntegrationService!: CommIntegrationService;
     public commConfigService!: CommConfigService;// Communication config service
     public buildRepository!: BuildRepository;
+    public scmService!: SCMService; // SCM service for Git operations
+    public cronJobService!: CronJobService | null; // Cron job service for release automation
     public constructor() {
         const s3Config = {
           region: process.env.S3_REGION, 
@@ -1080,13 +1084,12 @@ export class S3Storage implements storage.Storage {
           this.releaseTaskRepository = new ReleaseTaskRepository(this.sequelize.models.ReleaseTask);
           this.regressionCycleRepository = new RegressionCycleRepository(this.sequelize.models.RegressionCycle);
           console.log("Regression Cycle Repository initialized");
-          const cronJobRepo = this.cronJobRepository;
-          const releaseTaskRepo = this.releaseTaskRepository;
+          
+          // Local repositories only used during service initialization
           const stateHistoryRepo = new StateHistoryRepository(
             this.sequelize.models.StateHistory
           );
-          const activityLogRepo = new ActivityLogRepository(models.ActivityLog);
-          this.activityLogRepository = activityLogRepo;
+          this.activityLogRepository = new ActivityLogRepository(models.ActivityLog);
           console.log("Activity Log Repository initialized");
           
           // Initialize Release Version Service (before ReleaseCreationService, as it's a dependency)
@@ -1098,8 +1101,8 @@ export class S3Storage implements storage.Storage {
           this.releaseCreationService = new ReleaseCreationService(
             this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
-            cronJobRepo,
-            releaseTaskRepo,
+            this.cronJobRepository, // Use class property for consistency
+            this.releaseTaskRepository, // Use class property for consistency
             stateHistoryRepo,
             this,
             this.releaseConfigService,
@@ -1107,8 +1110,8 @@ export class S3Storage implements storage.Storage {
           );
           console.log("Release Creation Service initialized");
           
-          // Initialize SCM Service (needed by ReleaseRetrievalService)
-          const scmService = new SCMService();
+          // Initialize SCM Service (needed by ReleaseRetrievalService and ReleaseStatusService)
+          this.scmService = new SCMService();
           console.log("SCM Service initialized");
           
           // Initialize Build repository (for artifact listings/uploads) - must be before ReleaseRetrievalService
@@ -1119,13 +1122,13 @@ export class S3Storage implements storage.Storage {
           this.releaseRetrievalService = new ReleaseRetrievalService(
             this.releaseRepository,
             this.releasePlatformTargetMappingRepository,
-            cronJobRepo,
-            releaseTaskRepo,
+            this.cronJobRepository, // Use class property for consistency
+            this.releaseTaskRepository, // Use class property for consistency
             this.regressionCycleRepository,
             this.buildRepository,
             this.releaseUploadsRepository,
             this.releaseConfigRepository,
-            scmService,
+            this.scmService, // Use class property for consistency
             this.projectManagementTicketService,
             this.testManagementRunService,
             this
@@ -1157,25 +1160,39 @@ export class S3Storage implements storage.Storage {
             this.releaseConfigService,
             this.projectManagementTicketService,
             this.testManagementRunService,
-            scmService,
+            this.scmService, // Use class property for consistency
             this.releaseRepository,
             this.regressionCycleRepository
           );
           console.log("Release Status Service initialized");
           
-          this.releaseActivityLogService = new ReleaseActivityLogService(activityLogRepo, this);
+          this.releaseActivityLogService = new ReleaseActivityLogService(this.activityLogRepository, this);
           console.log("Release Activity Log Service initialized");
           
           // Set ReleaseStatusService in ReleaseRetrievalService (circular dependency resolution)
           this.releaseRetrievalService.setReleaseStatusService(this.releaseStatusService);
           console.log("Release Status Service injected into Release Retrieval Service");
           
+          // Initialize CronJobService using factory (with all dependencies)
+          this.cronJobService = getCronJobService(this);
+          if (!this.cronJobService) {
+            throw new Error('Failed to initialize CronJobService - Sequelize not available');
+          }
+          console.log("Cron Job Service initialized");
+          
+          // Set ReleaseStatusService in CronJobService (circular dependency resolution)
+          this.cronJobService.setReleaseStatusService(this.releaseStatusService);
+          console.log("Release Status Service injected into Cron Job Service");
+          
           this.releaseUpdateService = new ReleaseUpdateService(
             this.releaseRepository,
-            cronJobRepo,
+            this.cronJobRepository, // Use class property for consistency
             this.releasePlatformTargetMappingRepository,
             this.releaseActivityLogService,
-            null as any // CronJobService - TODO: instantiate properly
+            this.cronJobService,
+            this.releaseTaskRepository, // Use class property for consistency
+            this.buildRepository,
+            this.regressionCycleRepository
           );
           console.log("Release Update Service initialized");
           

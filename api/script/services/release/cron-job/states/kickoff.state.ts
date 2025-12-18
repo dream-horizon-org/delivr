@@ -200,6 +200,28 @@ export class KickoffState implements ICronJobState {
         
         console.log(`[${instanceId}] [KickoffState] Executing task: ${task.taskType} (${task.id})`);
         
+        // Add special logging for FORK_BRANCH catch-up execution
+        if (task.taskType === 'FORK_BRANCH') {
+          const kickOffDate = release.kickOffDate ? new Date(release.kickOffDate) : null;
+          const now = new Date();
+          
+          if (kickOffDate && kickOffDate.getTime() < now.getTime()) {
+            const lateMs = now.getTime() - kickOffDate.getTime();
+            const lateMinutes = Math.round(lateMs / 60000);
+            
+            console.log(
+              `[${instanceId}] [KickoffState] ⚠️ FORK_BRANCH executing in CATCH-UP mode. ` +
+              `Scheduled: ${kickOffDate.toISOString()}, Now: ${now.toISOString()}, ` +
+              `Late by: ${lateMinutes} minute(s)`
+            );
+          } else if (kickOffDate) {
+            console.log(
+              `[${instanceId}] [KickoffState] ✅ FORK_BRANCH executing ON-TIME. ` +
+              `Scheduled: ${kickOffDate.toISOString()}`
+            );
+          }
+        }
+        
         try {
           await taskExecutor.executeTask({
             releaseId,
