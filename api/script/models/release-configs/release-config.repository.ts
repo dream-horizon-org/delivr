@@ -56,9 +56,16 @@ export class ReleaseConfigRepository {
     return this.toPlainObject(config);
   };
 
-  findByTenantId = async (tenantId: string): Promise<ReleaseConfiguration[]> => {
+  findByTenantId = async (tenantId: string, includeArchived = false): Promise<ReleaseConfiguration[]> => {
+    const where: any = { tenantId };
+    
+    // Only filter by isActive if not including archived
+    if (!includeArchived) {
+      where.isActive = true;
+    }
+    
     const configs = await this.model.findAll({
-      where: { tenantId, isActive: true },
+      where,
       order: [['createdAt', 'DESC']]
     });
 
