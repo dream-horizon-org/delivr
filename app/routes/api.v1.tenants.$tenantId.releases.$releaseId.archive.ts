@@ -14,7 +14,7 @@ import {
 } from '~/utils/authenticate';
 import { ReleaseProcessService } from '~/.server/services/ReleaseProcess';
 import { getReleaseById } from '~/.server/services/ReleaseManagement';
-import { PermissionService } from '~/utils/permissions';
+import { PermissionService } from '~/utils/permissions.server';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import {
   createValidationError,

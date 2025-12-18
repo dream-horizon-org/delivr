@@ -13,7 +13,7 @@ import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storag
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
 import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
-import { PermissionService } from '~/utils/permissions';
+import { PermissionService } from '~/utils/permissions.server';
 import {
   Box,
   Center,
@@ -44,8 +44,13 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   }
 
   // Check if user is owner - only owners can create/edit configs
-  const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
-  if (!isOwner) {
+  try {
+    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+    if (!isOwner) {
+      throw redirect(`/dashboard/${org}/releases`);
+    }
+  } catch (error) {
+    console.error('[ReleaseConfigure] Permission check failed:', error);
     throw redirect(`/dashboard/${org}/releases`);
   }
   
@@ -126,9 +131,14 @@ export const action = authenticateActionRequest({
     }
 
     // Check if user is owner - only owners can create/edit configs
-    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
-    if (!isOwner) {
-      return json({ success: false, error: 'Only organization owners can create/edit configurations' }, { status: 403 });
+    try {
+      const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+      if (!isOwner) {
+        return json({ success: false, error: 'Only organization owners can create/edit configurations' }, { status: 403 });
+      }
+    } catch (error) {
+      console.error('[ReleaseConfigure] Permission check failed:', error);
+      return json({ success: false, error: 'Permission check failed' }, { status: 403 });
     }
     
     const formData = await request.formData();

@@ -11,7 +11,16 @@
 import { TenantRole, type TenantRoleType } from '~/constants/permissions';
 import { apiGet } from '~/utils/api-client';
 import { route } from 'routes-gen';
-import type { TenantsResponse } from '~/.server/services/Codepush/types';
+
+// Local type definition to avoid importing from server-only module
+type TenantOrg = {
+  id: string;
+  role: 'Owner' | 'Editor' | 'Viewer' | 'Collaborator';
+};
+
+type TenantsResponse = {
+  organisations: TenantOrg[];
+};
 
 export interface OrganizationWithRole {
   id: string;
@@ -84,25 +93,32 @@ export function canPerformReleaseAction(
 }
 
 // ============================================================================
-// ASYNC FUNCTIONS FOR SERVER-SIDE USE (Loaders/Actions)
+// CLIENT-SIDE PERMISSION SERVICE (for use in components)
 // ============================================================================
 
 /**
- * Permission Service - Async functions for server-side use
- * These functions fetch org list from API and check permissions
+ * Permission Service - Client-side only
+ * Uses authenticated API route (works with cookies)
+ * 
+ * NOTE: For server-side use (loaders/actions), import from '~/utils/permissions.server'
  */
 export const PermissionService = {
   /**
-   * Get user's role for a tenant (async - fetches from API)
+   * Get user's role for a tenant (client-side only - uses API route)
    */
   async getTenantRole(tenantId: string, userId: string): Promise<TenantRoleType> {
     try {
       const result = await apiGet<TenantsResponse>(route('/api/v1/tenants'));
       if (!result.success || !result.data) {
+        console.warn('[PermissionService] Failed to fetch tenants from API');
         return null;
       }
+      
       const org = result.data.organisations.find((o) => o.id === tenantId);
-      if (!org) return null;
+      if (!org) {
+        console.warn(`[PermissionService] Organization ${tenantId} not found`);
+        return null;
+      }
       
       // Map role (handle Collaborator -> Viewer)
       if (org.role === 'Collaborator') return TenantRole.VIEWER;
@@ -117,19 +133,29 @@ export const PermissionService = {
   },
 
   /**
-   * Check if user is tenant owner (async)
+   * Check if user is tenant owner (client-side only)
    */
   async isTenantOwner(tenantId: string, userId: string): Promise<boolean> {
-    const role = await this.getTenantRole(tenantId, userId);
-    return role === TenantRole.OWNER;
+    try {
+      const role = await this.getTenantRole(tenantId, userId);
+      return role === TenantRole.OWNER;
+    } catch (error) {
+      console.error('[PermissionService] Error checking tenant owner:', error);
+      return false; // Fail closed
+    }
   },
 
   /**
-   * Check if user is tenant editor or owner (async)
+   * Check if user is tenant editor or owner (client-side only)
    */
   async isTenantEditor(tenantId: string, userId: string): Promise<boolean> {
-    const role = await this.getTenantRole(tenantId, userId);
-    return role === TenantRole.EDITOR || role === TenantRole.OWNER;
+    try {
+      const role = await this.getTenantRole(tenantId, userId);
+      return role === TenantRole.EDITOR || role === TenantRole.OWNER;
+    } catch (error) {
+      console.error('[PermissionService] Error checking tenant editor:', error);
+      return false; // Fail closed
+    }
   },
 
   /**
@@ -140,7 +166,7 @@ export const PermissionService = {
   },
 
   /**
-   * Check if user can perform release actions (async)
+   * Check if user can perform release actions (client-side only)
    * Release actions can be performed by:
    * - Release pilot, OR
    * - Tenant owner

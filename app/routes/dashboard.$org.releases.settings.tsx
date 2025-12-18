@@ -8,7 +8,7 @@ import { useLoaderData, Link } from '@remix-run/react';
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
 import { useConfig } from '~/contexts/ConfigContext';
-import { PermissionService } from '~/utils/permissions';
+import { PermissionService } from '~/utils/permissions.server';
 import {
   Box,
   Title,
@@ -40,8 +40,13 @@ export const loader = authenticateLoaderRequest(async ({ params, user, request }
   }
 
   // Check if user is owner - only owners can access config settings
-  const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
-  if (!isOwner) {
+  try {
+    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+    if (!isOwner) {
+      throw redirect(`/dashboard/${org}/releases`);
+    }
+  } catch (error) {
+    console.error('[ReleaseSettings] Permission check failed:', error);
     throw redirect(`/dashboard/${org}/releases`);
   }
   

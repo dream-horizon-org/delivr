@@ -165,10 +165,8 @@ export function CreateReleaseForm({
 
   // Restore selectedConfigId from draft, existing release, or use default (runs only once on mount)
   useEffect(() => {
-    // Only run this logic once on mount or when draft is restored
-    // Don't reset if user has already selected a config manually
     if (selectedConfigId && !isDraftRestored && !isEditMode) {
-      return; // User has manually selected a config, don't override
+      return; 
     }
     
     if (isEditMode && existingRelease?.releaseConfigId) {
@@ -211,8 +209,7 @@ export function CreateReleaseForm({
           setState((prev) => ({
             ...prev,
             releaseConfigId: config.id,
-            // Reset versions and branch when config changes to trigger new suggestions
-            // But don't reset in edit mode - preserve existing values
+            type: config.releaseType,
             platformTargets: (configChanged && !isEditMode) ? [] : prev.platformTargets,
             branch: (configChanged && !isEditMode) ? '' : prev.branch,
           }));
@@ -479,41 +476,6 @@ export function CreateReleaseForm({
           </Alert>
         )}
 
-        {/* Validation Errors Summary */}
-        {hasValidationErrors && (
-          <Alert
-            icon={<IconAlertCircle size={20} />}
-            title="Validation Errors"
-            color="red"
-            variant="light"
-            radius="md"
-          >
-            <Text size="sm" fw={500} mb="xs">
-              Please fix the following errors before submitting:
-            </Text>
-            <List size="sm" spacing="xs">
-              {Object.entries(errors).map(([field, message]) => {
-                // Format field names for better readability
-                const fieldLabel = field
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/^./, str => str.toUpperCase())
-                  .replace(/platform targets/i, 'Platform Targets')
-                  .replace(/kick off/i, 'Kickoff')
-                  .replace(/target release/i, 'Target Release')
-                  .replace(/release config/i, 'Configuration');
-                
-                return (
-                  <List.Item key={field}>
-                    <Text size="sm">
-                      <Text component="span" fw={600}>{fieldLabel}:</Text> {message}
-                    </Text>
-                  </List.Item>
-                );
-              })}
-            </List>
-          </Alert>
-        )}
-
         {/* Edit Mode Info */}
         {isEditMode && (
           <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light" radius="md">
@@ -597,6 +559,41 @@ export function CreateReleaseForm({
               />
             ) : null}
           </Box>
+        )}
+
+        {/* Validation Errors Summary - Displayed at bottom above submit button */}
+        {hasValidationErrors && (
+          <Alert
+            icon={<IconAlertCircle size={20} />}
+            title="Validation Errors"
+            color="red"
+            variant="light"
+            radius="md"
+          >
+            <Text size="sm" fw={500} mb="xs">
+              Please fix the following errors before submitting:
+            </Text>
+            <List size="sm" spacing="xs">
+              {Object.entries(errors).map(([field, message]) => {
+                // Format field names for better readability
+                const fieldLabel = field
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/^./, str => str.toUpperCase())
+                  .replace(/platform targets/i, 'Platform Targets')
+                  .replace(/kick off/i, 'Kickoff')
+                  .replace(/target release/i, 'Target Release')
+                  .replace(/release config/i, 'Configuration');
+                
+                return (
+                  <List.Item key={field}>
+                    <Text size="sm">
+                      <Text component="span" fw={600}>{fieldLabel}:</Text> {message}
+                    </Text>
+                  </List.Item>
+                );
+              })}
+            </List>
+          </Alert>
         )}
 
         {/* Submit Button */}
