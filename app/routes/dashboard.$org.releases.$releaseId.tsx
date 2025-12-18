@@ -48,6 +48,9 @@ export default function ReleaseDetailsPage() {
     refetch,
   } = useRelease(org, releaseId);
 
+  // Track refetch state to show loading during retry
+  const [isRetrying, setIsRetrying] = useState(false);
+
   // Use releasePhase from API if available, otherwise derive (fallback)
   const currentPhase: Phase = release 
     ? (release.releasePhase || determineReleasePhase(release))
@@ -58,10 +61,16 @@ export default function ReleaseDetailsPage() {
   // Initialize to null, will be set to currentStage when release loads
   const [selectedStage, setSelectedStage] = useState<TaskStage | null>(null);
 
-  // Fetch stage data for console logging
-  const kickoffData = useKickoffStage(org, releaseId);
-  const regressionData = useRegressionStage(org, releaseId);
-  const preReleaseData = usePreReleaseStage(org, releaseId);
+  // Determine which stage should poll based on current active stage
+  // Only poll the stage that is currently active (not the selected/viewing stage)
+  const shouldPollKickoff = currentStage === TaskStage.KICKOFF;
+  const shouldPollRegression = currentStage === TaskStage.REGRESSION;
+  const shouldPollPreRelease = currentStage === TaskStage.PRE_RELEASE;
+
+  // Fetch stage data - only current active stage will poll every 30 seconds
+  const kickoffData = useKickoffStage(org, releaseId, shouldPollKickoff);
+  const regressionData = useRegressionStage(org, releaseId, shouldPollRegression);
+  const preReleaseData = usePreReleaseStage(org, releaseId, shouldPollPreRelease);
 
   // Always land on active stage when release loads or current stage changes
   useEffect(() => {
@@ -100,14 +109,46 @@ export default function ReleaseDetailsPage() {
     }
   }, [selectedStage, navigate, org, releaseId]);
 
-  // Loading State
-  if (isLoading) {
-    return <PageLoader message="Loading release..." />;
+  // Handle retry with loading state
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      const result = await refetch();
+      // If refetch succeeds, React Query will update the data and clear error
+      // The component will re-render with the new data
+      if (result.data?.release) {
+        // Success - component will re-render and show release
+        return;
+      }
+    } catch (err) {
+      // Error persists - component will re-render with error state
+      console.error('[ReleaseDetailsPage] Retry failed:', err);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // Loading State (including retry state)
+  if (isLoading || isRetrying) {
+    return <PageLoader message={isRetrying ? "Retrying..." : "Loading release..."} />;
   }
 
-  // Error State
-  if (error || !release) {
-    return <ReleaseNotFound org={org} error={error} />;
+  // Error State - Only show if we have an error AND no release data
+  // After successful refetch, error will be cleared and release will be available
+  if (error && !release) {
+    return (
+      <ReleaseNotFound 
+        org={org} 
+        error={error} 
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+      />
+    );
+  }
+
+  // If no release but no error, still show not found (release might not exist)
+  if (!release) {
+    return <ReleaseNotFound org={org} />;
   }
 
   const releaseVersion = getReleaseVersion(release);

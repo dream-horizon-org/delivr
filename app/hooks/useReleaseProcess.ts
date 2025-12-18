@@ -51,10 +51,14 @@ const QUERY_KEYS = {
 /**
  * Get kickoff stage data
  */
-export function useKickoffStage(tenantId?: string, releaseId?: string) {
+export function useKickoffStage(
+  tenantId?: string, 
+  releaseId?: string,
+  shouldPoll: boolean = false
+) {
   const isEnabled = !!tenantId && !!releaseId;
   
-  console.log('[useKickoffStage] Hook called with:', { tenantId, releaseId, isEnabled });
+  console.log('[useKickoffStage] Hook called with:', { tenantId, releaseId, isEnabled, shouldPoll });
   
   return useQuery<KickoffStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.KICKOFF),
@@ -93,6 +97,8 @@ export function useKickoffStage(tenantId?: string, releaseId?: string) {
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
       retry: 1,
+      refetchInterval: (shouldPoll && isEnabled) ? 3000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
 }
@@ -100,10 +106,14 @@ export function useKickoffStage(tenantId?: string, releaseId?: string) {
 /**
  * Get regression stage data
  */
-export function useRegressionStage(tenantId?: string, releaseId?: string) {
+export function useRegressionStage(
+  tenantId?: string, 
+  releaseId?: string,
+  shouldPoll: boolean = false
+) {
   const isEnabled = !!tenantId && !!releaseId;
   
-  // console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled });
+  // console.log('[useRegressionStage] Hook called with:', { tenantId, releaseId, isEnabled, shouldPoll });
   
   return useQuery<RegressionStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.REGRESSION),
@@ -140,6 +150,8 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
       refetchOnWindowFocus: true,
       refetchOnMount: true, // Changed to true to ensure it fetches
       retry: 1,
+      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
 }
@@ -147,7 +159,13 @@ export function useRegressionStage(tenantId?: string, releaseId?: string) {
 /**
  * Get pre-release stage data
  */
-export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
+export function usePreReleaseStage(
+  tenantId?: string, 
+  releaseId?: string,
+  shouldPoll: boolean = false
+) {
+  const isEnabled = !!tenantId && !!releaseId;
+  
   return useQuery<PreReleaseStageResponse, Error>(
     QUERY_KEYS.stage(tenantId || '', releaseId || '', TaskStage.PRE_RELEASE),
     async () => {
@@ -172,12 +190,14 @@ export function usePreReleaseStage(tenantId?: string, releaseId?: string) {
       return filteredData;
     },
     {
-      enabled: !!tenantId && !!releaseId,
+      enabled: isEnabled,
       staleTime: 2 * 60 * 1000,
       cacheTime: 10 * 60 * 1000,
       refetchOnWindowFocus: true,
       refetchOnMount: false,
       retry: 1,
+      refetchInterval: (shouldPoll && isEnabled) ? 30000 : false, // Poll every 30 seconds if shouldPoll is true
+      refetchIntervalInBackground: false, // Stop polling when tab is in background
     }
   );
 }
