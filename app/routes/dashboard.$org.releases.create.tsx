@@ -10,7 +10,7 @@
  * - Cache invalidation: Automatically handled after release creation
  */
 
-import { json } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { Container, Paper } from '@mantine/core';
 import { authenticateLoaderRequest } from '~/utils/authenticate';
@@ -22,12 +22,19 @@ import { invalidateReleases } from '~/utils/cache-invalidation';
 import type { CreateReleaseBackendRequest } from '~/types/release-creation-backend';
 import { NoConfigurationAlert } from '~/components/Releases/NoConfigurationAlert';
 import { FormPageHeader } from '~/components/Common/FormPageHeader';
+import { PermissionService } from '~/utils/permissions';
 
 export const loader = authenticateLoaderRequest(async ({ params, user, request }) => {
   const { org } = params;
 
   if (!org) {
     throw new Response('Organization not found', { status: 404 });
+  }
+
+  // Check if user is editor or owner - only editors/owners can create releases
+  const isEditor = await PermissionService.isTenantEditor(org, user.user.id);
+  if (!isEditor) {
+    throw redirect(`/dashboard/${org}/releases`);
   }
 
   // Check if returnTo query param exists (user came back from config creation)

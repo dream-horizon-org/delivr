@@ -150,8 +150,6 @@ function getAuthToken(): string | null {
  * Note: Server-side loaders handle 401 redirects, so client-side just logs
  */
 function handleUnauthorized(): void {
-  // Server-side loaders will handle redirect on 401
-  // Client-side just logs for debugging
   console.warn('[Auth] Unauthorized access detected');
 }
 

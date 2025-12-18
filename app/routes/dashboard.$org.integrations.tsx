@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useParams } from '@remix-run/react';
+import { useParams, useRouteLoaderData } from '@remix-run/react';
 import { useQueryClient } from 'react-query';
 import { 
   Box, 
@@ -37,6 +37,8 @@ import { invalidateTenantConfig } from '~/utils/cache-invalidation';
 import { INTEGRATION_DISPLAY_NAMES, INTEGRATION_CATEGORY_LABELS } from '~/constants/integration-ui';
 import { INTEGRATION_MESSAGES } from '~/constants/toast-messages';
 import { showSuccessToast, showInfoToast } from '~/utils/toast';
+import { usePermissions } from '~/hooks/usePermissions';
+import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 
 // Category icons mapping
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -68,6 +70,12 @@ export default function IntegrationsPage() {
     getConnectedIntegrations,
     getAvailableIntegrations 
   } = useConfig();
+
+  // Get user data and check permissions
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+  const tenantId = params.org!;
+  const { isOwner } = usePermissions(tenantId, userId);
 
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationDetails | null>(null);
   const [connectingIntegration, setConnectingIntegration] = useState<Integration | null>(null);
@@ -126,9 +134,8 @@ export default function IntegrationsPage() {
     return allIntegrations.filter(i => i.status === IntegrationStatus.CONNECTED).length;
   }, [allIntegrations]);
 
-  const tenantId = params.org!;
-
   const handleCardClick = useCallback((integration: Integration) => {
+    // Only allow connecting if user is owner
     if (integration.status === IntegrationStatus.CONNECTED) {
       const details: IntegrationDetails = {
         ...integration,
@@ -136,11 +143,12 @@ export default function IntegrationsPage() {
       };
       setSelectedIntegration(details);
       setDetailModalOpened(true);
-    } else {
+    } else if (isOwner) {
+      // Only allow connecting if user is owner
       setConnectingIntegration(integration);
       setConnectModalOpened(true);
     }
-  }, []);
+  }, [isOwner]);
 
   const handleConnect = useCallback((integrationId: string, data?: any) => {
     if (!params.org) return;
@@ -156,12 +164,14 @@ export default function IntegrationsPage() {
   }, [params.org, queryClient, editingIntegration]);
 
   const handleEdit = useCallback((integrationId: string) => {
+    // Only allow editing if user is owner
+    if (!isOwner) return;
     const integration = allIntegrations.find(i => i.id === integrationId);
     if (integration) {
       setEditingIntegration(integration);
       setConnectModalOpened(true);
     }
-  }, [allIntegrations]);
+  }, [allIntegrations, isOwner]);
 
   const handleDisconnectComplete = useCallback(() => {
     if (!params.org) return;
@@ -363,6 +373,7 @@ export default function IntegrationsPage() {
                   key={integration.id}
                   integration={integration}
                   onClick={handleCardClick}
+                  canConnect={isOwner}
                 />
               ))}
             </SimpleGrid>
@@ -376,7 +387,7 @@ export default function IntegrationsPage() {
         opened={detailModalOpened}
         onClose={handleCloseDetailModal}
         onDisconnectComplete={handleDisconnectComplete}
-        onEdit={handleEdit}
+        onEdit={isOwner ? handleEdit : undefined}
         tenantId={tenantId}
       />
 

@@ -17,10 +17,12 @@ import { Link, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useQueryClient } from 'react-query';
+import { useRouteLoaderData } from '@remix-run/react';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import { RELEASE_MESSAGES } from '~/constants/toast-messages';
 import { usePauseResumeRelease } from '~/hooks/useReleaseProcess';
+import { usePermissions } from '~/hooks/usePermissions';
 import { Phase, ReleaseStatus, PauseType } from '~/types/release-process-enums';
 import type { TaskStage } from '~/types/release-process-enums';
 import type { MessageTypeEnum } from '~/types/release-process.types';
@@ -28,6 +30,7 @@ import type { UpdateReleaseBackendRequest } from '~/types/release-creation-backe
 import { apiPatch, getApiErrorMessage } from '~/utils/api-client';
 import { invalidateReleases } from '~/utils/cache-invalidation';
 import { showErrorToast, showSuccessToast } from '~/utils/toast';
+import type { OrgLayoutLoaderData } from '~/routes/dashboard.$org';
 import { ReleaseHeaderTitle, ReleaseHeaderInfo } from './shared/ReleaseHeaderInfo';
 import { ReleaseHeaderActions } from './shared/ReleaseHeaderActions';
 import { ReleaseHeaderModals } from './shared/ReleaseHeaderModals';
@@ -60,14 +63,16 @@ export function ReleaseProcessHeader({
   const [slackMessageModalOpened, setSlackMessageModalOpened] = useState(false);
   const [selectedMessageType, setSelectedMessageType] = useState<MessageTypeEnum | null>(null);
   const [pauseConfirmModalOpened, setPauseConfirmModalOpened] = useState(false);
-  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
-  // Get returnTo params from URL to restore filters and tab when going back
-  const returnTo = searchParams.get('returnTo');
-  const backUrl = returnTo 
-    ? `/dashboard/${org}/releases?${returnTo}`
-    : `/dashboard/${org}/releases`;
+  // Get user data from parent route loader
+  const orgLayoutData = useRouteLoaderData<OrgLayoutLoaderData>('routes/dashboard.$org');
+  const userId = orgLayoutData?.user?.user?.id || '';
+
+  // Check permissions
+  const { canPerformReleaseAction } = usePermissions(org, userId);
+  const canPerform = canPerformReleaseAction(release.releasePilotAccountId);
+
 
   // Use API data directly - no derivation
   const releaseStatus: ReleaseStatus = release.status;
@@ -142,46 +147,31 @@ export function ReleaseProcessHeader({
     <>
       <Paper shadow="sm" p="lg" radius="md" withBorder className={className}>
         <Stack gap="md">
-          {/* Top Section: Back Button */}
-          <Group gap="xs" style={{ marginBottom: '-8px' }}>
-            <Link to={backUrl}>
-              <Button 
-                variant="subtle" 
-                size="xs"
-                leftSection={<IconArrowLeft size={14} />}
-                style={{ padding: '4px 8px', height: 'auto' }}
-              >
-                {BUTTON_LABELS.BACK}
-              </Button>
-            </Link>
-          </Group>
-
           {/* Release Title, Status Badges, and Platform Badges */}
-          <ReleaseHeaderTitle release={release} />
+          <ReleaseHeaderInfo
+              release={release}
+              releaseVersion={releaseVersion}
+              currentStage={currentStage}
+            />
+          
 
           {/* Info Section and Action Buttons */}
-          <Group justify="space-between" align="center" wrap="nowrap">
+          <Group justify="space-between" align="center" wrap="wrap">
             {/* Info Section - Left Side */}
-            <Box style={{ flex: '1 1 auto', minWidth: 0 }}>
-              <ReleaseHeaderInfo
-                release={release}
-                releaseVersion={releaseVersion}
-                currentStage={currentStage}
-              />
-            </Box>
-
+            
+            <ReleaseHeaderTitle release={release} />
             {/* Action Buttons - Right Side */}
-            <Box style={{ flex: '0 0 auto' }}>
-              <ReleaseHeaderActions
-                release={release}
-                isPaused={isPaused}
-                onEditClick={() => setEditModalOpened(true)}
-                onPauseClick={handlePauseClick}
-                onResumeClick={handleResumeClick}
-                onActivityLogClick={() => setActivityDrawerOpened(true)}
-                onSlackMessageClick={() => setSlackMessageModalOpened(true)}
-              />
-            </Box>
+
+            <ReleaseHeaderActions
+              release={release}
+              isPaused={isPaused}
+              canPerformReleaseAction={canPerform}
+              onEditClick={() => setEditModalOpened(true)}
+              onPauseClick={handlePauseClick}
+              onResumeClick={handleResumeClick}
+              onActivityLogClick={() => setActivityDrawerOpened(true)}
+              onSlackMessageClick={() => setSlackMessageModalOpened(true)}
+            />
           </Group>
         </Stack>
       </Paper>

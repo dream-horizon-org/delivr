@@ -11,13 +11,15 @@ interface IntegrationCardProps {
   integration: Integration;
   onClick: (integration: Integration) => void;
   onConnect?: (integration: Integration) => void;
+  canConnect?: boolean; // Permission to connect/edit integrations
 }
 
-export function IntegrationCard({ integration, onClick, onConnect }: IntegrationCardProps) {
+export function IntegrationCard({ integration, onClick, onConnect, canConnect = true }: IntegrationCardProps) {
   const theme = useMantineTheme();
 
   const isConnected = integration.status === INTEGRATION_STATUS_VALUES.CONNECTED;
   const isDisabled = !integration.isAvailable;
+  const canPerformAction = canConnect && !isDisabled;
 
   // Get config summary for connected integrations
   const getConfigSummary = () => {
@@ -87,7 +89,7 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
         position: 'relative',
         overflow: 'hidden',
       }}
-      onClick={() => !isDisabled && onClick(integration)}
+      onClick={() => canPerformAction && onClick(integration)}
       onMouseEnter={(e) => {
         if (!isDisabled) {
           e.currentTarget.style.transform = 'translateY(-2px)';
@@ -223,8 +225,8 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           </Box>
         )}
 
-        {/* Action Button */}
-        {integration.isAvailable && !isConnected && (
+        {/* Action Button - Only show if user can connect */}
+        {integration.isAvailable && !isConnected && canConnect && (
           <Button
             fullWidth
             size="sm"
@@ -239,6 +241,22 @@ export function IntegrationCard({ integration, onClick, onConnect }: Integration
           >
             {INTEGRATION_CARD_LABELS.CONNECT}
           </Button>
+        )}
+        
+        {/* Permission message for non-owners */}
+        {integration.isAvailable && !isConnected && !canConnect && (
+          <Box
+            p="sm"
+            style={{
+              backgroundColor: theme.colors.slate[0],
+              borderRadius: theme.radius.sm,
+              border: `1px solid ${theme.colors.slate[2]}`,
+            }}
+          >
+            <Text size="xs" c={theme.colors.slate[5]} ta="center">
+              Only organization owners can connect integrations
+            </Text>
+          </Box>
         )}
 
         {/* Connected - View Details hint */}

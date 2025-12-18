@@ -8,8 +8,9 @@
  * - Phase-based rendering of stage components
  */
 
-import { Container, Group, Stack } from '@mantine/core';
-import { useNavigate, useParams } from '@remix-run/react';
+import { Button, Container, Group, Stack } from '@mantine/core';
+import { Link, useNavigate, useParams, useSearchParams } from '@remix-run/react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
 import { KickoffStage, PreReleaseStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
@@ -18,6 +19,7 @@ import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
 import { useRelease } from '~/hooks/useRelease';
 import { useKickoffStage, useRegressionStage, usePreReleaseStage } from '~/hooks/useReleaseProcess';
 import { Phase, TaskStage } from '~/types/release-process-enums';
+import { BUTTON_LABELS } from '~/constants/release-process-ui';
 import {
   determineReleasePhase,
   getReleaseVersion,
@@ -29,6 +31,13 @@ export default function ReleaseDetailsPage() {
   const org = params.org || '';
   const releaseId = params.releaseId || '';
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Get returnTo params from URL to restore filters and tab when going back
+  const returnTo = searchParams.get('returnTo');
+  const backUrl = returnTo 
+    ? `/dashboard/${org}/releases?${returnTo}`
+    : `/dashboard/${org}/releases`;
 
   // Use cached hook - no refetching on navigation if data is fresh
   // IMPORTANT: Call hook only once at the top level (before any early returns)
@@ -144,8 +153,17 @@ export default function ReleaseDetailsPage() {
   };
 
   return (
-    <Container size="xl" className="py-8">
-      <Stack gap="lg">
+    <Container size="xl" className="py-4">
+      <Stack gap="md">
+        {/* Back Button - Between main header and release header */}
+        <Group>
+          <Link to={backUrl}>
+            <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+              {BUTTON_LABELS.BACK}
+            </Button>
+          </Link>
+        </Group>
+
         {/* Header with Actions */}
         <ReleaseProcessHeader
           release={release}

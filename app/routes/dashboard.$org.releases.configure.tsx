@@ -12,6 +12,8 @@ import { DraftReleaseDialog } from '~/components/ReleaseConfig/DraftReleaseDialo
 import { loadDraftConfig, clearDraftConfig } from '~/utils/release-config-storage';
 import type { ReleaseConfiguration } from '~/types/release-config';
 import { useConfig } from '~/contexts/ConfigContext';
+import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
+import { PermissionService } from '~/utils/permissions';
 import {
   Box,
   Center,
@@ -33,13 +35,18 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { transformFromBackend } from '~/.server/services/ReleaseConfig/release-config-payload';
-import { requireUserId } from '~/.server/services/Auth';
 
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export const loader = authenticateLoaderRequest(async ({ params, user, request }: LoaderFunctionArgs & { user: any }) => {
   const { org } = params;
   
   if (!org) {
     throw new Response('Organization not found', { status: 404 });
+  }
+
+  // Check if user is owner - only owners can create/edit configs
+  const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+  if (!isOwner) {
+    throw redirect(`/dashboard/${org}/releases`);
   }
   
   const url = new URL(request.url);
@@ -66,7 +73,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       );
       
       if (result.data) {
-        const currentUserId = await requireUserId(request);
+        const currentUserId = user.user.id;
         existingConfig = await transformFromBackend(result.data, currentUserId) as ReleaseConfiguration;
         
         // If cloning, modify the config to be a new one
@@ -98,44 +105,62 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     returnTo,
     fetchError,
   });
-}
+});
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  const { org } = params;
-  
-  if (!org) {
-    throw new Response('Organization not found', { status: 404 });
-  }
-  
-  const formData = await request.formData();
-  const configJson = formData.get('config');
-  const returnTo = formData.get('returnTo') as string | null;
-  
-  if (!configJson || typeof configJson !== 'string') {
-    return json({ success: false, error: 'Invalid configuration data' }, { status: 400 });
-  }
-  
-  try {
-    const config: ReleaseConfiguration = JSON.parse(configJson);
+export type ConfigureLoaderData = {
+  organizationId: string;
+  existingConfig: ReleaseConfiguration | null;
+  isEditMode: boolean;
+  isCloneMode: boolean;
+  forceNew: boolean;
+  returnTo: string | null;
+  fetchError: string | null;
+};
+
+export const action = authenticateActionRequest({
+  POST: async ({ request, params, user }: ActionFunctionArgs & { user: any }) => {
+    const { org } = params;
     
-    // Redirect based on returnTo parameter
-    if (returnTo === 'create') {
-      return redirect(`/dashboard/${org}/releases/create?returnTo=config`);
-    } else {
-      return redirect(`/dashboard/${org}/releases`);
+    if (!org) {
+      throw new Response('Organization not found', { status: 404 });
     }
-  } catch (error) {
-    console.error('[Release Config] Failed to save:', error);
-    return json(
-      { success: false, error: 'Failed to save configuration' },
-      { status: 500 }
-    );
-  }
-}
+
+    // Check if user is owner - only owners can create/edit configs
+    const isOwner = await PermissionService.isTenantOwner(org, user.user.id);
+    if (!isOwner) {
+      return json({ success: false, error: 'Only organization owners can create/edit configurations' }, { status: 403 });
+    }
+    
+    const formData = await request.formData();
+    const configJson = formData.get('config');
+    const returnTo = formData.get('returnTo') as string | null;
+    
+    if (!configJson || typeof configJson !== 'string') {
+      return json({ success: false, error: 'Invalid configuration data' }, { status: 400 });
+    }
+    
+    try {
+      const config: ReleaseConfiguration = JSON.parse(configJson);
+      
+      // Redirect based on returnTo parameter
+      if (returnTo === 'create') {
+        return redirect(`/dashboard/${org}/releases/create?returnTo=config`);
+      } else {
+        return redirect(`/dashboard/${org}/releases`);
+      }
+    } catch (error) {
+      console.error('[Release Config] Failed to save:', error);
+      return json(
+        { success: false, error: 'Failed to save configuration' },
+        { status: 500 }
+      );
+    }
+  },
+});
 
 export default function ReleasesConfigurePage() {
   const theme = useMantineTheme();
-  const { organizationId, existingConfig, isEditMode, isCloneMode, forceNew, returnTo, fetchError } = useLoaderData<typeof loader>();
+  const { organizationId, existingConfig, isEditMode, isCloneMode, forceNew, returnTo, fetchError } = useLoaderData<ConfigureLoaderData>();
   const navigate = useNavigate();
   const navigation = useNavigation();
   const { getConnectedIntegrations } = useConfig();

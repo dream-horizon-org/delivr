@@ -244,3 +244,4 @@ if (currentStage === 'DISTRIBUTION') {
 4. **Between Stages:** When a stage completes but next hasn't started, UI shows the completed stage
 5. **User Selection:** Users can manually select stages in stepper, but default is always current active stage
 
+
