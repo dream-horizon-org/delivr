@@ -408,11 +408,19 @@ export class RegressionState implements ICronJobState {
           console.log(`[${instanceId}] [RegressionState] Executing task: ${task.taskType} (${task.id})`);
           
           try {
+            // Fetch platform-target mappings for this release
+            const platformMappingRepo = this.context.getPlatformMappingRepo();
+            if (!platformMappingRepo) {
+              throw new Error('Platform mapping repository not available');
+            }
+            const platformTargetMappings = await platformMappingRepo.getByReleaseId(releaseId);
+            
             await taskExecutor.executeTask({
               releaseId,
               tenantId: release.tenantId,
               release,
-              task
+              task,
+              platformTargetMappings
             });
           } catch (error) {
             console.error(`[${instanceId}] [RegressionState] Error executing task ${task.taskType}:`, error);

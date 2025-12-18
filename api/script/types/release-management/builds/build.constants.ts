@@ -25,7 +25,7 @@ export type BuildPlatform = typeof BUILD_PLATFORM[keyof typeof BUILD_PLATFORM];
  * Build stages in the release lifecycle
  */
 export const BUILD_STAGE = {
-  KICK_OFF: 'KICK_OFF',
+  KICKOFF: 'KICKOFF',
   REGRESSION: 'REGRESSION',
   PRE_RELEASE: 'PRE_RELEASE'
 } as const;

@@ -233,7 +233,7 @@ async function uploadManualBuild(
     tenantId: string;
     releaseId: string;
     platform: PlatformName;
-    stage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+    stage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
     artifactPath: string;
   }
 ) {
@@ -546,12 +546,12 @@ async function runAwaitingManualBuildTest() {
 
     for (const task of awaitingManualBuildTasks) {
       // Determine stage for uploads
-      let uploadStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+      let uploadStage: 'KICKOFF' | 'REGRESSION' | 'PRE_RELEASE';
       let uploadKey: string;
       
       if (task.taskType === TaskType.TRIGGER_PRE_REGRESSION_BUILDS) {
-        uploadStage = 'KICK_OFF';
-        uploadKey = 'KICK_OFF';
+        uploadStage = 'KICKOFF';
+        uploadKey = 'KICKOFF';
       } else if (task.taskType === TaskType.TRIGGER_REGRESSION_BUILDS) {
         uploadStage = 'REGRESSION';
         uploadKey = task.regressionId ?? 'REGRESSION';

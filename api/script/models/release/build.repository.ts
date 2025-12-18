@@ -505,10 +505,11 @@ export class BuildRepository {
 
   /**
    * Update TestFlight build number.
+   * Also updates buildNumber to match testflightNumber for consistency.
    */
   async updateTestflightNumber(id: string, testflightNumber: string): Promise<void> {
     await this.model.update(
-      { testflightNumber },
+      { testflightNumber, buildNumber: testflightNumber },
       { where: { id } }
     );
   }

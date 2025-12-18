@@ -132,7 +132,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/test-artifact.apk'
       };
 
@@ -145,7 +145,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
       expect(created.tenantId).toBe(testTenantId);
       expect(created.releaseId).toBe(testReleaseId);
       expect(created.platform).toBe(PlatformName.ANDROID);
-      expect(created.stage).toBe('KICK_OFF');
+      expect(created.stage).toBe('KICKOFF');
       expect(created.artifactPath).toBe('s3://bucket/test-artifact.apk');
       expect(created.isUsed).toBe(false);
       expect(created.usedByTaskId).toBeNull();
@@ -215,7 +215,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
@@ -352,21 +352,21 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
       await releaseUploadsRepo.create({
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.IOS,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/ios.ipa'
       });
 
       // Act
       const result = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'KICK_OFF',
+        'KICKOFF',
         [PlatformName.ANDROID, PlatformName.IOS]
       );
 
@@ -383,14 +383,14 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
       // Act
       const result = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'KICK_OFF',
+        'KICKOFF',
         [PlatformName.ANDROID, PlatformName.IOS]
       );
 
@@ -406,14 +406,14 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
       // Act
       const result = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'KICK_OFF',
+        'KICKOFF',
         [PlatformName.ANDROID] // Only Android required
       );
 
@@ -433,7 +433,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
 
@@ -454,7 +454,7 @@ describeIfDb('ReleaseUploadsRepository - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF' as const,
+        stage: 'KICKOFF' as const,
         artifactPath: 's3://bucket/android.apk'
       });
       await releaseUploadsRepo.markAsUsed(upload.id, 'task-123', null);
@@ -535,7 +535,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF',
+        stage: 'KICKOFF',
         artifactPath: 's3://bucket/stage1-android.apk'
       });
       expect(androidUpload.isUsed).toBe(false);
@@ -545,7 +545,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.IOS,
-        stage: 'KICK_OFF',
+        stage: 'KICKOFF',
         artifactPath: 's3://bucket/stage1-ios.ipa'
       });
       expect(iosUpload.isUsed).toBe(false);
@@ -553,7 +553,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
       // Step 3: Task checks readiness
       const readiness = await releaseUploadsRepo.checkAllPlatformsReady(
         testReleaseId,
-        'KICK_OFF',
+        'KICKOFF',
         [PlatformName.ANDROID, PlatformName.IOS]
       );
       expect(readiness.allReady).toBe(true);
@@ -569,7 +569,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
       expect(usedUploads.every(u => u.isUsed)).toBe(true);
 
       // No unused uploads should remain for this stage
-      const remaining = await releaseUploadsRepo.findUnused(testReleaseId, 'KICK_OFF');
+      const remaining = await releaseUploadsRepo.findUnused(testReleaseId, 'KICKOFF');
       expect(remaining).toHaveLength(0);
     });
   });
@@ -670,7 +670,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF',
+        stage: 'KICKOFF',
         artifactPath: 's3://bucket/android-v1.apk'
       });
 
@@ -679,7 +679,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
         tenantId: testTenantId,
         releaseId: testReleaseId,
         platform: PlatformName.ANDROID,
-        stage: 'KICK_OFF',
+        stage: 'KICKOFF',
         artifactPath: 's3://bucket/android-v2.apk' // New path
       });
 
@@ -688,7 +688,7 @@ describeIfDb('Manual Upload E2E Flow - Integration Tests (TDD)', () => {
       expect(replaced.artifactPath).toBe('s3://bucket/android-v2.apk');
 
       // Only one upload should exist
-      const all = await releaseUploadsRepo.findUnused(testReleaseId, 'KICK_OFF');
+      const all = await releaseUploadsRepo.findUnused(testReleaseId, 'KICKOFF');
       expect(all).toHaveLength(1);
       expect(all[0].artifactPath).toBe('s3://bucket/android-v2.apk');
     });

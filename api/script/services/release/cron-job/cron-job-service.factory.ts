@@ -20,6 +20,18 @@ import { createRegressionCycleModel } from '../../../models/release/regression-c
 import { createPlatformTargetMappingModel } from '../../../models/release/platform-target-mapping.sequelize.model';
 import { createReleaseUploadModel } from '../../../models/release/release-uploads.sequelize.model';
 import { hasSequelize } from '../../../types/release/api-types';
+import { DistributionService } from '../../distribution/distribution.service';
+import {
+  DistributionRepository,
+  IosSubmissionBuildRepository,
+  AndroidSubmissionBuildRepository,
+  SubmissionActionHistoryRepository,
+  createDistributionModel,
+  createIosSubmissionBuildModel,
+  createAndroidSubmissionBuildModel,
+  createSubmissionActionHistoryModel
+} from '../../../models/distribution';
+import { BuildRepository, createBuildModel } from '../../../models/release';
 
 /** Cached CronJobService instance */
 let cachedService: CronJobService | null = null;
@@ -66,6 +78,35 @@ export function getCronJobService(storage: Storage): CronJobService | null {
   // Get activity log service from storage (if available)
   const activityLogService = (storage as any).releaseActivityLogService ?? null;
 
+  // Create DistributionService (optional dependency)
+  let distributionService: DistributionService | undefined;
+  try {
+    const distributionModel = createDistributionModel(sequelize);
+    const iosSubmissionModel = createIosSubmissionBuildModel(sequelize);
+    const androidSubmissionModel = createAndroidSubmissionBuildModel(sequelize);
+    const actionHistoryModel = createSubmissionActionHistoryModel(sequelize);
+    const buildModel = createBuildModel(sequelize);
+
+    const distributionRepository = new DistributionRepository(distributionModel);
+    const iosSubmissionRepository = new IosSubmissionBuildRepository(iosSubmissionModel);
+    const androidSubmissionRepository = new AndroidSubmissionBuildRepository(androidSubmissionModel);
+    const actionHistoryRepository = new SubmissionActionHistoryRepository(actionHistoryModel);
+    const buildRepository = new BuildRepository(buildModel);
+
+    distributionService = new DistributionService(
+      distributionRepository,
+      iosSubmissionRepository,
+      androidSubmissionRepository,
+      actionHistoryRepository,
+      releaseRepo,
+      buildRepository,
+      platformMappingRepo
+    );
+  } catch (error) {
+    console.warn('[CronJobService Factory] Failed to create DistributionService:', error);
+    // Continue without DistributionService - it's optional
+  }
+
   // Create and cache service
   cachedService = new CronJobService(
     cronJobRepo,
@@ -76,7 +117,8 @@ export function getCronJobService(storage: Storage): CronJobService | null {
     storage,
     releaseUploadsRepo,
     cronicleService,
-    activityLogService
+    activityLogService,
+    distributionService
   );
 
   return cachedService;

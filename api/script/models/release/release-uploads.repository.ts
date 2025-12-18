@@ -293,7 +293,7 @@ export class ReleaseUploadsRepository {
   /**
    * Check if all platforms have unused uploads for a buildStage
    * @param releaseId Release ID
-   * @param buildStage Build stage to check (KICK_OFF, REGRESSION, PRE_RELEASE)
+   * @param buildStage Build stage to check (KICKOFF, REGRESSION, PRE_RELEASE)
    * @param requiredPlatforms List of platforms that need uploads
    * @returns Object with ready status and missing platforms
    */

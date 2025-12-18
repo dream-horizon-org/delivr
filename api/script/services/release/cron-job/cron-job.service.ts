@@ -36,6 +36,7 @@ import { createScopedLogger } from '~utils/logger.utils';
 const log = createScopedLogger('CronJobService');
 import type { ReleaseStatusService } from '../release-status.service';
 import type { ReleaseActivityLogService } from '../release-activity-log.service';
+import type { DistributionService } from '../../distribution/distribution.service';
 
 export class CronJobService {
   private releaseStatusService?: ReleaseStatusService;
@@ -49,7 +50,8 @@ export class CronJobService {
     private readonly storage: Storage,
     private readonly releaseUploadsRepo?: ReleaseUploadsRepository,
     private readonly cronicleService?: CronicleService | null,
-    private readonly activityLogService?: ReleaseActivityLogService
+    private readonly activityLogService?: ReleaseActivityLogService,
+    private readonly distributionService?: DistributionService
   ) {}
 
   /**
@@ -393,6 +395,37 @@ export class CronJobService {
     });
 
     log.info('Stage 4 triggered for release', { releaseId, approvedBy });
+
+    // Create distribution from release after cron is marked complete
+    if (this.distributionService) {
+      try {
+        const distributionResult = await this.distributionService.createDistributionFromRelease(
+          releaseId,
+          tenantId
+        );
+
+        if (distributionResult.distributionId) {
+          log.info('Distribution created successfully from release', {
+            releaseId,
+            distributionId: distributionResult.distributionId
+          });
+        } else {
+          log.warn('Failed to create distribution from release', {
+            releaseId,
+            error: distributionResult.error
+          });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        log.error('Error creating distribution from release', {
+          releaseId,
+          error: errorMessage
+        });
+        // Don't fail the triggerStage4 call if distribution creation fails
+      }
+    } else {
+      log.warn('DistributionService not available, skipping distribution creation', { releaseId });
+    }
 
     return {
       success: true,
