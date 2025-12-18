@@ -8,7 +8,7 @@ import { Request, Response } from 'express';
 import { Sequelize } from 'sequelize';
 import * as storageTypes from '../../storage/storage';
 import { ReleaseType, Phase, PlatformName } from '../../models/release/release.interface';
-import { BuildStage, BuildType, BuildUploadStatus, CiRunType, StoreType, WorkflowStatus } from '~types/release-management/builds/build.constants';
+import { BuildPlatform, BuildStage, BuildType, BuildUploadStatus, CiRunType, StoreType, WorkflowStatus } from '~types/release-management/builds/build.constants';
 
 /**
  * Extended Storage interface that includes Sequelize instance
@@ -272,7 +272,7 @@ export interface BuildInfoResponse {
   id: string;
   tenantId: string;
   releaseId: string;
-  platform: PlatformName;
+  platform: BuildPlatform;
   buildStage: BuildStage;
   artifactPath: string | null;
   internalTrackLink: string | null;
