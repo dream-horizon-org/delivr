@@ -4,12 +4,12 @@
  */
 
 import { json } from '@remix-run/node';
+import { CodepushService } from '~/.server/services/Codepush';
+import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
 import {
   authenticateLoaderRequest,
   type AuthenticatedLoaderFunction,
 } from '~/utils/authenticate';
-import { CodepushService } from '~/.server/services/Codepush';
-import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
 
 const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
   const tenantId = params.tenantId;
@@ -42,10 +42,10 @@ const getTenantInfo: AuthenticatedLoaderFunction = async ({ params, user }) => {
 
     console.log(`[BFF-TenantInfo] Successfully fetched tenant info with ${distributions.length} distributions`);
     
-    // Append distributions to response
+    // Enrich the response with app distribution data
     const enrichedData = {
       ...response.data,
-      appDistributions: distributions, // NEW: App distribution integrations
+      appDistributions: distributions,
     };
     
     // Return with proper API client structure

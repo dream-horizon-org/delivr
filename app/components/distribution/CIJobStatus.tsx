@@ -4,10 +4,15 @@
 
 import { Badge, Group, Loader, Text } from '@mantine/core';
 import { IconCheck, IconClock, IconX } from '@tabler/icons-react';
-import { WorkflowStatus } from '~/types/distribution.types';
-import type { Build } from '~/types/distribution.types';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import { WorkflowStatus } from '~/types/distribution/distribution.types';
+import type { Build } from '~/types/distribution/distribution.types';
 
-type CIJobStatusProps = {
+export type CIJobStatusProps = {
   build: Build;
 };
 
@@ -18,11 +23,11 @@ export function CIJobStatus({ build }: CIJobStatusProps) {
   
   const getStatusColor = (status: WorkflowStatus) => {
     switch (status) {
-      case WorkflowStatus.COMPLETED: return 'green';
-      case WorkflowStatus.RUNNING: return 'blue';
-      case WorkflowStatus.QUEUED: return 'yellow';
-      case WorkflowStatus.FAILED: return 'red';
-      default: return 'gray';
+      case WorkflowStatus.COMPLETED: return DS_COLORS.STATUS.SUCCESS;
+      case WorkflowStatus.RUNNING: return DS_COLORS.ACTION.PRIMARY;
+      case WorkflowStatus.QUEUED: return DS_COLORS.STATUS.WARNING;
+      case WorkflowStatus.FAILED: return DS_COLORS.STATUS.ERROR;
+      default: return DS_COLORS.STATUS.MUTED;
     }
   };
   
@@ -37,8 +42,8 @@ export function CIJobStatus({ build }: CIJobStatusProps) {
   };
   
   return (
-    <Group gap="xs">
-      <Text size="sm" c="dimmed">CI Status:</Text>
+    <Group gap={DS_SPACING.XS}>
+      <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>CI Status:</Text>
       <Badge 
         size="sm" 
         variant="light" 

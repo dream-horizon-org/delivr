@@ -5,11 +5,10 @@
  */
 
 import { Anchor, Badge, Card, Group, Stack, Text } from '@mantine/core';
-import { IconBrandApple, IconFile } from '@tabler/icons-react';
-import { useEffect, useMemo } from 'react';
-import { BUILD_UPLOAD_LABELS } from '~/constants/release-process-ui';
-import { useBuildArtifacts } from '~/hooks/useReleaseProcess';
+import { IconFile } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import { useRelease } from '~/hooks/useRelease';
+import { useBuildArtifacts } from '~/hooks/useReleaseProcess';
 import { PLATFORMS } from '~/types/release-config-constants';
 import { BuildUploadStage, Platform, TaskStage, TaskType } from '~/types/release-process-enums';
 import { mapBuildUploadStageToTaskStage } from '~/utils/build-upload-mapper';

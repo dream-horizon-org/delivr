@@ -13,7 +13,7 @@
 import { json, type ActionFunctionArgs } from '@remix-run/node';
 import { requireUserId } from '~/.server/services/Auth';
 import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
-import type { StoreType, Platform } from '~/types/app-distribution';
+import type { StoreType, Platform } from '~/types/distribution/app-distribution';
 
 /**
  * DELETE - Revoke app distribution integration
@@ -60,7 +60,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     return json(result, { status: 200 });
   } catch (error: any) {
-    console.error('[App Distribution Revoke] Error:', error);
     return json(
       { success: false, error: error.message || 'Failed to revoke integration' },
       { status: 500 }

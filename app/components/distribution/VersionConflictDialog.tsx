@@ -7,9 +7,24 @@
 
 import { Button, Group, Modal, Radio, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import { useState } from 'react';
-import { PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  DIST_BUTTON_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution/distribution-design.constants';
+import {
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DIALOG_UI,
+  PLATFORM_LABELS,
+  VERSION_CONFLICT_STATUS_EMOJI,
+  VERSION_CONFLICT_STATUS_LABELS,
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 // Per API Spec - VERSION_EXISTS error details
 export type VersionConflictDetails = {
@@ -44,88 +59,117 @@ export function VersionConflictDialog({
 }: VersionConflictDialogProps) {
   const [selectedAction, setSelectedAction] = useState<string>('');
 
-  if (!conflict) return null;
+  const platformLabel = useMemo(
+    () => (conflict ? PLATFORM_LABELS[conflict.platform] : ''),
+    [conflict]
+  );
 
-  const availableOptions = conflict.resolution.options.filter((option) => {
-    // Handle conditional availability (e.g., DELETE_DRAFT only if status is DRAFT)
-    if (option.availableIf) {
-      if (option.availableIf.includes('DRAFT') && conflict.existingStatus !== 'DRAFT') { // DRAFT is special status not in enum
-        return false;
+  const statusDisplay = useMemo(() => {
+    if (!conflict) return '';
+    const emoji = VERSION_CONFLICT_STATUS_EMOJI[conflict.existingStatus];
+    const label = VERSION_CONFLICT_STATUS_LABELS[conflict.existingStatus];
+    return `${emoji} ${label}`;
+  }, [conflict]);
+
+  const availableOptions = useMemo(() => {
+    if (!conflict) return [];
+    return conflict.resolution.options.filter((option) => {
+      // Handle conditional availability (e.g., DELETE_DRAFT only if status is DRAFT)
+      if (option.availableIf) {
+        if (option.availableIf.includes('DRAFT') && conflict.existingStatus !== 'DRAFT') {
+          return false;
+        }
       }
-    }
-    return true;
-  });
+      return true;
+    });
+  }, [conflict]);
 
-  const handleSubmit = () => {
+  const handleActionChange = useCallback((value: string) => {
+    setSelectedAction(value);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
     if (selectedAction) {
       onResolve(selectedAction);
     }
-  };
+  }, [selectedAction, onResolve]);
+
+  const handleClose = useCallback(() => {
+    setSelectedAction('');
+    onClose();
+  }, [onClose]);
+
+  if (!conflict) return null;
 
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="orange" variant="light" size="lg">
-            <IconAlertTriangle size={20} />
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg">
+            <IconAlertTriangle size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>{conflict.resolution.title}</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{conflict.resolution.title}</Text>
         </Group>
       }
-      size="md"
+      {...DIST_MODAL_PROPS.DEFAULT}
     >
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
+      <Stack gap={DS_SPACING.MD}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
           Version <strong>{conflict.version}</strong> already exists in{' '}
-          {PLATFORM_LABELS[conflict.platform]} store.
+          {platformLabel} store.
         </Text>
 
-        <Text size="sm">
-          Current status:{' '}
-          <strong>
-            {conflict.existingStatus === 'LIVE' && '🟢 Live'}
-            {conflict.existingStatus === 'IN_REVIEW' && '🟡 In Review'}
-            {conflict.existingStatus === 'DRAFT' && '📝 Draft'}
-          </strong>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
+          {DIALOG_UI.VERSION_CONFLICT.DESCRIPTION}
         </Text>
+
+        <div>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} mb={DS_SPACING.XS}>
+            Current Status
+          </Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>{statusDisplay}</Text>
+        </div>
 
         <Radio.Group
           value={selectedAction}
-          onChange={setSelectedAction}
+          onChange={handleActionChange}
           label="Choose how to resolve this conflict:"
         >
-          <Stack gap="sm" mt="xs">
+          <Stack gap={DS_SPACING.SM} mt={DS_SPACING.XS}>
             {availableOptions.map((option) => (
               <Radio
                 key={option.action}
                 value={option.action}
                 label={
-                  <Group gap="xs">
-                    <Text size="sm">{option.label}</Text>
+                  <Group gap={DS_SPACING.XS}>
+                    <Text size={DS_TYPOGRAPHY.SIZE.SM}>{option.label}</Text>
                     {option.recommended && (
-                      <Text size="xs" c="green" fw={500}>
+                      <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.STATUS.SUCCESS} fw={DIST_FONT_WEIGHTS.MEDIUM}>
                         (Recommended)
                       </Text>
                     )}
                   </Group>
                 }
+                disabled={isLoading}
               />
             ))}
           </Stack>
         </Radio.Group>
 
-        <Group justify="flex-end" mt="md">
-          <Button variant="subtle" onClick={onClose} disabled={isLoading}>
-            Cancel
+        <Group justify="flex-end" mt={DS_SPACING.MD}>
+          <Button {...DIST_BUTTON_PROPS.SUBTLE} onClick={handleClose} disabled={isLoading}>
+            {BUTTON_LABELS.CANCEL}
           </Button>
           <Button
+            {...DIST_BUTTON_PROPS.PRIMARY}
             onClick={handleSubmit}
             disabled={!selectedAction}
             loading={isLoading}
+            color={DS_COLORS.ACTION.PRIMARY}
           >
-            Continue
+            {BUTTON_LABELS.PROCEED}
           </Button>
         </Group>
       </Stack>

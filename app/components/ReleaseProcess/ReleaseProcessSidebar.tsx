@@ -105,7 +105,7 @@ export function ReleaseProcessSidebar({
   className,
   kickoffStageCompleted = false,
 }: ReleaseProcessSidebarProps) {
-  // Stepper logic
+  // All stages are always visible
   const stages = RELEASE_PROCESS_STAGES;
 
   // Determine current stage index

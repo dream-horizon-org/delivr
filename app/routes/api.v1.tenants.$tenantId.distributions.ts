@@ -8,15 +8,11 @@
  * DELETE /api/v1/tenants/:tenantId/distributions/:id       - Delete distribution
  */
 
+import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import type { LoaderFunctionArgs, ActionFunctionArgs } from '@remix-run/node';
-import { authenticateLoaderRequest, authenticateActionRequest } from '~/utils/authenticate';
 import type { User } from '~/.server/services/Auth/Auth.interface';
 import { AppDistributionService } from '~/.server/services/ReleaseManagement/integrations';
-import type {
-  ConnectStoreRequest,
-  VerifyStoreRequest,
-} from '~/types/app-distribution';
+import { authenticateActionRequest, authenticateLoaderRequest } from '~/utils/authenticate';
 
 /**
  * GET - List all distributions for tenant
@@ -33,7 +29,6 @@ export const loader = authenticateLoaderRequest(
       const result = await AppDistributionService.listIntegrations(tenantId, user.user.id);
       return json(result);
     } catch (error) {
-      console.error('[BFF-AppDistribution-List] Error:', error);
       return json(
         {
           success: false,
@@ -76,7 +71,6 @@ const postDistributionAction = async ({
           { status: 400 }
         );
       }
-      console.log('body for verifyStore', body);
       
       const result = await AppDistributionService.verifyStore(tenantId, user.user.id, body);
       
@@ -112,13 +106,11 @@ const postDistributionAction = async ({
           { status: 400 }
         );
       }
-      console.log('body for connectStore', body);
       const result = await AppDistributionService.connectStore(tenantId, user.user.id, body);
       
       return json(result, { status: result.success ? 201 : 500 });
     }
   } catch (error) {
-    console.error('[BFF-AppDistribution-Post] Error:', error);
     return json(
       {
         success: false,
@@ -159,8 +151,6 @@ const patchDistributionAction = async ({
       );
     }
     
-    console.log('[BFF-AppDistribution-Update] Updating integration:', integrationId);
-    
     const result = await AppDistributionService.updateStore(
       integrationId,
       body.payload,
@@ -169,7 +159,6 @@ const patchDistributionAction = async ({
     
     return json(result, { status: result.success ? 200 : 500 });
   } catch (error) {
-    console.error('[BFF-AppDistribution-Update] Error:', error);
     return json(
       {
         success: false,
@@ -206,7 +195,6 @@ const deleteDistributionAction = async ({
     );
     return json(result, { status: result.success ? 200 : 404 });
   } catch (error) {
-    console.error('[BFF-AppDistribution-Delete] Error:', error);
     return json(
       {
         success: false,

@@ -5,7 +5,7 @@
  * Reference: docs/02-product-specs/distribution-api-specification.md (Section 6)
  */
 
-import type { Platform } from './distribution.types';
+import type { Platform } from './distribution/distribution.types';
 
 // ============================================================================
 // ERROR CATEGORIES
@@ -155,7 +155,7 @@ export type ExposureControlConflictError = {
     platform: Platform;
     currentRelease: {
       version: string;
-      exposurePercent: number;
+      rolloutPercentage: number;
       status: string;
     };
     resolution: {

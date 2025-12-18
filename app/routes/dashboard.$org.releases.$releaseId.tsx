@@ -11,15 +11,15 @@
 import { Button, Container, Group, Stack } from '@mantine/core';
 import { Link, useNavigate, useParams, useSearchParams } from '@remix-run/react';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { KickoffStage, PreReleaseStage, PreKickoffStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
+import { DistributionStage, KickoffStage, PreKickoffStage, PreReleaseStage, RegressionStage, ReleaseProcessHeader, ReleaseProcessSidebar } from '~/components/ReleaseProcess';
 import { IntegrationsStatusSidebar } from '~/components/ReleaseProcess/IntegrationsStatusSidebar';
 import { ReleaseNotFound } from '~/components/Releases/ReleaseNotFound';
-import { useRelease } from '~/hooks/useRelease';
-import { useKickoffStage, useRegressionStage, usePreReleaseStage } from '~/hooks/useReleaseProcess';
-import { Phase, TaskStage, StageStatus } from '~/types/release-process-enums';
 import { BUTTON_LABELS } from '~/constants/release-process-ui';
+import { useRelease } from '~/hooks/useRelease';
+import { useKickoffStage, usePreReleaseStage, useRegressionStage } from '~/hooks/useReleaseProcess';
+import { Phase, StageStatus, TaskStage } from '~/types/release-process-enums';
 import {
   determineReleasePhase,
   getReleaseVersion,
@@ -180,11 +180,6 @@ export default function ReleaseDetailsPage() {
       return null;
     }
 
-    // Handle distribution stage - navigation is handled by useEffect above
-    if (stageToRender === 'DISTRIBUTION') {
-      return null; // Will navigate away via useEffect
-    }
-
     if (stageToRender === 'KICKOFF') {
       return <KickoffStage tenantId={org} releaseId={releaseId} />;
     }
@@ -195,6 +190,10 @@ export default function ReleaseDetailsPage() {
 
     if (stageToRender === 'PRE_RELEASE') {
       return <PreReleaseStage tenantId={org} releaseId={releaseId} />;
+    }
+
+    if (stageToRender === 'DISTRIBUTION') {
+      return <DistributionStage tenantId={org} releaseId={releaseId} />;
     }
 
     return null;

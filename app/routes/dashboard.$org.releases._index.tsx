@@ -10,27 +10,24 @@
  * - Displays release cards with backend data
  */
 
-import { useEffect } from 'react';
-import { json } from '@remix-run/node';
-import { useLoaderData, useSearchParams, useParams } from '@remix-run/react';
-import { 
-  Container, 
-  Box, 
-  Center, 
-  Stack, 
-  Text, 
-  Button, 
+import {
+  Button,
+  Center,
+  Container,
+  Stack,
+  Text,
   ThemeIcon,
-  useMantineTheme 
+  useMantineTheme
 } from '@mantine/core';
-import { useMemo } from 'react';
+import { json } from '@remix-run/node';
+import { useLoaderData, useSearchParams } from '@remix-run/react';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
-import { useReleases } from '~/hooks/useReleases';
+import { useMemo } from 'react';
+import { listReleases } from '~/.server/services/ReleaseManagement';
 import { PageLoader } from '~/components/Common/PageLoader';
-import { ReleasesListHeader } from '~/components/Releases/ReleasesListHeader';
 import { ReleasesFilter } from '~/components/Releases/ReleasesFilter';
+import { ReleasesListHeader } from '~/components/Releases/ReleasesListHeader';
 import { ReleasesTabs } from '~/components/Releases/ReleasesTabs';
-import { RELEASE_TABS } from '~/constants/release-tabs';
 import {
   BUILD_MODE_FILTERS,
   STAGE_FILTERS,
@@ -38,9 +35,10 @@ import {
   type BuildModeFilter,
   type StageFilter,
 } from '~/constants/release-filters';
-import { authenticateLoaderRequest } from '~/utils/authenticate';
-import { listReleases } from '~/.server/services/ReleaseManagement';
+import { RELEASE_TABS } from '~/constants/release-tabs';
+import { useReleases } from '~/hooks/useReleases';
 import type { BackendReleaseResponse } from '~/types/release-management.types';
+import { authenticateLoaderRequest } from '~/utils/authenticate';
 
 /**
  * Server-side loader to fetch initial releases
@@ -120,8 +118,11 @@ export default function ReleasesListPage() {
   const activeTab = searchParams.get('tab') || RELEASE_TABS.ACTIVE;
   
   // Get filter values from URL params
-  const buildMode = (searchParams.get('buildMode') || BUILD_MODE_FILTERS.ALL) as BuildModeFilter;
-  const stage = (searchParams.get('stage') || STAGE_FILTERS.ALL) as StageFilter;
+  // Handle 'null' string from URL (e.g., ?stage=null) - treat as ALL
+  const rawBuildMode = searchParams.get('buildMode');
+  const rawStage = searchParams.get('stage');
+  const buildMode = (rawBuildMode && rawBuildMode !== 'null' ? rawBuildMode : BUILD_MODE_FILTERS.ALL) as BuildModeFilter;
+  const stage = (rawStage && rawStage !== 'null' ? rawStage : STAGE_FILTERS.ALL) as StageFilter;
 
   // Use React Query with initialData from server-side loader
   // Cast service type to component type (service type is subset, component type has additional fields)

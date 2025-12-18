@@ -1,53 +1,64 @@
 /**
  * IOSOptions - iOS-specific submission options
+ * 
+ * Note: iOS release type is always "AFTER_APPROVAL" per API spec (display-only, non-editable)
  */
 
-import { useCallback } from 'react';
-import { Checkbox, Group, Paper, Select, Stack, Text } from '@mantine/core';
+import { Badge, Checkbox, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
 import { IconBrandApple } from '@tabler/icons-react';
-import { DISTRIBUTION_UI_LABELS, IOS_RELEASE_TYPES } from '~/constants/distribution.constants';
+import { useCallback } from 'react';
+import {
+  DIST_BADGE_PROPS,
+  DIST_CARD_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_ICON_SIZES,
+  DIST_INPUT_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution/distribution-design.constants';
+import { DISTRIBUTION_UI_LABELS, FORM_ICON_SIZES } from '~/constants/distribution/distribution.constants';
 
-type IOSOptionsProps = {
-  releaseType: string;
+export type IOSOptionsProps = {
   phasedRelease: boolean;
-  onReleaseTypeChange: (value: string) => void;
+  resetRating: boolean;
   onPhasedReleaseChange: (value: boolean) => void;
+  onResetRatingChange: (value: boolean) => void;
   disabled?: boolean;
 };
 
-// Memoized data transformation (computed once)
-const IOS_RELEASE_TYPES_DATA = IOS_RELEASE_TYPES.map(t => ({ value: t.value, label: t.label }));
-
 export function IOSOptions({ 
-  releaseType, 
   phasedRelease,
-  onReleaseTypeChange,
+  resetRating,
   onPhasedReleaseChange,
+  onResetRatingChange,
   disabled,
 }: IOSOptionsProps) {
-  const handleReleaseTypeChange = useCallback((v: string | null) => {
-    if (v) onReleaseTypeChange(v);
-  }, [onReleaseTypeChange]);
-
   const handlePhasedReleaseChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onPhasedReleaseChange(e.currentTarget.checked);
   }, [onPhasedReleaseChange]);
 
+  const handleResetRatingChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onResetRatingChange(e.currentTarget.checked);
+  }, [onResetRatingChange]);
+
   return (
-    <Paper p="md" withBorder radius="md" bg="blue.0">
-      <Group gap="xs" mb="md">
-        <IconBrandApple size={18} className="text-blue-600" />
-        <Text fw={500} size="sm">{DISTRIBUTION_UI_LABELS.IOS_OPTIONS}</Text>
+    <Paper {...DIST_CARD_PROPS.COMPACT} bg={DS_COLORS.BACKGROUND.INFO} p={DS_SPACING.MD}>
+      <Group gap={DS_SPACING.XS} mb={DS_SPACING.MD}>
+        <IconBrandApple size={DIST_ICON_SIZES.LG} className="text-blue-600" />
+        <Text fw={DIST_FONT_WEIGHTS.MEDIUM} size={DS_TYPOGRAPHY.SIZE.SM}>{DISTRIBUTION_UI_LABELS.IOS_OPTIONS}</Text>
       </Group>
       
-      <Stack gap="md">
-        <Select
+      <Stack gap={DS_SPACING.MD}>
+        {/* Release Type - Display only (always AFTER_APPROVAL per API spec) */}
+        <TextInput
           label={DISTRIBUTION_UI_LABELS.IOS_RELEASE_TYPE}
-          description={DISTRIBUTION_UI_LABELS.IOS_RELEASE_TYPE_DESC}
-          value={releaseType}
-          onChange={handleReleaseTypeChange}
-          data={IOS_RELEASE_TYPES_DATA}
-          disabled={disabled}
+          description="Release type is always AFTER_APPROVAL for App Store submissions"
+          value="AFTER_APPROVAL"
+          readOnly
+          disabled
+          rightSection={<Badge {...DIST_BADGE_PROPS.DEFAULT} color={DS_COLORS.STATUS.INFO}>Default</Badge>}
+          {...DIST_INPUT_PROPS.DEFAULT}
         />
 
         <Checkbox
@@ -55,6 +66,14 @@ export function IOSOptions({
           description={DISTRIBUTION_UI_LABELS.IOS_PHASED_RELEASE_DESC}
           checked={phasedRelease}
           onChange={handlePhasedReleaseChange}
+          disabled={disabled}
+        />
+
+        <Checkbox
+          label={DISTRIBUTION_UI_LABELS.IOS_RESET_RATING}
+          description={DISTRIBUTION_UI_LABELS.IOS_RESET_RATING_DESC}
+          checked={resetRating}
+          onChange={handleResetRatingChange}
           disabled={disabled}
         />
       </Stack>

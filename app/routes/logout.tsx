@@ -8,6 +8,8 @@ export const loader = ({ request }: LoaderFunctionArgs) => {
 };
 
 // Handle the POST request to log out the user
+// The authenticator.logout() already clears the session cookie and redirects
+// Additional cookie clearing is handled client-side in AuthErrorFallback
 export const action: ActionFunction = async ({ request }) => {
   return await AuthenticatorService.logout(request);
 };

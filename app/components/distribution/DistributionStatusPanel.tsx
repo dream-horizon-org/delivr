@@ -10,26 +10,33 @@
 import { Badge, Card, Group, RingProgress, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconClock, IconRocket } from '@tabler/icons-react';
 import {
-  PLATFORM_LABELS,
-  RELEASE_STATUS_COLORS,
-  RELEASE_STATUS_LABELS,
-  ROLLOUT_COMPLETE_PERCENT,
-} from '~/constants/distribution.constants';
-import { Platform, ReleaseStatus } from '~/types/distribution.types';
-import type { DistributionStatusPanelProps } from './distribution.types';
+    PLATFORM_LABELS,
+    RELEASE_STATUS_COLORS,
+    RELEASE_STATUS_LABELS,
+    ROLLOUT_COMPLETE_PERCENT,
+} from '~/constants/distribution/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import { DistributionStatus, Platform } from '~/types/distribution/distribution.types';
+import type { DistributionStatusPanelProps } from '~/types/distribution/distribution-component.types';
 
 // ============================================================================
 // LOCAL HELPER (returns JSX, must stay in component file)
 // ============================================================================
 
-function getStatusIcon(status: ReleaseStatus) {
+function getStatusIcon(status: DistributionStatus) {
   switch (status) {
-    case ReleaseStatus.COMPLETED:
-      return <IconCheck size={20} />;
-    case ReleaseStatus.READY_FOR_SUBMISSION:
-      return <IconRocket size={20} />;
-    case ReleaseStatus.PRE_RELEASE:
+    case DistributionStatus.PENDING:
       return <IconClock size={20} />;
+    case DistributionStatus.PARTIALLY_SUBMITTED:
+    case DistributionStatus.SUBMITTED:
+    case DistributionStatus.PARTIALLY_RELEASED:
+      return <IconRocket size={20} />;
+    case DistributionStatus.RELEASED:
+      return <IconCheck size={20} />;
     default:
       return <IconClock size={20} />;
   }
@@ -53,11 +60,18 @@ function PlatformProgressItem({
   percentage 
 }: PlatformProgressItemProps) {
   const isComplete = percentage === ROLLOUT_COMPLETE_PERCENT;
-  const statusColor = isComplete ? 'green' : submitted ? 'blue' : 'gray';
+  
+  // Determine status color based on submission state
+  const getStatusColor = () => {
+    if (isComplete) return DS_COLORS.STATUS.SUCCESS;
+    if (submitted) return DS_COLORS.ACTION.PRIMARY;
+    return DS_COLORS.STATUS.MUTED;
+  };
+  const statusColor = getStatusColor();
   
   return (
     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <Group gap="sm">
+      <Group gap={DS_SPACING.SM}>
         <ThemeIcon 
           size="sm" 
           radius="xl" 
@@ -67,8 +81,8 @@ function PlatformProgressItem({
           {isComplete ? <IconCheck size={12} /> : <IconClock size={12} />}
         </ThemeIcon>
         <div>
-          <Text size="sm" fw={500}>{PLATFORM_LABELS[platform]}</Text>
-          <Text size="xs" c="dimmed">
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>{PLATFORM_LABELS[platform]}</Text>
+          <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
             {submitted ? status ?? 'Submitted' : 'Not submitted'}
           </Text>
         </div>
@@ -83,29 +97,29 @@ function PlatformProgressItem({
 
 type OverallProgressProps = {
   progress: number;
-  status: ReleaseStatus;
+  status: DistributionStatus;
 };
 
 function OverallProgress({ progress, status }: OverallProgressProps) {
   const color = RELEASE_STATUS_COLORS[status];
   
   return (
-    <Group gap="lg" align="center">
+    <Group gap={DS_SPACING.LG} align="center">
       <RingProgress
         size={100}
         thickness={10}
         roundCaps
         sections={[{ value: progress, color }]}
         label={
-          <Text ta="center" fz="lg" fw={700}>
+          <Text ta="center" fz={DS_TYPOGRAPHY.SIZE.LG} fw={DS_TYPOGRAPHY.WEIGHT.BOLD}>
             {progress}%
           </Text>
         }
       />
       
       <div>
-        <Text fw={600} size="lg">Distribution Progress</Text>
-        <Text c="dimmed" size="sm">
+        <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={DS_TYPOGRAPHY.SIZE.LG}>Distribution Progress</Text>
+        <Text c={DS_COLORS.TEXT.MUTED} size={DS_TYPOGRAPHY.SIZE.SM}>
           {progress === ROLLOUT_COMPLETE_PERCENT 
             ? 'Distribution complete!' 
             : progress > 0 
@@ -122,8 +136,7 @@ function OverallProgress({ progress, status }: OverallProgressProps) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
-  const { status, isLoading, className } = props;
+export function DistributionStatusPanel({ status, isLoading, className }: DistributionStatusPanelProps) {
 
   const { 
     releaseStatus, 
@@ -137,26 +150,26 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
   return (
     <Card 
       shadow="sm" 
-      padding="lg" 
-      radius="md" 
+      padding={DS_SPACING.LG}
+      radius={DS_SPACING.BORDER_RADIUS}
       withBorder 
       className={className}
       data-testid="distribution-status-panel"
     >
       {/* Header */}
-      <Group justify="space-between" mb="lg">
-        <Group gap="sm">
+      <Group justify="space-between" mb={DS_SPACING.LG}>
+        <Group gap={DS_SPACING.SM}>
           <ThemeIcon 
             size="lg" 
-            radius="md" 
+            radius={DS_SPACING.BORDER_RADIUS}
             variant="light" 
             color={RELEASE_STATUS_COLORS[releaseStatus]}
           >
             {getStatusIcon(releaseStatus)}
           </ThemeIcon>
           <div>
-            <Text fw={600}>Distribution Status</Text>
-            <Text size="xs" c="dimmed">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>Distribution Status</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
               {startedAt 
                 ? `Started ${new Date(startedAt).toLocaleDateString()}`
                 : 'Not started'
@@ -169,13 +182,14 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
           color={RELEASE_STATUS_COLORS[releaseStatus]} 
           variant="light"
           size="lg"
+          radius={DS_SPACING.BORDER_RADIUS}
         >
           {RELEASE_STATUS_LABELS[releaseStatus]}
         </Badge>
       </Group>
 
       {/* Overall Progress */}
-      <Stack gap="md">
+      <Stack gap={DS_SPACING.MD}>
         <OverallProgress progress={overallProgress} status={releaseStatus} />
 
         {/* Divider */}
@@ -183,14 +197,14 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
 
         {/* Platform Breakdown */}
         <div>
-          <Text fw={500} size="sm" mb="sm">Platform Status</Text>
-          <Stack gap="sm">
+          <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM} size={DS_TYPOGRAPHY.SIZE.SM} mb={DS_SPACING.SM}>Platform Status</Text>
+          <Stack gap={DS_SPACING.SM}>
             {platforms.android && (
               <PlatformProgressItem
                 platform={Platform.ANDROID}
                 submitted={platforms.android.submitted}
                 status={platforms.android.status}
-                percentage={platforms.android.exposurePercent}
+                percentage={platforms.android.rolloutPercentage}
               />
             )}
             {platforms.ios && (
@@ -198,7 +212,7 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
                 platform={Platform.IOS}
                 submitted={platforms.ios.submitted}
                 status={platforms.ios.status}
-                percentage={platforms.ios.exposurePercent}
+                percentage={platforms.ios.rolloutPercentage}
               />
             )}
           </Stack>
@@ -207,9 +221,9 @@ export function DistributionStatusPanel(props: DistributionStatusPanelProps) {
         {/* Completion Info */}
         {isComplete && completedAt && (
           <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-            <Group gap="sm">
-              <IconCheck size={16} className="text-green-600" />
-              <Text size="sm" c="green.7">
+            <Group gap={DS_SPACING.SM}>
+              <IconCheck size={16} style={{ color: DS_COLORS.STATUS.SUCCESS }} />
+              <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.STATUS.SUCCESS}>
                 Distribution completed on {new Date(completedAt).toLocaleDateString()}
               </Text>
             </Group>

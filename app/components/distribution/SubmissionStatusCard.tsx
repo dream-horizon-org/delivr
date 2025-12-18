@@ -17,31 +17,38 @@
 import { Badge, Button, Card, Group, Progress, Stack, Text, ThemeIcon } from '@mantine/core';
 import { Link } from '@remix-run/react';
 import {
-  IconBrandAndroid,
-  IconBrandApple,
-  IconCheck,
-  IconClock,
-  IconExternalLink,
-  IconX,
+    IconBrandAndroid,
+    IconBrandApple,
+    IconCheck,
+    IconClock,
+    IconExternalLink,
+    IconPlayerPause,
+    IconX,
 } from '@tabler/icons-react';
 import {
-  PLATFORM_LABELS,
-  ROLLOUT_COMPLETE_PERCENT,
-  SUBMISSION_PROGRESS_COLORS,
-  SUBMISSION_STATUS_COLORS,
-  SUBMISSION_STATUS_LABELS,
-} from '~/constants/distribution.constants';
-import type { Submission } from '~/types/distribution.types';
-import { Platform, SubmissionStatus } from '~/types/distribution.types';
+    PLATFORM_LABELS,
+    ROLLOUT_COMPLETE_PERCENT,
+    STORE_NAMES,
+    SUBMISSION_PROGRESS_COLORS,
+    SUBMISSION_STATUS_COLORS,
+    SUBMISSION_STATUS_LABELS,
+} from '~/constants/distribution/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import type { Submission } from '~/types/distribution/distribution.types';
+import { Platform, SubmissionStatus } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type SubmissionStatusCardProps = {
+export type SubmissionStatusCardProps = {
   submission: Submission;
   org: string;
-  releaseId: string;
+  distributionId: string;
   compact?: boolean;
   className?: string;
 };
@@ -53,6 +60,9 @@ type SubmissionStatusCardProps = {
 function getSubmissionStatusIcon(status: SubmissionStatus) {
   if (status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED) {
     return <IconCheck size={14} />;
+  }
+  if (status === SubmissionStatus.PAUSED) {
+    return <IconPlayerPause size={14} />;
   }
   if (status === SubmissionStatus.REJECTED || status === SubmissionStatus.HALTED) {
     return <IconX size={14} />;
@@ -72,7 +82,7 @@ function PlatformIcon({ platform }: PlatformIconProps) {
   const isAndroid = platform === Platform.ANDROID;
 
   return (
-    <ThemeIcon size="md" radius="md" variant="light" color={isAndroid ? 'green' : 'blue'}>
+    <ThemeIcon size="md" radius={DS_SPACING.BORDER_RADIUS} variant="light" color={isAndroid ? DS_COLORS.PLATFORM.ANDROID : DS_COLORS.PLATFORM.IOS}>
       {isAndroid ? <IconBrandAndroid size={18} /> : <IconBrandApple size={18} />}
     </ThemeIcon>
   );
@@ -82,67 +92,68 @@ function PlatformIcon({ platform }: PlatformIconProps) {
 // MAIN COMPONENT
 // ============================================================================
 
-export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
-  const { submission, org, releaseId, compact = false, className } = props;
+export function SubmissionStatusCard({ submission, org, distributionId, compact = false, className }: SubmissionStatusCardProps) {
 
   const {
     platform,
-    submissionStatus,
-    versionName,
-    versionCode,
-    track,
-    exposurePercent,
+    status,
+    version,
+    rolloutPercentage,
     submittedAt,
-    approvedAt,
   } = submission;
+  
+  const versionCode = submission.platform === Platform.ANDROID && 'versionCode' in submission
+    ? submission.versionCode
+    : null;
 
-  const storeName = platform === Platform.ANDROID ? 'Play Store' : 'App Store';
+  const storeName = STORE_NAMES[platform];
   const showProgress =
-    submissionStatus === SubmissionStatus.LIVE || submissionStatus === SubmissionStatus.APPROVED;
+    status === SubmissionStatus.LIVE || status === SubmissionStatus.APPROVED;
 
   return (
     <Card
       shadow="sm"
-      padding={compact ? 'md' : 'lg'}
-      radius="md"
+      padding={compact ? DS_SPACING.MD : DS_SPACING.LG}
+      radius={DS_SPACING.BORDER_RADIUS}
       withBorder
       className={className}
       data-testid={`submission-status-card-${platform.toLowerCase()}`}
     >
-      <Stack gap={compact ? 'sm' : 'md'}>
+      <Stack gap={compact ? DS_SPACING.SM : DS_SPACING.MD}>
         {/* Header */}
         <Group justify="space-between">
-          <Group gap="sm">
+          <Group gap={DS_SPACING.SM}>
             <PlatformIcon platform={platform} />
             <div>
-              <Group gap="xs">
-                <Text fw={600} size={compact ? 'sm' : 'md'}>
+              <Group gap={DS_SPACING.XS}>
+                <Text fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD} size={compact ? DS_TYPOGRAPHY.SIZE.SM : DS_TYPOGRAPHY.SIZE.MD}>
                   {PLATFORM_LABELS[platform]}
                 </Text>
-                {track && <Badge size="xs" variant="outline">{track}</Badge>}
+                {/* track field is not in API spec */}
               </Group>
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                 {storeName}
               </Text>
             </div>
           </Group>
 
           <Badge
-            color={SUBMISSION_STATUS_COLORS[submissionStatus]}
+            color={SUBMISSION_STATUS_COLORS[status]}
             variant="light"
-            leftSection={getSubmissionStatusIcon(submissionStatus)}
+            leftSection={getSubmissionStatusIcon(status)}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
-            {SUBMISSION_STATUS_LABELS[submissionStatus]}
+            {SUBMISSION_STATUS_LABELS[status]}
           </Badge>
         </Group>
 
         {/* Version Info */}
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">
+        <Group gap={DS_SPACING.XS}>
+          <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
             Version:
           </Text>
-          <Text size="sm">
-            {versionName} ({versionCode})
+          <Text size={DS_TYPOGRAPHY.SIZE.SM}>
+            {version}{versionCode && ` (${versionCode})`}
           </Text>
         </Group>
 
@@ -150,75 +161,69 @@ export function SubmissionStatusCard(props: SubmissionStatusCardProps) {
         {showProgress && (
           <div>
             <Group justify="space-between" mb={4}>
-              <Text size="xs" c="dimmed">
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED}>
                 Rollout Progress
               </Text>
-              <Text size="xs" fw={600}>
-                {exposurePercent}%
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} fw={DS_TYPOGRAPHY.WEIGHT.SEMIBOLD}>
+                {rolloutPercentage}%
               </Text>
             </Group>
             <Progress
-              value={exposurePercent}
-              color={SUBMISSION_PROGRESS_COLORS[submissionStatus]}
+              value={rolloutPercentage}
+              color={SUBMISSION_PROGRESS_COLORS[status]}
               size="md"
-              radius="md"
-              animated={exposurePercent < ROLLOUT_COMPLETE_PERCENT}
+              radius={DS_SPACING.BORDER_RADIUS}
+              animated={rolloutPercentage < ROLLOUT_COMPLETE_PERCENT}
             />
           </div>
         )}
 
         {/* Timeline */}
         {submittedAt && (
-          <Stack gap={4}>
-            <Group gap="xs">
-              <Text size="xs" c="dimmed" w={70}>
+          <Stack gap={DS_SPACING.XXS}>
+            <Group gap={DS_SPACING.XS}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} w={70}>
                 Submitted:
               </Text>
-              <Text size="xs">{new Date(submittedAt).toLocaleDateString()}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS}>{new Date(submittedAt).toLocaleDateString()}</Text>
             </Group>
-            {approvedAt && (
-              <Group gap="xs">
-                <Text size="xs" c="dimmed" w={70}>
-                  Approved:
-                </Text>
-                <Text size="xs">{new Date(approvedAt).toLocaleDateString()}</Text>
-              </Group>
-            )}
-            <Group gap="xs">
-              <Text size="xs" c="dimmed" w={70}>
+            {/* approvedAt is not in API spec */}
+            <Group gap={DS_SPACING.XS}>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS} c={DS_COLORS.TEXT.MUTED} w={70}>
                 Last updated:
               </Text>
-              <Text size="xs">{new Date(submission.updatedAt).toLocaleString()}</Text>
+              <Text size={DS_TYPOGRAPHY.SIZE.XS}>{new Date(submission.updatedAt).toLocaleString()}</Text>
             </Group>
           </Stack>
         )}
 
         {/* Status Message */}
-        <Text size="sm" c="dimmed">
-          {submissionStatus === SubmissionStatus.IN_REVIEW &&
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
+          {status === SubmissionStatus.IN_REVIEW &&
             'Awaiting store review. This typically takes 1-3 days.'}
-          {submissionStatus === SubmissionStatus.REJECTED &&
+          {status === SubmissionStatus.REJECTED &&
             'Submission was rejected. Go to Distribution Management to fix and re-submit.'}
-          {submissionStatus === SubmissionStatus.APPROVED &&
+          {status === SubmissionStatus.APPROVED &&
             'Approved by store. Use Distribution Management to start rollout.'}
-          {submissionStatus === SubmissionStatus.LIVE &&
-            exposurePercent < ROLLOUT_COMPLETE_PERCENT &&
+          {status === SubmissionStatus.LIVE &&
+            rolloutPercentage < ROLLOUT_COMPLETE_PERCENT &&
             'Rolling out. Use Distribution Management to update percentage.'}
-          {submissionStatus === SubmissionStatus.LIVE &&
-            exposurePercent === ROLLOUT_COMPLETE_PERCENT &&
+          {status === SubmissionStatus.LIVE &&
+            rolloutPercentage === ROLLOUT_COMPLETE_PERCENT &&
             'Live to 100% of users!'}
-          {submissionStatus === SubmissionStatus.HALTED &&
+          {status === SubmissionStatus.HALTED &&
             'Rollout halted. Check Distribution Management for details.'}
         </Text>
 
         {/* Link to Distribution Management */}
-        {submissionStatus !== SubmissionStatus.IN_REVIEW && (
+        {status !== SubmissionStatus.IN_REVIEW && (
           <Button
             component={Link}
-            to={`/dashboard/${org}/distributions/${releaseId}`}
+            to={`/dashboard/${org}/distributions/${distributionId}`}
             variant="subtle"
             size="sm"
             rightSection={<IconExternalLink size={14} />}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             Manage in Distribution
           </Button>

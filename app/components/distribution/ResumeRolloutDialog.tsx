@@ -7,8 +7,23 @@
 
 import { Button, Group, Modal, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { PLATFORM_LABELS } from '~/constants/distribution.constants';
-import { Platform } from '~/types/distribution.types';
+import { useCallback, useMemo } from 'react';
+import {
+  DIST_BUTTON_PROPS,
+  DS_COLORS,
+  DS_TYPOGRAPHY,
+  DIST_FONT_WEIGHTS,
+  DIST_MODAL_PROPS,
+  DS_SPACING,
+} from '~/constants/distribution/distribution-design.constants';
+import {
+  BUTTON_LABELS,
+  DIALOG_ICON_SIZES,
+  DIALOG_TITLES,
+  DIALOG_UI,
+  PLATFORM_LABELS,
+} from '~/constants/distribution/distribution.constants';
+import { Platform } from '~/types/distribution/distribution.types';
 
 export type ResumeRolloutDialogProps = {
   opened: boolean;
@@ -29,41 +44,69 @@ export function ResumeRolloutDialog({
   onConfirm,
   isLoading,
 }: ResumeRolloutDialogProps) {
+  const platformLabel = useMemo(() => PLATFORM_LABELS[platform], [platform]);
+
+  const confirmationText = useMemo(
+    () => DIALOG_UI.RESUME.CONFIRMATION(platformLabel, currentPercentage),
+    [platformLabel, currentPercentage]
+  );
+
+  const handleConfirm = useCallback(() => {
+    onConfirm();
+  }, [onConfirm]);
+
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={handleClose}
       title={
-        <Group gap="sm">
-          <ThemeIcon color="green" variant="light" size="lg">
-            <IconPlayerPlay size={20} />
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.SUCCESS} variant="light" size="lg">
+            <IconPlayerPlay size={DIALOG_ICON_SIZES.TITLE} />
           </ThemeIcon>
-          <Text fw={600}>Resume Rollout</Text>
+          <Text fw={DIST_FONT_WEIGHTS.SEMIBOLD}>{DIALOG_TITLES.RESUME_ROLLOUT}</Text>
         </Group>
       }
-      size="md"
+      {...DIST_MODAL_PROPS.DEFAULT}
     >
-      <Stack gap="md">
-        <Text size="sm">
-          Resume the {PLATFORM_LABELS[platform]} rollout from <strong>{currentPercentage}%</strong>?
-        </Text>
+      <Stack gap={DS_SPACING.MD}>
+        <Text size={DS_TYPOGRAPHY.SIZE.SM}>{confirmationText}</Text>
 
         {pausedReason && (
-          <Text size="sm" c="dimmed">
-            <strong>Paused reason:</strong> {pausedReason}
-          </Text>
+          <div>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} fw={DIST_FONT_WEIGHTS.SEMIBOLD} mb={DS_SPACING.XS}>
+              {DIALOG_UI.RESUME.PAUSED_REASON_LABEL}
+            </Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
+              {pausedReason}
+            </Text>
+          </div>
         )}
 
-        <Text size="sm" c="dimmed">
-          The rollout will continue from where it was paused. You can increase the percentage after resuming.
+        <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.SECONDARY}>
+          {DIALOG_UI.RESUME.DESCRIPTION}
         </Text>
 
-        <Group justify="flex-end" mt="md">
-          <Button variant="subtle" onClick={onClose} disabled={isLoading}>
-            Cancel
+        <Group justify="flex-end" mt={DS_SPACING.MD}>
+          <Button 
+            {...DIST_BUTTON_PROPS.SUBTLE}
+            onClick={handleClose} 
+            disabled={isLoading}
+          >
+            {BUTTON_LABELS.CANCEL}
           </Button>
-          <Button color="green" onClick={onConfirm} loading={isLoading}>
-            Resume Rollout
+          <Button 
+            color={DS_COLORS.STATUS.SUCCESS}
+            onClick={handleConfirm} 
+            loading={isLoading}
+            leftSection={<IconPlayerPlay size={DIALOG_ICON_SIZES.ACTION} />}
+            {...DIST_BUTTON_PROPS.PRIMARY}
+          >
+            {BUTTON_LABELS.RESUME_ROLLOUT}
           </Button>
         </Group>
       </Stack>

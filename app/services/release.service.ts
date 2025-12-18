@@ -4,17 +4,39 @@
  * Used by React components, loaders, and actions
  */
 
-import { ReleaseStatus } from '~/types/distribution.types';
+import type { Release } from '~/types/release';
+import { DistributionStatus } from '~/types/distribution/distribution.types';
+import type { ApiResponse } from '~/utils/api-client';
 import { apiGet, apiPatch } from '~/utils/api-client';
+
+type ReleaseTimeline = {
+  releaseId: string;
+  events: Array<{
+    timestamp: string;
+    type: string;
+    description: string;
+    user: string;
+  }>;
+};
+
+type UpdateReleaseStatusRequest = {
+  status: DistributionStatus;
+};
+
+type UpdateReleaseStatusResponse = {
+  releaseId: string;
+  status: DistributionStatus;
+  updatedAt: string;
+};
 
 export class ReleaseService {
   /**
    * Get release details
    */
-  static async getRelease(releaseId: string): Promise<any> {
+  static async getRelease(releaseId: string): Promise<ApiResponse<Release>> {
     // Note: This endpoint might be in a different route format
     // Adjust based on your actual release API structure
-    return apiGet<any>(`/api/v1/releases/${releaseId}`);
+    return apiGet<Release>(`/api/v1/releases/${releaseId}`);
   }
 
   /**
@@ -22,9 +44,9 @@ export class ReleaseService {
    */
   static async updateReleaseStatus(
     releaseId: string,
-    request: any
-  ): Promise<any> {
-    return apiPatch<any>(
+    request: UpdateReleaseStatusRequest
+  ): Promise<ApiResponse<UpdateReleaseStatusResponse>> {
+    return apiPatch<UpdateReleaseStatusResponse>(
       `/api/v1/releases/${releaseId}/status`,
       request
     );
@@ -35,8 +57,8 @@ export class ReleaseService {
    */
   static async getReleaseTimeline(
     releaseId: string
-  ): Promise<any> {
-    return apiGet<any>(
+  ): Promise<ApiResponse<ReleaseTimeline>> {
+    return apiGet<ReleaseTimeline>(
       `/api/v1/releases/${releaseId}/timeline`
     );
   }
@@ -46,32 +68,34 @@ export class ReleaseService {
   /**
    * Check if release is in Pre-Release stage
    */
-  static isInPreRelease(status: ReleaseStatus): boolean {
-    return status === ReleaseStatus.PRE_RELEASE;
+  static isInPreRelease(status: DistributionStatus): boolean {
+    return status === DistributionStatus.PENDING;
   }
 
   /**
    * Check if release is ready for submission
    */
-  static isReadyForSubmission(status: ReleaseStatus): boolean {
-    return status === ReleaseStatus.READY_FOR_SUBMISSION;
+  static isReadyForSubmission(status: DistributionStatus): boolean {
+    return status === DistributionStatus.PARTIALLY_SUBMITTED;
   }
 
   /**
    * Check if release is completed
    */
-  static isCompleted(status: ReleaseStatus): boolean {
-    return status === ReleaseStatus.COMPLETED;
+  static isCompleted(status: DistributionStatus): boolean {
+    return status === DistributionStatus.RELEASED;
   }
 
   /**
    * Get human-readable release status
    */
-  static getStatusLabel(status: ReleaseStatus): string {
-    const labels: Record<ReleaseStatus, string> = {
-      [ReleaseStatus.PRE_RELEASE]: 'Pre-Release',
-      [ReleaseStatus.READY_FOR_SUBMISSION]: 'Ready to Submit',
-      [ReleaseStatus.COMPLETED]: 'Completed',
+  static getStatusLabel(status: DistributionStatus): string {
+    const labels: Record<DistributionStatus, string> = {
+      [DistributionStatus.PENDING]: 'Pending',
+      [DistributionStatus.PARTIALLY_SUBMITTED]: 'Partially Submitted',
+      [DistributionStatus.SUBMITTED]: 'Submitted',
+      [DistributionStatus.PARTIALLY_RELEASED]: 'Partially Released',
+      [DistributionStatus.RELEASED]: 'Released',
     };
     return labels[status] || status;
   }
@@ -79,11 +103,13 @@ export class ReleaseService {
   /**
    * Get status color for UI
    */
-  static getStatusColor(status: ReleaseStatus): string {
-    const colors: Record<ReleaseStatus, string> = {
-      [ReleaseStatus.PRE_RELEASE]: 'gray',
-      [ReleaseStatus.READY_FOR_SUBMISSION]: 'cyan',
-      [ReleaseStatus.COMPLETED]: 'green',
+  static getStatusColor(status: DistributionStatus): string {
+    const colors: Record<DistributionStatus, string> = {
+      [DistributionStatus.PENDING]: 'gray',
+      [DistributionStatus.PARTIALLY_SUBMITTED]: 'blue',
+      [DistributionStatus.SUBMITTED]: 'cyan',
+      [DistributionStatus.PARTIALLY_RELEASED]: 'yellow',
+      [DistributionStatus.RELEASED]: 'green',
     };
     return colors[status] || 'gray';
   }

@@ -4,10 +4,15 @@
 
 import { Button, Group, Paper, Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconCheck, IconUserCheck } from '@tabler/icons-react';
-import { BUTTON_LABELS } from '~/constants/distribution.constants';
-import { ApproverRole } from '~/types/distribution.types';
+import { BUTTON_LABELS } from '~/constants/distribution/distribution.constants';
+import {
+  DS_COLORS,
+  DS_SPACING,
+  DS_TYPOGRAPHY,
+} from '~/constants/distribution/distribution-design.constants';
+import { ApproverRole } from '~/types/distribution/distribution.types';
 
-type ManualApprovalPromptProps = {
+export type ManualApprovalPromptProps = {
   approverRole: ApproverRole;
   onApprove?: () => void;
   isApproving?: boolean;
@@ -22,15 +27,15 @@ export function ManualApprovalPrompt({
   const showApproveButton = !!onApprove;
   
   return (
-    <Paper p="md" withBorder radius="md" bg="orange.0">
-      <Stack gap="sm">
-        <Group gap="sm">
-          <ThemeIcon color="orange" variant="light" size="lg">
+    <Paper p={DS_SPACING.MD} withBorder radius={DS_SPACING.BORDER_RADIUS} bg={DS_COLORS.BACKGROUND.WARNING}>
+      <Stack gap={DS_SPACING.SM}>
+        <Group gap={DS_SPACING.SM}>
+          <ThemeIcon color={DS_COLORS.STATUS.WARNING} variant="light" size="lg" radius={DS_SPACING.BORDER_RADIUS}>
             <IconUserCheck size={20} />
           </ThemeIcon>
           <div>
-            <Text fw={500}>Manual Approval Required</Text>
-            <Text size="sm" c="dimmed">
+            <Text fw={DS_TYPOGRAPHY.WEIGHT.MEDIUM}>Manual Approval Required</Text>
+            <Text size={DS_TYPOGRAPHY.SIZE.SM} c={DS_COLORS.TEXT.MUTED}>
               No PM integration configured. A {roleLabel} must approve this release.
             </Text>
           </div>
@@ -38,11 +43,12 @@ export function ManualApprovalPrompt({
         
         {showApproveButton && (
           <Button
-            color="orange"
+            color={DS_COLORS.STATUS.WARNING}
             variant="filled"
             onClick={onApprove}
             loading={isApproving}
             leftSection={<IconCheck size={16} />}
+            radius={DS_SPACING.BORDER_RADIUS}
           >
             {BUTTON_LABELS.APPROVE}
           </Button>

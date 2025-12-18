@@ -6,8 +6,8 @@
 
 import type { AxiosError } from 'axios';
 import axios from 'axios';
-import { ERROR_MESSAGES } from '~/constants/distribution.constants';
-import type { APIErrorResponse } from '~/types/distribution.types';
+import { ERROR_MESSAGES } from '~/constants/distribution/distribution.constants';
+import type { APIErrorResponse } from '~/types/distribution/distribution.types';
 
 // ============================================================================
 // ERROR MESSAGE EXTRACTION
@@ -76,16 +76,6 @@ export function getErrorDetails<T = Record<string, unknown>>(error: unknown): T 
   return null;
 }
 
-/**
- * Get error resolution options from API error response
- */
-export function getErrorResolution(error: unknown): APIErrorResponse['error']['resolution'] | null {
-  if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<APIErrorResponse>;
-    return axiosError.response?.data?.error?.resolution ?? null;
-  }
-  return null;
-}
 
 // ============================================================================
 // ERROR CATEGORIZATION

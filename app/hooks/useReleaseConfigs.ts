@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
-import { apiGet } from '~/utils/api-client';
 import type { ReleaseConfiguration } from '~/types/release-config';
+import { apiGet } from '~/utils/api-client';
 
 interface ReleaseConfigsResponse {
   success: boolean;
@@ -27,20 +27,27 @@ export function useReleaseConfigs(tenantId?: string) {
       }
       
       console.log('[useReleaseConfigs] Fetching configs for tenant:', tenantId);
-      const result = await apiGet<ReleaseConfiguration[]>(
-        `/api/v1/tenants/${tenantId}/release-config`
-      );
       
-      console.log('[useReleaseConfigs] Received', result.data?.length || 0, 'configs', result.success ? 'successfully' : 'with error');
-      
-      if (result.error) {
-        console.error('[useReleaseConfigs] Error:', result.error);
+      try {
+        const result = await apiGet<ReleaseConfiguration[]>(
+          `/api/v1/tenants/${tenantId}/release-config`
+        );
+        
+        console.log('[useReleaseConfigs] Received', result.data?.length || 0, 'configs', result.success ? 'successfully' : 'with error');
+        
+        if (result.error) {
+          console.warn('[useReleaseConfigs] API Error (non-critical for distributions):', result.error);
+        }
+        
+        return {
+          success: result.success,
+          data: result.data || [],
+        };
+      } catch (error) {
+        // Gracefully handle errors - distribution pages don't require release configs
+        console.warn('[useReleaseConfigs] Failed to fetch (non-critical for distributions):', error);
+        return { success: false, data: [] };
       }
-      
-      return {
-        success: result.success,
-        data: result.data || [],
-      };
     },
     {
       enabled: !!tenantId, // Only fetch if tenantId exists
