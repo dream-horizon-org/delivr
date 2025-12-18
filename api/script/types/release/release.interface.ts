@@ -7,7 +7,8 @@
 import { Request, Response } from 'express';
 import { Sequelize } from 'sequelize';
 import * as storageTypes from '../../storage/storage';
-import { ReleaseType, Phase } from '../../models/release/release.interface';
+import { ReleaseType, Phase, PlatformName } from '../../models/release/release.interface';
+import { BuildStage, BuildType, BuildUploadStatus, CiRunType, StoreType, WorkflowStatus } from '~types/release-management/builds/build.constants';
 
 /**
  * Extended Storage interface that includes Sequelize instance
@@ -271,8 +272,8 @@ export interface BuildInfoResponse {
   id: string;
   tenantId: string;
   releaseId: string;
-  platform: 'ANDROID' | 'IOS' | 'WEB';
-  buildStage: 'KICK_OFF' | 'REGRESSION' | 'PRE_RELEASE';
+  platform: PlatformName;
+  buildStage: BuildStage;
   artifactPath: string | null;
   internalTrackLink: string | null;
   testflightNumber: string | null;
@@ -280,16 +281,16 @@ export interface BuildInfoResponse {
   updatedAt: string;
 
   // Optional fields (only in builds table)
-  buildType?: 'MANUAL' | 'CI_CD';
-  buildUploadStatus?: 'PENDING' | 'UPLOADED' | 'FAILED';
-  storeType?: 'APP_STORE' | 'PLAY_STORE' | 'TESTFLIGHT' | 'MICROSOFT_STORE' | 'FIREBASE' | 'WEB' | null;
+  buildType?: BuildType;
+  buildUploadStatus?: BuildUploadStatus;
+  storeType?: StoreType;
   buildNumber?: string | null;
   artifactVersionName?: string | null;
   regressionId?: string | null;
   ciRunId?: string | null;
   queueLocation?: string | null;
-  workflowStatus?: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | null;
-  ciRunType?: 'JENKINS' | 'GITHUB_ACTIONS' | 'CIRCLE_CI' | 'GITLAB_CI' | null;
+  workflowStatus?: WorkflowStatus;
+  ciRunType?: CiRunType;
   taskId?: string | null;
 
   // Optional fields (only in uploads table)

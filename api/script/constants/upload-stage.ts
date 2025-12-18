@@ -8,7 +8,7 @@
 /**
  * Valid upload stages for manual build uploads and TestFlight verification
  */
-export const VALID_UPLOAD_STAGES = ['KICK_OFF', 'REGRESSION', 'PRE_RELEASE'] as const;
+export const VALID_UPLOAD_STAGES = ['KICKOFF', 'REGRESSION', 'PRE_RELEASE'] as const;
 
 /**
  * Type for valid upload stages

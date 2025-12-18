@@ -19,6 +19,7 @@ import { UploadStage } from '~models/release/release-uploads.sequelize.model';
 import { ReleaseTaskRepository } from '~models/release/release-task.repository';
 import { BuildRepository, CreateBuildDto } from '~models/release/build.repository';
 import { v4 as uuidv4 } from 'uuid';
+import { BUILD_STAGE } from '~types/release-management/builds';
 
 // ============================================================================
 // TYPES
@@ -70,10 +71,10 @@ export const MANUAL_BUILD_TASK_TYPES = [
  * Uses same values as builds.buildStage for consistency
  */
 export const TASK_TYPE_TO_UPLOAD_STAGE: Record<string, UploadStage> = {
-  [TaskType.TRIGGER_PRE_REGRESSION_BUILDS]: 'KICK_OFF',
-  [TaskType.TRIGGER_REGRESSION_BUILDS]: 'REGRESSION',
-  [TaskType.TRIGGER_TEST_FLIGHT_BUILD]: 'PRE_RELEASE',
-  [TaskType.CREATE_AAB_BUILD]: 'PRE_RELEASE',
+  [TaskType.TRIGGER_PRE_REGRESSION_BUILDS]: BUILD_STAGE.KICKOFF,
+  [TaskType.TRIGGER_REGRESSION_BUILDS]: BUILD_STAGE.REGRESSION,
+  [TaskType.TRIGGER_TEST_FLIGHT_BUILD]: BUILD_STAGE.PRE_RELEASE,
+  [TaskType.CREATE_AAB_BUILD]: BUILD_STAGE.PRE_RELEASE,
 };
 
 // ============================================================================
